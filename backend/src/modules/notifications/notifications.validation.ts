@@ -121,10 +121,12 @@ export const deleteFcmTokenSchema = z.object({
 export const createPushSubscriptionSchema = z.object({
   body: z.object({
     // PUSH-SCHEMA-MAXLEN-01: see file's own note. Web Push endpoints
-    // run ~200-500 chars depending on service; 2048 is safe. p256dh
+    // run ~200-500 chars depending on service. Capped at 1000 to match
+    // push_subscriptions.endpoint VARCHAR(1000) — a longer value used to
+    // pass validation and then fail at the DB as a 500. p256dh
     // is a base64-encoded 65-byte EC point (~88 chars), auth is
     // base64 of 16 bytes (~24). Both capped generously.
-    endpoint: z.string().url().max(2048),
+    endpoint: z.string().url().max(1000),
     keys: z.object({
       p256dh: z.string().min(1).max(256),
       auth: z.string().min(1).max(64),
@@ -140,8 +142,12 @@ export const deletePushSubscriptionSchema = z.object({
 
 export const registerFcmTokenSchema = z.object({
   body: z.object({
-    token: z.string().min(1).max(1024),
-    platform: z.string().min(1).max(50),
+    // PUSH-SCHEMA-ALIGN-01: fcm_device_tokens.token is VARCHAR(500) and
+    // platform VARCHAR(20) — validation used to allow 1024/50, which
+    // surfaced as DB errors (500) instead of 400. The client only ever
+    // sends 'android' | 'ios' (lib/capacitor/nativePush.ts).
+    token: z.string().min(1).max(500),
+    platform: z.enum(['android', 'ios']),
   }),
 });
 

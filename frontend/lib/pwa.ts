@@ -9,6 +9,7 @@
 
 import { apiClient } from '@/api/client';
 import { getRawVapidPublicKey } from '@/lib/env';
+import { isPushOptedOut } from '@/lib/runtime/pushPreference';
 
 // FIX PWA-05: previously read once as a module-level constant
 // (`const VAPID_PUBLIC_KEY = process.env...`), which freezes the value at
@@ -483,6 +484,8 @@ export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscr
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
     return 'skipped';
   }
+  // PUSH-OPTOUT-01: المستخدم أوقفها عمدًا — لا نعيد الاشتراك بصمت.
+  if (await isPushOptedOut()) return 'skipped';
 
   try {
     const registration = await getReadySW();

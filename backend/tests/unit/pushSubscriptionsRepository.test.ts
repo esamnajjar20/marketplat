@@ -57,19 +57,20 @@ describe('pushSubscriptionsRepository', () => {
           auth: input.auth,
         },
         update: {
+          userId: input.userId,
           p256dh: input.p256dh,
           auth: input.auth,
         },
       });
     });
 
-    it('does not include userId in the update branch (re-subscribe never reassigns owner)', async () => {
+    it('reassigns ownership on re-subscribe (shared device: the row follows the current session)', async () => {
       (prisma.pushSubscription.upsert as jest.Mock).mockResolvedValue({});
 
-      await pushSubscriptionsRepository.upsert(input);
+      await pushSubscriptionsRepository.upsert({ ...input, userId: 'user-2' });
 
       const call = (prisma.pushSubscription.upsert as jest.Mock).mock.calls[0][0];
-      expect(call.update).not.toHaveProperty('userId');
+      expect(call.update.userId).toBe('user-2');
     });
   });
 

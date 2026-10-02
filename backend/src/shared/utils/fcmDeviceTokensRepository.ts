@@ -29,7 +29,9 @@ export const fcmDeviceTokensRepository = {
     prisma.fcmDeviceToken.upsert({
       where: { token: input.token },
       create: { userId: input.userId, token: input.token, platform: input.platform },
-      update: { platform: input.platform },
+      // PUSH-OWNERSHIP-01: same device-follows-current-session rule as
+      // pushSubscriptionsRepository.upsert (FCM token is per-installation).
+      update: { userId: input.userId, platform: input.platform },
     }),
 
   deleteForUser: (userId: string, token: string): Promise<Prisma.BatchPayload> =>

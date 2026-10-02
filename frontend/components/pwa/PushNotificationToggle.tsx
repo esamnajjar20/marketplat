@@ -24,6 +24,8 @@ import {
 } from '@/lib/capacitor/nativePush';
 import { toast } from 'sonner';
 import { getRawVapidPublicKey } from '@/lib/env';
+import { secureGet, secureRemove, secureSet } from '@/lib/runtime/secureStorage';
+import { isPushOptedOut, setPushOptedOut } from '@/lib/runtime/pushPreference';
 import { cn } from '@/lib/utils';
 
 type SubState = 'loading' | 'subscribed' | 'unsubscribed' | 'unsupported';
@@ -45,7 +47,9 @@ export function PushNotificationToggle() {
         const mapped: PermState =
           p === 'granted' ? 'granted' : p === 'denied' ? 'denied' : 'default';
         setPermission(mapped);
-        setState(p === 'granted' ? 'subscribed' : 'unsubscribed');
+        // PUSH-OPTOUT-01: إذن النظام granted لا يعني أن المستخدم يريدها.
+        const optedOut = await isPushOptedOut();
+        setState(p === 'granted' && !optedOut ? 'subscribed' : 'unsubscribed');
         return;
       }
 
@@ -86,11 +90,15 @@ export function PushNotificationToggle() {
     try {
       if (isNative) {
         if (state === 'subscribed') {
-          const token = window.localStorage.getItem(NATIVE_FCM_TOKEN_STORAGE_KEY);
+          // PUSH-TOKEN-STORAGE-01: نفس مخزن nativePush.ts (secureStorage) —
+          // كان هنا localStorage بينما التوكن يُحفظ في Preferences على النيتف،
+          // فلا يُوجد التوكن ولا يُحذف من الخادم.
+          const token = await secureGet(NATIVE_FCM_TOKEN_STORAGE_KEY);
           if (token) await unregisterNativePush(token);
-          window.localStorage.removeItem(NATIVE_FCM_TOKEN_STORAGE_KEY);
+          await secureRemove(NATIVE_FCM_TOKEN_STORAGE_KEY);
+          await setPushOptedOut(true);
           setState('unsubscribed');
-          setPermission('default');
+          // إذن النظام لم يتغيّر — لا نكتب 'default' هنا.
           toast.success('تم إيقاف إشعارات الجهاز');
         } else {
           const token = await registerNativePush();
@@ -101,10 +109,11 @@ export function PushNotificationToggle() {
             // affects a future unsubscribe-from-this-device attempt, not
             // the live push subscription. Never let it abort the flow.
             try {
-              window.localStorage.setItem(NATIVE_FCM_TOKEN_STORAGE_KEY, token);
+              await secureSet(NATIVE_FCM_TOKEN_STORAGE_KEY, token);
             } catch (err) {
               console.warn('[push-toggle] native FCM token persist failed:', err);
             }
+            await setPushOptedOut(false);
           }
           setState(token ? 'subscribed' : 'unsubscribed');
           setPermission(token ? 'granted' : 'denied');
@@ -123,10 +132,12 @@ export function PushNotificationToggle() {
 
       if (state === 'subscribed') {
         await unsubscribeFromPush();
+        await setPushOptedOut(true);
         setState('unsubscribed');
         toast.success('تم إيقاف إشعارات الجهاز');
       } else {
         const success = await subscribeToPush();
+        if (success) await setPushOptedOut(false);
         setPermission(getBrowserNotificationPermission());
         setState(success ? 'subscribed' : 'unsubscribed');
         if (success) toast.success('تم تفعيل إشعارات الجهاز');

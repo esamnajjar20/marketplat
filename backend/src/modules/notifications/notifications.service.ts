@@ -177,31 +177,39 @@ export const notificationsService = {
     const BROADCAST_CHUNK_SIZE = 500;
     const unique = Array.from(new Set(userIds));
     let totalCreated = 0;
+    // NOTIF-BROADCAST-PUSH-SERIAL-01: each slice used to fire its own
+    // un-awaited pushService.notifyUsers, so N slices ran N fan-outs in
+    // parallel (each already chunked by 10) — 10K users meant ~20
+    // concurrent fan-outs against the pool and the push services. Chain
+    // them so only one slice's push is in flight at a time; the HTTP
+    // request still returns after the in-app rows are written.
+    let pushChain: Promise<void> = Promise.resolve();
 
     for (let i = 0; i < unique.length; i += BROADCAST_CHUNK_SIZE) {
       const slice = unique.slice(i, i + BROADCAST_CHUNK_SIZE);
       const recipients = await filterUserIdsByPref(slice, 'promotions');
       if (recipients.length === 0) continue;
 
-      // Web Push + in-app — same fire-and-forget convention as
-      // notificationEvents. Admin broadcast is the PROMOTION path that
-      // previously only wrote in-app rows; weekly reports and store
-      // promotion lifecycle already call pushService from their scripts.
-      void pushService
-        .notifyUsers(recipients, {
-          title,
-          body,
-          url: '/notifications',
-          tag: 'platform-promotion',
-        })
-        .catch(() => {});
-
+      // In-app rows first, then push (a push never refers to a row that
+      // failed to insert). Web Push + FCM stay fire-and-forget.
       const result = await notificationsRepository.createMany(
         recipients.map((userId) => ({ userId, type: 'PROMOTION' as const, title, body }))
       );
       totalCreated += result.count;
+
+      pushChain = pushChain
+        .then(() =>
+          pushService.notifyUsers(recipients, {
+            title,
+            body,
+            url: '/notifications',
+            tag: 'platform-promotion',
+          })
+        )
+        .catch(() => undefined);
     }
 
+    void pushChain;
     return totalCreated;
   },
 

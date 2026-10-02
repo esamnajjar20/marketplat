@@ -18,7 +18,7 @@ import { usersApi }      from '@/api/users.api';
 import { queryKeys }     from '@/lib/queryKeys';
 import { ROUTES, CACHE_TTL } from '@/lib/constants';
 import { track }         from '@/lib/analytics';
-import { clearSensitiveLocalData, clearServiceWorkerApiCache } from '@/lib/authCleanup';
+import { clearSensitiveLocalData, clearServiceWorkerApiCache, unbindPushBindings } from '@/lib/authCleanup';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
@@ -311,7 +311,12 @@ export function useLogout() {
   const clearLocalSession = useClearLocalSession();
 
   return useMutation({
-    mutationFn: () => authApi.logout(),
+    // PUSH-LOGOUT-01: unbind this device's push while the access token
+    // is still valid (see unbindPushBindings). Never throws, 3s cap.
+    mutationFn: async () => {
+      await unbindPushBindings();
+      return authApi.logout();
+    },
     // Always clear local state regardless of server response.
     // Wrapped in an arrow because clearLocalSession now takes an
     // optional positional arg — onSettled passes (data, error,
@@ -327,7 +332,10 @@ export function useLogoutAll() {
   const clearLocalSession = useClearLocalSession();
 
   return useMutation({
-    mutationFn: () => authApi.logoutAll(),
+    mutationFn: async () => {
+      await unbindPushBindings();
+      return authApi.logoutAll();
+    },
     // UX-FIX P1-7: previously only onSettled cleared local state, with no
     // onSuccess/onError at all — the confirmation dialog promises "all
     // sessions will be ended" but the user had no way to tell whether the

@@ -142,6 +142,33 @@ describe('notificationsService', () => {
       ]);
       expect(result).toBe(2);
     });
+
+    it('sends the push AFTER the in-app rows are written, one slice at a time', async () => {
+      const order: string[] = [];
+      (prisma.user.findMany as jest.Mock).mockImplementation(
+        async ({ where }: { where: { id: { in: string[] } } }) =>
+          where.id.in.map((id: string) => ({ id, notificationPreferences: { promotions: true } }))
+      );
+      (notificationsRepository.createMany as jest.Mock).mockImplementation(async (rows: unknown[]) => {
+        order.push(`createMany:${rows.length}`);
+        return { count: rows.length };
+      });
+      (pushService.notifyUsers as jest.Mock).mockImplementation(async (ids: string[]) => {
+        order.push(`push:${ids.length}`);
+      });
+
+      const ids = Array.from({ length: 600 }, (_, i) => `u${i}`);
+      const total = await notificationsService.broadcastPromotion(ids, 'عنوان', 'نص');
+      await new Promise((r) => setImmediate(r)); // let the un-awaited push chain drain
+
+      expect(total).toBe(600);
+      const at = (e: string) => order.indexOf(e);
+      // each slice's push comes after that slice's rows...
+      expect(at('push:500')).toBeGreaterThan(at('createMany:500'));
+      expect(at('push:100')).toBeGreaterThan(at('createMany:100'));
+      // ...and slice pushes never overlap/reorder (serialized chain)
+      expect(at('push:100')).toBeGreaterThan(at('push:500'));
+    });
   });
 
   describe('subscribeToPush', () => {
@@ -198,6 +225,10 @@ describe('notificationsService', () => {
 describe('notificationEvents', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // onNewMessage reads prefs via the single-user hot path (findUnique),
+    // not findMany — this describe previously only mocked findMany, so
+    // userAllowsPref saw `undefined` and returned false (no row, no push).
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ notificationPreferences: {} });
     // Empty prefs blob → service defaults (all critical channels on).
     (prisma.user.findMany as jest.Mock).mockImplementation(async ({ where }: { where: { id: { in: string[] } } }) =>
       (where.id.in ?? []).map((id: string) => ({ id, notificationPreferences: {} })),
@@ -241,9 +272,9 @@ describe('notificationEvents', () => {
     });
 
     it('skips create and push when the recipient disabled newMessage', async () => {
-      (prisma.user.findMany as jest.Mock).mockResolvedValue([
-        { id: 'recipient-1', notificationPreferences: { newMessage: false } },
-      ]);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        notificationPreferences: { newMessage: false },
+      });
 
       const result = await notificationEvents.onNewMessage('recipient-1', 'conv-1', 'Sender Name');
 

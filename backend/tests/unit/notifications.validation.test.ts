@@ -4,6 +4,7 @@ import {
   broadcastNotificationSchema,
   createPushSubscriptionSchema,
   deletePushSubscriptionSchema,
+  registerFcmTokenSchema,
 } from '../../src/modules/notifications/notifications.validation';
 
 describe('notifications.validation', () => {
@@ -177,6 +178,28 @@ describe('notifications.validation', () => {
     it('rejects a non-URL endpoint', () => {
       expect(() =>
         deletePushSubscriptionSchema.parse({ body: { endpoint: 'not-a-url' } })
+      ).toThrow();
+    });
+  });
+
+  describe('registerFcmTokenSchema', () => {
+    it('accepts android and ios', () => {
+      for (const platform of ['android', 'ios']) {
+        expect(
+          registerFcmTokenSchema.parse({ body: { token: 'tok', platform } }).body.platform
+        ).toBe(platform);
+      }
+    });
+
+    it('rejects an unknown platform (column is VARCHAR(20), client sends android|ios only)', () => {
+      expect(() =>
+        registerFcmTokenSchema.parse({ body: { token: 'tok', platform: 'web' } })
+      ).toThrow();
+    });
+
+    it('rejects a token over 500 characters (matches VARCHAR(500))', () => {
+      expect(() =>
+        registerFcmTokenSchema.parse({ body: { token: 'x'.repeat(501), platform: 'android' } })
       ).toThrow();
     });
   });

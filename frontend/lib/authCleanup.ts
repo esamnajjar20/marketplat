@@ -82,7 +82,21 @@ export async function clearServiceWorkerApiCache(): Promise<void> {
  * Web: unsubscribeFromPush (VAPID). Native: DELETE fcm-tokens + clear stored token.
  */
 function clearPushBindingsOnSessionEnd(): void {
-  void (async () => {
+  void unbindPushBindings();
+}
+
+/**
+ * PUSH-LOGOUT-01: awaitable version. The server-side DELETE needs a valid
+ * access token, but by the time clearSensitiveLocalData() runs the auth
+ * store has already been cleared — so the request went out anonymous and
+ * its failure was swallowed. useLogout/useLogoutAll now await this
+ * BEFORE the session is torn down. Safe to call twice: the second call
+ * finds no local subscription / stored token and does nothing.
+ *
+ * Never throws; capped at 3s so a dead network can't stall logout.
+ */
+export async function unbindPushBindings(): Promise<void> {
+  const work = (async () => {
     try {
       const { unsubscribeFromPush } = await import('@/lib/pwa');
       await unsubscribeFromPush();
@@ -90,21 +104,23 @@ function clearPushBindingsOnSessionEnd(): void {
       /* web push unsupported or network failure — ignore */
     }
     try {
+      // PUSH-TOKEN-STORAGE-01: same store nativePush.ts writes to
+      // (secureStorage → Preferences on native). Reading localStorage
+      // here never found the token on native builds.
       const { NATIVE_FCM_TOKEN_STORAGE_KEY, unregisterNativePush } = await import(
         '@/lib/capacitor/nativePush'
       );
-      const token =
-        typeof localStorage !== 'undefined'
-          ? localStorage.getItem(NATIVE_FCM_TOKEN_STORAGE_KEY)
-          : null;
+      const { secureGet, secureRemove } = await import('@/lib/runtime/secureStorage');
+      const token = await secureGet(NATIVE_FCM_TOKEN_STORAGE_KEY);
       if (token) {
         await unregisterNativePush(token);
-        localStorage.removeItem(NATIVE_FCM_TOKEN_STORAGE_KEY);
+        await secureRemove(NATIVE_FCM_TOKEN_STORAGE_KEY);
       }
     } catch {
       /* native path unavailable on plain web — ignore */
     }
   })();
+  await Promise.race([work, new Promise<void>((resolve) => setTimeout(resolve, 3000))]);
 }
 
 /**

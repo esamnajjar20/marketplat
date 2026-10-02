@@ -80,7 +80,7 @@ async function main(): Promise<void> {
         : `حصلت خدماتك على ${totalDelta} مشاهدة جديدة هذا الأسبوع`;
 
     try {
-      void pushService
+      await pushService
         .notifyUser(userId, {
           title,
           body,

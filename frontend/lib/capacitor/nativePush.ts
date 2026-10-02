@@ -13,6 +13,7 @@
 import { apiClient } from '@/api/client';
 import { getNativePlatformName, isNativePlatform } from './platform';
 import { secureGet, secureSet } from '@/lib/runtime/secureStorage';
+import { isPushOptedOut } from '@/lib/runtime/pushPreference';
 
 /** Shared with PushNotificationToggle + authCleanup — FCM device token. */
 export const NATIVE_FCM_TOKEN_STORAGE_KEY = 'push:native-fcm-token';
@@ -126,6 +127,8 @@ export async function ensureNativePushSynced(): Promise<'synced' | 'subscribed' 
   try {
     const state = await getNativePushPermissionState();
     if (state !== 'granted') return 'skipped';
+    // PUSH-OPTOUT-01: المستخدم أوقفها عمدًا — إذن النظام وحده لا يكفي.
+    if (await isPushOptedOut()) return 'skipped';
 
     const previous = await secureGet(NATIVE_FCM_TOKEN_STORAGE_KEY);
 

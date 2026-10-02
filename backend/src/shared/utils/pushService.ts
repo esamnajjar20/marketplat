@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import webpush from 'web-push';
 import { env } from '../../config/env';
 import { logger } from './logger';
@@ -73,6 +74,19 @@ export interface PushPayload {
 // only accumulates dead rows and wasted sends, so the caller prunes it.
 interface WebPushError {
   statusCode?: number;
+}
+
+/**
+ * PUSH-TOPIC-HASH-01: RFC 8030 Topic must be <=32 URL-safe base64 chars.
+ * The old code sanitized then sliced the raw tag, so 'conversation-<cuid>'
+ * (38 chars) lost the tail of its id — two different conversations could
+ * share a topic and the push service would silently replace one pending
+ * message with the other. Hashing keeps every distinct tag distinct and
+ * the same tag stable (which is what collapse-by-topic needs).
+ */
+export function buildPushTopic(tag?: string): string | undefined {
+  if (!tag) return undefined;
+  return createHash('sha256').update(tag).digest('base64url').slice(0, 32);
 }
 
 function isGoneError(err: unknown): boolean {
@@ -275,13 +289,11 @@ export const pushService = {
       // as the RFC 8030 `Topic` so multiple pushes of the same kind
       // ("you have a new message in conversation X") collapse into one
       // on the device, instead of stacking a wall of identical banners.
-      // web-push requires the topic be ≤32 chars from the URL-safe
-      // Base64 alphabet, so it's sanitized conservatively.
-      const safeTopic = (payload.tag ?? '')
-        .replace(/[^A-Za-z0-9_-]/g, '')
-        .slice(0, 32);
+      // See buildPushTopic for why it is hashed rather than truncated.
+      const safeTopic = buildPushTopic(payload.tag);
 
       const staleEndpoints: string[] = [];
+      const stats = { sent: 0, gone: 0, failed: 0 };
 
       await Promise.all(
         subscriptions.map(async (sub) => {
@@ -298,6 +310,8 @@ export const pushService = {
             }
           );
 
+          stats[result] += 1;
+
           if (result === 'gone') {
             // Expected/routine, not an error worth alerting on — every
             // uninstall or cleared-site-data event produces exactly
@@ -306,6 +320,16 @@ export const pushService = {
           }
         })
       );
+
+      // PUSH-STATS-01: first observability for delivery. Only logged when
+      // something went wrong (gone/failed) to keep the happy path quiet.
+      // A burst of `failed` with 401/403 warnings above usually means the
+      // VAPID key pair no longer matches the one subscriptions were created
+      // with — deliberately NOT auto-pruned (a misconfigured deploy would
+      // otherwise delete every user's subscription).
+      if (stats.gone > 0 || stats.failed > 0) {
+        logger.info('[PUSH] delivery summary', { userId, ...stats, tag: payload.tag });
+      }
 
       if (staleEndpoints.length > 0) {
         await pushSubscriptionsRepository

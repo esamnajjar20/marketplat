@@ -112,12 +112,15 @@ async function notifyFollowers(promotion: Promotion, productName: string): Promi
   const title = 'عرض جديد';
   const body = `عرض جديد على "${productName}": ${promotion.title}`;
 
-  // Same fire-and-forget-push-then-createMany shape as
+  // PUSH-AWAIT-CRON-01: awaited (unlike request-path producers) — this is
+  // a short-lived process that calls process.exit() when main() settles,
+  // so a fire-and-forget push (and its 1.5s retry) was killed mid-flight.
+  // Same push-then-createMany shape as
   // notifications.service.ts's fanOutSameContentNotification — kept
   // inline (raw PrismaClient, no notificationsRepository import) for
   // the same standalone-process reasoning as every other write in this
   // script.
-  void pushService
+  await pushService
     .notifyUsers(followerIds, {
       title,
       body,
@@ -152,7 +155,7 @@ async function notify(
   // as every other producer in notifications.service.ts and
   // weeklyAdViewsReport.ts — a push failure must never block or fail
   // the in-app notification.
-  void pushService
+  await pushService
     .notifyUser(userId, {
       title,
       body,

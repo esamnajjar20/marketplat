@@ -67,7 +67,7 @@ async function main(): Promise<void> {
         : `حصل متجرك على ${totalDelta} مشاهدة جديدة هذا الأسبوع`;
 
     try {
-      void pushService
+      await pushService
         .notifyUser(userId, {
           title,
           body,

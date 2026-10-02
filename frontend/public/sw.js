@@ -2621,7 +2621,41 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // PUSH-PRESENCE-01: if the user is already looking at this very
+  // conversation (visible + focused window on the target path), the
+  // message is already on screen via SSE — a banner on top of it is pure
+  // noise. Deliberately narrow: only chat pushes (tag 'conversation-…'),
+  // only a window that is both visible AND focused, only an exact path
+  // match. Every other case still shows the notification, so a broken
+  // SSE connection or a background tab can never swallow a push.
+  event.waitUntil(
+    (async () => {
+      try {
+        if (typeof data.tag === 'string' && data.tag.startsWith('conversation-')) {
+          const targetPath = new URL(targetUrl, self.location.origin).pathname;
+          const windows = await self.clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true,
+          });
+          const viewing = windows.some((c) => {
+            try {
+              return (
+                c.visibilityState === 'visible' &&
+                c.focused === true &&
+                new URL(c.url).pathname === targetPath
+              );
+            } catch {
+              return false;
+            }
+          });
+          if (viewing) return;
+        }
+      } catch {
+        /* presence check failed — fall through and show it */
+      }
+      await self.registration.showNotification(title, options);
+    })(),
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {

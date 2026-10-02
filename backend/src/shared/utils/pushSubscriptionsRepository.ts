@@ -54,7 +54,14 @@ export const pushSubscriptionsRepository = {
         p256dh: input.p256dh,
         auth: input.auth,
       },
+      // PUSH-OWNERSHIP-01: the endpoint is a secret URL only the device's
+      // browser holds, so a successful authenticated POST proves the
+      // *current* session controls that device. On a shared device
+      // (user A logs out, user B logs in) the row must follow the
+      // device — keeping A's userId meant B never received anything and
+      // A kept receiving B's-device pushes.
       update: {
+        userId: input.userId,
         p256dh: input.p256dh,
         auth: input.auth,
       },

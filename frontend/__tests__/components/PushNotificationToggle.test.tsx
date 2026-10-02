@@ -26,6 +26,7 @@ import {
   registerNativePush,
   unregisterNativePush,
 } from '@/lib/capacitor/nativePush';
+import { setPushOptedOut } from '@/lib/runtime/pushPreference';
 
 vi.mock('@/lib/pwa', () => ({
   getPushSubscriptionState: vi.fn(),
@@ -49,6 +50,24 @@ vi.mock('@/lib/capacitor/nativePush', () => ({
   unregisterNativePush: vi.fn(async () => undefined),
 }));
 
+// PUSH-TOKEN-STORAGE-01: the component now reads/writes the FCM token and
+// the opt-out flag through secureStorage (same store as nativePush.ts).
+const secureMem = new Map<string, string>();
+vi.mock('@/lib/runtime/secureStorage', () => ({
+  secureGet: vi.fn(async (k: string) => secureMem.get(k) ?? null),
+  secureSet: vi.fn(async (k: string, v: string) => {
+    secureMem.set(k, v);
+  }),
+  secureRemove: vi.fn(async (k: string) => {
+    secureMem.delete(k);
+  }),
+}));
+
+vi.mock('@/lib/runtime/pushPreference', () => ({
+  isPushOptedOut: vi.fn(async () => false),
+  setPushOptedOut: vi.fn(async () => undefined),
+}));
+
 const mockGetState = vi.mocked(getPushSubscriptionState);
 const mockSubscribe = vi.mocked(subscribeToPush);
 const mockUnsubscribe = vi.mocked(unsubscribeFromPush);
@@ -57,6 +76,7 @@ const mockIsSupported = vi.mocked(isPushSupported);
 describe('PushNotificationToggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    secureMem.clear();
     vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'test-vapid-key');
     mockIsSupported.mockReturnValue(true);
     vi.mocked(isNativePlatform).mockResolvedValue(false);
@@ -177,13 +197,14 @@ describe('PushNotificationToggle', () => {
     await waitFor(() => expect(registerNativePush).toHaveBeenCalled());
     expect(subscribeToPush).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith('تم تفعيل إشعارات الجهاز');
-    expect(localStorage.getItem('push:native-fcm-token')).toBe('fcm-token-1');
+    expect(secureMem.get('push:native-fcm-token')).toBe('fcm-token-1');
+    expect(setPushOptedOut).toHaveBeenCalledWith(false);
   });
 
   it('uses unregisterNativePush on deactivate when native', async () => {
     vi.mocked(isNativePlatform).mockResolvedValue(true);
     vi.mocked(getNativePushPermissionState).mockResolvedValue('granted');
-    localStorage.setItem('push:native-fcm-token', 'fcm-token-1');
+    secureMem.set('push:native-fcm-token', 'fcm-token-1');
     vi.mocked(unregisterNativePush).mockResolvedValue(undefined);
     const user = setupUser();
     render(<PushNotificationToggle />);
@@ -192,6 +213,7 @@ describe('PushNotificationToggle', () => {
 
     await waitFor(() => expect(unregisterNativePush).toHaveBeenCalledWith('fcm-token-1'));
     expect(unsubscribeFromPush).not.toHaveBeenCalled();
-    expect(localStorage.getItem('push:native-fcm-token')).toBeNull();
+    expect(secureMem.has('push:native-fcm-token')).toBe(false);
+    expect(setPushOptedOut).toHaveBeenCalledWith(true);
   });
 });

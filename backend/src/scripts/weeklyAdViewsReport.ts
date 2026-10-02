@@ -121,7 +121,7 @@ async function main(): Promise<void> {
       // Same fire-and-forget-push-alongside-in-app-write convention as
       // notificationEvents in notifications.service.ts — a push failing
       // to send must never block or fail the in-app notification write.
-      void pushService
+      await pushService
         .notifyUser(userId, {
           title,
           body,
