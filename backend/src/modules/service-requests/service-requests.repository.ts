@@ -51,6 +51,29 @@ export const serviceRequestsRepository = {
       select: { id: true, status: true },
     }),
 
+  // FIX SR-EXPIRY (audit H4): stale PENDING requests, oldest first, bounded.
+  findStalePending: (
+    cutoff: Date,
+    limit: number
+  ): Promise<{ id: string; customerId: string; listing: { title: string } }[]> =>
+    prisma.serviceRequest.findMany({
+      where: { status: 'PENDING', createdAt: { lt: cutoff } },
+      select: { id: true, customerId: true, listing: { select: { title: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    }),
+
+  // Conditional on status + age so a request the provider answered a
+  // moment ago is never overwritten. respondedAt is deliberately left NULL:
+  // that is what marks "closed by the system, nobody responded".
+  expirePending: (id: string, cutoff: Date): Promise<Prisma.BatchPayload> =>
+    prisma.serviceRequest.updateMany({
+      where: { id, status: 'PENDING', createdAt: { lt: cutoff } },
+      // FIX SR-EXPIRY-STATUS (audit H4): EXPIRED, not CANCELLED — distinguishes
+      // system-closed from user-closed.
+      data: { status: 'EXPIRED' },
+    }),
+
   findById: (id: string): Promise<ServiceRequestWithListing | null> =>
     prisma.serviceRequest.findUnique({ where: { id }, include: requestWithRelations }),
 
@@ -116,10 +139,14 @@ export const serviceRequestsRepository = {
       prisma.serviceRequest.count({
         where: { listing: { providerId }, status: 'COMPLETED', ...sinceFilter },
       }),
+      // FIX SR-EXPIRY-FULFILL (audit H4): auto-closed requests are EXPIRED
+      // (never reached the provider), so only a user-driven CANCELLED — which
+      // always goes through transitionStatus and stamps respondedAt — counts
+      // against the provider. EXPIRED is deliberately excluded.
       prisma.serviceRequest.count({
         where: {
           listing: { providerId },
-          status: { in: ['CANCELLED', 'REJECTED'] },
+          OR: [{ status: 'REJECTED' }, { status: 'CANCELLED', respondedAt: { not: null } }],
           ...sinceFilter,
         },
       }),

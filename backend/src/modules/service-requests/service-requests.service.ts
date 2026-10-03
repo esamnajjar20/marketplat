@@ -29,6 +29,9 @@ const ALLOWED_TRANSITIONS: Record<ServiceRequestStatus, ServiceRequestStatus[]> 
   COMPLETED: [],
   REJECTED: [],
   CANCELLED: [],
+  // FIX SR-EXPIRY-TRANSITIONS (audit H4): EXPIRED is system-only — no path
+  // leads into or out of it via the API. Listed so the Record stays exhaustive.
+  EXPIRED: [],
 };
 
 // services-design.md §7 table: who is allowed to *initiate* each
@@ -51,7 +54,8 @@ const TRANSITION_ACTOR: Record<string, Actor> = {
 // can only ever reach one of these once (ALLOWED_TRANSITIONS has no
 // outgoing edges from any of the three), so this recompute fires at
 // most once per request.
-const TERMINAL_STATUSES: ServiceRequestStatus[] = ['COMPLETED', 'CANCELLED', 'REJECTED'];
+// FIX SR-EXPIRY-TERMINAL (audit H4): EXPIRED is terminal like the rest.
+const TERMINAL_STATUSES: ServiceRequestStatus[] = ['COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'];
 
 // FIX (dead-stats): completedRequestsCount/fulfillmentRate
 // (ServiceProviderDetails) were rendered on MyServiceProviderCard from
@@ -79,6 +83,14 @@ const recomputeProviderStats = async (
     fulfillmentRate: totalTerminal > 0 ? Math.round((completed / totalTerminal) * 10000) / 100 : null,
   });
 };
+
+// FIX SR-EXPIRY (audit H4): a PENDING request nobody answers within this
+// window is closed automatically (see expireStalePending). 7 days: long
+// enough for a part-time provider to see it over a weekend/holiday, short
+// enough that their inbox doesn't fill with dead requests.
+export const SERVICE_REQUEST_PENDING_TTL_DAYS = 7;
+const EXPIRY_BATCH_SIZE = 200;
+const EXPIRY_MAX_BATCHES = 50; // hard ceiling per run (10k rows)
 
 export const serviceRequestsService = {
   createRequest: async (
@@ -360,5 +372,42 @@ export const serviceRequestsService = {
       );
 
     return updatedRequest;
+  },
+
+  // FIX SR-EXPIRY (audit H4). Run from cron (scripts/expireStaleServiceRequests.ts).
+  // Moves PENDING requests older than the TTL to CANCELLED with
+  // respondedAt left NULL (the "system closed it" marker — no schema
+  // change needed) and tells the customer. Safe to re-run and to overlap
+  // with user actions: the UPDATE is conditional on status = PENDING.
+  expireStalePending: async (
+    now: Date = new Date(),
+    ttlDays: number = SERVICE_REQUEST_PENDING_TTL_DAYS
+  ): Promise<number> => {
+    const cutoff = new Date(now.getTime() - ttlDays * 24 * 60 * 60 * 1000);
+    let expired = 0;
+
+    for (let batch = 0; batch < EXPIRY_MAX_BATCHES; batch += 1) {
+      const stale = await serviceRequestsRepository.findStalePending(cutoff, EXPIRY_BATCH_SIZE);
+      if (stale.length === 0) break;
+
+      let progressed = 0;
+      for (const row of stale) {
+        const { count } = await serviceRequestsRepository.expirePending(row.id, cutoff);
+        if (count === 0) continue; // answered in the meantime
+        progressed += 1;
+        expired += 1;
+        // FIX SR-EXPIRY-TTL-PARAM (audit H4): pass ttlDays so the body
+        // cannot lie if the TTL constant changes.
+        notificationEvents
+          .onServiceRequestExpired(row.customerId, row.id, row.listing.title, ttlDays)
+          .catch((err) =>
+            logger.error('Failed to create expiry notification', { err, requestId: row.id })
+          );
+      }
+      // Nothing changed in a full batch → the same rows would come back.
+      if (progressed === 0 || stale.length < EXPIRY_BATCH_SIZE) break;
+    }
+
+    return expired;
   },
 };

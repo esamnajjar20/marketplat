@@ -1597,6 +1597,8 @@ enum ServiceRequestStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  // FIX SR-EXPIRY (audit H4): closed by the expiry cron, not by a user.
+  EXPIRED
 }
 
 enum AppointmentStatus {

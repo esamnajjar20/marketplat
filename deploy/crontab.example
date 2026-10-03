@@ -11,6 +11,7 @@ RUN=bash $BACKEND/scripts/run-job.sh
 
 # Daily
 0 7 * * *     $RUN notification-digest
+45 3 * * *    $RUN expire-service-requests
 0 3 * * *     $RUN seller-response-metrics
 15 3 * * *    $RUN cleanup-tokens
 30 3 * * *    $RUN cleanup-failed-tasks

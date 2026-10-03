@@ -865,6 +865,37 @@ export const notificationEvents = {
     });
   },
 
+  /** FIX SR-EXPIRY (audit H4): customer is told their unanswered request
+   * was closed automatically. Reuses the SERVICE_REQUEST_UPDATE type and
+   * the `serviceQuotes` preference, same as every other request update. */
+  /** FIX SR-EXPIRY-SIG (audit H4): ttlDays is interpolated into the body. */
+  onServiceRequestExpired: async (
+    customerUserId: string,
+    requestId: string,
+    listingTitle: string,
+    ttlDays: number
+  ) => {
+    if (!(await userAllowsPref(customerUserId, 'serviceQuotes'))) return null;
+    const title = 'انتهت مهلة طلبك';
+    // FIX SR-EXPIRY-BODY (audit H4): no hardcoded 7 — follows the TTL constant.
+    const body = `لم يردّ مقدم الخدمة على طلبك \"${listingTitle}\" خلال ${ttlDays} أيام فتم إغلاقه — يمكنك تقديم طلب جديد أو اختيار مقدم خدمة آخر`;
+    void pushService.notifyUser(customerUserId, {
+      title,
+      body,
+      url: `/service-requests/${requestId}`,
+      tag: `service-request-${requestId}`,
+      type: 'SERVICE_REQUEST_UPDATE',
+    }).catch(() => {});
+    return notificationsRepository.create({
+      userId: customerUserId,
+      type: 'SERVICE_REQUEST_UPDATE',
+      title,
+      body,
+      // FIX SR-EXPIRY-DATA (audit H4): the row itself is EXPIRED now.
+      data: { requestId, status: 'EXPIRED' },
+    });
+  },
+
   /** Customer is told an appointment tied to their request was booked
    * or cancelled by the provider. */
   onAppointmentChanged: async (
