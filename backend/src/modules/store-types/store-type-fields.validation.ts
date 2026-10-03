@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const storeFieldTypeSchema = z.enum(['TEXT', 'NUMBER', 'BOOLEAN', 'SELECT']);
+export const storeFieldScopeSchema = z.enum(['STORE', 'PRODUCT']);
 
 const optionsSchema = z.array(z.object({
   value: z.string().min(1).max(80),
@@ -17,6 +18,7 @@ export const createStoreTypeFieldSchema = z.object({
     showOnCard: z.boolean().optional().default(false),
     showOnPage: z.boolean().optional().default(true),
     type: storeFieldTypeSchema,
+    scope: storeFieldScopeSchema.optional().default('STORE'),
     required: z.boolean().optional().default(false),
     options: optionsSchema.optional(),
     sortOrder: z.number().int().min(0).max(10000).optional().default(0),
@@ -39,6 +41,7 @@ export const updateStoreTypeFieldSchema = z.object({
     showOnCard: z.boolean().optional(),
     showOnPage: z.boolean().optional(),
     type: storeFieldTypeSchema.optional(),
+    scope: storeFieldScopeSchema.optional(),
     required: z.boolean().optional(),
     options: optionsSchema.nullable().optional(),
     sortOrder: z.number().int().min(0).max(10000).optional(),

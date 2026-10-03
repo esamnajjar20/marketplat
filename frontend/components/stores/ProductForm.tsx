@@ -32,7 +32,7 @@ import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
 import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
 import type { Product, ProductAvailability, UpdateProductPayload, ProductFormValues } from '@/types/product.types';
-import { getStoreTypeLabels } from '@/types/store.types';
+import type { StoreAttributes, StoreTypeField } from '@/types/store.types';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -47,6 +47,7 @@ interface Errors {
   discountPrice?: string;
   wholesalePrice?: string;
   images?: string;
+  attributes?: string;
 }
 
 const AVAILABILITY_LABELS: Record<ProductAvailability, string> = {
@@ -60,10 +61,55 @@ const AVAILABILITY_LABELS: Record<ProductAvailability, string> = {
 // بيانات سيرفر بوضع التعديل لا داعي لمسودة عنها).
 type ProductDraftValues = Omit<ProductFormValues, 'images' | 'existingImages'>;
 
+function ProductTypeFieldInput({
+  field,
+  value,
+  onChange,
+  error,
+}: {
+  field: StoreTypeField;
+  // FIX DYN-FIELD-UNDEF: field may be empty before first edit —
+  // the parent stores optional attributes, so allow undefined here.
+  value: StoreAttributes[string] | undefined;
+  onChange: (value: StoreAttributes[string]) => void;
+  error?: string;
+}) {
+  const id = `product-attribute-${field.key}`;
+  if (field.type === 'BOOLEAN') {
+    return (
+      <label className="flex items-center gap-2 text-sm">
+        <input id={id} type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />
+        <span>{field.labelAr}{field.required ? ' *' : ''}</span>
+      </label>
+    );
+  }
+  if (field.type === 'SELECT') {
+    return (
+      <FormField label={field.labelAr} htmlFor={id} required={field.required} error={error}>
+        <Select value={typeof value === 'string' ? value : ''} onValueChange={onChange}>
+          <SelectTrigger id={id}><SelectValue placeholder={`اختر ${field.labelAr}`} /></SelectTrigger>
+          <SelectContent>{(field.options ?? []).map((option) => <SelectItem key={option.value} value={option.value}>{option.labelAr}</SelectItem>)}</SelectContent>
+        </Select>
+      </FormField>
+    );
+  }
+  return (
+    <FormField label={field.labelAr} htmlFor={id} required={field.required} error={error}>
+      <Input
+        id={id}
+        type={field.type === 'NUMBER' ? 'number' : 'text'}
+        value={value === undefined ? '' : String(value)}
+        onChange={(e) => onChange(field.type === 'NUMBER' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)}
+      />
+    </FormField>
+  );
+}
+
 export function ProductForm({ mode, product }: Props) {
   const { data: categories } = useProductCategories();
   const { data: myStore } = useMyStore();
-  const storeLabels = getStoreTypeLabels(myStore?.storeType);
+  const productStoreType = (product as Product & { store?: { storeType?: { fields?: StoreTypeField[] } } } | undefined)?.store?.storeType;
+  const productFields = (productStoreType?.fields ?? myStore?.storeType?.fields ?? []).filter((field) => field.scope === 'PRODUCT' && field.isActive !== false);
   const searchParams = useSearchParams();
   const offlineDraftId = searchParams.get('draftId');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -97,6 +143,7 @@ export function ProductForm({ mode, product }: Props) {
         wholesaleMinQty: product.wholesaleMinQty ? String(product.wholesaleMinQty) : '',
         availability: product.availability,
         stockQuantity: product.stockQuantity != null ? String(product.stockQuantity) : '',
+        attributes: product.attributes ?? {},
         images: [],
         existingImages: product.images,
       };
@@ -111,6 +158,7 @@ export function ProductForm({ mode, product }: Props) {
       wholesaleMinQty: '',
       availability: 'IN_STOCK' as ProductAvailability,
       stockQuantity: '',
+      attributes: {},
       images: [] as File[],
       existingImages: [] as string[],
     };
@@ -137,6 +185,7 @@ export function ProductForm({ mode, product }: Props) {
         setValues((prev) => ({
           ...prev,
           ...fields,
+          attributes: fields.attributes ?? {},
           availability: (fields.availability as ProductAvailability) || prev.availability,
           images: [],
           existingImages: prev.existingImages,
@@ -175,6 +224,7 @@ export function ProductForm({ mode, product }: Props) {
       wholesaleMinQty: values.wholesaleMinQty,
       availability: values.availability,
       stockQuantity: values.stockQuantity,
+      attributes: values.attributes,
     },
     { enabled: mode === 'create' },
   );
@@ -189,7 +239,7 @@ export function ProductForm({ mode, product }: Props) {
 
   function validate(): boolean {
     const e: Errors = {};
-    if (!values.categoryId) e.categoryId = `اختر ${storeLabels.categories}`;
+    if (!values.categoryId) e.categoryId = 'اختر فئة المنتج';
     if (values.name.trim().length < 2) e.name = 'اسم المنتج قصير جداً';
     if (values.description.trim().length < 10) e.description = 'الوصف قصير جداً (10 أحرف على الأقل)';
     if (!values.price || parseFloat(values.price) <= 0) e.price = 'أدخل سعراً صحيحاً';
@@ -202,6 +252,14 @@ export function ProductForm({ mode, product }: Props) {
     }
     if ((values.wholesalePrice && !values.wholesaleMinQty) || (!values.wholesalePrice && values.wholesaleMinQty)) {
       e.wholesalePrice = 'أدخل سعر الجملة والحد الأدنى للكمية معاً';
+    }
+    for (const field of productFields) {
+      if (!field.required) continue;
+      const value = values.attributes[field.key];
+      if (value === undefined || value === null || value === '' || (field.type === 'SELECT' && value === '')) {
+        e.attributes = 'أكمل الحقول الخاصة بهذا النوع من المتجر';
+        break;
+      }
     }
     // Gap #3 fix: edit mode now has a real image-replace flow, so the
     // "at least one image" rule applies to the combined staged +
@@ -253,6 +311,7 @@ export function ProductForm({ mode, product }: Props) {
     values.wholesalePrice !== initialValues.wholesalePrice ||
     values.wholesaleMinQty !== initialValues.wholesaleMinQty ||
     values.stockQuantity !== initialValues.stockQuantity ||
+    JSON.stringify(values.attributes) !== JSON.stringify(initialValues.attributes) ||
     values.availability !== initialValues.availability ||
     values.images.length > 0 ||
     values.existingImages.length !== initialValues.existingImages.length ||
@@ -294,6 +353,7 @@ export function ProductForm({ mode, product }: Props) {
           wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : undefined,
           availability: values.availability,
           ...(values.stockQuantity.trim() !== '' ? { stockQuantity: Number(values.stockQuantity) } : {}),
+          ...(Object.keys(values.attributes).length > 0 ? { attributes: values.attributes } : {}),
           images: values.images,
         },
         {
@@ -342,6 +402,7 @@ export function ProductForm({ mode, product }: Props) {
       wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : null,
       availability: values.availability,
       stockQuantity: values.stockQuantity.trim() === '' ? null : Number(values.stockQuantity),
+      ...(Object.keys(values.attributes).length > 0 ? { attributes: values.attributes } : {}),
     } satisfies UpdateProductPayload;
 
     try {
@@ -489,11 +550,11 @@ export function ProductForm({ mode, product }: Props) {
             gets both), and the Select itself had no aria-describedby/
             aria-invalid pointing at that error. FormField's auto-clone
             (UX-FIX P2-11) wires both automatically. */}
-        <FormField label={storeLabels.categories} htmlFor="categoryId" required error={fieldError('categoryId')}>
+        <FormField label="الفئة" htmlFor="categoryId" required error={fieldError('categoryId')}>
           <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
-            <SelectTrigger id="categoryId"><SelectValue placeholder={`اختر ${storeLabels.categories}`} /></SelectTrigger>
+            <SelectTrigger id="categoryId"><SelectValue placeholder="اختر فئة المنتج" /></SelectTrigger>
             <SelectContent>
-              {categories?.filter((cat) => cat.storeTypeId == null || cat.storeTypeId === (myStore?.storeTypeId ?? 'st_general')).map((cat) => (
+              {categories?.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
               ))}
             </SelectContent>
@@ -523,6 +584,25 @@ export function ProductForm({ mode, product }: Props) {
           <p className="text-xs text-muted-foreground text-end">{values.description.length}/2000</p>
         </FormField>
       </div>
+
+      {productFields.length > 0 && (
+        <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
+          <div>
+            <h2 className="font-semibold">معلومات خاصة بنوع المتجر</h2>
+            <p className="mt-1 text-xs text-muted-foreground">هذه الحقول يحددها الأدمن حسب نوع المتجر.</p>
+          </div>
+          {productFields.map((field) => (
+            <ProductTypeFieldInput
+              key={field.id}
+              field={field}
+              value={values.attributes[field.key]}
+              onChange={(value) => set('attributes', { ...values.attributes, [field.key]: value })}
+              error={field.required && (values.attributes[field.key] === undefined || values.attributes[field.key] === '') ? 'هذا الحقل مطلوب' : undefined}
+            />
+          ))}
+          {fieldError('attributes') && <p className="text-sm text-destructive" role="alert">{fieldError('attributes')}</p>}
+        </div>
+      )}
 
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">التسعير والتوفر</h2>

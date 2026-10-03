@@ -6,7 +6,7 @@ import { getStoreTypePresentation, type StoreAttributes, type StoreType } from '
 export function StoreAttributesSummary({ storeTypeId, attributes, presentation }: { storeTypeId: string; attributes?: StoreAttributes | null; presentation?: StoreType['presentation'] }) {
   const { data: fields = [] } = useStoreTypeFields(storeTypeId);
   if (!attributes || fields.length === 0) return null;
-  const visible = fields.filter((field) => field.showOnPage !== false && attributes[field.key] !== undefined);
+  const visible = fields.filter((field) => field.scope === 'STORE' && field.showOnPage !== false && attributes[field.key] !== undefined);
   const page = getStoreTypePresentation({ presentation });
   if (visible.length === 0) return null;
 

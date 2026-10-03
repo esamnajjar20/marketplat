@@ -65,6 +65,8 @@ export const productsApi = {
     if (payload.wholesalePrice !== undefined) form.append('wholesalePrice', String(payload.wholesalePrice));
     if (payload.wholesaleMinQty !== undefined) form.append('wholesaleMinQty', String(payload.wholesaleMinQty));
     if (payload.availability) form.append('availability', payload.availability);
+    if (payload.stockQuantity !== undefined) form.append('stockQuantity', String(payload.stockQuantity));
+    if (payload.attributes && Object.keys(payload.attributes).length > 0) form.append('attributes', JSON.stringify(payload.attributes));
     payload.images.forEach((file) => form.append('images', file));
 
     return apiClient.post<ApiResponse<Product>>('/products', form, {

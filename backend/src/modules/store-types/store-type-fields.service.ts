@@ -17,6 +17,7 @@ async function invalidate(storeTypeId: string) {
 }
 
 export type StoreAttributes = Record<string, string | number | boolean>;
+export type StoreFieldScope = 'STORE' | 'PRODUCT';
 
 export const storeTypeFieldsService = {
   getPublic: async (storeTypeId: string) => {
@@ -26,7 +27,7 @@ export const storeTypeFieldsService = {
       const cached = await redis.get(cacheKey(storeTypeId));
       if (cached) return JSON.parse(cached);
     } catch { logger.warn('Store type fields cache read failed'); }
-    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).map(({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, required, options, sortOrder }) => ({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, required, options, sortOrder }));
+    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).map(({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, scope, required, options, sortOrder }) => ({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, scope, required, options, sortOrder }));
     try { await redis.setex(cacheKey(storeTypeId), CACHE_TTL_SECONDS, JSON.stringify(fields)); } catch { logger.warn('Store type fields cache write failed'); }
     return fields;
   },
@@ -66,19 +67,19 @@ export const storeTypeFieldsService = {
     return updated;
   },
 
-  validateAttributes: async (storeTypeId: string, raw: unknown, requireRequired: boolean): Promise<StoreAttributes | null> => {
-    if (raw == null) return requireRequired && (await storeTypeFieldsRepository.findActive(storeTypeId)).some(f => f.required)
-      ? (() => { throw new BadRequestError('Required store fields are missing.', 'STORE_ATTRIBUTES_REQUIRED'); })()
+  validateAttributes: async (storeTypeId: string, raw: unknown, requireRequired: boolean, scope: StoreFieldScope = 'STORE'): Promise<StoreAttributes | null> => {
+    if (raw == null) return requireRequired && (await storeTypeFieldsRepository.findActive(storeTypeId)).some(f => f.scope === scope && f.required)
+      ? (() => { throw new BadRequestError('Required attributes are missing.', 'STORE_ATTRIBUTES_REQUIRED'); })()
       : null;
     if (typeof raw !== 'object' || Array.isArray(raw)) throw new BadRequestError('Store attributes must be an object.', 'STORE_ATTRIBUTES_INVALID');
     const input = raw as Record<string, unknown>;
-    const fields = await storeTypeFieldsRepository.findActive(storeTypeId);
+    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).filter(field => field.scope === scope);
     const byKey = new Map(fields.map(f => [f.key, f]));
     const keys = Object.keys(input);
-    if (keys.length > MAX_FIELDS) throw new BadRequestError('Too many store attributes.', 'STORE_ATTRIBUTES_LIMIT');
+    if (keys.length > MAX_FIELDS) throw new BadRequestError('Too many attributes.', 'STORE_ATTRIBUTES_LIMIT');
     for (const key of keys) {
       const field = byKey.get(key);
-      if (!field) throw new BadRequestError(`Unknown store field: ${key}`, 'STORE_ATTRIBUTE_UNKNOWN');
+      if (!field) throw new BadRequestError(`Unknown attribute field: ${key}`, 'STORE_ATTRIBUTE_UNKNOWN');
       const value = input[key];
       if (value === null || value === '') {
         if (field.required) throw new BadRequestError(`Field ${field.labelAr} is required.`, 'STORE_ATTRIBUTE_REQUIRED');

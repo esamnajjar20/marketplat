@@ -112,6 +112,7 @@ export function productFieldsFromDraftPayload(payload: AdDraft['payload']): {
   wholesaleMinQty: string;
   availability: string;
   stockQuantity: string;
+  attributes?: Record<string, string | number | boolean>;
 } {
   const name =
     (typeof payload.name === 'string' && payload.name) ||
@@ -138,6 +139,9 @@ export function productFieldsFromDraftPayload(payload: AdDraft['payload']): {
       payload.stockQuantity != null && payload.stockQuantity !== ''
         ? String(payload.stockQuantity)
         : '',
+    attributes: payload.attributes && typeof payload.attributes === 'object' && !Array.isArray(payload.attributes)
+      ? payload.attributes as Record<string, string | number | boolean>
+      : {},
   };
 }
 

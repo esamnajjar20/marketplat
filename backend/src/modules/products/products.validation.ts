@@ -2,6 +2,14 @@ import { z } from 'zod';
 import { ProductAvailability, ProductStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
+const productAttributesSchema = z.preprocess(
+  value => {
+    if (typeof value !== 'string') return value;
+    try { return JSON.parse(value); } catch { return value; }
+  },
+  z.record(z.union([z.string().max(500), z.number().finite(), z.boolean()])),
+);
+
 export const createProductSchema = z.object({
   body: z.object({
     categoryId: z.string().min(1, 'categoryId is required'),
@@ -20,6 +28,7 @@ export const createProductSchema = z.object({
     wholesaleMinQty: z.coerce.number().int().positive().optional(),
     availability: z.nativeEnum(ProductAvailability).default('IN_STOCK'),
     stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
+    attributes: productAttributesSchema.optional(),
   })
     // Wholesale pricing is a pair — a minimum quantity with no price
     // (or vice versa) is a contradiction, not a valid partial state.
@@ -51,6 +60,7 @@ export const updateProductSchema = z.object({
     wholesaleMinQty: z.coerce.number().int().positive().nullable().optional(),
     availability: z.nativeEnum(ProductAvailability).optional(),
     stockQuantity: z.coerce.number().int().min(0).max(1000000).nullable().optional(),
+    attributes: productAttributesSchema.optional(),
     status: z.nativeEnum(ProductStatus).optional(),
   }),
 });

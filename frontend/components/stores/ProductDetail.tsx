@@ -206,6 +206,8 @@ export function ProductDetail({ product, related = [] }: Props) {
             </p>
           </section>
 
+          <ProductAttributesSection product={product} />
+
           {/* المتجر مباشرة تحت الوصف — الوصول عبر الشعار/الاسم */}
           <StorePanel store={store} />
 
@@ -287,6 +289,33 @@ export function ProductDetail({ product, related = [] }: Props) {
         </div>
       )}
     </>
+  );
+}
+
+function ProductAttributesSection({ product }: { product: ProductWithFullStore }) {
+  const fields = (product.store.storeType?.fields ?? []).filter(
+    (field) => field.scope === 'PRODUCT' && field.isActive !== false && product.attributes?.[field.key] !== undefined,
+  );
+  if (fields.length === 0) return null;
+
+  const formatValue = (field: (typeof fields)[number], value: unknown) => {
+    if (field.type === 'BOOLEAN') return value === true ? 'نعم' : 'لا';
+    if (field.type === 'SELECT') return field.options?.find((option) => option.value === value)?.labelAr ?? String(value);
+    return String(value);
+  };
+
+  return (
+    <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+      <h2 className="text-sm font-semibold">مواصفات المنتج</h2>
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {fields.map((field) => (
+          <div key={field.id} className="rounded-lg bg-muted/40 px-3 py-2">
+            <dt className="text-xs text-muted-foreground">{field.pageLabelAr || field.labelAr}</dt>
+            <dd className="mt-1 text-sm font-medium">{formatValue(field, product.attributes?.[field.key])}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 

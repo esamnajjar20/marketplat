@@ -7,7 +7,7 @@ import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
 export type ProductWithStore = Prisma.ProductGetPayload<{
   include: {
-    store: { include: { sellerProfile: true } };
+    store: { include: { sellerProfile: true, storeType: { include: { fields: { where: { isActive: true, scope: 'PRODUCT' }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] } } } } };
     category: { select: { id: true; name: true; nameAr: true } };
   };
 }>;
@@ -17,7 +17,7 @@ export type ProductWithStore = Prisma.ProductGetPayload<{
 // shape as every other cross-module Product read, instead of a
 // second, potentially-drifting definition.
 export const productWithRelations = {
-  store: { include: { sellerProfile: true } },
+  store: { include: { sellerProfile: true, storeType: { include: { fields: { where: { isActive: true, scope: 'PRODUCT' }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] } } } } },
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;
 
@@ -76,6 +76,7 @@ export const productsRepository = {
       availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
       stockQuantity?: number | null;
       offlineOperationId?: string | null;
+      attributes?: Prisma.InputJsonValue;
     }
   ): Promise<Product> =>
     tx.product.create({
@@ -92,6 +93,7 @@ export const productsRepository = {
         availability: data.availability,
         stockQuantity: data.stockQuantity ?? null,
         ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
+        ...(data.attributes !== undefined ? { attributes: data.attributes } : {}),
       },
     }),
 
@@ -129,6 +131,7 @@ export const productsRepository = {
       wholesaleMinQty: number | null;
       availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
       status: ProductStatus;
+      attributes: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
     }>
   ): Promise<Product> => prisma.product.update({ where: { id }, data }),
 

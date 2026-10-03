@@ -782,6 +782,11 @@ enum StoreFieldType {
   SELECT
 }
 
+enum StoreFieldScope {
+  STORE
+  PRODUCT
+}
+
 model StoreTypeField {
   id          String         @id @default(cuid())
   storeTypeId String
@@ -792,6 +797,7 @@ model StoreTypeField {
   showOnCard  Boolean       @default(false)
   showOnPage  Boolean       @default(true)
   type        StoreFieldType
+  scope       StoreFieldScope @default(STORE)
   required    Boolean        @default(false)
   options     Json?
   sortOrder   Int            @default(0)
@@ -935,6 +941,8 @@ model Product {
   price           Decimal                  @db.Decimal(10, 2)
   wholesalePrice  Decimal?                 @db.Decimal(10, 2)
   wholesaleMinQty Int?
+  /// Type-specific product values validated against the owning StoreType fields.
+  attributes      Json?
   discountPrice   Decimal?                 @db.Decimal(10, 2)
   availability    ProductAvailability      @default(IN_STOCK)
   stockQuantity   Int?

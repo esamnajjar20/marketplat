@@ -20,6 +20,7 @@ import type { SellerProfile } from './seller.types';
 
 export type StoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
 export type StoreFieldType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'SELECT';
+export type StoreFieldScope = 'STORE' | 'PRODUCT';
 
 export interface StoreTypeFieldOption { value: string; labelAr: string; }
 
@@ -33,6 +34,7 @@ export interface StoreTypeField {
   showOnCard?: boolean;
   showOnPage?: boolean;
   type: StoreFieldType;
+  scope: StoreFieldScope;
   required: boolean;
   options?: StoreTypeFieldOption[] | null;
   sortOrder: number;

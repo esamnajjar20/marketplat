@@ -8,7 +8,7 @@
  * user) — same one-hop-removed-from-User shape ServiceListing has via
  * ServiceProviderDetails. See store.types.ts for the store side.
  */
-import type { StoreDetails } from './store.types';
+import type { StoreDetails, StoreAttributes } from './store.types';
 import type { SellerProfile } from './seller.types';
 
 export type ProductAvailability = 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
@@ -21,7 +21,6 @@ export interface ProductCategory {
   slug: string;
   icon: string | null;
   parentId: string | null;
-  storeTypeId: string | null;
   isActive: boolean;
   createdAt: string;
   // Only present on the admin listing, same convention as
@@ -44,6 +43,7 @@ export interface Product {
   discountPrice: string | null;
   availability: ProductAvailability;
   stockQuantity?: number | null;
+  attributes?: StoreAttributes | null;
   status: ProductStatus;
   views: number;
   createdAt: string;
@@ -75,6 +75,7 @@ export type ProductWithFullStore = Product & {
     // from here instead (backend already includes the full
     // sellerProfile relation, so this was already in the response —
     // just missing from the type).
+    storeType?: StoreDetails['storeType'];
     sellerProfile: Pick<
       SellerProfile,
       'id' | 'userId' | 'verified' | 'averageRating' | 'totalRatings' | 'paymentMethods'
@@ -118,6 +119,7 @@ export interface CreateProductPayload {
   wholesaleMinQty?: number;
   availability?: ProductAvailability;
   stockQuantity?: number;
+  attributes?: StoreAttributes;
   images: File[];
 }
 
@@ -137,6 +139,7 @@ export interface UpdateProductPayload {
   wholesaleMinQty?: number | null;
   availability?: ProductAvailability;
   stockQuantity?: number | null;
+  attributes?: StoreAttributes;
   status?: ProductStatus;
 }
 
@@ -173,7 +176,6 @@ export interface CreateProductCategoryPayload {
   slug: string;
   icon?: string;
   parentId?: string;
-  storeTypeId?: string | null;
 }
 
 export type UpdateProductCategoryPayload = Partial<CreateProductCategoryPayload> & {
@@ -195,6 +197,7 @@ export interface ProductFormValues {
   wholesaleMinQty: string;
   availability: ProductAvailability;
   stockQuantity: string;
+  attributes: StoreAttributes;
   images: File[];         // new uploads staged for this submit
   existingImages: string[]; // URLs already on server (edit mode)
 }

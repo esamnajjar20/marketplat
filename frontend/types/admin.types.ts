@@ -240,9 +240,7 @@ export type UpdateAdminStoreTypePayload = Partial<Omit<CreateAdminStoreTypePaylo
 
 export interface CreateStoreTypeFieldPayload {
   key: string; labelAr: string; cardLabelAr?: string | null; pageLabelAr?: string | null; showOnCard?: boolean; showOnPage?: boolean; type: import('./store.types').StoreFieldType; required?: boolean;
-  // FIX STOREFIELD-OPTIONS-NULL: null clears options (backend accepts it —
-  // see store-type-fields.validation.ts optionsSchema.nullable()).
-  options?: import('./store.types').StoreTypeFieldOption[] | null; sortOrder?: number;
+  options?: import('./store.types').StoreTypeFieldOption[] | null; sortOrder?: number; scope?: import('./store.types').StoreFieldScope;
 }
 export type UpdateStoreTypeFieldPayload = Partial<Omit<CreateStoreTypeFieldPayload, 'key'>> & { options?: import('./store.types').StoreTypeFieldOption[] | null; isActive?: boolean };
 

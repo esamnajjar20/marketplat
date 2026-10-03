@@ -10,9 +10,9 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { uploadImage, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository } from '../stores/stores.repository';
+import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 import { requireStoreAccessForProducts } from '../stores/store-members.service';
 import { productCategoriesRepository } from '../product-categories/product-categories.repository';
-import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeFollowersRepository } from '../stores/store-followers.repository';
 import { notificationEvents } from '../notifications/notifications.service';
 import { savedSearchEvents } from '../saved-searches';
@@ -47,11 +47,6 @@ const productImageOperations = createEntityImageOperations({
 // service-listings' availabilityStatus gate — since it depends on
 // StoreDetails.plan, not a static schema rule.
 const FREE_PLAN_PRODUCT_LIMIT = 20;
-
-const getFreeProductLimit = async (storeTypeId: string): Promise<number | null> => {
-  const storeType = await storeTypesRepository.findById(storeTypeId);
-  return storeType?.freeProductLimit ?? FREE_PLAN_PRODUCT_LIMIT;
-};
 
 // PROMO-1: shape returned alongside every public-facing product,
 // folding in whatever promotions.service.ts's getEffectivePrice
@@ -113,6 +108,13 @@ export const productsService = {
     }
 
     const category = await productCategoriesRepository.findById(input.categoryId);
+
+    const validatedAttributes = await storeTypeFieldsService.validateAttributes(
+      store.storeTypeId,
+      input.attributes,
+      true,
+      'PRODUCT',
+    );
     if (!category || !category.isActive) {
       throw new BadRequestError('Invalid or inactive product category.');
     }
@@ -122,15 +124,12 @@ export const productsService = {
     // below, which is what actually prevents two concurrent requests
     // from both slipping past the cap).
     if (store.plan === 'FREE') {
-      const limit = await getFreeProductLimit(store.storeTypeId);
-      if (limit !== null) {
-        const activeCount = await storesRepository.countActiveProducts(store.id);
-        if (activeCount >= limit) {
-          throw new BadRequestError(
-            `Free plan stores can list up to ${limit} products. Upgrade to add more.`,
-            'PRODUCT_LIMIT_REACHED'
-          );
-        }
+      const activeCount = await storesRepository.countActiveProducts(store.id);
+      if (activeCount >= FREE_PLAN_PRODUCT_LIMIT) {
+        throw new BadRequestError(
+          `Free plan stores can list up to ${FREE_PLAN_PRODUCT_LIMIT} products. Upgrade to add more.`,
+          'PRODUCT_LIMIT_REACHED'
+        );
       }
     }
 
@@ -152,15 +151,12 @@ export const productsService = {
       // doesn't pay for Cloudinary uploads first.
       product = await withStoreProductCreationLock(store.id, async () => {
         if (store.plan === 'FREE') {
-          const limit = await getFreeProductLimit(store.storeTypeId);
-          if (limit !== null) {
-            const activeCount = await storesRepository.countActiveProducts(store.id);
-            if (activeCount >= limit) {
-              throw new BadRequestError(
-                `Free plan stores can list up to ${limit} products. Upgrade to add more.`,
-                'PRODUCT_LIMIT_REACHED'
-              );
-            }
+          const activeCount = await storesRepository.countActiveProducts(store.id);
+          if (activeCount >= FREE_PLAN_PRODUCT_LIMIT) {
+            throw new BadRequestError(
+              `Free plan stores can list up to ${FREE_PLAN_PRODUCT_LIMIT} products. Upgrade to add more.`,
+              'PRODUCT_LIMIT_REACHED'
+            );
           }
         }
 
@@ -177,6 +173,7 @@ export const productsService = {
             availability: deriveAvailabilityFromStock(input.stockQuantity, input.availability),
             stockQuantity: input.stockQuantity ?? null,
             offlineOperationId: offlineOperationId ?? null,
+            ...(validatedAttributes ? { attributes: validatedAttributes } : {}),
           })
         );
       });
@@ -342,6 +339,19 @@ export const productsService = {
     }
 
     const patch = { ...input };
+    if (input.attributes !== undefined) {
+      const currentAttributes =
+        product.attributes && typeof product.attributes === 'object' && !Array.isArray(product.attributes)
+          ? (product.attributes as Record<string, unknown>)
+          : {};
+      const validatedAttributes = await storeTypeFieldsService.validateAttributes(
+        store.storeTypeId,
+        { ...currentAttributes, ...input.attributes },
+        true,
+        'PRODUCT',
+      );
+      patch.attributes = validatedAttributes ?? {};
+    }
     if (input.stockQuantity !== undefined) {
       patch.availability = deriveAvailabilityFromStock(
         input.stockQuantity,
