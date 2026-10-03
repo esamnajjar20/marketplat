@@ -775,6 +775,32 @@ model RequestOffer {
 // and/or ServiceProviderDetails at once; both share the same
 // verification/suspension/trust-score gate on SellerProfile.
 // ---------------------------------------------------------------------
+enum StoreFieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  SELECT
+}
+
+model StoreTypeField {
+  id          String         @id @default(cuid())
+  storeTypeId String
+  key         String
+  labelAr     String
+  type        StoreFieldType
+  required    Boolean        @default(false)
+  options     Json?
+  sortOrder   Int            @default(0)
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  storeType   StoreType      @relation(fields: [storeTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeTypeId, key])
+  @@index([storeTypeId, isActive, sortOrder])
+  @@map("store_type_fields")
+}
+
 model StoreType {
   id               String            @id
   slug             String            @unique
@@ -786,6 +812,7 @@ model StoreType {
   sortOrder        Int               @default(0)
   stores           StoreDetails[]
   productCategories ProductCategory[]
+  fields           StoreTypeField[]
 
   @@index([isActive, sortOrder])
   @@map("store_types")
@@ -819,6 +846,8 @@ model StoreDetails {
   // component. Optional: a store with no hours set just never renders
   // an open/closed badge (storesService.computeIsOpen returns null).
   workingHours       Json?
+  /// StoreType-defined values only; keys are validated against active StoreTypeField definitions.
+  attributes         Json?
   // UNIFY-PAYMENTS-STORES: removed — a StoreDetails row always hangs
   // off a SellerProfile (sellerProfileId is @unique above), so payment
   // methods now live only on SellerProfile.paymentMethods and are read
