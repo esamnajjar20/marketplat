@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { HomePageContent } from '@/components/home/HomePageContent';
 import { getQueryClient } from '@/lib/queryClient';
-import { prefetchHomepage } from '@/lib/prefetch';
+import { prefetchHomeFeed } from '@/lib/prefetch';
 import { buildMetadata } from '@/lib/seo';
 import { buildHomePageJsonLd, safeJsonLd } from '@/lib/structuredData';
 
@@ -25,7 +25,7 @@ export const metadata: Metadata = buildMetadata({
 export default async function HomePage() {
   const jsonLd = buildHomePageJsonLd();
   const qc = getQueryClient();
-  await prefetchHomepage(qc);
+  await prefetchHomeFeed(qc);
 
   return (
     <>

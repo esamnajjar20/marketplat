@@ -7,6 +7,7 @@ import {
   readBrowseCity,
   writeBrowseCity,
   subscribeBrowseCity,
+  BROWSE_ALL_CITIES,
 } from '@/lib/browseCity';
 
 /**
@@ -33,27 +34,33 @@ export function useBrowseCity() {
   const rawProfileCity = useAuthStore((s) => s.user?.city);
   const profileCity = matchKnownCity(rawProfileCity);
 
-  const [guestCity, setGuestCity] = useState<string | undefined>(() => {
+  const [guestPreference, setGuestPreference] = useState<string | typeof BROWSE_ALL_CITIES | undefined>(() => {
     if (typeof window === 'undefined') return undefined;
-    return matchKnownCity(readBrowseCity());
+    const saved = readBrowseCity();
+    return saved === BROWSE_ALL_CITIES ? BROWSE_ALL_CITIES : matchKnownCity(saved);
   });
   const [guestReady, setGuestReady] = useState(() => typeof window !== 'undefined');
 
   useEffect(() => {
-    setGuestCity(matchKnownCity(readBrowseCity()));
+    const saved = readBrowseCity();
+    setGuestPreference(saved === BROWSE_ALL_CITIES ? BROWSE_ALL_CITIES : matchKnownCity(saved));
     setGuestReady(true);
-    return subscribeBrowseCity(() => setGuestCity(readBrowseCity()));
+    return subscribeBrowseCity(() => {
+      const next = readBrowseCity();
+      setGuestPreference(next === BROWSE_ALL_CITIES ? BROWSE_ALL_CITIES : matchKnownCity(next));
+    });
   }, []);
 
   const setCity = useCallback((city: string | undefined) => {
     writeBrowseCity(city);
-    setGuestCity(matchKnownCity(city));
+    setGuestPreference(city ? matchKnownCity(city) : BROWSE_ALL_CITIES);
   }, []);
 
   // A saved browse choice overrides the profile city for the current device.
   // The profile city remains the default when no explicit browse choice exists.
-  const city = guestCity || profileCity;
-  const source: 'profile' | 'guest' | 'none' = guestCity
+  const hasExplicitBrowsePreference = guestPreference !== undefined;
+  const city = guestPreference === BROWSE_ALL_CITIES ? undefined : guestPreference || profileCity;
+  const source: 'profile' | 'guest' | 'none' = hasExplicitBrowsePreference
     ? 'guest'
     : profileCity
       ? 'profile'
@@ -64,7 +71,7 @@ export function useBrowseCity() {
   return {
     city: isReady ? city : undefined,
     source,
-    canChange: isReady && !profileCity,
+    canChange: isReady,
     setCity,
     isReady,
   };

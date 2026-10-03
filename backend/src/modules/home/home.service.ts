@@ -91,6 +91,32 @@ export const homeService = {
   getHomepage: async (query: GetHomepageQuery) => {
     const cityFilter = query.city ? { city: query.city } : {};
 
+    // Legacy /home keeps its guest trending shelf; /home/feed uses one
+    // mixed recommendation call instead and never enters this path.
+    const guestTrendingPromise = Promise.all([
+          settle(
+            'guestTrendingAds',
+            recommendationsService.getRecommendations(
+              { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
+              undefined,
+            ),
+          ),
+          settle(
+            'guestTrendingProducts',
+            recommendationsService.getProductRecommendations(
+              { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
+              undefined,
+            ),
+          ),
+          settle(
+            'guestTrendingServices',
+            recommendationsService.getServiceListingRecommendations(
+              { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
+              undefined,
+            ),
+          ),
+        ]).then(([ads, products, services]) => ({ ads, products, services }));
+
     const [
       featuredAds,
       carouselFeaturedStores,
@@ -103,9 +129,6 @@ export const homeService = {
       homeServices,
       featuredStores,
       nearbyProviders,
-      guestAds,
-      guestProducts,
-      guestServices,
       stats,
     ] = await Promise.all([
       settle('featuredAds', adsService.getAds({ isFeatured: true, limit: CAROUSEL_LIMIT })),
@@ -169,27 +192,11 @@ export const homeService = {
           (result) => result.providers.length > 0,
         ),
       ),
-      // Guest trending shelf (was 3 client requests per visitor). Called with
-      // no auth header, so it is the anonymous trending result — identical for
-      // every guest of a given city, hence safe inside the shared payload.
-      settle(
-        'guestTrendingAds',
-        recommendationsService.getRecommendations({ limit: GUEST_TRENDING_PER_TYPE, ...cityFilter }, undefined),
-      ),
-      settle(
-        'guestTrendingProducts',
-        recommendationsService.getProductRecommendations({ limit: GUEST_TRENDING_PER_TYPE, ...cityFilter }, undefined),
-      ),
-      settle(
-        'guestTrendingServices',
-        recommendationsService.getServiceListingRecommendations(
-          { limit: GUEST_TRENDING_PER_TYPE, ...cityFilter },
-          undefined,
-        ),
-      ),
       // Real counters for the trust strip. Cosmetic: a failure yields null.
       settle('stats', homeStats()),
     ]);
+
+    const guestTrending = await guestTrendingPromise;
 
     const sections = [
       featuredAds,
@@ -227,11 +234,7 @@ export const homeService = {
       },
       /** Single page for "أحدث الإعلانات" — already city-scoped when query.city set */
       adsForHome: homeAds,
-      guestTrending: {
-        ads: guestAds,
-        products: guestProducts,
-        services: guestServices,
-      },
+      guestTrending,
       stats,
       belowFold: {
         recentProducts,
@@ -246,6 +249,47 @@ export const homeService = {
       },
     };
   },
+
+  /**
+   * Lightweight feed bootstrap: only data that is not supplied by the
+   * recommendation rails. The feed uses this on the common path so it does
+   * not run five extra list queries just to prepare fallbacks that are rarely
+   * needed.
+   */
+  getHomepageBootstrap: async (query: GetHomepageQuery) => {
+    const [featuredAds, carouselFeaturedStores, productPromotions, adCategories, productCategories, serviceCategories, stats] =
+      await Promise.all([
+        settle('featuredAds', adsService.getAds({ isFeatured: true, limit: CAROUSEL_LIMIT })),
+        settle('carouselStores', storesService.getFeaturedStores({ limit: CAROUSEL_LIMIT })),
+        settle(
+          'promotedProducts',
+          productsService.getProducts({ limit: SECTION_LIMIT, ...LATEST, hasPromotion: true }),
+        ),
+        settle('adCategories', categoriesService.getCategories()),
+        settle('productCategories', productCategoriesService.getProductCategories()),
+        settle('serviceCategories', serviceCategoriesService.getServiceCategories()),
+        settle('stats', homeStats()),
+      ]);
+
+    return {
+      featuredCarousel: {
+        ads: featuredAds,
+        products: productPromotions
+          ? { items: productPromotions.items.slice(0, CAROUSEL_PRODUCTS_LIMIT), meta: productPromotions.meta }
+          : null,
+        stores: carouselFeaturedStores
+          ? { items: carouselFeaturedStores.stores, meta: carouselFeaturedStores.meta }
+          : null,
+      },
+      categories: {
+        ads: adCategories,
+        products: productCategories,
+        services: serviceCategories,
+      },
+      stats,
+    };
+  },
+
 };
 
 export type HomepageResult = Awaited<ReturnType<typeof homeService.getHomepage>>;

@@ -4,31 +4,17 @@ import { AdCard } from '@/components/ads/AdCard';
 import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
-import { useAdsForHome } from '@/hooks/queries/useAdsForHome';
-import { useRecommendations } from '@/hooks/queries/useRecommendations';
-import { useBrowseCity } from '@/hooks/useBrowseCity';
-import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { useDataSaver } from '@/lib/useDataSaver';
 
-/** Ads: city priority + personal interest + healthy freshness fallback. */
+/** Ads come from the single homepage feed: city priority + interest + freshness backfill. */
 export function RecentAds() {
   const dataSaver = useDataSaver();
-  const { city, isReady } = useBrowseCity();
-  const isHydrated = useAuthStore(selectIsHydrated);
-  const isAuth = useAuthStore(selectIsAuthenticated);
+  const feed = useHomeFeed();
   const limit = dataSaver ? 6 : 8;
-  const ready = isHydrated && isReady;
+  const items = feed.data?.rails.ads.items.slice(0, limit) ?? [];
 
-  const ranked = useRecommendations(
-    { limit, ...(city ? { city } : {}) },
-    { enabled: ready, scope: isAuth ? 'user' : 'guest' },
-  );
-  const fallback = useAdsForHome();
-
-  const items = ranked.data?.length ? ranked.data : fallback.items.data;
-  const loading = !ready || ranked.isLoading || (ranked.data?.length === 0 && fallback.isLoading);
-
-  if (loading) {
+  if (feed.isPending) {
     return (
       <HomeScrollRail>
         {Array.from({ length: 6 }).map((_, i) => (
@@ -38,9 +24,7 @@ export function RecentAds() {
     );
   }
 
-  if (!items.length && ranked.isError && fallback.isError) {
-    return <ApiError error={ranked.error} onRetry={() => { void ranked.refetch(); void fallback.refetch(); }} variant="inline" />;
-  }
+  if (feed.isError) return <ApiError error={feed.error} onRetry={() => void feed.refetch()} variant="inline" />;
 
   return (
     <HomeScrollRail className="stagger-fade-in">

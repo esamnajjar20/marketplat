@@ -10,15 +10,12 @@ import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ApiError } from '@/components/shared/ApiError';
-import { useProducts } from '@/hooks/queries/useProducts';
-import { useProductRecommendations } from '@/hooks/queries/useRecommendations';
-import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
-import { useHomepage } from '@/hooks/queries/useHomepage';
-import { useBrowseCity } from '@/hooks/useBrowseCity';
+import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { collectIds, dedupeKeepingMin } from '@/lib/homeDedupe';
 import { useDataSaver } from '@/lib/useDataSaver';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 
 /**
  * FEAT-HOME-DISCOVERY: "أحدث المنتجات" Home section — deliberately
@@ -41,37 +38,13 @@ import { useDataSaver } from '@/lib/useDataSaver';
 export function RecentProductsSection() {
   const dataSaver = useDataSaver();
   const limit = homeSectionLimit(8, 4, dataSaver);
-  const { city, isReady } = useBrowseCity();
-  const isHydrated = useAuthStore(selectIsHydrated);
+  const feed = useHomeFeed();
   const isAuth = useAuthStore(selectIsAuthenticated);
-  const home = useHomepage();
-  const ranked = useProductRecommendations(
-    { limit, ...(city ? { city } : {}) },
-    { enabled: isHydrated && isReady, scope: isAuth ? 'user' : 'guest' },
-  );
-  const seeded = home.data?.belowFold?.recentProducts ?? null;
-  const hasSeed = seeded !== null && seeded !== undefined;
-  const allowFetch = home.isError || (home.isSuccess && !hasSeed);
-
-  const { data, isLoading, isError, error, refetch } = useProducts(
-    { limit, sortBy: 'createdAt', sortOrder: 'desc', city },
-    { enabled: allowFetch },
-  );
-  // Products already featured (carousel / "عروض مميزة") are not repeated here.
-  const promotedIds = collectIds(
-    home.data?.featuredCarousel?.products?.items,
-    home.data?.belowFold?.promotedProducts?.items,
-  );
-  const rankedItems = ranked.data ?? [];
-  const items = rankedItems.length > 0
-    ? dedupeKeepingMin(rankedItems, promotedIds).slice(0, limit)
-    : hasSeed
-      ? dedupeKeepingMin(seeded!.items ?? [], promotedIds).slice(0, limit)
-      : (data?.items ?? []);
-  const showLoading = ranked.isLoading && items.length === 0 ? true : hasSeed ? false : home.isPending || isLoading;
-  const showError = hasSeed ? false : isError;
-  const badgeSource = seeded?.source ?? (city ? 'city' : 'general');
-  const badgeCity = badgeSource === 'city' ? city : undefined;
+  const rail = feed.data?.rails.products;
+  const promotedIds = collectIds(feed.data?.featured.carousel.products?.items);
+  const items = dedupeKeepingMin(rail?.items ?? [], promotedIds).slice(0, limit);
+  const showLoading = feed.isPending;
+  const showError = feed.isError;
 
   const header = (
     <SectionHeader
@@ -79,11 +52,7 @@ export function RecentProductsSection() {
       title="منتجات تناسبك"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.products, label: 'عرض الكل ←' }}
-      badge={
-        !showLoading ? (
-          <LocationSourceBadge source={badgeSource} city={badgeCity} requestedCity={city} quiet />
-        ) : undefined
-      }
+      badge={!showLoading ? <LocationSourceBadge source={rail?.source ?? 'general'} quiet /> : undefined}
     />
   );
 
@@ -102,23 +71,11 @@ export function RecentProductsSection() {
     );
   }
 
-  // FIX UI-REVIEW-ERROR-STATE: same bug as RecentAds — a failed
-  // request used to fall straight into the empty-items branch below
-  // and show "لا توجد منتجات بعد" (no products yet), which is wrong
-  // on an established marketplace and misleads a user with a real
-  // connectivity problem into thinking there's simply nothing there.
   if (showError) {
     return (
       <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
         {header}
-        <ApiError
-          error={error}
-          onRetry={() => {
-            void home.refetch();
-            void refetch();
-          }}
-          variant="inline"
-        />
+        <ApiError error={feed.error} onRetry={() => void feed.refetch()} variant="inline" />
       </section>
     );
   }

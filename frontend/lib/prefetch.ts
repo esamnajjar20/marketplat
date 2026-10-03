@@ -35,6 +35,7 @@ import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type { Category }    from '@/types/category.types';
 import type { AdListItem, Ad } from '@/types/ad.types';
 import type { HomepagePayload } from '@/api/home.api';
+import { homeFeedQueryKey, type HomeFeedPayload } from '@/api/home-feed.api';
 
 // ── Raw fetch (no Axios — server context) ─────────────────────────
 
@@ -230,3 +231,37 @@ export async function prefetchHomepage(
 
 /** Max time the server waits for /home before rendering without it. */
 const HOME_PREFETCH_TIMEOUT_MS = 2500;
+
+
+/**
+ * Prefetch the single guest homepage feed. The client hook uses the same key
+ * so the first render can hydrate without issuing a second request.
+ */
+export async function prefetchHomeFeed(
+  qc: QueryClient,
+  timeoutMs: number = HOME_PREFETCH_TIMEOUT_MS,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, timeoutMs);
+  });
+
+  try {
+    await Promise.race([
+      qc.prefetchQuery({
+        queryKey: homeFeedQueryKey(undefined, null),
+        queryFn: async () => {
+          const res = await serverFetch<HomeFeedPayload>('/home/feed');
+          if (!res.data) throw new Error('empty /home/feed response');
+          return res.data;
+        },
+        staleTime: 60_000,
+      }),
+      timeout,
+    ]);
+  } catch (error) {
+    console.error('[prefetchHomeFeed] failed:', error);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}

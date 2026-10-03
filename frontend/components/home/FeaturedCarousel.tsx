@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Pause, Play, Sparkles } from 'lucide-react';
-import { useAds } from '@/hooks/queries/useAds';
-import { useHomepage } from '@/hooks/queries/useHomepage';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { ROUTES } from '@/lib/constants';
@@ -86,26 +85,12 @@ export function FeaturedCarousel() {
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
-  // Prefer the /home featuredCarousel payload. If /home fails,
-  // only the dedicated featured-ads endpoint is allowed as a fallback.
-  const home = useHomepage();
-  const fromHome = home.data?.featuredCarousel;
-
-  // Fall back to the dedicated endpoint when /home failed, or when the
-  // server isolated a failure of just this slice (ads === null).
-  const needsAdsFallback =
-    home.isError || (home.isSuccess && (fromHome?.ads ?? null) === null);
-  const adsFeatured = useAds(
-    { isFeatured: true, limit: DISPLAY_PER_SOURCE },
-    { enabled: needsAdsFallback },
-  );
-
-  const ads = fromHome?.ads?.items ?? adsFeatured.data?.items ?? [];
-  const stores = fromHome?.stores?.items ?? [];
-  const productItems = fromHome?.products?.items ?? [];
-
-  const adsLoading = needsAdsFallback && adsFeatured.isLoading;
-  const isLoading = home.isPending || adsLoading;
+  const feed = useHomeFeed();
+  const fromFeed = feed.data?.featured.carousel;
+  const ads = fromFeed?.ads?.items ?? [];
+  const stores = fromFeed?.stores?.items ?? [];
+  const productItems = fromFeed?.products?.items ?? [];
+  const isLoading = feed.isPending;
 
   const adSlides: Slide[] = ads.map((ad) => ({
     key: `ad-${ad.id}`,

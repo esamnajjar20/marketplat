@@ -7,53 +7,21 @@ import { HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { HomeRailShell } from '@/components/home/HomeRailShell';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
-import { useStores } from '@/hooks/queries/useStores';
-import { useStoreRecommendations } from '@/hooks/queries/useRecommendations';
-import { useHomepage } from '@/hooks/queries/useHomepage';
-import { useBrowseCity } from '@/hooks/useBrowseCity';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { collectIds, dedupeKeepingMin } from '@/lib/homeDedupe';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
-/**
- * قسم "متاجر" في الرئيسية — يفضّل belowFold.featuredStores من GET /home.
- *
- * ملاحظة تسمية: رغم اسم المكوّن، هذا القسم يعرض متاجر المدينة/العامة
- * (getStores) وليس المتاجر ذات الخطة FEATURED؛ المتاجر المميزة تظهر في
- * FeaturedCarousel أعلى الصفحة. العنوان المعروض "متاجر" صحيح، والاسم
- * التاريخي للمكوّن أُبقي لتفادي كسر الاستيرادات والاختبارات.
- */
 export function FeaturedStoresSection() {
   const dataSaver = useDataSaver();
   const limit = homeSectionLimit(6, 4, dataSaver);
-  const { city } = useBrowseCity();
-  const home = useHomepage();
-  const ranked = useStoreRecommendations({
-    limit,
-    ...(city ? { city } : {}),
-  });
-  const seeded = home.data?.belowFold?.featuredStores ?? null;
-  const hasSeed = seeded !== null && seeded !== undefined;
-  const allowFetch = home.isError || (home.isSuccess && !hasSeed);
-
-  const { data, isLoading, isError, error, refetch } = useStores(
-    { limit, city },
-    { enabled: allowFetch },
-  );
-  // Stores already featured in the carousel are not repeated here.
-  const carouselStoreIds = collectIds(home.data?.featuredCarousel?.stores?.items);
-  const rankedItems = ranked.data ?? [];
-  const items = rankedItems.length > 0
-    ? dedupeKeepingMin(rankedItems, carouselStoreIds).slice(0, limit)
-    : hasSeed
-      ? dedupeKeepingMin(seeded!.items ?? [], carouselStoreIds).slice(0, limit)
-      : (data?.items ?? []);
-  const showLoading = ranked.isLoading && items.length === 0 ? true : hasSeed ? false : home.isPending || isLoading;
-  const showError = hasSeed ? false : isError;
-
-  const badgeSource = seeded?.source ?? (city ? 'city' : 'general');
-  const badgeCity = badgeSource === 'city' ? city : undefined;
+  const feed = useHomeFeed();
+  const rail = feed.data?.rails.stores;
+  const carouselStoreIds = collectIds(feed.data?.featured.carousel.stores?.items);
+  const items = dedupeKeepingMin(rail?.items ?? [], carouselStoreIds).slice(0, limit);
+  const showLoading = feed.isPending;
+  const showError = feed.isError;
 
   const header = (
     <SectionHeader
@@ -61,11 +29,7 @@ export function FeaturedStoresSection() {
       title="متاجر تناسبك"
       icon={<StoreIcon className="h-3.5 w-3.5 text-accent" />}
       cta={{ href: ROUTES.stores, label: 'عرض الكل ←' }}
-      badge={
-        !showLoading ? (
-          <LocationSourceBadge source={badgeSource} city={badgeCity} requestedCity={city} quiet />
-        ) : undefined
-      }
+      badge={!showLoading ? <LocationSourceBadge source={rail?.source ?? 'general'} quiet /> : undefined}
     />
   );
 
@@ -78,11 +42,8 @@ export function FeaturedStoresSection() {
       status={status}
       skeleton={<StoreCardSkeleton />}
       skeletonCount={limit}
-      error={error}
-      onRetry={() => {
-        void home.refetch();
-        void refetch();
-      }}
+      error={feed.error}
+      onRetry={() => void feed.refetch()}
       empty={{
         icon: <StoreIcon />,
         title: 'لا توجد متاجر بعد',

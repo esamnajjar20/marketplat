@@ -107,7 +107,7 @@
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v43';
+const CACHE_VERSION = 'v44';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -440,6 +440,9 @@ const PUBLIC_LIST_API_PREFIXES = [
   '/api/v1/product-categories',
   '/api/v1/service-categories',
   '/api/v1/home',
+  // The unified homepage feed is safe in USER_DATA_CACHE for authenticated
+  // sessions; that cache is wiped on logout, preventing cross-user reuse.
+  '/api/v1/home/feed',
 ];
 
 function isPublicListApiPath(url) {

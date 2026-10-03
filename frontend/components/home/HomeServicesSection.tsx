@@ -7,47 +7,19 @@ import { HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { HomeRailShell } from '@/components/home/HomeRailShell';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
-import { useServiceListings } from '@/hooks/queries/useServiceListings';
-import { useServiceRecommendations } from '@/hooks/queries/useRecommendations';
-import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
-import { useHomepage } from '@/hooks/queries/useHomepage';
-import { useBrowseCity } from '@/hooks/useBrowseCity';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
-/**
- * خدمات الرئيسية — مدينة البروفايل أو اختيار الضيف (بدون GPS).
- */
 export function HomeServicesSection() {
   const dataSaver = useDataSaver();
   const limit = homeSectionLimit(8, 4, dataSaver);
-  const { city, isReady } = useBrowseCity();
-  const isHydrated = useAuthStore(selectIsHydrated);
-  const isAuth = useAuthStore(selectIsAuthenticated);
-  const home = useHomepage();
-  const ranked = useServiceRecommendations(
-    { limit, ...(city ? { city } : {}) },
-    { enabled: isHydrated && isReady, scope: isAuth ? 'user' : 'guest' },
-  );
-  const seeded = home.data?.belowFold?.homeServices ?? null;
-  const hasSeed = seeded !== null && seeded !== undefined;
-  const allowFetch = home.isError || (home.isSuccess && !hasSeed);
-
-  const { data, isLoading, isError, error, refetch } = useServiceListings(
-    {
-      limit,
-      sortBy: 'createdAt',
-      sortOrder: 'desc',
-      ...(city ? { city } : {}),
-    },
-    { enabled: allowFetch },
-  );
-
-  const rankedItems = ranked.data ?? [];
-  const items = rankedItems.length > 0 ? rankedItems.slice(0, limit) : hasSeed ? (seeded!.items ?? []).slice(0, limit) : (data?.items ?? []);
-  const showLoading = ranked.isLoading && items.length === 0 ? true : hasSeed ? false : home.isPending || isLoading;
-  const showError = hasSeed ? false : isError;
+  const feed = useHomeFeed();
+  const rail = feed.data?.rails.services;
+  const items = rail?.items.slice(0, limit) ?? [];
+  const showLoading = feed.isPending;
+  const showError = feed.isError;
 
   const header = (
     <SectionHeader
@@ -57,12 +29,7 @@ export function HomeServicesSection() {
       cta={{ href: ROUTES.services, label: 'عرض الكل ←' }}
       badge={
         !showLoading ? (
-          <LocationSourceBadge
-            source={seeded?.source ?? (city ? 'city' : 'general')}
-            city={seeded?.source === 'city' ? city : undefined}
-            requestedCity={city}
-            quiet
-          />
+          <LocationSourceBadge source={rail?.source ?? 'general'} quiet />
         ) : undefined
       }
     />
@@ -77,11 +44,8 @@ export function HomeServicesSection() {
       status={status}
       skeleton={<ServiceListingCardSkeleton />}
       skeletonCount={4}
-      error={error}
-      onRetry={() => {
-        void home.refetch();
-        void refetch();
-      }}
+      error={feed.error}
+      onRetry={() => void feed.refetch()}
       empty={{
         icon: <Briefcase />,
         title: 'لا توجد خدمات بعد',

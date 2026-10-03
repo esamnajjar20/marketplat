@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { LayoutGrid, Store } from 'lucide-react';
 import { useMemo } from 'react';
-import { useCategoryItems } from '@/hooks/queries/useCategoryItems';
-import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
+import { toCategoryItems, type Item } from '@/lib/categoryItems';
 import { ROUTES } from '@/lib/constants';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
-import { iconFor, type Item } from '@/lib/categoryItems';
+import { iconFor } from '@/lib/categoryItems';
 
 export { iconFor, interleave } from '@/lib/categoryItems';
 export type { Item, SourceType } from '@/lib/categoryItems';
@@ -35,10 +35,15 @@ function dedupe(items: UnifiedCategory[]) {
 
 /** One unified category discovery row — ads/products/services/store types share one visual language. */
 export function CategoriesRow() {
-  const { items, isLoading: categoriesLoading } = useCategoryItems();
-  const { data: storeTypes = [], isLoading: storesLoading } = useStoreTypes();
+  const feed = useHomeFeed();
+  const categories = feed.data?.bootstrap.categories;
+  const storeTypes = feed.data?.bootstrap.storeTypes ?? [];
+  const categoriesLoading = feed.isPending;
 
   const unified = useMemo(() => {
+    const ads = toCategoryItems('ad', categories?.ads);
+    const products = toCategoryItems('product', categories?.products);
+    const services = toCategoryItems('service', categories?.services);
     const stores: UnifiedCategory[] = storeTypes
       .filter((type) => type.hasActiveStores)
       .map((type) => ({
@@ -49,7 +54,7 @@ export function CategoriesRow() {
         href: `${ROUTES.stores}?type=${encodeURIComponent(type.slug)}`,
       }));
 
-    const all = dedupe([...items, ...stores]);
+    const all = dedupe([...ads, ...products, ...services, ...stores]);
     const queues: Record<'ad' | 'product' | 'service' | 'store', UnifiedCategory[]> = {
       ad: all.filter((item) => item.type === 'ad'),
       product: all.filter((item) => item.type === 'product'),
@@ -66,9 +71,9 @@ export function CategoriesRow() {
       cursor += 1;
     }
     return out.slice(0, MAX_HOME_CATEGORIES);
-  }, [items, storeTypes]);
+  }, [categories, storeTypes]);
 
-  if (categoriesLoading || storesLoading) {
+  if (categoriesLoading) {
     return (
       <div className="flex gap-2.5 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4">
         {Array.from({ length: 8 }).map((_, i) => (

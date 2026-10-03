@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useHomepage } from '@/hooks/queries/useHomepage';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { cn } from '@/lib/utils';
 
 /**
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  * It never blocks pointer events, so the city chips stay usable.
  */
 export function HomeBusyBoundary({ children }: { children: ReactNode }) {
-  const { isPlaceholderData } = useHomepage();
+  const { isPlaceholderData } = useHomeFeed();
   const busy = Boolean(isPlaceholderData);
 
   return (

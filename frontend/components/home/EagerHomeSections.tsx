@@ -1,6 +1,6 @@
 'use client';
 
-import { useHomepage } from '@/hooks/queries/useHomepage';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { HomeDiscoverHero } from './HomeDiscoverHero';
 import { HomeContextStrip } from './HomeContextStrip';
 import { FeaturedCarousel } from './FeaturedCarousel';
@@ -9,9 +9,9 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /** Only discovery controls + featured content live above the organic feed. */
 export function EagerHomeSections() {
-  const homepage = useHomepage();
+  const feed = useHomeFeed();
 
-  if (homepage.isPending) {
+  if (feed.isPending) {
     return (
       <div className="pb-2">
         <div className="container mx-auto max-w-7xl space-y-3 px-4 py-4">
