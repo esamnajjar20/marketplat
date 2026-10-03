@@ -3,7 +3,9 @@ import type { Router } from 'express';
 
 const MAX_BATCH_SIZE = 8;
 const MAX_PATH_LENGTH = 2048;
-const ITEM_TIMEOUT_MS = 200;
+// Cold DB queries on Render free tier take 300-800ms. 200ms caused
+// every batch item to return 504 even when the underlying route was healthy.
+const ITEM_TIMEOUT_MS = 800;
 
 // Only read routes that are safe to dispatch through the batch transport.
 // Mutations, auth flows, streams and exports keep their normal contracts.
