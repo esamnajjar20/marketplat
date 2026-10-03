@@ -1275,7 +1275,7 @@ export const serviceProviderRecommendationsRepository = {
       SELECT spd."id"
       FROM "service_provider_details" spd
       JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
-      WHERE spd."availabilityStatus" != 'UNAVAILABLE'
+      WHERE spd."availabilityStatus" != 'UNAVAILABLE'::"ServiceAvailability"
         AND sp."suspended" = false
       ORDER BY ${cityScore} DESC, ${interestScore} DESC,
         COALESCE((SELECT MAX(sl."createdAt") FROM "service_listings" sl

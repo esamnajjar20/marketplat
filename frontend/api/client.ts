@@ -30,7 +30,9 @@
  */
 import { recordRequestTiming } from '@/lib/connectionQuality';
 import axios, {
-  type AxiosError,
+  AxiosError,
+  type AxiosInstance,
+  type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from 'axios';
 import { useAuthStore }  from '@/store/auth.store';
@@ -43,11 +45,25 @@ import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { makeOfflineError } from '@/lib/offlineError';
 
+export type BatchGetRequest = {
+  url: string;
+  params?: Record<string, unknown>;
+};
+
+export type BatchGetResponse<T = unknown> = {
+  data: T;
+  status: number;
+};
+
+type ApiClientWithBatchGet = AxiosInstance & {
+  batchGet<T = unknown>(requests: BatchGetRequest[]): Promise<BatchGetResponse<T>[]>;
+};
+
 export const apiClient = axios.create({
   baseURL:         API_BASE_URL,
   withCredentials: true,
   headers:         { 'Content-Type': 'application/json' },
-});
+}) as ApiClientWithBatchGet;
 
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
 
@@ -119,7 +135,7 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
 
   // PHASE-1 UX: sample RTT for connection quality indicator
-  (config as InternalAxiosRequestConfig & { metadata?: { start: number } }).metadata = {
+  (config as AxiosRequestConfig & { metadata?: { start: number } }).metadata = {
     start: typeof performance !== 'undefined' ? performance.now() : Date.now(),
   };
 
@@ -164,6 +180,102 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   return config;
 });
+
+
+// READ-BATCH: explicit opt-in only.
+// Individual GETs keep their normal Axios semantics. Pages/components that have
+// several independent reads can call apiClient.batchGet([...]) explicitly.
+
+type BatchResponseItem = {
+  status: number;
+  body?: unknown;
+  error?: string;
+  headers?: Record<string, string | string[]>;
+};
+
+const MAX_BATCH_GETS = 8;
+
+function makeBatchAxiosError(
+  item: BatchResponseItem,
+  config: AxiosRequestConfig,
+): AxiosError {
+  return new AxiosError(
+    item.error || `Request failed with status ${item.status}`,
+    item.status >= 500 ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_BAD_REQUEST,
+    config as InternalAxiosRequestConfig,
+    undefined,
+    {
+      data: item.body,
+      status: item.status,
+      statusText: '',
+      headers: item.headers ?? {},
+      config: config as InternalAxiosRequestConfig,
+    },
+  );
+}
+
+apiClient.batchGet = async function batchGet<T = unknown>(
+  requests: BatchGetRequest[],
+): Promise<BatchGetResponse<T>[]> {
+  if (requests.length === 0) return [];
+  if (requests.length > MAX_BATCH_GETS) {
+    throw new Error(`batchGet supports at most ${MAX_BATCH_GETS} requests.`);
+  }
+
+  if (requests.length === 1) {
+    const single = requests[0]!;
+    const response = await apiClient.get<T>(single.url, { params: single.params });
+    return [{ data: response.data, status: response.status }];
+  }
+
+  const envelope = await apiClient.post<{
+    success: boolean;
+    data?: { responses: Record<string, BatchResponseItem> };
+  }>('/batch', {
+    requests: requests.map((request, index) => ({
+      id: String(index),
+      url: request.url,
+      params: request.params,
+    })),
+  });
+
+  const responses = envelope.data.data?.responses ?? {};
+
+  return Promise.all(
+    requests.map(async (request, index) => {
+      const item = responses[String(index)];
+      if (!item) {
+        throw new AxiosError(
+          'Missing batched response',
+          AxiosError.ERR_BAD_RESPONSE,
+          { method: 'GET', url: request.url } as InternalAxiosRequestConfig,
+        );
+      }
+
+      // Keep 401 on the normal GET path so the existing response interceptor
+      // can perform the application's shared refresh flow.
+      if (item.status === 401) {
+        const response = await apiClient.get<T>(request.url, {
+          params: request.params,
+        });
+        return { data: response.data, status: response.status };
+      }
+
+      if (item.status < 200 || item.status >= 300) {
+        throw makeBatchAxiosError(
+          item,
+          { method: 'GET', url: request.url, params: request.params } as InternalAxiosRequestConfig,
+        );
+      }
+
+      return {
+        data: item.body as T,
+        status: item.status,
+      };
+    }),
+  );
+};
+
 
 // ── Response interceptor — silent refresh ─────────────────────────
 let isRefreshing  = false;

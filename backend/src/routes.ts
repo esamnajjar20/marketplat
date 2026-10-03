@@ -35,6 +35,7 @@ import { fraudRouter } from './modules/fraud';
 import { observabilityRouter } from './modules/observability';
 import { homeRouter } from './modules/home';
 import { csrfProtection } from './middlewares/csrf.middleware';
+import { createReadBatchHandler } from './shared/utils/readBatchRouter';
 
 export const router = Router();
 
@@ -50,6 +51,12 @@ export const router = Router();
 // clients (API integrations, this repo's own integration tests) that
 // never went through the cookie-issuing login/refresh flow at all.
 router.use(csrfProtection);
+
+// READ-BATCH: explicit opt-in transport for pages that intentionally group
+// several independent GETs. Individual GET requests are never intercepted or
+// rewritten on the client; this route only handles /batch calls explicitly
+// made through apiClient.batchGet().
+router.post('/batch', createReadBatchHandler(router));
 
 router.use('/auth', authRouter);
 router.use('/users', usersRouter);

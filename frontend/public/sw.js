@@ -184,6 +184,7 @@ const MAX_SAVED_ADS_ENTRIES = 700;
 const MAX_PERSONAL_SHELL_ENTRIES = 300;
 
 const OFFLINE_URL = '/offline';
+const READ_BATCH_PATH = '/api/v1/batch';
 
 // يجب مطابقة lib/offlineQueue.ts حرفيًا — الصفحة تقرأ من نفس القاعدة/المخزن.
 const QUEUE_DB_NAME = 'market-offline-queue';
@@ -469,6 +470,10 @@ function isImageRequest(request, url) {
  * يُرسَل بلا الترويسة بينما كوكي csrfToken الخاص بالباك-إند يلحقه المتصفح
  * تلقائيًا (credentials:'include') فيرفضه csrfProtection بـ 403 ويُعلَّم
  * "failed" نهائيًا. */
+function isReadBatchRequest(url, request) {
+  return request.method === 'POST' && url.pathname === READ_BATCH_PATH;
+}
+
 function isUnsafeMethod(method) {
   const m = String(method || 'POST').toUpperCase();
   return m !== 'GET' && m !== 'HEAD' && m !== 'OPTIONS';
@@ -2793,6 +2798,10 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // READ-BATCH: /batch is a POST transport envelope containing only safe GETs.
+  // Never queue it as an offline mutation; the individual GETs remain read-only.
+  if (isReadBatchRequest(url, request)) return;
 
   // FIX SW-OPTIONS-01: استثناء OPTIONS (CORS preflight) — إدخاله في
   // الطابور لا فائدة له، فهو سؤال عن الصلاحيات لا طلب فعلي.
