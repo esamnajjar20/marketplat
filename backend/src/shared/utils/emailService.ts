@@ -535,6 +535,49 @@ function securityAlertEmail(event: string, details: Record<string, unknown>): { 
   };
 }
 
+// Phase 3: unread-notification digest (email fallback). Titles/bodies embed
+// user-controlled text (names, listing titles) — escape every interpolation.
+function notificationDigestEmail(
+  summary: { shown: { title: string; body: string }[]; more: number },
+  inboxUrl: string,
+  settingsUrl: string,
+): { html: string; text: string } {
+  const lines = summary.shown.map((i) => `• ${i.title}: ${i.body}`);
+  const moreLine = summary.more > 0 ? `و${summary.more} إشعارات أخرى غير مقروءة.` : '';
+  const rows = summary.shown
+    .map(
+      (i) =>
+        `<li style="margin:0 0 12px;"><strong>${escapeHtml(i.title)}</strong><br><span style="color:#444;">${escapeHtml(i.body)}</span></li>`,
+    )
+    .join('');
+  return {
+    text: [
+      'لديك إشعارات لم تقرأها في سوق غزة:',
+      '',
+      ...lines,
+      ...(moreLine ? ['', moreLine] : []),
+      '',
+      `افتح إشعاراتك: ${inboxUrl}`,
+      '',
+      `لإيقاف هذه الرسائل: ${settingsUrl}`,
+    ].join('\n'),
+    html: `
+      <div dir="rtl" style="font-family: Tahoma, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
+        <h2 style="margin-bottom: 16px;">لديك إشعارات لم تقرأها</h2>
+        <ul style="padding:0 20px 0 0; margin:0 0 16px;">${rows}</ul>
+        ${summary.more > 0 ? `<p style="color:#666;font-size:14px;">${escapeHtml(moreLine)}</p>` : ''}
+        <p style="margin: 24px 0;">
+          <a href="${escapeHtml(inboxUrl)}"
+             style="background:#16a34a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">
+            فتح الإشعارات
+          </a>
+        </p>
+        <p style="color:#666;font-size:12px;">وصلتك هذه الرسالة لأنك فعّلت «التنبيه بالبريد عند عدم القراءة». يمكنك إيقافها من <a href="${escapeHtml(settingsUrl)}">إعدادات الإشعارات</a>.</p>
+      </div>
+    `,
+  };
+}
+
 // ── Public API ───────────────────────────────────────────────────────
 
 export const emailService = {
@@ -589,5 +632,22 @@ export const emailService = {
       html,
       text,
     });
+  },
+  /**
+   * Phase 3 email fallback: ONE digest of the user's unread notifications.
+   * Returns whether the provider accepted it (sendEmail already retried
+   * transient failures), so the queue worker can release its rate-limit claim
+   * and retry on false.
+   */
+  sendNotificationDigestEmail: async (
+    toEmail: string,
+    summary: { subject: string; shown: { title: string; body: string }[]; more: number },
+  ): Promise<boolean> => {
+    const { html, text } = notificationDigestEmail(
+      summary,
+      `${env.frontendUrl}/notifications`,
+      `${env.frontendUrl}/settings?tab=notifications`,
+    );
+    return sendEmail({ to: toEmail, subject: summary.subject, html, text });
   },
 };

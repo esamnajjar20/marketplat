@@ -10,6 +10,11 @@ import { pushSubscriptionsRepository } from './pushSubscriptionsRepository';
 // versa — same isolation pushService.notifyUser already gives each
 // individual browser subscription.
 import { fcmPushService } from './fcmPushService';
+import {
+  evaluateQuietHours,
+  resolveQuietTimeZone as resolveQuietTimeZoneImpl,
+  type QuietHoursDecision,
+} from './quietHours';
 
 /**
  * FIX PWA-PUSH-01: this is the missing backend half of the frontend's
@@ -98,78 +103,92 @@ function isGoneError(err: unknown): boolean {
   return statusCode === 404 || statusCode === 410;
 }
 
-const DEFAULT_QUIET_TZ = 'Asia/Gaza';
-
-/** Returns `tz` if it is a valid IANA zone, otherwise the platform default. */
-export function resolveQuietTimeZone(tz: unknown): string {
-  if (typeof tz !== 'string' || tz.length === 0 || tz.length > 64) return DEFAULT_QUIET_TZ;
-  try {
-    new Intl.DateTimeFormat('en-GB', { timeZone: tz });
-    return tz;
-  } catch {
-    return DEFAULT_QUIET_TZ;
-  }
-}
-
-/** Local wall-clock time in the given IANA zone, for quiet-hours checks. */
-function currentTimeIn(timeZone: string): { hours: number; minutes: number } {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date());
-  // Some ICU builds render midnight as "24" with hour12:false.
-  const hours = Number(parts.find((p) => p.type === 'hour')?.value ?? '0') % 24;
-  const minutes = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
-  return { hours, minutes };
-}
-
-function parseHm(value: unknown, fallback: string): { h: number; m: number } {
-  const raw = typeof value === 'string' && /^\d{1,2}:\d{2}$/.test(value) ? value : fallback;
-  const [h, m] = raw.split(':').map((n) => Number(n));
-  return {
-    h: Number.isFinite(h) ? Math.min(23, Math.max(0, h)) : 22,
-    m: Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0,
-  };
-}
+/** Re-exported for existing callers/tests; the logic lives in quietHours.ts. */
+export const resolveQuietTimeZone = resolveQuietTimeZoneImpl;
 
 /**
- * Quiet hours live on User.notificationPreferences (jsonb):
- *   quietHoursEnabled?: boolean (default false)
- *   quietHoursStart?: "HH:mm" (default "22:00")
- *   quietHoursEnd?: "HH:mm" (default "08:00")
- *   quietHoursAllowUrgent?: boolean (default true)
- * Only suppresses external push — in-app rows are still created by callers.
+ * Quiet hours live on User.notificationPreferences (see quietHours.ts for the
+ * keys). Only suppresses/defers external push — in-app rows are still created
+ * by callers. Phase 3: the decision carries `resumeInMs` so the queue can
+ * defer the push to the end of the window instead of dropping it.
+ * Fails open (a lookup error must never swallow a push).
  */
-async function isInQuietHoursBlockingPush(userId: string, urgent?: boolean): Promise<boolean> {
+async function loadQuietHoursDecision(
+  userId: string,
+  urgent?: boolean,
+): Promise<QuietHoursDecision> {
   try {
     const { prisma } = await import('../../config/prisma');
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { notificationPreferences: true },
     });
-    const prefs =
-      user?.notificationPreferences && typeof user.notificationPreferences === 'object'
-        ? (user.notificationPreferences as Record<string, unknown>)
-        : {};
-    if (prefs.quietHoursEnabled !== true) return false;
-    if (urgent && prefs.quietHoursAllowUrgent !== false) return false;
-
-    const start = parseHm(prefs.quietHoursStart, '22:00');
-    const end = parseHm(prefs.quietHoursEnd, '08:00');
-    const { hours, minutes } = currentTimeIn(resolveQuietTimeZone(prefs.quietHoursTimeZone));
-    const now = hours * 60 + minutes;
-    const startMin = start.h * 60 + start.m;
-    const endMin = end.h * 60 + end.m;
-
-    // Window can span midnight (22:00 → 08:00) or sit in the same day (13:00 → 15:00).
-    if (startMin === endMin) return false;
-    if (startMin < endMin) return now >= startMin && now < endMin;
-    return now >= startMin || now < endMin;
+    return evaluateQuietHours(user?.notificationPreferences, urgent);
   } catch {
+    return { blocked: false };
+  }
+}
+
+/** Phase 3 switch. Optional chaining: older test mocks of `env` have no such key. */
+const queueEnabled = (): boolean => env.notificationQueue?.enabled === true;
+
+/**
+ * Runs `op` against the (lazily imported) queue module. Any failure — bullmq
+ * not installed, Redis down, enqueue timeout — returns false so the caller
+ * falls back to inline delivery. A push must degrade, never disappear.
+ */
+async function viaQueue(
+  op: (q: typeof import('../queue/notificationQueue')) => Promise<void>,
+): Promise<boolean> {
+  try {
+    const q = await import('../queue/notificationQueue');
+    await op(q);
+    return true;
+  } catch (err) {
+    logger.warn('Notification queue unavailable — falling back to inline delivery', { err });
     return false;
   }
+}
+
+/** Request body shared by the inline and queued Web Push paths. */
+function buildPushBody(payload: PushPayload): string {
+  return JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url,
+    tag: payload.tag,
+    image: payload.image,
+    urgent: payload.urgent,
+    type: payload.type,
+  });
+}
+
+/**
+ * TTL / urgency / topic for one push — shared by the inline and queued paths.
+ *
+ * FIX PUSH-TTL-AND-URGENCY-01: web-push's default TTL is 0, which tells the
+ * push service to *discard* the message if the device can't take it right now.
+ * On Gaza's mobile networks the phone is often offline, asleep or behind a NAT,
+ * so with TTL 0 every notification arriving in any of those states is lost.
+ * 24h for normal notifications ("show me what I missed when I open the app");
+ * 3h for urgent ones (a 24h-old "new message" is worse than none). Urgency maps
+ * to RFC 8030's `Urgency` hint (wake the radio now vs. batch with other traffic).
+ *
+ * FIX PUSH-TOPIC-COLLAPSE-01 / PUSH-TOPIC-HASH-01: `tag` becomes the RFC 8030
+ * `Topic` so repeats of the same kind collapse into one banner on the device;
+ * it is hashed (buildPushTopic) because Topic is limited to 32 URL-safe chars.
+ */
+function pushOptions(payload: PushPayload): {
+  TTL: number;
+  urgency: 'high' | 'normal';
+  topic?: string;
+} {
+  const topic = buildPushTopic(payload.tag);
+  return {
+    TTL: payload.urgent ? 3 * 60 * 60 : 24 * 60 * 60,
+    urgency: payload.urgent ? 'high' : 'normal',
+    ...(topic ? { topic } : {}),
+  };
 }
 
 /**
@@ -235,16 +254,45 @@ export const pushService = {
    * notificationsRepository.create.
    */
   notifyUser: async (userId: string, payload: PushPayload): Promise<void> => {
-    // NEW: native app push, fully independent of the Web Push send
-    // below (own try/catch, own graceful-degradation, see
-    // fcmPushService.ts). Fire-and-forget here too, matching this
-    // whole function's own contract with ITS callers.
-    // Quiet hours: skip both channels when blocking (in-app still written by caller).
-    if (!payload.bypassQuietHours && (await isInQuietHoursBlockingPush(userId, payload.urgent))) {
+    // Quiet hours apply to both channels (in-app rows are still written by the caller).
+    let quiet: QuietHoursDecision = { blocked: false };
+    if (!payload.bypassQuietHours) quiet = await loadQuietHoursDecision(userId, payload.urgent);
+
+    if (quiet.blocked) {
+      // Phase 3: with the queue on, hold the push until the window ends
+      // (collapsed per tag) instead of dropping it. Queue off/unavailable →
+      // the previous behaviour: skip.
+      if (queueEnabled()) {
+        // Copy out of the narrowed `let` — TS drops narrowing inside closures.
+        const resumeInMs = quiet.resumeInMs;
+        const deferred = await viaQueue((q) => q.deferPush(userId, payload, resumeInMs));
+        if (deferred) return;
+      }
       logger.info('[PUSH SKIPPED — quiet hours]', { userId, title: payload.title });
       return;
     }
 
+    if (queueEnabled()) {
+      const queued = await viaQueue((q) => q.enqueuePush(userId, payload));
+      if (queued) return;
+    }
+    await pushService.deliverInline(userId, payload);
+  },
+
+  /** Quiet-hours decision for a user (fails open). Used by queue workers when a deferred job wakes. */
+  quietHoursDecision: (userId: string, urgent?: boolean): Promise<QuietHoursDecision> =>
+    loadQuietHoursDecision(userId, urgent),
+
+  /**
+   * The pre-Phase-3 delivery path (FCM + every Web Push subscription of the
+   * user, inline, one retry per device). Used when the queue is disabled or
+   * unavailable. Never throws.
+   */
+  deliverInline: async (userId: string, payload: PushPayload): Promise<void> => {
+    // NEW: native app push, fully independent of the Web Push send
+    // below (own try/catch, own graceful-degradation, see
+    // fcmPushService.ts). Fire-and-forget here too, matching this
+    // whole function's own contract with ITS callers.
     void fcmPushService.notifyUser(userId, payload).catch(() => undefined);
 
     // AUDIT-FIX 2.1: wraps the whole body (not just the per-subscription
@@ -273,43 +321,9 @@ export const pushService = {
       const subscriptions = await pushSubscriptionsRepository.findManyByUserId(userId);
       if (subscriptions.length === 0) return;
 
-      const body = JSON.stringify({
-        title: payload.title,
-        body: payload.body,
-        url: payload.url,
-        tag: payload.tag,
-        image: payload.image,
-        urgent: payload.urgent,
-        type: payload.type,
-      });
-
-      // FIX PUSH-TTL-AND-URGENCY-01: web-push's default TTL is 0, which
-      // means the push service is instructed to *discard the message*
-      // if it can't be delivered to the device immediately. That default
-      // silently breaks the entire purpose of push for this app: on
-      // Gaza's mobile networks the phone is frequently offline, in
-      // deep sleep, or behind a NAT the push service can't reach right
-      // away. With TTL: 0, every notification that arrives during any
-      // of those states is dropped and never retried. WhatsApp/Telegram
-      // and every other production push implementation set a real TTL
-      // for exactly this reason.
-      //
-      // 24 hours for normal notifications (matches the "next time you
-      // open the app, you want to see what you missed" mental model),
-      // 3 hours for urgent ones (chat messages — a 24h-old "you have a
-      // new message" is worse than not sending it at all). Urgency maps
-      // to RFC 8030's `Urgency` hint so the push service knows whether
-      // to wake a sleeping radio immediately (`high`) or batch it with
-      // other traffic (`normal`).
-      const ttlSeconds = payload.urgent ? 3 * 60 * 60 : 24 * 60 * 60;
-      const urgency: 'high' | 'normal' = payload.urgent ? 'high' : 'normal';
-
-      // FIX PUSH-TOPIC-COLLAPSE-01: when a caller provides `tag`, use it
-      // as the RFC 8030 `Topic` so multiple pushes of the same kind
-      // ("you have a new message in conversation X") collapse into one
-      // on the device, instead of stacking a wall of identical banners.
-      // See buildPushTopic for why it is hashed rather than truncated.
-      const safeTopic = buildPushTopic(payload.tag);
+      const body = buildPushBody(payload);
+      // TTL / urgency / topic: see pushOptions() above.
+      const options = pushOptions(payload);
 
       const staleEndpoints: string[] = [];
       const stats = { sent: 0, gone: 0, failed: 0 };
@@ -322,11 +336,7 @@ export const pushService = {
               keys: { p256dh: sub.p256dh, auth: sub.auth },
             },
             body,
-            {
-              TTL: ttlSeconds,
-              urgency,
-              ...(safeTopic ? { topic: safeTopic } : {}),
-            }
+            options
           );
 
           stats[result] += 1;
@@ -363,6 +373,41 @@ export const pushService = {
       // branch means the whole push attempt for this user was aborted,
       // not just one of several subscriptions.
       logger.error('pushService.notifyUser failed unexpectedly', { userId, err });
+    }
+  },
+
+  /**
+   * Phase 3: ONE attempt to ONE Web Push subscription — no sleeping, no
+   * internal retry (the queue's backoff owns that). 'gone' means the push
+   * service discarded the endpoint and the row has been pruned; 'transient'
+   * (5xx / 429 / network) should be retried; 'failed' cannot be fixed by
+   * retrying (bad key, payload too large, VAPID mismatch — never auto-pruned,
+   * see PUSH-STATS-01).
+   */
+  sendToSubscription: async (
+    sub: { endpoint: string; p256dh: string; auth: string },
+    payload: PushPayload,
+  ): Promise<'sent' | 'gone' | 'transient' | 'failed' | 'unconfigured'> => {
+    if (!ensureConfigured()) return 'unconfigured';
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        buildPushBody(payload),
+        pushOptions(payload),
+      );
+      return 'sent';
+    } catch (err) {
+      if (isGoneError(err)) {
+        await pushSubscriptionsRepository
+          .deleteByEndpoints([sub.endpoint])
+          .catch((e) => logger.warn('Failed to prune stale push subscription', { err: e }));
+        return 'gone';
+      }
+      const statusCode = (err as WebPushError)?.statusCode;
+      const transient =
+        statusCode === undefined || statusCode === 429 || (statusCode >= 500 && statusCode < 600);
+      if (!transient) logger.warn('Push send failed (non-retryable)', { statusCode, err });
+      return transient ? 'transient' : 'failed';
     }
   },
 

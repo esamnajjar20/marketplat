@@ -113,6 +113,7 @@ const DEFAULT_PREFS: NotificationPreferences = {
   savedSearch: true,
   storeUpdates: true,
   serviceQuotes: true,
+  emailFallback: false,
   quietHoursEnabled: false,
   quietHoursStart: '22:00',
   quietHoursEnd: '08:00',
@@ -339,8 +340,45 @@ export function NotificationSettingsForm() {
             step={3}
             icon={Moon}
             title="متى يصلك؟"
-            subtitle="ساعات الهدوء توقف إشعارات الجهاز فقط (لا تُؤجَّل، بل لا تُرسل). الإشعارات داخل التطبيق تُحفظ وتظهر عند فتحك للمنصة."
+            subtitle="ساعات الهدوء تمنع إشعارات الجهاز خلال الفترة، وما كان ينتظرك يصل بعد انتهائها. الإشعارات داخل التطبيق تُحفظ وتظهر عند فتحك للمنصة."
           />
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-border/80">
+          <div className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4">
+            <div className="min-w-0">
+              <p id="email-fallback-label" className="text-sm font-medium">تنبيه بالبريد عند عدم القراءة</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                إن بقيت رسائلك أو طلباتك أو عروضك غير مقروءة نصف ساعة تقريباً، نرسل لك بريداً واحداً ملخّصاً (بحد أقصى مرة كل ساعة)
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={Boolean(prefs.emailFallback)}
+              aria-labelledby="email-fallback-label"  /* FIX-F5-LABEL-01 */
+              disabled={bulkPending}
+              onClick={() => {
+                const next = !prefs.emailFallback;
+                setPrefs((p) => ({ ...p, emailFallback: next }));
+                updatePrefs.mutate(
+                  { emailFallback: next },
+                  { onError: () => setPrefs((p) => ({ ...p, emailFallback: !next })) },
+                );
+              }}
+              className={cn(
+                'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50',
+                prefs.emailFallback ? 'bg-primary' : 'bg-input',
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
+                  prefs.emailFallback ? 'start-[1.375rem]' : 'start-0.5',
+                )}
+              />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border/80 divide-y">
@@ -348,7 +386,7 @@ export function NotificationSettingsForm() {
             <div className="min-w-0">
               <p className="text-sm font-medium">ساعات الهدوء</p>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                لا تُرسل إشعارات للجهاز بين الوقتين أدناه (ما عدا العاجل إن سمحت)
+                لا تصلك إشعارات الجهاز بين الوقتين أدناه (ما عدا العاجل إن سمحت)
               </p>
             </div>
             <button

@@ -94,6 +94,10 @@ export const updateNotificationPreferencesSchema = z.object({
     savedSearch: z.boolean().optional(),
     storeUpdates: z.boolean().optional(),
     serviceQuotes: z.boolean().optional(),
+    // Phase 3 email fallback (opt-in, default off): one digest email when
+    // direct notifications (messages, requests, quotes, appointments) stay
+    // unread — see notificationEmailFallback.ts for the eligible types.
+    emailFallback: z.boolean().optional(),
     // Quiet hours (external push only; zone in quietHoursTimeZone, default Asia/Gaza). Optional partial PATCH.
     quietHoursEnabled: z.boolean().optional(),
     quietHoursStart: z

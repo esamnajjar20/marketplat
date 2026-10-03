@@ -77,7 +77,8 @@ app.use(
     // though the device was online and every other endpoint (login,
     // GET routes, delete, markAsSold — none of which send this header)
     // worked normally.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-CSRF-Token', 'X-Offline-Op-Id'],
+    // Last-Event-ID: the SSE client resumes /notifications/stream with it (cross-origin → needs preflight approval).
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-CSRF-Token', 'X-Offline-Op-Id', 'Last-Event-ID'],
     exposedHeaders: ['X-Request-Id'],
   })
 );

@@ -17,6 +17,10 @@ export interface UpsertFcmDeviceTokenInput {
 }
 
 export const fcmDeviceTokensRepository = {
+  // See pushSubscriptionsRepository.findByIdForUser — jobs carry ids, not tokens.
+  findByIdForUser: (id: string, userId: string): Promise<FcmDeviceToken | null> =>
+    prisma.fcmDeviceToken.findFirst({ where: { id, userId } }),
+
   findManyByUserId: (userId: string): Promise<FcmDeviceToken[]> =>
     prisma.fcmDeviceToken.findMany({ where: { userId } }),
 

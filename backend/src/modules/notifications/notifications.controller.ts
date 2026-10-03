@@ -206,7 +206,11 @@ export const notificationsController = {
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
       res.flushHeaders?.();
-      addNotificationStreamClient(user.userId, res);
+      // Resume point: native EventSource sends Last-Event-ID itself; the app's
+      // fetch-based client sets the header (or ?lastEventId= as a fallback).
+      const fromQuery = typeof req.query.lastEventId === 'string' ? req.query.lastEventId : undefined;
+      const lastEventId = req.get('last-event-id') ?? fromQuery;
+      addNotificationStreamClient(user.userId, res, { lastEventId });
       // Keep the request open; cleanup is on res 'close'.
     } catch (error) {
       next(error);

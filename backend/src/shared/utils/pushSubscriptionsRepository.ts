@@ -39,6 +39,13 @@ export const pushSubscriptionsRepository = {
   findManyByUserId: (userId: string): Promise<PushSubscription[]> =>
     prisma.pushSubscription.findMany({ where: { userId } }),
 
+  // Queue jobs carry the row id (never the endpoint/keys — those are
+  // credentials and must not sit in Redis). userId is checked too so a stale
+  // job can never deliver to a row that has since moved to another account
+  // (PUSH-OWNERSHIP-01 reassigns rows between users on shared devices).
+  findByIdForUser: (id: string, userId: string): Promise<PushSubscription | null> =>
+    prisma.pushSubscription.findFirst({ where: { id, userId } }),
+
   // FIX PWA-PUSH-01 (moved from notifications.repository.ts, same
   // upsert-on-endpoint rationale — endpoint is globally unique, see the
   // PushSubscription model's own doc comment in schema.prisma):

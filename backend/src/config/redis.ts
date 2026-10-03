@@ -108,3 +108,34 @@ if (cacheRedis !== redis) {
   cacheRedis.on('connect', () => logger.info('✅ Redis (cache) connected'));
   cacheRedis.on('error', err => logger.error('Redis (cache) error', { err: err.message }));
 }
+
+/**
+ * Phase 3: dedicated connection factory for BullMQ.
+ *
+ * BullMQ must not share the app's `redis` client:
+ *  - Workers use blocking commands and require `maxRetriesPerRequest: null`,
+ *    while the shared client keeps 3 so ordinary requests fail fast.
+ *  - Producers (Queue) want the opposite — fail fast when Redis is down so
+ *    notifyUser can fall back to inline delivery instead of hanging a request.
+ *
+ * Always the PRIMARY instance (noeviction): a queue on an evicting cache
+ * would silently lose jobs. Not lazyConnect — BullMQ manages readiness itself.
+ */
+export function createBullMqConnection(role: 'producer' | 'worker'): Redis {
+  const conn = new Redis({
+    host: env.redis.host,
+    port: env.redis.port,
+    username: env.redis.username || undefined,
+    password: env.redis.password || undefined,
+    family: 4,
+    keepAlive: 10_000,
+    connectTimeout: 10_000,
+    tls: env.redis.tls ? {} : undefined,
+    retryStrategy: times => Math.min(times * 50, 2000),
+    maxRetriesPerRequest: role === 'worker' ? null : 1,
+    // BullMQ requires the ready check for its version/policy warnings.
+    enableReadyCheck: true,
+  });
+  conn.on('error', err => logger.error(`BullMQ ${role} Redis error`, { err: err.message }));
+  return conn;
+}

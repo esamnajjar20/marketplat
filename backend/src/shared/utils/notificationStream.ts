@@ -4,12 +4,35 @@
  * GET /notifications/stream holds an open response per client.
  * create/createMany publish a small JSON event to that user's sockets
  * and over Redis so other app instances deliver too.
+ *
+ * Phase 3 — resumable stream:
+ *  - Persistable events (notification, message:*) are appended to a short-lived
+ *    per-user Redis Stream (replayBuffer.ts); the entry id is sent as the SSE
+ *    `id:`. A client that reconnects with `Last-Event-ID` gets what it missed
+ *    replayed, or an `event: resync` when the buffer cannot prove completeness.
+ *  - `typing` is ephemeral: live only, never buffered, no id.
+ *  - Bulk fan-outs (admin broadcasts) skip the buffer: one stream per recipient
+ *    for 100K users would cost far more memory than a missed promo toast is
+ *    worth; their rows are in Postgres and the client refetches on reconnect.
+ *  - The publisher used to receive its own Redis message back and deliver it a
+ *    second time to its local clients; messages now carry an origin and a
+ *    process ignores its own.
  */
+import { randomUUID } from 'crypto';
 import type { Response } from 'express';
 import type { NotificationType } from '@prisma/client';
 import type Redis from 'ioredis';
-import { redis } from '../../config/redis';
+import { env } from '../../config/env';
+import { redis, cacheRedis } from '../../config/redis';
 import { logger } from './logger';
+import {
+  appendReplayEvent,
+  compareEventIds,
+  parseEventId,
+  readReplayEvents,
+  type ReplayOptions,
+  type ReplayRedis,
+} from './replayBuffer';
 
 /** Unified SSE payload — notifications + chat messages on one stream. */
 export type LiveStreamEvent =
@@ -55,32 +78,93 @@ export type NotificationLiveEvent = LiveStreamEvent;
 
 const CHANNEL = 'notifications:live';
 
-type Client = { res: Response; heartbeat: NodeJS.Timeout };
+/** Distinguishes this process's own Redis echoes (PM2 cluster = several processes). */
+const INSTANCE_ID = randomUUID();
+
+/** Above this many recipients an event is delivered live only (see header). */
+const BULK_NO_BUFFER_THRESHOLD = 200;
+/** The buffer must never slow a publish noticeably; past this we go live-only. */
+const REPLAY_IO_TIMEOUT_MS = 300;
+/** Replay on connect is allowed a little longer — it runs once per reconnect. */
+const REPLAY_READ_TIMEOUT_MS = 1_500;
+
+type Client = {
+  res: Response;
+  heartbeat: NodeJS.Timeout;
+  /** False while the replay for a reconnect is being written; live events queue in `pending` meanwhile. */
+  ready: boolean;
+  pending: Array<{ id?: string; payload: LiveStreamEvent }>;
+  /** Highest id written to this client — drops duplicates between replay and live. */
+  lastSentId?: string;
+  /**
+   * FIX-REPLAY-ORDER-01: true only while replayThenGoLive writes replayed
+   * entries. The "already sent" id check in sendToClient runs ONLY then —
+   * live delivery must never drop a message just because a concurrent
+   * publish of a different event finished its XADD first (id order is not
+   * the same as real arrival order under Promise.all).
+   */
+  duringReplay: boolean;
+};
 
 const localClients = new Map<string, Set<Client>>();
 
 let subscriber: Redis | null = null;
 let redisReady: Promise<void> | null = null;
 
-function writeSse(res: Response, event: string, data: unknown): void {
-  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+function replayOptions(): ReplayOptions {
+  // Optional chaining: some unit-test mocks of `env` predate Phase 3.
+  return {
+    maxEvents: env.sseReplay?.maxEvents ?? 100,
+    ttlSeconds: env.sseReplay?.ttlSeconds ?? 3600,
+  };
 }
 
-function deliverLocal(userId: string, payload: LiveStreamEvent): void {
-  const set = localClients.get(userId);
-  if (!set || set.size === 0) return;
-  const eventName =
-    payload.type === 'message:new' ||
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+}
+
+/** Typing indicators are ephemeral by nature; everything else can be replayed. */
+function isReplayable(event: LiveStreamEvent): boolean {
+  return event.type !== 'typing';
+}
+
+function eventNameFor(payload: LiveStreamEvent): 'message' | 'notification' {
+  return payload.type === 'message:new' ||
     payload.type === 'message:deleted' ||
     payload.type === 'typing'
-      ? 'message'
-      : 'notification';
+    ? 'message'
+    : 'notification';
+}
+
+function writeSse(res: Response, event: string, data: unknown, id?: string): void {
+  res.write(`${id ? `id: ${id}\n` : ''}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+/** Writes one event to one client, skipping anything it has already been sent. */
+function sendToClient(client: Client, payload: LiveStreamEvent, id?: string): void {
+  // FIX-REPLAY-ORDER-01: dedup only during replay; live order is not guaranteed.
+  if (client.duringReplay && id && client.lastSentId && compareEventIds(id, client.lastSentId) <= 0) return;
+  try {
+    writeSse(client.res, eventNameFor(payload), payload, id);
+    if (id) client.lastSentId = id;
+  } catch {
+    /* gone */
+  }
+}
+
+function deliverLocal(userId: string, payload: LiveStreamEvent, id?: string): void {
+  const set = localClients.get(userId);
+  if (!set || set.size === 0) return;
   for (const client of set) {
-    try {
-      writeSse(client.res, eventName, payload);
-    } catch {
-      /* gone */
+    if (!client.ready) {
+      client.pending.push({ id, payload });
+      continue;
     }
+    sendToClient(client, payload, id);
   }
 }
 
@@ -102,9 +186,13 @@ function ensureRedisSub(): Promise<void> {
           const parsed = JSON.parse(message) as {
             userId: string;
             event: LiveStreamEvent;
+            id?: string | null;
+            origin?: string;
           };
+          // Already delivered synchronously by publishNotificationEvent in this process.
+          if (parsed?.origin === INSTANCE_ID) return;
           if (parsed?.userId && parsed.event) {
-            deliverLocal(parsed.userId, parsed.event);
+            deliverLocal(parsed.userId, parsed.event, parsed.id ?? undefined);
           }
         } catch {
           /* ignore */
@@ -119,7 +207,81 @@ function ensureRedisSub(): Promise<void> {
   return redisReady;
 }
 
-export function addNotificationStreamClient(userId: string, res: Response): () => void {
+/** Appends to the replay buffer; null = not buffered (disabled, failed or slow) → live-only. */
+async function bufferEvent(userId: string, event: LiveStreamEvent): Promise<string | null> {
+  try {
+    return await withTimeout(
+      appendReplayEvent(cacheRedis as unknown as ReplayRedis, userId, event, replayOptions()),
+      REPLAY_IO_TIMEOUT_MS,
+    );
+  } catch (err) {
+    logger.warn('notificationStream replay append failed — live-only', {
+      userId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+/**
+ * Writes the replay for a reconnect, then switches the client to live mode.
+ * Everything from the first `await` result to `ready = true` is synchronous,
+ * so no live event can slip between "replayed" and "live".
+ */
+async function replayThenGoLive(userId: string, client: Client, lastEventId?: string): Promise<void> {
+  let gap = false;
+  if (lastEventId && parseEventId(lastEventId)) {
+    try {
+      const result = await withTimeout(
+        readReplayEvents(cacheRedis as unknown as ReplayRedis, userId, lastEventId, replayOptions()),
+        REPLAY_READ_TIMEOUT_MS,
+      );
+      gap = result.gap;
+      // On a gap the client refetches everything anyway; replaying a partial
+      // tail first would only apply some events twice.
+      if (!gap) {
+        for (const { id, event } of result.events) {
+          // FIX-BULK-GAP-01: a >BULK_NO_BUFFER_THRESHOLD fan-out left only
+          // this tiny marker (its real events were never buffered), so the
+          // tail is not a complete record. Treat it as a gap → resync.
+          if ((event as { __bulkGap?: boolean } | null | undefined)?.__bulkGap === true) {
+            gap = true;
+            break;
+          }
+          sendToClient(client, event as LiveStreamEvent, id);
+        }
+      }
+    } catch (err) {
+      gap = true;
+      logger.warn('notificationStream replay read failed — asking client to resync', {
+        userId,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // FIX-REPLAY-ORDER-01: replay written — from here the id-dedup is off. A
+  // concurrent publish may have pushed its entry into `pending` after the
+  // live XADD finished with a smaller id than this client's lastSentId.
+  client.duringReplay = false;
+
+  try {
+    if (gap) writeSse(client.res, 'resync', { reason: 'replay_gap' });
+  } catch {
+    /* gone */
+  }
+
+  const queued = client.pending;
+  client.pending = [];
+  for (const item of queued) sendToClient(client, item.payload, item.id);
+  client.ready = true;
+}
+
+export function addNotificationStreamClient(
+  userId: string,
+  res: Response,
+  opts: { lastEventId?: string } = {},
+): () => void {
   void ensureRedisSub();
 
   const heartbeat = setInterval(() => {
@@ -130,7 +292,7 @@ export function addNotificationStreamClient(userId: string, res: Response): () =
     }
   }, 25_000);
 
-  const client: Client = { res, heartbeat };
+  const client: Client = { res, heartbeat, ready: false, pending: [], duringReplay: true };
   let set = localClients.get(userId);
   if (!set) {
     set = new Set();
@@ -138,7 +300,8 @@ export function addNotificationStreamClient(userId: string, res: Response): () =
   }
   set.add(client);
 
-  writeSse(res, 'connected', { ok: true });
+  writeSse(res, 'connected', { ok: true, resumed: Boolean(opts.lastEventId) });
+  void replayThenGoLive(userId, client, opts.lastEventId);
 
   const cleanup = () => {
     clearInterval(heartbeat);
@@ -155,14 +318,43 @@ export function addNotificationStreamClient(userId: string, res: Response): () =
 export async function publishNotificationEvent(
   userId: string,
   event: LiveStreamEvent,
+  opts: { buffer?: boolean } = {},
 ): Promise<void> {
-  deliverLocal(userId, event);
+  const id =
+    opts.buffer !== false && isReplayable(event) ? await bufferEvent(userId, event) : null;
+
+  deliverLocal(userId, event, id ?? undefined);
 
   try {
     await ensureRedisSub();
-    await redis.publish(CHANNEL, JSON.stringify({ userId, event }));
+    await redis.publish(CHANNEL, JSON.stringify({ userId, event, id, origin: INSTANCE_ID }));
   } catch (err) {
     logger.warn('notificationStream publish failed', { err, userId });
+  }
+}
+
+/**
+ * FIX-BULK-GAP-01: best-effort marker appended to a user's replay stream when
+ * a fan-out is too large to buffer. Seeing it on reconnect, replayThenGoLive
+ * emits `resync` (client refetches from Postgres) instead of trusting an
+ * empty tail. Cost is one XADD per recipient, independent of fan-out size.
+ */
+async function appendBulkGapMarker(userId: string): Promise<void> {
+  try {
+    await withTimeout(
+      appendReplayEvent(
+        cacheRedis as unknown as ReplayRedis,
+        userId,
+        { __bulkGap: true },
+        replayOptions(),
+      ),
+      REPLAY_IO_TIMEOUT_MS,
+    );
+  } catch (err) {
+    logger.warn('notificationStream bulk gap marker failed — client may miss the resync', {
+      userId,
+      err: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -171,5 +363,11 @@ export async function publishNotificationEventToMany(
   event: LiveStreamEvent,
 ): Promise<void> {
   const unique = Array.from(new Set(userIds));
-  await Promise.all(unique.map((id) => publishNotificationEvent(id, event)));
+  const buffer = unique.length <= BULK_NO_BUFFER_THRESHOLD;
+  if (!buffer) {
+    // FIX-BULK-GAP-01: no per-user replay entry for the real event; drop a
+    // marker so a reconnecting client knows its replay tail is not complete.
+    await Promise.all(unique.map((id) => appendBulkGapMarker(id)));
+  }
+  await Promise.all(unique.map((id) => publishNotificationEvent(id, event, { buffer })));
 }

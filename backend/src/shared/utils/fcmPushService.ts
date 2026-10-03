@@ -78,7 +78,48 @@ function isDeadTokenError(err: unknown): boolean {
   return code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token';
 }
 
+export type FcmSendOutcome = 'sent' | 'gone' | 'transient' | 'failed' | 'unconfigured';
+
 export const fcmPushService = {
+  /**
+   * Phase 3: ONE attempt to ONE token, no internal retry and no sleeping —
+   * the queue owns retries (backoff, attempts) so a transient FCM error is
+   * re-run per device instead of re-sending to every device of the user.
+   * 'gone' = token permanently dead (row already pruned here);
+   * 'transient' = caller should retry; 'failed' = retrying cannot help.
+   */
+  sendToToken: async (
+    deviceToken: { token: string },
+    payload: FcmPushPayload,
+  ): Promise<FcmSendOutcome> => {
+    if (!(await ensureConfigured())) return 'unconfigured';
+    try {
+      const { getMessaging } = await import('firebase-admin/messaging');
+      await getMessaging(app!).send({
+        token: deviceToken.token,
+        notification: { title: payload.title, body: payload.body },
+        data: { url: payload.url ?? '', tag: payload.tag ?? '' },
+      });
+      return 'sent';
+    } catch (err) {
+      if (isDeadTokenError(err)) {
+        await fcmDeviceTokensRepository
+          .deleteByTokens([deviceToken.token])
+          .catch((e) => logger.warn('Failed to prune stale FCM token', { err: e }));
+        return 'gone';
+      }
+      const code = (err as FcmSendError)?.errorInfo?.code;
+      const transient =
+        code === 'messaging/server-unavailable' ||
+        code === 'messaging/internal-error' ||
+        code === 'messaging/unavailable' ||
+        code === 'messaging/unknown-error' ||
+        code === undefined; // network-level failure: no FCM error code at all
+      if (!transient) logger.warn('FCM push send failed (non-retryable)', { code, err });
+      return transient ? 'transient' : 'failed';
+    }
+  },
+
   /** Same fire-and-forget contract as pushService.notifyUser — callers use `void`. */
   notifyUser: async (userId: string, payload: FcmPushPayload): Promise<void> => {
     try {

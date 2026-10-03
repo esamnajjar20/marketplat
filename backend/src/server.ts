@@ -156,6 +156,12 @@ const bootstrap = async (): Promise<void> => {
 
     // FIX CACHE-KEEPWARM-01: stopped on shutdown (see below).
     let stopCacheKeepWarm: (() => void) | undefined;
+    // Phase 3: set once the (optional) notification worker has started.
+    let stopNotificationQueue: (() => Promise<void>) | undefined;
+    // FIX-NOTIF-SHUTDOWN-01: held so shutdown can await the import BEFORE
+    // reading stopNotificationQueue. A SIGTERM during startup would otherwise
+    // skip it and leak the worker past server.close().
+    let notificationQueueStartup: Promise<void> | undefined;
 
     const server = app.listen(env.port, () => {
       logger.info('🚀 Server running', {
@@ -168,6 +174,23 @@ const bootstrap = async (): Promise<void> => {
       // before the first visitor has to, and keep them warm afterwards —
       // see shared/utils/cacheWarmup.ts.
       stopCacheKeepWarm = startCacheKeepWarm();
+      // Phase 3: queue consumer (no-op unless NOTIFICATION_QUEUE_ENABLED=true).
+      // A failure to start must never take the API down — pushes then simply
+      // stay queued until a worker is healthy, and producers fall back inline.
+      // Dynamic import: when the queue is off, `bullmq` is never even loaded,
+      // so an environment without the package keeps booting exactly as before.
+      if (env.notificationQueue.enabled) {
+        // FIX-NOTIF-SHUTDOWN-01: keep the promise (never void) so shutdown can
+        // await it — see notificationQueueStartup's own comment.
+        notificationQueueStartup = import('./shared/queue/notificationQueue')
+          .then((q) => {
+            q.startNotificationWorker();
+            stopNotificationQueue = q.stopNotificationQueue;
+          })
+          .catch((err) => {
+            logger.error('Failed to start notification worker', { err });
+          });
+      }
     });
 
     const shutdown = async (signal: string) => {
@@ -196,6 +219,10 @@ const bootstrap = async (): Promise<void> => {
         // burst — see MAX_BATCH_PER_FLUSH) sit in Redis until the next
         // process's timer happens to drain them.
         await activityBuffer.stopFlushTimer();
+        // Phase 3: finish in-flight notification jobs while Prisma/Redis are still up.
+        // FIX-NOTIF-SHUTDOWN-01: await the import first (see notificationQueueStartup).
+        await notificationQueueStartup?.catch(() => undefined);
+        await stopNotificationQueue?.();
         redisMemoryMonitor.stop();
         stopUserCacheInvalidationSubscriber();
         stopUnreadNotificationsCacheInvalidationSubscriber();
@@ -275,6 +302,9 @@ const bootstrap = async (): Promise<void> => {
         try {
           await viewsBuffer.stopFlushTimer();
           await activityBuffer.stopFlushTimer();
+          // FIX-NOTIF-SHUTDOWN-01: see the other shutdown site.
+          await notificationQueueStartup?.catch(() => undefined);
+          await stopNotificationQueue?.();
           redisMemoryMonitor.stop();
           stopUserCacheInvalidationSubscriber();
           stopUnreadNotificationsCacheInvalidationSubscriber();

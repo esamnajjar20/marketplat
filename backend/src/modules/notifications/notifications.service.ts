@@ -741,6 +741,7 @@ export const notificationEvents = {
       body,
       url: '/my-store?tab=members',
       tag: `store-invite-${memberId}`,
+      type: 'STORE_MEMBER_INVITED',
     }).catch(() => {});
     return notificationsRepository.create({
       userId: targetUserId,
@@ -767,6 +768,7 @@ export const notificationEvents = {
       body,
       url: `/requests/${requestId}`,
       tag: `request-${requestId}`,
+      type: 'NEW_REQUEST_OFFER',
     }).catch(() => {});
     return notificationsRepository.create({
       userId: customerId,
@@ -792,6 +794,7 @@ export const notificationEvents = {
       body,
       url: `/requests/${requestId}`,
       tag: `request-${requestId}`,
+      type: 'REQUEST_OFFER_ACCEPTED',
     }).catch(() => {});
     return notificationsRepository.create({
       userId: offererUserId,
@@ -820,6 +823,7 @@ export const notificationEvents = {
       body,
       url: `/service-requests/${requestId}`,
       tag: `service-request-${requestId}`,
+      type: 'SERVICE_REQUEST_NEW',
     }).catch(() => {});
     return notificationsRepository.create({
       userId: providerUserId,
@@ -850,6 +854,7 @@ export const notificationEvents = {
       body,
       url: `/service-requests/${requestId}`,
       tag: `service-request-${requestId}`,
+      type: 'SERVICE_REQUEST_UPDATE',
     }).catch(() => {});
     return notificationsRepository.create({
       userId: recipientUserId,
@@ -881,6 +886,7 @@ export const notificationEvents = {
       body,
       url: `/service-requests/${requestId}`,
       tag: `service-request-${requestId}`,
+      type: 'APPOINTMENT_UPDATE',
     }).catch(() => {});
     return notificationsRepository.create({
       userId: customerUserId,

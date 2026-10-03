@@ -116,6 +116,18 @@ function markDeletedInCaches(
   );
 }
 
+/** Anything the stream may have dropped while we were disconnected → refetch from the API (source of truth). */
+function refetchAfterGap(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+  void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+  void queryClient.invalidateQueries({ queryKey: ['service-requests'] });
+  void queryClient.invalidateQueries({ queryKey: ['appointments'] });
+}
+
+const RECONNECT_BASE_MS = 1_000;
+const RECONNECT_MAX_MS = 30_000;
+
 export function useNotificationStream(options?: Options) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const accessToken = useAuthStore(selectAccessToken);
@@ -154,6 +166,14 @@ export function useNotificationStream(options?: Options) {
     const ac = new AbortController();
     let closed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    // Resume point: id of the last event applied. Sent as Last-Event-ID so the
+    // server replays what we missed; absent on the very first connect.
+    let lastEventId: string | undefined;
+    let everConnected = false;
+    let failures = 0;
+    const nextDelay = () =>
+      Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** Math.min(failures, 5)) *
+      (0.75 + Math.random() * 0.5); // jitter: don't reconnect a whole fleet in lockstep
 
     async function connect() {
       if (closed) return;
@@ -171,6 +191,7 @@ export function useNotificationStream(options?: Options) {
           headers: {
             Authorization: `Bearer ${token}`,
             Accept: 'text/event-stream',
+            ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
           },
           signal: ac.signal,
           credentials: 'include',
@@ -180,6 +201,11 @@ export function useNotificationStream(options?: Options) {
         }
         setConnected(true);
         streamConnected = true;
+        failures = 0;
+        // Reconnect with no resume point (first drop before any id, or after a
+        // server restart) cannot be replayed → refetch once to be safe.
+        if (everConnected && !lastEventId) refetchAfterGap(queryClient);
+        everConnected = true;
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -194,10 +220,20 @@ export function useNotificationStream(options?: Options) {
           for (const chunk of chunks) {
             const lines = chunk.split('\n');
             let eventName = 'message';
+            let eventId: string | undefined;
             const dataLines: string[] = [];
             for (const line of lines) {
               if (line.startsWith('event:')) eventName = line.slice(6).trim();
+              else if (line.startsWith('id:')) eventId = line.slice(3).trim();
               else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+            }
+            if (eventName === 'resync') {
+              // FIX-F3-RESYNC-01: clear lastEventId; otherwise every reconnect
+              // re-sends the same stale id and the server re-emits resync+refetch.
+              lastEventId = undefined;
+              // Server could not prove the replay was complete → drop caches' trust.
+              refetchAfterGap(queryClient);
+              continue;
             }
             if (!dataLines.length) continue;
             if (eventName !== 'notification' && eventName !== 'message') continue;
@@ -239,7 +275,10 @@ export function useNotificationStream(options?: Options) {
                 }
               }
 
+              // FIX-F1-ORDER-01: advance lastEventId only after the handler
+              // succeeds; otherwise a throw silently loses the event forever.
               onEventRef.current?.(payload);
+              if (eventId) lastEventId = eventId;
             } catch {
               /* ignore */
             }
@@ -249,14 +288,18 @@ export function useNotificationStream(options?: Options) {
         setConnected(false);
         streamConnected = false;
         if (!closed && !ac.signal.aborted) {
-          retryTimer = setTimeout(connect, 5_000);
+          failures += 1;
+          retryTimer = setTimeout(connect, nextDelay());
         }
         return;
       }
       setConnected(false);
       streamConnected = false;
       if (!closed && !ac.signal.aborted) {
-        retryTimer = setTimeout(connect, 3_000);
+        // FIX-F2-CLEANEND-01: a clean end is not a failure — do NOT grow the
+        // backoff. Render Free cuts idle SSE every ~30-60s; counting those as
+        // failures pushed every reconnect to the 30s cap within an hour.
+        retryTimer = setTimeout(connect, nextDelay());
       }
     }
 

@@ -191,6 +191,32 @@ const envSchema = z.object({
   // mismatched private key). VAPID_SUBJECT is a mailto: or https: URL
   // push services use to contact the sender if a deployment is
   // misbehaving (spec requirement, not this app's own contact info).
+  // ── Notifications pipeline (Phase 3) ─────────────────────────────────
+  // NOTIFICATION_QUEUE_ENABLED: push delivery, quiet-hours deferral and the
+  // email fallback run through a BullMQ queue (retry with backoff, delayed
+  // jobs). Default false = the previous inline fire-and-forget delivery, so
+  // deploying this code changes nothing until it is switched on. Requires
+  // `bullmq` installed and a Redis with maxmemory-policy noeviction.
+  NOTIFICATION_QUEUE_ENABLED: z
+    .string()
+    .default('false')
+    .transform(v => v === 'true'),
+  // Run the queue consumer inside this process. Set false on web-only
+  // instances if the worker is moved to its own process later.
+  NOTIFICATION_WORKER_ENABLED: z
+    .string()
+    .default('true')
+    .transform(v => v === 'true'),
+  NOTIFICATION_QUEUE_CONCURRENCY: z.string().regex(/^\d+$/).default('10'),
+  // Email fallback (opt-in per user via notificationPreferences.emailFallback):
+  // wait this long after an eligible notification before checking whether it
+  // is still unread, and send at most one fallback email per user per gap.
+  NOTIFICATION_EMAIL_FALLBACK_DELAY_MINUTES: z.string().regex(/^\d+$/).default('30'),
+  NOTIFICATION_EMAIL_FALLBACK_GAP_MINUTES: z.string().regex(/^\d+$/).default('60'),
+  // SSE replay buffer (Redis Stream per connected user). MAX_EVENTS=0 turns
+  // replay off; clients then fall back to a full refetch on reconnect.
+  SSE_REPLAY_MAX_EVENTS: z.string().regex(/^\d+$/).default('100'),
+  SSE_REPLAY_TTL_SECONDS: z.string().regex(/^\d+$/).default('3600'),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
@@ -681,6 +707,17 @@ export const env = {
   // pushService.ts checks this once at first use and falls back to
   // logging instead of throwing when any piece is missing, so the app
   // keeps starting and running normally without real VAPID keys.
+  notificationQueue: {
+    enabled: _env.NOTIFICATION_QUEUE_ENABLED,
+    workerEnabled: _env.NOTIFICATION_WORKER_ENABLED,
+    concurrency: Math.max(1, parseInt(_env.NOTIFICATION_QUEUE_CONCURRENCY, 10)),
+    emailFallbackDelayMinutes: Math.max(1, parseInt(_env.NOTIFICATION_EMAIL_FALLBACK_DELAY_MINUTES, 10)),
+    emailFallbackGapMinutes: Math.max(1, parseInt(_env.NOTIFICATION_EMAIL_FALLBACK_GAP_MINUTES, 10)),
+  },
+  sseReplay: {
+    maxEvents: parseInt(_env.SSE_REPLAY_MAX_EVENTS, 10),
+    ttlSeconds: Math.max(60, parseInt(_env.SSE_REPLAY_TTL_SECONDS, 10)),
+  },
   webPush: {
     publicKey: _env.VAPID_PUBLIC_KEY || '',
     privateKey: _env.VAPID_PRIVATE_KEY || '',

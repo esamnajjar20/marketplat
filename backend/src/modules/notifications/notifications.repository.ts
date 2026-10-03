@@ -6,6 +6,7 @@ import { publishNotificationEvent, publishNotificationEventToMany } from '../../
 import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
 // NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
 import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
+import { maybeScheduleEmailFallback } from '../../shared/utils/emailFallbackScheduler';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -50,6 +51,7 @@ export const notificationsRepository = {
   create: async (input: CreateNotificationInput): Promise<Notification> => {
     const notification = await prisma.notification.create({ data: input });
     await unreadNotificationsCache.invalidate(input.userId);
+    maybeScheduleEmailFallback(input.userId, notification.type);
     void publishNotificationEvent(input.userId, {
       type: 'notification',
       action: 'created',
@@ -318,6 +320,9 @@ export const notificationsRepository = {
         },
       });
       await unreadNotificationsCache.invalidate(input.userId);
+      // The earlier check may already have run (and found the user online or
+      // opted out); an idempotent re-schedule opens a fresh window.
+      maybeScheduleEmailFallback(input.userId, updated.type);
       void publishNotificationEvent(input.userId, {
         type: 'notification',
         action: 'updated',
