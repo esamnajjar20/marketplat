@@ -1,12 +1,12 @@
 name: CI
 
-# يعمل على كل Pull Request وعلى كل push لفرع main.
-# الهدف: أي كسر في lint/type-check/tests/build يظهر قبل الدمج، لا بعده.
+# FIX CI-MANUAL-01: كان يعمل تلقائيًا على كل push/pull_request — استهلك
+# دقائق Actions بلا ضرورة لتطوير فردي. الآن يدوي:
+# GitHub → Actions → CI → Run workflow.
+# db-backup.yml يُبقي cron اليومي (عملية تشغيلية حقيقية)،
+# وload-test.yml يدوي أصلاً.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 # لو تم فتح push جديد لنفس الـ PR أثناء تشغيل نسخة سابقة، ألغِ القديمة
 # بدل تشغيل الاثنتين معًا — يوفر وقت runners بلا فائدة.
