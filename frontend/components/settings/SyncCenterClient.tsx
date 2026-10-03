@@ -156,7 +156,7 @@ export function SyncCenterClient() {
       <div>
         <h1 className="text-xl font-bold">المزامنة</h1>
         {!isOnline ? (
-          <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+          <p className="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-strong dark:text-warning">
             أنت غير متصل الآن. عند عودة الإنترنت ستُرفع العناصر المعلّقة تلقائيًا،
             أو اضغط «مزامنة الآن» بعد الاتصال.
           </p>
@@ -194,7 +194,7 @@ export function SyncCenterClient() {
           hint="آخر جلسة"
         />
         <StatCard
-          icon={<Clock className="h-4 w-4 text-amber-600" />}
+          icon={<Clock className="h-4 w-4 text-warning" />}
           label="بالانتظار"
           value={
             loading
@@ -329,7 +329,7 @@ export function SyncCenterClient() {
                     {describeQueueFailure(item)}
                   </p>
                   {conflict ? (
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                    <p className="mt-1 text-xs text-warning-strong dark:text-warning">
                       {action === 'edit'
                         ? 'عدّل المصدر ثم أعد الإرسال أونلاين — لا تُعد المحاولة العمياء.'
                         : action === 'discard'

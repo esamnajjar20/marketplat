@@ -21,7 +21,7 @@ const KIND_BADGE: Record<CardKind, { label: string; className?: string; accent?:
   ad: { label: 'إعلان', accent: true },
   // TOKENS-01 [CATEGORICAL]: was bg-emerald-600
   product: { label: 'منتج', className: 'bg-cat-product text-white hover:bg-cat-product' },
-  service: { label: 'خدمة', className: 'bg-blue-600 text-white hover:bg-blue-600' },
+  service: { label: 'خدمة', className: 'bg-info text-info-foreground hover:bg-info/90' },
 };
 
 /**

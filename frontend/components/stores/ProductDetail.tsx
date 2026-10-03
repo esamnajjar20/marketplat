@@ -314,7 +314,7 @@ function PriceBlock({
           product.availability === 'OUT_OF_STOCK'
             ? 'inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
             : product.availability === 'LIMITED'
-              ? 'inline-flex rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400'
+              ? 'inline-flex rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-strong dark:text-warning'
               : 'inline-flex rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success'
         }
       >

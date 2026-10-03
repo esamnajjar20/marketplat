@@ -185,7 +185,7 @@ export function StorageManagementClient() {
                 usagePct != null && usagePct >= 85
                   ? 'bg-destructive'
                   : usagePct != null && usagePct >= 60
-                    ? 'bg-amber-500'
+                    ? 'bg-warning'
                     : 'bg-primary',
               )}
               style={{ width: `${usagePct ?? (loading ? 8 : 12)}%` }}

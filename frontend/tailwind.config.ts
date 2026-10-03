@@ -96,6 +96,11 @@ const config: Config = {
           DEFAULT: 'hsl(var(--brand-nearby))',
           foreground: 'hsl(var(--brand-nearby-foreground))',
         },
+        info: {
+          DEFAULT: 'hsl(var(--info))',
+          foreground: 'hsl(var(--info-foreground))',
+          soft: 'hsl(var(--info-soft))',
+        },
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',

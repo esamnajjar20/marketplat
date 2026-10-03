@@ -133,7 +133,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         <h1 className="flex flex-wrap items-center justify-center gap-2 text-lg font-bold leading-snug text-foreground sm:text-xl">
           {store.name}
           {store.plan === 'FEATURED' && (
-            <Badge className="gap-1 border border-amber-500/25 bg-amber-500/10 text-amber-900 hover:bg-amber-500/15 dark:text-amber-200">
+            <Badge className="gap-1 border border-warning/25 bg-warning/10 text-warning-strong hover:bg-warning/15 dark:text-warning">
               <Sparkles className="h-3.5 w-3.5" /> مميز
             </Badge>
           )}

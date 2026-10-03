@@ -31,7 +31,7 @@ export function OfflineActionGate({
       {!online ? (
         <p
           role="status"
-          className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200"
+          className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-strong dark:text-warning"
         >
           <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span>{message}</span>
@@ -61,7 +61,7 @@ export function OfflineNotice({
     <p
       role="status"
       className={cn(
-        'flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300',
+        'flex items-center gap-1.5 text-xs text-warning-strong dark:text-warning',
         className,
       )}
     >

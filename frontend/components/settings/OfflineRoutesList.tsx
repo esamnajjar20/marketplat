@@ -73,13 +73,13 @@ function formatBytes(n: number): string {
 function statusPill(status: Status) {
   switch (status) {
     case 'complete':
-      return { label: 'مكتمل', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', Icon: CheckCircle2 };
+      return { label: 'مكتمل', cls: 'bg-success/10 text-success border-success/30', Icon: CheckCircle2 };
     case 'failed':
       return { label: 'فشل', cls: 'bg-destructive/10 text-destructive border-destructive/30', Icon: AlertTriangle };
     case 'pending':
-      return { label: 'بالانتظار', cls: 'bg-amber-100 text-amber-800 border-amber-300', Icon: Clock };
+      return { label: 'بالانتظار', cls: 'bg-warning/10 text-warning-strong border-warning/30', Icon: Clock };
     case 'missing':
-      return { label: 'لم يبدأ', cls: 'bg-zinc-100 text-zinc-600 border-zinc-300', Icon: MinusCircle };
+      return { label: 'لم يبدأ', cls: 'bg-muted text-muted-foreground border-border', Icon: MinusCircle };
   }
 }
 
@@ -610,7 +610,7 @@ export function OfflineRoutesList() {
                       {row.attempts > 0 && <span>· {row.attempts} محاولة</span>}
                       {row.warmedAt > 0 && <span>· {formatAge(row.warmedAt)}</span>}
                       {row.lastError && (
-                        <span className="truncate text-red-600" title={row.lastError} dir="ltr">
+                        <span className="truncate text-destructive" title={row.lastError} dir="ltr">
                           · {row.lastError}
                         </span>
                       )}

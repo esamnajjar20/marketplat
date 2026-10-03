@@ -39,8 +39,8 @@ function StatusBanner({ store }: { store: StoreDetails }) {
 
   if (store.status === 'PENDING') {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
-        <Clock className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+      <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+        <Clock className="h-5 w-5 shrink-0 text-warning dark:text-warning mt-0.5" />
         <div className="space-y-1">
           <p className="font-semibold">متجرك قيد المراجعة</p>
           <p className="text-muted-foreground">
@@ -106,8 +106,8 @@ function HubBody({ store }: { store: StoreDetails }) {
       <StatusBanner store={store} />
 
       {(attention?.productsOutOfStock || attention?.productsMissingImages) ? (
-        <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-sm flex flex-wrap gap-3 items-center">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+        <div className="rounded-lg border border-warning/25 bg-warning/5 p-3 text-sm flex flex-wrap gap-3 items-center">
+          <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
           {attention.productsOutOfStock > 0 && (
             <Link
               href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}

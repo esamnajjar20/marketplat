@@ -83,6 +83,11 @@
     --brand-nearby: 160 55% 42%; /* emerald, distinct from --primary */
     --brand-nearby-foreground: 160 65% 30%;
 
+    /* Info: informational / pending-sync */
+    --info: 221 70% 50%;
+    --info-foreground: 40 60% 98%;
+    --info-soft: 221 60% 94%;
+
     --border: 38 25% 87%;
     --input: 38 25% 87%;
     --ring: 145 38% 36%;
@@ -174,6 +179,11 @@
     /* Section brand: nearby */
     --brand-nearby: 160 55% 55%;
     --brand-nearby-foreground: 160 65% 70%;
+
+    /* Info (dark) */
+    --info: 221 70% 65%;
+    --info-foreground: 150 20% 8%;
+    --info-soft: 221 40% 18%;
 
     /* Slightly brighter borders so cards don't melt into the background */
     --border: 150 10% 22%;

@@ -34,9 +34,9 @@ const STATUS_LABEL: Record<AdDraftStatus, string> = {
 
 const STATUS_CLASS: Record<AdDraftStatus, string> = {
   draft: 'bg-muted text-muted-foreground',
-  pending_sync: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  pending_sync: 'bg-info/10 text-info dark:bg-info/20 dark:text-info',
   failed: 'bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive',
-  synced: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  synced: 'bg-success/10 text-success dark:bg-success/20 dark:text-success',
 };
 
 const TABS: { key: TabKey; label: string }[] = [

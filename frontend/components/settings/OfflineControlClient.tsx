@@ -370,7 +370,7 @@ export function OfflineControlClient() {
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-950 dark:text-amber-100">
+      <div className="flex gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning-strong dark:text-warning">
         <Info className="mt-0.5 h-4 w-4 shrink-0 opacity-80" aria-hidden />
         <p>
           على شبكة ضعيفة، انتقل إلى{' '}
@@ -381,8 +381,8 @@ export function OfflineControlClient() {
 
       <div className={cn(
         'flex items-center gap-3 rounded-xl border p-3 text-sm',
-        online ? 'border-emerald-300/40 bg-emerald-50 text-emerald-800'
-               : 'border-amber-300/40 bg-amber-50 text-amber-800',
+        online ? 'border-success/40 bg-success/10 text-success'
+               : 'border-warning/40 bg-warning-soft text-warning-strong',
       )}>
         {online ? <Wifi className="h-4 w-4 shrink-0" /> : <WifiOff className="h-4 w-4 shrink-0" />}
         <span>{online ? 'متصل' : 'غير متصل — التسخين لن يبدأ الآن'}</span>

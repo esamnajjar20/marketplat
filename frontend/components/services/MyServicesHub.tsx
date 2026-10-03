@@ -84,8 +84,8 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
       </div>
 
       {analytics && analytics.pendingRequests > 0 && (
-        <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-sm flex flex-wrap gap-2 items-center">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+        <div className="rounded-lg border border-warning/25 bg-warning/5 p-3 text-sm flex flex-wrap gap-2 items-center">
+          <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
           <Link href={ROUTES.incomingServiceRequests} className="text-primary hover:underline">
             {analytics.pendingRequests} طلب بانتظار ردك
           </Link>

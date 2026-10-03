@@ -25,8 +25,8 @@ export function StorePendingBanner() {
   }
 
   return (
-    <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm">
-      <Clock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+    <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm">
+      <Clock className="h-4 w-4 shrink-0 text-warning dark:text-warning mt-0.5" />
       <p>
         <span className="font-semibold">متجرك غير ظاهر للزوار بعد</span>
         {' — '}قيد مراجعة الإدارة. يمكنك تجهيز{' '}

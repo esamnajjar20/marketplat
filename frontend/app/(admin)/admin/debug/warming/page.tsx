@@ -28,13 +28,13 @@ import { toast } from 'sonner';
 
 function StatusPill({ status }: { status: RouteReport['status'] }) {
   const styles: Record<RouteReport['status'], string> = {
-    // TOKENS-01 [SEMANTIC]: was bg-emerald-100 text-emerald-800 border-emerald-300
+    // TOKENS-01 [SEMANTIC]: was bg-success/10 text-success border-success/30
     complete: 'bg-success/10 text-success border-success/30',
-    // TOKENS-01 [SEMANTIC]: was bg-red-100 text-red-800 border-red-300
+    // TOKENS-01 [SEMANTIC]: was bg-destructive/10 text-destructive border-destructive/30
     failed: 'bg-destructive/10 text-destructive border-destructive/30',
-    // TOKENS-01 [SEMANTIC]: was bg-amber-100 text-amber-800 border-amber-300
+    // TOKENS-01 [SEMANTIC]: was bg-warning/10 text-warning-strong border-warning/30
     pending: 'bg-warning/10 text-warning-strong border-warning/30',
-    missing: 'bg-zinc-100 text-zinc-600 border-zinc-300',
+    missing: 'bg-muted text-muted-foreground border-border',
   };
   const labels: Record<RouteReport['status'], string> = {
     complete: 'مكتمل',

@@ -356,7 +356,7 @@ export function MyProductsList() {
                       {product.views}
                     </span>
                     <span>{formatRelativeTime(product.createdAt)}</span>
-                    {!product.images?.length && <span className="text-amber-600">بدون صور</span>}
+                    {!product.images?.length && <span className="text-warning">بدون صور</span>}
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
