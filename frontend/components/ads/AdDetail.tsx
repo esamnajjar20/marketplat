@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, X } from 'lucide-react';
+import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, X, MessageSquare } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
@@ -16,14 +16,16 @@ import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloud
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { queryKeys } from '@/lib/queryKeys';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { autoSaveVisitedAd } from '@/lib/offlineAutoRead';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
+import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
 
@@ -61,10 +63,28 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   }, []);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const isAuth = useAuthStore(selectIsAuthenticated);
+  const currentUser = useAuthStore(selectUser);
+  const startConversation = useStartConversation();
+  const isOwnAd = currentUser?.id === ad.user.id;
   const justPublished = searchParams.get('published') === '1';
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
+
+  function handleStickyMessage() {
+    if (!isAuth) {
+      toast.error('سجّل الدخول لمراسلة البائع');
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(ad.id))}`);
+      return;
+    }
+    track('CONTACT_CLICK', { adId: ad.id, sellerId: ad.user.id });
+    startConversation.mutate(
+      { adId: ad.id },
+      { onSuccess: (conversation) => router.push(ROUTES.conversationDetail(conversation!.id)) }
+    );
+  }
 
   const imageCount = ad.images.length > 0 ? ad.images.length : 1;
 
@@ -75,17 +95,20 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     setImgIdx((i) => Math.min(imageCount - 1, i + 1));
   }, [imageCount]);
 
-  // Keyboard arrows (RTL: Left = next image, Right = previous)
+  // Keyboard: Escape always closes lightbox; arrows only when open and >1 image (RTL: Left = next, Right = previous)
   useEffect(() => {
-    if (imageCount <= 1) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key === 'Escape') {
+        setLightboxOpen(false);
+        return;
+      }
+      if (!lightboxOpen || imageCount <= 1) return;
       if (e.key === 'ArrowLeft') goNext();
       if (e.key === 'ArrowRight') goPrev();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [imageCount, goPrev, goNext]);
+  }, [imageCount, goPrev, goNext, lightboxOpen]);
 
   // SW-LIGHTBOX-SCROLL-LOCK-01: prevent the page behind the fullscreen
   // lightbox from scrolling. Without this, a swipe/scroll gesture on a
@@ -104,7 +127,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     };
   }, [lightboxOpen]);
 
-  const isAuth = useAuthStore(selectIsAuthenticated);
   // FIX SAVED-ADS-USER-SCOPE: userId لتصفية محفوظات المستخدم.
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const toggleFavorite = useToggleFavorite();
@@ -180,7 +202,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </p>
         </div>
       )}
-    <div className="flex flex-col md:flex-row gap-6 md:gap-8 ">
+    <div className={cn('flex flex-col md:flex-row gap-6 md:gap-8', !isOwnAd && 'pb-sticky-contact')}>
       {/* LEFT: images + details */}
       <div className="flex-1 md:w-2/3 min-w-0 space-y-6">
 
@@ -427,6 +449,28 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
       </aside>
 
       {/* UX: sticky contact CTA on mobile — price + message always reachable */}
+      {!isOwnAd && (
+        <div className="sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold text-primary truncate">{formatPrice(ad.price)}</p>
+              {ad.isNegotiable && (
+                <p className="text-xs text-muted-foreground">قابل للتفاوض</p>
+              )}
+            </div>
+            <Button
+              variant="default"
+              size="lg"
+              className="shrink-0 gap-2 rounded-xl"
+              disabled={startConversation.isPending}
+              onClick={handleStickyMessage}
+            >
+              <MessageSquare className="h-4 w-4" />
+              {startConversation.isPending ? 'جارٍ…' : 'مراسلة'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Fullscreen lightbox */}
       {lightboxOpen && (

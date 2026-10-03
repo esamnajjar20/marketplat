@@ -70,7 +70,7 @@ export function AuthField({ label, htmlFor, icon: Icon, error, hint, required, i
         >
           {label}
           {required && <span className="ms-1 text-destructive" aria-hidden="true">*</span>}
-          {required && <span className="sr-only">(required)</span>}
+          {required && <span className="sr-only">(مطلوب)</span>}
         </label>
         <Icon
           aria-hidden

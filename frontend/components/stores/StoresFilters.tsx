@@ -41,13 +41,14 @@ export function StoresFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">بحث</label>
+        <label htmlFor="stores-filter-search" className="text-xs text-muted-foreground font-medium">بحث</label>
         <div className="relative">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           {/* FIX BUG-XX: key={search} forces a remount when the `search`
               param changes via browser back/forward, so the uncontrolled
               defaultValue doesn't go stale relative to the URL/results. */}
           <input
+            id="stores-filter-search"
             key={search}
             type="search"
             placeholder="ابحث عن متجر…"
@@ -62,9 +63,9 @@ export function StoresFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
+        <label htmlFor="stores-filter-city" className="text-xs text-muted-foreground font-medium">المدينة</label>
         <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+          <SelectTrigger id="stores-filter-city" className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل المدن</SelectItem>
             {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}

@@ -326,7 +326,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
               value={body}
               onChange={(e) => onBodyChange(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                // On touch devices Enter often means newline; only submit on fine pointers (mouse/keyboard)
+                if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer: fine)').matches) {
                   e.preventDefault();
                   handleSubmit(e);
                 }
@@ -365,11 +366,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
             <Send className="h-4 w-4 rtl:-scale-x-100" />
           </button>
         </div>
-        <p className="mt-1.5 px-1 text-center text-[10px] text-muted-foreground/70">
-          {/* SW-FIX-MSG-ENTER-HINT: kept the keyboard-key names
-              (Enter/Shift) — they're physical labels on the user's
-              keyboard — but dropped the cramped English-mixed line for
-              a cleaner Arabic-first layout with a ↵ glyph. */}
+        <p className="mt-1.5 px-1 text-center text-[10px] text-muted-foreground/70 hidden [@media(pointer:fine)]:block">
+          {/* SW-FIX-MSG-ENTER-HINT: show keyboard hint only on fine-pointer devices */}
           ↵ للإرسال · Shift + ↵ لسطر جديد · الصورة اختيارية
         </p>
       </form>

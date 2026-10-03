@@ -62,11 +62,11 @@ export default async function CategoryPage({ params }: Props) {
           <aside className="hidden lg:col-span-1 lg:block">
             <Suspense><SearchFilters categorySlug={slug} /></Suspense>
           </aside>
-          <main className="lg:col-span-3">
+          <div className="lg:col-span-3">
             <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
               <SearchResults categorySlug={slug} />
             </Suspense>
-          </main>
+          </div>
         </div>
       </HydrationBoundary>
     </div>

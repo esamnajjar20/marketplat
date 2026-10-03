@@ -29,6 +29,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">
+      <h1 className="sr-only">البحث</h1>
       {/*
         Same brand band treatment as the home hero (bg-primary, quiet
         woven texture) but compressed to a slim utility strip — enough
@@ -82,7 +83,7 @@ export default async function SearchPage({ searchParams }: Props) {
               <SearchFilters />
             </Suspense>
           </aside>
-          <main className="md:col-span-3">
+          <div className="md:col-span-3">
             <Suspense
               fallback={
                 <div className="flex justify-center py-12">
@@ -92,7 +93,7 @@ export default async function SearchPage({ searchParams }: Props) {
             >
               <SearchResults />
             </Suspense>
-          </main>
+          </div>
         </div>
       </div>
     </div>

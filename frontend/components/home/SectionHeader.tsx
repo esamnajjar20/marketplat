@@ -68,6 +68,7 @@ export function SectionHeader({
           // FIX RSC-PREFETCH-STORM-02: every home section renders this CTA,
           // each prefetching its own /search?type=… page on load.
           prefetch={false}
+          aria-label={`عرض كل ${title}`}
           className={cn(
             'inline-flex min-h-9 shrink-0 items-center gap-0.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors active:scale-[0.98] sm:min-h-0 sm:px-2.5 sm:py-1',
             featured

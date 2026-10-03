@@ -37,6 +37,7 @@ export function FormSteps({ steps, current, className, onStepClick, navLabel = '
                 type="button"
                 disabled={!clickable}
                 onClick={() => clickable && onStepClick?.(index)}
+                aria-current={active ? 'step' : undefined}
                 className={cn(
                   'flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-start transition-colors',
                   active && 'border-primary/40 bg-primary-soft shadow-xs',

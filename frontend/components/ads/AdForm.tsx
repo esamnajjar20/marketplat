@@ -514,7 +514,7 @@ export function AdForm({ mode, ad }: Props) {
       )}
 
       {isWizard && (
-        <div className="sticky top-0 z-20 -mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
+        <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps
             navLabel="خطوات نشر الإعلان"
             steps={[
@@ -676,7 +676,7 @@ export function AdForm({ mode, ad }: Props) {
       </div>
 
       {/* Submit / wizard navigation — sticky on mobile for thumb reach */}
-      <div className="sticky bottom-0 z-20 -mx-1 border-t bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+      <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-40 -mx-1 border-t bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:bottom-auto sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button type="button" variant="outline" onClick={handleCancel}>إلغاء</Button>
           <div className="flex flex-wrap gap-2">

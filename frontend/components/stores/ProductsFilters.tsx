@@ -41,7 +41,7 @@ export function ProductsFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">بحث</label>
+        <label htmlFor="products-filter-search" className="text-xs text-muted-foreground font-medium">بحث</label>
         <div className="relative">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           {/* key={search} forces a remount when the `search` param
@@ -49,6 +49,7 @@ export function ProductsFilters() {
               defaultValue doesn't go stale relative to the URL/results
               — same fix ProductsFilters mirrors from StoresFilters. */}
           <input
+            id="products-filter-search"
             key={search}
             type="search"
             placeholder="ابحث عن منتج…"
@@ -63,9 +64,9 @@ export function ProductsFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
+        <label htmlFor="products-filter-city" className="text-xs text-muted-foreground font-medium">المدينة</label>
         <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+          <SelectTrigger id="products-filter-city" className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل المدن</SelectItem>
             {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}

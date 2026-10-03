@@ -26,7 +26,7 @@ interface Props {
 export default async function ConversationPage({ params }: Props) {
   const { id } = await params;
   return (
-    <div className="h-[calc(100vh-8rem)] lg:h-full rounded-lg border overflow-hidden lg:rounded-none lg:border-0">
+    <div className="h-[calc(100dvh-8rem)] lg:h-full rounded-lg border overflow-hidden lg:rounded-none lg:border-0">
       <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
         {/* FIX CHAT-SWITCH-STATE-LEAK-01: key={id} forces React to
             unmount the previous ChatWindow instance and mount a fresh
