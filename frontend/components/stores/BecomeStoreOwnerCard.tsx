@@ -15,6 +15,8 @@ import { ROUTES, CITIES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { getSafeRedirectPath } from '@/lib/cookies';
 import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
+import { StoreDynamicFields } from '@/components/stores/StoreDynamicFields';
+import type { StoreAttributes } from '@/types/store.types';
 
 interface Errors {
   name?: string;
@@ -34,6 +36,7 @@ interface StoreDraftValues {
   latitude: string;
   longitude: string;
   storeTypeId: string;
+  attributes: StoreAttributes;
 }
 
 /**
@@ -67,12 +70,13 @@ export function BecomeStoreOwnerCard() {
   const [latitude, setLatitude] = useState(() => draftSeed?.latitude ?? '');
   const [longitude, setLongitude] = useState(() => draftSeed?.longitude ?? '');
   const [storeTypeId, setStoreTypeId] = useState(() => draftSeed?.storeTypeId ?? 'st_general');
+  const [attributes, setAttributes] = useState<StoreAttributes>({});
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
 
   const { clearDraft, lastSavedAt } = useFormDraft<StoreDraftValues>(
     'store:create',
-    { name, description, city, address, phone, latitude, longitude, storeTypeId },
+    { name, description, city, address, phone, latitude, longitude, storeTypeId, attributes },
   );
 
   function fieldError(field: keyof Errors): string | undefined {
@@ -140,6 +144,7 @@ export function BecomeStoreOwnerCard() {
         ...(latitude.trim() ? { latitude: Number(latitude) } : {}),
         ...(longitude.trim() ? { longitude: Number(longitude) } : {}),
         storeTypeId,
+        ...(Object.keys(attributes).length ? { attributes } : {}),
       },
       {
         onSuccess: () => {
@@ -236,6 +241,8 @@ export function BecomeStoreOwnerCard() {
             </SelectContent>
           </Select>
         </FormField>
+
+        <StoreDynamicFields storeTypeId={storeTypeId} value={attributes} onChange={setAttributes} errors={serverErrors} />
 
         <FormField label="العنوان (اختياري)" htmlFor="store-address">
           <Input

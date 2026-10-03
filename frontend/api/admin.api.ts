@@ -295,6 +295,13 @@ export const adminApi = {
   updateStoreTypeStatus: (id: string, isActive: boolean) =>
     apiClient.patch<ApiResponse<AdminStoreType>>(`/admin/store-types/${id}/status`, { isActive }),
 
+  getStoreTypeFields: (storeTypeId: string) =>
+    apiClient.get<ApiResponse<import('@/types/store.types').StoreTypeField[]>>(`/admin/store-types/${storeTypeId}/fields`),
+  createStoreTypeField: (storeTypeId: string, payload: import('@/types/admin.types').CreateStoreTypeFieldPayload) =>
+    apiClient.post<ApiResponse<import('@/types/store.types').StoreTypeField>>(`/admin/store-types/${storeTypeId}/fields`, payload),
+  updateStoreTypeField: (storeTypeId: string, fieldId: string, payload: import('@/types/admin.types').UpdateStoreTypeFieldPayload) =>
+    apiClient.patch<ApiResponse<import('@/types/store.types').StoreTypeField>>(`/admin/store-types/${storeTypeId}/fields/${fieldId}`, payload),
+
   // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
 
   getReports: (params?: {

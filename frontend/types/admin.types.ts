@@ -236,6 +236,15 @@ export interface CreateAdminStoreTypePayload {
 }
 export type UpdateAdminStoreTypePayload = Partial<Omit<CreateAdminStoreTypePayload, 'slug'>>;
 
+export interface CreateStoreTypeFieldPayload {
+  key: string; labelAr: string; type: import('./store.types').StoreFieldType; required?: boolean;
+  // FIX STOREFIELD-OPTIONS-NULL: backend accepts null to clear options on
+  // an UPDATE (see store-type-fields.validation.ts optionsSchema.nullable).
+  // The frontend type must mirror that, otherwise TS rejects the payload.
+  options?: import('./store.types').StoreTypeFieldOption[] | null; sortOrder?: number;
+}
+export type UpdateStoreTypeFieldPayload = Partial<Omit<CreateStoreTypeFieldPayload, 'key'>> & { isActive?: boolean };
+
 // ── Broadcast notifications ─────────────────────────────────────────
 // Backend: POST /admin/notifications/broadcast (broadcastNotificationSchema).
 // `userIds` is required by the schema even when `allUsers` is true — the

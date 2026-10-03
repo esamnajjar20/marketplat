@@ -251,3 +251,12 @@ export function useAdminSystemHealth() {
     refetchInterval: 60_000,
   });
 }
+
+export function useAdminStoreTypeFields(storeTypeId?: string) {
+  return useQuery({
+    queryKey: queryKeys.storeTypes.fields(`admin:${storeTypeId ?? ''}`),
+    queryFn: () => adminApi.getStoreTypeFields(storeTypeId!).then((r) => r.data.data),
+    enabled: Boolean(storeTypeId),
+    staleTime: 5 * 60 * 1000,
+  });
+}

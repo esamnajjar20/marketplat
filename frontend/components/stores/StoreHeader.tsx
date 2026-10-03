@@ -19,6 +19,7 @@ import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
+import { StoreAttributesSummary } from '@/components/stores/StoreAttributesSummary';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { getStoreTypeLabels, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
 
@@ -191,6 +192,8 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             </div>
           </div>
         </div>
+
+        <StoreAttributesSummary storeTypeId={store.storeTypeId} attributes={store.attributes} />
 
         {/* Call + follow row */}
         <div className="mt-4 flex w-full max-w-sm gap-2 justify-center">

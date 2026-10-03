@@ -100,6 +100,7 @@ export const queryKeys = {
   // ── Stores ───────────────────────────────────────────────────────
   storeTypes: {
     all: () => ['store-types'] as const,
+    fields: (id: string) => ['store-types', 'fields', id] as const,
   },
 
   stores: {

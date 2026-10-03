@@ -19,6 +19,24 @@
 import type { SellerProfile } from './seller.types';
 
 export type StoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
+export type StoreFieldType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'SELECT';
+
+export interface StoreTypeFieldOption { value: string; labelAr: string; }
+
+export interface StoreTypeField {
+  id: string;
+  storeTypeId: string;
+  key: string;
+  labelAr: string;
+  type: StoreFieldType;
+  required: boolean;
+  options?: StoreTypeFieldOption[] | null;
+  sortOrder: number;
+  isActive?: boolean;
+}
+
+export type StoreAttributes = Record<string, string | number | boolean>;
+
 export interface StoreTypeLabels {
   products: string;
   product: string;
@@ -78,6 +96,7 @@ export interface StoreDetails {
   sellerProfileId: string;
   storeTypeId: string;
   storeType?: StoreType | null;
+  attributes?: StoreAttributes | null;
   name: string;
   /** STORE-SLUG: URL-safe, shareable identifier. Immutable after
    * creation — GET /stores/:idOrSlug accepts either this or `id`. */
@@ -153,6 +172,7 @@ export interface CreateStorePayload {
   longitude?: number;
   workingHours?: StoreWorkingHours;
   storeTypeId?: string;
+  attributes?: StoreAttributes;
 }
 
 /** PATCH /stores/me. */
@@ -168,6 +188,7 @@ export type UpdateStorePayload = Partial<{
   longitude: number | null;
   workingHours: StoreWorkingHours;
   storeTypeId: string;
+  attributes?: StoreAttributes;
 }>;
 
 /** GET /stores/me/analytics — owner-only. No orders/revenue/conversion:

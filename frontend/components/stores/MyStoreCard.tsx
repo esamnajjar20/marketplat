@@ -23,6 +23,8 @@ import { WorkingHoursEditor } from '@/components/services/WorkingHoursEditor';
 import type { WorkingHours } from '@/types/service.types';
 import { getStoreTypeLabels, type StoreDetails } from '@/types/store.types';
 import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
+import { StoreDynamicFields } from '@/components/stores/StoreDynamicFields';
+import type { StoreAttributes } from '@/types/store.types';
 
 const ALL_CLOSED: WorkingHours = {
   sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null,
@@ -57,6 +59,7 @@ export function MyStoreCard({ store }: Props) {
   const [address, setAddress] = useState(store.address ?? '');
   const [phone, setPhone] = useState(store.phone);
   const [storeTypeId, setStoreTypeId] = useState(store.storeTypeId ?? 'st_general');
+  const [attributes, setAttributes] = useState<StoreAttributes>(store.attributes ?? {});
   const [latitude, setLatitude] = useState(store.latitude ?? '');
   const [longitude, setLongitude] = useState(store.longitude ?? '');
   // STORE-HOURS (Foundation v1): store.workingHours is optional (null
@@ -119,6 +122,7 @@ export function MyStoreCard({ store }: Props) {
         address: address.trim() || null,
         phone: phone.trim(),
         storeTypeId,
+        ...(Object.keys(attributes).length ? { attributes } : { attributes: {} }),
         workingHours,
         latitude: latitude.trim() === '' ? null : Number(latitude),
         longitude: longitude.trim() === '' ? null : Number(longitude),
@@ -282,6 +286,8 @@ export function MyStoreCard({ store }: Props) {
             <Input id="my-store-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </FormField>
         </div>
+
+        <StoreDynamicFields storeTypeId={storeTypeId} value={attributes} onChange={setAttributes} errors={serverErrors} />
 
         <FormField label="العنوان (اختياري)" htmlFor="my-store-address">
           <Input

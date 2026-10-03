@@ -11,6 +11,7 @@ import {
   useAdminUpdateStoreTypeStatus,
 } from '@/hooks/mutations/useAdminMutations';
 import { useAdminStoreTypes } from '@/hooks/queries/useAdmin';
+import { StoreTypeFieldsAdmin } from '@/components/admin/StoreTypeFieldsAdmin';
 import type { AdminStoreType, CreateAdminStoreTypePayload } from '@/types/admin.types';
 
 const EMPTY_LABELS = {
@@ -151,6 +152,7 @@ export function StoreTypesAdmin() {
                     <span>زر الإضافة: {type.labels.addProduct}</span>
                     <span>الفئات: {type.labels.categories}</span>
                   </div>
+                  <StoreTypeFieldsAdmin storeTypeId={type.id} />
                   <div className="flex flex-wrap gap-2 border-t pt-3">
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => startEdit(type)}>
                       <Pencil className="h-3.5 w-3.5" /> تعديل

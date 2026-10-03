@@ -749,3 +749,29 @@ export function useAdminUpdateStoreTypeStatus() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+export function useAdminCreateStoreTypeField() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeTypeId, payload }: { storeTypeId: string; payload: import('@/types/admin.types').CreateStoreTypeFieldPayload }) =>
+      adminApi.createStoreTypeField(storeTypeId, payload).then((r) => r.data.data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTypes.fields(variables.storeTypeId) });
+      toast.success('تمت إضافة الحقل');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+export function useAdminUpdateStoreTypeField() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeTypeId, fieldId, payload }: { storeTypeId: string; fieldId: string; payload: import('@/types/admin.types').UpdateStoreTypeFieldPayload }) =>
+      adminApi.updateStoreTypeField(storeTypeId, fieldId, payload).then((r) => r.data.data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTypes.fields(variables.storeTypeId) });
+      toast.success('تم تحديث الحقل');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
