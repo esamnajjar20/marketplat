@@ -68,7 +68,8 @@ describe('StoreCard', () => {
 
   it('shows the rating and review count when totalRatings > 0', () => {
     render(<StoreCard store={baseStore} />);
-    expect(screen.getByText('4.5 (12)')).toBeInTheDocument();
+    expect(screen.getByText('4.5')).toBeInTheDocument();
+    expect(screen.getByText('12 تقييم')).toBeInTheDocument();
   });
 
   it('does not show a rating when totalRatings is 0', () => {
