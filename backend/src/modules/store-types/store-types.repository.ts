@@ -6,11 +6,16 @@ import {
   StoreTypeLabels,
 } from './store-types.validation';
 
+const DEFAULT_PRESENTATION = {
+  card: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
+  page: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
+} as const;
+
 export type StoreTypeWithCount = StoreType & { _count: { stores: number } };
 
 export type StoreTypePublic = Pick<
   StoreType,
-  'id' | 'slug' | 'nameAr' | 'icon' | 'labels'
+  'id' | 'slug' | 'nameAr' | 'icon' | 'labels' | 'presentation'
 > & { hasActiveStores: boolean };
 
 export const storeTypesRepository = {
@@ -48,6 +53,7 @@ export const storeTypesRepository = {
         nameAr: input.nameAr,
         icon: input.icon,
         labels: input.labels as Prisma.InputJsonValue,
+        presentation: (input.presentation ?? DEFAULT_PRESENTATION) as Prisma.InputJsonValue,
         freeProductLimit: input.freeProductLimit ?? null,
         sortOrder: input.sortOrder ?? 0,
       },
@@ -60,6 +66,7 @@ export const storeTypesRepository = {
         ...(input.nameAr !== undefined ? { nameAr: input.nameAr } : {}),
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
         ...(input.labels !== undefined ? { labels: input.labels as Prisma.InputJsonValue } : {}),
+        ...(input.presentation !== undefined ? { presentation: input.presentation as Prisma.InputJsonValue } : {}),
         ...(input.freeProductLimit !== undefined ? { freeProductLimit: input.freeProductLimit } : {}),
         ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
       },

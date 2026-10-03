@@ -12,6 +12,10 @@ export const createStoreTypeFieldSchema = z.object({
   body: z.object({
     key: z.string().min(2).max(40).regex(/^[a-z][a-z0-9_]*$/),
     labelAr: z.string().min(1).max(100),
+    cardLabelAr: z.string().max(100).nullable().optional(),
+    pageLabelAr: z.string().max(100).nullable().optional(),
+    showOnCard: z.boolean().optional().default(false),
+    showOnPage: z.boolean().optional().default(true),
     type: storeFieldTypeSchema,
     required: z.boolean().optional().default(false),
     options: optionsSchema.optional(),
@@ -30,6 +34,10 @@ export const updateStoreTypeFieldSchema = z.object({
   params: z.object({ storeTypeId: z.string().min(1), fieldId: z.string().min(1) }),
   body: z.object({
     labelAr: z.string().min(1).max(100).optional(),
+    cardLabelAr: z.string().max(100).nullable().optional(),
+    pageLabelAr: z.string().max(100).nullable().optional(),
+    showOnCard: z.boolean().optional(),
+    showOnPage: z.boolean().optional(),
     type: storeFieldTypeSchema.optional(),
     required: z.boolean().optional(),
     options: optionsSchema.nullable().optional(),

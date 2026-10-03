@@ -26,7 +26,17 @@ export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
 // FEAT-FAVORITE-POLYMORPHIC PR2: exported so favorites.repository.ts
 // reuses the same StoreWithSeller include shape rather than a second
 // definition.
-export const storeWithSeller = { sellerProfile: true, storeType: true } as const;
+// FIX STOREWITHSELLER-CONST: `as const` turned the orderBy tuple readonly,
+// which Prisma rejects (StoreTypeFieldOrderByWithRelationInput[] is mutable).
+// A plain object literal infers the same shape without readonly.
+export const storeWithSeller = {
+  sellerProfile: true,
+  storeType: {
+    include: {
+      fields: { where: { isActive: true }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] },
+    },
+  },
+};
 
 /** SLOW-NET phase5: public directory — lighter seller fields. */
 const storeListInclude = {
@@ -42,19 +52,31 @@ const storeListInclude = {
 } as const;
 
 
+// FIX STOREWITHSELLERANDCOUNTS-CONST: per-property `as const` keeps
+// 'asc'/'ACTIVE' narrowed to literal types; without it TS widens to
+// `string` and Prisma's SortOrder/enum rejects the object.
 const storeWithSellerAndCounts = {
   sellerProfile: true,
-  storeType: true,
+  storeType: {
+    include: {
+      fields: {
+        where: { isActive: true as const },
+        orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+      },
+    },
+  },
   // PHASE1-STOREFRONT: mirror the type above — public surfaces only
   // count ACTIVE products so the header/stat card matches the
   // products the visitor can actually browse.
   _count: {
     select: {
       followers: true,
-      products: { where: { status: 'ACTIVE' } },
+      // `as const` here is valid (value position, not type) and keeps
+      // 'ACTIVE' from widening to `string` (Prisma enum rejects string).
+      products: { where: { status: 'ACTIVE' as const } },
     },
   },
-} as const;
+};
 
 export const storesRepository = {
   findBySellerProfileId: (sellerProfileId: string): Promise<StoreDetails | null> =>
@@ -125,6 +147,7 @@ export const storesRepository = {
         longitude: data.longitude,
         workingHours: data.workingHours,
         ...(data.storeTypeId ? { storeTypeId: data.storeTypeId } : {}),
+        ...(data.attributes ? { attributes: data.attributes } : {}),
       },
       include: { storeType: true },
     }),

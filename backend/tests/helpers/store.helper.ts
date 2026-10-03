@@ -58,6 +58,10 @@ export const createTestStore = async (
         addProduct: 'أضف منتجًا',
         categories: 'التصنيفات',
       },
+      presentation: {
+        card: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
+        page: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
+      },
       freeProductLimit: 20,
       isActive: true,
       sortOrder: 0,

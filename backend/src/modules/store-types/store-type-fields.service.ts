@@ -3,6 +3,7 @@ import { logger } from '../../shared/utils/logger';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { bumpPublicListCache } from '../../shared/utils/publicListCache';
 import { storeTypesRepository } from './store-types.repository';
 import { storeTypeFieldsRepository } from './store-type-fields.repository';
 import { CreateStoreTypeFieldInput, UpdateStoreTypeFieldInput } from './store-type-fields.validation';
@@ -25,7 +26,7 @@ export const storeTypeFieldsService = {
       const cached = await redis.get(cacheKey(storeTypeId));
       if (cached) return JSON.parse(cached);
     } catch { logger.warn('Store type fields cache read failed'); }
-    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).map(({ id, storeTypeId: ownerId, key, labelAr, type, required, options, sortOrder }) => ({ id, storeTypeId: ownerId, key, labelAr, type, required, options, sortOrder }));
+    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).map(({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, required, options, sortOrder }) => ({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, required, options, sortOrder }));
     try { await redis.setex(cacheKey(storeTypeId), CACHE_TTL_SECONDS, JSON.stringify(fields)); } catch { logger.warn('Store type fields cache write failed'); }
     return fields;
   },
@@ -44,6 +45,7 @@ export const storeTypeFieldsService = {
     try {
       const created = await storeTypeFieldsRepository.create(storeTypeId, input);
       await invalidate(storeTypeId);
+      await bumpPublicListCache('stores');
       return created;
     } catch (error) {
       if (isPrismaError(error, 'P2002')) throw new BadRequestError('Field key already exists for this store type.', 'STORE_TYPE_FIELD_KEY_EXISTS');
@@ -60,6 +62,7 @@ export const storeTypeFieldsService = {
     if (nextType !== 'SELECT' && nextOptions) throw new BadRequestError('Only select fields may define options.', 'STORE_TYPE_FIELD_OPTIONS_INVALID');
     const updated = await storeTypeFieldsRepository.update(fieldId, input);
     await invalidate(storeTypeId);
+    await bumpPublicListCache('stores');
     return updated;
   },
 

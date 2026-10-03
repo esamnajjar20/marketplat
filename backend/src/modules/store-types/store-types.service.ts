@@ -23,6 +23,7 @@ const publicSummary = (type: Awaited<ReturnType<typeof storeTypesRepository.find
   nameAr: type.nameAr,
   icon: type.icon,
   labels: type.labels,
+  presentation: type.presentation,
   hasActiveStores: type._count.stores > 0,
 });
 
