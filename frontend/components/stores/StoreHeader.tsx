@@ -21,7 +21,7 @@ import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCat
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { StoreAttributesSummary } from '@/components/stores/StoreAttributesSummary';
 import { ROUTES, APP_URL } from '@/lib/constants';
-import { getStoreTypeLabels, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
+import { getStoreTypeLabels, getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
 
 // STORE-HOURS (Foundation v1): sat-first order, same as
 // WorkingHoursEditor.tsx's DAYS array — kept as a separate literal
@@ -82,6 +82,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;
   const rating = parseFloat(store.sellerProfile?.averageRating ?? '0');
   const storeLabels = getStoreTypeLabels(store.storeType);
+  const presentation = getStoreTypePresentation(store.storeType);
 
   return (
     <div className="mx-auto w-full max-w-lg">
@@ -132,6 +133,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
 
       {/* المحتوى — وسط الشاشة */}
       <div className="mt-3.5 flex flex-col items-center gap-0.5 px-1 text-center sm:px-0">
+        <p className="text-2xs-tight font-medium text-primary">{presentation.page.title}</p>
         <h1 className="flex flex-wrap items-center justify-center gap-2 text-lg font-bold leading-snug text-foreground sm:text-xl">
           {store.name}
           {store.plan === 'FEATURED' && (
@@ -140,6 +142,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             </Badge>
           )}
         </h1>
+        {presentation.page.subtitle && <p className="max-w-sm text-xs text-muted-foreground">{presentation.page.subtitle}</p>}
 
         {/* STOREHEADER-NULL-GUARD-01: sellerProfile is documented as
             possibly null (see SW-FIX-STOREHEADER-SP at the top of this
@@ -188,12 +191,12 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             <div className="w-px h-8 bg-border" />
             <div className="flex flex-col items-center">
               <span className="mb-0.5 text-lg font-semibold tabular-nums text-foreground">{store.city}</span>
-              <span className="text-2xs-tight text-muted-foreground">المدينة</span>
+              <span className="text-2xs-tight text-muted-foreground">{presentation.page.location}</span>
             </div>
           </div>
         </div>
 
-        <StoreAttributesSummary storeTypeId={store.storeTypeId} attributes={store.attributes} />
+        <StoreAttributesSummary storeTypeId={store.storeTypeId} attributes={store.attributes} presentation={store.storeType?.presentation} />
 
         {/* Call + follow row */}
         <div className="mt-4 flex w-full max-w-sm gap-2 justify-center">
@@ -326,9 +329,12 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         )}
 
         {store.description && (
-          <p className="mt-5 max-w-sm text-center text-sm leading-relaxed text-muted-foreground">
+          <div className="mt-5 max-w-sm text-center">
+            <h2 className="text-sm font-semibold text-foreground">{presentation.page.details}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             {store.description}
           </p>
+          </div>
         )}
 
         {store.latitude && store.longitude && (
@@ -339,7 +345,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             className="mt-3 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
           >
             <MapPin className="h-3.5 w-3.5" />
-            عرض الموقع على الخريطة
+            {presentation.page.location}
           </a>
         )}
 

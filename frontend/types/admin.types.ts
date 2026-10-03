@@ -186,6 +186,7 @@ export interface AdminStoreType {
     addProduct: string;
     categories: string;
   };
+  presentation: import('./store.types').StoreTypePresentation;
   freeProductLimit: number | null;
   isActive: boolean;
   sortOrder: number;
@@ -231,19 +232,19 @@ export interface CreateAdminStoreTypePayload {
   nameAr: string;
   icon: string;
   labels: { products: string; product: string; addProduct: string; categories: string };
+  presentation?: import('./store.types').StoreTypePresentation;
   freeProductLimit?: number | null;
   sortOrder?: number;
 }
 export type UpdateAdminStoreTypePayload = Partial<Omit<CreateAdminStoreTypePayload, 'slug'>>;
 
 export interface CreateStoreTypeFieldPayload {
-  key: string; labelAr: string; type: import('./store.types').StoreFieldType; required?: boolean;
-  // FIX STOREFIELD-OPTIONS-NULL: backend accepts null to clear options on
-  // an UPDATE (see store-type-fields.validation.ts optionsSchema.nullable).
-  // The frontend type must mirror that, otherwise TS rejects the payload.
+  key: string; labelAr: string; cardLabelAr?: string | null; pageLabelAr?: string | null; showOnCard?: boolean; showOnPage?: boolean; type: import('./store.types').StoreFieldType; required?: boolean;
+  // FIX STOREFIELD-OPTIONS-NULL: null clears options (backend accepts it —
+  // see store-type-fields.validation.ts optionsSchema.nullable()).
   options?: import('./store.types').StoreTypeFieldOption[] | null; sortOrder?: number;
 }
-export type UpdateStoreTypeFieldPayload = Partial<Omit<CreateStoreTypeFieldPayload, 'key'>> & { isActive?: boolean };
+export type UpdateStoreTypeFieldPayload = Partial<Omit<CreateStoreTypeFieldPayload, 'key'>> & { options?: import('./store.types').StoreTypeFieldOption[] | null; isActive?: boolean };
 
 // ── Broadcast notifications ─────────────────────────────────────────
 // Backend: POST /admin/notifications/broadcast (broadcastNotificationSchema).

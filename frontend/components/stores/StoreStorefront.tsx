@@ -10,7 +10,7 @@ import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
 import { formatPhone } from '@/lib/formatters';
-import type { StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
+import { getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
 
 type Tab = 'products' | 'offers' | 'collections' | 'ads' | 'reviews' | 'about';
 
@@ -45,7 +45,9 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   const router = useRouter();
   const sp = useSearchParams();
   const tab = (sp.get('tab') as Tab | null) ?? 'products';
+  const presentation = getStoreTypePresentation(store?.storeType);
   const active: Tab = TABS.some((t) => t.id === tab) ? tab : 'products';
+  const tabs = TABS.map((item) => ({ ...item, label: presentation.page[item.id === 'products' ? 'products' : item.id === 'offers' ? 'offers' : item.id === 'collections' ? 'collections' : item.id === 'ads' ? 'ads' : item.id === 'reviews' ? 'reviews' : 'about'] }));
 
   function setTab(next: Tab) {
     const params = new URLSearchParams(sp.toString());
@@ -62,7 +64,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
         role="tablist"
         aria-label="أقسام المتجر"
       >
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -96,7 +98,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
 
       {active === 'offers' && (
         <section className="space-y-3" role="tabpanel">
-          <p className="text-sm text-muted-foreground">منتجات عليها عروض نشطة حاليًا</p>
+          <p className="text-sm text-muted-foreground">{presentation.page.offers}</p>
           <StoreProducts storeId={storeId} storeName={storeName} offersOnly />
         </section>
       )}
@@ -112,7 +114,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
           <div className="flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-1.5 text-lg font-bold">
               <Star className="h-4 w-4 text-muted-foreground" />
-              التقييمات
+              {presentation.page.reviews}
             </h2>
             <StoreReviewButton storeId={storeId} storeName={storeName} ownerUserId={ownerUserId} />
           </div>
@@ -136,11 +138,15 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
 }
 
 function StoreAboutPanel({ store }: { store: StoreWithSellerAndCounts }) {
+  // FIX STOREFRONT-ABOUT-SCOPE: presentation is defined in the parent
+  // StoreStorefront; this nested component needs its own lookup (or a
+  // prop). Using the helper keeps it a single source of truth.
+  const presentation = getStoreTypePresentation(store.storeType);
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       {store.description && (
         <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">نبذة عن المتجر</h3>
+          <h3 className="mb-2 text-sm font-semibold text-foreground">{presentation.page.about}</h3>
           <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
             {store.description}
           </p>

@@ -28,6 +28,10 @@ export interface StoreTypeField {
   storeTypeId: string;
   key: string;
   labelAr: string;
+  cardLabelAr?: string | null;
+  pageLabelAr?: string | null;
+  showOnCard?: boolean;
+  showOnPage?: boolean;
   type: StoreFieldType;
   required: boolean;
   options?: StoreTypeFieldOption[] | null;
@@ -36,6 +40,38 @@ export interface StoreTypeField {
 }
 
 export type StoreAttributes = Record<string, string | number | boolean>;
+
+export interface StoreTypePresentationSection {
+  title: string;
+  subtitle: string;
+  products: string;
+  offers: string;
+  collections: string;
+  ads: string;
+  reviews: string;
+  about: string;
+  details: string;
+  contact: string;
+  location: string;
+}
+
+export interface StoreTypePresentation {
+  card: StoreTypePresentationSection;
+  page: StoreTypePresentationSection;
+}
+
+export const DEFAULT_STORE_TYPE_PRESENTATION: StoreTypePresentation = {
+  card: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
+  page: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
+};
+
+export function getStoreTypePresentation(storeType?: Partial<StoreType> | null): StoreTypePresentation {
+  const p = storeType?.presentation;
+  return {
+    card: { ...DEFAULT_STORE_TYPE_PRESENTATION.card, ...(p?.card ?? {}) },
+    page: { ...DEFAULT_STORE_TYPE_PRESENTATION.page, ...(p?.page ?? {}) },
+  };
+}
 
 export interface StoreTypeLabels {
   products: string;
@@ -50,6 +86,8 @@ export interface StoreType {
   nameAr: string;
   icon: string;
   labels: StoreTypeLabels;
+  presentation?: StoreTypePresentation;
+  fields?: StoreTypeField[];
   freeProductLimit?: number | null;
   isActive?: boolean;
   sortOrder?: number;

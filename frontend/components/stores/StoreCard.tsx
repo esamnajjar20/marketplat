@@ -7,7 +7,7 @@ import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import { HIT_AREA } from '@/components/shared/cards/cardTokens';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import type { StoreWithSeller } from '@/types/store.types';
+import { getStoreTypePresentation, type StoreWithSeller } from '@/types/store.types';
 
 interface Props {
   store: StoreWithSeller;
@@ -22,6 +22,10 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
   const rating = parseFloat(store.sellerProfile.averageRating);
   const hasRating = store.sellerProfile.totalRatings > 0 && Number.isFinite(rating);
   const description = store.description?.trim();
+  const presentation = getStoreTypePresentation(store.storeType);
+  const cardFields = (store.storeType?.fields ?? [])
+    .filter((field) => field.showOnCard && store.attributes?.[field.key] !== undefined)
+    .slice(0, 2);
   const storeTypeLabel = store.storeType?.nameAr;
 
   return (
@@ -51,7 +55,10 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-semibold sm:text-card-title">{store.name}</h3>
+            <div className="min-w-0">
+              <p className="truncate text-2xs-tight font-medium text-primary">{presentation.card.title}</p>
+              <h3 className="truncate text-sm font-semibold sm:text-card-title">{store.name}</h3>
+            </div>
             {store.plan === 'FEATURED' && (
               <Badge size="sm" variant="soft-accent" className="gap-0.5">
                 <Sparkles className="h-3 w-3" aria-hidden />
@@ -65,14 +72,24 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
               />
             )}
           </div>
+          {presentation.card.subtitle ? (
+            <p className="line-clamp-1 text-xs text-muted-foreground sm:text-sm">{presentation.card.subtitle}</p>
+          ) : null}
           {description ? (
             <p className="line-clamp-1 text-xs text-muted-foreground sm:text-sm">{description}</p>
           ) : null}
+          {cardFields.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground sm:text-xs">
+              {cardFields.map((field) => {
+                const raw = store.attributes?.[field.key];
+                const option = field.type === 'SELECT' ? field.options?.find((item) => item.value === raw) : null;
+                const value = typeof raw === 'boolean' ? (raw ? 'نعم' : 'لا') : option?.labelAr ?? String(raw);
+                return <span key={field.id}>{field.cardLabelAr || field.labelAr}: {value}</span>;
+              })}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground sm:text-xs">
-            {/* FIX STORECARD-TYPE-LABEL: was two adjacent spans (nameAr + products
-                label) — glued together with no separator, e.g. "مطعم القائمة".
-                Show only the type name; the products count is elsewhere. */}
-            {storeTypeLabel ? <span>{storeTypeLabel}</span> : null}
+            {storeTypeLabel ? <span>{storeTypeLabel}</span> : null}{presentation.card.products ? <span>{presentation.card.products}</span> : null}
             {store.city ? (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
