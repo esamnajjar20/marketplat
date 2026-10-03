@@ -6,6 +6,7 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
 jest.mock('../../src/modules/product-categories/product-categories.repository');
+jest.mock('../../src/modules/store-types/store-types.repository');
 
 const mockCategory = {
   id: 'cat-1',

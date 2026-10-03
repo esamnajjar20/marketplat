@@ -44,9 +44,29 @@ export const createTestStore = async (
   }>
 ): Promise<StoreDetails> => {
   const name = overrides?.name ?? 'Test Store';
+  await prisma.storeType.upsert({
+    where: { id: 'st_general' },
+    update: {},
+    create: {
+      id: 'st_general',
+      slug: 'general',
+      nameAr: 'عام',
+      icon: 'Store',
+      labels: {
+        products: 'المنتجات',
+        product: 'منتج',
+        addProduct: 'أضف منتجًا',
+        categories: 'التصنيفات',
+      },
+      freeProductLimit: 20,
+      isActive: true,
+      sortOrder: 0,
+    },
+  });
   return prisma.storeDetails.create({
     data: {
       sellerProfileId,
+      storeTypeId: 'st_general',
       name,
       slug: overrides?.slug ?? testSlug(name),
       description: overrides?.description ?? 'A perfectly fine store description here',

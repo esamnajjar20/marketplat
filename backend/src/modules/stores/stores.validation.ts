@@ -48,6 +48,7 @@ export const createStoreSchema = z.object({
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
     workingHours: workingHoursSchema.optional(),
+    storeTypeId: z.string().min(1).optional(),
   }),
 });
 
@@ -65,6 +66,7 @@ export const updateStoreSchema = z.object({
     latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
     longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
     workingHours: workingHoursSchema.optional(),
+    storeTypeId: z.string().min(1).optional(),
   }),
 });
 
@@ -85,6 +87,7 @@ export const getStoresSchema = z.object({
     search: z.string().min(1).max(200).optional(),
     sortBy: z.enum(STORE_SORT_FIELDS).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
+    type: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).optional(),
     // Featured stores surface first when this isn't explicitly disabled
     // — see stores.repository.ts's findMany orderBy.
   }),
@@ -169,6 +172,15 @@ export const bulkUpdateStoreStatusSchema = z.object({
 });
 
 export type BulkUpdateStoreStatusInput = z.infer<typeof bulkUpdateStoreStatusSchema>['body'];
+
+export const updateStoreTypeSchema = z.object({
+  params: z.object({ id: z.string().min(1, 'Store ID is required') }),
+  body: z.object({
+    storeTypeId: z.string().min(1),
+  }).strict(),
+});
+
+export type UpdateStoreTypeInput = z.infer<typeof updateStoreTypeSchema>['body'];
 
 export const createStoreReviewSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),

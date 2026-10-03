@@ -167,6 +167,14 @@ describe('stores.validation', () => {
       expect(result.query.city).toBe('غزة');
       expect(result.query.search).toBe('phones');
     });
+    it('accepts a StoreType slug filter', () => {
+      const result = getStoresSchema.parse({ query: { type: 'restaurant' } });
+      expect(result.query.type).toBe('restaurant');
+    });
+
+    it('rejects an invalid StoreType slug filter', () => {
+      expect(() => getStoresSchema.parse({ query: { type: 'Restaurant!' } })).toThrow();
+    });
 
     it('accepts sortBy values createdAt and name', () => {
       expect(() => getStoresSchema.parse({ query: { sortBy: 'createdAt' } })).not.toThrow();

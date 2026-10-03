@@ -11,6 +11,7 @@ import {
   createStoreReviewSchema,
   getStoreReviewsSchema,
   bulkUpdateStoreStatusSchema,
+  updateStoreTypeSchema,
 } from './stores.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -121,6 +122,20 @@ export const storesController = {
       });
       const store = await storesService.updateStoreStatus(params.id, body, admin.userId);
       res.status(200).json(successResponse('Store status updated', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateStoreType: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const admin = requireUser(req);
+      const { params, body } = updateStoreTypeSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const store = await storesService.updateStoreType(params.id, body, admin.userId);
+      res.status(200).json(successResponse('Store type updated', store));
     } catch (error) {
       next(error);
     }

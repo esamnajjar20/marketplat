@@ -9,6 +9,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { storeTypesRepository } from '../store-types/store-types.repository';
 
 // FIX CATEGORIES-CACHE-VERSION-01: versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
@@ -47,6 +48,13 @@ export const productCategoriesService = {
           'Product categories support only two levels (top-level + direct children).',
           'CATEGORY_DEPTH_EXCEEDED',
         );
+      }
+    }
+
+    if (input.storeTypeId) {
+      const storeType = await storeTypesRepository.findById(input.storeTypeId);
+      if (!storeType) {
+        throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
       }
     }
 
@@ -156,6 +164,13 @@ export const productCategoriesService = {
     if (input.nameAr && input.nameAr !== category.nameAr) {
       const existing = await productCategoriesRepository.findByNameAr(input.nameAr);
       if (existing) throw new BadRequestError('Arabic name already in use');
+    }
+
+    if (input.storeTypeId) {
+      const storeType = await storeTypesRepository.findById(input.storeTypeId);
+      if (!storeType) {
+        throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+      }
     }
 
     try {

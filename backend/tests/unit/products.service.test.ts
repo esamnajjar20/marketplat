@@ -12,12 +12,14 @@ import { cleanupUploadedImages, extractCloudinaryPublicId } from '../../src/shar
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
 
 jest.mock('../../src/modules/products/products.repository');
 jest.mock('../../src/modules/product-categories/product-categories.repository');
 jest.mock('../../src/modules/stores/stores.repository');
 jest.mock('../../src/modules/stores/store-followers.repository');
 jest.mock('../../src/modules/stores/store-members.service');
+jest.mock('../../src/modules/store-types/store-types.repository');
 jest.mock('../../src/modules/notifications/notifications.service');
 // PROMO-1: getProductById/getProducts now fold in promotionsService's
 // computed effectivePrice — mocked here the same way every other
@@ -38,7 +40,7 @@ const mockEffectivePrice = {
   activePromotionId: null,
 };
 
-const mockActiveStore = { id: 'store-1', status: 'ACTIVE', plan: 'FREE', name: 'My Store' };
+const mockActiveStore = { id: 'store-1', status: 'ACTIVE', plan: 'FREE', name: 'My Store', storeTypeId: 'st_general' };
 const mockCategory = { id: 'cat-1', isActive: true };
 
 const validInput = {
@@ -56,6 +58,7 @@ describe('productsService', () => {
     (notificationEvents.onStoreNewProduct as jest.Mock).mockResolvedValue({ count: 0 });
     (promotionsService.getEffectivePrice as jest.Mock).mockResolvedValue(mockEffectivePrice);
     (promotionsService.getEffectivePrices as jest.Mock).mockResolvedValue(new Map());
+    (storeTypesRepository.findById as jest.Mock).mockResolvedValue({ freeProductLimit: 20 });
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -147,6 +150,19 @@ describe('productsService', () => {
         BadRequestError
       );
       expect(productsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('uses the StoreType-specific FREE limit', async () => {
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue({
+        ...mockActiveStore,
+        storeTypeId: 'st_pharmacy',
+      });
+      (storeTypesRepository.findById as jest.Mock).mockResolvedValue({ freeProductLimit: 100 });
+      (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(99);
+
+      await productsService.createProduct('user-1', validInput, []);
+
+      expect(productsRepository.create).toHaveBeenCalled();
     });
 
     it('allows creation under the FREE plan limit', async () => {

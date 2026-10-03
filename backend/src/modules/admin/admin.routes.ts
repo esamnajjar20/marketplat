@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { adminController } from './admin.controller';
 import { sellersController } from '../sellers/sellers.controller';
 import { storesController } from '../stores/stores.controller';
+import { storeTypesController } from '../store-types/store-types.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireMinRole } from '../../middlewares/admin.middleware';
 // FIX RATE-LIMIT-ADMIN-01: blanket cap on every /admin/* route --
@@ -137,6 +138,11 @@ adminRouter.patch('/sellers/:id/suspend', requireMinRole(ROLES.ADMIN), sellersCo
 // consistent with /admin/sellers/:id/verify's own router. ADMIN+
 // (Gap #20: stores are outside the MODERATOR tier).
 adminRouter.get('/stores', requireMinRole(ROLES.ADMIN), storesController.getAllStores);
+adminRouter.get('/store-types', requireMinRole(ROLES.ADMIN), storeTypesController.getAllForAdmin);
+adminRouter.post('/store-types', requireMinRole(ROLES.ADMIN), storeTypesController.create);
+adminRouter.patch('/store-types/:id', requireMinRole(ROLES.ADMIN), storeTypesController.update);
+adminRouter.patch('/store-types/:id/status', requireMinRole(ROLES.ADMIN), storeTypesController.updateStatus);
+
 
 // BULK-ADMIN (item 17): bulk status update — same shape as the others.
 //
@@ -149,6 +155,7 @@ adminRouter.get('/stores', requireMinRole(ROLES.ADMIN), storesController.getAllS
 adminRouter.patch('/stores/bulk/status', requireMinRole(ROLES.ADMIN), storesController.bulkUpdateStoreStatus);
 
 adminRouter.patch('/stores/:id/status', requireMinRole(ROLES.ADMIN), storesController.updateStoreStatus);
+adminRouter.patch('/stores/:id/type', requireMinRole(ROLES.ADMIN), storesController.updateStoreType);
 // FIX BUG-02: StorePlan.FEATURED was rendered across the store UI but
 // unreachable — no code path ever set it. This closes that gap.
 adminRouter.patch('/stores/:id/plan', requireMinRole(ROLES.ADMIN), storesController.updateStorePlan);

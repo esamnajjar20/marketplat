@@ -5,7 +5,7 @@ import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { GetStoresQuery } from './stores.validation';
 
 export type StoreWithSeller = Prisma.StoreDetailsGetPayload<{
-  include: { sellerProfile: true };
+  include: { sellerProfile: true; storeType: true };
 }>;
 
 export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
@@ -26,7 +26,7 @@ export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
 // FEAT-FAVORITE-POLYMORPHIC PR2: exported so favorites.repository.ts
 // reuses the same StoreWithSeller include shape rather than a second
 // definition.
-export const storeWithSeller = { sellerProfile: true } as const;
+export const storeWithSeller = { sellerProfile: true, storeType: true } as const;
 
 /** SLOW-NET phase5: public directory — lighter seller fields. */
 const storeListInclude = {
@@ -44,6 +44,7 @@ const storeListInclude = {
 
 const storeWithSellerAndCounts = {
   sellerProfile: true,
+  storeType: true,
   // PHASE1-STOREFRONT: mirror the type above — public surfaces only
   // count ACTIVE products so the header/stat card matches the
   // products the visitor can actually browse.
@@ -57,10 +58,10 @@ const storeWithSellerAndCounts = {
 
 export const storesRepository = {
   findBySellerProfileId: (sellerProfileId: string): Promise<StoreDetails | null> =>
-    prisma.storeDetails.findUnique({ where: { sellerProfileId } }),
+    prisma.storeDetails.findUnique({ where: { sellerProfileId }, include: { storeType: true } }),
 
   findById: (id: string): Promise<StoreDetails | null> =>
-    prisma.storeDetails.findUnique({ where: { id } }),
+    prisma.storeDetails.findUnique({ where: { id }, include: { storeType: true } }),
 
   // STORE-SLUG: used by storesService.createStore's collision-retry
   // loop (find-then-suffix, not a DB-level generated column) and by
@@ -105,6 +106,7 @@ export const storesRepository = {
       latitude?: number;
       longitude?: number;
       workingHours?: Prisma.InputJsonValue;
+      storeTypeId?: string;
     }
   ): Promise<StoreDetails> =>
     tx.storeDetails.create({
@@ -121,7 +123,9 @@ export const storesRepository = {
         latitude: data.latitude,
         longitude: data.longitude,
         workingHours: data.workingHours,
+        ...(data.storeTypeId ? { storeTypeId: data.storeTypeId } : {}),
       },
+      include: { storeType: true },
     }),
 
   // UNIFY-PAYMENTS-STORES: paymentMethods removed from this signature —
@@ -143,8 +147,9 @@ export const storesRepository = {
       latitude: number | null;
       longitude: number | null;
       workingHours: Prisma.InputJsonValue;
+      storeTypeId: string;
     }>
-  ): Promise<StoreDetails> => prisma.storeDetails.update({ where: { id }, data }),
+  ): Promise<StoreDetails> => prisma.storeDetails.update({ where: { id }, data, include: { storeType: true } }),
 
   // STORE-VIEWS: fire-and-forget from the service layer, same
   // "increment column, don't fail the read on error" convention as
@@ -154,6 +159,9 @@ export const storesRepository = {
 
   updateStatus: (id: string, status: 'PENDING' | 'ACTIVE' | 'BLOCKED'): Promise<StoreDetails> =>
     prisma.storeDetails.update({ where: { id }, data: { status } }),
+
+  updateStoreType: (id: string, storeTypeId: string): Promise<StoreDetails> =>
+    prisma.storeDetails.update({ where: { id }, data: { storeTypeId }, include: { storeType: true } }),
 
   // FIX BUG-02: the DB write half of the FEATURED-plan admin endpoint.
   setFeatureRequestedAt: (id: string, at: Date | null) =>
@@ -208,8 +216,8 @@ export const storesRepository = {
       // in the public "browse stores" directory.
       sellerProfile: { suspended: false },
       ...(city && { city }),
+      ...(query.type ? { storeType: { slug: query.type } } : {}),
       ...(ftsIds ? { id: { in: ftsIds } } : {}),
-
     };
 
     const [stores, total] = await Promise.all([

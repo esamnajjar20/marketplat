@@ -108,6 +108,8 @@ storesRouter.delete(
 storesRouter.get('/:id', CACHE.MEDIUM, storesController.getPublicStore);
 
 // Admin-only approval/blocking
+// Admin store-type assignment lives under /admin/stores/:id/type; this
+// public router intentionally exposes no admin mutation.
 storesRouter.patch(
   '/:id/status',
   authenticate,

@@ -20,6 +20,7 @@ import { blockedUsersRouter } from './modules/blocked-users';
 import { notificationsRouter } from './modules/notifications';
 import { savedSearchesRouter } from './modules/saved-searches';
 import { storesRouter } from './modules/stores';
+import { storeTypesRouter } from './modules/store-types';
 import { productsRouter } from './modules/products';
 import { productCategoriesRouter } from './modules/product-categories';
 import { promotionsRouter } from './modules/promotions';
@@ -104,6 +105,7 @@ router.use('/blocked-users', blockedUsersRouter);
 router.use('/notifications', notificationsRouter);
 router.use('/saved-searches', savedSearchesRouter);
 router.use('/stores', storesRouter);
+router.use('/store-types', storeTypesRouter);
 router.use('/products', productsRouter);
 router.use('/product-categories', productCategoriesRouter);
 // PROMO-1: store-owner-only CRUD for scheduled product discounts — see

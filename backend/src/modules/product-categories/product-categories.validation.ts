@@ -11,6 +11,7 @@ export const createProductCategorySchema = z.object({
       .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers and hyphens only'),
     icon: z.string().max(100).optional(),
     parentId: z.string().optional(),
+    storeTypeId: z.string().min(1).nullable().optional(),
   }),
 });
 
@@ -27,6 +28,7 @@ export const updateProductCategorySchema = z.object({
       .optional(),
     icon: z.string().max(100).nullable().optional(),
     parentId: z.string().nullable().optional(),
+    storeTypeId: z.string().min(1).nullable().optional(),
     isActive: z.boolean().optional(),
   }),
 });

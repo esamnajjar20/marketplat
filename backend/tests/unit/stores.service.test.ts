@@ -12,6 +12,7 @@ import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
 
 // isPrismaError inside stores.service.ts does an `instanceof
 // Prisma.PrismaClientKnownRequestError` check, so a plain
@@ -36,6 +37,11 @@ jest.mock('../../src/shared/utils/storeLock');
 // for) never execute.
 jest.mock('../../src/modules/promotions/promotions.repository');
 jest.mock('../../src/modules/products/products.repository');
+jest.mock('../../src/modules/store-types/store-types.repository');
+jest.mock('../../src/shared/utils/publicListCache', () => ({
+  bumpPublicListCache: jest.fn().mockResolvedValue(undefined),
+  hidePublicEntities: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     $transaction: jest.fn(),
@@ -83,6 +89,21 @@ describe('storesService', () => {
     // this to actually return a promise, so it's set once here rather
     // than repeated per test.
     (storesRepository.incrementViews as jest.Mock).mockResolvedValue({} as any);
+    (storeTypesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'st_general',
+      slug: 'general',
+      nameAr: 'عام',
+      icon: 'Store',
+      labels: {
+        products: 'المنتجات',
+        product: 'منتج',
+        addProduct: 'أضف منتجًا',
+        categories: 'التصنيفات',
+      },
+      freeProductLimit: 20,
+      isActive: true,
+      sortOrder: 0,
+    });
   });
 
   describe('createStore', () => {
@@ -141,8 +162,23 @@ describe('storesService', () => {
           description: createInput.description,
           city: createInput.city,
           phone: createInput.phone,
+          storeTypeId: 'st_general',
         })
       );
+    });
+
+    it('rejects an inactive StoreType during creation', async () => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
+      (storesRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+      (storeTypesRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'st_pharmacy',
+        isActive: false,
+      });
+
+      await expect(
+        storesService.createStore(userId, { ...createInput, storeTypeId: 'st_pharmacy' }),
+      ).rejects.toThrow(BadRequestError);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('translates a P2002 unique-constraint race into ConflictError', async () => {
@@ -160,6 +196,67 @@ describe('storesService', () => {
       (prisma.$transaction as jest.Mock).mockRejectedValue(dbError);
 
       await expect(storesService.createStore(userId, createInput)).rejects.toThrow('connection lost');
+    });
+  });
+
+  describe('store type changes', () => {
+    it('rejects owner type changes after activation', async () => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
+      (storesRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(mockStore);
+
+      await expect(
+        storesService.updateMyStore(userId, { storeTypeId: 'st_pharmacy' } as any),
+      ).rejects.toThrow(BadRequestError);
+      expect(storesRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('allows a pending owner to change to an active type', async () => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
+      (storesRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({
+        ...mockStore,
+        status: 'PENDING',
+        storeTypeId: 'st_general',
+      });
+      (storeTypesRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'st_pharmacy',
+        isActive: true,
+      });
+      (storesRepository.update as jest.Mock).mockResolvedValue({
+        ...mockStore,
+        status: 'PENDING',
+        storeTypeId: 'st_pharmacy',
+      });
+
+      await storesService.updateMyStore(userId, { storeTypeId: 'st_pharmacy' } as any);
+
+      expect(storesRepository.update).toHaveBeenCalledWith(
+        storeId,
+        expect.objectContaining({ storeTypeId: 'st_pharmacy' }),
+      );
+    });
+
+    it('allows an admin to change an active store type and audits it', async () => {
+      (storesRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockStore,
+        storeTypeId: 'st_general',
+      });
+      (storeTypesRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'st_pharmacy',
+        isActive: true,
+      });
+      (storesRepository.updateStoreType as jest.Mock).mockResolvedValue({
+        ...mockStore,
+        storeTypeId: 'st_pharmacy',
+      });
+
+      const result = await storesService.updateStoreType(
+        storeId,
+        { storeTypeId: 'st_pharmacy' },
+        'admin-1',
+      );
+
+      expect(result.storeTypeId).toBe('st_pharmacy');
+      expect(storesRepository.updateStoreType).toHaveBeenCalledWith(storeId, 'st_pharmacy');
     });
   });
 

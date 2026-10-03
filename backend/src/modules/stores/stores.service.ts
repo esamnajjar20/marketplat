@@ -17,6 +17,7 @@ import {
   CreateStoreReviewInput,
   GetStoreReviewsQuery,
   AdminGetStoresQuery,
+  UpdateStoreTypeInput,
 } from './stores.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -32,6 +33,7 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { isOpenAt } from '../../shared/utils/marketTime';
+import { storeTypesRepository } from '../store-types/store-types.repository';
 
 // STORE-HOURS: derives a live open/closed flag from workingHours.
 // FIX STORE-TZ (audit H2): this used the *server's* local clock
@@ -121,6 +123,9 @@ export const storesService = {
       }
 
       const slug = await generateUniqueSlug(input.name);
+      const storeType = await storeTypesRepository.findById(input.storeTypeId ?? 'st_general');
+      if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+      if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
 
       try {
         return await prisma.$transaction(async tx =>
@@ -136,6 +141,7 @@ export const storesService = {
             latitude: input.latitude,
             longitude: input.longitude,
             workingHours: input.workingHours as Prisma.InputJsonValue | undefined,
+            storeTypeId: storeType.id,
           })
         );
       } catch (error: any) {
@@ -168,6 +174,19 @@ export const storesService = {
   // stores.validation.ts), so `input` forwards straight through.
   updateMyStore: async (userId: string, input: UpdateStoreInput): Promise<StoreDetails> => {
     const store = await requireOwnStore(userId);
+
+    if (input.storeTypeId && input.storeTypeId !== store.storeTypeId) {
+      if (store.status !== 'PENDING') {
+        throw new BadRequestError(
+          'Store type can only be changed while the store is pending.',
+          'STORE_TYPE_CHANGE_NOT_ALLOWED',
+        );
+      }
+      const storeType = await storeTypesRepository.findById(input.storeTypeId);
+      if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+      if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+    }
+
     const updated = await storesRepository.update(store.id, input);
     await bumpPublicListCache('stores');
 
@@ -359,6 +378,34 @@ export const storesService = {
   // repository write, audit trail via the new ADMIN_STORE_PLAN_CHANGED
   // event.
   
+  updateStoreType: async (
+    id: string,
+    input: UpdateStoreTypeInput,
+    adminUserId: string,
+  ): Promise<StoreDetails> => {
+    const store = await storesRepository.findById(id);
+    if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+
+    const storeType = await storeTypesRepository.findById(input.storeTypeId);
+    if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+    if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+
+    const updated = await storesRepository.updateStoreType(id, storeType.id);
+    await bumpPublicListCache('stores');
+
+    void auditLog({
+      event: AuditEvent.ADMIN_STORE_TYPE_CHANGED,
+      userId: adminUserId,
+      details: {
+        storeId: id,
+        oldStoreTypeId: store.storeTypeId,
+        newStoreTypeId: storeType.id,
+      },
+    });
+
+    return updated;
+  },
+
   requestFeature: async (userId: string) => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');

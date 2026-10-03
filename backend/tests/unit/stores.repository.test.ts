@@ -40,6 +40,7 @@ describe('storesRepository', () => {
       await storesRepository.findBySellerProfileId(sellerProfileId);
       expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({
         where: { sellerProfileId },
+        include: { storeType: true },
       });
     });
   });
@@ -48,7 +49,7 @@ describe('storesRepository', () => {
     it('queries storeDetails by id with no include', async () => {
       (prisma.storeDetails.findUnique as jest.Mock).mockResolvedValue(null);
       await storesRepository.findById(storeId);
-      expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({ where: { id: storeId } });
+      expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({ where: { id: storeId }, include: { storeType: true } });
     });
   });
 
@@ -60,6 +61,7 @@ describe('storesRepository', () => {
         where: { id: storeId },
         include: {
           sellerProfile: true,
+          storeType: true,
           _count: { select: { followers: true, products: true } },
         },
       });
@@ -87,6 +89,7 @@ describe('storesRepository', () => {
           longitude: createData.longitude,
           workingHours: createData.workingHours,
         },
+        include: { storeType: true },
       });
     });
 
@@ -109,6 +112,7 @@ describe('storesRepository', () => {
       expect(prisma.storeDetails.update).toHaveBeenCalledWith({
         where: { id: storeId },
         data: patch,
+        include: { storeType: true },
       });
     });
   });
@@ -126,6 +130,19 @@ describe('storesRepository', () => {
     });
   });
 
+  describe('updateStoreType', () => {
+    it('updates only the StoreType relation field', async () => {
+      (prisma.storeDetails.update as jest.Mock).mockResolvedValue({ id: storeId });
+      await storesRepository.updateStoreType(storeId, 'st_pharmacy');
+
+      expect(prisma.storeDetails.update).toHaveBeenCalledWith({
+        where: { id: storeId },
+        data: { storeTypeId: 'st_pharmacy' },
+        include: { storeType: true },
+      });
+    });
+  });
+
   describe('findMany', () => {
     it('applies default pagination, ACTIVE-only filter, and plan-desc-first ordering', async () => {
       (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
@@ -135,7 +152,7 @@ describe('storesRepository', () => {
 
       expect(prisma.storeDetails.findMany).toHaveBeenCalledWith({
         where: { status: 'ACTIVE', sellerProfile: { suspended: false } },
-        include: { sellerProfile: true },
+        include: { sellerProfile: true, storeType: true },
         orderBy: [{ plan: 'desc' }, { createdAt: 'desc' }],
         skip: 0,
         take: 20,
@@ -193,6 +210,30 @@ describe('storesRepository', () => {
           },
         })
       );
+    });
+
+    it('filters by StoreType slug when provided', async () => {
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.storeDetails.count as jest.Mock).mockResolvedValue(0);
+
+      await storesRepository.findMany({ type: 'restaurant' });
+
+      expect(prisma.storeDetails.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            status: 'ACTIVE',
+            sellerProfile: { suspended: false },
+            storeType: { slug: 'restaurant' },
+          },
+        }),
+      );
+      expect(prisma.storeDetails.count).toHaveBeenCalledWith({
+        where: {
+          status: 'ACTIVE',
+          sellerProfile: { suspended: false },
+          storeType: { slug: 'restaurant' },
+        },
+      });
     });
 
     it('honors a custom sortBy/sortOrder as the secondary sort after plan', async () => {
