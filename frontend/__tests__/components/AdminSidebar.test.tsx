@@ -203,7 +203,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(18); // 17 nav links (NAV_LINKS) + the search-box icon
+    expect(hiddenIcons?.length).toBe(19); // 18 nav links (NAV_LINKS) + the search-box icon
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────
@@ -319,7 +319,7 @@ describe('AdminSidebar', () => {
   });
 
   describe('ADMIN and SUPER_ADMIN tiers — see every link (unchanged from pre-Gap-20 behavior)', () => {
-    it('an ADMIN actor sees all 17 links', () => {
+    it('an ADMIN actor sees all 18 links', () => {
       mockActor('ADMIN');
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
@@ -327,7 +327,7 @@ describe('AdminSidebar', () => {
       expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
     });
 
-    it('a SUPER_ADMIN actor sees all 17 links', () => {
+    it('a SUPER_ADMIN actor sees all 18 links', () => {
       mockActor('SUPER_ADMIN');
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];

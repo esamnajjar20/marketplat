@@ -18,6 +18,10 @@ vi.mock('@/hooks/queries/useSellers', () => ({
   useMySellerProfile: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useStoreTypes', () => ({
+  useStoreTypes: vi.fn(() => ({ data: [] })),
+}));
+
 vi.mock('@/hooks/mutations/useStoreMutations', () => ({
   useCreateStore: vi.fn(),
 }));

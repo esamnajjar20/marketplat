@@ -19,6 +19,10 @@ import { useUpdateStore, useUploadStoreLogo, useUploadStoreCover } from '@/hooks
 import { parseApiError } from '@/lib/errorParser';
 import type { StoreDetails } from '@/types/store.types';
 
+vi.mock('@/hooks/queries/useStoreTypes', () => ({
+  useStoreTypes: vi.fn(() => ({ data: [] })),
+}));
+
 vi.mock('@/hooks/mutations/useStoreMutations', () => ({
   useUpdateStore: vi.fn(),
   useUploadStoreLogo: vi.fn(),

@@ -27,11 +27,13 @@ import { useAdminUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
 
 vi.mock('@/hooks/queries/useAdmin', () => ({
   useAdminStores: vi.fn(),
+  useAdminStoreTypes: vi.fn(() => ({ data: [] })),
 }));
 
 vi.mock('@/hooks/mutations/useAdminMutations', () => ({
   useAdminUpdateStoreStatus: vi.fn(),
   useAdminUpdateStorePlan: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useAdminUpdateStoreType: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useAdminBulkUpdateStoreStatus: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 

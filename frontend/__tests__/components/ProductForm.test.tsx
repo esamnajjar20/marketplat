@@ -41,6 +41,10 @@ vi.mock('@/hooks/queries/useProductCategories', () => ({
   useProductCategories: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useStores', () => ({
+  useMyStore: vi.fn(() => ({ data: undefined })),
+}));
+
 vi.mock('@/hooks/mutations/useProductMutations', () => ({
   useCreateProduct: vi.fn(),
   useUpdateProduct: vi.fn(),
@@ -137,7 +141,7 @@ describe('ProductForm', () => {
   }
 
   async function selectCategory(user: ReturnType<typeof setupUser>) {
-    await user.click(getField('الفئة'));
+    await user.click(getField('التصنيفات'));
     await user.click(await screen.findByRole('option', { name: 'إلكترونيات' }));
   }
 
@@ -173,7 +177,7 @@ describe('ProductForm', () => {
       // The Select's own placeholder text is identical to the validation
       // error message, so getByText matches both — scope to the actual
       // error element (role="alert") instead.
-      expect(screen.getByRole('alert')).toHaveTextContent('اختر فئة المنتج');
+      expect(screen.getByRole('alert')).toHaveTextContent('اختر التصنيفات');
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 

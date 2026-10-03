@@ -24,14 +24,14 @@ import {
 } from '@/lib/adminHubTabs';
 
 describe('admin tab model', () => {
-  it('has 17 unique tabs', () => {
-    expect(ADMIN_TABS).toHaveLength(17);
-    expect(new Set(ADMIN_TABS).size).toBe(17);
+  it('has 18 unique tabs', () => {
+    expect(ADMIN_TABS).toHaveLength(18);
+    expect(new Set(ADMIN_TABS).size).toBe(18);
   });
 
   it('every old /admin/<section> page maps to its tab', () => {
     for (const tab of ADMIN_TABS) expect(LEGACY_ADMIN_PATH_TO_TAB[`/admin/${tab}`]).toBe(tab);
-    expect(Object.keys(LEGACY_ADMIN_PATH_TO_TAB)).toHaveLength(17);
+    expect(Object.keys(LEGACY_ADMIN_PATH_TO_TAB)).toHaveLength(18);
   });
 
   it('isAdminTab / resolveAdminTab', () => {
@@ -88,7 +88,7 @@ describe('hrefs', () => {
 describe('role tiers', () => {
   it('ADMIN and SUPER_ADMIN open everything', () => {
     for (const role of ['ADMIN', 'SUPER_ADMIN']) {
-      expect(adminTabsForRole(role)).toHaveLength(17);
+      expect(adminTabsForRole(role)).toHaveLength(18);
       expect(defaultAdminTabForRole(role)).toBe('dashboard');
     }
   });

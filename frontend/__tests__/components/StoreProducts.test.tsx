@@ -19,6 +19,10 @@ vi.mock('@/hooks/queries/useProducts', () => ({
   useProducts: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useStores', () => ({
+  useStore: vi.fn(() => ({ data: undefined })),
+}));
+
 vi.mock('@/lib/analytics', () => ({
   track: vi.fn(),
 }));
