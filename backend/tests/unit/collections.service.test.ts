@@ -4,7 +4,7 @@
 import { collectionsService } from '../../src/modules/collections/collections.service';
 import { collectionsRepository } from '../../src/modules/collections/collections.repository';
 import { productsRepository } from '../../src/modules/products/products.repository';
-import { requireOwnStoreForProducts } from '../../src/modules/stores/stores.service';
+import { requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
 import { storesRepository } from '../../src/modules/stores/stores.repository';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
@@ -13,7 +13,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
 jest.mock('../../src/modules/collections/collections.repository');
 jest.mock('../../src/modules/products/products.repository');
-jest.mock('../../src/modules/stores/stores.service');
+jest.mock('../../src/modules/stores/store-members.service');
 jest.mock('../../src/modules/stores/stores.repository');
 jest.mock('../../src/shared/utils/slugify', () => ({
   generateStoreSlug: (name: string) =>
@@ -37,7 +37,7 @@ const collection = {
 describe('collectionsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(store);
+    (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(store);
     (collectionsRepository.findBySlugInStore as jest.Mock).mockResolvedValue(null);
   });
 

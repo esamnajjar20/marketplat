@@ -1,7 +1,7 @@
 import { Promotion, Product } from '@prisma/client';
 import { promotionsRepository } from './promotions.repository';
 import { productsRepository } from '../products/products.repository';
-import { requireOwnStoreForProducts } from '../stores/stores.service';
+import { requireStoreAccessForProducts } from '../stores/store-members.service';
 import { CreatePromotionInput, UpdatePromotionInput } from './promotions.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
@@ -42,7 +42,7 @@ const syncStatus = (promotion: Promotion, now: Date): Promotion => {
 };
 
 const requireOwnPromotion = async (userId: string, id: string): Promise<Promotion> => {
-  const store = await requireOwnStoreForProducts(userId);
+  const store = await requireStoreAccessForProducts(userId, 'managePromotions');
   const promotion = await promotionsRepository.findById(id);
   if (!promotion) throw new NotFoundError('Promotion not found', 'PROMOTION_NOT_FOUND');
   if (promotion.storeId !== store.id) {
@@ -106,7 +106,7 @@ const computeEffectivePrice = (product: Product, promotion: Promotion | null): E
 
 export const promotionsService = {
   createPromotion: async (userId: string, input: CreatePromotionInput): Promise<Promotion> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'managePromotions');
 
     const product = await productsRepository.findById(input.productId);
     if (!product || product.status === 'DELETED') {
@@ -150,7 +150,7 @@ export const promotionsService = {
   },
 
   getStorePromotions: async (userId: string): Promise<Promotion[]> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'managePromotions');
     const promotions = await promotionsRepository.findByStoreId(store.id);
     const now = new Date();
     return promotions.map(p => syncStatus(p, now));

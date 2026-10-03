@@ -40,6 +40,17 @@ export const serviceRequestsRepository = {
       },
     }),
 
+  // FIX SR-DUPLICATE (audit H4): any not-yet-finished request by the same
+  // customer for the same listing.
+  findOpenByCustomerAndListing: (
+    customerId: string,
+    listingId: string
+  ): Promise<Pick<ServiceRequest, 'id' | 'status'> | null> =>
+    prisma.serviceRequest.findFirst({
+      where: { customerId, listingId, status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS'] } },
+      select: { id: true, status: true },
+    }),
+
   findById: (id: string): Promise<ServiceRequestWithListing | null> =>
     prisma.serviceRequest.findUnique({ where: { id }, include: requestWithRelations }),
 

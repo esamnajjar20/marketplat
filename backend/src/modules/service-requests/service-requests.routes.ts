@@ -3,7 +3,10 @@ import { serviceRequestsController } from './service-requests.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
-import { createServiceRequestRateLimit } from '../../middlewares/rateLimit.middleware';
+import {
+  createServiceRequestRateLimit,
+  respondServiceRequestRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 
 export const serviceRequestsRouter = Router();
 
@@ -35,11 +38,12 @@ serviceRequestsRouter.post(
 // — it moves quoted/agreed prices and flips the provider's lifetime
 // counters (completedRequestsCount, fulfillmentRate) — so gating it
 // more loosely than creation made no sense. Reused
-// createServiceRequestRateLimit (20/hr) as the closest fitting bucket;
-// the transition set is small enough that one shared limit is fine.
+// createServiceRequestRateLimit (20/hr) as the closest fitting bucket.
+// FIX (audit H4): sharing that counter starved busy providers (3 calls per
+// request) — respond now has its own, more generous bucket.
 serviceRequestsRouter.patch(
   '/:id/respond',
   authenticate, requireVerifiedEmail,
-  createServiceRequestRateLimit,
+  respondServiceRequestRateLimit,
   serviceRequestsController.respondToRequest
 );

@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
+// FIX APPT-MAX-DURATION (audit H3): nothing capped the length, so a 10-hour or
+// multi-day "appointment" could block a provider's whole calendar.
+export const MAX_APPOINTMENT_MINUTES = 8 * 60;
+
 export const createAppointmentSchema = z.object({
   body: z
     .object({
@@ -13,6 +17,13 @@ export const createAppointmentSchema = z.object({
       message: 'scheduledEnd must be after scheduledStart',
       path: ['scheduledEnd'],
     })
+    .refine(
+      data => data.scheduledEnd.getTime() - data.scheduledStart.getTime() <= MAX_APPOINTMENT_MINUTES * 60_000,
+      {
+        message: `appointment cannot be longer than ${MAX_APPOINTMENT_MINUTES / 60} hours`,
+        path: ['scheduledEnd'],
+      }
+    )
     .refine(data => data.scheduledStart.getTime() > Date.now(), {
       message: 'scheduledStart must be in the future',
       path: ['scheduledStart'],

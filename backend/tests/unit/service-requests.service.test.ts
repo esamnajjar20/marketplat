@@ -7,6 +7,7 @@ import { notificationEvents } from '../../src/modules/notifications/notification
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
+import { ConflictError } from '../../src/shared/errors/ConflictError';
 
 jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/service-listings/service-listings.repository');
@@ -135,6 +136,40 @@ describe('ServiceRequestsService', () => {
           details: 'test',
         } as any)
       ).rejects.toThrow(BadRequestError);
+    });
+  });
+
+  describe('createRequest — duplicate open request guard (audit H4)', () => {
+    beforeEach(() => {
+      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
+      (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(mockProvider);
+    });
+
+    it('rejects a second request while one is still open for the same listing', async () => {
+      (serviceRequestsRepository.findOpenByCustomerAndListing as jest.Mock).mockResolvedValue({
+        id: 'req-old',
+        status: 'PENDING',
+      });
+
+      await expect(
+        serviceRequestsService.createRequest('customer-user-2', { listingId: 'listing-1', details: 'again' } as any)
+      ).rejects.toThrow(ConflictError);
+
+      expect(serviceRequestsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('checks by (customer, listing) so a different customer is unaffected', async () => {
+      (serviceRequestsRepository.findOpenByCustomerAndListing as jest.Mock).mockResolvedValue(null);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
+      (serviceRequestsRepository.create as jest.Mock).mockResolvedValue({ id: 'req-2' });
+
+      await serviceRequestsService.createRequest('customer-user-3', { listingId: 'listing-1', details: 'x' } as any);
+
+      expect(serviceRequestsRepository.findOpenByCustomerAndListing).toHaveBeenCalledWith(
+        'customer-user-3',
+        'listing-1'
+      );
+      expect(serviceRequestsRepository.create).toHaveBeenCalled();
     });
   });
 

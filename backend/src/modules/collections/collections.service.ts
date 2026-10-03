@@ -1,7 +1,7 @@
 import { StoreCollection, Product } from '@prisma/client';
 import { collectionsRepository, StoreCollectionWithCount } from './collections.repository';
 import { productsRepository } from '../products/products.repository';
-import { requireOwnStoreForProducts } from '../stores/stores.service';
+import { requireStoreAccessForProducts } from '../stores/store-members.service';
 import { storesRepository } from '../stores/stores.repository';
 import { generateStoreSlug, withSlugSuffix } from '../../shared/utils/slugify';
 import {
@@ -32,7 +32,7 @@ const generateUniqueCollectionSlug = async (storeId: string, name: string): Prom
 };
 
 const requireOwnCollection = async (userId: string, id: string): Promise<StoreCollection> => {
-  const store = await requireOwnStoreForProducts(userId);
+  const store = await requireStoreAccessForProducts(userId, 'manageCollections');
   const collection = await collectionsRepository.findById(id);
   if (!collection) throw new NotFoundError('Collection not found', 'COLLECTION_NOT_FOUND');
   if (collection.storeId !== store.id) {
@@ -46,7 +46,7 @@ export const collectionsService = {
     userId: string,
     input: CreateCollectionInput
   ): Promise<StoreCollection> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageCollections');
     const slug = await generateUniqueCollectionSlug(store.id, input.name);
 
     try {
@@ -69,7 +69,7 @@ export const collectionsService = {
   },
 
   getMyCollections: async (userId: string): Promise<StoreCollectionWithCount[]> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageCollections');
     return collectionsRepository.findByStoreId(store.id);
   },
 
@@ -102,7 +102,7 @@ export const collectionsService = {
   },
 
   reorderCollections: async (userId: string, input: ReorderCollectionsInput): Promise<void> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageCollections');
     const owned = await collectionsRepository.findByStoreId(store.id);
     const ownedIds = new Set(owned.map(c => c.id));
 

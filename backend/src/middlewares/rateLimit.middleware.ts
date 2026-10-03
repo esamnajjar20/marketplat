@@ -350,6 +350,20 @@ export const createServiceRequestRateLimit = rateLimit({
   message: msg('Too many requests submitted, please try again later'),
 });
 
+// FIX SR-RESPOND-SEPARATE-BUCKET (audit H4): PATCH /:id/respond used to share
+// createServiceRequestRateLimit's 20/hr counter with request creation. A busy
+// provider needs accept → start → complete (3 calls) per request, so a normal
+// busy day exhausted the shared bucket. Own bucket, still bounded.
+export const respondServiceRequestRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: ONE_HOUR_MS,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('respond_service_request'),
+  message: msg('Too many actions, please try again later'),
+});
+
 // Open Requests marketplace (Request / RequestOffer) — separate buckets
 // from service-broadcast so product/rental traffic does not starve
 // the legacy service-only feed quotas.

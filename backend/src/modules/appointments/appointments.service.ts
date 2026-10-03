@@ -15,11 +15,12 @@ import { activityService, activityTemplates } from '../activity';
 import { blockedUsersService } from '../blocked-users';
 import { notificationEvents } from '../notifications/notifications.service';
 import { logger } from '../../shared/utils/logger';
-
-const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-
-type DaySchedule = { open: string; close: string } | null;
-type WorkingHours = Record<(typeof DAY_KEYS)[number], DaySchedule>;
+import {
+  WorkingHoursMap,
+  fitsWorkingHours,
+  weekdayKeyForDateStr,
+  workingWindowUtc,
+} from '../../shared/utils/marketTime';
 
 const requireOwnProvider = async (userId: string) => {
   const sellerProfile = await sellersRepository.findByUserId(userId);
@@ -75,6 +76,21 @@ export const appointmentsService = {
       if (await blockedUsersService.isBlockedEitherDirection(userId, request.customerId)) {
         throw new ForbiddenError('You cannot schedule an appointment with this user.', 'USER_BLOCKED');
       }
+    }
+
+    // FIX APPT-WORKING-HOURS (audit H3): the slot must sit fully inside one
+    // of the provider's working windows, evaluated in market time
+    // (Asia/Gaza) — not UTC, not the server's zone. Providers with no
+    // hours configured at all (legacy rows) are not blocked.
+    if (
+      provider.workingHours &&
+      typeof provider.workingHours === 'object' &&
+      !fitsWorkingHours(provider.workingHours, input.scheduledStart, input.scheduledEnd)
+    ) {
+      throw new BadRequestError(
+        'The appointment must be within your working hours.',
+        'OUTSIDE_WORKING_HOURS'
+      );
     }
 
     const conflict = await appointmentsRepository.findOverlapping(
@@ -211,17 +227,22 @@ export const appointmentsService = {
       throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     }
 
-    const date = new Date(`${dateStr}T00:00:00.000Z`);
-    const dayKey = DAY_KEYS[date.getUTCDay()];
-    const workingHours = provider.workingHours as unknown as WorkingHours;
-    const daySchedule = workingHours?.[dayKey];
+    // FIX APPT-TZ (audit H2): working hours are market-local wall-clock
+    // times. They used to be glued to a literal `Z`, which shifted every
+    // free slot by the market's UTC offset (2–3h) and picked the weekday in
+    // UTC. The window is now built in Asia/Gaza and converted to UTC.
+    const calendarDate = new Date(`${dateStr}T00:00:00.000Z`);
+    if (Number.isNaN(calendarDate.getTime()) || calendarDate.toISOString().slice(0, 10) !== dateStr) {
+      return { date: dateStr, available: false, freeRanges: [] };
+    }
+    const workingHours = provider.workingHours as unknown as WorkingHoursMap | null;
+    const daySchedule = workingHours?.[weekdayKeyForDateStr(dateStr)];
 
     if (!daySchedule) {
       return { date: dateStr, available: false, freeRanges: [] };
     }
 
-    const rangeStart = new Date(`${dateStr}T${daySchedule.open}:00.000Z`);
-    const rangeEnd = new Date(`${dateStr}T${daySchedule.close}:00.000Z`);
+    const { start: rangeStart, end: rangeEnd } = workingWindowUtc(dateStr, daySchedule);
 
     const booked = await appointmentsRepository.findManyInRange(providerId, rangeStart, rangeEnd);
 

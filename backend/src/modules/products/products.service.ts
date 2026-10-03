@@ -10,7 +10,7 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { uploadImage, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository } from '../stores/stores.repository';
-import { requireOwnStoreForProducts } from '../stores/stores.service';
+import { requireStoreAccessForProducts } from '../stores/store-members.service';
 import { productCategoriesRepository } from '../product-categories/product-categories.repository';
 import { storeFollowersRepository } from '../stores/store-followers.repository';
 import { notificationEvents } from '../notifications/notifications.service';
@@ -77,7 +77,7 @@ export const productsService = {
         where: { offlineOperationId },
       });
       if (existing) {
-        const store = await requireOwnStoreForProducts(userId);
+        const store = await requireStoreAccessForProducts(userId, 'manageProducts');
         if (existing.storeId !== store.id) {
           throw new BadRequestError(
             'Offline operation id already used by another store',
@@ -88,7 +88,7 @@ export const productsService = {
       }
     }
 
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
 
     if (store.status !== 'ACTIVE') {
       throw new ForbiddenError(
@@ -238,7 +238,7 @@ export const productsService = {
       search?: string;
     }
   ): Promise<PaginatedResult<Product>> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const { products, total } = await productsRepository.findManyByStoreId(store.id, query);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -315,7 +315,7 @@ export const productsService = {
     id: string,
     input: UpdateProductInput
   ): Promise<Product> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const product = await productsRepository.findById(id);
     if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     if (product.storeId !== store.id) {
@@ -379,7 +379,7 @@ export const productsService = {
   },
 
   deleteProduct: async (userId: string, id: string): Promise<void> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const product = await productsRepository.findById(id);
     if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     if (product.storeId !== store.id) {
@@ -411,7 +411,7 @@ export const productsService = {
     userId: string,
     files: Express.Multer.File[]
   ): Promise<Product> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     return productImageOperations.addImages(productId, product => product.storeId === store.id, files);
   },
 
@@ -424,7 +424,7 @@ export const productsService = {
     userId: string,
     imageUrl: string
   ): Promise<Product> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     return productImageOperations.removeImage(productId, product => product.storeId === store.id, imageUrl);
   },
 
@@ -436,7 +436,7 @@ export const productsService = {
     userId: string,
     orderedImages: string[]
   ): Promise<Product> => {
-    const store = await requireOwnStoreForProducts(userId);
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     return productImageOperations.reorderImages(productId, product => product.storeId === store.id, orderedImages);
   },
 };

@@ -439,7 +439,8 @@ export const storeMembersService = {
  *   const store = await requireStoreAccessForProducts(userId);
  */
 export const requireStoreAccessForProducts = async (
-  userId: string
+  userId: string,
+  capability: 'manageProducts' | 'managePromotions' | 'manageCollections' = 'manageProducts'
 ): Promise<StoreDetails> => {
   const sellerProfile = await sellersRepository.findByUserId(userId);
 
@@ -452,10 +453,12 @@ export const requireStoreAccessForProducts = async (
     if (ownStore) return ownStore;
   }
 
-  // Staff path: active membership with manageProducts, oldest first.
+  // Staff path: active membership with the requested capability, oldest
+  // first (FIX H1: promotions/collections need their own capability —
+  // EDITOR may manage products but not promotions/collections).
   const memberships = await storeMembersRepository.findActiveByUserId(userId);
   const productCapable = memberships
-    .filter((m) => ROLE_CAPABILITIES[m.role].manageProducts)
+    .filter((m) => ROLE_CAPABILITIES[m.role][capability])
     .sort(
       (a, b) =>
         new Date(a.invitedAt).getTime() - new Date(b.invitedAt).getTime()

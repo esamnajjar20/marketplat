@@ -24,7 +24,15 @@ jest.mock('../../src/modules/notifications/notifications.service', () => ({
 
 const userId = 'user-1';
 const sellerProfile = { id: 'seller-1', userId } as any;
-const provider = { id: 'provider-1', sellerProfileId: 'seller-1' } as any;
+// Open every day 06:00–23:00 market time (Asia/Gaza) so the existing
+// createAppointment cases (2099-08-01 10:00–11:00Z = 13:00–14:00 local)
+// pass the working-hours check; the check itself is covered below.
+const allDay = { open: '06:00', close: '23:00' };
+const provider = {
+  id: 'provider-1',
+  sellerProfileId: 'seller-1',
+  workingHours: { sun: allDay, mon: allDay, tue: allDay, wed: allDay, thu: allDay, fri: allDay, sat: allDay },
+} as any;
 
 const mockAppointment = {
   id: 'appt-1',
@@ -162,6 +170,48 @@ describe('appointmentsService', () => {
         scheduledEnd: input.scheduledEnd,
         notes: undefined,
       });
+    });
+
+    // audit H3 — booking must respect working hours (market time).
+    it('rejects a slot that starts before opening time (OUTSIDE_WORKING_HOURS)', async () => {
+      // 02:00Z–03:00Z in August = 05:00–06:00 local; provider opens 06:00.
+      const early = {
+        scheduledStart: new Date('2099-08-01T02:00:00.000Z'),
+        scheduledEnd: new Date('2099-08-01T03:00:00.000Z'),
+      } as any;
+
+      await expect(appointmentsService.createAppointment(userId, early)).rejects.toThrow(BadRequestError);
+      expect(appointmentsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a slot that ends after closing time', async () => {
+      // 19:30Z–21:00Z in August = 22:30–00:00 local; provider closes 23:00.
+      const late = {
+        scheduledStart: new Date('2099-08-01T19:30:00.000Z'),
+        scheduledEnd: new Date('2099-08-01T21:00:00.000Z'),
+      } as any;
+
+      await expect(appointmentsService.createAppointment(userId, late)).rejects.toThrow(BadRequestError);
+    });
+
+    it('rejects a slot on a day the provider is closed', async () => {
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({
+        ...provider,
+        workingHours: { ...provider.workingHours, sat: null },
+      });
+      // 2099-08-01 is a Saturday.
+      await expect(appointmentsService.createAppointment(userId, input)).rejects.toThrow(BadRequestError);
+    });
+
+    it('does not block providers whose workingHours was never configured', async () => {
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({
+        ...provider,
+        workingHours: null,
+      });
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await expect(appointmentsService.createAppointment(userId, input)).resolves.toEqual(mockAppointment);
     });
 
     it('throws ConflictError when the pre-lock overlap check finds a conflict', async () => {
@@ -391,7 +441,7 @@ describe('appointmentsService', () => {
     });
 
     it('returns unavailable with no free ranges when the provider is closed that weekday', async () => {
-      // 2026-08-03 is a Monday (UTC) — closed if workingHours.mon is null.
+      // 2026-08-03 is a Monday — closed if workingHours.mon is null.
       (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
         workingHours: { sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null },
       });
@@ -400,6 +450,42 @@ describe('appointmentsService', () => {
 
       expect(result).toEqual({ date: '2026-08-03', available: false, freeRanges: [] });
       expect(appointmentsRepository.findManyInRange).not.toHaveBeenCalled();
+    });
+
+    it('builds the window in market time (Asia/Gaza), not UTC: 09:00–17:00 local in August = 06:00–14:00Z', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([]);
+
+      await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      const [, from, to] = (appointmentsRepository.findManyInRange as jest.Mock).mock.calls[0];
+      expect((from as Date).toISOString()).toBe('2026-08-03T06:00:00.000Z');
+      expect((to as Date).toISOString()).toBe('2026-08-03T14:00:00.000Z');
+    });
+
+    it('extends an overnight window (18:00–02:00) into the next calendar day', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '18:00', close: '02:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T15:00:00.000Z', end: '2026-08-03T23:00:00.000Z' },
+      ]);
+    });
+
+    it('returns unavailable for a non-existent calendar date instead of rolling over', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-02-31');
+
+      expect(result).toEqual({ date: '2026-02-31', available: false, freeRanges: [] });
     });
 
     it('returns the full working window as free when there are no bookings', async () => {
@@ -412,7 +498,7 @@ describe('appointmentsService', () => {
 
       expect(result.available).toBe(true);
       expect(result.freeRanges).toEqual([
-        { start: '2026-08-03T09:00:00.000Z', end: '2026-08-03T17:00:00.000Z' },
+        { start: '2026-08-03T06:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
       ]);
     });
 
@@ -422,8 +508,8 @@ describe('appointmentsService', () => {
       });
       (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
         {
-          scheduledStart: new Date('2026-08-03T12:00:00.000Z'),
-          scheduledEnd: new Date('2026-08-03T13:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T09:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T10:00:00.000Z'),
         },
       ]);
 
@@ -431,8 +517,8 @@ describe('appointmentsService', () => {
 
       expect(result.available).toBe(true);
       expect(result.freeRanges).toEqual([
-        { start: '2026-08-03T09:00:00.000Z', end: '2026-08-03T12:00:00.000Z' },
-        { start: '2026-08-03T13:00:00.000Z', end: '2026-08-03T17:00:00.000Z' },
+        { start: '2026-08-03T06:00:00.000Z', end: '2026-08-03T09:00:00.000Z' },
+        { start: '2026-08-03T10:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
       ]);
     });
 
@@ -442,8 +528,8 @@ describe('appointmentsService', () => {
       });
       (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
         {
-          scheduledStart: new Date('2026-08-03T09:00:00.000Z'),
-          scheduledEnd: new Date('2026-08-03T17:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T06:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T14:00:00.000Z'),
         },
       ]);
 
@@ -461,15 +547,15 @@ describe('appointmentsService', () => {
         {
           // Starts before the window opens (e.g. spilled over from a
           // previous day's overlapping range query).
-          scheduledStart: new Date('2026-08-03T07:00:00.000Z'),
-          scheduledEnd: new Date('2026-08-03T10:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T04:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T07:00:00.000Z'),
         },
       ]);
 
       const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
 
       expect(result.freeRanges).toEqual([
-        { start: '2026-08-03T10:00:00.000Z', end: '2026-08-03T17:00:00.000Z' },
+        { start: '2026-08-03T07:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
       ]);
     });
 
@@ -479,16 +565,16 @@ describe('appointmentsService', () => {
       });
       (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
         {
-          scheduledStart: new Date('2026-08-03T16:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T13:00:00.000Z'),
           // Ends after the window closes.
-          scheduledEnd: new Date('2026-08-03T19:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T16:00:00.000Z'),
         },
       ]);
 
       const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
 
       expect(result.freeRanges).toEqual([
-        { start: '2026-08-03T09:00:00.000Z', end: '2026-08-03T16:00:00.000Z' },
+        { start: '2026-08-03T06:00:00.000Z', end: '2026-08-03T13:00:00.000Z' },
       ]);
     });
 
@@ -498,20 +584,20 @@ describe('appointmentsService', () => {
       });
       (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
         {
-          scheduledStart: new Date('2026-08-03T09:00:00.000Z'),
-          scheduledEnd: new Date('2026-08-03T10:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T06:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T07:00:00.000Z'),
         },
         {
-          scheduledStart: new Date('2026-08-03T14:00:00.000Z'),
-          scheduledEnd: new Date('2026-08-03T15:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T11:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T12:00:00.000Z'),
         },
       ]);
 
       const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
 
       expect(result.freeRanges).toEqual([
-        { start: '2026-08-03T10:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
-        { start: '2026-08-03T15:00:00.000Z', end: '2026-08-03T17:00:00.000Z' },
+        { start: '2026-08-03T07:00:00.000Z', end: '2026-08-03T11:00:00.000Z' },
+        { start: '2026-08-03T12:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
       ]);
     });
 
@@ -521,21 +607,21 @@ describe('appointmentsService', () => {
       });
       (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
         {
-          scheduledStart: new Date('2026-08-03T09:00:00.000Z'),
-          scheduledEnd: new Date('2026-08-03T12:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T06:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T09:00:00.000Z'),
         },
         {
           // Starts exactly where the previous one ends — no gap, so no
           // free range should be emitted between them.
-          scheduledStart: new Date('2026-08-03T12:00:00.000Z'),
-          scheduledEnd: new Date('2026-08-03T13:00:00.000Z'),
+          scheduledStart: new Date('2026-08-03T09:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T10:00:00.000Z'),
         },
       ]);
 
       const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
 
       expect(result.freeRanges).toEqual([
-        { start: '2026-08-03T13:00:00.000Z', end: '2026-08-03T17:00:00.000Z' },
+        { start: '2026-08-03T10:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
       ]);
     });
   });

@@ -9,6 +9,7 @@ import type { PaginationMeta } from '@/types/api.types';
  *  1. Static pages (home, search, category index).
  *  2. Category pages — fetched at build/revalidation time.
  *  3. Active ad detail pages — fetched in batches (up to MAX_ADS_IN_SITEMAP).
+ *  4. Store, product and service-listing detail pages (public lists only).
  *
  * Revalidates every 6 hours via ISR so new ads appear without a full rebuild.
  *
@@ -36,6 +37,14 @@ import type { PaginationMeta } from '@/types/api.types';
 export const revalidate = 21600; // 6 hours
 
 const MAX_ADS_IN_SITEMAP = 5000;
+
+// FIX SITEMAP-STORES-SERVICES (audit M1): stores / products / service
+// listings have generateMetadata + JSON-LD on their detail pages but were
+// missing from the sitemap. Smaller caps than ads: these catalogs are
+// smaller, and every extra page is another bounded backend request.
+const MAX_STORES_IN_SITEMAP = 2000;
+const MAX_PRODUCTS_IN_SITEMAP = 5000;
+const MAX_SERVICES_IN_SITEMAP = 3000;
 
 // FIX BUILD-TIMEOUT-01: hard cap per backend request. Chosen so that even a
 // worst-case fully-paginated ad fetch (MAX_ADS_IN_SITEMAP / ADS_PAGE_SIZE
@@ -199,6 +208,67 @@ async function fetchActiveAdIds(): Promise<AdApiItem[]> {
   return allAds.slice(0, MAX_ADS_IN_SITEMAP);
 }
 
+interface PublicEntityApiItem {
+  id: string;
+  slug?: string | null;
+  updatedAt?: string;
+}
+
+/**
+ * Generic bounded pagination over a public list endpoint (same envelope as
+ * GET /ads: flat array in `data`, pagination under `meta.pagination`).
+ * Public endpoints already return only ACTIVE entities of non-suspended
+ * sellers, so no extra status filter is needed here. Same safety rails as
+ * fetchActiveAdIds: per-request timeout, page-count ceiling, sane
+ * totalPages — a slow or malformed backend degrades to a shorter list,
+ * never a hung build.
+ */
+async function fetchPublicEntities(
+  path: string,
+  maxItems: number,
+): Promise<PublicEntityApiItem[]> {
+  const all: PublicEntityApiItem[] = [];
+  let page = 1;
+  let requestCount = 0;
+
+  while (all.length < maxItems && requestCount < MAX_AD_PAGES) {
+    requestCount += 1;
+
+    const res = await fetchWithTimeout(
+      `${API_BASE_URL}${path}?limit=${ADS_PAGE_SIZE}&page=${page}`,
+    );
+    if (!res) break;
+    if (!res.ok) {
+      console.warn(`[sitemap] ${path} page ${page} returned ${res.status}`);
+      break;
+    }
+
+    let json: AdPaginatedEnvelope;
+    try {
+      json = (await res.json()) as AdPaginatedEnvelope;
+    } catch (err) {
+      console.warn(`[sitemap] ${path} page ${page} was not valid JSON`, err);
+      break;
+    }
+
+    const items = Array.isArray(json?.data)
+      ? (json.data as unknown as PublicEntityApiItem[])
+      : [];
+    if (items.length === 0) break;
+    all.push(...items);
+
+    const rawTotalPages = json.meta?.pagination?.totalPages;
+    const totalPages =
+      typeof rawTotalPages === 'number' && Number.isFinite(rawTotalPages)
+        ? rawTotalPages
+        : page;
+    if (page >= totalPages) break;
+    page += 1;
+  }
+
+  return all.slice(0, maxItems);
+}
+
 /**
  * FIX BUILD-TIMEOUT-01: guards against a missing/malformed date string from
  * the backend producing an `Invalid Date`, which MetadataRoute.Sitemap would
@@ -213,9 +283,12 @@ function safeDate(value: string | undefined): Date {
 // ── Sitemap builder ───────────────────────────────────────────────
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categories, ads] = await Promise.all([
+  const [categories, ads, stores, products, services] = await Promise.all([
     fetchCategories(),
     fetchActiveAdIds(),
+    fetchPublicEntities('/stores', MAX_STORES_IN_SITEMAP),
+    fetchPublicEntities('/products', MAX_PRODUCTS_IN_SITEMAP),
+    fetchPublicEntities('/service-listings', MAX_SERVICES_IN_SITEMAP),
   ]);
 
   // 1. Static routes
@@ -269,5 +342,43 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority:        0.6,
     }));
 
-  return [...staticRoutes, ...categoryRoutes, ...adRoutes];
+  // 4. Store / product / service detail pages (audit M1).
+  // Stores are linked by slug when present (the canonical public URL; the
+  // page also accepts the id as a fallback), otherwise by id.
+  const storeRoutes: MetadataRoute.Sitemap = stores
+    .map((st) => ({ key: st?.slug || st?.id, st }))
+    .filter(({ key }) => typeof key === 'string' && key.length > 0)
+    .map(({ key, st }) => ({
+      url:             `${APP_URL}${ROUTES.stores}/${encodeURIComponent(key as string)}`,
+      lastModified:    safeDate(st.updatedAt),
+      changeFrequency: 'weekly' as const,
+      priority:        0.6,
+    }));
+
+  const productRoutes: MetadataRoute.Sitemap = products
+    .filter((p) => typeof p?.id === 'string' && p.id.length > 0)
+    .map((p) => ({
+      url:             `${APP_URL}${ROUTES.products}/${encodeURIComponent(p.id)}`,
+      lastModified:    safeDate(p.updatedAt),
+      changeFrequency: 'weekly' as const,
+      priority:        0.5,
+    }));
+
+  const serviceRoutes: MetadataRoute.Sitemap = services
+    .filter((sv) => typeof sv?.id === 'string' && sv.id.length > 0)
+    .map((sv) => ({
+      url:             `${APP_URL}${ROUTES.services}/${encodeURIComponent(sv.id)}`,
+      lastModified:    safeDate(sv.updatedAt),
+      changeFrequency: 'weekly' as const,
+      priority:        0.5,
+    }));
+
+  return [
+    ...staticRoutes,
+    ...categoryRoutes,
+    ...adRoutes,
+    ...storeRoutes,
+    ...productRoutes,
+    ...serviceRoutes,
+  ];
 }

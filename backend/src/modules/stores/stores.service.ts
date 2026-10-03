@@ -31,26 +31,17 @@ import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/paginati
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { isOpenAt } from '../../shared/utils/marketTime';
 
-const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-
-// STORE-HOURS: derives a live open/closed flag from workingHours + the
-// server's current local time. No per-store timezone column exists
-// anywhere in this schema (ServiceProviderDetails doesn't have one
-// either) — this assumes the server itself runs in the marketplace's
-// local timezone, same implicit assumption every other DateTime-based
-// feature here already makes. Returns null (render nothing) rather
-// than false when workingHours hasn't been set at all, so "unknown"
-// isn't shown to the user as "closed".
-const computeIsOpen = (workingHours: Prisma.JsonValue | null): boolean | null => {
-  if (!workingHours || typeof workingHours !== 'object') return null;
-  const now = new Date();
-  const todayKey = WEEKDAY_KEYS[now.getDay()];
-  const today = (workingHours as Record<string, { open: string; close: string } | null>)[todayKey];
-  if (!today) return false;
-  const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  return hhmm >= today.open && hhmm < today.close;
-};
+// STORE-HOURS: derives a live open/closed flag from workingHours.
+// FIX STORE-TZ (audit H2): this used the *server's* local clock
+// (getDay/getHours), so on a UTC host the badge was off by 2–3h, and
+// overnight windows (18:00–02:00) always read "closed". Evaluation now
+// happens in market time (Asia/Gaza) via shared/utils/marketTime.
+// Returns null (render nothing) rather than false when workingHours
+// hasn't been set at all, so "unknown" isn't shown as "closed".
+const computeIsOpen = (workingHours: Prisma.JsonValue | null): boolean | null =>
+  isOpenAt(workingHours);
 
 // STORE-SLUG: bounded collision-retry — findBySlug then insert, not a
 // unique-constraint catch-and-retry, so the same helper can be reused

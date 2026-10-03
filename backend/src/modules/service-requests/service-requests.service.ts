@@ -132,6 +132,23 @@ export const serviceRequestsService = {
       throw new ForbiddenError('You cannot request this service.', 'USER_BLOCKED');
     }
 
+    // FIX SR-DUPLICATE (audit H4): the only protection against repeat
+    // requests was a 20/hr rate limit. One open request per (customer,
+    // listing) — finished/rejected/cancelled ones don't count, so the
+    // customer can ask again later. (Not DB-enforced: a partial unique
+    // index would need a migration; two truly simultaneous submits can
+    // still slip through, which is acceptable for a spam guard.)
+    const openRequest = await serviceRequestsRepository.findOpenByCustomerAndListing(
+      customerId,
+      input.listingId
+    );
+    if (openRequest) {
+      throw new ConflictError(
+        'You already have an open request for this service.',
+        'DUPLICATE_SERVICE_REQUEST'
+      );
+    }
+
     let request: ServiceRequest;
     try {
       request = await prisma.$transaction(async tx =>

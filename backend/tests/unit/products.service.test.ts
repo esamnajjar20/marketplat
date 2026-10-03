@@ -3,7 +3,7 @@ import { productsRepository } from '../../src/modules/products/products.reposito
 import { productCategoriesRepository } from '../../src/modules/product-categories/product-categories.repository';
 import { storesRepository } from '../../src/modules/stores/stores.repository';
 import { storeFollowersRepository } from '../../src/modules/stores/store-followers.repository';
-import { requireOwnStoreForProducts } from '../../src/modules/stores/stores.service';
+import { requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
 import { notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { promotionsService } from '../../src/modules/promotions/promotions.service';
 import { prisma } from '../../src/config/prisma';
@@ -17,7 +17,7 @@ jest.mock('../../src/modules/products/products.repository');
 jest.mock('../../src/modules/product-categories/product-categories.repository');
 jest.mock('../../src/modules/stores/stores.repository');
 jest.mock('../../src/modules/stores/store-followers.repository');
-jest.mock('../../src/modules/stores/stores.service');
+jest.mock('../../src/modules/stores/store-members.service');
 jest.mock('../../src/modules/notifications/notifications.service');
 // PROMO-1: getProductById/getProducts now fold in promotionsService's
 // computed effectivePrice — mocked here the same way every other
@@ -62,7 +62,7 @@ describe('productsService', () => {
 
   describe('createProduct', () => {
     beforeEach(() => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
       jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
@@ -109,7 +109,7 @@ describe('productsService', () => {
     });
 
     it('rejects when the store is not yet ACTIVE', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue({
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue({
         ...mockActiveStore,
         status: 'PENDING',
       });
@@ -157,7 +157,7 @@ describe('productsService', () => {
     });
 
     it('does not check the plan limit for non-FREE plans', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue({
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue({
         ...mockActiveStore,
         plan: 'PREMIUM',
       });
@@ -226,7 +226,7 @@ describe('productsService', () => {
 
   describe('getMyProducts', () => {
     it('returns paginated items scoped to the caller\'s own store', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findManyByStoreId as jest.Mock).mockResolvedValue({
         products: [{ id: 'product-1' }],
         total: 1,
@@ -240,7 +240,7 @@ describe('productsService', () => {
     });
 
     it('defaults page and limit for the pagination meta', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findManyByStoreId as jest.Mock).mockResolvedValue({
         products: [],
         total: 0,
@@ -252,7 +252,7 @@ describe('productsService', () => {
     });
 
     it('forwards search and availability filters to the repository', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findManyByStoreId as jest.Mock).mockResolvedValue({
         products: [],
         total: 0,
@@ -348,7 +348,7 @@ describe('productsService', () => {
 
   describe('updateProduct — ownership / IDOR', () => {
     it('rejects updating a product owned by a different store', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'someone-elses-store',
@@ -361,7 +361,7 @@ describe('productsService', () => {
     });
 
     it('allows updating a product the caller actually owns', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -375,7 +375,7 @@ describe('productsService', () => {
     });
 
     it('throws NotFoundError for a nonexistent product', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue(null);
 
       await expect(
@@ -384,7 +384,7 @@ describe('productsService', () => {
     });
 
     it('validates the new categoryId when one is provided', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -398,7 +398,7 @@ describe('productsService', () => {
     });
 
     it('rejects an inactive categoryId on update', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -414,7 +414,7 @@ describe('productsService', () => {
     });
 
     it('skips category validation when categoryId is not part of the update', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -427,7 +427,7 @@ describe('productsService', () => {
 
     // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1)
     it('notifies store followers on an OUT_OF_STOCK -> IN_STOCK transition', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -455,7 +455,7 @@ describe('productsService', () => {
     });
 
     it('does not notify followers when the product was already in stock', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -474,7 +474,7 @@ describe('productsService', () => {
     });
 
     it('does not notify followers on an IN_STOCK -> OUT_OF_STOCK transition', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -495,7 +495,7 @@ describe('productsService', () => {
 
   describe('deleteProduct — ownership / IDOR', () => {
     it('rejects deleting a product owned by a different store', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'someone-elses-store',
@@ -509,7 +509,7 @@ describe('productsService', () => {
     });
 
     it('throws NotFoundError for a nonexistent product', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue(null);
 
       await expect(
@@ -518,7 +518,7 @@ describe('productsService', () => {
     });
 
     it('soft-deletes and cleans up associated cloudinary images', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -538,7 +538,7 @@ describe('productsService', () => {
     });
 
     it('skips deleteImage for images with no extractable publicId', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
@@ -553,7 +553,7 @@ describe('productsService', () => {
     });
 
     it('does not fail deletion if a cloudinary deleteImage call rejects', async () => {
-      (requireOwnStoreForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',

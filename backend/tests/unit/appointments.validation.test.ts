@@ -4,6 +4,7 @@ import {
   availabilitySchema,
   getAppointmentsSchema,
   appointmentIdSchema,
+  MAX_APPOINTMENT_MINUTES,
 } from '../../src/modules/appointments/appointments.validation';
 
 describe('appointments.validation', () => {
@@ -30,6 +31,25 @@ describe('appointments.validation', () => {
       });
       expect(result.body.requestId).toBe('req-1');
       expect(result.body.notes).toBe('Please call before arriving');
+    });
+
+    // audit H3: duration cap
+    it('accepts an appointment of exactly the maximum duration', () => {
+      const end = new Date(future.getTime() + MAX_APPOINTMENT_MINUTES * 60_000);
+      expect(() =>
+        createAppointmentSchema.parse({
+          body: { scheduledStart: future.toISOString(), scheduledEnd: end.toISOString() },
+        })
+      ).not.toThrow();
+    });
+
+    it('rejects an appointment longer than the maximum duration', () => {
+      const end = new Date(future.getTime() + MAX_APPOINTMENT_MINUTES * 60_000 + 60_000);
+      expect(() =>
+        createAppointmentSchema.parse({
+          body: { scheduledStart: future.toISOString(), scheduledEnd: end.toISOString() },
+        })
+      ).toThrow(/cannot be longer than/);
     });
 
     it('rejects when scheduledEnd is before scheduledStart', () => {
