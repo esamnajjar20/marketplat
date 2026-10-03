@@ -26,6 +26,8 @@ export interface QueuedMessageEntry {
    * المحاولة/الحذف عبر postMessage للـ SW. */
   queueId: number;
   body: string;
+  /** true when the queued request is POST .../messages/image (FormData). */
+  hasImage?: boolean;
   queuedAt: number;
   status: QueuedMessageStatus;
   lastError?: { status: number; message?: string };
@@ -75,7 +77,18 @@ async function getAllRawEntries(): Promise<RawQueueEntry[]> {
 function isSendMessageUrl(url: string, conversationId: string): boolean {
   try {
     const { pathname } = new URL(url);
-    return pathname.endsWith(`/conversations/${conversationId}/messages`);
+    const base = `/conversations/${conversationId}/messages`;
+    // FIX CHAT-OFFLINE-IMG-QUEUE-01: include image uploads, not only JSON text.
+    return pathname.endsWith(base) || pathname.endsWith(`${base}/image`);
+  } catch {
+    return false;
+  }
+}
+
+function isSendMessageImageUrl(url: string, conversationId: string): boolean {
+  try {
+    const { pathname } = new URL(url);
+    return pathname.endsWith(`/conversations/${conversationId}/messages/image`);
   } catch {
     return false;
   }
@@ -105,6 +118,37 @@ export async function listQueuedMessages(conversationId: string): Promise<Queued
 
   const parsed = await Promise.all(
     relevant.map(async (entry): Promise<QueuedMessageEntry | null> => {
+      const status: QueuedMessageStatus = entry.status === 'failed' ? 'failed' : 'pending';
+      const isImage = isSendMessageImageUrl(entry.url, conversationId);
+
+      // Image uploads are multipart FormData — cannot JSON.parse the blob.
+      // Still surface a pending/failed bubble so the user sees the send.
+      if (isImage) {
+        let caption = '📷';
+        if (entry.body) {
+          try {
+            const rawText = await entry.body.text();
+            // TODO CHAT-MULTIPART-CAPTION-TODO: regex is fragile (breaks on
+            // caption containing "\r\n--", unusual encodings, extra headers).
+            // Proper fix: persist caption on QueuedMessageEntry at enqueue time
+            // in MessageInput, then read it here directly. Deferred — needs
+            // coordinated change across MessageInput, this file, and sw.js.
+            const m = rawText.match(/name="body"[\r\n]+([\s\S]*?)(?=\r?\n--)/);
+            if (m && m[1] && m[1].trim()) caption = m[1].trim().slice(0, 2000);
+          } catch {
+            /* keep placeholder */
+          }
+        }
+        return {
+          queueId: entry.id,
+          body: caption || '📷',
+          hasImage: true,
+          queuedAt: entry.queuedAt,
+          status,
+          lastError: entry.lastError,
+        };
+      }
+
       if (!entry.body) return null;
       try {
         const text = await entry.body.text();
@@ -113,8 +157,9 @@ export async function listQueuedMessages(conversationId: string): Promise<Queued
         return {
           queueId: entry.id,
           body: payload.body,
+          hasImage: false,
           queuedAt: entry.queuedAt,
-          status: entry.status === 'failed' ? 'failed' : 'pending',
+          status,
           lastError: entry.lastError,
         };
       } catch {

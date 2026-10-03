@@ -84,11 +84,22 @@ function appendMessageToCaches(
     (old) => {
       if (!old?.items) return old;
       if (old.items.some((m) => m.id === message.id)) return old;
+      // FIX CHAT-OPTIMISTIC-SSE-DUP-01: drop matching optimistic rows so
+      // SSE-first delivery does not leave optimistic-* + server id both
+      // visible until the next invalidate.
+      const withoutOptimistic = old.items.filter((m) => {
+        if (!m.id.startsWith('optimistic-')) return true;
+        if (m.senderId !== message.senderId) return true;
+        const sameBody = (m.body || '') === (message.body || '');
+        const sameImage =
+          (m.imageUrl || null) === (message.imageUrl || null);
+        return !(sameBody && sameImage);
+      });
       return {
         ...old,
-        items: [...old.items, message],
+        items: [...withoutOptimistic, message],
         meta: old.meta
-          ? { ...old.meta, total: (old.meta.total ?? old.items.length) + 1 }
+          ? { ...old.meta, total: (old.meta.total ?? withoutOptimistic.length) + 1 }
           : old.meta,
       };
     },
@@ -324,8 +335,7 @@ export function useNotificationStream(options?: Options) {
     };
     // SW-SSE-TOKEN-REF-01 + FIX N4-SSE-OFFLINE-BOOT:
     // hasAccessToken (boolean) re-runs the effect when token appears
-    // after offline boot, without restarting on every token rotation
-    // string change.
+    // after offline boot, without restarting on every token rotation.
   }, [isAuthenticated, queryClient, hasAccessToken]);
 
   return { connected };

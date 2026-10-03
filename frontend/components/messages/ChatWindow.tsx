@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
-import { AlertTriangle, ChevronRight, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
 import { classifyHttpConflict } from '@/lib/conflictResolver';
@@ -64,6 +64,8 @@ type DisplayMessage = Message & {
   clientStatus?: 'sending' | 'queued' | 'failed';
   queueId?: number;
   lastError?: { status: number; message?: string };
+  /** Offline image upload still in SW queue (no preview URL available). */
+  clientHasImage?: boolean;
 };
 
 /**
@@ -115,7 +117,13 @@ export function ChatWindow({ conversationId }: Props) {
     isLoading: conversationLoading,
     isError: conversationError,
   } = useConversation(conversationId);
-  const { data: messagesPage, isLoading: messagesLoading } = useMessages(conversationId, {
+  const {
+    data: messagesPage,
+    isLoading: messagesLoading,
+    isError: messagesError,
+    refetch: refetchMessages,
+    isFetching: messagesFetching,
+  } = useMessages(conversationId, {
     limit: MESSAGES_PAGE_SIZE,
   });
   const party = conversation ? otherParty(conversation, user?.id) : null;
@@ -183,14 +191,18 @@ export function ChatWindow({ conversationId }: Props) {
     conversationId,
     senderId: user?.id ?? '',
     body: q.body,
+    // Offline image bodies live as FormData in the SW queue — no blob URL
+    // here; hasImage surfaces a placeholder chip in the bubble.
     imageUrl: null,
     readAt: null,
     deletedAt: null,
     createdAt: new Date(q.queuedAt).toISOString(),
-    clientStatus: q.status === "pending" ? "queued" : q.status,
+    clientStatus: q.status === 'pending' ? 'queued' : q.status,
     queueId: q.queueId,
     lastError: q.lastError,
-  }));
+    // DisplayMessage allows extra fields via intersection; stamp for UI.
+    ...(q.hasImage ? { clientHasImage: true as const } : {}),
+  })) as DisplayMessage[];
   const messages: DisplayMessage[] = [
     ...olderMessages.filter((m) => !liveIds.has(m.id)),
     ...liveMessages,
@@ -251,6 +263,21 @@ export function ChatWindow({ conversationId }: Props) {
   // guard. Refs (not state) so the scroll listener doesn't cause a
   // re-render on every scroll event.
   const isNearBottomRef = useRef(true);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const prevLiveCountRef = useRef(0);
+
+  // FIX CHAT-SWITCH-OLDER-LEAK-01: older pagination state is local and
+  // must not survive navigation between threads (A's page-3 rows would
+  // otherwise merge into B). Also reset near-bottom so the new thread
+  // opens following the latest messages.
+  useEffect(() => {
+    setOlderPage(null);
+    setOlderMessages([]);
+    isNearBottomRef.current = true;
+    setShowJumpToLatest(false);
+    prevLiveCountRef.current = 0;
+  }, [conversationId]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -259,15 +286,25 @@ export function ChatWindow({ conversationId }: Props) {
       // scroll doesn't disable the "follow new messages" behaviour,
       // tight enough that reading history definitely does.
       const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      isNearBottomRef.current = distanceFromBottom < 150;
+      const near = distanceFromBottom < 150;
+      isNearBottomRef.current = near;
+      if (near) setShowJumpToLatest(false);
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
+    const total = liveMessages.length + queuedMessages.length;
+    const grew = total > prevLiveCountRef.current;
+    prevLiveCountRef.current = total;
     if (isNearBottomRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowJumpToLatest(false);
+    } else if (grew) {
+      // FIX CHAT-JUMP-LATEST-01: user is reading history — offer a control
+      // instead of yanking scroll.
+      setShowJumpToLatest(true);
     }
     // FEAT-OFFLINE-MSG: a message queued while offline (usePendingMessages)
     // should scroll into view the same way a normally-sent one does —
@@ -452,9 +489,28 @@ export function ChatWindow({ conversationId }: Props) {
         </DropdownMenu>
       </div>
 
-      <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto bg-surface-1/50 px-4 py-5">
+      <div
+        ref={scrollRef}
+        className="relative flex flex-1 flex-col gap-3 overflow-y-auto bg-surface-1/50 px-4 py-5"
+        role="log"
+        aria-relevant="additions"
+        aria-label="سجل الرسائل"
+      >
         {messagesLoading ? (
           <div className="flex justify-center py-8"><LoadingSpinner /></div>
+        ) : messagesError && messages.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+            <p className="text-destructive">تعذّر تحميل الرسائل</p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={messagesFetching}
+              onClick={() => void refetchMessages()}
+            >
+              {messagesFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'إعادة المحاولة'}
+            </Button>
+          </div>
         ) : messages.length === 0 ? (
           <EmptyState
             className="py-8"
@@ -571,10 +627,18 @@ export function ChatWindow({ conversationId }: Props) {
                         >
                           <SafeImg
                             src={message.imageUrl}
-                            alt=""
+                            alt="صورة مرفقة"
                             className="max-h-56 max-w-full object-cover"
                           />
                         </a>
+                      )}
+                      {!isDeleted && !message.imageUrl && message.clientHasImage && (
+                        <div
+                          className="mb-2 flex h-28 max-w-[12rem] items-center justify-center rounded-xl bg-muted/80 text-2xl"
+                          aria-label="صورة بانتظار الإرسال"
+                        >
+                          📷
+                        </div>
                       )}
                       <p className="whitespace-pre-wrap break-words">
                         {isDeleted
@@ -674,6 +738,25 @@ export function ChatWindow({ conversationId }: Props) {
           </>
         )}
         <div ref={bottomRef} />
+        {showJumpToLatest && (
+          <div className="sticky bottom-2 z-10 flex justify-center pointer-events-none">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="pointer-events-auto shadow-md gap-1.5 rounded-full"
+              onClick={() => {
+                isNearBottomRef.current = true;
+                setShowJumpToLatest(false);
+                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              aria-label="الانتقال إلى أحدث الرسائل"
+            >
+              <ChevronDown className="h-4 w-4" />
+              رسائل جديدة
+            </Button>
+          </div>
+        )}
       </div>
 
       {partyTyping && (

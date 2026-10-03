@@ -126,6 +126,47 @@ export function useSendMessage(conversationId: string) {
       return { previous, optimisticId: optimisticMessage.id };
     },
 
+    // FIX CHAT-OPTIMISTIC-SSE-DUP-01: replace the temp id with the server
+    // message as soon as HTTP succeeds so SSE (same id) becomes a no-op
+    // and we do not briefly show optimistic-* + real id side by side.
+    onSuccess: (serverMessage, _payload, context) => {
+      // FIX CHAT-OPTIMISTIC-SSE-DUP-03: React Query types the first
+      // onSuccess arg as TData | undefined; bail if the server returned
+      // nothing (the query-layer owns the fallback).
+      if (!serverMessage) return;
+      const optimisticId = context?.optimisticId;
+      const matches = queryClient.getQueriesData<PaginatedResponse<Message>>({
+        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+      });
+      for (const [key, data] of matches) {
+        if (!data?.items) continue;
+        // FIX CHAT-OPTIMISTIC-SSE-DUP-02: drop ONLY the optimistic row.
+        // If SSE already placed serverMessage (id present), keep its
+        // fields (e.g. readAt) instead of overwriting with the raw HTTP
+        // body; upsert only when SSE has not arrived yet.
+        const withoutOptimistic = data.items.filter((m) => m.id !== optimisticId);
+        const hasServerAlready = withoutOptimistic.some((m) => m.id === serverMessage.id);
+        const items = hasServerAlready
+          ? withoutOptimistic
+          : [...withoutOptimistic, serverMessage];
+        queryClient.setQueryData<PaginatedResponse<Message>>(key, {
+          ...data,
+          items,
+          meta:
+            hasServerAlready || !data.meta
+              ? data.meta
+              : { ...data.meta, total: (data.meta.total ?? withoutOptimistic.length) + 1 },
+        });
+      }
+      // Safety net: reconcile server-side fields (Cloudinary transforms,
+      // readAt, etc.) the raw POST body may not carry. Inactive-only so
+      // the visible list does not flash.
+      void queryClient.invalidateQueries({
+        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+        refetchType: 'inactive',
+      });
+    },
+
     onError: (err, _payload, context) => {
       // Roll back only the exact cache entries this mutation touched.
       context?.previous.forEach(([key, data]) => {
