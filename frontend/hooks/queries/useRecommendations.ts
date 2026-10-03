@@ -28,6 +28,7 @@ import type {
   GetProductRecommendationsParams,
   GetServiceRecommendationsParams,
   GetStoreRecommendationsParams,
+  GetProviderRecommendationsParams,
   GetMixedRecommendationsParams,
 } from '@/api/recommendations.api';
 import { recommendationsApi } from '@/api/recommendations.api';
@@ -101,6 +102,19 @@ export function useStoreRecommendations(params?: GetStoreRecommendationsParams) 
     queryFn: () =>
       recommendationsApi.getStoreRecommendations(params).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.recommendations,
+  });
+}
+
+export function useProviderRecommendations(
+  params?: GetProviderRecommendationsParams,
+  options?: RecommendationQueryOptions,
+) {
+  return useQuery({
+    queryKey: ['recommendations', 'providers', params, options?.scope],
+    queryFn: () =>
+      recommendationsApi.getProviderRecommendations(params).then((r) => r.data.data ?? []),
+    staleTime: CACHE_TTL.recommendations,
+    enabled: options?.enabled ?? true,
   });
 }
 

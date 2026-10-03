@@ -7,6 +7,8 @@ import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { useNearbyProvidersForHome } from '@/hooks/queries/useNearbyProvidersForHome';
+import { useProviderRecommendations } from '@/hooks/queries/useRecommendations';
+import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
 import { homeSectionLimit } from '@/lib/listLimits';
@@ -26,10 +28,16 @@ export function NearbyProvidersSection() {
   const limit = homeSectionLimit(6, 4, dataSaver);
   const { isChecking, data, isLoading, isError, source, refetch } =
     useNearbyProvidersForHome();
-  const { city } = useBrowseCity();
+  const { city, isReady } = useBrowseCity();
+  const isHydrated = useAuthStore(selectIsHydrated);
+  const isAuth = useAuthStore(selectIsAuthenticated);
+  const ranked = useProviderRecommendations(
+    { limit, ...(city ? { city } : {}) },
+    { enabled: isHydrated && isReady, scope: isAuth ? 'user' : 'guest' },
+  );
 
-  const items = (data?.items ?? []).slice(0, limit);
-  const showSkeleton = isChecking || isLoading;
+  const items = (ranked.data?.length ? ranked.data : data?.items ?? []).slice(0, limit);
+  const showSkeleton = isChecking || isLoading || (ranked.isLoading && items.length === 0);
   const badgeCity = source === 'city' ? city : undefined;
 
   const header = (

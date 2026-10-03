@@ -1,94 +1,126 @@
 'use client';
 
 import Link from 'next/link';
+import { LayoutGrid, Store } from 'lucide-react';
+import { useMemo } from 'react';
 import { useCategoryItems } from '@/hooks/queries/useCategoryItems';
+import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
 import { ROUTES } from '@/lib/constants';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
-import { LayoutGrid } from 'lucide-react';
-import { iconFor, TYPE_LABEL, type SourceType } from '@/lib/categoryItems';
-
-/**
- * فئات من الأدمن فقط (جداول الإعلانات/المنتجات/الخدمات).
- * شارة النوع تظهر دائماً تحت اسم الفئة (منتج / خدمة / إعلان).
- * لا توجد اختصارات نوع ثابتة (إعلانات/منتجات/خدمات/متاجر) — فقط ما يضعه الأدمن.
- */
+import { iconFor, type Item } from '@/lib/categoryItems';
 
 export { iconFor, interleave } from '@/lib/categoryItems';
 export type { Item, SourceType } from '@/lib/categoryItems';
 
-const TYPE_BADGE: Record<SourceType, string> = {
-  ad: 'bg-accent/15 text-accent',
-  product: 'bg-primary/15 text-primary',
-  service: 'bg-cat-service/15 text-cat-service dark:text-cat-service',
+export const MAX_HOME_CATEGORIES = 14;
+
+type UnifiedCategory = Item | {
+  id: string;
+  nameAr: string;
+  slug: string;
+  type: 'store';
+  href: string;
 };
 
-/** Root categories on the homepage (mobile-first). Full index via "كل الفئات". */
-export const MAX_HOME_CATEGORIES = 10;
+function dedupe(items: UnifiedCategory[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.nameAr.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
+/** One unified category discovery row — ads/products/services/store types share one visual language. */
 export function CategoriesRow() {
-  const { items: all, isLoading } = useCategoryItems();
+  const { items, isLoading: categoriesLoading } = useCategoryItems();
+  const { data: storeTypes = [], isLoading: storesLoading } = useStoreTypes();
 
-  if (isLoading) {
+  const unified = useMemo(() => {
+    const stores: UnifiedCategory[] = storeTypes
+      .filter((type) => type.hasActiveStores)
+      .map((type) => ({
+        id: type.id,
+        nameAr: type.nameAr,
+        slug: type.slug,
+        type: 'store' as const,
+        href: `${ROUTES.stores}?type=${encodeURIComponent(type.slug)}`,
+      }));
+
+    const all = dedupe([...items, ...stores]);
+    const queues: Record<'ad' | 'product' | 'service' | 'store', UnifiedCategory[]> = {
+      ad: all.filter((item) => item.type === 'ad'),
+      product: all.filter((item) => item.type === 'product'),
+      service: all.filter((item) => item.type === 'service'),
+      store: all.filter((item) => item.type === 'store'),
+    };
+    const pattern: Array<keyof typeof queues> = ['ad', 'product', 'service', 'store'];
+    const out: UnifiedCategory[] = [];
+    let cursor = 0;
+    while (out.length < all.length && cursor < all.length * 8) {
+      const type = pattern[cursor % pattern.length]!;
+      const next = queues[type].shift();
+      if (next) out.push(next);
+      cursor += 1;
+    }
+    return out.slice(0, MAX_HOME_CATEGORIES);
+  }, [items, storeTypes]);
+
+  if (categoriesLoading || storesLoading) {
     return (
       <div className="flex gap-2.5 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-[5.5rem] w-[5.25rem] shrink-0 rounded-2xl" />
+          <Skeleton key={i} className="h-[5.5rem] w-[5.5rem] shrink-0 rounded-2xl" />
         ))}
       </div>
     );
   }
 
-  if (all.length === 0) return null;
-  const items = all.slice(0, MAX_HOME_CATEGORIES);
+  if (unified.length === 0) return null;
 
   return (
-    <div className="-mx-3 flex gap-2.5 overflow-x-auto overscroll-x-contain px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-4 sm:px-4">
-      {items.map((item) => {
-        const Icon = iconFor(item.slug, item.nameAr, item.type);
-        return (
-          <Link
-            key={`${item.type}-${item.id}`}
-            href={item.href}
-            prefetch={false}
-            className={cn(
-              'group inline-flex min-h-[5.5rem] w-[5.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-border/80 bg-card px-1.5 py-2.5 text-center shadow-sm',
-              'transition-all duration-200 active:scale-[0.97]',
-              'hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5',
-              'sm:w-[5.5rem] sm:min-h-[5.75rem]',
-            )}
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15 sm:h-12 sm:w-12">
-              <Icon className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            </span>
-            <span className="line-clamp-2 w-full text-2xs-tight font-semibold leading-tight text-foreground sm:text-xs">
-              {item.nameAr}
-            </span>
-            <span
+    <section aria-label="الفئات" className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold sm:text-base">الفئات</h2>
+        <Link href={ROUTES.categories} prefetch={false} className="text-xs font-semibold text-primary hover:underline">
+          كل الفئات ←
+        </Link>
+      </div>
+      <div className="-mx-3 flex gap-2.5 overflow-x-auto overscroll-x-contain px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-4 sm:px-4">
+        {unified.map((item) => {
+          const Icon = item.type === 'store' ? Store : iconFor(item.slug, item.nameAr, item.type);
+          return (
+            <Link
+              key={`${item.type}-${item.id}`}
+              href={item.href}
+              prefetch={false}
               className={cn(
-                'rounded-full px-1.5 py-0.5 text-2xs font-semibold leading-none',
-                TYPE_BADGE[item.type],
+                'group inline-flex min-h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-border/80 bg-card px-2 py-2.5 text-center shadow-sm',
+                'transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md active:scale-[0.97]',
               )}
             >
-              {TYPE_LABEL[item.type]}
-            </span>
-          </Link>
-        );
-      })}
-      <Link
-        href={ROUTES.categories}
-        prefetch={false}
-        className={cn(
-          'inline-flex min-h-[5.5rem] w-[5.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border bg-card/80 px-1.5 py-2.5 text-center',
-          'transition-all duration-200 active:scale-[0.97] hover:border-primary/40 hover:bg-card',
-          'sm:w-[5.5rem] sm:min-h-[5.75rem]',
-        )}
-      >
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-foreground sm:h-12 sm:w-12">
-          <LayoutGrid className="h-5 w-5" aria-hidden />
-        </span>
-        <span className="line-clamp-2 w-full text-xs font-medium leading-tight">كل الفئات</span>
-      </Link>
-    </div>
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="line-clamp-2 w-full text-xs font-semibold leading-tight text-foreground">
+                {item.nameAr}
+              </span>
+            </Link>
+          );
+        })}
+        <Link
+          href={ROUTES.categories}
+          prefetch={false}
+          className="inline-flex min-h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-card/80 px-2 py-2.5 text-center transition-colors hover:border-primary/40"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground">
+            <LayoutGrid className="h-5 w-5" aria-hidden />
+          </span>
+          <span className="text-xs font-semibold leading-tight">كل الفئات</span>
+        </Link>
+      </div>
+    </section>
   );
 }

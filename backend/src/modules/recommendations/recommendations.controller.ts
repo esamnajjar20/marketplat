@@ -45,6 +45,8 @@ export const recommendationsController = {
             return recommendationsService.getServiceListingRecommendations(q, authHeader, userId);
           case 'store':
             return recommendationsService.getStoreRecommendations(q, authHeader, userId);
+          case 'provider':
+            return recommendationsService.getServiceProviderRecommendations(q, authHeader, userId);
           default:
             return recommendationsService.getRecommendations(q, authHeader, userId);
         }

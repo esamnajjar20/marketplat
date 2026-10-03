@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { recommendationsRepository, CategoryWeight, productRecommendationsRepository, serviceListingRecommendationsRepository, storeRecommendationsRepository } from './recommendations.repository';
+import { recommendationsRepository, CategoryWeight, productRecommendationsRepository, serviceListingRecommendationsRepository, storeRecommendationsRepository, serviceProviderRecommendationsRepository } from './recommendations.repository';
 import { adsService } from '../ads/ads.service';
 import { productsService } from '../products/products.service';
 import { serviceListingsService } from '../service-listings/service-listings.service';
@@ -131,31 +131,41 @@ export const recommendationsService = {
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
 
     const excludeIdList = Array.from(excludeIds);
-    const personalized =
-      categoryWeights.length > 0
-        ? await recommendationsRepository.findByWeightedCategories(
-            categoryWeights,
-            excludeIdList,
-            limit,
-            city,
-          )
-        : [];
+    let personalized: AdListRow[] = [];
+
+    if (categoryWeights.length > 0) {
+      // City is a ranking priority, not a hard filter: take the best city
+      // matches first, then use the same interest profile across Gaza to
+      // fill any remaining slots.
+      personalized = await recommendationsRepository.findByWeightedCategories(
+        categoryWeights, excludeIdList, limit, city,
+      );
+      if (city && personalized.length < limit) {
+        const more = await recommendationsRepository.findByWeightedCategories(
+          categoryWeights, [...excludeIdList, ...personalized.map(ad => ad.id)],
+          limit - personalized.length, null,
+        );
+        personalized = [...personalized, ...more];
+      }
+    }
 
     if (personalized.length >= limit) return personalized;
 
-    // Backfill with trending — excluding both the original exclusions
-    // and whatever personalized picks already filled the rail, so the
-    // combined result never repeats an ad.
-    // عند وجود مدينة: trending يفضّل إعلانات المدينة أولاً.
-    const combinedExcludeIds = [...excludeIdList, ...personalized.map(ad => ad.id)];
-    const remaining = limit - personalized.length;
-    const trending = await recommendationsRepository.findTrending(
-      combinedExcludeIds,
-      remaining,
-      city,
-    );
+    // Fill in layers: city trending → general trending. This guarantees a
+    // city preference without allowing a sparse city to make the rail sparse.
+    const cityExclude = [...excludeIdList, ...personalized.map(ad => ad.id)];
+    const cityTrending = city
+      ? await recommendationsRepository.findTrending(cityExclude, limit - personalized.length, city)
+      : [];
+    const afterCity = [...personalized, ...cityTrending];
+    if (afterCity.length >= limit) return afterCity;
 
-    return [...personalized, ...trending];
+    const generalTrending = await recommendationsRepository.findTrending(
+      [...excludeIdList, ...afterCity.map(ad => ad.id)],
+      limit - afterCity.length,
+      null,
+    );
+    return [...afterCity, ...generalTrending];
   },
 
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): PRODUCT
@@ -190,6 +200,7 @@ export const recommendationsService = {
 
     const excludeIds = new Set<string>();
     const categoryInterests: { categoryId: string; score: number }[] = [];
+    let followedStoreIds: string[] = [];
 
     if (query.excludeProductId) {
       excludeIds.add(query.excludeProductId);
@@ -204,13 +215,17 @@ export const recommendationsService = {
 
     if (userId) {
       try {
-        const [interests, owned] = await Promise.all([
+        const [interests, owned, followedStores] = await Promise.all([
           productRecommendationsRepository.getProductCategoryInterest(userId),
           productRecommendationsRepository.excludedIds(userId),
+          prisma.storeFollower.findMany({ where: { userId }, select: { storeId: true } }),
         ]);
 
         categoryInterests.push(...interests);
         owned.forEach(id => excludeIds.add(id));
+        // Kept local to this request: followed stores are a product-level
+        // affinity signal, not a reason to expose the store name on cards.
+        followedStoreIds = followedStores.map(row => row.storeId);
       } catch (err) {
         logger.error('Failed to gather product recommendation signals', { err, userId });
       }
@@ -226,27 +241,34 @@ export const recommendationsService = {
       }, new Map<string, number>()),
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
     const excludeIdList = Array.from(excludeIds);
-    const personalized =
-      categoryWeights.length > 0
-        ? await productRecommendationsRepository.findByWeightedCategories(
-            categoryWeights,
-            excludeIdList,
-            limit,
-            city
-          )
-        : [];
+    let personalized: ProductWithStore[] = [];
+
+    if (categoryWeights.length > 0) {
+      personalized = await productRecommendationsRepository.findByWeightedCategories(
+        categoryWeights, excludeIdList, limit, city, followedStoreIds,
+      );
+      if (city && personalized.length < limit) {
+        const more = await productRecommendationsRepository.findByWeightedCategories(
+          categoryWeights, [...excludeIdList, ...personalized.map(p => p.id)],
+          limit - personalized.length, null, followedStoreIds,
+        );
+        personalized = [...personalized, ...more];
+      }
+    }
 
     if (personalized.length >= limit) return personalized;
 
-    const combinedExcludeIds = [...excludeIdList, ...personalized.map(p => p.id)];
-    const remaining = limit - personalized.length;
-    const trending = await productRecommendationsRepository.findTrending(
-      combinedExcludeIds,
-      remaining,
-      city
-    );
+    const cityExclude = [...excludeIdList, ...personalized.map(p => p.id)];
+    const cityTrending = city
+      ? await productRecommendationsRepository.findTrending(cityExclude, limit - personalized.length, city)
+      : [];
+    const afterCity = [...personalized, ...cityTrending];
+    if (afterCity.length >= limit) return afterCity;
 
-    return [...personalized, ...trending];
+    const generalTrending = await productRecommendationsRepository.findTrending(
+      [...excludeIdList, ...afterCity.map(p => p.id)], limit - afterCity.length, null,
+    );
+    return [...afterCity, ...generalTrending];
   },
 
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): SERVICE_LISTING
@@ -316,27 +338,34 @@ export const recommendationsService = {
       }, new Map<string, number>()),
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
     const excludeIdList = Array.from(excludeIds);
-    const personalized =
-      categoryWeights.length > 0
-        ? await serviceListingRecommendationsRepository.findByWeightedCategories(
-            categoryWeights,
-            excludeIdList,
-            limit,
-            city
-          )
-        : [];
+    let personalized: ServiceListingWithProvider[] = [];
+
+    if (categoryWeights.length > 0) {
+      personalized = await serviceListingRecommendationsRepository.findByWeightedCategories(
+        categoryWeights, excludeIdList, limit, city,
+      );
+      if (city && personalized.length < limit) {
+        const more = await serviceListingRecommendationsRepository.findByWeightedCategories(
+          categoryWeights, [...excludeIdList, ...personalized.map(l => l.id)],
+          limit - personalized.length, null,
+        );
+        personalized = [...personalized, ...more];
+      }
+    }
 
     if (personalized.length >= limit) return personalized;
 
-    const combinedExcludeIds = [...excludeIdList, ...personalized.map(l => l.id)];
-    const remaining = limit - personalized.length;
-    const trending = await serviceListingRecommendationsRepository.findTrending(
-      combinedExcludeIds,
-      remaining,
-      city
-    );
+    const cityExclude = [...excludeIdList, ...personalized.map(l => l.id)];
+    const cityTrending = city
+      ? await serviceListingRecommendationsRepository.findTrending(cityExclude, limit - personalized.length, city)
+      : [];
+    const afterCity = [...personalized, ...cityTrending];
+    if (afterCity.length >= limit) return afterCity;
 
-    return [...personalized, ...trending];
+    const generalTrending = await serviceListingRecommendationsRepository.findTrending(
+      [...excludeIdList, ...afterCity.map(l => l.id)], limit - afterCity.length, null,
+    );
+    return [...afterCity, ...generalTrending];
   },
 
   // RECS-MIXED-01: the three home-shelf rails in one call. Same engines as
@@ -411,6 +440,41 @@ export const recommendationsService = {
   // getX Recommendations above) must never break the rail — on error,
   // this falls through with only excludeStoreId (if any) excluded,
   // landing on the exact same ranked query an anonymous caller gets.
+  getServiceProviderRecommendations: async (
+    query: GetRecommendationsQuery,
+    authHeader: string | undefined,
+    userIdOverride?: string | null,
+  ) => {
+    const limit = query.limit ?? DEFAULT_LIMIT;
+    const userId = resolveUserId(authHeader, userIdOverride);
+    let city: string | null = query.city?.trim() || null;
+    let interestCategoryIds: string[] = [];
+
+    if (!city && userId) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { city: true } }).catch(() => null);
+      city = user?.city?.trim() || null;
+    }
+    if (userId) {
+      try {
+        const interests = await serviceListingRecommendationsRepository.getServiceCategoryInterest(userId);
+        interestCategoryIds = interests.map(item => item.categoryId).slice(0, 12);
+      } catch (err) {
+        logger.error('Failed to gather service-provider recommendation signals', { err, userId });
+      }
+    }
+
+    const cityItems = await serviceProviderRecommendationsRepository.findRanked({ city, interestCategoryIds, limit });
+    if (!city || cityItems.length >= limit) return cityItems;
+
+    const general = await serviceProviderRecommendationsRepository.findRanked({
+      city: null,
+      interestCategoryIds,
+      limit: limit - cityItems.length,
+    });
+    const seen = new Set(cityItems.map(item => item.id));
+    return [...cityItems, ...general.filter(item => !seen.has(item.id))];
+  },
+
   getStoreRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
@@ -421,17 +485,30 @@ export const recommendationsService = {
 
     const excludeIds = new Set<string>();
     if (query.excludeStoreId) excludeIds.add(query.excludeStoreId);
+    let city: string | null = query.city?.trim() || null;
+    let interestCategoryIds: string[] = [];
+
+    if (!city && userId) {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { city: true } });
+        city = user?.city?.trim() || null;
+      } catch (err) {
+        logger.error('Failed to resolve user city for store recommendations', { err, userId });
+      }
+    }
 
     if (userId) {
       try {
-        const [followed, favorited, owned] = await Promise.all([
+        const [followed, favorited, owned, productInterests] = await Promise.all([
           storeRecommendationsRepository.followedStoreIds(userId),
           storeRecommendationsRepository.favoritedStoreIds(userId),
           storeRecommendationsRepository.ownStoreId(userId),
+          productRecommendationsRepository.getProductCategoryInterest(userId),
         ]);
         followed.forEach(id => excludeIds.add(id));
         favorited.forEach(id => excludeIds.add(id));
         if (owned) excludeIds.add(owned);
+        interestCategoryIds = productInterests.map(item => item.categoryId).slice(0, 12);
       } catch (err) {
         logger.error('Failed to gather store recommendation signals', { err, userId });
       }
@@ -439,6 +516,8 @@ export const recommendationsService = {
 
     return storeRecommendationsRepository.findRanked({
       excludeIds: Array.from(excludeIds),
+      city,
+      interestCategoryIds,
       lat: query.lat,
       lng: query.lng,
       limit,

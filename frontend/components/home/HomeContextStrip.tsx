@@ -1,100 +1,87 @@
 'use client';
 
-/**
- * Homepage context strip (Phase UI-HOME-01):
- * one compact row — city filter + live activity — instead of separate
- * HomeCityChips + HomeTrustStrip blocks competing for above-the-fold space.
- */
-import { MapPin } from 'lucide-react';
+import { MapPin, ChevronDown } from 'lucide-react';
 import { CITIES } from '@/lib/constants';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
-import { useHomepage } from '@/hooks/queries/useHomepage';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
-const nf = new Intl.NumberFormat('ar-EG');
-
+/** One compact, always-available browse-city control for the whole homepage. */
 export function HomeContextStrip({ className }: { className?: string }) {
-  const { city, canChange, setCity, isReady, source } = useBrowseCity();
-  const stats = useHomepage().data?.stats;
+  const { city, setCity, isReady, source } = useBrowseCity();
+  const [open, setOpen] = useState(false);
 
-  const activityLabel = (() => {
-    if (!stats || stats.activeAds <= 0) return null;
-    if (stats.adsLast24h > 0) return `+${nf.format(stats.adsLast24h)} اليوم`;
-    return `${nf.format(stats.activeAds)} إعلان نشط`;
-  })();
-
-  if (!isReady && !activityLabel) return null;
+  if (!isReady) {
+    return <div className={cn('container mx-auto max-w-7xl px-3 sm:px-4', className)} />;
+  }
 
   return (
     <section
       className={cn('container mx-auto max-w-7xl px-3 sm:px-4', className)}
-      aria-label="المدينة ونشاط السوق"
+      aria-label="مدينة تصفح نتائج الصفحة الرئيسية"
     >
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl border border-border/70 bg-card/80 px-2.5 py-2 shadow-xs sm:gap-x-3 sm:px-3">
-        <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden />
-          <span className="sr-only sm:not-sr-only">المدينة</span>
+      <div className="relative flex items-center gap-2 rounded-2xl border border-border/70 bg-card/90 px-2.5 py-2 shadow-xs">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <MapPin className="h-4 w-4" aria-hidden />
         </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-2xs-tight font-medium text-muted-foreground">عرض النتائج حسب المدينة</p>
+          <p className="truncate text-sm font-bold text-foreground">
+            {city ?? 'كل المدن'}
+            {source === 'profile' && !city ? null : source === 'profile' ? ' · من ملفك' : ''}
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          onClick={() => setOpen((value) => !value)}
+          className="inline-flex h-9 shrink-0 items-center gap-1 rounded-xl border border-border bg-background px-3 text-xs font-semibold text-foreground transition-colors hover:border-primary/40"
+        >
+          تغيير
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} aria-hidden />
+        </button>
 
-        {!isReady ? (
-          <span className="h-7 w-24 animate-pulse rounded-full bg-muted" aria-hidden />
-        ) : !canChange ? (
-          city ? (
-            <span className="text-xs font-semibold text-foreground">
-              {city}
-              {source === 'profile' ? (
-                <span className="ms-1 font-normal text-muted-foreground">· من ملفك</span>
-              ) : null}
-            </span>
-          ) : null
-        ) : (
+        {open ? (
           <div
-            className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            role="group"
-            aria-label="اختر مدينة لتصفية النتائج"
+            role="listbox"
+            aria-label="اختر مدينة"
+            className="absolute end-2 top-[calc(100%+0.5rem)] z-30 grid w-[min(22rem,calc(100vw-1.5rem))] grid-cols-2 gap-1.5 rounded-2xl border border-border bg-popover p-2 shadow-xl sm:grid-cols-3"
           >
             <button
               type="button"
-              aria-pressed={!city}
-              onClick={() => setCity(undefined)}
+              role="option"
+              aria-selected={!city}
+              onClick={() => {
+                setCity(undefined);
+                setOpen(false);
+              }}
               className={cn(
-                'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors active:scale-[0.97]',
-                !city
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border/80 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                'rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors',
+                !city ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
               )}
             >
-              الكل
+              كل المدن
             </button>
-            {CITIES.map((c) => {
-              const selected = city === c;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setCity(selected ? undefined : c)}
-                  className={cn(
-                    'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors active:scale-[0.97]',
-                    selected
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border/80 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                  )}
-                >
-                  {c}
-                </button>
-              );
-            })}
+            {CITIES.map((item) => (
+              <button
+                key={item}
+                type="button"
+                role="option"
+                aria-selected={city === item}
+                onClick={() => {
+                  setCity(item);
+                  setOpen(false);
+                }}
+                className={cn(
+                  'rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors',
+                  city === item ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+              >
+                {item}
+              </button>
+            ))}
           </div>
-        )}
-
-        {activityLabel ? (
-          <span
-            className="ms-auto shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-2xs-tight font-semibold text-primary sm:text-xs"
-            title="نشاط الإعلانات"
-          >
-            {activityLabel}
-          </span>
         ) : null}
       </div>
     </section>

@@ -8,6 +8,7 @@ import { HomeRailShell } from '@/components/home/HomeRailShell';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { useStores } from '@/hooks/queries/useStores';
+import { useStoreRecommendations } from '@/hooks/queries/useRecommendations';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { homeSectionLimit } from '@/lib/listLimits';
@@ -28,6 +29,10 @@ export function FeaturedStoresSection() {
   const limit = homeSectionLimit(6, 4, dataSaver);
   const { city } = useBrowseCity();
   const home = useHomepage();
+  const ranked = useStoreRecommendations({
+    limit,
+    ...(city ? { city } : {}),
+  });
   const seeded = home.data?.belowFold?.featuredStores ?? null;
   const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
@@ -38,10 +43,13 @@ export function FeaturedStoresSection() {
   );
   // Stores already featured in the carousel are not repeated here.
   const carouselStoreIds = collectIds(home.data?.featuredCarousel?.stores?.items);
-  const items = hasSeed
-    ? dedupeKeepingMin(seeded!.items ?? [], carouselStoreIds).slice(0, limit)
-    : (data?.items ?? []);
-  const showLoading = hasSeed ? false : home.isPending || isLoading;
+  const rankedItems = ranked.data ?? [];
+  const items = rankedItems.length > 0
+    ? dedupeKeepingMin(rankedItems, carouselStoreIds).slice(0, limit)
+    : hasSeed
+      ? dedupeKeepingMin(seeded!.items ?? [], carouselStoreIds).slice(0, limit)
+      : (data?.items ?? []);
+  const showLoading = ranked.isLoading && items.length === 0 ? true : hasSeed ? false : home.isPending || isLoading;
   const showError = hasSeed ? false : isError;
 
   const badgeSource = seeded?.source ?? (city ? 'city' : 'general');
@@ -50,7 +58,7 @@ export function FeaturedStoresSection() {
   const header = (
     <SectionHeader
       eyebrow="تصفّح"
-      title="متاجر"
+      title="متاجر تناسبك"
       icon={<StoreIcon className="h-3.5 w-3.5 text-accent" />}
       cta={{ href: ROUTES.stores, label: 'عرض الكل ←' }}
       badge={

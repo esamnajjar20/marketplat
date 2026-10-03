@@ -15,7 +15,7 @@ export function useNowAfterMount(): number | null {
 const KIND_BADGE: Record<CardKind, { label: string; className?: string; accent?: boolean }> = {
   ad: { label: 'إعلان', accent: true },
   product: { label: 'منتج', className: 'bg-cat-product text-white hover:bg-cat-product' },
-  service: { label: 'خدمة', className: 'bg-info text-info-foreground hover:bg-info/90' },
+  service: { label: 'خدمة', className: 'bg-cat-service text-white hover:bg-cat-service' },
 };
 
 export function CardKindBadge({ kind }: { kind: CardKind }) {

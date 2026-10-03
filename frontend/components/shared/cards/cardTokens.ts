@@ -1,5 +1,5 @@
-export const CARD_SHELL = 'h-full w-full min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm';
-export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-1.5 p-3.5';
+export const CARD_SHELL = 'h-full w-full min-w-0 overflow-hidden rounded-[1.1rem] border border-border/80 bg-card shadow-sm';
+export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-1.5 p-3';
 export const CARD_BODY_COMPACT = 'flex flex-1 flex-col gap-1 p-2.5';
 export const CARD_IMAGE_43 = 'relative aspect-[4/3] overflow-hidden bg-muted';
 export const CARD_IMAGE_SQUARE = 'relative aspect-square overflow-hidden bg-muted';

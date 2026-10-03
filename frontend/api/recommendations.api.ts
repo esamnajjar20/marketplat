@@ -17,7 +17,7 @@
 import { apiClient } from './client';
 import type { AdListItem } from '@/types/ad.types';
 import type { ProductWithStore } from '@/types/product.types';
-import type { ServiceListingWithProvider } from '@/types/service.types';
+import type { ServiceListingWithProvider, ServiceProviderDetails } from '@/types/service.types';
 import type { StoreWithSeller } from '@/types/store.types';
 import type { ApiResponse } from '@/types/api.types';
 
@@ -55,6 +55,7 @@ export interface GetServiceRecommendationsParams {
 export interface GetStoreRecommendationsParams {
   limit?: number;
   excludeStoreId?: string;
+  city?: string;
   lat?: number;
   lng?: number;
 }
@@ -64,6 +65,12 @@ export interface GetStoreRecommendationsParams {
  * PER TYPE. A rail that failed on the server arrives as null (the other
  * rails are still valid) — treat null as "empty", never as an error.
  */
+
+export interface GetProviderRecommendationsParams {
+  limit?: number;
+  city?: string;
+}
+
 export interface GetMixedRecommendationsParams {
   limit?: number;
   city?: string;
@@ -92,6 +99,11 @@ export const recommendationsApi = {
   getStoreRecommendations: (params?: GetStoreRecommendationsParams) =>
     apiClient.get<ApiResponse<StoreWithSeller[]>>('/recommendations', {
       params: { ...params, type: 'store' },
+    }),
+
+  getProviderRecommendations: (params?: GetProviderRecommendationsParams) =>
+    apiClient.get<ApiResponse<ServiceProviderDetails[]>>('/recommendations', {
+      params: { ...params, type: 'provider' },
     }),
 
   getMixedRecommendations: (params?: GetMixedRecommendationsParams) =>

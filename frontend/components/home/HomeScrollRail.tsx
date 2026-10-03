@@ -111,8 +111,8 @@ export function HomeScrollRailItem({
 }) {
   const width =
     size === 'wide' || size === 'store'
-      ? 'w-[min(62vw,220px)] sm:w-[210px] md:w-[230px]'
-      : 'w-[min(48vw,180px)] sm:w-[180px] md:w-[200px]';
+      ? 'w-[min(64vw,220px)] min-w-[160px] sm:w-[210px] md:w-[240px]'
+      : 'w-[min(52vw,190px)] min-w-[160px] sm:w-[190px] md:w-[210px]';
 
   return (
     <div className={cn('shrink-0 snap-start', width, className)}>

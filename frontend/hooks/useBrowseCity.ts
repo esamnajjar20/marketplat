@@ -50,11 +50,13 @@ export function useBrowseCity() {
     setGuestCity(matchKnownCity(city));
   }, []);
 
-  const city = profileCity || guestCity;
-  const source: 'profile' | 'guest' | 'none' = profileCity
-    ? 'profile'
-    : guestCity
-      ? 'guest'
+  // A saved browse choice overrides the profile city for the current device.
+  // The profile city remains the default when no explicit browse choice exists.
+  const city = guestCity || profileCity;
+  const source: 'profile' | 'guest' | 'none' = guestCity
+    ? 'guest'
+    : profileCity
+      ? 'profile'
       : 'none';
 
   const isReady = isHydrated && guestReady;

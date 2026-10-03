@@ -9,6 +9,7 @@ import {
   Prisma,
   ProductStatus,
   ServiceListingStatus,
+  ServiceProviderDetails,
   StoreStatus,
   StorePlan,
 } from '@prisma/client';
@@ -480,6 +481,7 @@ export const productRecommendationsRepository = {
     excludeIds: string[],
     limit: number,
     city?: string | null,
+    followedStoreIds: string[] = [],
   ): Promise<ProductWithStore[]> => {
     if (weights.length === 0) return [];
     const weightValues = Prisma.join(
@@ -497,6 +499,9 @@ export const productRecommendationsRepository = {
     const cityBoost = trimmedCity
       ? Prisma.sql`CASE WHEN sd."city" = ${trimmedCity} THEN 2::float ELSE 0::float END`
       : Prisma.sql`0::float`;
+    const followedStoreBoost = followedStoreIds.length > 0
+      ? Prisma.sql`CASE WHEN p."storeId" IN (${Prisma.join(followedStoreIds)}) THEN 1.5::float ELSE 0::float END`
+      : Prisma.sql`0::float`;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT p."id"
@@ -505,7 +510,7 @@ export const productRecommendationsRepository = {
       JOIN "store_details" sd ON sd."id" = p."storeId"
       JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
       WHERE ${whereSql}
-      ORDER BY (w.weight + ${cityBoost}) DESC, p."createdAt" DESC
+      ORDER BY (w.weight + ${cityBoost} + ${followedStoreBoost}) DESC, p."createdAt" DESC
       LIMIT ${limit}
     `;
     const ids = idRows.map(r => r.id);
@@ -1243,10 +1248,53 @@ function storeFreshnessScoreExprSql(freshnessTimestampExpr: Prisma.Sql): Prisma.
 
 export interface StoreRankingParams {
   excludeIds: string[];
+  city?: string | null;
+  interestCategoryIds?: string[];
   lat?: number;
   lng?: number;
   limit: number;
 }
+
+export const serviceProviderRecommendationsRepository = {
+  findRanked: async (params: { city?: string | null; interestCategoryIds?: string[]; limit: number }): Promise<ServiceProviderDetails[]> => {
+    const { city, interestCategoryIds = [], limit } = params;
+    const trimmedCity = city?.trim() || null;
+    const cityScore = trimmedCity
+      ? Prisma.sql`CASE WHEN ${trimmedCity} = ANY(spd."serviceAreaCities") THEN 2.0 ELSE 0.0 END`
+      : Prisma.sql`0.0`;
+    const interestScore = interestCategoryIds.length > 0
+      ? Prisma.sql`CASE WHEN EXISTS (
+          SELECT 1 FROM "service_listings" isl
+          WHERE isl."providerId" = spd."id"
+            AND isl."status" = ${ServiceListingStatus.ACTIVE}::"ServiceListingStatus"
+            AND isl."categoryId" IN (${Prisma.join(interestCategoryIds)})
+        ) THEN 1.5 ELSE 0.0 END`
+      : Prisma.sql`0.0`;
+
+    const idRows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT spd."id"
+      FROM "service_provider_details" spd
+      JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
+      WHERE spd."availabilityStatus" != 'UNAVAILABLE'
+        AND sp."suspended" = false
+      ORDER BY ${cityScore} DESC, ${interestScore} DESC,
+        COALESCE((SELECT MAX(sl."createdAt") FROM "service_listings" sl
+          WHERE sl."providerId" = spd."id" AND sl."status" = ${ServiceListingStatus.ACTIVE}::"ServiceListingStatus"), spd."createdAt") DESC,
+        spd."completedRequestsCount" DESC, spd."id" ASC
+      LIMIT ${limit}
+    `;
+
+    if (idRows.length === 0) return [];
+    const providers = await prisma.serviceProviderDetails.findMany({
+      where: { id: { in: idRows.map(row => row.id) } },
+    });
+    const byId = new Map(providers.map(provider => [provider.id, provider]));
+    return idRows.flatMap(row => {
+      const provider = byId.get(row.id);
+      return provider ? [provider] : [];
+    });
+  },
+};
 
 export const storeRecommendationsRepository = {
   // Signal: stores this user already follows — StoreFollower is the
@@ -1330,7 +1378,7 @@ export const storeRecommendationsRepository = {
   // identical on every signal above (including createdAt, in tests)
   // still return in a stable, repeatable order.
   findRanked: async (params: StoreRankingParams): Promise<StoreWithSeller[]> => {
-    const { excludeIds, lat, lng, limit } = params;
+    const { excludeIds, city, interestCategoryIds = [], lat, lng, limit } = params;
 
     const whereParts: Prisma.Sql[] = [
       Prisma.sql`sd."status" = ${StoreStatus.ACTIVE}::"StoreStatus"`,
@@ -1359,11 +1407,18 @@ export const storeRecommendationsRepository = {
         `
       : Prisma.sql`NULL::float`;
 
+    const trimmedCity = city?.trim() || null;
+    const cityBoostExpr = trimmedCity
+      ? Prisma.sql`(CASE WHEN sd."city" = ${trimmedCity} THEN 2.0 ELSE 0.0 END)`
+      : Prisma.sql`0.0`;
+    const interestBoostExpr = interestCategoryIds.length > 0
+      ? Prisma.sql`(CASE WHEN p."categoryId" IN (${Prisma.join(interestCategoryIds)}) THEN 1.5 ELSE 0.0 END)`
+      : Prisma.sql`0.0`;
     const freshnessTimestampExpr = Prisma.sql`GREATEST(sd."updatedAt", COALESCE(MAX(p."createdAt"), sd."updatedAt"))`;
     const freshnessScoreExpr = storeFreshnessScoreExprSql(freshnessTimestampExpr);
     const distanceScoreExpr = Prisma.sql`(1.0 / (1.0 + (${distanceExprSql}) / ${STORE_DISTANCE_SCORE_DECAY_KM}::float))`;
     const planScoreExpr = Prisma.sql`(CASE WHEN sd."plan" = ${StorePlan.FEATURED}::"StorePlan" THEN 1.0 ELSE 0.0 END)`;
-    const noGeoScoreExpr = Prisma.sql`((${freshnessScoreExpr}) * ${STORE_FRESHNESS_WEIGHT_NO_GEO}::float + (${planScoreExpr}) * ${STORE_PLAN_WEIGHT_NO_GEO}::float)`;
+    const noGeoScoreExpr = Prisma.sql`((${freshnessScoreExpr}) * ${STORE_FRESHNESS_WEIGHT_NO_GEO}::float + (${planScoreExpr}) * ${STORE_PLAN_WEIGHT_NO_GEO}::float + ${cityBoostExpr} + ${interestBoostExpr})`;
     // hasStoreGeoExpr is only ever evaluated when hasGeo is true (it's
     // nested inside the `hasGeo ?` branch below) — a request with no
     // lat/lng always takes noGeoScoreExpr unconditionally, per row,
@@ -1374,6 +1429,7 @@ export const storeRecommendationsRepository = {
           (${freshnessScoreExpr}) * ${STORE_FRESHNESS_WEIGHT_WITH_GEO}::float
           + (${distanceScoreExpr}) * ${STORE_DISTANCE_WEIGHT}::float
           + (${planScoreExpr}) * ${STORE_PLAN_WEIGHT_WITH_GEO}::float
+          + ${cityBoostExpr} + ${interestBoostExpr}
         ELSE ${noGeoScoreExpr} END)`
       : noGeoScoreExpr;
 

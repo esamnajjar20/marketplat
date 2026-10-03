@@ -6,6 +6,7 @@ import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { RecommendationRail } from './RecommendationRail';
 import { useStoreRecommendations } from '@/hooks/queries/useRecommendations';
 import { useSilentCoordinates } from '@/hooks/useSilentCoordinates';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
 
 const DISPLAY_COUNT = 6;
 // StoreCard is a horizontal round-avatar row (see StoreCardSkeleton's
@@ -29,9 +30,11 @@ interface Props {
  */
 export function StoreRecommendations({ excludeStoreId }: Props) {
   const coords = useSilentCoordinates();
+  const { city } = useBrowseCity();
   const { data, isLoading, isError, refetch } = useStoreRecommendations({
     limit: DISPLAY_COUNT,
     excludeStoreId,
+    city,
     lat: coords?.lat,
     lng: coords?.lng,
   });

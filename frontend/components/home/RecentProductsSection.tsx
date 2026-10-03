@@ -11,8 +11,9 @@ import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ApiError } from '@/components/shared/ApiError';
 import { useProducts } from '@/hooks/queries/useProducts';
+import { useProductRecommendations } from '@/hooks/queries/useRecommendations';
+import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useHomepage } from '@/hooks/queries/useHomepage';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
 import { homeSectionLimit } from '@/lib/listLimits';
@@ -40,8 +41,14 @@ import { useDataSaver } from '@/lib/useDataSaver';
 export function RecentProductsSection() {
   const dataSaver = useDataSaver();
   const limit = homeSectionLimit(8, 4, dataSaver);
-  const { city } = useBrowseCity();
+  const { city, isReady } = useBrowseCity();
+  const isHydrated = useAuthStore(selectIsHydrated);
+  const isAuth = useAuthStore(selectIsAuthenticated);
   const home = useHomepage();
+  const ranked = useProductRecommendations(
+    { limit, ...(city ? { city } : {}) },
+    { enabled: isHydrated && isReady, scope: isAuth ? 'user' : 'guest' },
+  );
   const seeded = home.data?.belowFold?.recentProducts ?? null;
   const hasSeed = seeded !== null && seeded !== undefined;
   const allowFetch = home.isError || (home.isSuccess && !hasSeed);
@@ -55,20 +62,21 @@ export function RecentProductsSection() {
     home.data?.featuredCarousel?.products?.items,
     home.data?.belowFold?.promotedProducts?.items,
   );
-  const items = hasSeed
-    ? dedupeKeepingMin(seeded!.items ?? [], promotedIds).slice(0, limit)
-    : (data?.items ?? []);
-  const showLoading = hasSeed ? false : home.isPending || isLoading;
+  const rankedItems = ranked.data ?? [];
+  const items = rankedItems.length > 0
+    ? dedupeKeepingMin(rankedItems, promotedIds).slice(0, limit)
+    : hasSeed
+      ? dedupeKeepingMin(seeded!.items ?? [], promotedIds).slice(0, limit)
+      : (data?.items ?? []);
+  const showLoading = ranked.isLoading && items.length === 0 ? true : hasSeed ? false : home.isPending || isLoading;
   const showError = hasSeed ? false : isError;
-  const isAuth = useAuthStore(selectIsAuthenticated);
-
   const badgeSource = seeded?.source ?? (city ? 'city' : 'general');
   const badgeCity = badgeSource === 'city' ? city : undefined;
 
   const header = (
     <SectionHeader
       eyebrow="تصفّح"
-      title="أحدث المنتجات"
+      title="منتجات تناسبك"
       icon={<Clock className="h-3.5 w-3.5" />}
       cta={{ href: ROUTES.products, label: 'عرض الكل ←' }}
       badge={
