@@ -775,9 +775,26 @@ model RequestOffer {
 // and/or ServiceProviderDetails at once; both share the same
 // verification/suspension/trust-score gate on SellerProfile.
 // ---------------------------------------------------------------------
+model StoreType {
+  id               String            @id
+  slug             String            @unique
+  nameAr           String
+  icon             String
+  labels           Json
+  freeProductLimit Int?
+  isActive         Boolean           @default(true)
+  sortOrder        Int               @default(0)
+  stores           StoreDetails[]
+  productCategories ProductCategory[]
+
+  @@index([isActive, sortOrder])
+  @@map("store_types")
+}
+
 model StoreDetails {
   id                 String            @id @default(cuid())
   sellerProfileId    String            @unique
+  storeTypeId        String            @default("st_general")
   name               String
   // STORE-SLUG (Foundation v1): URL-safe, shareable identifier —
   // /stores/:idOrSlug resolves this before falling back to the cuid
@@ -818,6 +835,7 @@ model StoreDetails {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   sellerProfile      SellerProfile     @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  storeType          StoreType          @relation(fields: [storeTypeId], references: [id])
   products           Product[]
   promotions         Promotion[]
   followers          StoreFollower[]
@@ -827,6 +845,7 @@ model StoreDetails {
 
   @@index([status, city])
   @@index([status, plan])
+  @@index([storeTypeId])
   @@map("store_details")
 }
 
@@ -859,13 +878,16 @@ model ProductCategory {
   slug      String            @unique
   icon      String?
   parentId  String?
+  storeTypeId String?
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
   parent    ProductCategory?  @relation("ProductCategoryParent", fields: [parentId], references: [id])
   children  ProductCategory[] @relation("ProductCategoryParent")
+  storeType  StoreType?        @relation(fields: [storeTypeId], references: [id])
   products  Product[]
 
   @@index([parentId])
+  @@index([storeTypeId])
   @@map("product_categories")
 }
 
@@ -1692,6 +1714,7 @@ enum AuditEventType {
   // applied here for the store status transition.
   ADMIN_STORE_STATUS_CHANGED
   ADMIN_STORE_PLAN_CHANGED
+  ADMIN_STORE_TYPE_CHANGED
   // FIX OAUTH-01
   OAUTH_LOGIN
   // FIX FEAT-EMAIL-VERIFY
