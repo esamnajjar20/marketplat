@@ -28,13 +28,13 @@ export interface StoreTypeField {
   id: string;
   storeTypeId: string;
   key: string;
+  scope?: StoreFieldScope;
   labelAr: string;
   cardLabelAr?: string | null;
   pageLabelAr?: string | null;
   showOnCard?: boolean;
   showOnPage?: boolean;
   type: StoreFieldType;
-  scope: StoreFieldScope;
   required: boolean;
   options?: StoreTypeFieldOption[] | null;
   sortOrder: number;

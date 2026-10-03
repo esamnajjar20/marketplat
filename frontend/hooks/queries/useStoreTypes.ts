@@ -13,11 +13,11 @@ export function useStoreTypes() {
   });
 }
 
-export function useStoreTypeFields(storeTypeId?: string) {
+export function useStoreTypeFields(storeTypeId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.storeTypes.fields(storeTypeId ?? ''),
     queryFn: () => storeTypesApi.getFields(storeTypeId!).then((r) => r.data.data),
-    enabled: Boolean(storeTypeId),
+    enabled: Boolean(storeTypeId) && (options?.enabled ?? true),
     staleTime: 15 * 60 * 1000,
   });
 }

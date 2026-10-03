@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Package, Tag, Layers, Star, Megaphone, Info, MapPin, Phone } from 'lucide-react';
+import { Package, Tag, Layers, Star, Megaphone, Info, MapPin, Phone, Clock } from 'lucide-react';
 import { StoreAds } from '@/components/stores/StoreAds';
 import { StoreProducts } from '@/components/stores/StoreProducts';
 import { StoreCollections } from '@/components/stores/StoreCollections';
@@ -58,9 +58,9 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div
-        className="flex gap-1 overflow-x-auto border-b pb-0 scrollbar-thin"
+        className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-thin"
         role="tablist"
         aria-label="أقسام المتجر"
       >
@@ -72,10 +72,10 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
             aria-selected={active === id}
             onClick={() => setTab(id)}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors',
               active === id
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-muted/45 text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
             <Icon className="h-4 w-4" aria-hidden />
@@ -85,7 +85,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
       </div>
 
       {active === 'products' && (
-        <section className="space-y-3" role="tabpanel">
+        <section className="rounded-2xl border border-border/60 bg-background/60 p-1" role="tabpanel">
           <StoreProducts storeId={storeId} storeName={storeName} />
         </section>
       )}
@@ -138,89 +138,72 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
 }
 
 function StoreAboutPanel({ store }: { store: StoreWithSellerAndCounts }) {
-  // FIX STOREFRONT-ABOUT-SCOPE: presentation is defined in the parent
-  // StoreStorefront; this nested component needs its own lookup (or a
-  // prop). Using the helper keeps it a single source of truth.
   const presentation = getStoreTypePresentation(store.storeType);
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto grid max-w-4xl gap-4 lg:grid-cols-2">
       {store.description && (
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">{presentation.page.about}</h3>
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-            {store.description}
-          </p>
-        </div>
+        <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+          <div className="mb-2 flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary" aria-hidden />
+            <h3 className="text-sm font-bold">{presentation.page.about}</h3>
+          </div>
+          <p className="text-sm leading-7 text-muted-foreground whitespace-pre-wrap">{store.description}</p>
+        </section>
       )}
 
-      <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">معلومات التواصل والموقع</h3>
-        <ul className="space-y-2.5 text-sm text-muted-foreground">
+      <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" aria-hidden />
+          <h3 className="text-sm font-bold">{presentation.page.contact}</h3>
+        </div>
+        <ul className="space-y-3 text-sm text-muted-foreground">
           <li className="flex items-center gap-2">
             <Phone className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <a href={`tel:${store.phone}`} className="hover:text-primary hover:underline">
-              {formatPhone(store.phone)}
-            </a>
+            <a href={`tel:${store.phone}`} className="font-medium text-foreground hover:text-primary hover:underline">{formatPhone(store.phone)}</a>
           </li>
           <li className="flex items-start gap-2">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <span>
-              {store.city}
-              {store.address ? ` — ${store.address}` : ''}
-            </span>
+            <span>{store.city}{store.address ? ` — ${store.address}` : ''}</span>
           </li>
           {store.latitude && store.longitude && (
             <li>
-              <a
-                href={`https://www.openstreetmap.org/?mlat=${store.latitude}&mlon=${store.longitude}#map=16/${store.latitude}/${store.longitude}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-primary hover:underline"
-              >
+              <a href={`https://www.openstreetmap.org/?mlat=${store.latitude}&mlon=${store.longitude}#map=16/${store.latitude}/${store.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 text-primary hover:bg-muted/50">
                 <MapPin className="h-3.5 w-3.5" />
-                عرض الموقع على الخريطة
+                {presentation.page.location}
               </a>
             </li>
           )}
         </ul>
-      </div>
+      </section>
 
       {store.workingHours && (
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-foreground">ساعات العمل</h3>
+        <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5 lg:col-span-2">
+          <div className="mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" aria-hidden />
+            <h3 className="text-sm font-bold">ساعات العمل</h3>
             {store.isOpen !== null && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span
-                  className={`h-2 w-2 rounded-full ${store.isOpen ? 'bg-success' : 'bg-muted-foreground/60'}`}
-                />
+              <span className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-xs">
+                <span className={`h-2 w-2 rounded-full ${store.isOpen ? 'bg-success' : 'bg-muted-foreground/60'}`} />
                 {store.isOpen ? 'مفتوح الآن' : 'مغلق الآن'}
               </span>
             )}
           </div>
-          <ul className="space-y-1.5 text-sm">
+          <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
             {STORE_HOURS_DAYS.map(({ key, label }) => {
               const schedule = store.workingHours![key];
               return (
-                <li
-                  key={key}
-                  className="flex items-center justify-between text-muted-foreground"
-                >
-                  <span>{label}</span>
-                  <span className="tabular-nums">
-                    {schedule ? `${schedule.open} – ${schedule.close}` : 'مغلق'}
-                  </span>
+                <li key={key} className="flex items-center justify-between rounded-xl bg-muted/35 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-medium tabular-nums">{schedule ? `${schedule.open} – ${schedule.close}` : 'مغلق'}</span>
                 </li>
               );
             })}
           </ul>
-        </div>
+        </section>
       )}
 
-      {!store.description && !store.workingHours && (
-        <p className="text-center text-sm text-muted-foreground py-6">
-          لم يُضف صاحب المتجر تفاصيل إضافية بعد.
-        </p>
+      {!store.description && !store.workingHours && !store.address && (
+        <p className="py-10 text-center text-sm text-muted-foreground lg:col-span-2">لا توجد تفاصيل إضافية لهذا المتجر بعد.</p>
       )}
     </div>
   );

@@ -239,8 +239,9 @@ export interface CreateAdminStoreTypePayload {
 export type UpdateAdminStoreTypePayload = Partial<Omit<CreateAdminStoreTypePayload, 'slug'>>;
 
 export interface CreateStoreTypeFieldPayload {
-  key: string; labelAr: string; cardLabelAr?: string | null; pageLabelAr?: string | null; showOnCard?: boolean; showOnPage?: boolean; type: import('./store.types').StoreFieldType; required?: boolean;
-  options?: import('./store.types').StoreTypeFieldOption[] | null; sortOrder?: number; scope?: import('./store.types').StoreFieldScope;
+  key: string; scope?: import('./store.types').StoreFieldScope; labelAr: string; cardLabelAr?: string | null; pageLabelAr?: string | null; showOnCard?: boolean; showOnPage?: boolean; type: import('./store.types').StoreFieldType; required?: boolean;
+  // FIX STOREFIELD-OPTIONS-NULL: null clears options on update (backend .nullable()).
+  options?: import('./store.types').StoreTypeFieldOption[] | null; sortOrder?: number;
 }
 export type UpdateStoreTypeFieldPayload = Partial<Omit<CreateStoreTypeFieldPayload, 'key'>> & { options?: import('./store.types').StoreTypeFieldOption[] | null; isActive?: boolean };
 

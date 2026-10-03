@@ -85,10 +85,10 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const presentation = getStoreTypePresentation(store.storeType);
 
   return (
-    <div className="mx-auto w-full max-w-lg">
+    <div className="mx-auto w-full max-w-4xl">
       {/* الغلاف — الصورة فقط داخل القص؛ الشعار خارجها */}
       <div className="relative">
-        <div className="relative h-40 w-full overflow-hidden rounded-2xl bg-muted shadow-sm sm:h-48">
+        <div className="relative h-44 w-full overflow-hidden rounded-2xl bg-muted shadow-sm sm:h-56">
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 512px" priority />
           ) : (
@@ -132,7 +132,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
       </div>
 
       {/* المحتوى — وسط الشاشة */}
-      <div className="mt-3.5 flex flex-col items-center gap-0.5 px-1 text-center sm:px-0">
+      <div className="mt-4 flex flex-col items-center gap-0.5 px-1 text-center sm:px-4">
         <p className="text-2xs-tight font-medium text-primary">{presentation.page.title}</p>
         <h1 className="flex flex-wrap items-center justify-center gap-2 text-lg font-bold leading-snug text-foreground sm:text-xl">
           {store.name}
@@ -142,7 +142,11 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             </Badge>
           )}
         </h1>
-        {presentation.page.subtitle && <p className="max-w-sm text-xs text-muted-foreground">{presentation.page.subtitle}</p>}
+        {presentation.page.subtitle && <p className="max-w-2xl text-xs leading-5 text-muted-foreground sm:text-sm">{presentation.page.subtitle}</p>}
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {store.city && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{store.city}</span>}
+          {store.address && <span className="max-w-[28rem] truncate">{store.address}</span>}
+        </div>
 
         {/* STOREHEADER-NULL-GUARD-01: sellerProfile is documented as
             possibly null (see SW-FIX-STOREHEADER-SP at the top of this
@@ -177,7 +181,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         <StoreBadges storeId={store.id} className="mt-2" />
 
         {/* Stats card */}
-        <div className="mt-4 w-full max-w-sm rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
+        <div className="mt-5 w-full max-w-2xl rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
           <div className="flex justify-around items-center">
             <div className="flex flex-col items-center">
               <span className="text-lg font-semibold tabular-nums text-foreground">{store._count.followers}</span>
@@ -196,10 +200,10 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           </div>
         </div>
 
-        <StoreAttributesSummary storeTypeId={store.storeTypeId} attributes={store.attributes} presentation={store.storeType?.presentation} />
+        <StoreAttributesSummary storeTypeId={store.storeTypeId} fields={store.storeType?.fields} attributes={store.attributes} presentation={store.storeType?.presentation} />
 
         {/* Call + follow row */}
-        <div className="mt-4 flex w-full max-w-sm gap-2 justify-center">
+        <div className="mt-4 grid w-full max-w-2xl grid-cols-2 gap-2">
           <a
             href={`tel:${store.phone}`}
             className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition active:scale-[0.98]"
@@ -219,13 +223,13 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
         </div>
 
-        <div className="mt-2 flex w-full max-w-sm items-center justify-center gap-2">
+        <div className="mt-2 grid w-full max-w-2xl grid-cols-2 gap-2">
           {!isOwnStore && waPhone.length >= 9 && (
             <a
               href={`https://wa.me/${waPhone}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-h-10 flex-1 items-center justify-center rounded-full border border-success/25 bg-success/10 px-3 py-2 text-center text-sm font-medium text-success transition-colors hover:bg-success/15 dark:text-success"
+              className="flex min-h-10 items-center justify-center rounded-full border border-success/25 bg-success/10 px-3 py-2 text-center text-sm font-medium text-success transition-colors hover:bg-success/15 dark:text-success"
             >
               واتساب
             </a>
@@ -237,7 +241,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             title={store.name}
             url={shareUrl}
             variant="button"
-            className="flex-1"
+            className="w-full"
             qrPayload={{
               kind: 'store',
               title: store.name,
@@ -250,7 +254,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         </div>
 
         {/* تحميل كتالوج المنتجات كاملًا كملف HTML للمشاهدة بدون إنترنت */}
-        <div className="mt-3 w-full max-w-sm">
+        <div className="mt-3 w-full max-w-2xl">
           <DownloadStoreCatalogButton
             storeId={store.id}
             storeName={store.name}
@@ -280,7 +284,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             owner's own store and handles the unauthenticated case, so
             no extra isOwnStore/isAuthenticated guard is needed here. */}
         {!isOwnStore && (
-          <div className="mt-3 w-full max-w-sm">
+          <div className="mt-3 w-full max-w-2xl">
             <MessageUserButtonGate
               targetUserId={store.sellerProfile?.userId ?? ''}
               size="lg"
@@ -296,7 +300,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             is for catalog products. Shown for the owner regardless of
             ACTIVE so PENDING stores can still prepare products/settings. */}
         {isOwnStore && (
-          <div className="mt-4 w-full max-w-sm space-y-2">
+          <div className="mt-5 w-full max-w-2xl space-y-2">
             {store.status === 'ACTIVE' && (
               <Button asChild className="w-full rounded-full py-3 h-auto gap-2 font-semibold">
                 <Link href={ROUTES.myStoreProductCreate}>
@@ -329,12 +333,12 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         )}
 
         {store.description && (
-          <div className="mt-5 max-w-sm text-center">
+          <section className="mt-5 w-full max-w-2xl rounded-2xl border border-border/70 bg-card p-4 text-start shadow-sm sm:p-5">
             <h2 className="text-sm font-semibold text-foreground">{presentation.page.details}</h2>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             {store.description}
           </p>
-          </div>
+          </section>
         )}
 
         {store.latitude && store.longitude && (
@@ -342,7 +346,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             href={`https://www.openstreetmap.org/?mlat=${store.latitude}&mlon=${store.longitude}#map=16/${store.latitude}/${store.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-muted/50"
           >
             <MapPin className="h-3.5 w-3.5" />
             {presentation.page.location}
@@ -356,11 +360,11 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             on first paint; a buyer who wants the full week can expand
             it. */}
         {store.workingHours && (
-          <details className="mt-4 w-full max-w-sm text-sm text-start">
-            <summary className="cursor-pointer text-center text-primary select-none">
+          <details className="mt-4 w-full max-w-2xl rounded-2xl border border-border/70 bg-card p-4 text-sm text-start shadow-sm">
+            <summary className="cursor-pointer select-none font-semibold text-foreground">
               ساعات العمل
             </summary>
-            <ul className="mt-2 space-y-1 rounded-xl border border-border/80 bg-card/50 p-3">
+            <ul className="mt-3 space-y-1 rounded-xl bg-muted/35 p-3">
               {STORE_HOURS_DAYS.map(({ key, label }) => {
                 const schedule = store.workingHours![key];
                 return (
