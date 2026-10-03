@@ -115,7 +115,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   // Show skeleton while waiting for hydration or session restoration.
   if (!isResolved) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen min-h-dvh flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -124,7 +124,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   // لا تُرجع null (شاشة بيضاء) — اعرض رسالة قصيرة أثناء التحويل لتسجيل الدخول.
   if (!isAuthenticated && !canRenderOffline) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="flex min-h-screen min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <p className="text-sm text-muted-foreground">جاري التحقق من الجلسة…</p>
       </div>
@@ -144,7 +144,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     // itself. min-w-0 at each level lets children's own overflow
     // handling (Timeline's overflow-x-auto) actually take effect
     // instead of being bypassed by an ancestor refusing to shrink.
-    <div className="flex min-h-screen min-w-0 flex-col">
+    <div className="flex min-h-screen min-h-dvh min-w-0 flex-col">
       <ProtectedHeader />
       {/* FIX FEAT-EMAIL-VERIFY: shows a yellow bar when the signed-in
           user hasn't verified their email yet. Auto-hides for guests

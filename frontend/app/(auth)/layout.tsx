@@ -35,7 +35,7 @@ import { PageTransition } from '@/components/shared/PageTransition';
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen min-h-dvh flex-col">
       <PublicHeader showSearch={false} />
       <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-surface-1/40 px-4 py-12 sm:py-16">
         {/* Soft glow accents behind the card — same idea as the

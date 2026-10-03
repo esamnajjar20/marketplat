@@ -58,7 +58,7 @@ useEffect(() => {
 
   return (
     <html lang="ar" dir="rtl">
-      <body className="flex min-h-screen flex-col items-center justify-center gap-6 p-8 text-center">
+      <body className="flex min-h-screen min-h-dvh flex-col items-center justify-center gap-6 p-8 text-center">
         <span className="text-6xl">⚠️</span>
         <h1 className="text-2xl font-semibold">حدث خطأ غير متوقع</h1>
         {/* SEC-06: Show generic message only — never error.message (may contain internals) */}

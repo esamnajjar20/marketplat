@@ -91,7 +91,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!isResolved) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen min-h-dvh flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -100,7 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAuthenticated || !isAdminTier || isOutOfScopeForModerator) return null;
 
   return (
-    <div className="flex min-h-screen bg-surface-1">
+    <div className="flex min-h-screen min-h-dvh bg-surface-1">
       {/* useSearchParams() inside needs a Suspense boundary. */}
       <Suspense fallback={null}>
         <AdminSidebar />

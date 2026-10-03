@@ -202,7 +202,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </p>
         </div>
       )}
-    <div className={cn('flex flex-col md:flex-row gap-6 md:gap-8', !isOwnAd && 'pb-sticky-contact')}>
+    <div className={cn('flex flex-col md:flex-row gap-6 md:gap-8', !isOwnAd ? 'pb-sticky-contact' : 'pb-8' /* FIX PB-STICKY-FALLBACK */)}>
       {/* LEFT: images + details */}
       <div className="flex-1 md:w-2/3 min-w-0 space-y-6">
 

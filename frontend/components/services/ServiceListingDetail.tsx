@@ -9,6 +9,7 @@ import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ReportServiceButton } from '@/components/services/ReportServiceButton';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { ProviderContactCard } from '@/components/services/ProviderContactCard';
+import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -87,9 +88,11 @@ export function ServiceListingDetail({ listing, action }: Props) {
     };
   }, [lightbox]);
 
+  const providerUserId = listing.provider.sellerProfile?.userId;
+
   return (
     <>
-      <div className="flex flex-col gap-5 pb-28 md:flex-row md:gap-8 md:pb-8">
+      <div className={cn('flex flex-col gap-5 md:flex-row md:gap-8 md:pb-8', providerUserId ? 'pb-sticky-contact' : 'pb-28')}>
         {/* ── Main column ── */}
         <div className="min-w-0 flex-1 space-y-5">
           {/* Gallery */}
@@ -278,6 +281,26 @@ export function ServiceListingDetail({ listing, action }: Props) {
         </aside>
       </div>
 
+
+      {/* Mobile sticky contact CTA — price + message above BottomNav */}
+      {providerUserId && (
+        <div className="sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-primary truncate">
+                {formatServicePrice(listing.pricingType, listing.price)}
+              </p>
+            </div>
+            <MessageUserButtonGate
+              targetUserId={providerUserId}
+              size="lg"
+              variant="default"
+              label="مراسلة"
+              className="shrink-0 gap-2 rounded-xl"
+            />
+          </div>
+        </div>
+      )}
 
       {lightbox && (
         <div

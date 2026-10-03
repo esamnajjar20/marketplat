@@ -19,7 +19,7 @@ export const metadata: Metadata = {
  */
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8 text-center">
+    <main className="flex min-h-screen min-h-dvh flex-col items-center justify-center gap-6 p-8 text-center">
       <span className="text-8xl font-bold text-muted-foreground/30">404</span>
       <h1 className="text-2xl font-semibold">الصفحة غير موجودة</h1>
       <p className="max-w-sm text-muted-foreground">

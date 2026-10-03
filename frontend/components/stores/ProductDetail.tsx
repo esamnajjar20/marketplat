@@ -55,6 +55,15 @@ export function ProductDetail({ product, related = [] }: Props) {
     return () => { document.body.style.overflow = prev; };
   }, [lightboxOpen]);
 
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightboxOpen(false);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen]);
+
   const images = product.images && product.images.length > 0 ? product.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
 
@@ -84,10 +93,11 @@ export function ProductDetail({ product, related = [] }: Props) {
 
   const store = product.store;
   const shareUrl = `${APP_URL}${ROUTES.productDetail(product.id)}`;
+  const ownerId = store.sellerProfile?.userId;
 
   return (
     <>
-      <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+      <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', ownerId ? 'pb-sticky-contact' : 'pb-8' /* FIX PB-STICKY-FALLBACK */)}>
         {/* Gallery + description */}
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
           <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
@@ -228,6 +238,31 @@ export function ProductDetail({ product, related = [] }: Props) {
         </aside>
       </div>
 
+      {/* Mobile sticky contact CTA — price + message above BottomNav */}
+      {ownerId && (
+        <div className="sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold text-primary truncate">
+                {formatPrice(String(displayPrice))}
+              </p>
+              {hasDiscount && (
+                <p className="text-xs text-muted-foreground line-through">
+                  {formatPrice(String(effectivePrice.originalPrice ?? product.price ?? 0))}
+                </p>
+              )}
+            </div>
+            <MessageUserButtonGate
+              targetUserId={ownerId}
+              size="lg"
+              variant="default"
+              label="مراسلة"
+              className="shrink-0 gap-2 rounded-xl"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Lightbox */}
       {lightboxOpen && (
         <div
@@ -354,7 +389,7 @@ function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
   const ownerId = store.sellerProfile?.userId;
   return (
     <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">المتجر</p>
+      <p className="text-xs font-medium text-muted-foreground">المتجر</p>
       <Link
         href={ROUTES.storeDetail(store.slug || store.id)}
         className="flex items-center gap-3 rounded-lg transition-colors hover:bg-muted/50"

@@ -12,17 +12,17 @@ const TIPS = [
 
 /**
  * Shared safe-buying tips for detail pages (UI-PHASE-B).
- * Mobile: collapsed by default. Desktop: open panel.
+ * Open by default so safety tips are visible near the contact moment.
  */
 export function DetailSafetyTips({
   className,
   defaultOpen,
 }: {
   className?: string;
-  /** Starts open when defaultOpen is true; otherwise collapsed (caller controls per breakpoint). */
+  /** Starts open when defaultOpen is true; defaults to open. */
   defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
+  const [open, setOpen] = useState(defaultOpen ?? true);
 
   return (
     <div

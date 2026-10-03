@@ -11,7 +11,7 @@ import { ScrollToTop } from '@/components/shared/ui/ScrollToTop';
  */
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen min-w-0 flex-col">
+    <div className="flex min-h-screen min-h-dvh min-w-0 flex-col">
       <PublicHeader />
       {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
       <main id="main-content" className="min-w-0 flex-1 pb-16 md:pb-0">

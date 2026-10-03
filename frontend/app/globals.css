@@ -41,11 +41,11 @@
     --muted: 36.9 35.1% 92.7%;
     --muted-foreground: 34.7 9.7% 38.2%;
 
-    /* Terracotta — featured / CTA accent (darkened slightly for AA text contrast) */
-    --accent: 22 68% 48%;
+    /* Terracotta — featured / CTA accent (darkened for AA small-text ≥4.5:1) */
+    --accent: 22 70% 40%;
     --accent-foreground: 40 60% 98%;
-    --accent-soft: 22 60% 94%;
-    --accent-muted: 22 50% 42%;
+    --accent-soft: 22 55% 94%;
+    --accent-muted: 22 50% 38%;
 
     --destructive: 4.4 53.8% 49.2%;
     --destructive-foreground: 40 60% 98%;

@@ -1,7 +1,7 @@
 // FIX ADMIN-CAT-TREE-APIERROR-01: shared ApiError for the error state.
 'use client';
 
-import { ChevronDown, ChevronRight, Tag, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useCategoriesForAdmin } from '@/hooks/queries/useCategories';
 import { useDeleteCategory } from '@/hooks/mutations/useCategoryMutations';
@@ -68,7 +68,7 @@ export function AdminCategoriesTree() {
                 className="flex flex-1 items-center gap-2 text-sm font-medium text-start"
               >
                 {hasChildren
-                  ? (isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />)
+                  ? (isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronLeft className="h-3.5 w-3.5 shrink-0" />)
                   : <Tag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                 <span className="flex-1">{cat.nameAr}</span>
                 {cat._count && <span className="text-xs text-muted-foreground">{cat._count.ads} إعلان</span>}

@@ -2,7 +2,7 @@
 // component instead of a hand-rolled AlertTriangle + bare <button>.
 'use client';
 
-import { ChevronDown, ChevronRight, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, ChevronLeft, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
@@ -116,7 +116,7 @@ export function AdminEntityCategoriesTree<TCategory extends BaseCategory>({
             className="flex flex-1 items-center gap-2 text-sm font-medium text-start"
           >
             {hasChildren
-              ? (isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />)
+              ? (isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronLeft className="h-3.5 w-3.5 shrink-0" />)
               : icon}
             <span className="flex-1">{cat.nameAr}</span>
           </button>

@@ -176,7 +176,7 @@ export default function OfflinePage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 px-4 py-8">
+    <main className="mx-auto flex min-h-screen min-h-dvh w-full max-w-2xl flex-col gap-8 px-4 py-8">
       <div className="flex flex-col items-center gap-5 text-center">
       <span
         className={`flex h-20 w-20 items-center justify-center rounded-full ${
