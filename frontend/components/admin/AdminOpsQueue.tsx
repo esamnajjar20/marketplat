@@ -36,7 +36,7 @@ const ITEMS: {
     hint: 'بانتظار الموافقة',
     href: adminTabHref('stores', { status: 'PENDING' }),
     icon: Store,
-    accent: 'text-amber-600 bg-amber-500/10 dark:text-amber-400',
+    accent: 'text-warning bg-warning/10 dark:text-warning',
   },
   {
     key: 'pendingSellers',
@@ -52,7 +52,7 @@ const ITEMS: {
     hint: 'لم تُراجع بعد',
     href: adminTabHref('fraud', { reviewed: 'false' }),
     icon: ShieldAlert,
-    accent: 'text-orange-600 bg-orange-500/10 dark:text-orange-400',
+    accent: 'text-warning-strong bg-warning/10',
   },
 ];
 

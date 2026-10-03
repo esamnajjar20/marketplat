@@ -218,7 +218,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
               href={`https://wa.me/${waPhone}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-h-10 flex-1 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-center text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-500/15 dark:text-emerald-300"
+              className="flex min-h-10 flex-1 items-center justify-center rounded-full border border-success/25 bg-success/10 px-3 py-2 text-center text-sm font-medium text-success transition-colors hover:bg-success/15 dark:text-success"
             >
               واتساب
             </a>

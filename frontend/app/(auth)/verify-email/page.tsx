@@ -103,7 +103,7 @@ function VerifyEmailInner() {
 
       {state.kind === 'success' && (
         <div className="w-full space-y-4 rounded-xl border bg-card p-6 text-center shadow-sm">
-          <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" aria-hidden />
+          <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden />
           <p className="text-lg font-semibold">تم تأكيد بريدك الإلكتروني بنجاح</p>
           <p className="text-sm text-muted-foreground">
             يمكنك الآن استخدام جميع ميزات سوق غزة.

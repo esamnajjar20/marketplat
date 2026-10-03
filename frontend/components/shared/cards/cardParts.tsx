@@ -19,7 +19,8 @@ export function useNowAfterMount(): number | null {
 
 const KIND_BADGE: Record<CardKind, { label: string; className?: string; accent?: boolean }> = {
   ad: { label: 'إعلان', accent: true },
-  product: { label: 'منتج', className: 'bg-emerald-600 text-white hover:bg-emerald-600' },
+  // TOKENS-01 [CATEGORICAL]: was bg-emerald-600
+  product: { label: 'منتج', className: 'bg-cat-product text-white hover:bg-cat-product' },
   service: { label: 'خدمة', className: 'bg-blue-600 text-white hover:bg-blue-600' },
 };
 

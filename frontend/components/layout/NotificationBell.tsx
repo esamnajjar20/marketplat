@@ -241,7 +241,7 @@ export function NotificationBell() {
           {pushDenied && (
             <Link
               href={ROUTES.settings.notifications}
-              className="text-2xs text-amber-700 hover:underline dark:text-amber-300"
+              className="text-2xs text-warning-strong hover:underline dark:text-warning"
             >
               الجهاز متوقف
             </Link>

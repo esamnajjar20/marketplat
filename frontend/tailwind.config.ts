@@ -78,6 +78,24 @@ const config: Config = {
           DEFAULT: 'hsl(var(--online))',
           foreground: 'hsl(var(--online-foreground))',
         },
+        cat: {
+          product: 'hsl(var(--cat-product))',
+          service: 'hsl(var(--cat-service))',
+          store: 'hsl(var(--cat-store))',
+          ad: 'hsl(var(--cat-ad))',
+        },
+        chart: {
+          1: 'hsl(var(--chart-1))',
+          2: 'hsl(var(--chart-2))',
+          3: 'hsl(var(--chart-3))',
+          4: 'hsl(var(--chart-4))',
+          5: 'hsl(var(--chart-5))',
+        },
+        'warning-strong': 'hsl(var(--warning-strong))',
+        'brand-nearby': {
+          DEFAULT: 'hsl(var(--brand-nearby))',
+          foreground: 'hsl(var(--brand-nearby-foreground))',
+        },
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',

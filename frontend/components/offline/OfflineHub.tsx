@@ -283,7 +283,7 @@ function StatusHero({
     <div
       className={cn(
         'mb-4 rounded-2xl border p-4 shadow-xs',
-        !isOnline && 'border-amber-500/35 bg-amber-500/[0.06]',
+        !isOnline && 'border-warning/35 bg-warning/[0.06]',
         isOnline && failedQueue > 0 && 'border-destructive/30 bg-destructive/[0.04]',
         isOnline && failedQueue === 0 && pendingQueue > 0 && 'border-primary/25 bg-primary/[0.05]',
         isOnline && failedQueue === 0 && pendingQueue === 0 && 'border-border/70 bg-card',
@@ -295,18 +295,18 @@ function StatusHero({
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             {isOnline ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-2xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-2xs font-semibold text-success dark:text-success">
                 <Wifi className="h-3.5 w-3.5" aria-hidden />
                 متصل
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-2xs font-semibold text-amber-800 dark:text-amber-400">
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-2xs font-semibold text-warning-strong dark:text-warning">
                 <WifiOff className="h-3.5 w-3.5" aria-hidden />
                 بدون نت
               </span>
             )}
             {isOnline && failedQueue === 0 && pendingQueue === 0 && draftsCount === 0 && (
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <CheckCircle2 className="h-4 w-4 text-success dark:text-success" aria-hidden />
             )}
             {failedQueue > 0 && (
               <AlertCircle className="h-4 w-4 text-destructive" aria-hidden />

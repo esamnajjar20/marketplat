@@ -28,9 +28,12 @@ import { toast } from 'sonner';
 
 function StatusPill({ status }: { status: RouteReport['status'] }) {
   const styles: Record<RouteReport['status'], string> = {
-    complete: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-    failed: 'bg-red-100 text-red-800 border-red-300',
-    pending: 'bg-amber-100 text-amber-800 border-amber-300',
+    // TOKENS-01 [SEMANTIC]: was bg-emerald-100 text-emerald-800 border-emerald-300
+    complete: 'bg-success/10 text-success border-success/30',
+    // TOKENS-01 [SEMANTIC]: was bg-red-100 text-red-800 border-red-300
+    failed: 'bg-destructive/10 text-destructive border-destructive/30',
+    // TOKENS-01 [SEMANTIC]: was bg-amber-100 text-amber-800 border-amber-300
+    pending: 'bg-warning/10 text-warning-strong border-warning/30',
     missing: 'bg-zinc-100 text-zinc-600 border-zinc-300',
   };
   const labels: Record<RouteReport['status'], string> = {
@@ -82,7 +85,7 @@ function RouteTable({
             </span>
             {r.lastError && (
               <span
-                className="text-2xs text-red-600 truncate max-w-[120px]"
+                className="text-2xs text-destructive truncate max-w-[120px]"
                 title={r.lastError}
                 dir="ltr"
               >
@@ -188,7 +191,7 @@ function ManualTools({ onDone }: { onDone: () => Promise<void> }) {
             type="button"
             disabled={!!busy}
             onClick={wipeSnapshot}
-            className="rounded border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="rounded border border-destructive/30 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
           >
             امسح snapshot (خطر)
           </button>
@@ -239,7 +242,7 @@ export default function WarmingDebugPage() {
   if (error) {
     return (
       <div dir="rtl" className="p-6">
-        <p className="text-sm text-red-600">فشل: {error}</p>
+        <p className="text-sm text-destructive">فشل: {error}</p>
         <button
           type="button"
           onClick={() => void refresh()}
@@ -331,10 +334,10 @@ export default function WarmingDebugPage() {
             <div
               className={`h-full rounded-full ${
                 report.storage.usagePct > 80
-                  ? 'bg-red-500'
+                  ? 'bg-destructive'
                   : report.storage.usagePct > 50
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
+                    ? 'bg-warning'
+                    : 'bg-success'
               }`}
               style={{ width: `${Math.min(100, report.storage.usagePct)}%` }}
             />

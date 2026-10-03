@@ -63,6 +63,26 @@
     --online: 142.6 33.3% 35.9%;
     --online-foreground: 40 60% 98%;
 
+    /* Categorical entity-type tokens (D1) */
+    --cat-product: 160 84% 39%; /* emerald-600 (true hue) */
+    --cat-service: 24 95% 53%;  /* orange-500 */
+    --cat-store: 221 83% 53%;   /* blue-600 */
+    --cat-ad: 262 83% 58%;      /* violet-600 */
+
+    /* Chart palette (D2) */
+    --chart-1: 170 55% 45%; /* teal — distinct from --primary (145) */
+    --chart-2: 22 70% 50%;
+    --chart-3: 220 55% 50%;
+    --chart-4: 280 50% 55%;
+    --chart-5: 45 70% 50%;
+
+    /* Warning strong (D3) */
+    --warning-strong: 32 80% 32%;
+
+    /* Section brand: nearby providers (D4) */
+    --brand-nearby: 160 55% 42%; /* emerald, distinct from --primary */
+    --brand-nearby-foreground: 160 65% 30%;
+
     --border: 38 25% 87%;
     --input: 38 25% 87%;
     --ring: 145 38% 36%;
@@ -134,6 +154,26 @@
     --rating-foreground: 33 16% 11%;
     --online: 143 35% 48%;
     --online-foreground: 150 20% 8%;
+
+    /* Categorical entity-type tokens (D1) — lightened ~10% */
+    --cat-product: 160 70% 55%;
+    --cat-service: 24 90% 62%;
+    --cat-store: 221 75% 65%;
+    --cat-ad: 262 70% 68%;
+
+    /* Chart palette (D2) — lightness +15% */
+    --chart-1: 170 60% 65%;
+    --chart-2: 22 70% 65%;
+    --chart-3: 220 55% 65%;
+    --chart-4: 280 50% 70%;
+    --chart-5: 45 70% 65%;
+
+    /* Warning strong (D3) */
+    --warning-strong: 12 75% 65%; /* reddish — distinct from --warning */
+
+    /* Section brand: nearby */
+    --brand-nearby: 160 55% 55%;
+    --brand-nearby-foreground: 160 65% 70%;
 
     /* Slightly brighter borders so cards don't melt into the background */
     --border: 150 10% 22%;

@@ -54,8 +54,9 @@ export function NearbyProvidersSection() {
   // nothing further below — no destructive error banner on the
   // homepage for what's a secondary discovery section.
   if (showSkeleton) {
+    // TOKENS-01 [SECTION]: was border-emerald-500/15 bg-emerald-500/[0.04]
     return (
-      <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
+      <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
         {header}
         <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3">
           {Array.from({ length: limit }).map((_, i) => (
@@ -70,7 +71,7 @@ export function NearbyProvidersSection() {
 
   if (isError) {
     return (
-      <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
+      <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
         {header}
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed py-8 text-center text-sm">
           <p className="text-destructive">تعذّر تحميل مقدمي الخدمات</p>
@@ -90,7 +91,7 @@ export function NearbyProvidersSection() {
 
   if (items.length === 0) {
     return (
-      <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
+      <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
         {header}
         <EmptyState
           icon={<LocateFixed />}
@@ -103,7 +104,7 @@ export function NearbyProvidersSection() {
   }
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
+    <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
       {header}
       <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3 stagger-fade-in">
         {items.map((provider) => (

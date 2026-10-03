@@ -43,7 +43,7 @@ export function SellerTodayTasks() {
 
   if (isError || !attention) {
     return (
-      <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 text-center text-sm">
+      <div className="rounded-xl border border-warning/25 bg-warning/5 p-4 text-center text-sm">
         <p className="text-muted-foreground">تعذّر تحميل المهام</p>
         <button type="button" onClick={() => refetch()} className="mt-1 text-primary hover:underline">
           إعادة المحاولة
@@ -96,11 +96,11 @@ export function SellerTodayTasks() {
   return (
     <section
       aria-label="مهام تحتاج انتباهك"
-      className="space-y-3 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4"
+      className="space-y-3 rounded-xl border border-warning/25 bg-warning/5 p-4"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+          <Wrench className="h-4 w-4 text-warning dark:text-warning" aria-hidden />
           يحتاج انتباهك
         </h2>
         <span className="text-xs text-muted-foreground">{tasks.length} بند</span>

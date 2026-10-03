@@ -171,8 +171,8 @@ export function AdminAnalyticsDashboard() {
         <h3 className="font-semibold text-sm">الاتجاه الزمني (مشاهدات الإعلانات / المنتجات / الخدمات)</h3>
         <div className="flex flex-wrap gap-3 text-2xs-tight text-muted-foreground">
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-primary/70" /> إعلانات</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-500/80" /> منتجات</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-500/80" /> خدمات</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-chart-1/80" /> منتجات</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-chart-2/80" /> خدمات</span>
         </div>
         {bucketDates.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">لا توجد بيانات كافية لهذه الفترة</p>
@@ -188,8 +188,8 @@ export function AdminAnalyticsDashboard() {
                 <div key={date} className="flex-1 flex flex-col items-center gap-1 min-w-0">
                   <div className="w-full flex items-end gap-px h-36" title={`${new Date(date).toLocaleDateString('ar')}: إعلانات ${formatNumber(ad)} · منتجات ${formatNumber(product)} · خدمات ${formatNumber(service)}`}>
                     <div className="flex-1 bg-primary/70 rounded-t-sm" style={{ height: h(ad) }} />
-                    <div className="flex-1 bg-emerald-500/80 rounded-t-sm" style={{ height: h(product) }} />
-                    <div className="flex-1 bg-amber-500/80 rounded-t-sm" style={{ height: h(service) }} />
+                    <div className="flex-1 bg-chart-1/80 rounded-t-sm" style={{ height: h(product) }} />
+                    <div className="flex-1 bg-chart-2/80 rounded-t-sm" style={{ height: h(service) }} />
                   </div>
                   <span className="text-3xs text-muted-foreground truncate w-full text-center">{formatNumber(total)}</span>
                 </div>

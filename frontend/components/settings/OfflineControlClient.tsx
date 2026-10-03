@@ -531,7 +531,7 @@ export function OfflineControlClient() {
                 <div
                   className={cn(
                     'h-full rounded-full transition-all',
-                    pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-amber-500' : 'bg-emerald-500',
+                    pct > 80 ? 'bg-destructive' : pct > 50 ? 'bg-warning' : 'bg-success',
                   )}
                   style={{ width: Math.min(100, pct) + '%' }}
                 />

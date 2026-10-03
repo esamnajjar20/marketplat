@@ -43,7 +43,7 @@ export function RequestCard({ request: r, showStatus = false, className }: Props
           'flex h-full flex-col rounded-xl border border-border/80 bg-card p-3.5 shadow-xs sm:p-4',
           'transition-all hover:border-primary/35 hover:bg-muted/25 hover:shadow-sm active:scale-[0.99]',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          expiringSoon && 'border-amber-500/40 bg-amber-500/[0.04]',
+          expiringSoon && 'border-warning/40 bg-warning/[0.04]',
         )}
       >
         {/* Meta row */}
@@ -60,7 +60,7 @@ export function RequestCard({ request: r, showStatus = false, className }: Props
             <Badge
               size="sm"
               variant="outline"
-              className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              className="border-warning/50 bg-warning/10 text-warning-strong dark:text-warning"
             >
               <Clock className="me-1 h-3 w-3" aria-hidden />
               ينتهي قريبًا

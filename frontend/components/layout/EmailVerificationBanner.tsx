@@ -31,7 +31,7 @@ export function EmailVerificationBanner() {
   return (
     <div
       role="status"
-      className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
+      className="flex flex-wrap items-center justify-between gap-3 border-b border-warning/40 bg-warning-soft px-4 py-2.5 text-sm text-warning-strong dark:border-warning/50 dark:bg-warning/10 dark:text-warning"
     >
       <div className="flex min-w-0 items-center gap-2">
         <MailWarning className="h-4 w-4 shrink-0" aria-hidden />
@@ -43,7 +43,7 @@ export function EmailVerificationBanner() {
         <Button
           variant="outline"
           size="sm"
-          className="h-7 border-amber-400 bg-transparent text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-900/40"
+          className="h-7 border-warning bg-transparent text-warning-strong hover:bg-warning/10 dark:border-warning/60 dark:text-warning dark:hover:bg-warning/20"
           disabled={resend.isPending}
           onClick={() => resend.mutate()}
         >
@@ -52,7 +52,7 @@ export function EmailVerificationBanner() {
         <button
           type="button"
           aria-label="إغلاق"
-          className="rounded p-1 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+          className="rounded p-1 hover:bg-warning/10 dark:hover:bg-warning/20"
           onClick={() => setDismissed(true)}
         >
           <X className="h-4 w-4" aria-hidden />

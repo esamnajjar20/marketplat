@@ -42,7 +42,7 @@ export function OfflineFreshnessBadge({
       className={cn(
         'text-xs',
         isWarning
-          ? 'text-amber-700 dark:text-amber-400'
+          ? 'text-warning-strong dark:text-warning'
           : 'text-muted-foreground',
         className,
       )}

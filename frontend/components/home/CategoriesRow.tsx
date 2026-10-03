@@ -20,7 +20,7 @@ export type { Item, SourceType } from '@/lib/categoryItems';
 const TYPE_BADGE: Record<SourceType, string> = {
   ad: 'bg-accent/15 text-accent',
   product: 'bg-primary/15 text-primary',
-  service: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+  service: 'bg-cat-service/15 text-cat-service dark:text-cat-service',
 };
 
 /** Root categories on the homepage (mobile-first). Full index via "كل الفئات". */

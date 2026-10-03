@@ -100,7 +100,7 @@ export default function RequestDetailPage() {
           {expiringSoon && request.status === 'OPEN' && (
             <Badge
               variant="outline"
-              className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              className="border-warning/50 bg-warning/10 text-warning-strong dark:text-warning"
             >
               <Clock className="me-1 h-3.5 w-3.5" aria-hidden />
               ينتهي قريبًا

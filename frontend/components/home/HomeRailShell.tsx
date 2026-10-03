@@ -34,7 +34,7 @@ const VARIANT_SURFACE: Record<NonNullable<HomeRailShellProps['variant']>, string
   default: '',
   soft: 'rounded-2xl bg-muted/30 py-3 sm:py-4',
   accent: 'rounded-2xl border border-accent/20 bg-accent/[0.04] py-3 sm:py-4',
-  nearby: 'rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] py-3 sm:py-4',
+  nearby: 'rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] py-3 sm:py-4',
 };
 
 export function HomeRailShell({

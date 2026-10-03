@@ -24,9 +24,9 @@ function StatusPill({ ok }: { ok: boolean }) {
 
 function latencyTone(ms: number | null | undefined): string {
   if (ms == null) return 'text-foreground';
-  if (ms < 20) return 'text-emerald-600 dark:text-emerald-400';
-  if (ms < 80) return 'text-amber-600 dark:text-amber-400';
-  return 'text-orange-600 dark:text-orange-400';
+  if (ms < 20) return 'text-success dark:text-success';
+  if (ms < 80) return 'text-warning';
+  return 'text-warning-strong';
 }
 
 export function AdminSystemHealth() {

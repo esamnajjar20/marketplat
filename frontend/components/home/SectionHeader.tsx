@@ -24,7 +24,7 @@ const EYEBROW: Record<NonNullable<Props['tone']>, string> = {
   default: 'text-muted-foreground',
   featured: 'text-accent',
   personal: 'text-primary',
-  nearby: 'text-emerald-600 dark:text-emerald-400',
+  nearby: 'text-brand-nearby dark:text-brand-nearby-foreground',
 };
 
 export function SectionHeader({
@@ -74,7 +74,7 @@ export function SectionHeader({
             featured
               ? 'border-accent/30 bg-accent/10 text-accent hover:bg-accent/15'
               : tone === 'nearby'
-                ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400'
+                ? 'border-brand-nearby/25 bg-brand-nearby/10 text-brand-nearby-foreground hover:bg-brand-nearby/15 dark:text-brand-nearby-foreground'
                 : tone === 'personal'
                   ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15'
                   : 'border-border/80 bg-card text-muted-foreground hover:border-primary/30 hover:text-primary',

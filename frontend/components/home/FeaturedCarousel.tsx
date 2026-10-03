@@ -70,7 +70,7 @@ interface Slide {
 
 const BADGE: Record<SlideType, { emoji: string; label: string; className: string }> = {
   ad: { emoji: '🏷️', label: 'إعلان', className: 'bg-accent text-accent-foreground' },
-  product: { emoji: '🛒', label: 'منتج', className: 'bg-emerald-600 text-white' },
+  product: { emoji: '🛒', label: 'منتج', className: 'bg-cat-product text-white' },
   store: { emoji: '🏪', label: 'متجر', className: 'bg-primary text-primary-foreground' },
 };
 

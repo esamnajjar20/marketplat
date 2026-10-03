@@ -190,7 +190,7 @@ export function NotificationsPage() {
       </div>
 
       {showStaleNotice && (
-        <p className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+        <p className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-strong dark:text-warning">
           <WifiOff className="h-3.5 w-3.5 shrink-0" />
           أنت دون اتصال — تُعرض آخر الإشعارات المحفوظة على جهازك
           {dataUpdatedAt
@@ -257,7 +257,7 @@ export function NotificationsPage() {
 
       {/* PHASE-A: device permission hint when blocked */}
       {pushPerm === 'denied' && (
-        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:text-amber-100">
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning-strong dark:text-warning">
           <Smartphone className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="font-medium">إشعارات الجهاز متوقفة</p>
