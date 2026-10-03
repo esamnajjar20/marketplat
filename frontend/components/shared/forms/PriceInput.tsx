@@ -51,8 +51,13 @@ export function PriceInput({
           >
             {currency}
           </span>
+          {/* FIX-ADFLOW-03: explicit dir=ltr + inputMode=decimal so numeric
+              entry stays LTR inside the RTL form and mobile keyboards open
+              a decimal pad instead of a full text keyboard. */}
           <Input
             type="number"
+            inputMode="decimal"
+            dir="ltr"
             min="0"
             step="0.01"
             value={value}

@@ -565,13 +565,23 @@ export function AdForm({ mode, ad }: Props) {
             placeholder="مثال: سيارة تويوتا كامري 2019 نظيفة" />
         </FormField>
 
-        <FormField label="الوصف" htmlFor="desc" required error={fieldError('description')}>
+        {/* FIX-ADFLOW-02: counter was a second child of FormField, so the
+            auto-clone path (UX-FIX P2-11) skipped aria-invalid /
+            aria-describedby on the textarea. Move the count into `hint`
+            so the field has a single element child and screen readers
+            announce the error on focus. */}
+        <FormField
+          label="الوصف"
+          htmlFor="desc"
+          required
+          error={fieldError('description')}
+          hint={`${values.description.length}/5000`}
+        >
           <textarea id="desc" value={values.description} maxLength={5000} rows={5}
             onChange={(e) => set('description', e.target.value)}
             onBlur={() => handleBlur('description')}
             placeholder="اكتب تفاصيل الإعلان بوضوح..."
             className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-          <p className="text-xs text-muted-foreground text-end">{values.description.length}/5000</p>
         </FormField>
       </div>
 
@@ -656,7 +666,17 @@ export function AdForm({ mode, ad }: Props) {
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
         <h2 className="font-semibold">الصور</h2>
         <p className="text-xs text-muted-foreground">أضف صورة واحدة على الأقل لنشر الإعلان</p>
-        {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
+        {/* FIX-ADFLOW-01: submit is disabled via isFormIncomplete when there
+            are zero images, so the user never reaches validate()/hasSubmitted
+            and fieldError('images') stayed invisible. Surface the same rule
+            on the last wizard step (and after any submit attempt) so the
+            disabled «نشر الإعلان» button is explained, not silent. */}
+        {(fieldError('images') ||
+          (isWizard && step === totalSteps && values.images.length === 0 && values.existingImages.length === 0)) && (
+          <p className="text-sm text-destructive" role="alert">
+            {fieldError('images') ?? 'أضف صورة واحدة على الأقل'}
+          </p>
+        )}
         <ImageUpload
           value={values.images}
           existingUrls={values.existingImages}
