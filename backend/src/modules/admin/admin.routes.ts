@@ -3,6 +3,7 @@ import { adminController } from './admin.controller';
 import { sellersController } from '../sellers/sellers.controller';
 import { storesController } from '../stores/stores.controller';
 import { storeTypesController } from '../store-types/store-types.controller';
+import { storeTypeFieldsController } from '../store-types/store-type-fields.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireMinRole } from '../../middlewares/admin.middleware';
 // FIX RATE-LIMIT-ADMIN-01: blanket cap on every /admin/* route --
@@ -142,6 +143,9 @@ adminRouter.get('/store-types', requireMinRole(ROLES.ADMIN), storeTypesControlle
 adminRouter.post('/store-types', requireMinRole(ROLES.ADMIN), storeTypesController.create);
 adminRouter.patch('/store-types/:id', requireMinRole(ROLES.ADMIN), storeTypesController.update);
 adminRouter.patch('/store-types/:id/status', requireMinRole(ROLES.ADMIN), storeTypesController.updateStatus);
+adminRouter.get('/store-types/:storeTypeId/fields', requireMinRole(ROLES.ADMIN), storeTypeFieldsController.getAdmin);
+adminRouter.post('/store-types/:storeTypeId/fields', requireMinRole(ROLES.ADMIN), storeTypeFieldsController.create);
+adminRouter.patch('/store-types/:storeTypeId/fields/:fieldId', requireMinRole(ROLES.ADMIN), storeTypeFieldsController.update);
 
 
 // BULK-ADMIN (item 17): bulk status update — same shape as the others.

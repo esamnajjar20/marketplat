@@ -107,6 +107,7 @@ export const storesRepository = {
       longitude?: number;
       workingHours?: Prisma.InputJsonValue;
       storeTypeId?: string;
+      attributes?: Prisma.InputJsonValue;
     }
   ): Promise<StoreDetails> =>
     tx.storeDetails.create({
@@ -147,7 +148,8 @@ export const storesRepository = {
       latitude: number | null;
       longitude: number | null;
       workingHours: Prisma.InputJsonValue;
-      storeTypeId: string;
+      storeTypeId?: string;
+      attributes?: Prisma.InputJsonValue;
     }>
   ): Promise<StoreDetails> => prisma.storeDetails.update({ where: { id }, data, include: { storeType: true } }),
 

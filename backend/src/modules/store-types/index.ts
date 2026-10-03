@@ -1,2 +1,2 @@
 export { storeTypesRouter } from './store-types.routes';
-export { storeTypesController } from './store-types.controller';
+export { storeTypeFieldsRouter } from './store-type-fields.routes';

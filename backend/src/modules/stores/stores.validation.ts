@@ -49,6 +49,7 @@ export const createStoreSchema = z.object({
     longitude: z.coerce.number().min(-180).max(180).optional(),
     workingHours: workingHoursSchema.optional(),
     storeTypeId: z.string().min(1).optional(),
+    attributes: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   }),
 });
 
@@ -67,6 +68,7 @@ export const updateStoreSchema = z.object({
     longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
     workingHours: workingHoursSchema.optional(),
     storeTypeId: z.string().min(1).optional(),
+    attributes: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   }),
 });
 

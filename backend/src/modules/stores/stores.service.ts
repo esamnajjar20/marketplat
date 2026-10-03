@@ -34,6 +34,7 @@ import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../..
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { isOpenAt } from '../../shared/utils/marketTime';
 import { storeTypesRepository } from '../store-types/store-types.repository';
+import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 
 // STORE-HOURS: derives a live open/closed flag from workingHours.
 // FIX STORE-TZ (audit H2): this used the *server's* local clock
@@ -126,6 +127,7 @@ export const storesService = {
       const storeType = await storeTypesRepository.findById(input.storeTypeId ?? 'st_general');
       if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
       if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+      const attributes = await storeTypeFieldsService.validateAttributes(storeType.id, input.attributes, true);
 
       try {
         return await prisma.$transaction(async tx =>
@@ -142,6 +144,7 @@ export const storesService = {
             longitude: input.longitude,
             workingHours: input.workingHours as Prisma.InputJsonValue | undefined,
             storeTypeId: storeType.id,
+            ...(attributes !== null ? { attributes: attributes as Prisma.InputJsonValue } : {}),
           })
         );
       } catch (error: any) {
@@ -185,9 +188,17 @@ export const storesService = {
       const storeType = await storeTypesRepository.findById(input.storeTypeId);
       if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
       if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+      const attributes = await storeTypeFieldsService.validateAttributes(storeType.id, input.attributes ?? store.attributes, true);
+      if (attributes !== null) (input as any).attributes = attributes;
+    } else if (input.attributes !== undefined) {
+      const attributes = await storeTypeFieldsService.validateAttributes(store.storeTypeId, input.attributes, false);
+      (input as any).attributes = attributes;
     }
 
-    const updated = await storesRepository.update(store.id, input);
+    const updated = await storesRepository.update(store.id, {
+      ...input,
+      ...(input.attributes !== undefined ? { attributes: input.attributes as Prisma.InputJsonValue } : {}),
+    });
     await bumpPublicListCache('stores');
 
     // Gap #10: fire-and-forget, see createStore's own comment above.
@@ -389,6 +400,10 @@ export const storesService = {
     const storeType = await storeTypesRepository.findById(input.storeTypeId);
     if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
     if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+    const attributes = await storeTypeFieldsService.validateAttributes(storeType.id, store.attributes, true);
+    if (attributes !== null) {
+      await storesRepository.update(id, { attributes: attributes as Prisma.InputJsonValue });
+    }
 
     const updated = await storesRepository.updateStoreType(id, storeType.id);
     await bumpPublicListCache('stores');
