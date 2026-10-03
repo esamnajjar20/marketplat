@@ -1261,7 +1261,7 @@ export const serviceProviderRecommendationsRepository = {
     const trimmedCity = city?.trim() || null;
     const cityScore = trimmedCity
       ? Prisma.sql`CASE WHEN ${trimmedCity} = ANY(spd."serviceAreaCities") THEN 2.0 ELSE 0.0 END`
-      : Prisma.sql`0.0`;
+      : Prisma.sql`0.0::float`;
     const interestScore = interestCategoryIds.length > 0
       ? Prisma.sql`CASE WHEN EXISTS (
           SELECT 1 FROM "service_listings" isl
@@ -1269,7 +1269,7 @@ export const serviceProviderRecommendationsRepository = {
             AND isl."status" = ${ServiceListingStatus.ACTIVE}::"ServiceListingStatus"
             AND isl."categoryId" IN (${Prisma.join(interestCategoryIds)})
         ) THEN 1.5 ELSE 0.0 END`
-      : Prisma.sql`0.0`;
+      : Prisma.sql`0.0::float`;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT spd."id"
