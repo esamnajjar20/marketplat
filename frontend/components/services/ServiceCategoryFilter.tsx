@@ -41,7 +41,7 @@ export function ServiceCategoryFilter() {
         hand-edit the URL's ?search= param.
       */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">بحث</label>
+        <label htmlFor="svc-filter-search" className="text-xs text-muted-foreground font-medium">بحث</label>
         <div className="relative">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           {/* FIX BUG-XX: key={...} forces a remount when the param changes
@@ -49,6 +49,7 @@ export function ServiceCategoryFilter() {
               doesn't go stale relative to the URL/results. Applied here
               and to minPrice/maxPrice below — same root cause. */}
           <input
+            id="svc-filter-search"
             key={sp.get('search') ?? ''}
             type="search"
             placeholder="ابحث عن خدمة…"
@@ -63,9 +64,9 @@ export function ServiceCategoryFilter() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الفئة</label>
+        <label htmlFor="svc-filter-category" className="text-xs text-muted-foreground font-medium">الفئة</label>
         <Select value={sp.get('categoryId') || 'ALL'} onValueChange={(v) => update('categoryId', v === 'ALL' ? '' : v)}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
+          <SelectTrigger id="svc-filter-category" className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل الفئات</SelectItem>
             {categories?.map((cat) => (
@@ -76,9 +77,9 @@ export function ServiceCategoryFilter() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
+        <label htmlFor="svc-filter-city" className="text-xs text-muted-foreground font-medium">المدينة</label>
         <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
+          <SelectTrigger id="svc-filter-city" className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل المدن</SelectItem>
             {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -87,9 +88,9 @@ export function ServiceCategoryFilter() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">موقع تقديم الخدمة</label>
+        <label htmlFor="svc-filter-location" className="text-xs text-muted-foreground font-medium">موقع تقديم الخدمة</label>
         <Select value={sp.get('serviceLocation') || 'ALL'} onValueChange={(v) => update('serviceLocation', v === 'ALL' ? '' : v)}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="كل المواقع" /></SelectTrigger>
+          <SelectTrigger id="svc-filter-location" className="w-full"><SelectValue placeholder="كل المواقع" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل المواقع</SelectItem>
             {Object.entries(LOCATION_LABELS).map(([value, label]) => (
@@ -101,8 +102,9 @@ export function ServiceCategoryFilter() {
 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">أقل سعر</label>
+          <label htmlFor="svc-filter-min" className="text-xs text-muted-foreground font-medium">أقل سعر</label>
           <input
+            id="svc-filter-min"
             key={sp.get('minPrice') ?? ''}
             type="number"
             min="0"
@@ -112,8 +114,9 @@ export function ServiceCategoryFilter() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">أعلى سعر</label>
+          <label htmlFor="svc-filter-max" className="text-xs text-muted-foreground font-medium">أعلى سعر</label>
           <input
+            id="svc-filter-max"
             key={sp.get('maxPrice') ?? ''}
             type="number"
             min="0"
@@ -125,7 +128,7 @@ export function ServiceCategoryFilter() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الترتيب</label>
+        <label htmlFor="svc-filter-sort" className="text-xs text-muted-foreground font-medium">الترتيب</label>
         <Select
           value={`${sp.get('sortBy') || 'createdAt'}:${sp.get('sortOrder') || 'desc'}`}
           onValueChange={(v) => {
@@ -141,7 +144,7 @@ export function ServiceCategoryFilter() {
             router.push(`${ROUTES.services}?${params.toString()}`);
           }}
         >
-          <SelectTrigger className="w-full"><SelectValue placeholder="الأحدث" /></SelectTrigger>
+          <SelectTrigger id="svc-filter-sort" className="w-full"><SelectValue placeholder="الأحدث" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="createdAt:desc">الأحدث</SelectItem>
             <SelectItem value="createdAt:asc">الأقدم</SelectItem>

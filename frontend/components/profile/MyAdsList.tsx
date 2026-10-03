@@ -395,10 +395,9 @@ export function MyAdsList() {
       )}
 
       {/* BULK-ADS-01-JSX: sticky action bar appears in selection mode.
-          Positioned above the mobile bottom nav (bottom-20) so it doesn't
-          fight with the tab bar; on sm+ it hugs a max-w-md centered box. */}
+          Positioned above the mobile bottom nav with safe-area. */}
       {selectionMode && (
-        <div className="fixed inset-x-3 bottom-20 z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-2xl border bg-background/95 px-3 py-3 shadow-2xl backdrop-blur">
+        <div className="fixed inset-x-3 bottom-[var(--bottom-nav-offset)] z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-2xl border bg-background/95 px-3 py-3 shadow-2xl backdrop-blur">
           <span className="text-sm font-medium">{selected.size} محدد</span>
           <div className="ms-auto flex gap-2">
             <Button

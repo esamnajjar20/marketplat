@@ -229,8 +229,7 @@ export default function RequestDetailPage() {
       {/* Mobile sticky CTA — budget + primary action */}
       {!isOwner && request.status === 'OPEN' && (
         <div
-          className="fixed inset-x-0 bottom-16 z-20 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden"
-          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+          className="fixed inset-x-0 bottom-[var(--bottom-nav-offset)] z-40 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden"
         >
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <div className="min-w-0 flex-1">

@@ -55,7 +55,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WithSearch } from '@/components/layout/WithSearch';
-import { ChevronDown, ChevronRight, User, ExternalLink, Store } from 'lucide-react';
+import { ChevronDown, ChevronLeft, User, ExternalLink, Store } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -104,7 +104,7 @@ function DrawerDisclosureGroup({
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
           ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+          : <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
       </button>
       {isOpen && (
         <ul className="mt-1 flex flex-col gap-1">

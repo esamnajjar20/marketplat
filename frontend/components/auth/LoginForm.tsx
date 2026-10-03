@@ -142,6 +142,9 @@ export function LoginForm() {
       <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={isFormIncomplete || isPending}>
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
       </Button>
+      {isFormIncomplete && !isPending && (
+        <p className="text-center text-xs text-muted-foreground">أدخل البريد وكلمة المرور للمتابعة</p>
+      )}
 
       <AuthDivider />
 

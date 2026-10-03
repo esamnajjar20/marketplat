@@ -35,7 +35,7 @@ export function ServiceProvidersFilters({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <label htmlFor="providers-filter-city" className="text-xs font-medium text-muted-foreground">
           المدينة
         </label>
         <Select
@@ -46,7 +46,7 @@ export function ServiceProvidersFilters({
           }}
           disabled={!canChange}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger id="providers-filter-city" className="w-full">
             <SelectValue placeholder="كل المدن" />
           </SelectTrigger>
           <SelectContent>

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, BadgeCheck, Star } from 'lucide-react';
+import { MessageSquare, Star } from 'lucide-react';
+import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
@@ -81,9 +82,7 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
             <SafeImage variant="avatar" src={avatar} alt={displayName} fill className="object-cover" sizes="64px" />
           </div>
           {!isStoreAd && sellerProfile?.verified && (
-            <div className="absolute -bottom-1 -end-1 bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center border-2 border-card" title="حساب موثق">
-              <BadgeCheck className="h-3.5 w-3.5" />
-            </div>
+            <VerifiedBadge className="-bottom-1 -end-1 border-card" size="md" />
           )}
         </div>
         <div className="min-w-0">

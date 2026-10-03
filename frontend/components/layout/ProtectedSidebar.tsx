@@ -72,7 +72,7 @@ import {
   ListOrdered,
   MessageSquare,
   ChevronDown,
-  ChevronRight,
+  ChevronLeft,
   User,
   ExternalLink,
   Store,
@@ -167,7 +167,7 @@ function DisclosureGroup({
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
           ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden={true} />
-          : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden={true} />}
+          : <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden={true} />}
       </button>
       {isOpen && (
         <div className="mt-1 flex flex-col gap-1">

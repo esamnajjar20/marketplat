@@ -151,17 +151,20 @@ export function StorePaymentMethodsEditor({ value, onChange, title = 'طرق ا�
 
         {kind === 'custom' && (
           <Input
+            aria-label="اسم الطريقة"
             placeholder="اسم الطريقة (مثال: تحويل ويسترن)"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
           />
         )}
         <Input
+          aria-label="اسم صاحب الحساب"
           placeholder="اسم صاحب الحساب (يظهر للزبون)"
           value={accountName}
           onChange={(e) => setAccountName(e.target.value)}
         />
         <Input
+          aria-label="رقم المحفظة أو الحساب"
           placeholder="رقم المحفظة أو الحساب"
           value={accountNumber}
           onChange={(e) => setAccountNumber(e.target.value)}

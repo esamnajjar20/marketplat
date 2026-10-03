@@ -169,12 +169,20 @@
 }
 
 /**
+ * Single source for BottomNav height + safe area (mobile sticky bars).
+ * Components should prefer bottom-[var(--bottom-nav-offset)] over hard-coded 4.25rem.
+ */
+:root {
+  --bottom-nav-offset: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+/**
  * Mobile sticky contact / message CTAs must sit ABOVE BottomNav
  */
 .sticky-contact-bar {
   position: fixed;
   inset-inline: 0;
-  bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  bottom: var(--bottom-nav-offset);
   z-index: 40;
 }
 

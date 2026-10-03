@@ -43,7 +43,7 @@ import { WithSearch } from '@/components/layout/WithSearch';
 import {
   PlusCircle,
   LayoutDashboard, ListOrdered, Heart, BellPlus, History, Shield,
-  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronRight, User, Flag, Store,
+  LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronLeft, User, Flag, Store,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
@@ -212,7 +212,7 @@ function DisclosureGroup({
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
           ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+          : <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
       </button>
       {isOpen && (
         <ul className="mt-1 flex flex-col gap-1">

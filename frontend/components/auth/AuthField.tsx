@@ -53,7 +53,8 @@ export function AuthField({ label, htmlFor, icon: Icon, error, hint, required, i
           // Icon side gets the extra padding to clear it; the other
           // side keeps normal spacing. PasswordInput adds its own pe-9
           // for the eye toggle via its className merge on top of this.
-          iconOnLeft ? 'pl-11 pr-4' : 'pr-11 pl-4',
+          // Logical padding; avoid conflicting pr/pe so PasswordInput's pe-11 wins for the eye toggle.
+          iconOnLeft ? 'ps-11 pe-4' : 'pe-11 ps-4',
           (children.props as { className?: string }).className,
         ),
         'aria-describedby': (children.props as { ['aria-describedby']?: string })['aria-describedby'] ?? describedBy,

@@ -100,6 +100,7 @@ function InviteForm({ storeId }: { storeId: string }) {
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
         <Input
           type="email"
+          aria-label="البريد الإلكتروني للعضو"
           placeholder="البريد الإلكتروني"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -110,6 +111,7 @@ function InviteForm({ storeId }: { storeId: string }) {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as StoreMemberRole)}
+          aria-label="دور العضو"
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
         >
           {(Object.keys(ROLE_LABELS) as StoreMemberRole[]).map((r) => (
