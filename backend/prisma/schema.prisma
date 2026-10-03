@@ -787,6 +787,10 @@ model StoreTypeField {
   storeTypeId String
   key         String
   labelAr     String
+  cardLabelAr String?
+  pageLabelAr String?
+  showOnCard  Boolean       @default(false)
+  showOnPage  Boolean       @default(true)
   type        StoreFieldType
   required    Boolean        @default(false)
   options     Json?
@@ -807,6 +811,7 @@ model StoreType {
   nameAr           String
   icon             String
   labels           Json
+  presentation     Json
   freeProductLimit Int?
   isActive         Boolean           @default(true)
   sortOrder        Int               @default(0)
