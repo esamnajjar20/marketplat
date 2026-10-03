@@ -71,7 +71,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav aria-label="قائمة الإدارة" className="space-y-1 p-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">
+      <p className="text-xs font-semibold text-muted-foreground px-2 mb-2">
         لوحة الإدارة
       </p>
       {/* بحث سريع في القائمة — مفيد خاصة على الموبايل مع كثرة الروابط */}
@@ -115,7 +115,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             {badge > 0 && (
               <span
                 className={cn(
-                  'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums',
+                  'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-2xs font-bold tabular-nums',
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-destructive text-destructive-foreground',

@@ -406,7 +406,7 @@ export function ImageUpload({
                     convention visible in the editor rather than
                     introducing a separate primary-image concept. */}
                 {i === 0 && (
-                  <span className="absolute bottom-0 inset-x-0 truncate bg-primary/90 px-1 py-0.5 text-center text-[10px] font-medium text-primary-foreground">
+                  <span className="absolute bottom-0 inset-x-0 truncate bg-primary/90 px-1 py-0.5 text-center text-2xs font-medium text-primary-foreground">
                     الصورة الرئيسية
                   </span>
                 )}

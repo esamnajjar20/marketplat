@@ -57,7 +57,7 @@ export function SearchFilters() {
 
       {/* —— Basic: المدينة أولوية (بدون GPS) —— */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <label className="text-xs font-medium text-muted-foreground">
           المدينة
         </label>
         <Select
@@ -102,7 +102,7 @@ export function SearchFilters() {
             <span className="flex items-center gap-2">
               خيارات أكثر
               {hasCategory && (
-                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
                   مفعّل
                 </span>
               )}
@@ -115,7 +115,7 @@ export function SearchFilters() {
 
           {advancedOpen && (
             <div className="mt-3 space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <label className="text-xs font-medium text-muted-foreground">
                 الفئة
               </label>
               <Select

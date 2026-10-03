@@ -169,7 +169,7 @@ export function AdminAnalyticsDashboard() {
       {/* Trend — مشاهدات الإعلانات + المنتجات + الخدمات */}
       <div className="rounded-lg border bg-card p-4 space-y-3">
         <h3 className="font-semibold text-sm">الاتجاه الزمني (مشاهدات الإعلانات / المنتجات / الخدمات)</h3>
-        <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap gap-3 text-2xs-tight text-muted-foreground">
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-primary/70" /> إعلانات</span>
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-500/80" /> منتجات</span>
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-500/80" /> خدمات</span>
@@ -191,7 +191,7 @@ export function AdminAnalyticsDashboard() {
                     <div className="flex-1 bg-emerald-500/80 rounded-t-sm" style={{ height: h(product) }} />
                     <div className="flex-1 bg-amber-500/80 rounded-t-sm" style={{ height: h(service) }} />
                   </div>
-                  <span className="text-[9px] text-muted-foreground truncate w-full text-center">{formatNumber(total)}</span>
+                  <span className="text-3xs text-muted-foreground truncate w-full text-center">{formatNumber(total)}</span>
                 </div>
               );
             })}

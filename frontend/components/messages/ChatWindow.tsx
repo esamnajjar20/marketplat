@@ -498,7 +498,7 @@ export function ChatWindow({ conversationId }: Props) {
                 <div key={message.id} className={cn('flex w-full flex-col', tight ? 'mt-0.5' : 'mt-0')}>
                   {showDay && (
                     <div className="my-3 flex justify-center">
-                      <span className="rounded-full border bg-card/90 px-3 py-0.5 text-[11px] font-medium text-muted-foreground shadow-sm">
+                      <span className="rounded-full border bg-card/90 px-3 py-0.5 text-2xs-tight font-medium text-muted-foreground shadow-sm">
                         {messageDayLabel(message.createdAt)}
                       </span>
                     </div>
@@ -604,7 +604,7 @@ export function ChatWindow({ conversationId }: Props) {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 px-1">
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-2xs text-muted-foreground">
                       {clientStatus === 'failed' ? 'فشل الإرسال' : formatTime(message.createdAt)}
                     </span>
                     {isMine && !isDeleted && (
@@ -634,7 +634,7 @@ export function ChatWindow({ conversationId }: Props) {
                           onClick={() => handleRetryQueued(message.queueId!)}
                           disabled={retryingQueueId === message.queueId || conflict.isTerminal}
                           title={conflict.isTerminal ? conflict.message : 'إعادة المحاولة'}
-                          className="flex items-center gap-0.5 text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
+                          className="flex items-center gap-0.5 text-2xs font-medium text-primary hover:underline disabled:opacity-50"
                         >
                           <RotateCw className={cn('h-3 w-3', retryingQueueId === message.queueId && 'animate-spin')} />
                           {conflict.isTerminal ? 'تعارض' : 'إعادة المحاولة'}
@@ -643,7 +643,7 @@ export function ChatWindow({ conversationId }: Props) {
                         <button
                           type="button"
                           onClick={() => handleDiscardQueued(message.queueId!)}
-                          className="flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-destructive"
+                          className="flex items-center gap-0.5 text-2xs font-medium text-muted-foreground hover:text-destructive"
                         >
                           <XIcon className="h-3 w-3" />
                           {conflict.primaryAction === 'discard' ? 'تجاهل' : 'حذف'}
@@ -663,7 +663,7 @@ export function ChatWindow({ conversationId }: Props) {
                       accessed without `?.` because the guard above
                       guarantees presence. */}
                   {clientStatus === 'failed' && message.lastError && (
-                    <p className="px-1 text-[10px] text-destructive/80">
+                    <p className="px-1 text-2xs text-destructive/80">
                       {classifyHttpConflict(message.lastError.status, message.lastError.message).message}
                     </p>
                   )}
@@ -677,7 +677,7 @@ export function ChatWindow({ conversationId }: Props) {
       </div>
 
       {partyTyping && (
-        <p className="border-t border-border/40 px-4 py-1.5 text-[11px] text-muted-foreground">
+        <p className="border-t border-border/40 px-4 py-1.5 text-2xs-tight text-muted-foreground">
           يكتب الآن…
         </p>
       )}

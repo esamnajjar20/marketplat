@@ -90,7 +90,7 @@ export function HomeContextStrip({ className }: { className?: string }) {
 
         {activityLabel ? (
           <span
-            className="ms-auto shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary sm:text-xs"
+            className="ms-auto shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-2xs-tight font-semibold text-primary sm:text-xs"
             title="نشاط الإعلانات"
           >
             {activityLabel}

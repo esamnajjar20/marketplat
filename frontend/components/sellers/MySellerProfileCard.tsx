@@ -214,7 +214,7 @@ export function MySellerProfileCard({ profile }: Props) {
             <Shield className="h-4 w-4 text-primary shrink-0" />
             <div>
               <p className="font-medium tabular-nums">{profile.trustScore}/1000</p>
-              <p className="text-[11px] text-muted-foreground">درجة الثقة</p>
+              <p className="text-2xs-tight text-muted-foreground">درجة الثقة</p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-md border bg-card p-2.5">
@@ -223,7 +223,7 @@ export function MySellerProfileCard({ profile }: Props) {
               <p className="font-medium tabular-nums">
                 {responseRate !== null ? `${responseRate.toFixed(0)}%` : '—'}
               </p>
-              <p className="text-[11px] text-muted-foreground">نسبة الرد</p>
+              <p className="text-2xs-tight text-muted-foreground">نسبة الرد</p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-md border bg-card p-2.5">
@@ -234,11 +234,11 @@ export function MySellerProfileCard({ profile }: Props) {
                   ? `~${profile.responseTimeMinutes} د`
                   : '—'}
               </p>
-              <p className="text-[11px] text-muted-foreground">متوسط وقت الرد</p>
+              <p className="text-2xs-tight text-muted-foreground">متوسط وقت الرد</p>
             </div>
           </div>
         </div>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
+        <p className="text-2xs-tight text-muted-foreground leading-relaxed">
           حسّن درجتك بالرد السريع على الرسائل، إكمال الصفقات، والحفاظ على تقييمات إيجابية.
         </p>
       </div>

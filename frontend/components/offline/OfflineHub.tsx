@@ -368,7 +368,7 @@ function TabBadge({ count, tone = 'default' }: { count: number; tone?: 'default'
   return (
     <span
       className={cn(
-        'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums',
+        'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-2xs font-bold tabular-nums',
         tone === 'danger'
           ? 'bg-destructive text-destructive-foreground'
           : 'bg-primary-foreground/20 text-primary-foreground',

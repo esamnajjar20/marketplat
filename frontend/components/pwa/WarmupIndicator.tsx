@@ -30,7 +30,7 @@ function WarmingRow({
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
-      <span className="w-12 shrink-0 text-[10px] text-muted-foreground">
+      <span className="w-12 shrink-0 text-2xs text-muted-foreground">
         {label}
       </span>
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
@@ -39,7 +39,7 @@ function WarmingRow({
           style={{ width: `${percent}%` }}
         />
       </div>
-      <span className="w-8 shrink-0 text-end text-[10px] tabular-nums text-muted-foreground">
+      <span className="w-8 shrink-0 text-end text-2xs tabular-nums text-muted-foreground">
         {percent}%
       </span>
     </div>

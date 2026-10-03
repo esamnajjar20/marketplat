@@ -488,7 +488,7 @@ export function OfflineRoutesList() {
           <option value="fresh">الأحدث تسخيناً</option>
         </select>
         {sizesComputing && (
-          <span className="text-[10px] text-muted-foreground">حساب الأحجام…</span>
+          <span className="text-2xs text-muted-foreground">حساب الأحجام…</span>
         )}
         <div className="ms-auto flex gap-2">
           <Button
@@ -587,7 +587,7 @@ export function OfflineRoutesList() {
                     </span>
                   )}
 
-                  <span className={cn('flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium', cls)}>
+                  <span className={cn('flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium', cls)}>
                     <Icon className="h-3 w-3" />
                     {label}
                   </span>
@@ -596,10 +596,10 @@ export function OfflineRoutesList() {
                     <div className="flex items-center gap-1.5">
                       <code className="truncate font-mono text-xs" dir="ltr">{row.route}</code>
                       {row.personal && (
-                        <span className="rounded bg-primary/10 px-1.5 text-[10px] text-primary">شخصي</span>
+                        <span className="rounded bg-primary/10 px-1.5 text-2xs text-primary">شخصي</span>
                       )}
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-2xs text-muted-foreground">
                       <span>{row.chunks} ملف</span>
                       {(() => {
                         const bytes = sizes.get(rowKey(row));

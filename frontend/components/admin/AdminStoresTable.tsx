@@ -246,9 +246,9 @@ export function AdminStoresTable() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>
                       {wantsFeature && (
-                        <Badge variant="outline" className="gap-1 text-[10px]"><Star className="h-3 w-3" />طلب تمييز</Badge>
+                        <Badge variant="outline" className="gap-1 text-2xs"><Star className="h-3 w-3" />طلب تمييز</Badge>
                       )}
-                      {store.city && <span className="text-[11px] text-muted-foreground">{store.city}</span>}
+                      {store.city && <span className="text-2xs-tight text-muted-foreground">{store.city}</span>}
                     </div>
                   </div>
                 </div>

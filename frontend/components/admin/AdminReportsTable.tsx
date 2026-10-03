@@ -256,12 +256,12 @@ export function AdminReportsTable() {
                     <Badge variant="outline" className="text-xs">
                       {REPORT_REASON_LABELS[report.reason] ?? report.reason}
                     </Badge>
-                    <Badge variant="secondary" className="text-[10px]">
+                    <Badge variant="secondary" className="text-2xs">
                         {REPORT_STATUS_LABELS[report.status] ?? report.status}
                       </Badge>
                   </div>
                   {report.notes && <p className="line-clamp-2 text-xs text-muted-foreground">{report.notes}</p>}
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-2xs-tight text-muted-foreground">
                     {report.user?.name ?? '—'} · {formatRelativeTime(report.createdAt)}
                   </p>
                   <Link prefetch={false}

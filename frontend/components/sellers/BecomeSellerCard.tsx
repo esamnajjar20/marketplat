@@ -67,7 +67,7 @@ export function BecomeSellerCard() {
   return (
     <div className="space-y-4 max-w-lg">
       <div className="space-y-2">
-        <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+        <div className="flex items-center gap-2 text-2xs-tight font-medium text-muted-foreground">
           <span className="rounded-full bg-primary px-2 py-0.5 text-primary-foreground">1</span>
           <span>الموافقة والملف</span>
           <span className="text-muted-foreground/50">→</span>

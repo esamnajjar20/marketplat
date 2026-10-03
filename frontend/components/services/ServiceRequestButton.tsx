@@ -71,7 +71,7 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
         <MessageSquarePlus className="h-4 w-4" />
         إرسال طلب لمقدم الخدمة
       </Button>
-      <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+      <p className="text-2xs-tight text-muted-foreground text-center leading-relaxed">
         المسار: طلب → رد المقدّم → (اختياري) موعد → اكتمال الخدمة
       </p>
 

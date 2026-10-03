@@ -272,19 +272,19 @@ function DraftRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_CLASS[draft.status]}`}
+              className={`rounded px-1.5 py-0.5 text-2xs font-medium ${STATUS_CLASS[draft.status]}`}
             >
               {STATUS_LABEL[draft.status]}
             </span>
-            <span className="text-[11px] text-muted-foreground">{kind}</span>
+            <span className="text-2xs-tight text-muted-foreground">{kind}</span>
           </div>
           <p className="mt-1 line-clamp-1 text-sm font-medium">{title}</p>
-          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+          <p className="mt-0.5 flex items-center gap-1 text-2xs-tight text-muted-foreground">
             <Clock className="h-3 w-3" />
             {formatDate(draft.updatedAt)}
           </p>
           {draft.status === 'failed' && draft.lastError && (
-            <p className="mt-1 flex items-start gap-1 text-[11px] text-destructive">
+            <p className="mt-1 flex items-start gap-1 text-2xs-tight text-destructive">
               <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
               <span className="line-clamp-2">{draft.lastError}</span>
             </p>

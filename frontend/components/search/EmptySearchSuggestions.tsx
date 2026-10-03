@@ -81,7 +81,7 @@ export function EmptySearchSuggestions() {
       {/* PHASE-3: recent searches */}
       {recent.length > 0 && (
         <div className="space-y-2">
-          <p className="flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
             <History className="h-3.5 w-3.5" aria-hidden />
             بحثت مؤخرًا
           </p>
@@ -105,7 +105,7 @@ export function EmptySearchSuggestions() {
 
       {/* Popular */}
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-medium text-muted-foreground">
           جرّب بحثًا شائعًا
         </p>
         <div className="flex flex-wrap justify-center gap-2">
@@ -129,7 +129,7 @@ export function EmptySearchSuggestions() {
       {/* PHASE-3: recently viewed ads */}
       {viewed.length > 0 && (
         <div className="space-y-2">
-          <p className="flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
             <Eye className="h-3.5 w-3.5" aria-hidden />
             شوهد مؤخرًا
           </p>
@@ -150,7 +150,7 @@ export function EmptySearchSuggestions() {
 
       {/* Entity type shortcuts */}
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-medium text-muted-foreground">
           أو تصفّح حسب النوع
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -179,7 +179,7 @@ export function EmptySearchSuggestions() {
 
       {/* Categories */}
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-medium text-muted-foreground">
           تصفّح التصنيفات
         </p>
         {isLoading ? (

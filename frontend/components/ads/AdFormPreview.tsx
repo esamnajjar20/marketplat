@@ -65,7 +65,7 @@ export function AdFormPreview({ values, className }: Props) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageSrc} alt="" className="h-full w-full object-cover" />
           {conditionLabel && (
-            <span className="absolute top-2 start-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold">
+            <span className="absolute top-2 start-2 rounded-full bg-background/90 px-2 py-0.5 text-2xs font-semibold">
               {conditionLabel}
             </span>
           )}
@@ -76,7 +76,7 @@ export function AdFormPreview({ values, className }: Props) {
         <p className="font-mono text-base font-bold tabular-nums text-primary">
           {formatPrice(values.price)}
           {values.isNegotiable && (
-            <span className="ms-1 text-[10px] font-medium text-primary/80">قابل للتفاوض</span>
+            <span className="ms-1 text-2xs font-medium text-primary/80">قابل للتفاوض</span>
           )}
         </p>
       ) : (

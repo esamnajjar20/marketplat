@@ -176,17 +176,17 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           <div className="flex justify-around items-center">
             <div className="flex flex-col items-center">
               <span className="text-lg font-semibold tabular-nums text-foreground">{store._count.followers}</span>
-              <span className="text-[11px] text-muted-foreground">متابع</span>
+              <span className="text-2xs-tight text-muted-foreground">متابع</span>
             </div>
             <div className="w-px h-8 bg-border" />
             <div className="flex flex-col items-center">
               <span className="text-lg font-semibold tabular-nums text-foreground">{store._count.products}</span>
-              <span className="text-[11px] text-muted-foreground">منتج</span>
+              <span className="text-2xs-tight text-muted-foreground">منتج</span>
             </div>
             <div className="w-px h-8 bg-border" />
             <div className="flex flex-col items-center">
               <span className="mb-0.5 text-lg font-semibold tabular-nums text-foreground">{store.city}</span>
-              <span className="text-[11px] text-muted-foreground">المدينة</span>
+              <span className="text-2xs-tight text-muted-foreground">المدينة</span>
             </div>
           </div>
         </div>
@@ -299,19 +299,19 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
               </Button>
             )}
             <div className="grid grid-cols-3 gap-2">
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-[11px]">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
                 <Link href={ROUTES.myStoreProducts}>
                   <Package className="h-4 w-4" aria-hidden />
                   منتجاتي
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-[11px]">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
                 <Link href={ROUTES.myStoreAnalytics}>
                   <BarChart3 className="h-4 w-4" aria-hidden />
                   الإحصائيات
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-[11px]">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
                 <Link href={ROUTES.myStore}>
                   <Settings2 className="h-4 w-4" aria-hidden />
                   تعديل المتجر

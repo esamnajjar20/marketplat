@@ -341,7 +341,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             {nearLimit && (
               <p
                 className={cn(
-                  'px-2 pb-1 text-[11px] text-end tabular-nums',
+                  'px-2 pb-1 text-2xs-tight text-end tabular-nums',
                   body.length >= MAX_LENGTH
                     ? 'font-medium text-destructive'
                     : 'text-muted-foreground',
@@ -366,7 +366,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             <Send className="h-4 w-4 rtl:-scale-x-100" />
           </button>
         </div>
-        <p className="mt-1.5 px-1 text-center text-[10px] text-muted-foreground/70 hidden [@media(pointer:fine)]:block">
+        <p className="mt-1.5 px-1 text-center text-2xs text-muted-foreground/70 hidden [@media(pointer:fine)]:block">
           {/* SW-FIX-MSG-ENTER-HINT: show keyboard hint only on fine-pointer devices */}
           ↵ للإرسال · Shift + ↵ لسطر جديد · الصورة اختيارية
         </p>

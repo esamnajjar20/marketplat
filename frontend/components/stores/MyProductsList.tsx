@@ -345,7 +345,7 @@ export function MyProductsList() {
                         {formatPrice(product.price)}
                       </p>
                     )}
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-2xs">
                       {AVAIL_LABELS[product.availability]}
                       {product.stockQuantity != null ? ` · ${product.stockQuantity}` : ''}
                     </Badge>

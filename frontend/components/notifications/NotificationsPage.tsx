@@ -354,7 +354,7 @@ export function NotificationsPage() {
 
             {groups.map((group) => (
               <div key={group.label}>
-                <div className="sticky top-0 z-[1] border-b bg-muted/60 px-4 py-1.5 text-[11px] font-semibold text-muted-foreground backdrop-blur-sm">
+                <div className="sticky top-0 z-[1] border-b bg-muted/60 px-4 py-1.5 text-2xs-tight font-semibold text-muted-foreground backdrop-blur-sm">
                   {group.label}
                 </div>
                 <ul className="divide-y">
@@ -390,12 +390,12 @@ export function NotificationsPage() {
                               >
                                 {n.title}
                               </p>
-                              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              <p className="mt-0.5 text-2xs-tight text-muted-foreground">
                                 {labelFor(n.type)}
                               </p>
                             </div>
                             <div className="flex shrink-0 items-center gap-0.5">
-                              <span className="text-[11px] tabular-nums text-muted-foreground">
+                              <span className="text-2xs-tight tabular-nums text-muted-foreground">
                                 {formatRelativeTime(n.createdAt)}
                               </span>
                               {unread && (
@@ -410,7 +410,7 @@ export function NotificationsPage() {
                             {unread ? (
                               <button
                                 type="button"
-                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs-tight text-muted-foreground hover:bg-muted hover:text-foreground"
                                 disabled={markRead.isPending}
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -424,7 +424,7 @@ export function NotificationsPage() {
                             ) : (
                               <button
                                 type="button"
-                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs-tight text-muted-foreground hover:bg-muted hover:text-foreground"
                                 disabled={markUnread.isPending}
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -439,7 +439,7 @@ export function NotificationsPage() {
                             <button
                               type="button"
                               aria-label="حذف الإشعار"
-                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs-tight text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               disabled={deleteOne.isPending}
                               onClick={(e) => {
                                 e.preventDefault();

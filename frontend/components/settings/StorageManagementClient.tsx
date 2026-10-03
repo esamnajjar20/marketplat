@@ -321,7 +321,7 @@ export function StorageManagementClient() {
               <Trash2 className="h-4 w-4" />
             )}
             مسح كاش التصفح
-            <span className="ms-auto text-[10px] font-normal text-muted-foreground">
+            <span className="ms-auto text-2xs font-normal text-muted-foreground">
               يبقي المحفوظات
             </span>
           </Button>
@@ -393,7 +393,7 @@ export function StorageManagementClient() {
             مسح كل الكاش
           </Button>
         </div>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-2xs-tight leading-relaxed text-muted-foreground">
           مسح الكاش لا يحذف حسابك ولا بيانات السيرفر. يحرّر مساحة على هذا الجهاز فقط، وقد يُعاد
           بناء الكاش تلقائيًا عند التصفح.
         </p>

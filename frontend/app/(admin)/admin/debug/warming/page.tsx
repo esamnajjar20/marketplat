@@ -41,7 +41,7 @@ function StatusPill({ status }: { status: RouteReport['status'] }) {
   };
   return (
     <span
-      className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${styles[status]}`}
+      className={`inline-block rounded-full border px-2 py-0.5 text-2xs font-medium ${styles[status]}`}
     >
       {labels[status]}
     </span>
@@ -71,18 +71,18 @@ function RouteTable({
             <code className="flex-1 truncate font-mono" dir="ltr">
               {r.route}
             </code>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
+            <span className="text-2xs text-muted-foreground tabular-nums">
               {r.chunks}c
             </span>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
+            <span className="text-2xs text-muted-foreground tabular-nums">
               {r.attempts}×
             </span>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
+            <span className="text-2xs text-muted-foreground tabular-nums">
               {formatAge(r.warmedAt)}
             </span>
             {r.lastError && (
               <span
-                className="text-[10px] text-red-600 truncate max-w-[120px]"
+                className="text-2xs text-red-600 truncate max-w-[120px]"
                 title={r.lastError}
                 dir="ltr"
               >
@@ -193,7 +193,7 @@ function ManualTools({ onDone }: { onDone: () => Promise<void> }) {
             امسح snapshot (خطر)
           </button>
         </div>
-        <div className="border-t pt-3 text-[10px] text-muted-foreground">
+        <div className="border-t pt-3 text-2xs text-muted-foreground">
           ملاحظة: warming يعمل في الخلفية — قد لا ترى الأثر فوراً. اضغط تحديث
           بعد 5-10 ثوانٍ.
         </div>
@@ -283,30 +283,30 @@ export default function WarmingDebugPage() {
       {/* ── top summary grid ── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-lg border bg-card p-3">
-          <p className="text-[10px] uppercase text-muted-foreground">الشبكة</p>
+          <p className="text-2xs text-muted-foreground">الشبكة</p>
           <p className="mt-1 text-sm font-medium">
             {report.online ? 'متصل' : 'غير متصل'}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3">
-          <p className="text-[10px] uppercase text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             خطة warming
           </p>
           <p className="mt-1 text-sm font-medium">
             {planTierLabels[report.plan.tier] ?? report.plan.tier}
           </p>
-          <p className="text-[10px] text-muted-foreground" dir="ltr">
+          <p className="text-2xs text-muted-foreground" dir="ltr">
             {report.plan.reason}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3">
-          <p className="text-[10px] uppercase text-muted-foreground">التنسيق</p>
+          <p className="text-2xs text-muted-foreground">التنسيق</p>
           <p className="mt-1 text-sm font-medium" dir="ltr">
             {report.coordination}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3">
-          <p className="text-[10px] uppercase text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             liveUrls
           </p>
           <p className="mt-1 text-sm font-medium tabular-nums">
@@ -347,19 +347,19 @@ export default function WarmingDebugPage() {
         <h3 className="text-sm font-semibold">Throttle (آخر مرة)</h3>
         <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
           <div>
-            <p className="text-[10px] text-muted-foreground">route shells</p>
+            <p className="text-2xs text-muted-foreground">route shells</p>
             <p className="tabular-nums" dir="ltr">
               {formatAge(report.throttle.routeShells || null)}
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground">personal</p>
+            <p className="text-2xs text-muted-foreground">personal</p>
             <p className="tabular-nums" dir="ltr">
               {formatAge(report.throttle.personalShells || null)}
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground">core bundle</p>
+            <p className="text-2xs text-muted-foreground">core bundle</p>
             <p className="tabular-nums" dir="ltr">
               {formatAge(report.throttle.coreBundle || null)}
             </p>
@@ -378,7 +378,7 @@ export default function WarmingDebugPage() {
               key={c.name}
               className="flex items-center justify-between px-4 py-1.5"
             >
-              <code className="font-mono text-[11px]" dir="ltr">
+              <code className="font-mono text-2xs-tight" dir="ltr">
                 {c.name}
               </code>
               <div className="flex gap-3 tabular-nums text-muted-foreground">
@@ -396,7 +396,7 @@ export default function WarmingDebugPage() {
       <RouteTable title="مسارات عامة" routes={report.publicRoutes} />
       <RouteTable title="مسارات شخصية" routes={report.personalRoutes} />
 
-      <p className="text-center text-[10px] text-muted-foreground">
+      <p className="text-center text-2xs text-muted-foreground">
         هذه الصفحة للقراءة فقط — لا تعدّل warming. لأدوات يدوية، استخدم
         Console.
       </p>

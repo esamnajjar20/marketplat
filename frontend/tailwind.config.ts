@@ -137,6 +137,9 @@ const config: Config = {
       fontSize: {
         '3xs': ['0.5625rem', { lineHeight: '0.75rem' }], // 9px
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }], // 10px
+        // FIX TYPO-TOKEN-01: 11px sits between 2xs and xs; many
+        // dense UI labels already used text-[11px] ad-hoc.
+        '2xs-tight': ['0.6875rem', { lineHeight: '1rem' }], // 11px
         xs: ['0.75rem', { lineHeight: '1rem' }],
         sm: ['0.875rem', { lineHeight: '1.25rem' }],
         base: ['1rem', { lineHeight: '1.5rem' }],

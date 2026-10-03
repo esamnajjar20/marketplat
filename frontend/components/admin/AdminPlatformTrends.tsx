@@ -109,14 +109,14 @@ export function AdminPlatformTrends() {
                 )}
                 style={{ height: `${h}%` }}
               />
-              <span className="pointer-events-none absolute -top-6 hidden rounded bg-foreground px-1.5 py-0.5 text-[10px] text-background group-hover:block">
+              <span className="pointer-events-none absolute -top-6 hidden rounded bg-foreground px-1.5 py-0.5 text-2xs text-background group-hover:block">
                 {v}
               </span>
             </div>
           );
         })}
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground">
+      <div className="flex justify-between text-2xs text-muted-foreground">
         <span>{series[0]?.date}</span>
         <span>{series[series.length - 1]?.date}</span>
       </div>

@@ -148,7 +148,7 @@ function SectionHeading({
         <Icon className="h-4 w-4" aria-hidden />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs-tight font-medium text-muted-foreground">
           الخطوة {step}
         </p>
         <h2 className="text-base font-semibold text-foreground">{title}</h2>

@@ -42,7 +42,7 @@ export function PromotedPageClient() {
         <div className="container mx-auto max-w-7xl space-y-3 px-3 py-6 sm:px-4 sm:py-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-accent">
                 <Flame className="h-3.5 w-3.5" aria-hidden />
                 عروض نشطة
               </p>

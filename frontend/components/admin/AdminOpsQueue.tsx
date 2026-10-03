@@ -117,8 +117,8 @@ export function AdminOpsQueue() {
                     {formatNumber(count)}
                   </span>
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
-                <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-primary opacity-80 group-hover:opacity-100">
+                <p className="mt-0.5 text-2xs-tight text-muted-foreground">{hint}</p>
+                <p className="mt-2 flex items-center gap-1 text-2xs-tight font-medium text-primary opacity-80 group-hover:opacity-100">
                   عرض
                   <ArrowLeft className="h-3 w-3" />
                 </p>

@@ -229,7 +229,7 @@ export function AdminAdsTable() {
                     <p className="line-clamp-2 text-sm font-medium leading-snug">{ad.title}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="font-semibold text-primary">{formatPrice(ad.price)}</span>
-                      <Badge variant={AD_STATUS_VARIANT[ad.status]} className="text-[10px]">
+                      <Badge variant={AD_STATUS_VARIANT[ad.status]} className="text-2xs">
                         {STATUS_LABELS[ad.status] ?? ad.status}
                       </Badge>
                     </div>

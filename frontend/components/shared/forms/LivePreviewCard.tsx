@@ -24,14 +24,14 @@ interface Props {
 export function LivePreviewCard({ media, children, caption, className }: Props) {
   return (
     <div className={cn('space-y-2', className)}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-medium text-muted-foreground">
         معاينة البطاقة
       </p>
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         {media}
         <div className="space-y-1 p-3">{children}</div>
       </div>
-      <p className="text-[11px] text-muted-foreground">{caption}</p>
+      <p className="text-2xs-tight text-muted-foreground">{caption}</p>
     </div>
   );
 }

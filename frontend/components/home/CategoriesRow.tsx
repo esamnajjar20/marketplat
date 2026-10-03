@@ -61,12 +61,12 @@ export function CategoriesRow() {
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15 sm:h-12 sm:w-12">
               <Icon className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
             </span>
-            <span className="line-clamp-2 w-full text-[11px] font-semibold leading-tight text-foreground sm:text-xs">
+            <span className="line-clamp-2 w-full text-2xs-tight font-semibold leading-tight text-foreground sm:text-xs">
               {item.nameAr}
             </span>
             <span
               className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
+                'rounded-full px-1.5 py-0.5 text-2xs font-semibold leading-none',
                 TYPE_BADGE[item.type],
               )}
             >

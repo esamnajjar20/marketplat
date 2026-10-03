@@ -132,7 +132,7 @@ export function StorePaymentMethods({
           <Banknote className="h-4 w-4" aria-hidden />
           {buttonLabel}
           {methods.length > 1 && (
-            <span className="rounded-full bg-background/20 px-1.5 text-[11px] font-medium tabular-nums">
+            <span className="rounded-full bg-background/20 px-1.5 text-2xs-tight font-medium tabular-nums">
               {methods.length}
             </span>
           )}
@@ -175,7 +175,7 @@ export function StorePaymentMethods({
                           <span className="truncate">{m.label}</span>
                         </span>
                         {m.accountName && m.accountName !== m.label && (
-                          <span className="mt-0.5 block truncate pe-6 text-[11px] opacity-80">
+                          <span className="mt-0.5 block truncate pe-6 text-2xs-tight opacity-80">
                             {m.accountName}
                           </span>
                         )}
@@ -208,7 +208,7 @@ export function StorePaymentMethods({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">الرقم</p>
-                  <p className="font-mono text-lg font-bold tracking-wide" dir="ltr">
+                  <p className="font-mono text-lg font-bold" dir="ltr">
                     {selected.accountNumber}
                   </p>
                 </div>

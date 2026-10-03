@@ -75,7 +75,7 @@ export function ServiceListingFormPreview({ values, className }: Props) {
         {values.title.trim() || 'عنوان الخدمة'}
       </h3>
       {values.durationEstimate && (
-        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+        <p className="flex items-center gap-1 text-2xs-tight text-muted-foreground">
           <Clock className="h-3 w-3" aria-hidden />
           {values.durationEstimate}
         </p>

@@ -298,7 +298,7 @@ export function FeaturedCarousel() {
             <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent" />
             <span
               className={cn(
-                'absolute top-3 start-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide shadow-md backdrop-blur-sm',
+                'absolute top-3 start-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs-tight font-bold shadow-md backdrop-blur-sm',
                 BADGE[slide.type].className,
               )}
             >

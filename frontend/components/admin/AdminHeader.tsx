@@ -99,7 +99,7 @@ export function AdminHeader() {
             <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label={`الإشعارات — ${openReports} بلاغ بانتظار المراجعة`}>
               <Bell className="h-4 w-4" />
               {openReports > 0 && (
-                <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+                <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-2xs font-medium text-destructive-foreground">
                   {openReports > 99 ? '99+' : openReports}
                 </span>
               )}
@@ -138,7 +138,7 @@ export function AdminHeader() {
                           ? report.ad.title
                           : (report.user?.name ?? '—')}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">{formatRelativeTime(report.createdAt)}</p>
+                      <p className="text-2xs text-muted-foreground">{formatRelativeTime(report.createdAt)}</p>
                     </div>
                   </Link>
                 ))}

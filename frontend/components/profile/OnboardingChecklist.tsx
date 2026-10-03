@@ -91,7 +91,7 @@ export function OnboardingChecklist() {
             {remaining.length === 1 ? ' — خطوة أخيرة!' : ''}
           </p>
         </div>
-        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-2xs-tight font-semibold text-primary">
           {Math.round(progress)}%
         </span>
       </div>

@@ -97,21 +97,21 @@ export function PublicProfileHeader({ user }: Props) {
             <div className="flex flex-col items-center">
               <FileText className="mb-1 h-4 w-4 text-muted-foreground" />
               <span className="text-lg font-semibold tabular-nums text-foreground">{user._count.ads}</span>
-              <span className="text-[11px] text-muted-foreground">إعلان</span>
+              <span className="text-2xs-tight text-muted-foreground">إعلان</span>
             </div>
             {user.city && (
               <>
                 <div className="w-px h-8 bg-border" />
                 <div className="flex flex-col items-center">
                   <MapPin className="mb-1 h-4 w-4 text-muted-foreground" />
-                  <span className="text-[11px] text-muted-foreground">{user.city}</span>
+                  <span className="text-2xs-tight text-muted-foreground">{user.city}</span>
                 </div>
               </>
             )}
             <div className="w-px h-8 bg-border" />
             <div className="flex flex-col items-center">
               <Calendar className="mb-1 h-4 w-4 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
+              <span className="text-2xs-tight text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
             </div>
           </div>
         </div>

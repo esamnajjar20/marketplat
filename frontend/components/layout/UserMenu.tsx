@@ -73,12 +73,12 @@ export function UserMenu() {
           {(isSeller || isProvider) && (
             <div className="mt-2 flex gap-1.5">
               {isSeller && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-medium text-primary">
                   بائع
                 </span>
               )}
               {isProvider && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-medium text-primary">
                   مقدّم خدمة
                 </span>
               )}

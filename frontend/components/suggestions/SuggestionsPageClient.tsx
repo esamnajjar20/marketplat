@@ -109,7 +109,7 @@ export function SuggestionsPageClient() {
     <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 sm:px-4 sm:py-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             {isAuth ? 'مخصّص' : 'رائج'}
           </p>

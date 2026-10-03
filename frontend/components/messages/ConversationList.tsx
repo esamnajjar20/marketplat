@@ -149,7 +149,7 @@ export function ConversationList({ selectedId }: Props = {}) {
         <div className="flex items-center justify-between gap-2 px-1">
           <h2 className="text-sm font-semibold">الرسائل</h2>
           {totalUnread > 0 && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
               {totalUnread} غير مقروءة
             </span>
           )}
@@ -241,7 +241,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             className={
               !unreadOnly
                 ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground'
+                : 'rounded-full border px-3 py-1 text-2xs-tight text-muted-foreground'
             }
           >
             الكل
@@ -252,7 +252,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             className={
               unreadOnly
                 ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                : 'rounded-full border px-3 py-1 text-[11px] text-muted-foreground'
+                : 'rounded-full border px-3 py-1 text-2xs-tight text-muted-foreground'
             }
           >
             غير مقروء{totalUnread > 0 ? ` (${totalUnread})` : ''}
@@ -335,7 +335,7 @@ export function ConversationList({ selectedId }: Props = {}) {
                   )}
                   {hasUnread && (
                     <span
-                      className="absolute -top-1 -end-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-semibold text-primary-foreground ring-2 ring-card"
+                      className="absolute -top-1 -end-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-2xs-tight font-semibold text-primary-foreground ring-2 ring-card"
                       aria-label={`${conversation.unreadCount} رسالة غير مقروءة`}
                     >
                       {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
@@ -358,7 +358,7 @@ export function ConversationList({ selectedId }: Props = {}) {
                     </p>
                     <span
                       className={cn(
-                        'shrink-0 text-[11px] tabular-nums',
+                        'shrink-0 text-2xs-tight tabular-nums',
                         hasUnread ? 'font-semibold text-primary' : 'text-muted-foreground',
                       )}
                     >
@@ -376,7 +376,7 @@ export function ConversationList({ selectedId }: Props = {}) {
                   </p>
 
                   {ctx && conversation.lastMessage && (
-                    <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground/80">
+                    <p className="mt-1 line-clamp-1 text-2xs text-muted-foreground/80">
                       بخصوص: {ctx}
                     </p>
                   )}

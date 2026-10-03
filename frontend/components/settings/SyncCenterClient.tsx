@@ -413,7 +413,7 @@ function StatCard({
       <div className="mb-1 flex justify-center">{icon}</div>
       <p className="text-lg font-bold">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
-      {hint ? <p className="text-[10px] text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="text-2xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

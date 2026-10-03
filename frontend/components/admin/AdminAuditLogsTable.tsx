@@ -240,7 +240,7 @@ export function AdminAuditLogsTable() {
                 <p className="text-xs text-muted-foreground">
                   {log.user?.name ?? log.userId ?? '—'}
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs-tight text-muted-foreground">
                   {formatDateTime(log.createdAt)}
                   {log.ip ? ` · ${log.ip}` : ''}
                 </p>

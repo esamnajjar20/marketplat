@@ -138,12 +138,12 @@ export function NotificationDevicesList() {
                     <p className="flex flex-wrap items-center gap-x-2 truncate text-sm font-medium">
                       {fallbackLabel(d)}
                       {isThis && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-medium text-primary">
                           هذا الجهاز
                         </span>
                       )}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs-tight text-muted-foreground">
                       آخر نشاط {formatRelativeTime(d.lastSeenAt)}
                     </p>
                   </>
@@ -203,7 +203,7 @@ export function NotificationDevicesList() {
         })}
       </ul>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-2xs-tight leading-relaxed text-muted-foreground">
         حذف جهاز يوقف الإشعارات عليه فقط. لإيقافها على هذا الجهاز استخدم زر «إيقاف» أعلاه. يعود
         الجهاز المحذوف إلى القائمة إن فعّلت الإشعارات عليه من جديد.
       </p>

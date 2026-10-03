@@ -67,7 +67,7 @@ function NotificationRow({
           {isUnread && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2">{notification.body}</p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {formatRelativeTime(notification.createdAt)}
         </p>
       </div>
@@ -172,7 +172,7 @@ function NotificationGroupRow({
           {unreadCount > 0 && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-1">{notifications[0]!.body}</p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {formatRelativeTime(notifications[0]!.createdAt)}
         </p>
       </div>
@@ -227,7 +227,7 @@ export function NotificationBell() {
         >
           <Bell className="h-5 w-5" />
           {displayUnread > 0 && (
-            <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+            <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-2xs font-medium text-destructive-foreground">
               {displayUnread > 99 ? '99+' : displayUnread}
             </span>
           )}
@@ -241,7 +241,7 @@ export function NotificationBell() {
           {pushDenied && (
             <Link
               href={ROUTES.settings.notifications}
-              className="text-[10px] text-amber-700 hover:underline dark:text-amber-300"
+              className="text-2xs text-amber-700 hover:underline dark:text-amber-300"
             >
               الجهاز متوقف
             </Link>

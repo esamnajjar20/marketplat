@@ -200,7 +200,7 @@ export function PushNotificationToggle() {
             <li>اختر «إضافة إلى الشاشة الرئيسية».</li>
             <li>افتح التطبيق من الشاشة الرئيسية وعد إلى هذه الصفحة.</li>
           </ol>
-          <p className="mt-2 text-[11px]">
+          <p className="mt-2 text-2xs-tight">
             iOS لا يسمح بإشعارات الدفع إلا للتطبيقات المضافة للشاشة الرئيسية (iOS 16.4 أو أحدث).
           </p>
         </div>
@@ -255,7 +255,7 @@ export function PushNotificationToggle() {
                     ? 'مفعّلة — تصلك حتى والـPWA أو المتصفح مغلقان'
                     : 'غير مفعّلة على هذا الجهاز — فعّلها لاستلام التنبيهات فورًا'}
             </p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 flex flex-wrap items-center gap-x-1 text-2xs-tight text-muted-foreground">
               <Smartphone className="h-3 w-3" />
               {isNative ? 'تطبيق أصلي' : 'متصفح / PWA'}
               <span aria-hidden>·</span>
@@ -326,7 +326,7 @@ export function PushNotificationToggle() {
                 <li>ابحث عن «الإشعارات» وغيّرها إلى «السماح».</li>
                 <li>أعد تحميل الصفحة ثم اضغط «تفعيل».</li>
               </ol>
-              <p className="mt-2 text-[11px]">
+              <p className="mt-2 text-2xs-tight">
                 على الجوال: إعدادات النظام → التطبيقات → المتصفح (أو التطبيق) → الإشعارات.
               </p>
             </>

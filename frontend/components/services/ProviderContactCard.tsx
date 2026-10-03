@@ -90,7 +90,7 @@ export function ProviderContactCard({ listing, showPhone = true }: Props) {
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate font-semibold text-foreground">{displayName}</span>
             {provider.sellerProfile?.verified && (
-              <Badge variant="secondary" className="gap-0.5 text-[10px]">
+              <Badge variant="secondary" className="gap-0.5 text-2xs">
                 <BadgeCheck className="h-3 w-3" aria-hidden />
                 موثّق
               </Badge>
@@ -108,7 +108,7 @@ export function ProviderContactCard({ listing, showPhone = true }: Props) {
               {Number(rating).toFixed(1)}
             </p>
           )}
-          <p className="mt-0.5 text-[11px] text-primary">عرض الملف الشخصي</p>
+          <p className="mt-0.5 text-2xs-tight text-primary">عرض الملف الشخصي</p>
         </div>
       </Link>
 

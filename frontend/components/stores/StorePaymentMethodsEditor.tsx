@@ -69,7 +69,7 @@ export function StorePaymentMethodsEditor({ value, onChange, title = 'طرق ا�
           <Banknote className="h-4 w-4 text-primary" />
           {title}
           {value.length > 0 && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-medium text-primary">
               {value.length}
             </span>
           )}

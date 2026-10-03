@@ -317,19 +317,19 @@ export function MyStoreCard({ store }: Props) {
           with no way to manage their catalog or followed stores until
           approval. Always shown here regardless of store.status. */}
       <div className="grid grid-cols-3 gap-2 border-t pt-4">
-        <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-[11px]">
+        <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
           <Link href={ROUTES.myStoreProductCreate}>
             <PackagePlus className="h-4 w-4" aria-hidden />
             إضافة منتج
           </Link>
         </Button>
-        <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-[11px]">
+        <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
           <Link href={ROUTES.myStoreProducts}>
             <Package className="h-4 w-4" aria-hidden />
             منتجاتي
           </Link>
         </Button>
-        <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-[11px]">
+        <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
           <Link href={ROUTES.myFollowedStores}>
             <Heart className="h-4 w-4" aria-hidden />
             المتابَعة

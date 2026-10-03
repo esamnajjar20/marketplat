@@ -103,7 +103,7 @@ export function SearchFilters({ categorySlug }: Props = {}) {
 
       {/* Category */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الفئة</label>
+        <label className="text-xs text-muted-foreground font-medium">الفئة</label>
         <Select value={activeCategoryId || 'ALL'} onValueChange={(v) => updateCategory(v === 'ALL' ? '' : v)}>
           <SelectTrigger className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
           <SelectContent>
@@ -123,7 +123,7 @@ export function SearchFilters({ categorySlug }: Props = {}) {
 
       {/* City */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">المدينة</label>
+        <label className="text-xs text-muted-foreground font-medium">المدينة</label>
         <Select value={sp.get('city') || 'ALL'} onValueChange={(v) => update('city', v === 'ALL' ? '' : v)}>
           <SelectTrigger className="w-full"><SelectValue placeholder="كل المدن" /></SelectTrigger>
           <SelectContent>
@@ -135,7 +135,7 @@ export function SearchFilters({ categorySlug }: Props = {}) {
 
       {/* Condition */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">الحالة</label>
+        <label className="text-xs text-muted-foreground font-medium">الحالة</label>
         <Select value={sp.get('condition') || 'ALL'} onValueChange={(v) => update('condition', v === 'ALL' ? '' : v)}>
           <SelectTrigger className="w-full"><SelectValue placeholder="الكل" /></SelectTrigger>
           <SelectContent>
@@ -149,7 +149,7 @@ export function SearchFilters({ categorySlug }: Props = {}) {
 
       {/* Price range */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">السعر (₪)</label>
+        <label className="text-xs text-muted-foreground font-medium">السعر (₪)</label>
         <div className="flex gap-2">
           <Input type="number" placeholder="من" min={0} dir="ltr"
             value={minPrice}

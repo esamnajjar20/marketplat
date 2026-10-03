@@ -167,7 +167,7 @@ export function AdminFraudTable() {
                   <span>{ad.user?.name ?? '—'}</span>
                   <Badge variant={riskBadgeVariant(ad.riskScore)} className="text-xs">{ad.riskScore}</Badge>
                 </div>
-                <p className="text-[11px] text-muted-foreground">{formatRelativeTime(ad.createdAt)}</p>
+                <p className="text-2xs-tight text-muted-foreground">{formatRelativeTime(ad.createdAt)}</p>
               </div>
               <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-2">
                 <Button type="button" size="sm" variant="ghost" className="h-8"
