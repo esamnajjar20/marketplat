@@ -2,6 +2,7 @@
  * Conversations API — maps to backend /api/v1/conversations/*.
  */
 import { apiClient } from './client';
+import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
@@ -35,7 +36,9 @@ export const conversationsApi = {
       .then((r) => unwrapPaginated<Message>(r)),
 
   sendMessage: (id: string, payload: SendMessagePayload) =>
-    apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages`, payload),
+    apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages`, payload, {
+      headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() },
+    }),
 
   deleteMessage: (conversationId: string, messageId: string) =>
     apiClient.delete<ApiResponse<Message>>(

@@ -80,10 +80,22 @@ export const conversationsController = {
     try {
       const user = requireUser(req);
       const { params, body } = sendMessageSchema.parse({ params: req.params, body: req.body });
-      const message = await conversationsService.sendMessage(user.userId, params.id, {
-        body: body.body,
-        imageUrl: body.imageUrl,
-      });
+      // FIX N2-MSG-IDEMPOTENCY: accept X-Offline-Op-Id so offline queue
+      // replays do not create duplicate messages when the first attempt
+      // committed but the response never reached the client.
+      // FIX N2-HEADERS-CLEANUP: Node lowercases req.headers keys, so the
+      // uppercase lookup was unreachable dead code.
+      const offlineOperationId =
+        (req.headers['x-offline-op-id'] as string | undefined) || null;
+      const message = await conversationsService.sendMessage(
+        user.userId,
+        params.id,
+        {
+          body: body.body,
+          imageUrl: body.imageUrl,
+        },
+        offlineOperationId,
+      );
       res.status(201).json(successResponse('Message sent', message));
     } catch (error) {
       next(error);
@@ -139,10 +151,17 @@ export const conversationsController = {
         typeof req.body?.body === 'string' ? req.body.body : undefined;
 
       try {
-        const message = await conversationsService.sendMessage(user.userId, params.id, {
-          body: caption,
-          imageUrl: uploaded.url,
-        });
+        const offlineOperationId =
+          (req.headers['x-offline-op-id'] as string | undefined) || null;
+        const message = await conversationsService.sendMessage(
+          user.userId,
+          params.id,
+          {
+            body: caption,
+            imageUrl: uploaded.url,
+          },
+          offlineOperationId,
+        );
         res.status(201).json(successResponse('Message sent', message));
       } catch (err) {
         // FIX CHAT-IMG-ORPHAN: previously, if sendMessage threw (the

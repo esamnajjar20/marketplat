@@ -1576,8 +1576,12 @@ async function refreshAccessToken(sampleUrl) {
     const visible = clients.filter((c) => c.visibilityState === 'visible');
     if (visible.length > 0) {
       // Ask them to refresh now so we don't wait for their next 401.
+      // FIX N1-PAGE-PRIORITY-RETRY: use distinct reason so replayQueueImpl
+      // does NOT burn retryCount while the page owns the refresh. The
+      // page's refreshSessionShared (swTokenSync) will land fresh cookies;
+      // the next drain (online/visibility/periodic) picks them up.
       visible.forEach((c) => c.postMessage({ type: 'SW_REQUEST_REFRESH' }));
-      return { ok: false, reason: 'network' };
+      return { ok: false, reason: 'page-priority' };
     }
   } catch { /* best-effort; fall through and refresh ourselves */ }
   let origin;
@@ -2071,6 +2075,30 @@ async function replayQueueImpl() {
       continue;
     }
 
+    // FIX N1-PAGE-PRIORITY-RETRY: when the only reason we could not send
+    // is that a visible page owns the token refresh (or a transient
+    // network refresh failure left us without freshCreds), do NOT burn
+    // retryCount. Otherwise 5 page-open drains mark the entry `failed`
+    // without ever attempting a real fetch. Keep lastAttemptAt so the
+    // minGap backoff still spaces retries; page refresh + next drain
+    // will supply creds.
+    const deferRetryCount =
+      result === 'still-offline' &&
+      (refreshReason === 'page-priority' ||
+        refreshReason === 'network' ||
+        ((entry.needsCsrf || entry.needsAuth) && !freshCreds));
+
+    if (deferRetryCount) {
+      await markQueuedEntry(entry.id, {
+        lastAttemptAt: now,
+        lastSoftError: result,
+        processing: false,
+      });
+      if (trulyOffline) break;
+      if (orderSensitive) break;
+      continue;
+    }
+
     const nextRetries = retries + 1;
     const isServer = result === 'server-error';
     const limit = isServer ? MAX_QUEUE_SERVER_RETRIES : MAX_QUEUE_RETRIES;
@@ -2521,13 +2549,23 @@ self.addEventListener('message', (event) => {
           return;
         }
 
-        // No drain running: safe to attempt the single entry directly.
-        // Refresh reason unknown in this manual-retry path — pass null
-        // so the needsCsrf guard falls through and the entry uses
-        // whatever creds the head-of-queue refresh already produced
-        // (or stays pending if none). Replay from the queue loop will
-        // resolve creds properly on the next tick.
-        await replayOne({ ...entry, status: 'pending' }, false, null, null);
+        // FIX N1-MANUAL-RETRY: ask any visible page to refresh first,
+        // then run a full drain so needsAuth/needsCsrf entries get
+        // freshCreds. Calling replayOne(..., null, null) previously
+        // always returned still-offline for auth entries.
+        try {
+          const clients = await self.clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true,
+          });
+          clients
+            .filter((c) => c.visibilityState === 'visible')
+            .forEach((c) => c.postMessage({ type: 'SW_REQUEST_REFRESH' }));
+        } catch { /* best-effort */ }
+        // Short delay so page refreshSessionShared can complete; then
+        // drain the whole queue (single-entry path lacked creds).
+        await new Promise((r) => setTimeout(r, 400));
+        await replayQueueImpl();
         await notifyClients({ type: 'QUEUE_REPLAYED' });
       })(),
     );

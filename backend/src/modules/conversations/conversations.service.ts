@@ -13,6 +13,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { logger } from '../../shared/utils/logger';
+import { cacheRedis } from '../../config/redis';
 import { sellerResponseTimeService } from '../sellers/seller-response-time.service';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
@@ -204,7 +205,8 @@ export const conversationsService = {
   sendMessage: async (
     userId: string,
     conversationId: string,
-    input: { body?: string; imageUrl?: string }
+    input: { body?: string; imageUrl?: string },
+    offlineOperationId?: string | null,
   ): Promise<Message> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
@@ -227,6 +229,121 @@ export const conversationsService = {
     }
     if (body) assertMessageBodySafe(body);
 
+    // FIX N2-MSG-IDEMPOTENCY (atomic):
+    // Schema has no offlineOperationId on Message (unlike ads). We use a
+    // short-lived Redis claim so concurrent replays of the same
+    // X-Offline-Op-Id cannot both CREATE. Window = 24h (offline queue
+    // drain horizon) — not forever; document as idempotency window.
+    //
+    // State machine per key `msg:op:{userId}:{opId}`:
+    //   SET NX "pending"  → this request owns creation
+    //   value = messageId → prior success; return that row
+    //   value = "pending" → peer in-flight; poll briefly for messageId
+    //   create failure    → DEL so a retry can reclaim
+    const MSG_OP_TTL_SEC = 86_400;
+    const MSG_OP_PENDING = 'pending';
+    const opId =
+      typeof offlineOperationId === 'string' && offlineOperationId.trim()
+        ? offlineOperationId.trim().slice(0, 128)
+        : null;
+
+    let claimedOpKey: string | null = null;
+
+    if (opId) {
+      const cacheKey = `msg:op:${userId}:${opId}`;
+      try {
+        // Atomic claim — only the first concurrent request proceeds to CREATE.
+        const claimed = await cacheRedis.set(
+          cacheKey,
+          MSG_OP_PENDING,
+          'EX',
+          MSG_OP_TTL_SEC,
+          'NX',
+        );
+
+        if (claimed !== 'OK') {
+          // Peer holds the key (pending or final messageId).
+          const sleep = (ms: number) =>
+            new Promise<void>((r) => setTimeout(r, ms));
+
+          // FIX N2-WAIT-TUNED: was 12 attempts (up to ~2.35s block on
+          // a slow peer). 4 attempts cap the worst case at ~500ms — enough
+          // for any in-flight INSERT on Neon to complete. If the peer is
+          // truly hung, failing fast beats a network timeout on the client.
+          for (let attempt = 0; attempt < 4; attempt++) {
+            const existingVal = await cacheRedis.get(cacheKey);
+            if (!existingVal) {
+              // Key expired/deleted mid-flight — try reclaim once.
+              const reclaimed = await cacheRedis.set(
+                cacheKey,
+                MSG_OP_PENDING,
+                'EX',
+                MSG_OP_TTL_SEC,
+                'NX',
+              );
+              if (reclaimed === 'OK') {
+                claimedOpKey = cacheKey;
+                break;
+              }
+              continue;
+            }
+            if (existingVal !== MSG_OP_PENDING) {
+              // FIX N2-SCOPE: constrain the replay to the same conversation
+              // (findById is unconstrained by design elsewhere). Without
+              // this, a stale opId from conversation X could return a
+              // message belonging to conversation Y to the caller.
+              const existing = await messagesRepository.findById(existingVal);
+              if (existing && existing.conversationId === conversationId) {
+                return existing;
+              }
+              // Stale id (row gone) — free the key and reclaim.
+              await cacheRedis.del(cacheKey);
+              const reclaimed = await cacheRedis.set(
+                cacheKey,
+                MSG_OP_PENDING,
+                'EX',
+                MSG_OP_TTL_SEC,
+                'NX',
+              );
+              if (reclaimed === 'OK') {
+                claimedOpKey = cacheKey;
+                break;
+              }
+              continue;
+            }
+            // Still pending under peer — wait for final id.
+            await sleep(50 + attempt * 25);
+          }
+
+          if (!claimedOpKey) {
+            // Peer still creating after ~1s, or Redis flaky: last look.
+            const finalVal = await cacheRedis.get(cacheKey);
+            if (finalVal && finalVal !== MSG_OP_PENDING) {
+              // FIX N2-SCOPE: same conversation constraint as above.
+              const existing = await messagesRepository.findById(finalVal);
+              if (existing && existing.conversationId === conversationId) return existing;
+            }
+            // Fall through without claim only if we still cannot see a
+            // result — rare; prefer risking a rare duplicate over
+            // failing the send hard when Redis is partitioned.
+            logger.warn('message offline-op peer still pending — proceeding without claim', {
+              userId,
+              opId,
+            });
+          }
+        } else {
+          claimedOpKey = cacheKey;
+        }
+      } catch (err) {
+        // Redis down: do not block messaging. Idempotency degrades to
+        // best-effort (same as pre-N2) rather than 500ing every send.
+        logger.warn('message offline-op claim failed — proceeding to create', {
+          err: err instanceof Error ? err.message : String(err),
+        });
+        claimedOpKey = null;
+      }
+    }
+
     // FIX MSG-CREATE-NONTRANSACTIONAL: previously Promise.all of
     // create + touchUpdatedAt. If the touch failed (transient Redis/
     // DB blip) while create succeeded, Promise.all rejects — but the
@@ -237,12 +354,50 @@ export const conversationsService = {
     // is the thing that must not be lost. Split them: create first,
     // then touch is awaited but wrapped so a touch failure only logs
     // rather than masking the successful send.
-    const message = await messagesRepository.create(
-      conversationId,
-      userId,
-      body || (imageUrl ? '📷' : ''),
-      imageUrl
-    );
+    let message: Message;
+    try {
+      message = await messagesRepository.create(
+        conversationId,
+        userId,
+        body || (imageUrl ? '📷' : ''),
+        imageUrl
+      );
+    } catch (err) {
+      // Release claim so a client/queue retry can re-enter cleanly.
+      if (claimedOpKey) {
+        try {
+          await cacheRedis.del(claimedOpKey);
+        } catch {
+          /* ignore */
+        }
+      }
+      throw err;
+    }
+
+    if (claimedOpKey) {
+      try {
+        // Promote pending → concrete message id (same TTL window).
+        await cacheRedis.set(claimedOpKey, message.id, 'EX', MSG_OP_TTL_SEC);
+      } catch (err) {
+        logger.warn('message offline-op finalize failed', {
+          err: err instanceof Error ? err.message : String(err),
+          messageId: message.id,
+        });
+      }
+    } else if (opId) {
+      // We created without holding a claim (Redis miss path) — still
+      // best-effort record the id for later retries within the window.
+      try {
+        await cacheRedis.set(
+          `msg:op:${userId}:${opId}`,
+          message.id,
+          'EX',
+          MSG_OP_TTL_SEC,
+        );
+      } catch {
+        /* ignore */
+      }
+    }
 
     // Best-effort: the conversation's updatedAt drives sorting in the
     // list view, so a lost touch means the thread briefly appears at

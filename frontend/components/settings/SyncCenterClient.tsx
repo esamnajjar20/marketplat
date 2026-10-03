@@ -121,9 +121,13 @@ export function SyncCenterClient() {
 
   async function handleRetry(id: number) {
     try {
+      // FIX N6: retryFailedRequest is fire-and-forget to the SW; it does
+      // not throw on "no SW / unknown id / still deferred". Delay the
+      // refresh so the SW has a moment to process, and use a neutral
+      // toast rather than claiming success unconditionally.
       await retryFailedRequest(id);
-      toast.success('أُعيدت المحاولة');
-      await refresh();
+      toast.message('جاري إعادة المحاولة…');
+      window.setTimeout(() => void refresh(), 800);
     } catch {
       toast.error('تعذّرت إعادة المحاولة');
     }
@@ -189,9 +193,9 @@ export function SyncCenterClient() {
       <div className="grid grid-cols-3 gap-3">
         <StatCard
           icon={<CheckCircle2 className="h-4 w-4" />}
-          label="متزامن"
-          value={loading ? '…' : String(Math.max(0, 0))}
-          hint="آخر جلسة"
+          label="قيد الانتظار"
+          value={loading ? '…' : String(Math.max(0, pending))}
+          hint="في الطابور"
         />
         <StatCard
           icon={<Clock className="h-4 w-4 text-warning" />}

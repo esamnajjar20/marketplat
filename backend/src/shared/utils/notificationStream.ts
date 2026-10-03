@@ -260,11 +260,13 @@ async function replayThenGoLive(userId: string, client: Client, lastEventId?: st
     }
   }
 
-  // FIX-REPLAY-ORDER-01: replay written — from here the id-dedup is off. A
-  // concurrent publish may have pushed its entry into `pending` after the
-  // live XADD finished with a smaller id than this client's lastSentId.
-  client.duringReplay = false;
-
+  // FIX N5-REPLAY-DEDUP: keep duringReplay=true while flushing `pending`
+  // so sendToClient still drops ids already written during Redis replay.
+  // Supersedes FIX-REPLAY-ORDER-01 — that earlier fix cleared duringReplay
+  // before the flush and is now moved below it.
+  // Previously duringReplay was cleared first, so an event published
+  // mid-replay (buffered in pending AND present in the replay tail)
+  // was delivered twice — NotificationToasts showed duplicate toasts.
   try {
     if (gap) writeSse(client.res, 'resync', { reason: 'replay_gap' });
   } catch {
@@ -274,6 +276,7 @@ async function replayThenGoLive(userId: string, client: Client, lastEventId?: st
   const queued = client.pending;
   client.pending = [];
   for (const item of queued) sendToClient(client, item.payload, item.id);
+  client.duringReplay = false;
   client.ready = true;
 }
 

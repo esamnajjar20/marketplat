@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'r
 import { Send, Ban, ImagePlus, X } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
+import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
   loadMessageDraft,
   saveMessageDraft,
@@ -164,7 +165,9 @@ export function MessageInput({ conversationId, disabled }: Props) {
         // deletes Content-Type whenever the body is FormData (see
         // api/client.ts's FIX BUG-IMG-CONTENTTYPE-01) — setting it here
         // was dead weight that axios then had to strip.
-        await apiClient.post(`/conversations/${conversationId}/messages/image`, form);
+        await apiClient.post(`/conversations/${conversationId}/messages/image`, form, {
+          headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() },
+        });
         setBody('');
         setLastSendError(null);
         clearMessageDraft(conversationId);
@@ -174,9 +177,25 @@ export function MessageInput({ conversationId, disabled }: Props) {
         });
         void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
       } catch (err) {
-        const msg = parseApiError(err).message;
-        setLastSendError(msg);
-        toast.error(msg);
+        // FIX N3-IMG-OFFLINE-QUEUED: mirror the text-path behaviour —
+        // SW returns 202 {queued:true} which the interceptor rejects as
+        // OFFLINE_QUEUED. Treat that as success UX (clear composer) so
+        // the user does not re-send and double the image when back online
+        // (messages still lack server-side idempotency — see N2).
+        const parsed = parseApiError(err);
+        if (parsed.queued) {
+          setBody('');
+          setLastSendError(null);
+          clearMessageDraft(conversationId);
+          clearImage();
+          void queryClient.invalidateQueries({
+            queryKey: ['conversations', 'detail', conversationId, 'messages'],
+          });
+          void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+        } else {
+          setLastSendError(parsed.message);
+          toast.error(parsed.message);
+        }
       } finally {
         setUploading(false);
       }

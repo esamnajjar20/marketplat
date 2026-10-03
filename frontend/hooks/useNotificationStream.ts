@@ -131,6 +131,8 @@ const RECONNECT_MAX_MS = 30_000;
 export function useNotificationStream(options?: Options) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const accessToken = useAuthStore(selectAccessToken);
+  // FIX N4: boolean presence only — avoids SSE restart on every refresh rotation.
+  const hasAccessToken = Boolean(accessToken);
   const queryClient = useQueryClient();
   const [connected, setConnected] = useState(false);
   const onEventRef = useRef(options?.onEvent);
@@ -181,8 +183,16 @@ export function useNotificationStream(options?: Options) {
       // so a rotation mid-stream does not require tearing down.
       const token = accessTokenRef.current;
       if (!token) {
-        // Logged out while we were trying to connect — retry on the
-        // next auth cycle rather than opening an unauthenticated stream.
+        // FIX N4-SSE-OFFLINE-BOOT: app may start offline with
+        // isAuthenticated=true and accessToken='' (auth.store
+        // onRehydrateStorage). Previously we returned with no timer, so
+        // when the real token arrived the effect did not re-run (deps
+        // are only isAuthenticated + queryClient). Schedule a soft
+        // retry so connect picks up the token after AuthHydration
+        // finishes without requiring a full page reload.
+        if (!closed && isAuthenticatedRef.current) {
+          retryTimer = setTimeout(connect, nextDelay());
+        }
         return;
       }
       try {
@@ -312,10 +322,11 @@ export function useNotificationStream(options?: Options) {
       setConnected(false);
       streamConnected = false;
     };
-    // SW-SSE-TOKEN-REF-01: only isAuthenticated and queryClient are
-    // effect dependencies — accessToken is read via ref inside
-    // connect() so a token rotation does not restart the SSE stream.
-  }, [isAuthenticated, queryClient]);
+    // SW-SSE-TOKEN-REF-01 + FIX N4-SSE-OFFLINE-BOOT:
+    // hasAccessToken (boolean) re-runs the effect when token appears
+    // after offline boot, without restarting on every token rotation
+    // string change.
+  }, [isAuthenticated, queryClient, hasAccessToken]);
 
   return { connected };
 }
