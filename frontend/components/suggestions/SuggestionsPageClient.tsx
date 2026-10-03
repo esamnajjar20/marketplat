@@ -151,11 +151,11 @@ export function SuggestionsPageClient() {
           {items.map((item) => (
             <div key={`${item.kind}-${item.data.id}`} className="h-full">
               {item.kind === 'ad' ? (
-                <AdCard ad={item.data} density="compact" showKind />
+                <AdCard ad={item.data} context="featured" density="compact" showKind />
               ) : item.kind === 'product' ? (
-                <ProductCard product={item.data} density="compact" showKind />
+                <ProductCard product={item.data} context="featured" density="compact" showKind />
               ) : (
-                <ServiceListingCard listing={item.data} density="compact" showKind />
+                <ServiceListingCard listing={item.data} context="featured" density="compact" showKind />
               )}
             </div>
           ))}

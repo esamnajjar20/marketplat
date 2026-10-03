@@ -147,7 +147,7 @@ export function RecentProductsSection() {
       <HomeScrollRail className="stagger-fade-in">
         {items.map((product) => (
           <HomeScrollRailItem key={product.id}>
-            <ProductCard product={product} storeId={product.store.id} />
+            <ProductCard product={product} storeId={product.store.id} context="public" />
           </HomeScrollRailItem>
         ))}
       </HomeScrollRail>

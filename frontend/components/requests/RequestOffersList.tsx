@@ -1,16 +1,11 @@
 'use client';
 
 import { useAcceptRequestOffer } from '@/hooks/mutations/useRequestMutations';
-import {
-  REQUEST_OFFER_STATUS_LABEL,
-  REQUEST_OFFER_STATUS_VARIANT,
-} from '@/lib/requestStatus';
 import type { RequestOfferListItem, RequestStatus } from '@/types/request.types';
-import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
-import { formatRelativeTime } from '@/lib/formatters';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { MessageSquare } from 'lucide-react';
+import { RequestOfferCard } from '@/components/requests/RequestOfferCard';
 
 type Props = {
   requestId: string;
@@ -58,39 +53,20 @@ export function RequestOffersList({
           }
         />
       ) : (
-        <ul className="space-y-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {offers.map((o) => (
-            <li
+            <RequestOfferCard
               key={o.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border/80 bg-card p-4"
-            >
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-lg font-semibold tabular-nums">{o.price}</span>
-                  <Badge variant={REQUEST_OFFER_STATUS_VARIANT[o.status]}>
-                    {REQUEST_OFFER_STATUS_LABEL[o.status]}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {o.offerer?.name ?? 'مستخدم'}
-                  {o.createdAt ? ` · ${formatRelativeTime(o.createdAt)}` : ''}
-                </p>
-                {o.message && (
-                  <p className="text-sm leading-relaxed text-foreground/90">{o.message}</p>
-                )}
-              </div>
-              {isOwner && requestStatus === 'OPEN' && o.status === 'PENDING' && (
-                <Button
-                  size="sm"
-                  disabled={accept.isPending}
-                  onClick={() => accept.mutate({ id: requestId, offerId: o.id })}
-                >
+              offer={o}
+              context={isOwner ? 'owner' : 'public'}
+              action={isOwner && requestStatus === 'OPEN' && o.status === 'PENDING' ? (
+                <Button size="sm" disabled={accept.isPending} onClick={() => accept.mutate({ id: requestId, offerId: o.id })}>
                   قبول العرض
                 </Button>
-              )}
-            </li>
+              ) : undefined}
+            />
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );

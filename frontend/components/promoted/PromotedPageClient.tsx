@@ -121,6 +121,7 @@ export function PromotedPageClient() {
                   key={product.id}
                   product={product}
                   storeId={product.store?.id}
+                  context="featured"
                 />
               ))}
             </div>

@@ -214,9 +214,9 @@ export function ProductDetail({ product, related = [] }: Props) {
           {related.length > 0 && (
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">منتجات من نفس المتجر</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3">
                 {related.map((p) => (
-                  <ProductCard key={p.id} product={p} storeId={product.storeId} />
+                  <ProductCard key={p.id} product={p} storeId={product.storeId} context="related" />
                 ))}
               </div>
             </section>

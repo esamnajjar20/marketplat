@@ -6,16 +6,10 @@ import { ClipboardList } from 'lucide-react';
 import { useMyRequestOffers } from '@/hooks/queries/useRequests';
 import { useWithdrawRequestOffer } from '@/hooks/mutations/useRequestMutations';
 import { ROUTES } from '@/lib/constants';
-import {
-  REQUEST_OFFER_STATUS_LABEL,
-  REQUEST_OFFER_STATUS_VARIANT,
-  REQUEST_TYPE_LABEL,
-} from '@/lib/requestStatus';
-import { formatRelativeTime } from '@/lib/formatters';
 import { Button } from '@/components/shared/ui/Button';
-import { Badge } from '@/components/shared/ui/Badge';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
+import { RequestOfferCard } from '@/components/requests/RequestOfferCard';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 export default function MyRequestOffersPage() {
@@ -51,53 +45,20 @@ export default function MyRequestOffersPage() {
       )}
 
       {!isLoading && !isError && (
-        <ul className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {items.map((o) => (
-            <li
+            <RequestOfferCard
               key={o.id}
-              className="rounded-xl border border-border/80 bg-card p-4 shadow-xs"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <Link href={ROUTES.request(o.requestId)} className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={REQUEST_OFFER_STATUS_VARIANT[o.status]}>
-                      {REQUEST_OFFER_STATUS_LABEL[o.status]}
-                    </Badge>
-                    {o.request?.type && (
-                      <span className="text-xs text-muted-foreground">
-                        {REQUEST_TYPE_LABEL[o.request.type]}
-                      </span>
-                    )}
-                    {o.createdAt && (
-                      <span className="text-xs text-muted-foreground">
-                        {formatRelativeTime(o.createdAt)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="font-semibold leading-snug">
-                    {o.request?.title ?? 'طلب'}
-                  </p>
-                  <p className="text-sm tabular-nums">
-                    سعرك: <span className="font-medium">{o.price}</span>
-                  </p>
-                  {o.message && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">{o.message}</p>
-                  )}
-                </Link>
-                {o.status === 'PENDING' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={withdraw.isPending}
-                    onClick={() => setConfirmOffer({ id: o.requestId, offerId: o.id })}
-                  >
-                    سحب
-                  </Button>
-                )}
-              </div>
-            </li>
+              offer={o}
+              context="owner"
+              action={o.status === 'PENDING' ? (
+                <Button size="sm" variant="outline" disabled={withdraw.isPending} onClick={() => setConfirmOffer({ id: o.requestId, offerId: o.id })}>
+                  سحب
+                </Button>
+              ) : undefined}
+            />
           ))}
-        </ul>
+        </div>
       )}
 
       {!isLoading && !isError && items.length === 0 && (

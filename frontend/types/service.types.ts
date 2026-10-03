@@ -142,7 +142,7 @@ export interface ServiceListing {
 export type ServiceListingWithProvider = ServiceListing & {
   provider: Pick<
     ServiceProviderDetails,
-    'id' | 'businessName' | 'logoUrl' | 'availabilityStatus' | 'contactPhone'
+    'id' | 'businessName' | 'logoUrl' | 'availabilityStatus' | 'serviceAreaCities' | 'contactPhone'
   > & {
     // Epic 3.1: userId added so ServiceRequestButton can hide itself on
     // one's own listing — same self-request guard as ads/sellers already have.

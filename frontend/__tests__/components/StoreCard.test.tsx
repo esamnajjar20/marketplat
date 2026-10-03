@@ -81,14 +81,14 @@ describe('StoreCard', () => {
   });
 
   describe('featured indicator', () => {
-    it('shows the featured icon for a FEATURED-plan store', () => {
+    it('shows the featured badge for a FEATURED-plan store', () => {
       render(<StoreCard store={{ ...baseStore, plan: 'FEATURED' }} />);
-      expect(screen.getByLabelText('متجر مميز')).toBeInTheDocument();
+      expect(screen.getByText('مميز')).toBeInTheDocument();
     });
 
-    it('does not show the featured icon for a FREE-plan store', () => {
+    it('does not show the featured badge for a FREE-plan store', () => {
       render(<StoreCard store={{ ...baseStore, plan: 'FREE' }} />);
-      expect(screen.queryByLabelText('متجر مميز')).not.toBeInTheDocument();
+      expect(screen.queryByText('مميز')).not.toBeInTheDocument();
     });
   });
 

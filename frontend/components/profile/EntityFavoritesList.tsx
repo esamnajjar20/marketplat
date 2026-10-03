@@ -339,12 +339,12 @@ function EntityCard({
   switch (type) {
     case 'PRODUCT': {
       const product = entity as ProductWithStore;
-      return <ProductCard product={product} storeId={product.store.id} />;
+      return <ProductCard product={product} storeId={product.store.id} context="favorites" />;
     }
     case 'STORE':
-      return <StoreCard store={entity as StoreWithSeller} />;
+      return <StoreCard store={entity as StoreWithSeller} context="favorites" />;
     case 'SERVICE_LISTING':
-      return <ServiceListingCard listing={entity as ServiceListingWithProvider} />;
+      return <ServiceListingCard listing={entity as ServiceListingWithProvider} context="favorites" />;
   }
 }
 

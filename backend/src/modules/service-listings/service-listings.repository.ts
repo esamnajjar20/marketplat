@@ -41,6 +41,7 @@ const serviceListingListSelect = {
       businessName: true,
       logoUrl: true,
       availabilityStatus: true,
+      serviceAreaCities: true,
       contactPhone: true,
       sellerProfile: {
         select: {

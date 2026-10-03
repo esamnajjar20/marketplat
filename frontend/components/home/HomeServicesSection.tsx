@@ -81,7 +81,7 @@ export function HomeServicesSection() {
     >
       {items.map((listing) => (
         <HomeScrollRailItem key={listing.id}>
-          <ServiceListingCard listing={listing} />
+          <ServiceListingCard listing={listing} context="public" />
         </HomeScrollRailItem>
       ))}
     </HomeRailShell>

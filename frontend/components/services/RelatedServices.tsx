@@ -58,13 +58,13 @@ export function RelatedServices({
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory sm:hidden [&::-webkit-scrollbar]:hidden">
         {items.map((s) => (
           <div key={s.id} className="w-[48%] min-w-[160px] max-w-[220px] shrink-0 snap-start">
-            <ServiceListingCard listing={s} />
+            <ServiceListingCard listing={s} context="related" />
           </div>
         ))}
       </div>
-      <div className="hidden grid-cols-2 sm:grid lg:grid-cols-4 gap-3 stagger-fade-in">
+      <div className="hidden grid-cols-2 gap-3 sm:grid sm:gap-4 stagger-fade-in">
         {items.map((s) => (
-          <ServiceListingCard key={s.id} listing={s} />
+          <ServiceListingCard key={s.id} listing={s} context="related" />
         ))}
       </div>
     </section>

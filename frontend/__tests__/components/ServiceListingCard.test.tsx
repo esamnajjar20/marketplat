@@ -46,6 +46,7 @@ function makeListing(overrides: Partial<ServiceListingWithProvider> = {}): Servi
     updatedAt: '2026-01-01T00:00:00.000Z',
     provider: {
       id: 'provider-1',
+      serviceAreaCities: ['غزة'],
       businessName: 'ورشة التبريد الحديثة',
       logoUrl: null,
       availabilityStatus: 'AVAILABLE',
@@ -66,10 +67,11 @@ describe('ServiceListingCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/services/listing-99');
   });
 
-  it('renders the title and provider business name', () => {
+  it('renders the title and city in public context without provider attribution', () => {
     render(<ServiceListingCard listing={makeListing()} />);
     expect(screen.getByText('تصليح مكيفات منزلية')).toBeInTheDocument();
-    expect(screen.getByText('ورشة التبريد الحديثة')).toBeInTheDocument();
+    expect(screen.getByText('غزة')).toBeInTheDocument();
+    expect(screen.queryByText('ورشة التبريد الحديثة')).not.toBeInTheDocument();
   });
 
   describe('price formatting', () => {
@@ -126,6 +128,11 @@ describe('ServiceListingCard', () => {
       render(<ServiceListingCard listing={makeListing()} />);
       expect(screen.queryByLabelText('مقدم خدمة موثّق')).not.toBeInTheDocument();
     });
+  });
+
+  it('shows provider in favorites context and hides heart in owner context', () => {
+    render(<ServiceListingCard listing={makeListing()} context="favorites" />);
+    expect(screen.getByText('ورشة التبريد الحديثة')).toBeInTheDocument();
   });
 
   it('renders an image with the listing title as alt text', () => {

@@ -12,7 +12,7 @@ const DISPLAY_COUNT = 6;
 // own comment), not the square/4:3 image card ProductCard/
 // ServiceListingCard are — same grid RecentStores.tsx already uses
 // for the identical layout reason.
-const STORE_GRID = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+const STORE_GRID = 'grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4';
 
 interface Props {
   /** Excludes the store currently being viewed on its own public page. */

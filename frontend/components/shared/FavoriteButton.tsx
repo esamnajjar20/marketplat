@@ -73,6 +73,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
 
   const textLabel = isFavorited ? REMOVE_LABEL : ADD_LABEL;
 
+
   const dim = size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
   const iconDim = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
 

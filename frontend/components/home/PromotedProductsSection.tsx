@@ -133,7 +133,7 @@ export function PromotedProductsSection() {
         <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-4 stagger-fade-in">
           {items.map((product) => (
             <div key={product.id} className="w-40 shrink-0 sm:w-auto">
-              <ProductCard product={product} storeId={product.store.id} />
+              <ProductCard product={product} storeId={product.store.id} context="featured" />
             </div>
           ))}
         </div>

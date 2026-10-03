@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { ProductCard } from './ProductCard';
@@ -119,17 +118,7 @@ export function ProductsGrid() {
         <div className={cn(LIST_CARD_GRID_CLASS, "stagger-fade-in")}>
           {items.map((product) => (
             <div key={product.id} className="space-y-1.5">
-              {/* Store attribution — the one thing StoreProducts.tsx
-                  doesn't need (it's already inside one store's page)
-                  but this cross-store view does, per the "make clear
-                  a product belongs to a store" requirement. */}
-              <Link
-                href={ROUTES.storeDetail(product.store.id)}
-                className="flex items-center gap-1.5 px-0.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <span className="truncate">{product.store.name}</span>
-              </Link>
-              <ProductCard product={product} storeId={product.store.id} />
+              <ProductCard product={product} storeId={product.store.id} context="catalog" />
             </div>
           ))}
         </div>

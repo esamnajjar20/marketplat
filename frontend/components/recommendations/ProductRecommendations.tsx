@@ -49,7 +49,7 @@ export function ProductRecommendations({ excludeProductId, excludeStoreId }: Pro
       isError={isError}
       refetch={refetch}
       getItemKey={(product) => product.id}
-      renderItem={(product) => <ProductCard product={product} storeId={product.storeId} />}
+      renderItem={(product) => <ProductCard product={product} storeId={product.storeId} context="related" />}
       renderSkeleton={() => <ProductCardSkeleton />}
       skeletonCount={DISPLAY_COUNT}
     />

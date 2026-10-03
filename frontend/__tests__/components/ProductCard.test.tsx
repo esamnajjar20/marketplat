@@ -82,7 +82,7 @@ describe('ProductCard', () => {
       expect(screen.getAllByText(formatPrice('150'))).toHaveLength(1);
     });
 
-    it('shows the static discountPrice fallback (no live promotion) as primary, original struck through', () => {
+    it('shows the static discountPrice fallback as the single displayed price', () => {
       const product: ProductWithStore = {
         ...baseProduct,
         effectivePrice: {
@@ -96,11 +96,11 @@ describe('ProductCard', () => {
       };
       render(<ProductCard product={product} storeId="store-1" />);
       expect(screen.getByText(formatPrice(120))).toBeInTheDocument();
-      expect(screen.getByText(formatPrice('150'))).toBeInTheDocument();
+      expect(screen.queryByText(formatPrice('150'))).not.toBeInTheDocument();
       expect(screen.queryByText(/🔥/)).not.toBeInTheDocument();
     });
 
-    it('shows a live promotion price as primary, original struck through, with the 🔥 badge', () => {
+    it('shows a live promotion price with the discount badge', () => {
       const product: ProductWithStore = {
         ...baseProduct,
         effectivePrice: {
@@ -114,8 +114,8 @@ describe('ProductCard', () => {
       };
       render(<ProductCard product={product} storeId="store-1" />);
       expect(screen.getByText(formatPrice(127.5))).toBeInTheDocument();
-      expect(screen.getByText(formatPrice('150'))).toBeInTheDocument();
-      expect(screen.getByText('🔥 خصم 15%')).toBeInTheDocument();
+      expect(screen.queryByText(formatPrice('150'))).not.toBeInTheDocument();
+      expect(screen.getByText('خصم 15%')).toBeInTheDocument();
     });
   });
 
@@ -191,8 +191,21 @@ describe('ProductCard', () => {
 
     it('no longer renders the redundant static "متجر" chip in the footer', () => {
       render(<ProductCard product={baseProduct} storeId="store-1" />);
-      expect(screen.queryByText('متجر')).not.toBeInTheDocument();
+      expect(screen.queryByText('متجر تجريبي')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('context rendering', () => {
+    it('hides store, city and time inside a store context', () => {
+      render(<ProductCard product={baseProduct} context="store" />);
+      expect(screen.queryByText('متجر تجريبي')).not.toBeInTheDocument();
+      expect(screen.queryByText('غزة')).not.toBeInTheDocument();
+    });
+
+    it('shows store and city in favorites context', () => {
+      render(<ProductCard product={baseProduct} context="favorites" />);
       expect(screen.getByText('متجر تجريبي')).toBeInTheDocument();
+      expect(screen.getByText('غزة')).toBeInTheDocument();
     });
   });
 });

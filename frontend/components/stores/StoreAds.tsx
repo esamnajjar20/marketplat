@@ -33,7 +33,7 @@ export function StoreAds({ storeId, storeName }: Props) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <AdCardSkeleton key={i} />
         ))}
@@ -58,9 +58,9 @@ export function StoreAds({ storeId, storeName }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
       {items.map((ad) => (
-        <AdCard key={ad.id} ad={ad} />
+        <AdCard key={ad.id} ad={ad} context="store" />
       ))}
     </div>
   );

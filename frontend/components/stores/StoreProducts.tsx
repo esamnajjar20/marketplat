@@ -227,7 +227,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
           }
         />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 stagger-fade-in">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in">
           {items.map((product) => (
             <div
               key={product.id}
@@ -238,7 +238,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
                   : undefined
               }
             >
-              <ProductCard product={product} storeId={storeId} />
+              <ProductCard product={product} storeId={storeId} context="store" />
             </div>
           ))}
         </div>

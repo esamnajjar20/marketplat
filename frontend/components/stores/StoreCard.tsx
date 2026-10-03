@@ -10,15 +10,17 @@ import { cn } from '@/lib/utils';
 import { HIT_AREA } from '@/components/shared/cards/cardTokens';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { getStoreTypePresentation, type StoreWithSeller } from '@/types/store.types';
+import { CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
 
 interface Props {
   store: StoreWithSeller;
   className?: string;
   density?: 'default' | 'compact';
+  context?: CardContext;
 }
 
 /** Directory card for /stores — aligned with design system. */
-export function StoreCard({ store, className, density = 'default' }: Props) {
+export function StoreCard({ store, className, density = 'default', context = 'public' }: Props) {
   const compact = density === 'compact';
   const avatar = getAvatarUrl(store.logoUrl ?? '', 96);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 720) : null;
@@ -27,9 +29,10 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
   const presentation = getStoreTypePresentation(store.storeType);
   const storeTypeLabel = store.storeType?.nameAr || presentation.card.title;
   const fields = (store.storeType?.fields ?? []).filter((field) => field.scope !== 'PRODUCT');
+  const showHeart = context !== 'owner';
 
   return (
-    <article className={cn('group relative h-full', className)}>
+    <article className={cn('group relative h-full w-full min-w-0', className)}>
       <Link
         href={ROUTES.storeDetail(store.id)}
         prefetch={false}
@@ -48,6 +51,7 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
             <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-muted to-accent/10" aria-hidden />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" aria-hidden />
+          <CardOfflineBadge />
           {store.plan === 'FEATURED' && (
             <Badge size="sm" variant="soft-accent" className="absolute start-3 top-3 gap-1 bg-background/85 backdrop-blur">
               <Sparkles className="h-3 w-3" aria-hidden />
@@ -76,7 +80,7 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
             <p className="text-[11px] font-semibold text-primary">{storeTypeLabel}</p>
             <h3 className="mt-0.5 truncate text-base font-bold text-foreground">{store.name}</h3>
             {presentation.card.subtitle ? <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{presentation.card.subtitle}</p> : null}
-            {store.description?.trim() ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{store.description}</p> : null}
+            {store.description?.trim() ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-muted-foreground">{store.description}</p> : null}
           </div>
 
           <div className="mt-3">
@@ -95,7 +99,7 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
         </div>
       </Link>
 
-      <FavoriteButton entityType="STORE" entityId={store.id} size="sm" className={`absolute top-2 end-2 ${HIT_AREA}`} />
+      {showHeart && <FavoriteButton entityType="STORE" entityId={store.id} size="sm" className={`absolute top-2 end-2 ${HIT_AREA}`} />}
     </article>
   );
 }

@@ -186,9 +186,9 @@ describe('AdCard', () => {
       expect(screen.getByRole('button', { name: 'إضافة إلى المفضلة' })).toBeInTheDocument();
     });
 
-    it('does not render a favorite button for a sold ad', () => {
+    it('keeps the favorite button for a sold ad because favorites are independent of availability', () => {
       render(<AdCard ad={{ ...baseAd, status: 'SOLD' }} />);
-      expect(screen.queryByRole('button', { name: /المفضلة/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /المفضلة/ })).toBeInTheDocument();
     });
 
     it('reflects the favorited state via aria-pressed and label', () => {
@@ -224,6 +224,24 @@ describe('AdCard', () => {
       // from a duplicated handler.
       await user.click(screen.getByRole('button', { name: 'إضافة إلى المفضلة' }));
       expect(mockToggleMutate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('context rendering', () => {
+    it('hides seller in public context', () => {
+      render(<AdCard ad={baseAd} context="public" />);
+      expect(screen.queryByText('محمد')).not.toBeInTheDocument();
+    });
+
+    it('shows seller and keeps city/time in favorites context', () => {
+      render(<AdCard ad={baseAd} context="favorites" />);
+      expect(screen.getByText('محمد')).toBeInTheDocument();
+      expect(screen.getByText('خان يونس')).toBeInTheDocument();
+    });
+
+    it('hides the favorite button in owner context', () => {
+      render(<AdCard ad={baseAd} context="owner" />);
+      expect(screen.queryByRole('button', { name: /المفضلة/ })).not.toBeInTheDocument();
     });
   });
 

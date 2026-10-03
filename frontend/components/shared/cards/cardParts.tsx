@@ -3,38 +3,41 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 
+export type CardContext = 'public' | 'favorites' | 'store' | 'owner' | 'related' | 'featured' | 'catalog';
 export type CardKind = 'ad' | 'product' | 'service';
 
-/**
- * Current time, available only after mount (null on the server and during the
- * first client render) so relative-time labels never cause a hydration mismatch.
- */
 export function useNowAfterMount(): number | null {
   const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    setNow(Date.now());
-  }, []);
+  useEffect(() => setNow(Date.now()), []);
   return now;
 }
 
 const KIND_BADGE: Record<CardKind, { label: string; className?: string; accent?: boolean }> = {
   ad: { label: 'إعلان', accent: true },
-  // TOKENS-01 [CATEGORICAL]: was bg-emerald-600
   product: { label: 'منتج', className: 'bg-cat-product text-white hover:bg-cat-product' },
   service: { label: 'خدمة', className: 'bg-info text-info-foreground hover:bg-info/90' },
 };
 
-/**
- * Type chip for mixed lists (للمخصص لك / الاقتراحات). It lives INSIDE each
- * card's top-start badge stack, so it can never overlap the card's own badges
- * (condition / featured / discount / availability) the way an absolutely
- * positioned wrapper did.
- */
 export function CardKindBadge({ kind }: { kind: CardKind }) {
   const cfg = KIND_BADGE[kind];
-  return (
-    <Badge size="xs" variant={cfg.accent ? 'accent' : 'default'} className={cfg.className}>
-      {cfg.label}
-    </Badge>
-  );
+  return <Badge size="xs" variant={cfg.accent ? 'accent' : 'default'} className={cfg.className}>{cfg.label}</Badge>;
 }
+
+export function CardOfflineBadge() {
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const sync = () => setOffline(!navigator.onLine);
+    sync();
+    window.addEventListener('online', sync);
+    window.addEventListener('offline', sync);
+    return () => {
+      window.removeEventListener('online', sync);
+      window.removeEventListener('offline', sync);
+    };
+  }, []);
+  if (!offline) return null;
+  return <Badge size="xs" variant="overlay" className="absolute bottom-2 start-2 z-10">محفوظ محلي</Badge>;
+}
+
+export const CARD_GRID_CLASS = 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4';
+export const RELATED_CARD_GRID_CLASS = 'grid grid-cols-2 gap-3';
