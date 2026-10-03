@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { createStoreTypeFieldSchema } from '../../src/modules/store-types/store-type-fields.validation';
 
 describe('StoreType product fields', () => {
@@ -22,5 +21,18 @@ describe('StoreType product fields', () => {
       body: { key: 'prep_time', labelAr: 'وقت التحضير', type: 'NUMBER' },
     });
     expect(result.body.scope).toBe('STORE');
+  });
+
+  it('keeps STORE and PRODUCT keys independently scoped', () => {
+    const store = createStoreTypeFieldSchema.safeParse({
+      params: { storeTypeId: 'st_restaurant' },
+      body: { key: 'name', labelAr: 'اسم العرض', type: 'TEXT', scope: 'STORE' },
+    });
+    const product = createStoreTypeFieldSchema.safeParse({
+      params: { storeTypeId: 'st_restaurant' },
+      body: { key: 'name', labelAr: 'اسم الصنف', type: 'TEXT', scope: 'PRODUCT' },
+    });
+    expect(store.success).toBe(true);
+    expect(product.success).toBe(true);
   });
 });

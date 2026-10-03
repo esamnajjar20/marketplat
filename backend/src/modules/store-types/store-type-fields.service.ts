@@ -10,7 +10,7 @@ import { CreateStoreTypeFieldInput, UpdateStoreTypeFieldInput } from './store-ty
 
 const MAX_FIELDS = 20;
 const CACHE_TTL_SECONDS = 30 * 60;
-const cacheKey = (storeTypeId: string) => `store_type_fields:${storeTypeId}:active:v1`;
+const cacheKey = (storeTypeId: string) => `store_type_fields:${storeTypeId}:active:v2`;
 
 async function invalidate(storeTypeId: string) {
   try { await redis.del(cacheKey(storeTypeId)); } catch { logger.warn('Store type fields cache invalidation failed'); }
@@ -27,7 +27,7 @@ export const storeTypeFieldsService = {
       const cached = await redis.get(cacheKey(storeTypeId));
       if (cached) return JSON.parse(cached);
     } catch { logger.warn('Store type fields cache read failed'); }
-    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).map(({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, scope, required, options, sortOrder }) => ({ id, storeTypeId: ownerId, key, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, scope, required, options, sortOrder }));
+    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).map(({ id, storeTypeId: ownerId, key, scope, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, required, options, sortOrder }) => ({ id, storeTypeId: ownerId, key, scope, labelAr, cardLabelAr, pageLabelAr, showOnCard, showOnPage, type, required, options, sortOrder }));
     try { await redis.setex(cacheKey(storeTypeId), CACHE_TTL_SECONDS, JSON.stringify(fields)); } catch { logger.warn('Store type fields cache write failed'); }
     return fields;
   },
@@ -68,36 +68,36 @@ export const storeTypeFieldsService = {
   },
 
   validateAttributes: async (storeTypeId: string, raw: unknown, requireRequired: boolean, scope: StoreFieldScope = 'STORE'): Promise<StoreAttributes | null> => {
-    if (raw == null) return requireRequired && (await storeTypeFieldsRepository.findActive(storeTypeId)).some(f => f.scope === scope && f.required)
-      ? (() => { throw new BadRequestError('Required attributes are missing.', 'STORE_ATTRIBUTES_REQUIRED'); })()
+    if (raw == null) return requireRequired && (await storeTypeFieldsRepository.findActive(storeTypeId, scope)).some(f => f.required)
+      ? (() => { throw new BadRequestError(scope === 'PRODUCT' ? 'Required product fields are missing.' : 'Required store fields are missing.', scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_REQUIRED' : 'STORE_ATTRIBUTES_REQUIRED'); })()
       : null;
-    if (typeof raw !== 'object' || Array.isArray(raw)) throw new BadRequestError('Store attributes must be an object.', 'STORE_ATTRIBUTES_INVALID');
+    if (typeof raw !== 'object' || Array.isArray(raw)) throw new BadRequestError('Store attributes must be an object.', scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_INVALID' : 'STORE_ATTRIBUTES_INVALID');
     const input = raw as Record<string, unknown>;
-    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).filter(field => field.scope === scope);
+    const fields = await storeTypeFieldsRepository.findActive(storeTypeId, scope);
     const byKey = new Map(fields.map(f => [f.key, f]));
     const keys = Object.keys(input);
-    if (keys.length > MAX_FIELDS) throw new BadRequestError('Too many attributes.', 'STORE_ATTRIBUTES_LIMIT');
+    if (keys.length > MAX_FIELDS) throw new BadRequestError(scope === 'PRODUCT' ? 'Too many product attributes.' : 'Too many store attributes.', scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_LIMIT' : 'STORE_ATTRIBUTES_LIMIT');
     for (const key of keys) {
       const field = byKey.get(key);
-      if (!field) throw new BadRequestError(`Unknown attribute field: ${key}`, 'STORE_ATTRIBUTE_UNKNOWN');
+      if (!field) throw new BadRequestError(`Unknown ${scope === 'PRODUCT' ? 'product' : 'store'} field: ${key}`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_UNKNOWN' : 'STORE_ATTRIBUTE_UNKNOWN');
       const value = input[key];
       if (value === null || value === '') {
-        if (field.required) throw new BadRequestError(`Field ${field.labelAr} is required.`, 'STORE_ATTRIBUTE_REQUIRED');
+        if (field.required) throw new BadRequestError(`Field ${field.labelAr} is required.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_REQUIRED' : 'STORE_ATTRIBUTE_REQUIRED');
         delete input[key];
         continue;
       }
-      if (field.type === 'TEXT' && typeof value !== 'string') throw new BadRequestError(`Field ${field.labelAr} must be text.`, 'STORE_ATTRIBUTE_TYPE');
-      if (field.type === 'NUMBER' && (typeof value !== 'number' || !Number.isFinite(value))) throw new BadRequestError(`Field ${field.labelAr} must be a number.`, 'STORE_ATTRIBUTE_TYPE');
-      if (field.type === 'BOOLEAN' && typeof value !== 'boolean') throw new BadRequestError(`Field ${field.labelAr} must be boolean.`, 'STORE_ATTRIBUTE_TYPE');
+      if (field.type === 'TEXT' && typeof value !== 'string') throw new BadRequestError(`Field ${field.labelAr} must be text.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE');
+      if (field.type === 'NUMBER' && (typeof value !== 'number' || !Number.isFinite(value))) throw new BadRequestError(`Field ${field.labelAr} must be a number.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE');
+      if (field.type === 'BOOLEAN' && typeof value !== 'boolean') throw new BadRequestError(`Field ${field.labelAr} must be boolean.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE');
       if (field.type === 'SELECT') {
-        if (typeof value !== 'string') throw new BadRequestError(`Field ${field.labelAr} has an invalid option.`, 'STORE_ATTRIBUTE_TYPE');
+        if (typeof value !== 'string') throw new BadRequestError(`Field ${field.labelAr} has an invalid option.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE');
         const options = Array.isArray(field.options) ? field.options : [];
-        if (!options.some((o: any) => o?.value === value)) throw new BadRequestError(`Field ${field.labelAr} has an invalid option.`, 'STORE_ATTRIBUTE_OPTION');
+        if (!options.some((o: any) => o?.value === value)) throw new BadRequestError(`Field ${field.labelAr} has an invalid option.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_OPTION' : 'STORE_ATTRIBUTE_OPTION');
       }
     }
     if (requireRequired) {
       for (const field of fields) if (field.required && (input[field.key] === undefined || input[field.key] === null || input[field.key] === '')) {
-        throw new BadRequestError(`Field ${field.labelAr} is required.`, 'STORE_ATTRIBUTE_REQUIRED');
+        throw new BadRequestError(`Field ${field.labelAr} is required.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_REQUIRED' : 'STORE_ATTRIBUTE_REQUIRED');
       }
     }
     return input as StoreAttributes;

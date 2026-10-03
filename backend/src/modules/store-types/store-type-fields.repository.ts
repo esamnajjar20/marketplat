@@ -3,8 +3,8 @@ import { Prisma } from '@prisma/client';
 import { CreateStoreTypeFieldInput, UpdateStoreTypeFieldInput } from './store-type-fields.validation';
 
 export const storeTypeFieldsRepository = {
-  findActive: (storeTypeId: string) => prisma.storeTypeField.findMany({
-    where: { storeTypeId, isActive: true },
+  findActive: (storeTypeId: string, scope?: 'STORE' | 'PRODUCT') => prisma.storeTypeField.findMany({
+    where: { storeTypeId, isActive: true, ...(scope ? { scope } : {}) },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   }),
   findAll: (storeTypeId: string) => prisma.storeTypeField.findMany({
@@ -16,13 +16,13 @@ export const storeTypeFieldsRepository = {
     data: {
       storeTypeId,
       key: input.key,
+      scope: input.scope ?? 'STORE',
       labelAr: input.labelAr,
       cardLabelAr: input.cardLabelAr ?? null,
       pageLabelAr: input.pageLabelAr ?? null,
       showOnCard: input.showOnCard ?? false,
       showOnPage: input.showOnPage ?? true,
       type: input.type,
-      scope: input.scope ?? 'STORE',
       required: input.required ?? false,
       options: input.options ? (input.options as Prisma.InputJsonValue) : undefined,
       sortOrder: input.sortOrder ?? 0,
@@ -31,13 +31,13 @@ export const storeTypeFieldsRepository = {
   update: (id: string, input: UpdateStoreTypeFieldInput) => prisma.storeTypeField.update({
     where: { id },
     data: {
+      ...(input.scope !== undefined ? { scope: input.scope } : {}),
       ...(input.labelAr !== undefined ? { labelAr: input.labelAr } : {}),
       ...(input.cardLabelAr !== undefined ? { cardLabelAr: input.cardLabelAr } : {}),
       ...(input.pageLabelAr !== undefined ? { pageLabelAr: input.pageLabelAr } : {}),
       ...(input.showOnCard !== undefined ? { showOnCard: input.showOnCard } : {}),
       ...(input.showOnPage !== undefined ? { showOnPage: input.showOnPage } : {}),
       ...(input.type !== undefined ? { type: input.type } : {}),
-      ...(input.scope !== undefined ? { scope: input.scope } : {}),
       ...(input.required !== undefined ? { required: input.required } : {}),
       ...(input.options !== undefined ? { options: input.options === null ? Prisma.JsonNull : input.options as Prisma.InputJsonValue } : {}),
       ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),

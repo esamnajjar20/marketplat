@@ -16,10 +16,13 @@ export type ProductWithStore = Prisma.ProductGetPayload<{
 // can build a PRODUCT favorite's card using the exact same include
 // shape as every other cross-module Product read, instead of a
 // second, potentially-drifting definition.
+// FIX PRODUCTWITHRELATIONS-CONST: `as const` on the whole object makes
+// Prisma's orderBy tuple readonly (rejected by SortOrder typing). Narrow
+// only the literals Prisma needs ('PRODUCT', 'asc'/'desc').
 export const productWithRelations = {
-  store: { include: { sellerProfile: true, storeType: { include: { fields: { where: { isActive: true, scope: 'PRODUCT' }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] } } } } },
+  store: { include: { sellerProfile: true, storeType: { include: { fields: { where: { isActive: true, scope: 'PRODUCT' as const }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] } } } } },
   category: { select: { id: true, name: true, nameAr: true } },
-} as const;
+};
 
 /** SLOW-NET phase5: list payload omits long description (detail still full). */
 const productListSelect = {

@@ -791,13 +791,13 @@ model StoreTypeField {
   id          String         @id @default(cuid())
   storeTypeId String
   key         String
+  scope       StoreFieldScope @default(STORE)
   labelAr     String
   cardLabelAr String?
   pageLabelAr String?
   showOnCard  Boolean       @default(false)
   showOnPage  Boolean       @default(true)
   type        StoreFieldType
-  scope       StoreFieldScope @default(STORE)
   required    Boolean        @default(false)
   options     Json?
   sortOrder   Int            @default(0)
@@ -806,8 +806,8 @@ model StoreTypeField {
   updatedAt   DateTime       @updatedAt
   storeType   StoreType      @relation(fields: [storeTypeId], references: [id], onDelete: Cascade)
 
-  @@unique([storeTypeId, key])
-  @@index([storeTypeId, isActive, sortOrder])
+  @@unique([storeTypeId, scope, key])
+  @@index([storeTypeId, scope, isActive, sortOrder])
   @@map("store_type_fields")
 }
 
@@ -941,11 +941,11 @@ model Product {
   price           Decimal                  @db.Decimal(10, 2)
   wholesalePrice  Decimal?                 @db.Decimal(10, 2)
   wholesaleMinQty Int?
-  /// Type-specific product values validated against the owning StoreType fields.
-  attributes      Json?
   discountPrice   Decimal?                 @db.Decimal(10, 2)
   availability    ProductAvailability      @default(IN_STOCK)
   stockQuantity   Int?
+  /// StoreType-defined product metadata. Keys are validated against PRODUCT-scope fields.
+  attributes      Json?
   status          ProductStatus            @default(ACTIVE)
   views           Int                      @default(0)
   // FIX OFFLINE-IDEMPOTENCY-01: same as Ad.offlineOperationId
