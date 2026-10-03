@@ -503,6 +503,21 @@ export function useAdminUpdateStorePlan() {
  * awaiting approval. Same no-optimistic-update / no-toastWithUndo
  * reasoning as the other bulk hooks in this file.
  */
+
+export function useAdminUpdateStoreType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeId, storeTypeId }: { storeId: string; storeTypeId: string }) =>
+      adminApi.updateStoreType(storeId, { storeTypeId }).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+      toast.success('تم تحديث نوع المتجر');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
 export function useAdminBulkUpdateStoreStatus() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -685,6 +700,51 @@ export function useAdminCancelOpenRequest() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'open-requests'] });
       // FIX ADMIN-SILENT-FAIL: see useAdminSetProductStatus above.
       toast.success('تم إلغاء الطلب المفتوح');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+
+export function useAdminCreateStoreType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: import('@/types/admin.types').CreateAdminStoreTypePayload) =>
+      adminApi.createStoreType(payload).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.storeTypes() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTypes.all() });
+      toast.success('تم إنشاء نوع المتجر');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+export function useAdminUpdateStoreTypeDefinition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: import('@/types/admin.types').UpdateAdminStoreTypePayload }) =>
+      adminApi.updateStoreTypeDefinition(id, payload).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.storeTypes() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTypes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+      toast.success('تم تحديث نوع المتجر');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+export function useAdminUpdateStoreTypeStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      adminApi.updateStoreTypeStatus(id, isActive).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.storeTypes() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTypes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+      toast.success('تم تحديث حالة نوع المتجر');
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });

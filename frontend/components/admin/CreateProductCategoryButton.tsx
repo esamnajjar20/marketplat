@@ -10,8 +10,10 @@
 
 import { useCreateProductCategory } from '@/hooks/mutations/useProductCategoryMutations';
 import { CreateEntityCategoryDialog } from '@/components/admin/CreateEntityCategoryDialog';
+import { useAdminStoreTypes } from '@/hooks/queries/useAdmin';
 
 export function CreateProductCategoryButton() {
+  const { data: storeTypes = [] } = useAdminStoreTypes();
   return (
     <CreateEntityCategoryDialog
       useCreateCategory={useCreateProductCategory}
@@ -20,6 +22,7 @@ export function CreateProductCategoryButton() {
       namePlaceholderAr="مثال: إلكترونيات"
       namePlaceholderEn="e.g. Electronics"
       iconPlaceholder="e.g. cpu"
+      storeTypes={storeTypes.map((type) => ({ id: type.id, nameAr: type.nameAr }))}
     />
   );
 }

@@ -11,12 +11,14 @@
 import { useUpdateProductCategory } from '@/hooks/mutations/useProductCategoryMutations';
 import { EditEntityCategoryDialog } from '@/components/admin/EditEntityCategoryDialog';
 import type { ProductCategory } from '@/types/product.types';
+import { useAdminStoreTypes } from '@/hooks/queries/useAdmin';
 
 interface Props {
   category: ProductCategory;
 }
 
 export function EditProductCategoryButton({ category }: Props) {
+  const { data: storeTypes = [] } = useAdminStoreTypes();
   return (
     <EditEntityCategoryDialog
       category={category}
@@ -26,6 +28,7 @@ export function EditProductCategoryButton({ category }: Props) {
       namePlaceholderAr="مثال: إلكترونيات"
       namePlaceholderEn="e.g. Electronics"
       iconPlaceholder="e.g. cpu"
+      storeTypes={storeTypes.map((type) => ({ id: type.id, nameAr: type.nameAr }))}
     />
   );
 }

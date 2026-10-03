@@ -3,14 +3,14 @@
 /**
  * ADMIN-HUB-01 — one page for the whole admin panel.
  *
- * Replaces the 17 near-identical app/(admin)/admin/<section>/page.tsx files
+ * Replaces the 18 near-identical app/(admin)/admin/<section>/page.tsx files
  * (and 11 loading.tsx skeletons). The section lives in `?tab=…`
  * (lib/adminHubTabs.ts); legacy /admin/<section> URLs redirect here from
  * next.config.ts.
  *
  * Differences from the user-facing hubs (TabsHub), on purpose:
  *  - No in-page tab strip. AdminSidebar (desktop) and its drawer (mobile) are
- *    the switcher: 17 sections with live badges and a filter box, which a pill
+ *    the switcher: 18 sections with live badges and a filter box, which a pill
  *    row cannot replace. Switching is a normal <Link> navigation to
  *    `/admin?tab=…`, so the URL — read here with useSearchParams — is the only
  *    source of truth (no local state to keep in sync).
@@ -48,6 +48,7 @@ import { AdminAdsTable } from '@/components/admin/AdminAdsTable';
 import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminSellersTable } from '@/components/admin/AdminSellersTable';
 import { AdminStoresTable } from '@/components/admin/AdminStoresTable';
+import { StoreTypesAdmin } from '@/components/admin/StoreTypesAdmin';
 import { AdminReportsTable } from '@/components/admin/AdminReportsTable';
 import { AdminFraudTable } from '@/components/admin/AdminFraudTable';
 import { AdminProductsTable } from '@/components/admin/AdminProductsTable';
@@ -124,6 +125,14 @@ function TabBody({ tab }: { tab: AdminTab }) {
         <AdminPageShell title="إدارة المتاجر" description="المتاجر والخطة والحالة.">
           <Suspense fallback={tableFallback}>
             <AdminStoresTable />
+          </Suspense>
+        </AdminPageShell>
+      );
+    case 'store-types':
+      return (
+        <AdminPageShell title="أنواع المتاجر" description="إدارة أنواع المتاجر، المصطلحات، والحدود الافتراضية.">
+          <Suspense fallback={tableFallback}>
+            <StoreTypesAdmin />
           </Suspense>
         </AdminPageShell>
       );

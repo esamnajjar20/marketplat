@@ -5,6 +5,7 @@ import { HomeDiscoverHero } from './HomeDiscoverHero';
 import { HomeContextStrip } from './HomeContextStrip';
 import { FeaturedCarousel } from './FeaturedCarousel';
 import { CategoriesRow } from './CategoriesRow';
+import { StoreTypesRow } from './StoreTypesRow';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
@@ -49,6 +50,7 @@ export function EagerHomeSections() {
 
       <div className="container mx-auto max-w-7xl px-3 pt-2.5 sm:px-4 sm:pt-3">
         <CategoriesRow />
+        <StoreTypesRow />
       </div>
     </>
   );

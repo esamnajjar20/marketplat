@@ -21,6 +21,7 @@ export interface ProductCategory {
   slug: string;
   icon: string | null;
   parentId: string | null;
+  storeTypeId: string | null;
   isActive: boolean;
   createdAt: string;
   // Only present on the admin listing, same convention as
@@ -172,6 +173,7 @@ export interface CreateProductCategoryPayload {
   slug: string;
   icon?: string;
   parentId?: string;
+  storeTypeId?: string | null;
 }
 
 export type UpdateProductCategoryPayload = Partial<CreateProductCategoryPayload> & {

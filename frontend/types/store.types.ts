@@ -19,6 +19,41 @@
 import type { SellerProfile } from './seller.types';
 
 export type StoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
+export interface StoreTypeLabels {
+  products: string;
+  product: string;
+  addProduct: string;
+  categories: string;
+}
+
+export interface StoreType {
+  id: string;
+  slug: string;
+  nameAr: string;
+  icon: string;
+  labels: StoreTypeLabels;
+  freeProductLimit?: number | null;
+  isActive?: boolean;
+  sortOrder?: number;
+  hasActiveStores?: boolean;
+}
+
+export const DEFAULT_STORE_TYPE_LABELS: StoreTypeLabels = {
+  products: 'المنتجات',
+  product: 'منتج',
+  addProduct: 'أضف منتجًا',
+  categories: 'التصنيفات',
+};
+
+export function getStoreTypeLabels(storeType?: Partial<StoreType> | null): StoreTypeLabels {
+  return {
+    products: storeType?.labels?.products || DEFAULT_STORE_TYPE_LABELS.products,
+    product: storeType?.labels?.product || DEFAULT_STORE_TYPE_LABELS.product,
+    addProduct: storeType?.labels?.addProduct || DEFAULT_STORE_TYPE_LABELS.addProduct,
+    categories: storeType?.labels?.categories || DEFAULT_STORE_TYPE_LABELS.categories,
+  };
+}
+
 export type StorePlan = 'FREE' | 'FEATURED';
 
 /** STORE-HOURS: same { sun: {open,close}|null, ... } shape as the
@@ -41,6 +76,8 @@ export interface StoreDetails {
 
   id: string;
   sellerProfileId: string;
+  storeTypeId: string;
+  storeType?: StoreType | null;
   name: string;
   /** STORE-SLUG: URL-safe, shareable identifier. Immutable after
    * creation — GET /stores/:idOrSlug accepts either this or `id`. */
@@ -115,6 +152,7 @@ export interface CreateStorePayload {
   latitude?: number;
   longitude?: number;
   workingHours?: StoreWorkingHours;
+  storeTypeId?: string;
 }
 
 /** PATCH /stores/me. */
@@ -129,6 +167,7 @@ export type UpdateStorePayload = Partial<{
   latitude: number | null;
   longitude: number | null;
   workingHours: StoreWorkingHours;
+  storeTypeId: string;
 }>;
 
 /** GET /stores/me/analytics — owner-only. No orders/revenue/conversion:
@@ -157,6 +196,7 @@ export interface StoresQuery {
   search?: string;
   sortBy?: StoreSortField;
   sortOrder?: 'asc' | 'desc';
+  type?: string;
 }
 
 /** PATCH /stores/:id/status — admin-only approve/block. */

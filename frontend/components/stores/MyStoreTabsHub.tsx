@@ -37,6 +37,8 @@ import {
 } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { ROUTES } from '@/lib/constants';
+import { useMyStore } from '@/hooks/queries/useStores';
+import { getStoreTypeLabels } from '@/types/store.types';
 import { Button } from '@/components/shared/ui/Button';
 import { MyStoreHub } from '@/components/stores/MyStoreHub';
 import { MyProductsList } from '@/components/stores/MyProductsList';
@@ -76,17 +78,17 @@ function PageTitle({ title, children }: { title: string; children?: React.ReactN
   );
 }
 
-function TabBody({ tab }: { tab: MyStoreTab }) {
+function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnType<typeof getStoreTypeLabels> }) {
   switch (tab) {
     case 'products':
       return (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-xl font-bold">منتجاتي</h1>
+            <h1 className="text-xl font-bold">{storeLabels.products}</h1>
             <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
               <Button size="sm" className="gap-1.5">
                 <PackagePlus className="h-4 w-4" />
-                منتج جديد
+                {storeLabels.addProduct}
               </Button>
             </Link>
           </div>
@@ -141,7 +143,7 @@ function TabBody({ tab }: { tab: MyStoreTab }) {
             <Button size="sm" asChild className="gap-1.5 font-semibold">
               <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
                 <PackagePlus className="h-4 w-4" />
-                إضافة منتج
+                {storeLabels.addProduct}
               </Link>
             </Button>
           </div>
@@ -166,6 +168,9 @@ function TabBody({ tab }: { tab: MyStoreTab }) {
 }
 
 export function MyStoreTabsHub() {
+  const { data: store } = useMyStore();
+  const storeLabels = getStoreTypeLabels(store?.storeType);
+
   return (
     <TabsHub<MyStoreTab>
       idPrefix="my-store"
@@ -177,7 +182,7 @@ export function MyStoreTabsHub() {
       meta={TAB_META}
       resolveTab={resolveMyStoreTab}
       searchForTabSwitch={searchForTabSwitch}
-      renderTab={(tab) => <TabBody tab={tab} />}
+      renderTab={(tab) => <TabBody tab={tab} storeLabels={storeLabels} />}
     />
   );
 }

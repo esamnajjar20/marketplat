@@ -10,6 +10,7 @@ import { FormSteps } from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
+import { useMyStore } from '@/hooks/queries/useStores';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
@@ -31,6 +32,7 @@ import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
 import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
 import type { Product, ProductAvailability, UpdateProductPayload, ProductFormValues } from '@/types/product.types';
+import { getStoreTypeLabels } from '@/types/store.types';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -60,6 +62,8 @@ type ProductDraftValues = Omit<ProductFormValues, 'images' | 'existingImages'>;
 
 export function ProductForm({ mode, product }: Props) {
   const { data: categories } = useProductCategories();
+  const { data: myStore } = useMyStore();
+  const storeLabels = getStoreTypeLabels(myStore?.storeType);
   const searchParams = useSearchParams();
   const offlineDraftId = searchParams.get('draftId');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -185,7 +189,7 @@ export function ProductForm({ mode, product }: Props) {
 
   function validate(): boolean {
     const e: Errors = {};
-    if (!values.categoryId) e.categoryId = 'اختر فئة المنتج';
+    if (!values.categoryId) e.categoryId = `اختر ${storeLabels.categories}`;
     if (values.name.trim().length < 2) e.name = 'اسم المنتج قصير جداً';
     if (values.description.trim().length < 10) e.description = 'الوصف قصير جداً (10 أحرف على الأقل)';
     if (!values.price || parseFloat(values.price) <= 0) e.price = 'أدخل سعراً صحيحاً';
@@ -485,11 +489,11 @@ export function ProductForm({ mode, product }: Props) {
             gets both), and the Select itself had no aria-describedby/
             aria-invalid pointing at that error. FormField's auto-clone
             (UX-FIX P2-11) wires both automatically. */}
-        <FormField label="الفئة" htmlFor="categoryId" required error={fieldError('categoryId')}>
+        <FormField label={storeLabels.categories} htmlFor="categoryId" required error={fieldError('categoryId')}>
           <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
-            <SelectTrigger id="categoryId"><SelectValue placeholder="اختر فئة المنتج" /></SelectTrigger>
+            <SelectTrigger id="categoryId"><SelectValue placeholder={`اختر ${storeLabels.categories}`} /></SelectTrigger>
             <SelectContent>
-              {categories?.map((cat) => (
+              {categories?.filter((cat) => cat.storeTypeId == null || cat.storeTypeId === (myStore?.storeTypeId ?? 'st_general')).map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
               ))}
             </SelectContent>

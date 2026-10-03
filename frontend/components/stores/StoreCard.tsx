@@ -22,6 +22,7 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
   const rating = parseFloat(store.sellerProfile.averageRating);
   const hasRating = store.sellerProfile.totalRatings > 0 && Number.isFinite(rating);
   const description = store.description?.trim();
+  const storeTypeLabel = store.storeType?.nameAr;
 
   return (
     <div className="relative h-full">
@@ -68,6 +69,10 @@ export function StoreCard({ store, className, density = 'default' }: Props) {
             <p className="line-clamp-1 text-xs text-muted-foreground sm:text-sm">{description}</p>
           ) : null}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground sm:text-xs">
+            {/* FIX STORECARD-TYPE-LABEL: was two adjacent spans (nameAr + products
+                label) — glued together with no separator, e.g. "مطعم القائمة".
+                Show only the type name; the products count is elsewhere. */}
+            {storeTypeLabel ? <span>{storeTypeLabel}</span> : null}
             {store.city ? (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />

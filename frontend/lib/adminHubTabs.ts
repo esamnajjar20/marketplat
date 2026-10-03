@@ -1,7 +1,7 @@
 /**
  * ADMIN-HUB-01 — one route (/admin) for the whole admin panel.
  *
- * Tabs live in `?tab=…` (same scheme as lib/myStoreHubTabs.ts & co). The 17
+ * Tabs live in `?tab=…` (same scheme as lib/myStoreHubTabs.ts & co). The 18
  * old pages (/admin/ads, /admin/users, …) redirect here via next.config.ts.
  *
  * What is deliberately NOT a tab:
@@ -26,6 +26,7 @@ export const ADMIN_TABS = [
   'users',
   'sellers',
   'stores',
+  'store-types',
   'reports',
   'fraud',
   'products',

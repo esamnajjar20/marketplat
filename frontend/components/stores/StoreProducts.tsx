@@ -14,6 +14,8 @@ import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import type { ProductSortField } from '@/types/product.types';
+import { useStore } from '@/hooks/queries/useStores';
+import { getStoreTypeLabels } from '@/types/store.types';
 
 interface Props {
   storeId: string;
@@ -55,6 +57,8 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
     };
   }, []);
 
+  const { data: store } = useStore(storeId);
+  const storeLabels = getStoreTypeLabels(store?.storeType);
   const { data, isLoading, isError, refetch } = useProducts({
     storeId,
     page,
@@ -219,7 +223,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
               ? 'لم يضف هذا المتجر عروضًا سارية الآن'
               : searchFromUrl
                 ? `لم يُعثر على منتجات تطابق «${searchFromUrl}»`
-                : 'لم يضف هذا المتجر أي منتج بعد'
+                : `لم يضف هذا المتجر أي ${storeLabels.product} بعد`
           }
         />
       ) : (

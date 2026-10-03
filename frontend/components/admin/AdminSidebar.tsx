@@ -30,6 +30,7 @@ const NAV_LINKS = [
   // Without this link, POST /stores had a working PENDING→ACTIVE
   // transition server-side but zero discoverable path to it.
   { tab: 'stores' as AdminTab, href: ROUTES.admin.stores,            label: 'المتاجر',        icon: Store, badgeKey: 'pendingStores' as const },
+  { tab: 'store-types' as AdminTab, href: ROUTES.admin.storeTypes, label: 'أنواع المتاجر', icon: Store },
   { tab: 'reports' as AdminTab, href: ROUTES.admin.reports,           label: 'البلاغات',       icon: Flag, badgeKey: 'openReports' as const },
   // FRAUD-UI: fraud.routes.ts gates /admin/fraud at MODERATOR+ (same
   // tier as ads/reports above), same backend requireMinRole call —

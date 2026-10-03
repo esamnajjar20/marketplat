@@ -31,6 +31,7 @@ interface CreateCategoryPayload {
   nameAr: string;
   slug: string;
   icon?: string;
+  storeTypeId?: string | null;
 }
 
 export interface CreateEntityCategoryDialogProps {
@@ -45,6 +46,7 @@ export interface CreateEntityCategoryDialogProps {
   namePlaceholderAr: string;
   namePlaceholderEn: string;
   iconPlaceholder: string;
+  storeTypes?: Array<{ id: string; nameAr: string }>;
 }
 
 export function CreateEntityCategoryDialog({
@@ -54,10 +56,12 @@ export function CreateEntityCategoryDialog({
   namePlaceholderAr,
   namePlaceholderEn,
   iconPlaceholder,
+  storeTypes = [],
 }: CreateEntityCategoryDialogProps) {
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [icon,   setIcon]   = useState('');
+  const [storeTypeId, setStoreTypeId] = useState<string | null>(null);
   const createCategory = useCreateCategory();
 
   // FIX CREATE-ENTITY-RESET-01: replaced raw useState(open) with the
@@ -68,6 +72,7 @@ export function CreateEntityCategoryDialog({
     setNameAr('');
     setNameEn('');
     setIcon('');
+    setStoreTypeId(null);
   });
 
   function handleCreate() {
@@ -80,6 +85,7 @@ export function CreateEntityCategoryDialog({
         nameAr: nameAr.trim(),
         slug: slugify(nameEn, slugFallbackPrefix),
         icon: icon.trim() || undefined,
+        ...(storeTypes.length ? { storeTypeId } : {}),
       },
       {
         onSuccess: () => {
@@ -117,6 +123,19 @@ export function CreateEntityCategoryDialog({
                 <p className="text-xs text-muted-foreground" dir="ltr">slug: {slugify(nameEn, slugFallbackPrefix)}</p>
               )}
             </div>
+            {storeTypes.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">نوع المتجر</label>
+                <select
+                  value={storeTypeId ?? ''}
+                  onChange={(e) => setStoreTypeId(e.target.value || null)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">مشتركة — كل المتاجر</option>
+                  {storeTypes.map((type) => <option key={type.id} value={type.id}>{type.nameAr}</option>)}
+                </select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">أيقونة <span className="text-muted-foreground">(اختياري)</span></label>
               <Input value={icon} onChange={(e) => setIcon(e.target.value)} dir="ltr" placeholder={iconPlaceholder} />

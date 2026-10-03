@@ -147,6 +147,7 @@ export const ROUTES = {
     // Epic 1.2: admin service-categories management — was entirely missing.
     serviceCategories: '/admin?tab=service-categories',
     stores:            '/admin?tab=stores',
+    storeTypes:        '/admin?tab=store-types',
     productCategories: '/admin?tab=product-categories',
     auditLogs:         '/admin?tab=audit-logs',
     // Gap #7 (product analytics): dashboard for GET /admin/analytics/summary.
@@ -215,6 +216,8 @@ export const AUDIT_EVENT_LABELS: Record<string, string> = {
   ADMIN_SELLER_VERIFIED:        'توثيق بائع (إدارة)',
   ADMIN_SELLER_SUSPENDED:       'إيقاف بائع (إدارة)',
   ADMIN_STORE_STATUS_CHANGED:   'تغيير حالة متجر (إدارة)',
+  ADMIN_STORE_PLAN_CHANGED:     'تغيير خطة متجر (إدارة)',
+  ADMIN_STORE_TYPE_CHANGED:     'تغيير نوع متجر (إدارة)',
   OAUTH_LOGIN:                  'تسجيل دخول عبر OAuth',
   OAUTH_ACCOUNT_LINKED:         'ربط حساب OAuth',
   OAUTH_SIGNUP:                 'تسجيل حساب عبر OAuth',
@@ -292,6 +295,10 @@ export const CACHE_TTL = {
   adDetail:    120_000,  // 120 s — N2
   myAds:       45_000,   //  45 s — N2
   categories:  300_000,  //   5 m
+  // Store business types (pharmacy/restaurant/...) — admin-managed
+  // reference list. Shorter than categories: a label/icon tweak by an
+  // admin should propagate within a browsing session, not after an hour.
+  storeTypes:  120_000,  //   2 m
   userProfile: 120_000,  //   2 m
   sellerProfile: 300_000, //   5 m — raised from 60s to stop duplicate /sellers/me/profile fetches when SellerVerificationBanner, BecomeStoreOwnerCard and BecomeServiceProviderCard mount together. Invalidated explicitly by useSellerMutations, so raise is safe.
   publicProfile: 120_000, //  2 m — matches userProfile's TTL for one's own profile

@@ -83,6 +83,14 @@ export function useAdminStores(params?: AdminGetStoresParams) {
   });
 }
 
+export function useAdminStoreTypes() {
+  return useQuery({
+    queryKey: queryKeys.admin.storeTypes(),
+    queryFn: () => adminApi.getStoreTypes().then((r) => r.data.data),
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 /**
  * GET /reports (admin)
  * FIX Q-01: .then(r => r.data.data)

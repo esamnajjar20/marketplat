@@ -6,6 +6,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { CITIES, ROUTES } from '@/lib/constants';
+import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
 
 /**
  * FIX BUG-02: StoresGrid (components/stores/StoresGrid.tsx) already
@@ -25,6 +26,7 @@ export function StoresFilters() {
   const router = useRouter();
   const sp = useSearchParams();
   const search = sp.get('search') ?? '';
+  const { data: storeTypes = [] } = useStoreTypes();
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -60,6 +62,17 @@ export function StoresFilters() {
             className="w-full h-9 rounded-md border border-input bg-transparent ps-9 pe-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="stores-filter-type" className="text-xs text-muted-foreground font-medium">نوع المتجر</label>
+        <Select value={sp.get('type') || 'ALL'} onValueChange={(v) => update('type', v === 'ALL' ? '' : v)}>
+          <SelectTrigger id="stores-filter-type" className="w-full"><SelectValue placeholder="كل الأنواع" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل الأنواع</SelectItem>
+            {storeTypes.map((type) => <SelectItem key={type.id} value={type.slug}>{type.nameAr}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">

@@ -32,7 +32,7 @@ import { myStoreTabHref } from '@/lib/myStoreHubTabs';
 import { BecomeStoreOwnerCard } from './BecomeStoreOwnerCard';
 import { useRequestStoreFeature } from '@/hooks/mutations/useStoreMutations';
 import type { ParsedError } from '@/lib/errorParser';
-import type { StoreDetails } from '@/types/store.types';
+import { getStoreTypeLabels, type StoreDetails } from '@/types/store.types';
 
 function StatusBanner({ store }: { store: StoreDetails }) {
   if (store.status === 'ACTIVE') return null;
@@ -67,6 +67,7 @@ function StatusBanner({ store }: { store: StoreDetails }) {
 }
 
 function HubBody({ store }: { store: StoreDetails }) {
+  const storeLabels = getStoreTypeLabels(store.storeType);
   const { data: attention } = useMyAttention();
   const requestFeature = useRequestStoreFeature();
   const featurePending = Boolean(store.featureRequestedAt);
@@ -113,12 +114,12 @@ function HubBody({ store }: { store: StoreDetails }) {
               href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}
               className="text-primary hover:underline"
             >
-              {attention.productsOutOfStock} منتج غير متوفر
+              {attention.productsOutOfStock} {storeLabels.product} غير متوفر
             </Link>
           )}
           {attention.productsMissingImages > 0 && (
             <Link href={ROUTES.myStoreProducts} className="text-primary hover:underline">
-              {attention.productsMissingImages} منتج بدون صور
+              {attention.productsMissingImages} {storeLabels.product} بدون صور
             </Link>
           )}
         </div>
@@ -130,13 +131,13 @@ function HubBody({ store }: { store: StoreDetails }) {
           <Button asChild className="h-auto flex-col gap-1 py-3 font-semibold">
             <Link href={ROUTES.myStoreProductCreate}>
               <PackagePlus className="h-4 w-4" />
-              منتج جديد
+              {storeLabels.addProduct}
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
             <Link href={ROUTES.myStoreProducts}>
               <Package className="h-4 w-4" />
-              المنتجات
+              {storeLabels.products}
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">

@@ -25,6 +25,7 @@ interface EditableCategory {
   name: string;
   nameAr: string;
   icon: string | null;
+  storeTypeId?: string | null;
 }
 
 interface UpdateCategoryPatch {
@@ -32,6 +33,7 @@ interface UpdateCategoryPatch {
   nameAr?: string;
   slug?: string;
   icon?: string;
+  storeTypeId?: string | null;
 }
 
 export interface EditEntityCategoryDialogProps<TCategory extends EditableCategory> {
@@ -47,6 +49,7 @@ export interface EditEntityCategoryDialogProps<TCategory extends EditableCategor
   namePlaceholderAr: string;
   namePlaceholderEn: string;
   iconPlaceholder: string;
+  storeTypes?: Array<{ id: string; nameAr: string }>;
 }
 
 export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
@@ -57,10 +60,12 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
   namePlaceholderAr,
   namePlaceholderEn,
   iconPlaceholder,
+  storeTypes = [],
 }: EditEntityCategoryDialogProps<TCategory>) {
   const [nameAr, setNameAr] = useState(category.nameAr);
   const [nameEn, setNameEn] = useState(category.name);
   const [icon,   setIcon]   = useState(category.icon ?? '');
+  const [storeTypeId, setStoreTypeId] = useState<string | null>(category.storeTypeId ?? null);
   const updateCategory = useUpdateCategory(category.id);
 
   // AUDIT-FIX (issue #7.1): reset-on-open sequencing lives in one shared
@@ -70,6 +75,7 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
     setNameAr(category.nameAr);
     setNameEn(category.name);
     setIcon(category.icon ?? '');
+    setStoreTypeId(category.storeTypeId ?? null);
   });
 
   function handleSave() {
@@ -83,6 +89,7 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
       patch.slug = slugify(nameEn, slugFallbackPrefix);
     }
     if (icon.trim() !== (category.icon ?? '')) patch.icon = icon.trim();
+    if (storeTypes.length && storeTypeId !== (category.storeTypeId ?? null)) patch.storeTypeId = storeTypeId;
 
     if (Object.keys(patch).length === 0) {
       setOpen(false);
@@ -127,6 +134,19 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
                 <p className="text-xs text-muted-foreground" dir="ltr">slug: {slugify(nameEn, slugFallbackPrefix)}</p>
               )}
             </div>
+            {storeTypes.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">نوع المتجر</label>
+                <select
+                  value={storeTypeId ?? ''}
+                  onChange={(e) => setStoreTypeId(e.target.value || null)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">مشتركة — كل المتاجر</option>
+                  {storeTypes.map((type) => <option key={type.id} value={type.id}>{type.nameAr}</option>)}
+                </select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">أيقونة <span className="text-muted-foreground">(اختياري)</span></label>
               <Input value={icon} onChange={(e) => setIcon(e.target.value)} dir="ltr" placeholder={iconPlaceholder} />

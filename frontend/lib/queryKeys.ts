@@ -98,6 +98,10 @@ export const queryKeys = {
   },
 
   // ── Stores ───────────────────────────────────────────────────────
+  storeTypes: {
+    all: () => ['store-types'] as const,
+  },
+
   stores: {
     all:      ()                => ['stores'] as const,
     list:     (params?: object) => ['stores', 'list', params ?? {}] as const,
@@ -341,6 +345,7 @@ export const queryKeys = {
     // so approving a store (invalidating with a narrower key) doesn't
     // also blow away unrelated cached pages.
     stores:       (params?: AdminGetStoresParams) => ['admin', 'stores', params ?? {}] as const,
+    storeTypes:   () => ['admin', 'store-types'] as const,
     reports:      (params?: object)              => ['admin', 'reports', params ?? {}] as const,
     reportDetail: (id: string)                   => ['admin', 'reports', 'detail', id] as const,
     auditLogs:    (params?: AdminGetAuditLogsParams) => ['admin', 'audit-logs', params ?? {}] as const,

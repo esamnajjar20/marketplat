@@ -30,6 +30,7 @@ import { CheckCircle2, Ban, RotateCcw, Search, Star } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { Tooltip }       from '@/components/shared/ui/Tooltip';
@@ -38,8 +39,8 @@ import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
-import { useAdminStores } from '@/hooks/queries/useAdmin';
-import { useAdminUpdateStoreStatus, useAdminUpdateStorePlan, useAdminBulkUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
+import { useAdminStores, useAdminStoreTypes } from '@/hooks/queries/useAdmin';
+import { useAdminUpdateStoreStatus, useAdminUpdateStorePlan, useAdminUpdateStoreType, useAdminBulkUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
@@ -99,6 +100,8 @@ export function AdminStoresTable() {
   });
   const updateStatus = useAdminUpdateStoreStatus();
   const updatePlan = useAdminUpdateStorePlan();
+  const updateType = useAdminUpdateStoreType();
+  const { data: storeTypes = [] } = useAdminStoreTypes();
   const bulkUpdateStatus = useAdminBulkUpdateStoreStatus();
 
   const pendingId = updateStatus.isPending
@@ -256,6 +259,21 @@ export function AdminStoresTable() {
                     desktop table — same approve/block/feature actions,
                     same pendingId gating, same blockTarget ConfirmDialog.
                     An admin on a phone could only view the row before. */}
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">النوع</span>
+                  <Select
+                    value={store.storeTypeId}
+                    onValueChange={(storeTypeId) => updateType.mutate({ storeId: store.id, storeTypeId })}
+                    disabled={updateType.isPending}
+                  >
+                    <SelectTrigger className="h-8 flex-1 text-xs">
+                      <SelectValue placeholder="نوع المتجر" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {storeTypes.map((type) => <SelectItem key={type.id} value={type.id}>{type.nameAr}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="mt-2 flex flex-wrap items-center justify-end gap-1 border-t border-border/60 pt-2">
                   {store.status !== 'ACTIVE' && (
                     <Button
@@ -330,6 +348,7 @@ export function AdminStoresTable() {
                 <th className="text-start p-3 font-medium">المتجر</th>
                 <th className="text-start p-3 font-medium hidden md:table-cell">البائع</th>
                 <th className="text-start p-3 font-medium hidden sm:table-cell">المدينة</th>
+                <th className="text-start p-3 font-medium hidden lg:table-cell">نوع المتجر</th>
                 <th className="text-start p-3 font-medium">الحالة</th>
                 <th className="text-start p-3 font-medium hidden lg:table-cell">تاريخ الإنشاء</th>
                 <th className="p-3" />
@@ -357,6 +376,20 @@ export function AdminStoresTable() {
                       {store.sellerProfile.displayName}
                     </td>
                     <td className="p-3 hidden sm:table-cell text-muted-foreground">{store.city}</td>
+                    <td className="p-3 hidden lg:table-cell">
+                      <Select
+                        value={store.storeTypeId}
+                        onValueChange={(storeTypeId) => updateType.mutate({ storeId: store.id, storeTypeId })}
+                        disabled={updateType.isPending}
+                      >
+                        <SelectTrigger className="h-8 min-w-28 text-xs">
+                          <SelectValue placeholder="نوع المتجر" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {storeTypes.map((type) => <SelectItem key={type.id} value={type.id}>{type.nameAr}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </td>
                     <td className="p-3">
                       <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>
                     </td>
@@ -416,7 +449,7 @@ export function AdminStoresTable() {
                 );
               })}
               {items.length === 0 && (
-                <tr><td colSpan={7}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد متاجر" /></td></tr>
+                <tr><td colSpan={8}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد متاجر" /></td></tr>
               )}
             </tbody>
           </table>

@@ -21,7 +21,8 @@ import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 import { WorkingHoursEditor } from '@/components/services/WorkingHoursEditor';
 import type { WorkingHours } from '@/types/service.types';
-import type { StoreDetails } from '@/types/store.types';
+import { getStoreTypeLabels, type StoreDetails } from '@/types/store.types';
+import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
 
 const ALL_CLOSED: WorkingHours = {
   sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null,
@@ -42,6 +43,11 @@ export function MyStoreCard({ store }: Props) {
   const updateStore = useUpdateStore();
   const uploadLogo = useUploadStoreLogo();
   const uploadCover = useUploadStoreCover();
+  const { data: storeTypes = [] } = useStoreTypes();
+  const storeLabels = getStoreTypeLabels(store.storeType);
+  const availableStoreTypes = store.storeType && !storeTypes.some((type) => type.id === store.storeTypeId)
+    ? [store.storeType, ...storeTypes]
+    : storeTypes;
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +56,7 @@ export function MyStoreCard({ store }: Props) {
   const [city, setCity] = useState(store.city);
   const [address, setAddress] = useState(store.address ?? '');
   const [phone, setPhone] = useState(store.phone);
+  const [storeTypeId, setStoreTypeId] = useState(store.storeTypeId ?? 'st_general');
   const [latitude, setLatitude] = useState(store.latitude ?? '');
   const [longitude, setLongitude] = useState(store.longitude ?? '');
   // STORE-HOURS (Foundation v1): store.workingHours is optional (null
@@ -111,6 +118,7 @@ export function MyStoreCard({ store }: Props) {
         city,
         address: address.trim() || null,
         phone: phone.trim(),
+        storeTypeId,
         workingHours,
         latitude: latitude.trim() === '' ? null : Number(latitude),
         longitude: longitude.trim() === '' ? null : Number(longitude),
@@ -208,6 +216,22 @@ export function MyStoreCard({ store }: Props) {
           />
         </div>
       </div>
+
+      <FormField label="نوع المتجر" htmlFor="my-store-type">
+        <Select value={storeTypeId} onValueChange={setStoreTypeId} disabled={store.status !== 'PENDING'}>
+          <SelectTrigger id="my-store-type">
+            <SelectValue placeholder="اختر نوع المتجر" />
+          </SelectTrigger>
+          <SelectContent>
+            {(availableStoreTypes.length ? availableStoreTypes : [{ id: 'st_general', slug: 'general', nameAr: 'عام' }]).map((type) => (
+              <SelectItem key={type.id} value={type.id}>{type.nameAr}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {store.status === 'PENDING' ? (
+          <p className="mt-1 text-xs text-muted-foreground">يمكن تغيير النوع أثناء المراجعة فقط.</p>
+        ) : null}
+      </FormField>
 
       {store.status === 'PENDING' && (
         <p className="text-sm text-muted-foreground rounded-md border bg-muted/50 p-3">
@@ -320,13 +344,13 @@ export function MyStoreCard({ store }: Props) {
         <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
           <Link href={ROUTES.myStoreProductCreate}>
             <PackagePlus className="h-4 w-4" aria-hidden />
-            إضافة منتج
+            {storeLabels.addProduct}
           </Link>
         </Button>
         <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
           <Link href={ROUTES.myStoreProducts}>
             <Package className="h-4 w-4" aria-hidden />
-            منتجاتي
+            {storeLabels.products}
           </Link>
         </Button>
         <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">

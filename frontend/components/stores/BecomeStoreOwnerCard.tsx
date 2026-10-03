@@ -14,6 +14,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { ROUTES, CITIES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { getSafeRedirectPath } from '@/lib/cookies';
+import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
 
 interface Errors {
   name?: string;
@@ -32,6 +33,7 @@ interface StoreDraftValues {
   phone: string;
   latitude: string;
   longitude: string;
+  storeTypeId: string;
 }
 
 /**
@@ -42,6 +44,7 @@ interface StoreDraftValues {
 export function BecomeStoreOwnerCard() {
   const { data: sellerProfile, isLoading: isLoadingSeller } = useMySellerProfile();
   const createStore = useCreateStore();
+  const { data: storeTypes = [] } = useStoreTypes();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -63,12 +66,13 @@ export function BecomeStoreOwnerCard() {
   const [phone, setPhone] = useState(() => draftSeed?.phone ?? '');
   const [latitude, setLatitude] = useState(() => draftSeed?.latitude ?? '');
   const [longitude, setLongitude] = useState(() => draftSeed?.longitude ?? '');
+  const [storeTypeId, setStoreTypeId] = useState(() => draftSeed?.storeTypeId ?? 'st_general');
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
 
   const { clearDraft, lastSavedAt } = useFormDraft<StoreDraftValues>(
     'store:create',
-    { name, description, city, address, phone, latitude, longitude },
+    { name, description, city, address, phone, latitude, longitude, storeTypeId },
   );
 
   function fieldError(field: keyof Errors): string | undefined {
@@ -135,6 +139,7 @@ export function BecomeStoreOwnerCard() {
         phone: phone.trim(),
         ...(latitude.trim() ? { latitude: Number(latitude) } : {}),
         ...(longitude.trim() ? { longitude: Number(longitude) } : {}),
+        storeTypeId,
       },
       {
         onSuccess: () => {
@@ -218,6 +223,19 @@ export function BecomeStoreOwnerCard() {
             />
           </FormField>
         </div>
+
+        <FormField label="نوع المتجر" htmlFor="store-type" required>
+          <Select value={storeTypeId} onValueChange={setStoreTypeId}>
+            <SelectTrigger id="store-type">
+              <SelectValue placeholder="اختر نوع المتجر" />
+            </SelectTrigger>
+            <SelectContent>
+              {(storeTypes.length ? storeTypes : [{ id: 'st_general', slug: 'general', nameAr: 'عام' }]).map((type) => (
+                <SelectItem key={type.id} value={type.id}>{type.nameAr}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
 
         <FormField label="العنوان (اختياري)" htmlFor="store-address">
           <Input

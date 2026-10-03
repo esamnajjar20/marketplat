@@ -10,7 +10,7 @@ import { StoresFilters } from './StoresFilters';
 // Keys StoresFilters itself writes via update() — search/city (sort no
 // longer lives here, FIX P2-08). Mirrors search/SearchFiltersSheet.tsx
 // and ads/SearchFiltersSheet.tsx's identical FILTER_KEYS convention.
-const FILTER_KEYS = ['search', 'city'] as const;
+const FILTER_KEYS = ['search', 'city', 'type'] as const;
 
 /**
  * FIX P2-09: /stores previously rendered StoresFilters inline above the

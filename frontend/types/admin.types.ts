@@ -175,6 +175,22 @@ export type AdminStoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
 // Prisma StorePlan enum.
 export type AdminStorePlan = 'FREE' | 'FEATURED';
 
+export interface AdminStoreType {
+  id: string;
+  slug: string;
+  nameAr: string;
+  icon: string;
+  labels: {
+    products: string;
+    product: string;
+    addProduct: string;
+    categories: string;
+  };
+  freeProductLimit: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 export interface AdminStore {
   id:            string;
   name:          string;
@@ -187,6 +203,8 @@ export interface AdminStore {
   status:        AdminStoreStatus;
   plan:          AdminStorePlan;
   sellerProfileId: string;
+  storeTypeId: string;
+  storeType?: AdminStoreType;
   createdAt:     string;
   /** Set when the seller requests FEATURED plan; null otherwise. */
   featureRequestedAt?: string | null;
@@ -207,6 +225,16 @@ export interface UpdateStoreStatusPayload { status: AdminStoreStatus; reason?: s
 
 // FIX BUG-02: payload for the new plan-change admin endpoint.
 export interface UpdateStorePlanPayload { plan: AdminStorePlan; }
+export interface UpdateStoreTypePayload { storeTypeId: string; }
+export interface CreateAdminStoreTypePayload {
+  slug: string;
+  nameAr: string;
+  icon: string;
+  labels: { products: string; product: string; addProduct: string; categories: string };
+  freeProductLimit?: number | null;
+  sortOrder?: number;
+}
+export type UpdateAdminStoreTypePayload = Partial<Omit<CreateAdminStoreTypePayload, 'slug'>>;
 
 // ── Broadcast notifications ─────────────────────────────────────────
 // Backend: POST /admin/notifications/broadcast (broadcastNotificationSchema).

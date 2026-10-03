@@ -34,6 +34,10 @@ import type {
   AdminGetStoresParams,
   UpdateStoreStatusPayload,
   UpdateStorePlanPayload,
+  UpdateStoreTypePayload,
+  AdminStoreType,
+  CreateAdminStoreTypePayload,
+  UpdateAdminStoreTypePayload,
   BroadcastNotificationPayload,
   BroadcastNotificationResult,
   AuditLog,
@@ -275,6 +279,21 @@ export const adminApi = {
   // PATCH /admin/stores/:id/plan route.
   updateStorePlan: (storeId: string, payload: UpdateStorePlanPayload) =>
     apiClient.patch<ApiResponse<AdminStore>>(`/admin/stores/${storeId}/plan`, payload),
+
+  updateStoreType: (storeId: string, payload: UpdateStoreTypePayload) =>
+    apiClient.patch<ApiResponse<AdminStore>>(`/admin/stores/${storeId}/type`, payload),
+
+  getStoreTypes: () =>
+    apiClient.get<ApiResponse<AdminStoreType[]>>('/admin/store-types'),
+
+  createStoreType: (payload: CreateAdminStoreTypePayload) =>
+    apiClient.post<ApiResponse<AdminStoreType>>('/admin/store-types', payload),
+
+  updateStoreTypeDefinition: (id: string, payload: UpdateAdminStoreTypePayload) =>
+    apiClient.patch<ApiResponse<AdminStoreType>>(`/admin/store-types/${id}`, payload),
+
+  updateStoreTypeStatus: (id: string, isActive: boolean) =>
+    apiClient.patch<ApiResponse<AdminStoreType>>(`/admin/store-types/${id}/status`, { isActive }),
 
   // ── Reports (routes in /reports — NOT /admin/reports) ─────────────
 
