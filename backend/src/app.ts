@@ -16,6 +16,7 @@ import { swaggerSpec } from './config/swagger';
 import { getCachedReadiness } from './shared/utils/healthCache';
 import { metricsMiddleware, metricsHandler } from './shared/utils/metrics';
 import { passport } from './modules/auth/google.strategy';
+import { ForbiddenError } from './shared/errors/ForbiddenError';
 
 const app = express();
 
@@ -57,7 +58,10 @@ app.use(
       if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        // A rejected origin is a client error (403), not a server fault.
+        // Sending 500 here spammed Sentry with a false-positive issue on
+        // every bot/scanner probe with an unknown Origin header.
+        callback(new ForbiddenError('Not allowed by CORS', 'CORS_ORIGIN_REJECTED'));
       }
     },
     credentials: true,
