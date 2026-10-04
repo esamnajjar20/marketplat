@@ -331,13 +331,23 @@ export function createReadBatchHandler(router: Router): RequestHandler {
         const id = items[index].id;
         if (result.status === 'fulfilled') {
           responses[id] = result.value;
-        } else {
-          // Never leak internal child-router errors through the batch envelope.
-          responses[id] = {
-            status: 500,
-            error: 'Batched request failed.',
-          };
+          return;
         }
+        // FIX BATCH-PROPAGATE-STATUS: the child router's `next(err)` path
+        // rejects this Promise with the actual error. It is an AppError
+        // (401/403/404/400) for client-side failures — forcing 500 hides
+        // that from the client and, in particular, stops the client-side
+        // 401 refresh-and-retry flow in apiClient.batchGet from firing.
+        // Only genuine 5xx responses get the generic message so we never
+        // leak server internals through the batch envelope.
+        const reason = result.reason as
+          | { statusCode?: number; message?: string }
+          | undefined;
+        const raw = typeof reason?.statusCode === 'number' ? reason.statusCode : 500;
+        const status = raw >= 400 && raw < 600 ? raw : 500;
+        responses[id] = status >= 500
+          ? { status, error: 'Batched request failed.' }
+          : { status, error: reason?.message ?? 'Request failed.' };
       });
 
       res.setHeader('Cache-Control', 'no-store');
