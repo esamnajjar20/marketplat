@@ -1,5 +1,6 @@
 'use client';
 
+import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, X, MessageSquare } from 'lucide-react';
@@ -56,6 +57,7 @@ export function useCategoryHref(categoryId: string | undefined) {
 interface Props { ad: Ad; isFavorited?: boolean; }
 
 export function AdDetail({ ad, isFavorited = false }: Props) {
+  const stickyCta = useStickyCtaVisible();
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -450,7 +452,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
       {/* UX: sticky contact CTA on mobile — price + message always reachable */}
       {!isOwnAd && (
-        <div className="sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90">
+        <div className={cn('sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90', stickyCta.transitionClass, stickyCta.hiddenClass)}>
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold text-primary truncate">{formatPrice(ad.price)}</p>

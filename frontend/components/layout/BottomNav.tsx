@@ -148,7 +148,7 @@ export function BottomNav() {
         // Tailwind (matches both transitionProperty and transitionTiming).
         // Use explicit arbitrary property so the intent is unambiguous.
         'transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] will-change-transform',
-        navHidden ? 'translate-y-full pointer-events-none' : 'translate-y-0',
+        navHidden ? 'translate-y-[calc(100%+2.5rem)] pointer-events-none' : 'translate-y-0',
       )}
     >
       {leadingItems.map(renderItem)}

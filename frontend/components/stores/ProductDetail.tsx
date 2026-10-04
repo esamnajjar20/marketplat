@@ -6,6 +6,7 @@
  * instead of only a ?product= highlight on the store page.
  */
 
+import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export function ProductDetail({ product, related = [] }: Props) {
+  const stickyCta = useStickyCtaVisible();
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -245,7 +247,7 @@ export function ProductDetail({ product, related = [] }: Props) {
 
       {/* Mobile sticky contact CTA — price + message above BottomNav */}
       {ownerId && (
-        <div className="sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90">
+        <div className={cn('sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90', stickyCta.transitionClass, stickyCta.hiddenClass)}>
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold text-primary truncate">
