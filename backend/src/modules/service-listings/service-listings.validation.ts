@@ -15,6 +15,13 @@ export const createServiceListingSchema = z.object({
       .optional(),
     durationEstimate: z.string().max(100).optional(),
     serviceLocation: z.nativeEnum(ServiceLocationType).default('AT_PROVIDER'),
+  }).superRefine((data, ctx) => {
+    if (data.pricingType !== 'NEGOTIABLE' && data.price === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: 'Price is required for this pricing type' });
+    }
+    if (data.pricingType === 'NEGOTIABLE' && data.price !== undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: 'Negotiable services should not include a fixed price' });
+    }
   }),
 });
 
@@ -30,7 +37,14 @@ export const updateServiceListingSchema = z.object({
     price: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
     durationEstimate: z.string().max(100).nullable().optional(),
     serviceLocation: z.nativeEnum(ServiceLocationType).optional(),
-    status: z.nativeEnum(ServiceListingStatus).optional(),
+    status: z.enum(['ACTIVE', 'PAUSED']).optional(),
+  }).superRefine((data, ctx) => {
+    if (data.pricingType !== undefined && data.pricingType !== 'NEGOTIABLE' && data.price === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: 'Price is required when changing to this pricing type' });
+    }
+    if (data.pricingType === 'NEGOTIABLE' && data.price !== undefined && data.price !== null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: 'Negotiable services should not include a fixed price' });
+    }
   }),
 });
 

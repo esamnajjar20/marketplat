@@ -186,4 +186,10 @@ describe('ServiceRequestButton', () => {
       expect(screen.getByRole('button', { name: 'جارٍ الإرسال…' })).toBeDisabled();
     });
   });
+  it('shows an unavailable state instead of opening a new request', () => {
+    render(<ServiceRequestButton listingId="listing-1" providerUserId="provider-1" providerAvailability="UNAVAILABLE" />);
+    expect(screen.getByText('مقدم الخدمة غير متاح حاليًا')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /إرسال طلب/ })).not.toBeInTheDocument();
+  });
+
 });

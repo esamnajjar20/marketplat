@@ -132,6 +132,10 @@ export const serviceRequestsService = {
       throw new ForbiddenError('You cannot request your own service listing.', 'CANNOT_REQUEST_OWN_LISTING');
     }
 
+    if (provider?.availabilityStatus === 'UNAVAILABLE') {
+      throw new BadRequestError('This service provider is currently unavailable for new requests.', 'PROVIDER_UNAVAILABLE');
+    }
+
     // SECURITY FIX (blocked-user coverage gap): blockedUsersService's
     // isBlockedEitherDirection was previously only ever called from
     // conversations.service.ts (starting/sending a message) — a user

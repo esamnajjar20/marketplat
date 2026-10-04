@@ -223,9 +223,17 @@ export function ServiceListingDetail({ listing, action }: Props) {
                 />
               </div>
             </div>
-            <p className="text-lg font-semibold text-primary">
-              {formatServicePrice(listing.pricingType, listing.price)}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-lg font-semibold text-primary">
+                {formatServicePrice(listing.pricingType, listing.price)}
+              </p>
+              {listing.provider.availabilityStatus === 'UNAVAILABLE' && (
+                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">غير متاح حاليًا</span>
+              )}
+              {listing.provider.sellerProfile?.verified && (
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">مقدم موثّق</span>
+              )}
+            </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" aria-hidden />

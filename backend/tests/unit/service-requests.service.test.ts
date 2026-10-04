@@ -29,6 +29,7 @@ const mockListing = {
 
 const mockProvider = {
   id: 'provider-1',
+  availabilityStatus: 'AVAILABLE',
   sellerProfile: { userId: 'seller-user-1' },
 };
 
@@ -55,6 +56,23 @@ describe('ServiceRequestsService', () => {
           details: 'test',
         } as any)
       ).rejects.toThrow(ForbiddenError);
+
+      expect(serviceRequestsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects new requests when the provider is unavailable', async () => {
+      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
+      (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue({
+        ...mockProvider,
+        availabilityStatus: 'UNAVAILABLE',
+      });
+
+      await expect(
+        serviceRequestsService.createRequest('customer-user-2', {
+          listingId: 'listing-1',
+          details: 'test',
+        } as any)
+      ).rejects.toThrow(/currently unavailable/);
 
       expect(serviceRequestsRepository.create).not.toHaveBeenCalled();
     });

@@ -289,11 +289,24 @@ export const serviceListingsService = {
       throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
     }
 
+    if (listing.status === 'DELETED') {
+      throw new BadRequestError('Deleted service listings cannot be edited.', 'SERVICE_LISTING_DELETED');
+    }
+
     if (input.categoryId) {
       const category = await serviceCategoriesRepository.findById(input.categoryId);
       if (!category || !category.isActive) {
         throw new BadRequestError('Invalid or inactive service category.');
       }
+    }
+
+    const finalPricingType = input.pricingType ?? listing.pricingType;
+    const finalPrice = input.price !== undefined ? input.price : listing.price;
+    if (finalPricingType !== 'NEGOTIABLE' && (finalPrice == null || Number(finalPrice) <= 0)) {
+      throw new BadRequestError('A positive price is required for this pricing type.', 'PRICE_REQUIRED');
+    }
+    if (finalPricingType === 'NEGOTIABLE' && input.price !== undefined && input.price !== null) {
+      throw new BadRequestError('Negotiable services should not include a fixed price.', 'PRICE_NOT_ALLOWED');
     }
 
     const updated = await serviceListingsRepository.update(id, input);

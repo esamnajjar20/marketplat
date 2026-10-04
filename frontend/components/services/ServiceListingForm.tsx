@@ -199,17 +199,12 @@ export function ServiceListingForm({ mode, listing }: Props) {
     // Gap #3 fix: edit mode now has a real image-replace flow, so the
     // "at least one image" rule applies to the combined staged +
     // existing set, not just create-mode's staged uploads.
-    // TEMPORARY (remove once image hosting is configured — mirrors the
-    // matching disable in AdForm.tsx / backend's ads.controller.ts
-    // createAd): image upload requires configured storage that isn't
-    // set up in this local environment yet, so the required-image
-    // check is disabled here to allow local testing without it.
-    // const totalImages = mode === 'create'
-    //   ? values.images.length
-    //   : values.images.length + values.existingImages.length;
-    // if (totalImages === 0) {
-    //   e.images = 'أضف صورة واحدة على الأقل';
-    // }
+    const totalImages = mode === 'create'
+      ? values.images.length
+      : values.images.length + values.existingImages.length;
+    if (totalImages === 0) {
+      e.images = 'أضف صورة واحدة على الأقل';
+    }
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
@@ -219,13 +214,15 @@ export function ServiceListingForm({ mode, listing }: Props) {
   // (category/title/description, price only when priceRequired, and
   // the combined image count now that edit mode supports add/remove
   // too — Gap #3 fix).
-  // TEMPORARY: totalImageCount required-image gate disabled to match
-  // validate() above — remove once image hosting is configured.
+  const totalImageCount = mode === 'create'
+    ? values.images.length
+    : values.images.length + values.existingImages.length;
   const isFormIncomplete =
     !values.categoryId ||
     values.title.trim().length < 3 ||
     values.description.trim().length < 10 ||
-    (priceRequired && (!values.price || parseFloat(values.price) <= 0));
+    (priceRequired && (!values.price || parseFloat(values.price) <= 0)) ||
+    totalImageCount === 0;
 
   // SW-SVCFORM-HISTORY-GUARD-01: same fix as AdForm.tsx and
   // ProductForm.tsx. history.back() with no previous in-app entry
@@ -585,8 +582,11 @@ export function ServiceListingForm({ mode, listing }: Props) {
       {/* Gap #3 fix: images are now editable after creation too, via the
           dedicated add/remove endpoints — same ImageUpload usage as AdForm. */}
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
-        <h2 className="font-semibold">الصور</h2>
-        {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
+        <div>
+          <h2 className="font-semibold">الصور</h2>
+          <p className="mt-1 text-xs text-muted-foreground">أضف صورة واحدة على الأقل. الصورة الأولى ستكون الصورة الرئيسية للخدمة.</p>
+        </div>
+        {fieldError('images') && <p className="text-sm text-destructive" role="alert">{fieldError('images')}</p>}
         <ImageUpload
           value={values.images}
           existingUrls={mode === 'edit' ? values.existingImages : undefined}

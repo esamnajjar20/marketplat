@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 interface Props {
   listingId: string;
+  providerAvailability?: 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE';
   /** Owning provider's userId — used only to hide the button on one's own listing. */
   providerUserId: string;
 }
@@ -23,7 +24,7 @@ const MAX_DETAILS_LENGTH = 1000;
 /**
  * Customer CTA: request a service. S3 clarifies the path (login → describe → track).
  */
-export function ServiceRequestButton({ listingId, providerUserId }: Props) {
+export function ServiceRequestButton({ listingId, providerUserId, providerAvailability = 'AVAILABLE' }: Props) {
   const [open, setOpen] = useState(false);
   const [details, setDetails] = useState('');
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -32,6 +33,15 @@ export function ServiceRequestButton({ listingId, providerUserId }: Props) {
   const createRequest = useCreateServiceRequest();
 
   if (user?.id === providerUserId) return null;
+
+  if (providerAvailability === 'UNAVAILABLE') {
+    return (
+      <div className="rounded-xl border border-border/80 bg-muted/40 px-4 py-3 text-center" role="status">
+        <p className="text-sm font-semibold">مقدم الخدمة غير متاح حاليًا</p>
+        <p className="mt-1 text-xs text-muted-foreground">يمكنك حفظ الخدمة والعودة إليها لاحقًا عندما يصبح متاحًا.</p>
+      </div>
+    );
+  }
 
   function handleOpen() {
     if (!isAuthenticated) {

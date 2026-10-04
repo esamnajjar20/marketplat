@@ -56,8 +56,8 @@ describe('ServiceListingsService', () => {
 
       const result = await serviceListingsService.createServiceListing(
         'user-1',
-        { categoryId: 'cat-1' } as any,
-        []
+        { categoryId: 'cat-1', pricingType: 'FIXED', price: 25 } as any,
+        [{ buffer: Buffer.from('image') } as any]
       );
 
       expect(result).toEqual({ id: 'listing-1' });
@@ -76,8 +76,8 @@ describe('ServiceListingsService', () => {
 
       const result = await serviceListingsService.createServiceListing(
         'user-1',
-        { categoryId: 'cat-1' } as any,
-        []
+        { categoryId: 'cat-1', pricingType: 'FIXED', price: 25 } as any,
+        [{ buffer: Buffer.from('image') } as any]
       );
 
       expect(result).toEqual({ id: 'listing-2' });

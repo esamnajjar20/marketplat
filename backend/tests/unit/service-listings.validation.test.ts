@@ -101,6 +101,27 @@ describe('service-listings.validation', () => {
       expect(result.body.status).toBe('PAUSED');
     });
 
+    it('does not allow owners to set DELETED through PATCH', () => {
+      expect(() => updateServiceListingSchema.parse({
+        params: { id: 'listing-1' },
+        body: { status: 'DELETED' },
+      })).toThrow();
+    });
+
+    it('requires a price when changing to FIXED', () => {
+      expect(() => updateServiceListingSchema.parse({
+        params: { id: 'listing-1' },
+        body: { pricingType: 'FIXED' },
+      })).toThrow(/required/);
+    });
+
+    it('rejects a fixed price when changing to NEGOTIABLE', () => {
+      expect(() => updateServiceListingSchema.parse({
+        params: { id: 'listing-1' },
+        body: { pricingType: 'NEGOTIABLE', price: 10 },
+      })).toThrow(/should not include/);
+    });
+
     it('rejects an invalid status enum value', () => {
       expect(() =>
         updateServiceListingSchema.parse({ params: { id: 'listing-1' }, body: { status: 'BOGUS' } })
