@@ -10,6 +10,7 @@ const offererSelect = {
 
 const requestDetailInclude = {
   customer: { select: { id: true, name: true, avatarUrl: true } },
+  _count: { select: { offers: { where: { status: { not: 'WITHDRAWN' } } } } },
   offers: {
     include: { offerer: { select: offererSelect } },
     orderBy: { price: 'asc' as const },
@@ -21,7 +22,7 @@ const requestDetailInclude = {
 
 const requestListInclude = {
   customer: { select: { id: true, name: true, avatarUrl: true } },
-  _count: { select: { offers: true } },
+  _count: { select: { offers: { where: { status: { not: 'WITHDRAWN' } } } } },
 } as const;
 
 export type RequestWithRelations = Prisma.RequestGetPayload<{
@@ -189,9 +190,14 @@ export const requestsRepository = {
     tx: Prisma.TransactionClient,
     requestId: string,
     offerId: string,
+    now = new Date(),
   ): Promise<Prisma.BatchPayload> =>
     tx.request.updateMany({
-      where: { id: requestId, status: 'OPEN' },
+      where: {
+        id: requestId,
+        status: 'OPEN',
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
       data: { status: 'ACCEPTED', acceptedOfferId: offerId },
     }),
 

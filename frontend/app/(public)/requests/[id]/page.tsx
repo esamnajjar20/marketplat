@@ -24,20 +24,21 @@ import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { RequestOfferForm } from '@/components/requests/RequestOfferForm';
 import { RequestOffersList } from '@/components/requests/RequestOffersList';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { parseApiError } from '@/lib/errorParser';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 export default function RequestDetailPage() {
   const params = useParams();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const id = String(params.id ?? '');
-  const { data: request, isLoading, isError } = useRequestDetail(id);
+  const { data: request, isLoading, isError, error } = useRequestDetail(id);
   const user = useAuthStore(selectUser);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const cancel = useCancelRequest();
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-5xl space-y-4 px-3 py-5 pb-24 sm:px-4 lg:py-8" dir="rtl" aria-busy>
+      <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-24 sm:p-4" dir="rtl" aria-busy>
         <div className="h-4 w-24 animate-pulse rounded bg-muted" />
         <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
         <div className="h-24 animate-pulse rounded-xl bg-muted" />
@@ -47,15 +48,24 @@ export default function RequestDetailPage() {
   }
 
   if (isError || !request) {
+    const statusCode = parseApiError(error).statusCode;
+    const notFound = statusCode === 404;
     return (
       <div className="mx-auto max-w-3xl px-3 py-4 pb-24 sm:p-4" dir="rtl">
         <EmptyState
-          title="الطلب غير موجود"
-          description="قد يكون محذوفًا أو الرابط غير صحيح."
+          title={notFound ? 'الطلب غير موجود' : 'تعذّر تحميل الطلب'}
+          description={notFound ? 'قد يكون محذوفًا أو الرابط غير صحيح.' : 'تحقق من الاتصال ثم أعد المحاولة.'}
           action={
-            <Button asChild variant="outline" className="min-h-11">
-              <Link href={ROUTES.requests}>العودة لسوق الطلبات</Link>
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {!notFound && (
+                <Button variant="outline" className="min-h-11" onClick={() => window.location.reload()}>
+                  إعادة المحاولة
+                </Button>
+              )}
+              <Button asChild variant={notFound ? 'default' : 'ghost'} className="min-h-11">
+                <Link href={ROUTES.requests}>العودة لسوق الطلبات</Link>
+              </Button>
+            </div>
           }
         />
       </div>
@@ -67,16 +77,16 @@ export default function RequestDetailPage() {
   const images = request.attachedImages ?? [];
   const budget = formatRequestBudget(request.budgetMin, request.budgetMax);
   const offers = request.offers ?? [];
-  const offersCount = offers.length;
+  const offersCount = request._count?.offers ?? offers.length;
   const hiddenForCompetition =
-    !isOwner && offers.length === 0 && request.status === 'OPEN';
+    !isOwner && request.status === 'OPEN' && offers.length < offersCount;
   const canOffer = isAuthenticated && !isOwner && request.status === 'OPEN';
   const loginHref = `${ROUTES.login}?from=${encodeURIComponent(`/requests/${id}`)}`;
   const expiringSoon = isRequestExpiringSoon(request.expiresAt);
 
   return (
     <div
-      className="mx-auto w-full max-w-5xl space-y-6 px-3 py-5 pb-28 sm:px-4 sm:pb-10 lg:py-8"
+      className="mx-auto max-w-3xl space-y-5 px-3 py-4 pb-28 sm:space-y-6 sm:p-4 sm:pb-10"
       dir="rtl"
     >
       <div>
@@ -224,6 +234,7 @@ export default function RequestDetailPage() {
         isOwner={isOwner}
         requestStatus={request.status}
         hiddenForCompetition={hiddenForCompetition}
+        totalOffersCount={offersCount}
       />
 
       {/* Mobile sticky CTA — budget + primary action */}

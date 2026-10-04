@@ -9,6 +9,9 @@ import type { RequestOfferListItem } from '@/types/request.types';
 import { Button } from '@/components/shared/ui/Button';
 import { REQUEST_OFFER_STATUS_LABEL } from '@/lib/requestStatus';
 import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+
+const MAX_MESSAGE_LENGTH = 1000;
 
 const MESSAGE_TEMPLATES = [
   {
@@ -46,18 +49,22 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
   );
   const [message, setMessage] = useState(myOffer?.message ?? '');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
 
   function applyTemplate(id: string, text: string) {
     setMessage(text);
     setActiveTemplate(id);
   }
 
+  const canEdit = !myOffer || myOffer.status === 'PENDING' || myOffer.status === 'WITHDRAWN';
+
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!price) return;
+    const numericPrice = Number(price);
+    if (!canEdit || !Number.isFinite(numericPrice) || numericPrice <= 0) return;
     submit.mutate({
       id: requestId,
-      body: { price: Number(price), message: message.trim() || undefined },
+      body: { price: numericPrice, message: message.trim() || undefined },
     });
   }
 
@@ -85,6 +92,12 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
         </p>
       </div>
 
+      {!canEdit && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning-strong dark:text-warning">
+          لا يمكن تعديل هذا العرض لأنه أصبح {REQUEST_OFFER_STATUS_LABEL[myOffer!.status]}. يمكنك متابعة الطلب من حالة العرض الحالية.
+        </div>
+      )}
+
       <div className="space-y-1.5">
         <label htmlFor="offer-price" className="text-sm font-medium">
           السعر (₪)
@@ -93,8 +106,9 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
           id="offer-price"
           type="number"
           step="0.01"
-          min="0"
+          min="0.01"
           required
+          disabled={!canEdit}
           inputMode="decimal"
           className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
           placeholder="0.00"
@@ -116,6 +130,7 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
             <button
               key={t.id}
               type="button"
+              disabled={!canEdit}
               onClick={() => applyTemplate(t.id, t.text)}
               className={cn(
                 'h-8 shrink-0 rounded-full border px-3 text-xs font-medium transition-colors',
@@ -133,13 +148,14 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
           className="min-h-[96px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed"
           placeholder="تفاصيل العرض، مدة التنفيذ، شروط…"
           value={message}
+          disabled={!canEdit}
           onChange={(e) => {
             setMessage(e.target.value);
             setActiveTemplate(null);
           }}
-          maxLength={500}
+          maxLength={MAX_MESSAGE_LENGTH}
         />
-        <p className="text-2xs text-muted-foreground">{message.length}/500</p>
+        <p className="text-2xs text-muted-foreground">{message.length}/{MAX_MESSAGE_LENGTH}</p>
       </div>
 
       {price && (
@@ -156,7 +172,7 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
         <Button
           type="submit"
           className="min-h-11 flex-1 sm:flex-none"
-          disabled={submit.isPending || !price}
+          disabled={submit.isPending || !canEdit || !Number.isFinite(Number(price)) || Number(price) <= 0}
         >
           {submit.isPending ? 'جاري الإرسال…' : myOffer ? 'تحديث العرض' : 'إرسال العرض'}
         </Button>
@@ -166,12 +182,29 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
             variant="outline"
             className="min-h-11"
             disabled={withdraw.isPending}
-            onClick={() => withdraw.mutate({ id: requestId, offerId: myOffer.id })}
+            onClick={() => setConfirmWithdraw(true)}
           >
             سحب عرضي
           </Button>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmWithdraw}
+        onOpenChange={setConfirmWithdraw}
+        title="سحب عرضك؟"
+        description="سيختفي عرضك من الطلب ويمكنك تقديم عرض جديد لاحقًا إذا بقي الطلب مفتوحًا."
+        confirmLabel="سحب العرض"
+        destructive
+        isPending={withdraw.isPending}
+        onConfirm={() => {
+          if (!myOffer) return;
+          withdraw.mutate(
+            { id: requestId, offerId: myOffer.id },
+            { onSuccess: () => setConfirmWithdraw(false) },
+          );
+        }}
+      />
     </form>
   );
 }

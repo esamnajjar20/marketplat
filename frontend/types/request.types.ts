@@ -43,6 +43,8 @@ export type RequestDetail = RequestListItem & {
   attributes?: Record<string, unknown> | null;
   attachedImages?: string[];
   acceptedOfferId?: string | null;
+  /** Total offers, including offers hidden from non-owners for competitive privacy. */
+  _count?: { offers: number };
   offers?: RequestOfferListItem[];
   acceptedOffer?: RequestOfferListItem | null;
 };

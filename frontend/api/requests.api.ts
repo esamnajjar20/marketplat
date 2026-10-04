@@ -6,6 +6,7 @@ import type {
   RequestListItem,
   RequestOfferListItem,
   RequestType,
+  RequestOfferStatus,
 } from '@/types/request.types';
 
 export type CreateRequestBody = {
@@ -42,7 +43,7 @@ export const requestsApi = {
   getMyRequests: (params?: { page?: number; limit?: number; status?: string }) =>
     apiClient.get<ApiResponse<RequestListItem[]>>('/requests/me', { params }),
 
-  getMyOffers: (params?: { page?: number; limit?: number }) =>
+  getMyOffers: (params?: { page?: number; limit?: number; status?: RequestOfferStatus }) =>
     apiClient.get<ApiResponse<RequestOfferListItem[]>>('/requests/offers/me', { params }),
 
   getById: (id: string) => apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`),
@@ -89,7 +90,7 @@ export const requestsApi = {
     let attachedImages = body.attachedImages;
     if (files && files.length > 0) {
       const res = await mediaApi.uploadImages(files);
-      attachedImages = (res.data.data ?? []).map((x) => x.url);
+      attachedImages = (res.data.data ?? []).map((x: { url: string }) => x.url);
     }
     return requestsApi.create({ ...body, attachedImages }, operationId);
   },

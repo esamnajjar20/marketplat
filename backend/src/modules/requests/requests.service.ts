@@ -300,6 +300,10 @@ export const requestsService = {
     if (request.status !== 'OPEN') {
       throw new ConflictError('This request has already been decided.', 'REQUEST_NOT_OPEN');
     }
+    const now = new Date();
+    if (request.expiresAt && request.expiresAt.getTime() <= now.getTime()) {
+      throw new ConflictError('This request has expired.', 'REQUEST_EXPIRED');
+    }
 
     const offer = await requestOffersRepository.findById(offerId);
     if (!offer || offer.requestId !== requestId) {
@@ -310,7 +314,7 @@ export const requestsService = {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const acceptResult = await requestsRepository.markAccepted(tx, requestId, offerId);
+      const acceptResult = await requestsRepository.markAccepted(tx, requestId, offerId, now);
       if (acceptResult.count === 0) {
         throw new ConflictError('This request has already been decided.', 'REQUEST_NOT_OPEN');
       }
