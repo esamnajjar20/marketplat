@@ -10,14 +10,14 @@ import { useBrowseCity } from '@/hooks/useBrowseCity';
 export function useHomeFeed() {
   const isHydrated = useAuthStore(selectIsHydrated);
   const userId = useAuthStore((state) => state.user?.id ?? null);
-  const { city, isReady } = useBrowseCity();
+  const { city, explicitAll, isReady } = useBrowseCity();
   const identity = userId ?? null;
 
   return useQuery({
-    queryKey: homeFeedQueryKey(city, identity),
+    queryKey: homeFeedQueryKey(city, identity, explicitAll),
     enabled: isHydrated && isReady,
     queryFn: async (): Promise<HomeFeedPayload> => {
-      const payload = await homeFeedApi.get(city).then((response) => response.data.data);
+      const payload = await homeFeedApi.get({ city, explicitAll }).then((response) => response.data.data);
       if (!payload) throw new Error('empty /home/feed response');
       return payload;
     },

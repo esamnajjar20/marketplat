@@ -44,8 +44,17 @@ export const homeFeedService = {
       ? userIdOverride
       : resolveOptionalUserId(authHeader);
 
-    let city = query.city;
-    if (!city && userId) {
+    // FIX HOME-CITY-EXPLICIT-ALL: three distinct states are possible now —
+    //   query.city === undefined → no param sent (fall back to profile)
+    //   query.city === '__ALL__'  → user explicitly chose "all cities"
+    //   query.city === 'غزة'      → specific city
+    // Without this distinction, a signed-in user picking "كل المدن" was
+    // silently reset to their profile city by the fallback below.
+    const EXPLICIT_ALL = '__ALL__';
+    const isExplicitAll = query.city === EXPLICIT_ALL;
+    let city: string | undefined = isExplicitAll ? undefined : query.city;
+
+    if (!isExplicitAll && !city && userId) {
       try {
         const user = await prisma.user.findUnique({
           where: { id: userId },
@@ -127,8 +136,12 @@ export const homeFeedService = {
     return {
       meta: {
         city: city ?? null,
-        citySource: query.city ? 'browse' : city ? 'profile' : 'none',
+        citySource:
+          query.city && !isExplicitAll ? 'browse'
+          : city && !query.city ? 'profile'
+          : 'none',
         personalized: Boolean(userId),
+        explicitAll: isExplicitAll,
       },
       bootstrap: {
         categories: base?.categories ?? { ads: null, products: null, services: null },

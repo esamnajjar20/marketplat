@@ -40,6 +40,12 @@ export const getHomepageSchema = z.object({
       .max(100)
       .optional()
       .transform((value) => {
+        // FIX HOME-CITY-EXPLICIT-ALL: __ALL__ is a client sentinel meaning
+        // "user explicitly chose all cities". It must survive the transform
+        // so the service can distinguish it from "no param sent" (which
+        // triggers the profile-city fallback). Everything else unknown still
+        // becomes undefined (blocks cache fragmentation).
+        if (value === '__ALL__') return '__ALL__';
         const normalized = value?.trim().replace(/\s+/g, ' ');
         return normalized && HOME_CITY_SET.has(normalized) ? normalized : undefined;
       }),

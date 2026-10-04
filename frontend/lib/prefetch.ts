@@ -249,7 +249,7 @@ export async function prefetchHomeFeed(
   try {
     await Promise.race([
       qc.prefetchQuery({
-        queryKey: homeFeedQueryKey(undefined, null),
+        queryKey: homeFeedQueryKey(undefined, null, false),
         queryFn: async () => {
           const res = await serverFetch<HomeFeedPayload>('/home/feed');
           if (!res.data) throw new Error('empty /home/feed response');

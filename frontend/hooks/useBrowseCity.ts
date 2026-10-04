@@ -74,5 +74,10 @@ export function useBrowseCity() {
     canChange: isReady,
     setCity,
     isReady,
+    // FIX HOME-CITY-EXPLICIT-ALL: true only when the user actively picked
+    // "كل المدن" and hydration finished. The homepage uses this to send
+    // ?city=__ALL__ instead of omitting the param (which the backend would
+    // otherwise treat as "no preference" → profile city).
+    explicitAll: isReady && guestPreference === BROWSE_ALL_CITIES,
   };
 }

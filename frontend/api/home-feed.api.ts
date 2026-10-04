@@ -12,6 +12,8 @@ export interface HomeFeedPayload {
     city: string | null;
     citySource: 'browse' | 'profile' | 'none';
     personalized: boolean;
+    /** FIX HOME-CITY-EXPLICIT-ALL: true when the user picked "كل المدن". */
+    explicitAll?: boolean;
   };
   bootstrap: {
     categories: {
@@ -43,16 +45,27 @@ export interface HomeFeedPayload {
   };
 }
 
-export const homeFeedQueryKey = (city: string | undefined, userId: string | null) => [
+export const homeFeedQueryKey = (
+  city: string | undefined,
+  userId: string | null,
+  explicitAll: boolean,
+) => [
   'home',
   'feed',
-  city ?? null,
+  explicitAll ? '__ALL__' : (city ?? null),
   userId ?? 'guest',
 ] as const;
 
 export const homeFeedApi = {
-  get: (city?: string) =>
+  get: (params: { city?: string; explicitAll?: boolean } = {}) =>
     apiClient.get<ApiResponse<HomeFeedPayload>>('/home/feed', {
-      params: city ? { city } : undefined,
+      // FIX HOME-CITY-EXPLICIT-ALL: when the user chose "كل المدن", send
+      // city=__ALL__ explicitly. Omitting the param would be interpreted
+      // by the backend as "no preference" → profile-city fallback.
+      params: params.explicitAll
+        ? { city: '__ALL__' }
+        : params.city
+          ? { city: params.city }
+          : undefined,
     }),
 };
