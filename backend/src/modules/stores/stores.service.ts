@@ -400,7 +400,18 @@ export const storesService = {
     const storeType = await storeTypesRepository.findById(input.storeTypeId);
     if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
     if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
-    const attributes = await storeTypeFieldsService.validateAttributes(storeType.id, store.attributes, true);
+    // FIX STORE-TYPE-SWITCH-LENIENT: an admin changing a store's type must
+    // not be blocked by the store's pre-existing attributes (written under
+    // the old type) or by the new type's required fields (which the owner
+    // has not yet filled in). Lenient mode drops unknown keys and does not
+    // enforce required — the next owner save will validate strictly.
+    const attributes = await storeTypeFieldsService.validateAttributes(
+      storeType.id,
+      store.attributes ?? {},
+      false,
+      'STORE',
+      { dropUnknownKeys: true },
+    );
     if (attributes !== null) {
       await storesRepository.update(id, { attributes: attributes as Prisma.InputJsonValue });
     }

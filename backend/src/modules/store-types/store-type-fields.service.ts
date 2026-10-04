@@ -57,6 +57,15 @@ export const storeTypeFieldsService = {
   update: async (storeTypeId: string, fieldId: string, input: UpdateStoreTypeFieldInput) => {
     const field = await storeTypeFieldsRepository.findById(fieldId);
     if (!field || field.storeTypeId !== storeTypeId) throw new NotFoundError('Store type field not found', 'STORE_TYPE_FIELD_NOT_FOUND');
+    // FIX FIELD-SCOPE-IMMUTABLE-SERVICE: scope is part of the field's unique
+    // identity; treat any change attempt as a client error rather than
+    // letting the DB throw P2002 (which would surface as 500).
+    if ((input as { scope?: unknown }).scope !== undefined) {
+      throw new BadRequestError(
+        'Field scope cannot be changed. Delete this field and create a new one in the target scope.',
+        'FIELD_SCOPE_IMMUTABLE',
+      );
+    }
     const nextType = input.type ?? field.type;
     const nextOptions = input.options === undefined ? field.options : input.options;
     if (nextType === 'SELECT' && !nextOptions) throw new BadRequestError('Select fields require options.', 'STORE_TYPE_FIELD_OPTIONS_REQUIRED');
@@ -67,7 +76,7 @@ export const storeTypeFieldsService = {
     return updated;
   },
 
-  validateAttributes: async (storeTypeId: string, raw: unknown, requireRequired: boolean, scope: StoreFieldScope = 'STORE'): Promise<StoreAttributes | null> => {
+  validateAttributes: async (storeTypeId: string, raw: unknown, requireRequired: boolean, scope: StoreFieldScope = 'STORE', opts: { dropUnknownKeys?: boolean } = {}): Promise<StoreAttributes | null> => {
     if (raw == null) return requireRequired && (await storeTypeFieldsRepository.findActive(storeTypeId, scope)).some(f => f.required)
       ? (() => { throw new BadRequestError(scope === 'PRODUCT' ? 'Required product fields are missing.' : 'Required store fields are missing.', scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_REQUIRED' : 'STORE_ATTRIBUTES_REQUIRED'); })()
       : null;
@@ -79,7 +88,16 @@ export const storeTypeFieldsService = {
     if (keys.length > MAX_FIELDS) throw new BadRequestError(scope === 'PRODUCT' ? 'Too many product attributes.' : 'Too many store attributes.', scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_LIMIT' : 'STORE_ATTRIBUTES_LIMIT');
     for (const key of keys) {
       const field = byKey.get(key);
-      if (!field) throw new BadRequestError(`Unknown ${scope === 'PRODUCT' ? 'product' : 'store'} field: ${key}`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_UNKNOWN' : 'STORE_ATTRIBUTE_UNKNOWN');
+      if (!field) {
+        // FIX STORE-TYPE-SWITCH-LENIENT: when an admin changes a store's
+        // type, the store's existing attributes (written against the OLD
+        // type) become unknown. Rather than reject the admin change with
+        // STORE_ATTRIBUTE_UNKNOWN, drop those keys silently — they belonged
+        // to a different schema. Normal (owner) saves still reject unknown
+        // keys, blocking typo'd fields at the API boundary.
+        if (opts.dropUnknownKeys) { delete input[key]; continue; }
+        throw new BadRequestError(`Unknown ${scope === 'PRODUCT' ? 'product' : 'store'} field: ${key}`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_UNKNOWN' : 'STORE_ATTRIBUTE_UNKNOWN');
+      }
       const value = input[key];
       if (value === null || value === '') {
         if (field.required) throw new BadRequestError(`Field ${field.labelAr} is required.`, scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_REQUIRED' : 'STORE_ATTRIBUTE_REQUIRED');

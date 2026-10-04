@@ -35,7 +35,13 @@ export const createStoreTypeFieldSchema = z.object({
 export const updateStoreTypeFieldSchema = z.object({
   params: z.object({ storeTypeId: z.string().min(1), fieldId: z.string().min(1) }),
   body: z.object({
-    scope: storeFieldScopeSchema.optional(),
+    // FIX FIELD-SCOPE-IMMUTABLE-VALIDATION: scope is part of a field's
+    // identity (see the @@unique([storeTypeId, scope, key]) index). Moving
+    // a field between STORE and PRODUCT does not change its meaning — it
+    // creates a different field — and can collide with an existing key in
+    // the target scope. The service rejects it explicitly; do not accept
+    // it in the payload at all.
+    scope: z.undefined().optional(),
     labelAr: z.string().min(1).max(100).optional(),
     cardLabelAr: z.string().max(100).nullable().optional(),
     pageLabelAr: z.string().max(100).nullable().optional(),
