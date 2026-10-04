@@ -207,7 +207,9 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // النت (Tesseract.js — بطاقات نت بلا رمز QR أصلاً) يُحمَّل من هذا الـCDN
     // وقت التشغيل. 'wasm-unsafe-eval' ضروري لأن Tesseract.js ينفّذ WASM —
     // بدونه بعض المتصفحات ترفض تشغيل الكود حتى لو تحمّل بنجاح.
-    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' https://cdn.jsdelivr.net${isDev ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
+    // Google Sign-In widget loads its SDK from accounts.google.com (gsi/client)
+    // and apis.google.com (legacy platform.js).
+    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com${isDev ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
     // FIX OFFLINE-01: fonts.googleapis.com/fonts.gstatic.com dropped —
     // fonts are now self-hosted via @fontsource (see app/layout.tsx)
     // and served from this app's own origin, not Google's CDN, so
@@ -230,7 +232,9 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // WASM وبيانات اللغة (eng.traineddata) بعد تحميل السكربت نفسه.
     // res.cloudinary.com is the delivery CDN; api.cloudinary.com is only
     // uploads. Both are needed — fetch() of an image goes to res.*.
-    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://res.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com`,
+    // Google Sign-In renders its button in an iframe from accounts.google.com.
+    `frame-src https://accounts.google.com`,
+    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://res.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://accounts.google.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو
     // الصارمة) قد ترفض تسجيل public/sw.js حتى لو كان default-src 'self'
     // يسمح به نظريًا — worker-src ليس دائمًا يرث من default-src في كل
