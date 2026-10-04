@@ -33,10 +33,10 @@ import { retryQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQ
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
-import { useIsUserOnline } from '@/hooks/queries/usePresence';
+import { useUserPresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
-import { formatTime } from '@/lib/formatters';
+import { formatTime, formatRelativeTime } from '@/lib/formatters';
 import { getAvatarUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type { Conversation, Message } from '@/types/conversation.types';
@@ -128,7 +128,8 @@ export function ChatWindow({ conversationId }: Props) {
   });
   const party = conversation ? otherParty(conversation, user?.id) : null;
   const isBlocked = useIsUserBlocked(party?.id ?? '');
-  const isPartyOnline = useIsUserOnline(party?.id);
+  const partyPresence = useUserPresence(party?.id);
+  const isPartyOnline = partyPresence.online;
   const { mutate: toggleBlock, isPending: togglingBlock } = useToggleUserBlock();
   const { mutate: deleteMessage, isPending: deletingMessage } = useDeleteMessage(conversationId);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
@@ -340,44 +341,50 @@ export function ChatWindow({ conversationId }: Props) {
     }
   }
 
+  const contextCard = conversation
+    ? conversation.context ?? (conversation.ad
+        ? {
+            type: 'ad' as const,
+            id: conversation.ad.id,
+            title: conversation.ad.title,
+            imageUrl: conversation.ad.images?.[0] ?? null,
+            url: ROUTES.adDetail(conversation.ad.id),
+          }
+        : conversation.serviceRequest?.listing
+          ? {
+              type: 'service' as const,
+              id: conversation.serviceRequest.listing.id,
+              title: conversation.serviceRequest.listing.title,
+              imageUrl: conversation.serviceRequest.listing.images?.[0] ?? null,
+              url: ROUTES.serviceDetail(conversation.serviceRequest.listing.id),
+            }
+          : null)
+    : null;
+
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* DESIGN-PASS MSG-01: ad-context strip — matches the reference
-          design's thumbnail+title bar above the party-info row, so a
-          reader can tell which listing this thread is about without
-          scrolling into the messages themselves. Only title/thumbnail
-          are shown, NOT price: ConversationAdSummary (conversation.types.ts)
-          carries id/title/images/status only — no price field exists on
-          this type or anywhere else this component has access to, so a
-          price here would have to be invented rather than real. Hidden
-          entirely for a general (non-ad) conversation, same condition
-          ConversationList already uses for its "محادثة عامة" fallback. */}
-      {conversation.ad && (
+      {contextCard && (
         <Link
           prefetch={false}
-          href={ROUTES.adDetail(conversation.ad.id)}
+          href={contextCard.url}
           className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-card px-3 py-2.5 transition-colors hover:bg-muted/40"
         >
           <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-lg bg-muted">
             <SafeImage
-              src={conversation.ad.images?.[0] ? getThumbnailUrl(conversation.ad.images[0], 88, 88) : PLACEHOLDER_SVG}
-              alt={conversation.ad.title}
+              src={contextCard.imageUrl ? getThumbnailUrl(contextCard.imageUrl, 88, 88) : PLACEHOLDER_SVG}
+              alt={contextCard.title}
               fill
               className="object-cover"
               sizes="44px"
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium line-clamp-1">{conversation.ad.title}</p>
-            {conversation.ad.status !== 'ACTIVE' && (
-              <p className="text-xs text-muted-foreground">
-                {conversation.ad.status === 'SOLD' ? 'تم البيع' : 'أُزيل الإعلان'}
-              </p>
-            )}
+            <p className="text-2xs-tight text-muted-foreground">{contextCard.type === 'ad' ? 'بخصوص الإعلان' : contextCard.type === 'product' ? 'بخصوص المنتج' : 'بخصوص الخدمة'}</p>
+            <p className="text-sm font-medium line-clamp-1">{contextCard.title}</p>
           </div>
         </Link>
       )}
-      {conversation.ad && conversation.ad.status === 'ACTIVE' && (
+      {conversation?.ad && conversation.ad.status === 'ACTIVE' && (
         <div className="flex justify-end border-b bg-card/50 px-3 py-1.5">
           <ReportAdButton adId={conversation.ad.id} />
         </div>
@@ -437,9 +444,11 @@ export function ChatWindow({ conversationId }: Props) {
                 Online status now always gets this line when the ad
                 strip is showing, instead of losing it to the ad
                 condition it used to share an else-if with. */}
-            {isPartyOnline && (
+            {isPartyOnline ? (
               <p className="text-xs text-online line-clamp-1">متصل الآن</p>
-            )}
+            ) : partyPresence.lastSeenAt ? (
+              <p className="text-xs text-muted-foreground line-clamp-1">آخر ظهور {formatRelativeTime(partyPresence.lastSeenAt)}</p>
+            ) : null}
           </div>
         </Link>
 
@@ -617,6 +626,15 @@ export function ChatWindow({ conversationId }: Props) {
                         clientStatus === 'failed' && 'opacity-80 ring-1 ring-destructive/40'
                       )}
                     >
+                      {!isDeleted && message.audioUrl && (
+                        <audio
+                          controls
+                          preload="metadata"
+                          src={message.audioUrl}
+                          className="mb-2 max-w-[260px] w-full"
+                          aria-label="رسالة صوتية"
+                        />
+                      )}
                       {!isDeleted && message.imageUrl && (
                         <a
                           href={message.imageUrl}
@@ -643,7 +661,7 @@ export function ChatWindow({ conversationId }: Props) {
                       <p className="whitespace-pre-wrap break-words">
                         {isDeleted
                           ? 'تم حذف هذه الرسالة'
-                          : message.body && message.body !== '📷'
+                          : message.body && message.body !== '📷' && message.body !== '🎤 رسالة صوتية'
                             ? splitMessageBody(message.body).map((part, i) =>
                                 part.type === 'link' && part.href ? (
                                   <a

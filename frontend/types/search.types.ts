@@ -20,7 +20,7 @@
 export type SearchType = 'all' | 'ads' | 'products' | 'stores' | 'services';
 export type SearchResultType = 'ad' | 'product' | 'store' | 'service';
 /** TRACK-NEARBY-SEARCH: 'distance' only valid alongside lat/lng — see SearchQuery's own comment. */
-export type SearchSort = 'relevance' | 'rating' | 'newest' | 'views' | 'distance';
+export type SearchSort = 'relevance' | 'rating' | 'newest' | 'views' | 'price_asc' | 'price_desc' | 'distance';
 
 export interface SearchResultSeller {
   id: string;
@@ -75,6 +75,9 @@ export interface SearchQuery {
   city?: string;
   type?: SearchType;
   categoryId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  condition?: 'NEW' | 'USED' | 'REFURBISHED';
   sort?: SearchSort;
   page?: number;
   limit?: number;

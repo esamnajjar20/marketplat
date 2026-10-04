@@ -22,6 +22,9 @@ const baseSearchQuerySchema = z.object({
   city: z.string().max(100).optional(),
   type: z.enum(SEARCH_TYPES).default('all'),
   categoryId: z.string().optional(),
+  minPrice: optionalQueryNumber(z.number().min(0)).optional(),
+  maxPrice: optionalQueryNumber(z.number().min(0)).optional(),
+  condition: z.enum(['NEW', 'USED', 'REFURBISHED']).optional(),
   sort: z.enum(SEARCH_SORT_OPTIONS).default('relevance'),
   page: optionalQueryNumber(z.number().int().min(1).max(1000)),
   // Capped lower than ads.validation.ts's own limit (100) — each row
@@ -35,6 +38,7 @@ const baseSearchQuerySchema = z.object({
 });
 
 const searchQueryObjectSchema = baseSearchQuerySchema
+  .refine(q => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, { message: 'minPrice must not exceed maxPrice', path: ['minPrice'] })
   .refine(q => (q.lat === undefined) === (q.lng === undefined), {
     message: 'lat and lng must be provided together',
     path: ['lat'],

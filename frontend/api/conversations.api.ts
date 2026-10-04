@@ -48,6 +48,15 @@ export const conversationsApi = {
   setFlags: (id: string, flags: { pinned?: boolean; archived?: boolean }) =>
     apiClient.patch<ApiResponse<Conversation>>(`/conversations/${id}/flags`, flags),
 
+  sendAudio: (id: string, file: File, body?: string) => {
+    const form = new FormData();
+    form.append('audio', file);
+    if (body?.trim()) form.append('body', body.trim());
+    return apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages/audio`, form, {
+      headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() },
+    });
+  },
+
   signalTyping: (id: string, isTyping: boolean) =>
     apiClient.post<ApiResponse<void>>(`/conversations/${id}/typing`, { isTyping }),
 };

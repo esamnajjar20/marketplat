@@ -21,6 +21,7 @@ function otherParty(conversation: Conversation, userId: string | undefined) {
 }
 
 function contextLabel(conversation: ConversationListItem): string | null {
+  if (conversation.context?.title) return conversation.context.title;
   if (conversation.ad?.title) return conversation.ad.title;
   if (conversation.serviceRequest?.listing?.title) return conversation.serviceRequest.listing.title;
   return null;
@@ -49,10 +50,12 @@ export function ConversationList({ selectedId }: Props = {}) {
   const [query, setQuery] = useState('');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [archivedOnly, setArchivedOnly] = useState(false);
+  const [role, setRole] = useState<'all' | 'buying' | 'selling'>('all');
   const { data, isLoading, isError, refetch, isFetching } = useMyConversations({
     page: 1,
     limit,
     ...(archivedOnly ? { archivedOnly: true } : {}),
+    ...(role !== 'all' ? { role } : {}),
   });
 
   const items = useMemo(() => data?.items ?? [], [data?.items]);
@@ -154,6 +157,20 @@ export function ConversationList({ selectedId }: Props = {}) {
             </span>
           )}
         </div>
+        <div className="flex gap-1.5 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="نوع المحادثات">
+          {([['all', 'الكل'], ['buying', 'شراء'], ['selling', 'بيع']] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={role === value}
+              onClick={() => { setRole(value); setLimit(PAGE_SIZE); setArchivedOnly(false); }}
+              className={role === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -223,6 +240,11 @@ export function ConversationList({ selectedId }: Props = {}) {
 
       {/* Mobile search */}
       <div className="md:hidden space-y-2 border-b px-3 py-2">
+        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="نوع المحادثات">
+          {([['all', 'الكل'], ['buying', 'شراء'], ['selling', 'بيع']] as const).map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={role === value} onClick={() => { setRole(value); setLimit(PAGE_SIZE); setArchivedOnly(false); }} className={role === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
+          ))}
+        </div>
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -326,7 +348,7 @@ export function ConversationList({ selectedId }: Props = {}) {
                       sizes="56px"
                     />
                   </div>
-                  {onlineMap?.[party.id] && (
+                  {onlineMap?.[party.id]?.online && (
                     <span
                       className="absolute bottom-0 end-0 h-3.5 w-3.5 rounded-full bg-online ring-2 ring-card"
                       aria-label="متصل الآن"

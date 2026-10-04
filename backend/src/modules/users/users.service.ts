@@ -32,10 +32,7 @@ export const usersService = {
 
   /** GET /users/presence?ids=... — bulk online lookup for however many
    * user IDs the caller's current view needs a dot for. */
-  getPresence: async (userIds: string[]): Promise<Record<string, boolean>> => {
-    const online = await presence.getOnlineIds(userIds);
-    return Object.fromEntries(userIds.map((id) => [id, online.has(id)]));
-  },
+  getPresence: async (userIds: string[]): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> => presence.getPresence(userIds),
 
   getMe: async (userId: string): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);

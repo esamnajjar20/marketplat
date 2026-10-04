@@ -144,8 +144,8 @@ export async function processEmailFallback(job: Job<EmailFallbackJobData>): Prom
   }
 
   // Active in the app within the presence window: they can see the badge.
-  const online = await presence.getOnlineIds([userId]);
-  if (online.has(userId)) return;
+  const presenceMap = await presence.getPresence([userId]);
+  if (presenceMap[userId]?.online) return;
 
   const where = {
     userId,

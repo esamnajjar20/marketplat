@@ -12,6 +12,8 @@ import { redis } from '../../config/redis';
  */
 
 const PRESENCE_PREFIX = 'presence:';
+const LAST_SEEN_PREFIX = 'presence:last-seen:';
+const LAST_SEEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 // Must be comfortably longer than the frontend's heartbeat interval
 // (useHeartbeat polls every 45s) so a single missed beat — a slow
@@ -27,7 +29,11 @@ export const presence = {
    * online except that user's own client telling us so). */
   touch: async (userId: string): Promise<void> => {
     try {
-      await redis.setex(`${PRESENCE_PREFIX}${userId}`, PRESENCE_TTL_SECONDS, '1');
+      const now = new Date().toISOString();
+      await Promise.all([
+        redis.setex(`${PRESENCE_PREFIX}${userId}`, PRESENCE_TTL_SECONDS, now),
+        redis.setex(`${LAST_SEEN_PREFIX}${userId}`, LAST_SEEN_TTL_SECONDS, now),
+      ]);
     } catch {
       // Redis unavailable — presence is a nice-to-have, never worth
       // failing the request over (same posture as viewsBuffer.increment).
@@ -36,20 +42,21 @@ export const presence = {
 
   /** Bulk existence check — one round trip for however many user IDs
    * ChatWindow/ConversationList needs a dot for, rather than N GETs. */
-  getOnlineIds: async (userIds: string[]): Promise<Set<string>> => {
-    if (userIds.length === 0) return new Set();
+  getPresence: async (userIds: string[]): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> => {
+    if (userIds.length === 0) return {};
     try {
-      const keys = userIds.map((id) => `${PRESENCE_PREFIX}${id}`);
-      const results = await redis.mget(...keys);
-      const online = new Set<string>();
-      results.forEach((value, i) => {
-        if (value !== null) online.add(userIds[i]);
-      });
-      return online;
+      const onlineKeys = userIds.map((id) => `${PRESENCE_PREFIX}${id}`);
+      const lastSeenKeys = userIds.map((id) => `${LAST_SEEN_PREFIX}${id}`);
+      const [onlineValues, lastSeenValues] = await Promise.all([
+        redis.mget(...onlineKeys),
+        redis.mget(...lastSeenKeys),
+      ]);
+      return Object.fromEntries(userIds.map((id, i) => [id, {
+        online: onlineValues[i] !== null,
+        lastSeenAt: lastSeenValues[i] ?? null,
+      }]));
     } catch {
-      // Redis unavailable — report everyone offline rather than guessing;
-      // the frontend already treats "no dot" as the default, safe state.
-      return new Set();
+      return Object.fromEntries(userIds.map((id) => [id, { online: false, lastSeenAt: null }]));
     }
   },
 };

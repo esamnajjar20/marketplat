@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
-import { Send, Ban, ImagePlus, X } from 'lucide-react';
+import { Send, Ban, ImagePlus, X, Mic, Square } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
@@ -37,6 +37,9 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const sendMessage = useSendMessage(conversationId);
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -116,6 +119,13 @@ export function MessageInput({ conversationId, disabled }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    return () => {
+      mediaRecorderRef.current?.stop();
+      mediaRecorderRef.current = null;
+    };
+  }, []);
+
   function onPickImage(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -145,6 +155,62 @@ export function MessageInput({ conversationId, disabled }: Props) {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview(null);
+  }
+
+  async function toggleRecording() {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast.error('التسجيل الصوتي غير مدعوم على هذا الجهاز');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+          ? 'audio/ogg;codecs=opus'
+          : '';
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        setRecording(false);
+        mediaRecorderRef.current = null;
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        if (blob.size === 0) return;
+        if (!navigator.onLine) {
+          toast.error('الرسائل الصوتية تحتاج اتصالاً بالإنترنت حاليًا');
+          return;
+        }
+        setUploading(true);
+        try {
+          const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
+          await conversationsApi.sendAudio(conversationId, file, body.trim());
+          setBody('');
+          clearMessageDraft(conversationId);
+          setLastSendError(null);
+          void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
+          void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+        } catch (err) {
+          const parsed = parseApiError(err);
+          setLastSendError(parsed.message);
+          toast.error(parsed.message);
+        } finally {
+          setUploading(false);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      setRecording(true);
+      recorder.start();
+    } catch {
+      toast.error('تعذّر الوصول إلى الميكروفون');
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -249,7 +315,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
   const nearLimit = body.length >= WARN_THRESHOLD;
   const canSend =
-    (Boolean(body.trim()) || Boolean(imageFile)) && !sendMessage.isPending && !uploading;
+    (Boolean(body.trim()) || Boolean(imageFile)) && !sendMessage.isPending && !uploading && !recording;
 
   return (
     <div className="border-t border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/90 dark:bg-card/95">
@@ -339,6 +405,18 @@ export function MessageInput({ conversationId, disabled }: Props) {
           >
             <ImagePlus className="h-5 w-5" />
           </button>
+          <button
+            type="button"
+            aria-label={recording ? 'إيقاف التسجيل الصوتي' : 'تسجيل رسالة صوتية'}
+            onClick={() => void toggleRecording()}
+            disabled={uploading}
+            className={cn(
+              'mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+              recording ? 'bg-destructive text-destructive-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            {recording ? <Square className="h-4 w-4" /> : <Mic className="h-5 w-5" />}
+          </button>
           <div className="min-w-0 flex-1">
             <textarea
               ref={textareaRef}
@@ -387,7 +465,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         </div>
         <p className="mt-1.5 px-1 text-center text-2xs text-muted-foreground/70 hidden [@media(pointer:fine)]:block">
           {/* SW-FIX-MSG-ENTER-HINT: show keyboard hint only on fine-pointer devices */}
-          ↵ للإرسال · Shift + ↵ لسطر جديد · الصورة اختيارية
+          ↵ للإرسال · Shift + ↵ لسطر جديد · الصورة والصوت اختياريان
         </p>
       </form>
     </div>

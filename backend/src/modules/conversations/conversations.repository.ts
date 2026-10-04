@@ -84,7 +84,7 @@ export const conversationsRepository = {
   create: (
     buyerId: string,
     sellerId: string,
-    context: { adId?: string | null; serviceRequestId?: string | null } = {}
+    context: { adId?: string | null; serviceRequestId?: string | null; listingContext?: Prisma.InputJsonValue | null } = {}
   ): Promise<Conversation> =>
     prisma.conversation.create({
       data: {
@@ -92,6 +92,7 @@ export const conversationsRepository = {
         sellerId,
         adId: context.adId ?? null,
         serviceRequestId: context.serviceRequestId ?? null,
+        context: context.listingContext ?? undefined,
       },
     }),
 
@@ -115,7 +116,7 @@ export const conversationsRepository = {
   findOrCreate: async (
     buyerId: string,
     sellerId: string,
-    context: { adId?: string | null; serviceRequestId?: string | null } = {}
+    context: { adId?: string | null; serviceRequestId?: string | null; listingContext?: Prisma.InputJsonValue | null } = {}
   ): Promise<Conversation> => {
     // Lookup is direction-agnostic so A→B and B→A resolve to the same
     // thread. Insert keeps SEMANTIC roles: buyerId = initiator / customer,
@@ -172,13 +173,14 @@ export const conversationsRepository = {
       // filter touches the existing OR on buyerId/sellerId.
       includeArchived?: boolean;
       archivedOnly?: boolean;
+      role?: 'buying' | 'selling';
     }
   ): Promise<{ conversations: ConversationListItem[]; total: number }> => {
-    const { page = 1, limit = 20, includeArchived, archivedOnly } = query;
+    const { page = 1, limit = 20, includeArchived, archivedOnly, role } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
     const where: Prisma.ConversationWhereInput = {
-      OR: [{ buyerId: userId }, { sellerId: userId }],
+      ...(role === 'buying' ? { buyerId: userId } : role === 'selling' ? { sellerId: userId } : { OR: [{ buyerId: userId }, { sellerId: userId }] }),
       ...(archivedOnly
         ? { archivedAt: { not: null } }
         : includeArchived
@@ -243,10 +245,11 @@ export const messagesRepository = {
     conversationId: string,
     senderId: string,
     body: string,
-    imageUrl?: string | null
+    imageUrl?: string | null,
+    audioUrl?: string | null
   ): Promise<Message> =>
     prisma.message.create({
-      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null },
+      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null, audioUrl: audioUrl ?? null },
     }),
 
   findById: (id: string): Promise<Message | null> =>

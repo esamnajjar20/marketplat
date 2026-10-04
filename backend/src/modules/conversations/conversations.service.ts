@@ -3,6 +3,8 @@ import { conversationsRepository, messagesRepository, ConversationWithRelations,
 import { adsRepository } from '../ads/ads.repository';
 import { usersRepository } from '../users/users.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
+import { productsRepository } from '../products/products.repository';
+import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { notificationEvents, notificationsService } from '../notifications';
 import { publishNotificationEvent } from '../../shared/utils/notificationStream';
 import { blockedUsersService } from '../blocked-users';
@@ -91,7 +93,16 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    return conversationsRepository.findOrCreate(buyerId, sellerId, { adId });
+    return conversationsRepository.findOrCreate(buyerId, sellerId, {
+      adId,
+      listingContext: {
+        type: 'ad',
+        id: ad.id,
+        title: ad.title,
+        imageUrl: ad.images?.[0] ?? null,
+        url: `/ads/${ad.id}`,
+      },
+    });
   },
 
   /**
@@ -104,7 +115,7 @@ export const conversationsService = {
    * this also reopens a thread that started the other way around (the
    * target previously messaged buyerId's ad or profile first).
    */
-  startFromUser: async (buyerId: string, targetUserId: string): Promise<Conversation> => {
+  startFromUser: async (buyerId: string, targetUserId: string, context?: { type: 'product' | 'service'; id: string }): Promise<Conversation> => {
     const target = await usersRepository.findPublicById(targetUserId);
     if (!target || !target.isActive) {
       throw new NotFoundError('User not found', 'USER_NOT_FOUND');
@@ -119,7 +130,24 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    return conversationsRepository.findOrCreate(buyerId, sellerId);
+    let listingContext: object | undefined;
+    if (context?.type === 'product') {
+      const product = await productsRepository.findPublicById(context.id);
+      const ownerId = product?.store?.sellerProfile?.userId;
+      if (!product || product.status !== 'ACTIVE' || ownerId !== sellerId) {
+        throw new BadRequestError('Product context is invalid.', 'INVALID_MESSAGE_CONTEXT');
+      }
+      listingContext = { type: 'product', id: product.id, title: product.name, imageUrl: product.images?.[0] ?? null, url: `/products/${product.id}` };
+    } else if (context?.type === 'service') {
+      const listing = await serviceListingsRepository.findPublicById(context.id);
+      const ownerId = listing?.provider?.sellerProfile?.userId;
+      if (!listing || listing.status !== 'ACTIVE' || ownerId !== sellerId) {
+        throw new BadRequestError('Service context is invalid.', 'INVALID_MESSAGE_CONTEXT');
+      }
+      listingContext = { type: 'service', id: listing.id, title: listing.title, imageUrl: listing.images?.[0] ?? null, url: `/services/${listing.id}` };
+    }
+
+    return conversationsRepository.findOrCreate(buyerId, sellerId, { listingContext });
   },
 
   /**
@@ -165,7 +193,16 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    return conversationsRepository.findOrCreate(customerId, providerUserId, { serviceRequestId });
+    return conversationsRepository.findOrCreate(customerId, providerUserId, {
+      serviceRequestId,
+      listingContext: {
+        type: 'service',
+        id: request.listing.id,
+        title: request.listing.title,
+        imageUrl: request.listing.images?.[0] ?? null,
+        url: `/services/${request.listing.id}`,
+      },
+    });
   },
 
   getConversationById: async (userId: string, id: string): Promise<ConversationWithRelations> => {
@@ -182,6 +219,7 @@ export const conversationsService = {
       limit?: number;
       includeArchived?: boolean;
       archivedOnly?: boolean;
+      role?: 'buying' | 'selling';
     }
   ): Promise<PaginatedResult<ConversationListItem>> => {
     // FIX CONV-ARCHIVE-FILTER-01: explicit pass-through instead of
@@ -195,6 +233,7 @@ export const conversationsService = {
       limit: query.limit,
       includeArchived: query.includeArchived,
       archivedOnly: query.archivedOnly,
+      role: query.role,
     });
     return {
       items: conversations,
@@ -205,7 +244,7 @@ export const conversationsService = {
   sendMessage: async (
     userId: string,
     conversationId: string,
-    input: { body?: string; imageUrl?: string },
+    input: { body?: string; imageUrl?: string; audioUrl?: string },
     offlineOperationId?: string | null,
   ): Promise<Message> => {
     const conversation = await conversationsRepository.findById(conversationId);
@@ -224,7 +263,8 @@ export const conversationsService = {
 
     const body = (input.body ?? '').trim();
     const imageUrl = input.imageUrl?.trim() || null;
-    if (!body && !imageUrl) {
+    const audioUrl = input.audioUrl?.trim() || null;
+    if (!body && !imageUrl && !audioUrl) {
       throw new BadRequestError('Message cannot be empty', 'MESSAGE_EMPTY');
     }
     if (body) assertMessageBodySafe(body);
@@ -359,8 +399,9 @@ export const conversationsService = {
       message = await messagesRepository.create(
         conversationId,
         userId,
-        body || (imageUrl ? '📷' : ''),
-        imageUrl
+        body || (imageUrl ? '📷' : audioUrl ? '🎤 رسالة صوتية' : ''),
+        imageUrl,
+        audioUrl
       );
     } catch (err) {
       // Release claim so a client/queue retry can re-enter cleanly.
@@ -428,6 +469,7 @@ export const conversationsService = {
       senderId: message.senderId,
       body: message.body,
       imageUrl: (message as { imageUrl?: string | null }).imageUrl ?? null,
+      audioUrl: (message as { audioUrl?: string | null }).audioUrl ?? null,
       readAt: message.readAt ? message.readAt.toISOString() : null,
       deletedAt: message.deletedAt ? message.deletedAt.toISOString() : null,
       createdAt: message.createdAt.toISOString(),

@@ -22,7 +22,7 @@ export const conversationsController = {
         ? await conversationsService.startFromAd(user.userId, body.adId)
         : body.serviceRequestId
           ? await conversationsService.startFromServiceRequest(user.userId, body.serviceRequestId)
-          : await conversationsService.startFromUser(user.userId, body.userId as string);
+          : await conversationsService.startFromUser(user.userId, body.userId as string, body.context);
       res.status(201).json(successResponse('Conversation ready', conversation));
     } catch (error) {
       next(error);
@@ -181,6 +181,36 @@ export const conversationsController = {
         if (publicId) {
           deleteImage(publicId).catch(() => undefined);
         }
+        throw err;
+      }
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  sendMessageAudio: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = conversationIdSchema.parse({ params: req.params });
+      const file = req.file;
+      if (!file) {
+        res.status(400).json({ success: false, message: 'Audio required' });
+        return;
+      }
+      const { uploadAudio, deleteMedia } = await import('../../config/cloudinary');
+      const uploaded = await uploadAudio(file.buffer, 'chat');
+      try {
+        const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
+        const message = await conversationsService.sendMessage(
+          user.userId,
+          params.id,
+          { body: typeof req.body?.body === 'string' ? req.body.body : undefined, audioUrl: uploaded.url },
+          offlineOperationId,
+        );
+        res.status(201).json(successResponse('Voice message sent', message));
+      } catch (err) {
+        const publicId = uploaded.publicId;
+        if (publicId) deleteMedia(publicId, 'video').catch(() => undefined);
         throw err;
       }
     } catch (error) {

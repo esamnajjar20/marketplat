@@ -14,6 +14,10 @@ export const startConversationSchema = z.object({
       adId: z.string().min(1).optional(),
       userId: z.string().min(1).optional(),
       serviceRequestId: z.string().min(1).optional(),
+      context: z.object({
+        type: z.enum(['product', 'service']),
+        id: z.string().min(1),
+      }).optional(),
     })
     .refine(
       (data) => [data.adId, data.userId, data.serviceRequestId].filter(Boolean).length === 1,
@@ -38,6 +42,7 @@ export const getConversationsSchema = z.object({
         z.boolean().optional()
       ),
     /** only archived */
+    role: z.enum(['buying', 'selling']).optional(),
     archivedOnly: z
       .preprocess(
         (v) => (v === undefined ? undefined : v === 'true' || v === true),
@@ -54,10 +59,11 @@ export const sendMessageSchema = z.object({
     .object({
       body: z.string().max(2000).optional(),
       imageUrl: z.string().url().optional(),
+      audioUrl: z.string().url().optional(),
     })
     .refine(
-      (d) => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl),
-      { message: 'Provide a non-empty body and/or imageUrl' }
+      (d) => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl || d.audioUrl),
+      { message: 'Provide a non-empty body, imageUrl, or audioUrl' }
     ),
 });
 

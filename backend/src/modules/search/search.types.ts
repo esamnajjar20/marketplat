@@ -21,7 +21,7 @@ export type SearchResultType = 'ad' | 'product' | 'store' | 'service';
 // searchQuerySchema enforces that with a .refine(), the same "sort
 // value requires certain other params" shape ads.validation.ts's own
 // adsQuerySchema already uses for minPrice/maxPrice ordering.
-export const SEARCH_SORT_OPTIONS = ['relevance', 'rating', 'newest', 'views', 'distance'] as const;
+export const SEARCH_SORT_OPTIONS = ['relevance', 'rating', 'newest', 'views', 'price_asc', 'price_desc', 'distance'] as const;
 export type SearchSort = (typeof SEARCH_SORT_OPTIONS)[number];
 
 export interface SearchResultSeller {

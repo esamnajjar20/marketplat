@@ -1,4 +1,4 @@
-import { uploadMiddleware } from '../../middlewares/upload.middleware';
+import { uploadMiddleware, uploadAudioMiddleware } from '../../middlewares/upload.middleware';
 import { Router } from 'express';
 import { conversationsController } from './conversations.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
@@ -45,6 +45,14 @@ conversationsRouter.post(
   requireVerifiedEmail,
   sendMessageRateLimit,
   conversationsController.sendMessage
+);
+conversationsRouter.post(
+  '/:id/messages/audio',
+  authenticate,
+  requireVerifiedEmail,
+  sendMessageRateLimit,
+  uploadAudioMiddleware,
+  conversationsController.sendMessageAudio
 );
 conversationsRouter.post(
   '/:id/messages/image',

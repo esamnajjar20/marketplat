@@ -45,5 +45,10 @@ export function usePresence(userIds: string[]) {
  */
 export function useIsUserOnline(userId: string | undefined): boolean {
   const { data } = usePresence(userId ? [userId] : []);
-  return userId ? Boolean(data?.[userId]) : false;
+  return userId ? Boolean(data?.[userId]?.online) : false;
+}
+
+export function useUserPresence(userId: string | undefined) {
+  const { data } = usePresence(userId ? [userId] : []);
+  return userId ? data?.[userId] ?? { online: false, lastSeenAt: null } : { online: false, lastSeenAt: null };
 }

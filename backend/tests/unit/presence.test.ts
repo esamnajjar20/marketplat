@@ -20,28 +20,34 @@ describe('presence', () => {
     });
   });
 
-  describe('getOnlineIds', () => {
+  describe('getPresence', () => {
     it('returns an empty set for an empty input without calling redis', async () => {
       const mgetSpy = jest.spyOn(redis, 'mget');
 
-      const result = await presence.getOnlineIds([]);
+      const result = await presence.getPresence([]);
 
-      expect(result).toEqual(new Set());
+      expect(result).toEqual({});
       expect(mgetSpy).not.toHaveBeenCalled();
     });
 
     it('returns only the ids whose presence key exists', async () => {
-      jest.spyOn(redis, 'mget').mockResolvedValue(['1', null, '1']);
+      jest.spyOn(redis, 'mget')
+        .mockResolvedValueOnce(['1', null, '1'])
+        .mockResolvedValueOnce([null, null, null]);
 
-      const result = await presence.getOnlineIds(['user-1', 'user-2', 'user-3']);
+      const result = await presence.getPresence(['user-1', 'user-2', 'user-3']);
 
-      expect(result).toEqual(new Set(['user-1', 'user-3']));
+      expect(result).toEqual({
+        'user-1': { online: true, lastSeenAt: null },
+        'user-2': { online: false, lastSeenAt: null },
+        'user-3': { online: true, lastSeenAt: null },
+      });
     });
 
     it('queries with the presence-prefixed keys in the same order as the input', async () => {
       const mgetSpy = jest.spyOn(redis, 'mget').mockResolvedValue([null, null]);
 
-      await presence.getOnlineIds(['user-1', 'user-2']);
+      await presence.getPresence(['user-1', 'user-2']);
 
       expect(mgetSpy).toHaveBeenCalledWith('presence:user-1', 'presence:user-2');
     });
@@ -49,9 +55,9 @@ describe('presence', () => {
     it('returns an empty set (everyone offline) when redis fails', async () => {
       jest.spyOn(redis, 'mget').mockRejectedValue(new Error('redis down'));
 
-      const result = await presence.getOnlineIds(['user-1', 'user-2']);
+      const result = await presence.getPresence(['user-1', 'user-2']);
 
-      expect(result).toEqual(new Set());
+      expect(result).toEqual({});
     });
   });
 });

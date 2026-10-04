@@ -28,9 +28,10 @@ interface Props {
   size?: 'default' | 'sm' | 'lg' | 'icon';
   variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link';
   label?: string;
+  context?: { type: 'product' | 'service'; id: string };
 }
 
-export function MessageUserButtonGate({ targetUserId, className, size = 'sm', variant = 'outline', label = 'مراسلة' }: Props) {
+export function MessageUserButtonGate({ targetUserId, className, size = 'sm', variant = 'outline', label = 'مراسلة', context }: Props) {
   const router = useRouter();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
@@ -48,7 +49,7 @@ export function MessageUserButtonGate({ targetUserId, className, size = 'sm', va
     }
     track('CONTACT_CLICK', { sellerId: targetUserId, source: 'product_or_profile' });
     startConversation.mutate(
-      { userId: targetUserId },
+      { userId: targetUserId, ...(context ? { context } : {}) },
       { onSuccess: (conversation) => router.push(ROUTES.conversationDetail(conversation!.id)) }
     );
   }

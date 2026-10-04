@@ -149,6 +149,8 @@ const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
   rating: Prisma.sql`rating DESC, rank DESC, created_at DESC`,
   newest: Prisma.sql`created_at DESC`,
   views: Prisma.sql`views DESC, rank DESC, created_at DESC`,
+  price_asc: Prisma.sql`NULLIF(price, '')::numeric ASC NULLS LAST, rank DESC, created_at DESC`,
+  price_desc: Prisma.sql`NULLIF(price, '')::numeric DESC NULLS LAST, rank DESC, created_at DESC`,
   distance: Prisma.sql`distance_km ASC NULLS LAST, rank DESC, created_at DESC`,
 };
 
@@ -247,7 +249,8 @@ type BranchBuilder = (
   tsQuery: Prisma.Sql | null,
   categoryId: string | undefined,
   city: string | undefined,
-  geo: GeoParams | null
+  geo: GeoParams | null,
+  filters: { minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED' }
 ) => Prisma.Sql | null;
 
 // Each branch computes its own tsvector/rank inline (rather than
@@ -256,7 +259,7 @@ type BranchBuilder = (
 // feature, so there's nowhere to persist a generated tsvector column.
 // The GIN indexes still speed up matching because the expression is
 // byte-for-byte identical to what's indexed.
-const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
+const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
   // AUDIT-FIX (ads-feature review): this branch already LEFT JOINs
   // seller_profiles (for rating/name/verified display below) but never
   // filtered on it — a suspended seller's ads were still fully
@@ -278,6 +281,9 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   }
   if (categoryId) conditions.push(Prisma.sql`a."categoryId" = ${categoryId}`);
   if (city) conditions.push(Prisma.sql`a."city" = ${city}`);
+  if (filters.minPrice !== undefined) conditions.push(Prisma.sql`a."price" >= ${filters.minPrice}`);
+  if (filters.maxPrice !== undefined) conditions.push(Prisma.sql`a."price" <= ${filters.maxPrice}`);
+  if (filters.condition) conditions.push(Prisma.sql`a."condition" = ${filters.condition}`);
 
   const rankExpr = tsQuery
     ? Prisma.sql`ts_rank(
@@ -340,7 +346,7 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   `;
 };
 
-const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
+const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
   // AUDIT-FIX (ads-feature review, extended to the other 3 branches):
   // same gap as adBranch above — sp (seller_profiles) is already
   // LEFT JOINed below for rating/verified display but was never
@@ -363,6 +369,9 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   if (categoryId) conditions.push(Prisma.sql`p."categoryId" = ${categoryId}`);
   // Product has no own city — inherited from its store (see header comment).
   if (city) conditions.push(Prisma.sql`st."city" = ${city}`);
+  if (filters.minPrice !== undefined) conditions.push(Prisma.sql`coalesce(p."discountPrice", p."price") >= ${filters.minPrice}`);
+  if (filters.maxPrice !== undefined) conditions.push(Prisma.sql`coalesce(p."discountPrice", p."price") <= ${filters.maxPrice}`);
+  if (filters.condition) return null;
 
   const rankExpr = tsQuery
     ? Prisma.sql`ts_rank(
@@ -411,13 +420,13 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   `;
 };
 
-const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
+const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
   // Stores have no category of their own (ProductCategory/ServiceCategory
   // belong to their listings, not the store) — a categoryId filter
   // can never match a store, so this branch is skipped entirely rather
   // than silently returning zero rows through a WHERE that can never
   // be true. Same short-circuit for city, applied below.
-  if (categoryId) return null;
+  if (categoryId || filters.minPrice !== undefined || filters.maxPrice !== undefined || filters.condition) return null;
 
   // AUDIT-FIX (ads-feature review): same gap/fix as productBranch above —
   // store_details.sellerProfileId is required, so the already-LEFT-JOINed
@@ -478,7 +487,7 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   `;
 };
 
-const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
+const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
   // AUDIT-FIX (ads-feature review): same gap/fix as productBranch/
   // storeBranch above — service_provider_details.sellerProfileId is
   // required, so the already-LEFT-JOINed sp alias always resolves.
@@ -497,6 +506,9 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo) => {
   // equality, same relation-filter approach
   // service-listings.repository.ts's ORM path already uses (`has: city`).
   if (city) conditions.push(Prisma.sql`${city} = ANY(pr."serviceAreaCities")`);
+  if (filters.minPrice !== undefined) conditions.push(Prisma.sql`sl."price" >= ${filters.minPrice}`);
+  if (filters.maxPrice !== undefined) conditions.push(Prisma.sql`sl."price" <= ${filters.maxPrice}`);
+  if (filters.condition) return null;
 
   const rankExpr = tsQuery
     ? Prisma.sql`ts_rank(
@@ -570,7 +582,7 @@ export const searchRepository = {
     query: SearchQuery,
     preferredTypes: Array<'store' | 'service' | 'product' | 'ad'> = [],
   ): Promise<{ rows: RawSearchRow[]; total: number }> => {
-    const { q, city, type, categoryId, sort, page = 1, limit = 20, lat, lng, radius } = query;
+    const { q, city, type, categoryId, minPrice, maxPrice, condition, sort, page = 1, limit = 20, lat, lng, radius } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const tsQuery = buildTsQuery(q);
 
@@ -584,7 +596,7 @@ export const searchRepository = {
       type === 'all' ? ['ads', 'products', 'stores', 'services'] : [type];
 
     const branches = typesToQuery
-      .map(t => BRANCH_BUILDERS[t](tsQuery, categoryId, city, geo))
+      .map(t => BRANCH_BUILDERS[t](tsQuery, categoryId, city, geo, { minPrice, maxPrice, condition }))
       .filter((branch): branch is Prisma.Sql => branch !== null);
 
     // categoryId narrowed type=all down to zero eligible branches (e.g.

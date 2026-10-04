@@ -44,6 +44,9 @@ export function SearchResults() {
   const city       = sp.get('city') ?? undefined;
   const type       = (sp.get('type') as SearchType) ?? 'all';
   const categoryId = sp.get('categoryId') ?? undefined;
+  const minPrice = sp.get('minPrice') ? Number(sp.get('minPrice')) : undefined;
+  const maxPrice = sp.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined;
+  const condition = type === 'ads' ? (sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | null) ?? undefined : undefined;
   const sort       = (sp.get('sort') as SearchSort) ?? 'relevance';
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
@@ -100,13 +103,16 @@ export function SearchResults() {
   // SW-FIX-SEARCH-ACTIVE-FILTERS: also checked lng — a URL hand-edited
   // to have only lng (no lat) still wrote a location sort that the
   // previous expression missed.
-  const hasActiveFilters = Boolean(city || categoryId || (sort && sort !== 'relevance') || lat !== undefined || lng !== undefined);
+  const hasActiveFilters = Boolean(city || categoryId || minPrice !== undefined || maxPrice !== undefined || condition || (sort && sort !== 'relevance') || lat !== undefined || lng !== undefined);
 
   const { data, isLoading: searchLoading, isFetching, isError, isPlaceholderData, refetch } = useSearch({
     q,
     city,
     type,
     categoryId,
+    minPrice,
+    maxPrice,
+    condition,
     sort: effectiveSort,
     page,
     lat,

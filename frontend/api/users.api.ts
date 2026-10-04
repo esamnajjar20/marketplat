@@ -133,7 +133,7 @@ export const usersApi = {
    * are expected to only ask for however many dots the current view
    * actually needs, not the whole conversation list at once. */
   getPresence: (userIds: string[]) =>
-    apiClient.get<ApiResponse<Record<string, boolean>>>('/users/presence', {
+    apiClient.get<ApiResponse<Record<string, { online: boolean; lastSeenAt: string | null }>>>('/users/presence', {
       params: { ids: userIds.join(',') },
     }),
 };

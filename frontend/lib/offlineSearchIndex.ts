@@ -306,6 +306,24 @@ export async function searchOffline(
     filtered = filtered.filter((r) => arabicNormalize(r.city ?? '').includes(cityFilter));
   }
 
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    filtered = filtered.filter((r) => {
+      if (r.price == null) return false;
+      const price = Number(r.price);
+      if (!Number.isFinite(price)) return false;
+      return (query.minPrice === undefined || price >= query.minPrice) &&
+        (query.maxPrice === undefined || price <= query.maxPrice);
+    });
+  }
+
+  if (query.sort === 'price_asc' || query.sort === 'price_desc') {
+    filtered = [...filtered].sort((a, b) => {
+      const ap = a.price == null ? Number.POSITIVE_INFINITY : Number(a.price);
+      const bp = b.price == null ? Number.POSITIVE_INFINITY : Number(b.price);
+      return query.sort === 'price_asc' ? ap - bp : bp - ap;
+    });
+  }
+
   const total = filtered.length;
   const limited = filtered.slice(0, 24);
 

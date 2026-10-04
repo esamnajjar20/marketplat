@@ -198,3 +198,55 @@ export const uploadMultipleMiddleware = (req: Request, res: Response, next: Next
     });
   });
 };
+
+// CHAT-VOICE: voice-note upload is intentionally separate from image upload.
+// MediaRecorder commonly emits WebM/Opus or Ogg/Opus; accepting only known
+// audio MIME types keeps the general image middleware's strict signature rules
+// intact while giving chat a bounded, single-file audio path.
+const AUDIO_MIME_TYPES = [
+  'audio/webm',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
+] as const;
+const MAX_AUDIO_SIZE_BYTES = 8 * 1024 * 1024;
+
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    if (!(AUDIO_MIME_TYPES as readonly string[]).includes(file.mimetype)) {
+      cb(new BadRequestError('Only supported audio recordings are allowed', 'INVALID_AUDIO_TYPE'));
+      return;
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: MAX_AUDIO_SIZE_BYTES, files: 1, fields: 4, parts: 5, fieldSize: 10_240 },
+});
+
+export const uploadAudioMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  const contentLength = req.headers['content-length'];
+  if (contentLength && Number(contentLength) > MAX_AUDIO_SIZE_BYTES + 64 * 1024) {
+    next(new BadRequestError('Voice message is too large', 'FILE_TOO_LARGE'));
+    return;
+  }
+  audioUpload.single('audio')(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        next(new BadRequestError('Voice message is too large', 'FILE_TOO_LARGE'));
+        return;
+      }
+      next(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
+      return;
+    }
+    if (err instanceof BadRequestError) {
+      next(err);
+      return;
+    }
+    if (err instanceof Error) {
+      next(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
+      return;
+    }
+    next();
+  });
+};

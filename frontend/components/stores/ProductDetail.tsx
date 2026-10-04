@@ -210,7 +210,7 @@ export function ProductDetail({ product, related = [] }: Props) {
           <ProductAttributesSection product={product} />
 
           {/* المتجر مباشرة تحت الوصف — الوصول عبر الشعار/الاسم */}
-          <StorePanel store={store} />
+          <StorePanel store={store} productId={product.id} />
 
           {related.length > 0 && (
             <section className="space-y-3">
@@ -257,13 +257,7 @@ export function ProductDetail({ product, related = [] }: Props) {
                 </p>
               )}
             </div>
-            <MessageUserButtonGate
-              targetUserId={ownerId}
-              size="lg"
-              variant="default"
-              label="مراسلة"
-              className="shrink-0 gap-2 rounded-xl"
-            />
+            <MessageUserButtonGate targetUserId={ownerId} context={{ type: 'product', id: product.id }} size="lg" variant="default" label="مراسلة" className="shrink-0 gap-2 rounded-xl" />
           </div>
         </div>
       )}
@@ -417,7 +411,7 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
   );
 }
 
-function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
+function StorePanel({ store, productId }: { store: ProductWithFullStore['store']; productId: string }) {
   const ownerId = store.sellerProfile?.userId;
   return (
     <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
@@ -455,6 +449,7 @@ function StorePanel({ store }: { store: ProductWithFullStore['store'] }) {
             size="default"
             variant="default"
             label="راسل المتجر"
+            context={{ type: 'product', id: productId }}
             className="w-full gap-2 font-semibold"
           />
         )}

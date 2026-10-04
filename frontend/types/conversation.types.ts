@@ -6,6 +6,14 @@
  * FIX AUDIT-V4-03 comment, which is now stale).
  */
 
+export interface ConversationContext {
+  type: 'ad' | 'product' | 'service';
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  url: string;
+}
+
 export interface ConversationParticipant {
   id: string;
   name: string;
@@ -39,6 +47,7 @@ export interface Conversation {
   sellerId: string;
   pinnedAt: string | null;
   archivedAt: string | null;
+  context?: ConversationContext | null;
   createdAt: string;
   updatedAt: string;
   ad: ConversationAdSummary | null;
@@ -69,6 +78,7 @@ export interface Message {
   body: string;
   /** Optional image attachment URL (Cloudinary). */
   imageUrl: string | null;
+  audioUrl?: string | null;
   readAt: string | null;
   // Soft-delete marker — mirrors backend's Message.deletedAt. When set,
   // `body` has already been redacted to '' by the backend (see
@@ -88,8 +98,9 @@ export interface Message {
 // "مراسلة" (direct, no ad in context).
 export type StartConversationPayload =
   | { adId: string; userId?: never; serviceRequestId?: never }
-  | { userId: string; adId?: never; serviceRequestId?: never }
+  | { userId: string; adId?: never; serviceRequestId?: never; context?: { type: 'product' | 'service'; id: string } }
   | { serviceRequestId: string; adId?: never; userId?: never };
+
 
 /** POST /conversations/:id/messages. */
 export interface SendMessagePayload {
@@ -102,6 +113,7 @@ export interface ConversationsQuery {
   limit?: number;
   includeArchived?: boolean;
   archivedOnly?: boolean;
+  role?: 'buying' | 'selling';
 }
 
 export interface MessagesQuery {

@@ -60,7 +60,7 @@ export function ProviderContactCard({ listing, showPhone = true }: Props) {
       return;
     }
     startConversation.mutate(
-      { userId },
+      { userId, context: { type: 'service', id: listing.id } },
       {
         onSuccess: (conversation) => {
           if (conversation?.id) {

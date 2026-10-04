@@ -301,6 +301,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
               size="lg"
               variant="default"
               label="مراسلة"
+              context={{ type: 'service', id: listing.id }}
               className="shrink-0 gap-2 rounded-xl"
             />
           </div>

@@ -1112,6 +1112,8 @@ model Conversation {
   // MSG-FEAT: pin/archive — pinned threads float to top; archived hidden from default list
   pinnedAt         DateTime?
   archivedAt       DateTime?
+  // CHAT-CONTEXT: immutable structured listing context for product/service conversations.
+  context          Json?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   ad               Ad?             @relation(fields: [adId], references: [id])
@@ -1142,6 +1144,8 @@ model Message {
   body           String       @db.VarChar(2000)
   // MSG-FEAT: optional image attachment (Cloudinary URL)
   imageUrl       String?
+  // CHAT-VOICE: optional voice-note URL stored outside the message body.
+  audioUrl       String?
   readAt         DateTime?
   // Soft-delete: set by the sender via DELETE /conversations/:id/messages/:messageId.
   // The row is kept (not physically removed) so the other party's thread

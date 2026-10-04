@@ -23,7 +23,7 @@ jest.mock('../../src/shared/utils/cloudinaryHelpers', () => ({
   cleanupUploadedImages: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../../src/shared/utils/presence', () => ({
-  presence: { touch: jest.fn().mockResolvedValue(undefined), getOnlineIds: jest.fn() },
+  presence: { touch: jest.fn().mockResolvedValue(undefined), getPresence: jest.fn() },
 }));
 
 const mockUser = {
@@ -279,16 +279,24 @@ describe('UsersService', () => {
   });
 
   describe('getPresence', () => {
-    it('maps every requested id to true/false based on presence.getOnlineIds', async () => {
-      (presence.getOnlineIds as jest.Mock).mockResolvedValue(new Set(['user-1', 'user-3']));
+    it('maps every requested id to true/false based on presence.getPresence', async () => {
+      (presence.getPresence as jest.Mock).mockResolvedValue({
+        'user-1': { online: true, lastSeenAt: null },
+        'user-2': { online: false, lastSeenAt: null },
+        'user-3': { online: true, lastSeenAt: null },
+      });
 
       const result = await usersService.getPresence(['user-1', 'user-2', 'user-3']);
 
-      expect(result).toEqual({ 'user-1': true, 'user-2': false, 'user-3': true });
+      expect(result).toEqual({
+        'user-1': { online: true, lastSeenAt: null },
+        'user-2': { online: false, lastSeenAt: null },
+        'user-3': { online: true, lastSeenAt: null },
+      });
     });
 
     it('returns an empty object for an empty id list', async () => {
-      (presence.getOnlineIds as jest.Mock).mockResolvedValue(new Set());
+      (presence.getPresence as jest.Mock).mockResolvedValue({});
 
       const result = await usersService.getPresence([]);
 

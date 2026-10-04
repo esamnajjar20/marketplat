@@ -9,6 +9,8 @@ const SORT_LABELS: Record<string, string> = {
   rating: 'الأعلى تقييماً',
   newest: 'الأحدث',
   views: 'الأكثر مشاهدة',
+  price_asc: 'السعر: الأقل أولاً',
+  price_desc: 'السعر: الأعلى أولاً',
 };
 
 // TRACK-NEARBY-SEARCH: separate from SORT_LABELS above — 'distance'

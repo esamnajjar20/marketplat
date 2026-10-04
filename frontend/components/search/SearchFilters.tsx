@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Input } from '@/components/shared/ui/Input';
 import { Button } from '@/components/shared/ui/Button';
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
@@ -153,6 +154,32 @@ export function SearchFilters() {
                     ))}
                 </SelectContent>
               </Select>
+              {true && (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label htmlFor="search-min-price" className="text-xs font-medium text-muted-foreground">السعر من</label>
+                    <Input id="search-min-price" inputMode="numeric" type="number" min={0} value={sp.get('minPrice') ?? ''} onChange={(e) => update('minPrice', e.target.value)} placeholder="0" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="search-max-price" className="text-xs font-medium text-muted-foreground">السعر إلى</label>
+                    <Input id="search-max-price" inputMode="numeric" type="number" min={0} value={sp.get('maxPrice') ?? ''} onChange={(e) => update('maxPrice', e.target.value)} placeholder="بدون حد" />
+                  </div>
+                </div>
+              )}
+              {type === 'ads' && (
+                <div className="mt-3 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">حالة الإعلان</label>
+                  <Select value={sp.get('condition') || 'ALL'} onValueChange={(v) => update('condition', v === 'ALL' ? '' : v)}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="كل الحالات" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">كل الحالات</SelectItem>
+                      <SelectItem value="NEW">جديد</SelectItem>
+                      <SelectItem value="USED">مستعمل</SelectItem>
+                      <SelectItem value="REFURBISHED">مجدد</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
         </div>
