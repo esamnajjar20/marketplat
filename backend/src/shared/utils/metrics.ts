@@ -56,6 +56,18 @@ export const httpRequestsTotal = new client.Counter({
   registers: [register],
 });
 
+// Homepage rail health: counts feed *builds* (not requests — the feed is
+// cached) where a recommendation rail came back shorter than
+// HOME_RAIL_HEALTHY_MIN. A sustained rise for personalized=true is the
+// signature of over-aggressive exclusion or a thin catalog; see
+// home/home-feed.service.ts.
+export const homeFeedShortRailTotal = new client.Counter({
+  name: 'home_feed_short_rail_total',
+  help: 'Home feed builds where a recommendation rail was shorter than the healthy minimum',
+  labelNames: ['rail', 'personalized'] as const,
+  registers: [register],
+});
+
 export const httpRequestDurationSeconds = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'HTTP request duration in seconds, labeled by method and route',

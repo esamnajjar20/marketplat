@@ -10,29 +10,14 @@ import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScroll
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
-import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
-import { buildForYouFeed } from '@/lib/forYouFeed';
-
-const HOME_TARGET = 24;
-const HOME_TARGET_SAVER = 12;
+import { useForYouItems } from '@/hooks/queries/useForYouItems';
 
 /** The mixed shelf is assembled from the same single /home/feed response. */
 export function ForYouMixedSection() {
-  const dataSaver = useDataSaver();
-  const target = dataSaver ? HOME_TARGET_SAVER : HOME_TARGET;
   const feed = useHomeFeed();
   const isAuth = useAuthStore(selectIsAuthenticated);
-  const source = feed.data?.rails.forYou;
-
-  const items = buildForYouFeed(
-    {
-      ad: { ranked: source?.ads ?? [] },
-      product: { ranked: source?.products ?? [] },
-      service: { ranked: source?.services ?? [] },
-    },
-    { limit: target },
-  );
+  const items = useForYouItems();
 
   if (feed.isPending) {
     return (

@@ -16,6 +16,7 @@ import { homeSectionLimit } from '@/lib/listLimits';
 import { collectIds, dedupeKeepingMin } from '@/lib/homeDedupe';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
+import { forYouIdsOf, useForYouItems } from '@/hooks/queries/useForYouItems';
 
 /**
  * FEAT-HOME-DISCOVERY: "أحدث المنتجات" Home section — deliberately
@@ -42,6 +43,8 @@ export function RecentProductsSection() {
   const isAuth = useAuthStore(selectIsAuthenticated);
   const rail = feed.data?.rails.products;
   const promotedIds = collectIds(feed.data?.featured.carousel.products?.items);
+  const shownAbove = forYouIdsOf(useForYouItems(), 'product');
+  for (const id of shownAbove) promotedIds.add(id);
   const items = dedupeKeepingMin(rail?.items ?? [], promotedIds).slice(0, limit);
   const showLoading = feed.isPending;
   const showError = feed.isError;

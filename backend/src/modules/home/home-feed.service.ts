@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { logger } from '../../shared/utils/logger';
+import { homeFeedShortRailTotal } from '../../shared/utils/metrics';
 import { resolveOptionalUserId, recommendationsService } from '../recommendations/recommendations.service';
 import { adsService } from '../ads/ads.service';
 import { productsService } from '../products/products.service';
@@ -10,7 +11,14 @@ import { storeTypesService } from '../store-types/store-types.service';
 import { homeService } from './home.service';
 import type { GetHomepageQuery } from './home.validation';
 
+// The "مخصص لك" shelf shows the best FOR_YOU_PER_TYPE of each type. The
+// per-type rails (ads / products / services) get the whole ranked pool, so
+// the client can drop what the shelf already shows and still have a full
+// rail left (see frontend lib/homeDedupe.ts). 24 is the validation max.
 const FOR_YOU_PER_TYPE = 12;
+const RAIL_POOL_PER_TYPE = 24;
+/** Below this many items a recommendation rail counts as "short" for monitoring. */
+const HOME_RAIL_HEALTHY_MIN = 4;
 const STORE_RAIL_LIMIT = 6;
 const PROVIDER_RAIL_LIMIT = 6;
 
@@ -24,6 +32,37 @@ const settle = async <T>(name: string, run: () => Promise<T>): Promise<T | null>
     return null;
   }
 };
+
+/**
+ * A rail that comes back nearly empty used to be invisible (it just rendered
+ * a one-card shelf). Surface it: a log line with the counts for diagnosis and
+ * a counter for alerting. Small catalogs legitimately trigger this, so look
+ * at the personalized=true series and the log context together.
+ */
+function reportShortRails(
+  rails: { ads: unknown[] | null; products: unknown[] | null; services: unknown[] | null },
+  ctx: { userId: string | null; city: string | null },
+): void {
+  const counts = {
+    ads: rails.ads?.length ?? 0,
+    products: rails.products?.length ?? 0,
+    services: rails.services?.length ?? 0,
+  };
+  const personalized = String(Boolean(ctx.userId));
+  const short = (Object.keys(counts) as Array<keyof typeof counts>).filter(
+    (rail) => rails[rail] !== null && counts[rail] < HOME_RAIL_HEALTHY_MIN,
+  );
+  if (short.length === 0) return;
+
+  for (const rail of short) homeFeedShortRailTotal.inc({ rail, personalized });
+  logger.warn('[home/feed] short recommendation rail', {
+    short,
+    counts,
+    city: ctx.city,
+    personalized: ctx.userId !== null,
+    userId: ctx.userId,
+  });
+}
 
 /**
  * One logical homepage read. The browser makes one HTTP request; the backend
@@ -72,7 +111,7 @@ export const homeFeedService = {
       settle('bootstrap', () => homeService.getHomepageBootstrap(effectiveQuery)),
       settle('recommendations', () =>
         recommendationsService.getMixedRecommendations(
-          { limit: FOR_YOU_PER_TYPE, ...effectiveQuery },
+          { limit: RAIL_POOL_PER_TYPE, ...effectiveQuery },
           authHeader,
           userId,
         ),
@@ -133,6 +172,15 @@ export const homeFeedService = {
     const providerItems = providers ?? fallbackProviderItems;
     const source: RailSource = city ? 'city' : 'general';
 
+    // Only judge rails that came from the recommendation engine: when a rail
+    // is the createdAt fallback the failure is already logged by settle().
+    if (mixed) {
+      reportShortRails(
+        { ads: mixed.ads, products: mixed.products, services: mixed.services },
+        { userId, city: city ?? null },
+      );
+    }
+
     return {
       meta: {
         city: city ?? null,
@@ -152,7 +200,11 @@ export const homeFeedService = {
         carousel: base?.featuredCarousel ?? { ads: null, products: null, stores: null },
       },
       rails: {
-        forYou: { ads, products, services },
+        forYou: {
+          ads: ads.slice(0, FOR_YOU_PER_TYPE),
+          products: products.slice(0, FOR_YOU_PER_TYPE),
+          services: services.slice(0, FOR_YOU_PER_TYPE),
+        },
         ads: { items: ads, source },
         products: { items: products, source },
         services: { items: services, source },

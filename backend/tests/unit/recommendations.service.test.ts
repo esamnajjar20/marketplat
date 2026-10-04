@@ -132,6 +132,23 @@ describe('recommendationsService', () => {
       expect(excludeArg).toEqual(['owned-1']);
     });
 
+    it('last-resort backfill brings back owned/favorited ads when the rail would be nearly empty', async () => {
+      (recommendationsRepository.getAdCategoryInterest as jest.Mock).mockResolvedValue([]);
+      (recommendationsRepository.excludedAdIds as jest.Mock).mockResolvedValue(['owned-1', 'owned-2']);
+      // 1st call (owned/favorited excluded) finds a single ad, 2nd (backfill) the rest.
+      (recommendationsRepository.findTrending as jest.Mock)
+        .mockResolvedValueOnce([mockAd('other-1')])
+        .mockResolvedValueOnce([mockAd('owned-1'), mockAd('owned-2')]);
+
+      const result = await recommendationsService.getRecommendations({ limit: 8 }, 'Bearer good-token');
+
+      expect(result.map(a => a.id)).toEqual(['other-1', 'owned-1', 'owned-2']);
+      const lastCall = (recommendationsRepository.findTrending as jest.Mock).mock.calls.at(-1)!;
+      // owned ids are no longer excluded in the backfill; already-picked ids are.
+      expect(lastCall[0]).toEqual(['other-1']);
+      expect(lastCall[1]).toBe(7);
+    });
+
     it('backfills with trending when personalized results are short of the limit', async () => {
       (recommendationsRepository.getAdCategoryInterest as jest.Mock).mockResolvedValue([
         { categoryId: 'cat-1', score: 6 },

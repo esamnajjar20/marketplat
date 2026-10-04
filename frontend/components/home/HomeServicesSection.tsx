@@ -9,6 +9,8 @@ import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { homeSectionLimit } from '@/lib/listLimits';
+import { dedupeKeepingMin } from '@/lib/homeDedupe';
+import { forYouIdsOf, useForYouItems } from '@/hooks/queries/useForYouItems';
 import { useDataSaver } from '@/lib/useDataSaver';
 import { ROUTES } from '@/lib/constants';
 
@@ -17,7 +19,8 @@ export function HomeServicesSection() {
   const limit = homeSectionLimit(8, 4, dataSaver);
   const feed = useHomeFeed();
   const rail = feed.data?.rails.services;
-  const items = rail?.items.slice(0, limit) ?? [];
+  const shownAbove = forYouIdsOf(useForYouItems(), 'service');
+  const items = dedupeKeepingMin(rail?.items ?? [], shownAbove).slice(0, limit);
   const showLoading = feed.isPending;
   const showError = feed.isError;
 

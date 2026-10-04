@@ -6,13 +6,17 @@ import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { useDataSaver } from '@/lib/useDataSaver';
+import { forYouIdsOf, useForYouItems } from '@/hooks/queries/useForYouItems';
+import { dedupeKeepingMin } from '@/lib/homeDedupe';
 
-/** Ads come from the single homepage feed: city priority + interest + freshness backfill. */
+/** Ads come from the single homepage feed: city priority + interest + freshness backfill, minus what "مخصص لك" already shows. */
 export function RecentAds() {
   const dataSaver = useDataSaver();
   const feed = useHomeFeed();
   const limit = dataSaver ? 6 : 8;
-  const items = feed.data?.rails.ads.items.slice(0, limit) ?? [];
+  const shownAbove = forYouIdsOf(useForYouItems(), 'ad');
+  // The "مخصص لك" shelf sits above this rail: drop the ads it already shows.
+  const items = dedupeKeepingMin(feed.data?.rails.ads.items ?? [], shownAbove).slice(0, limit);
 
   if (feed.isPending) {
     return (

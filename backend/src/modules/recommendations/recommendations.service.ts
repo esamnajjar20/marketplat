@@ -70,6 +70,10 @@ export const recommendationsService = {
     const userId = resolveUserId(authHeader, userIdOverride);
 
     const excludeIds = new Set<string>();
+    // Owned + favorited: hidden while there is anything else to show, but
+    // used as a last-resort backfill so a small catalog (or a seller who
+    // owns most of it) never ends up with a one-card rail.
+    const softExcludeIds = new Set<string>();
     const categoryInterests: { categoryId: string; score: number }[] = [];
 
     // مدينة المستخدم: من الاستعلام أو من الملف الشخصي (أولوية للاقتراحات)
@@ -110,7 +114,7 @@ export const recommendationsService = {
         ]);
 
         categoryInterests.push(...interests);
-        owned.forEach(id => excludeIds.add(id));
+        owned.forEach(id => softExcludeIds.add(id));
       } catch (err) {
         // A personalization failure must never break the rail — fall
         // through with whatever weights were already gathered (or none,
@@ -130,7 +134,8 @@ export const recommendationsService = {
       }, new Map<string, number>()),
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
 
-    const excludeIdList = Array.from(excludeIds);
+    const hardExcludeIds = Array.from(excludeIds);
+    const excludeIdList = [...hardExcludeIds, ...softExcludeIds];
     let personalized: AdListRow[] = [];
 
     if (categoryWeights.length > 0) {
@@ -165,7 +170,18 @@ export const recommendationsService = {
       limit - afterCity.length,
       null,
     );
-    return [...afterCity, ...generalTrending];
+    const ranked = [...afterCity, ...generalTrending];
+    if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
+
+    // Last resort: bring back owned/favorited items (never the reference
+    // item itself) so the rail is not left nearly empty.
+    const rest = await recommendationsRepository.findTrending(
+      [...hardExcludeIds, ...ranked.map(ad => ad.id)], limit - ranked.length, null,
+    );
+    if (rest.length > 0) {
+      logger.debug('[recommendations] last-resort backfill used', { kind: 'ad', userId, restored: rest.length });
+    }
+    return [...ranked, ...rest];
   },
 
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): PRODUCT
@@ -199,6 +215,10 @@ export const recommendationsService = {
     }
 
     const excludeIds = new Set<string>();
+    // Owned + favorited: hidden while there is anything else to show, but
+    // used as a last-resort backfill so a small catalog (or a seller who
+    // owns most of it) never ends up with a one-card rail.
+    const softExcludeIds = new Set<string>();
     const categoryInterests: { categoryId: string; score: number }[] = [];
     let followedStoreIds: string[] = [];
 
@@ -222,7 +242,7 @@ export const recommendationsService = {
         ]);
 
         categoryInterests.push(...interests);
-        owned.forEach(id => excludeIds.add(id));
+        owned.forEach(id => softExcludeIds.add(id));
         // Kept local to this request: followed stores are a product-level
         // affinity signal, not a reason to expose the store name on cards.
         followedStoreIds = followedStores.map(row => row.storeId);
@@ -240,7 +260,8 @@ export const recommendationsService = {
         return scores;
       }, new Map<string, number>()),
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
-    const excludeIdList = Array.from(excludeIds);
+    const hardExcludeIds = Array.from(excludeIds);
+    const excludeIdList = [...hardExcludeIds, ...softExcludeIds];
     let personalized: ProductWithStoreLite[] = [];
 
     if (categoryWeights.length > 0) {
@@ -268,7 +289,18 @@ export const recommendationsService = {
     const generalTrending = await productRecommendationsRepository.findTrending(
       [...excludeIdList, ...afterCity.map(p => p.id)], limit - afterCity.length, null,
     );
-    return [...afterCity, ...generalTrending];
+    const ranked = [...afterCity, ...generalTrending];
+    if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
+
+    // Last resort: bring back owned/favorited items (never the reference
+    // item itself) so the rail is not left nearly empty.
+    const rest = await productRecommendationsRepository.findTrending(
+      [...hardExcludeIds, ...ranked.map(p => p.id)], limit - ranked.length, null,
+    );
+    if (rest.length > 0) {
+      logger.debug('[recommendations] last-resort backfill used', { kind: 'product', userId, restored: rest.length });
+    }
+    return [...ranked, ...rest];
   },
 
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): SERVICE_LISTING
@@ -299,6 +331,10 @@ export const recommendationsService = {
     }
 
     const excludeIds = new Set<string>();
+    // Owned + favorited: hidden while there is anything else to show, but
+    // used as a last-resort backfill so a small catalog (or a seller who
+    // owns most of it) never ends up with a one-card rail.
+    const softExcludeIds = new Set<string>();
     const categoryInterests: { categoryId: string; score: number }[] = [];
 
     if (query.excludeServiceListingId) {
@@ -322,7 +358,7 @@ export const recommendationsService = {
         ]);
 
         categoryInterests.push(...interests);
-        owned.forEach(id => excludeIds.add(id));
+        owned.forEach(id => softExcludeIds.add(id));
       } catch (err) {
         logger.error('Failed to gather service listing recommendation signals', { err, userId });
       }
@@ -337,7 +373,8 @@ export const recommendationsService = {
         return scores;
       }, new Map<string, number>()),
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
-    const excludeIdList = Array.from(excludeIds);
+    const hardExcludeIds = Array.from(excludeIds);
+    const excludeIdList = [...hardExcludeIds, ...softExcludeIds];
     let personalized: ServiceListingWithProvider[] = [];
 
     if (categoryWeights.length > 0) {
@@ -365,7 +402,18 @@ export const recommendationsService = {
     const generalTrending = await serviceListingRecommendationsRepository.findTrending(
       [...excludeIdList, ...afterCity.map(l => l.id)], limit - afterCity.length, null,
     );
-    return [...afterCity, ...generalTrending];
+    const ranked = [...afterCity, ...generalTrending];
+    if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
+
+    // Last resort: bring back owned/favorited items (never the reference
+    // item itself) so the rail is not left nearly empty.
+    const rest = await serviceListingRecommendationsRepository.findTrending(
+      [...hardExcludeIds, ...ranked.map(l => l.id)], limit - ranked.length, null,
+    );
+    if (rest.length > 0) {
+      logger.debug('[recommendations] last-resort backfill used', { kind: 'service', userId, restored: rest.length });
+    }
+    return [...ranked, ...rest];
   },
 
   // RECS-MIXED-01: the three home-shelf rails in one call. Same engines as
@@ -484,6 +532,10 @@ export const recommendationsService = {
     const userId = resolveUserId(authHeader, userIdOverride);
 
     const excludeIds = new Set<string>();
+    // Owned/followed/favorited: hidden while there is anything else to show,
+    // but used as a last-resort backfill so a small catalog (or a seller who
+    // owns most of it) never ends up with a one-card rail.
+    const softExcludeIds = new Set<string>();
     if (query.excludeStoreId) excludeIds.add(query.excludeStoreId);
     let city: string | null = query.city?.trim() || null;
     let interestCategoryIds: string[] = [];
@@ -505,22 +557,38 @@ export const recommendationsService = {
           storeRecommendationsRepository.ownStoreId(userId),
           productRecommendationsRepository.getProductCategoryInterest(userId),
         ]);
-        followed.forEach(id => excludeIds.add(id));
-        favorited.forEach(id => excludeIds.add(id));
-        if (owned) excludeIds.add(owned);
+        followed.forEach(id => softExcludeIds.add(id));
+        favorited.forEach(id => softExcludeIds.add(id));
+        if (owned) softExcludeIds.add(owned);
         interestCategoryIds = productInterests.map(item => item.categoryId).slice(0, 12);
       } catch (err) {
         logger.error('Failed to gather store recommendation signals', { err, userId });
       }
     }
 
-    return storeRecommendationsRepository.findRanked({
-      excludeIds: Array.from(excludeIds),
+    const hardExcludeIds = Array.from(excludeIds);
+    const excludeIdList = [...hardExcludeIds, ...softExcludeIds];
+
+    const ranked = await storeRecommendationsRepository.findRanked({
+      excludeIds: excludeIdList,
       city,
       interestCategoryIds,
       lat: query.lat,
       lng: query.lng,
       limit,
     });
+    if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
+
+    // Last resort: bring back followed/favorited/owned (never the reference
+    // store itself) so the rail is not left nearly empty.
+    const rest = await storeRecommendationsRepository.findRanked({
+      excludeIds: [...hardExcludeIds, ...ranked.map(s => s.id)],
+      city,
+      interestCategoryIds,
+      lat: query.lat,
+      lng: query.lng,
+      limit: limit - ranked.length,
+    });
+    return [...ranked, ...rest];
   },
 };
