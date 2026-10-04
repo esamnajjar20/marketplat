@@ -24,6 +24,29 @@ export const productWithRelations = {
   category: { select: { id: true, name: true, nameAr: true } },
 };
 
+/**
+ * FIX PRODUCT-LITE-01: same shape as productWithRelations but WITHOUT
+ * the storeType.fields array. Used by homepage recommendations and the
+ * favourites list — neither surfaces product attributes, so shipping
+ * the fields array per product was pure payload bloat on 3G (a product
+ * with 3-4 active fields added ~2-4 KB; 12 items × 4 rails = tens of
+ * KB per /home load).
+ *
+ * The product detail page (findPublicById) still uses the full variant
+ * because ProductDetail's "بيانات إضافية" section reads those fields.
+ */
+export const productWithRelationsLite = {
+  store: { include: { sellerProfile: true, storeType: true } },
+  category: { select: { id: true, name: true, nameAr: true } },
+};
+
+export type ProductWithStoreLite = Prisma.ProductGetPayload<{
+  include: {
+    store: { include: { sellerProfile: true; storeType: true } };
+    category: { select: { id: true; name: true; nameAr: true } };
+  };
+}>;
+
 /** SLOW-NET phase5: list payload omits long description (detail still full). */
 const productListSelect = {
   id: true,

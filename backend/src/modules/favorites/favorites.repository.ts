@@ -2,7 +2,7 @@ import { prisma } from '../../config/prisma';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { Prisma, FavoriteEntityType } from '@prisma/client';
 import { GetFavoritesQuery, FAVORITE_QUERY_TYPE_MAP } from './favorites.validation';
-import { ProductWithStore, productWithRelations } from '../products/products.repository';
+import {ProductWithStore, productWithRelations, productWithRelationsLite, ProductWithStoreLite} from '../products/products.repository';
 import { StoreWithSeller, storeWithSeller } from '../stores/stores.repository';
 import {
   ServiceListingWithProvider,
@@ -113,7 +113,7 @@ const AD_CONFIG: EntityConfig<FavoriteAdEntity> = {
   getId: (e) => e.id,
 };
 
-const PRODUCT_CONFIG: EntityConfig<ProductWithStore> = {
+const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
   activeIds: async (ids) =>
     (
       await prisma.product.findMany({
@@ -124,7 +124,9 @@ const PRODUCT_CONFIG: EntityConfig<ProductWithStore> = {
   fetchActive: (ids) =>
     prisma.product.findMany({
       where: { id: { in: ids }, status: { not: 'DELETED' } },
-      include: productWithRelations,
+      // FIX PRODUCT-LITE-01: the favourites list renders ProductCard,
+      // which never reads store.storeType.fields. Use the lite variant.
+      include: productWithRelationsLite,
     }),
   getId: (e) => e.id,
 };

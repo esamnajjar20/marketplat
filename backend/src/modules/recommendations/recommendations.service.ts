@@ -4,7 +4,7 @@ import { adsService } from '../ads/ads.service';
 import { productsService } from '../products/products.service';
 import { serviceListingsService } from '../service-listings/service-listings.service';
 import { AdListRow } from '../ads/ads.repository';
-import { ProductWithStore } from '../products/products.repository';
+import { ProductWithStore, ProductWithStoreLite } from '../products/products.repository';
 import { ServiceListingWithProvider } from '../service-listings/service-listings.repository';
 import { StoreWithSeller } from '../stores/stores.repository';
 import { verifyAccessToken } from '../../shared/utils/jwt';
@@ -43,7 +43,7 @@ const resolveUserId = (
 
 export interface MixedRecommendations {
   ads: AdListRow[] | null;
-  products: ProductWithStore[] | null;
+  products: ProductWithStoreLite[] | null;
   services: ServiceListingWithProvider[] | null;
 }
 
@@ -177,7 +177,7 @@ export const recommendationsService = {
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
     userIdOverride?: string | null,
-  ): Promise<ProductWithStore[]> => {
+  ): Promise<ProductWithStoreLite[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveUserId(authHeader, userIdOverride);
 
@@ -241,7 +241,7 @@ export const recommendationsService = {
       }, new Map<string, number>()),
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
     const excludeIdList = Array.from(excludeIds);
-    let personalized: ProductWithStore[] = [];
+    let personalized: ProductWithStoreLite[] = [];
 
     if (categoryWeights.length > 0) {
       personalized = await productRecommendationsRepository.findByWeightedCategories(

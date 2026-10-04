@@ -14,7 +14,7 @@ import {
   StorePlan,
 } from '@prisma/client';
 import { AdListRow } from '../ads/ads.repository';
-import { ProductWithStore, productWithRelations } from '../products/products.repository';
+import { ProductWithStore, productWithRelations, ProductWithStoreLite, productWithRelationsLite } from '../products/products.repository';
 import {
   ServiceListingWithProvider,
   listingWithRelations,
@@ -482,7 +482,7 @@ export const productRecommendationsRepository = {
     limit: number,
     city?: string | null,
     followedStoreIds: string[] = [],
-  ): Promise<ProductWithStore[]> => {
+  ): Promise<ProductWithStoreLite[]> => {
     if (weights.length === 0) return [];
     const weightValues = Prisma.join(
       weights.map(w => Prisma.sql`(${w.categoryId}, ${w.weight}::float)`)
@@ -517,7 +517,7 @@ export const productRecommendationsRepository = {
     if (ids.length === 0) return [];
     const products = await prisma.product.findMany({
       where: { id: { in: ids } },
-      include: productWithRelations,
+      include: productWithRelationsLite,
     });
     const byId = new Map(products.map(p => [p.id, p]));
     return ids.flatMap(id => {
@@ -537,7 +537,7 @@ export const productRecommendationsRepository = {
     excludeIds: string[],
     limit: number,
     city?: string | null,
-  ): Promise<ProductWithStore[]> => {
+  ): Promise<ProductWithStoreLite[]> => {
     const where: Prisma.ProductWhereInput = {
       status: ProductStatus.ACTIVE,
       store: { sellerProfile: { suspended: false } },
@@ -546,13 +546,13 @@ export const productRecommendationsRepository = {
     const [topByViews, mostRecent] = await Promise.all([
       prisma.product.findMany({
         where,
-        include: productWithRelations,
+        include: productWithRelationsLite,
         orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
         take: TRENDING_POOL_SIZE,
       }),
       prisma.product.findMany({
         where,
-        include: productWithRelations,
+        include: productWithRelationsLite,
         orderBy: [{ createdAt: 'desc' }],
         take: TRENDING_POOL_SIZE,
       }),
