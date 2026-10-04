@@ -2803,6 +2803,19 @@ self.addEventListener('fetch', (event) => {
   // Never queue it as an offline mutation; the individual GETs remain read-only.
   if (isReadBatchRequest(url, request)) return;
 
+  // FIX SW-CROSSORIGIN-BYPASS-01: do not intercept requests that are not
+  // same-origin AND are not our API or an image (Cloudinary via
+  // isImageRequest). gstatic.com (Google Sign-In) and any other external
+  // host fell through to staleWhileRevalidate, where cache.put failed for
+  // CORS reasons and the page saw 'network error response'.
+  if (
+    url.origin !== self.location.origin &&
+    !isApiRequest(url) &&
+    !isImageRequest(request, url)
+  ) {
+    return;
+  }
+
   // FIX SW-OPTIONS-01: استثناء OPTIONS (CORS preflight) — إدخاله في
   // الطابور لا فائدة له، فهو سؤال عن الصلاحيات لا طلب فعلي.
   if (request.method !== 'GET' && request.method !== 'OPTIONS') {
