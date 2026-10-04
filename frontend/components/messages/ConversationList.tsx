@@ -50,13 +50,11 @@ export function ConversationList({ selectedId }: Props = {}) {
   const [query, setQuery] = useState('');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [archivedOnly, setArchivedOnly] = useState(false);
-  const [role, setRole] = useState<'all' | 'buying' | 'selling'>('all');
   const [inbox, setInbox] = useState<'all' | 'users' | 'stores'>('all');
   const { data, isLoading, isError, refetch, isFetching } = useMyConversations({
     page: 1,
     limit,
     ...(archivedOnly ? { archivedOnly: true } : {}),
-    ...(role !== 'all' ? { role } : {}),
   });
 
   const items = useMemo(() => data?.items ?? [], [data?.items]);
@@ -165,20 +163,6 @@ export function ConversationList({ selectedId }: Props = {}) {
             <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'}>{label}</button>
           ))}
         </div>
-        <div className="flex gap-1.5 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="دور المحادثة">
-          {([['all', 'الكل'], ['buying', 'شراء'], ['selling', 'بيع']] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={role === value}
-              onClick={() => { setRole(value); setLimit(PAGE_SIZE); setArchivedOnly(false); }}
-              className={role === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -253,11 +237,6 @@ export function ConversationList({ selectedId }: Props = {}) {
             <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
           ))}
         </div>
-        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="دور المحادثة">
-          {([['all', 'الكل'], ['buying', 'شراء'], ['selling', 'بيع']] as const).map(([value, label]) => (
-            <button key={value} type="button" role="tab" aria-selected={role === value} onClick={() => { setRole(value); setLimit(PAGE_SIZE); setArchivedOnly(false); }} className={role === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
-          ))}
-        </div>
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -309,14 +288,13 @@ export function ConversationList({ selectedId }: Props = {}) {
                     ? 'لا توجد محادثات مع المستخدمين'
                     : 'لا نتائج'}
           </p>
-          {(query || unreadOnly || inbox !== 'all' || role !== 'all') && (
+          {(query || unreadOnly || inbox !== 'all') && (
             <button
               type="button"
               onClick={() => {
                 setQuery('');
                 setUnreadOnly(false);
                 setInbox('all');
-                setRole('all');
               }}
               className="text-sm text-primary hover:underline"
             >
