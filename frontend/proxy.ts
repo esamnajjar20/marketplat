@@ -213,7 +213,8 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // and served from this app's own origin, not Google's CDN, so
     // there's nothing left that needs either host allow-listed.
     "style-src 'self' 'unsafe-inline'",
-    "font-src 'self'",
+    // data: needed — icon fonts (Lucide, etc.) ship as base64 woff/woff2.
+    "font-src 'self' data:",
     // FIX QR-CSP-CLEANUP-01: api.qrserver.com and quickchart.io removed.
     // They were allow-listed for QrCodeImage.tsx's <img> fallback path,
     // but that component had zero importers -- the only working QR image
@@ -227,7 +228,9 @@ function buildCsp(nonce: string, isDev: boolean): string {
     "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co",
     // FIX OCR-01: cdn.jsdelivr.net مضاف — Tesseract.js يجلب عبره ملفات
     // WASM وبيانات اللغة (eng.traineddata) بعد تحميل السكربت نفسه.
-    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com`,
+    // res.cloudinary.com is the delivery CDN; api.cloudinary.com is only
+    // uploads. Both are needed — fetch() of an image goes to res.*.
+    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://res.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو
     // الصارمة) قد ترفض تسجيل public/sw.js حتى لو كان default-src 'self'
     // يسمح به نظريًا — worker-src ليس دائمًا يرث من default-src في كل
