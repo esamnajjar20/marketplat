@@ -10,7 +10,7 @@ import { useMyConversations } from '@/hooks/queries/useConversations';
 import { usePresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
+import { formatRelativeTimeShort } from '@/lib/formatters';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type { Conversation, ConversationListItem } from '@/types/conversation.types';
@@ -377,11 +377,11 @@ export function ConversationList({ selectedId }: Props = {}) {
                     </p>
                     <span
                       className={cn(
-                        'shrink-0 text-2xs-tight tabular-nums',
+                        'shrink-0 text-2xs leading-tight tabular-nums',
                         hasUnread ? 'font-semibold text-primary' : 'text-muted-foreground',
                       )}
                     >
-                      {formatRelativeTime(conversation.updatedAt)}
+                      {formatRelativeTimeShort(conversation.updatedAt)}
                     </span>
                   </div>
 

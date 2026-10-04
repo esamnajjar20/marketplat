@@ -108,6 +108,47 @@ export function formatRelativeTime(dateStr: string, now = Date.now()): string {
   return RTF.format(Math.round(delta / (365 * 86_400)), 'year');
 }
 
+
+/**
+ * Compact relative time for dense lists (conversation inbox).
+ * Unlike formatRelativeTime — which always speaks in "منذ X" units —
+ * this switches to a concrete representation as the date gets older
+ * (Slack/WhatsApp style): "5د" for minutes, the wall clock for today,
+ * "أمس" for yesterday, the weekday for the last week, the calendar day
+ * for the current year, and dd/mm/yy beyond. The idea: the older the
+ * date, the more exact the answer needs to be.
+ */
+export function formatRelativeTimeShort(dateStr: string, now = Date.now()): string {
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return '—';
+
+  const diffSec = (now - date.getTime()) / 1000;
+  if (diffSec < 60) return 'الآن';
+  if (diffSec < 3_600) return `${Math.floor(diffSec / 60)}د`;
+
+  const nowDate = new Date(now);
+  const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const daysAgo = Math.round((dayStart(nowDate) - dayStart(date)) / 86_400_000);
+
+  if (daysAgo === 0) {
+    return new Intl.DateTimeFormat('ar-PS', {
+      hour: 'numeric', minute: '2-digit', numberingSystem: 'latn',
+    }).format(date);
+  }
+  if (daysAgo === 1) return 'أمس';
+  if (daysAgo < 7) {
+    return new Intl.DateTimeFormat('ar-PS', { weekday: 'long' }).format(date);
+  }
+  if (date.getFullYear() === nowDate.getFullYear()) {
+    return new Intl.DateTimeFormat('ar-PS', { day: 'numeric', month: 'long' }).format(date);
+  }
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
+}
+
 /** Full localised date string in Arabic. */
 export function formatDate(dateStr: string): string {
   // SW-FMT-INVALID-DATE-01: Intl.DateTimeFormat.format() throws

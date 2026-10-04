@@ -228,6 +228,11 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // noticed. QrCodeImage + its qrcode-generator vendor are deleted too.
     // img-src: Cloudinary (uploads) + placehold.co (placeholder fallback).
     "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co",
+    // CHAT-VOICE: <audio src> uses media-src (NOT img-src, NOT connect-src).
+    // Without an explicit media-src, the browser falls back to default-src
+    // 'self' and silently blocks Cloudinary audio — voice notes render as
+    // empty bubbles with no player and no error.
+    "media-src 'self' blob: https://res.cloudinary.com",
     // FIX OCR-01: cdn.jsdelivr.net مضاف — Tesseract.js يجلب عبره ملفات
     // WASM وبيانات اللغة (eng.traineddata) بعد تحميل السكربت نفسه.
     // res.cloudinary.com is the delivery CDN; api.cloudinary.com is only
