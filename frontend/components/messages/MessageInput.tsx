@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
-import { Send, Ban, ImagePlus, X, Mic, Square } from 'lucide-react';
+import { Send, Ban, ImagePlus, X, Mic, Square, Loader2 } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
@@ -37,7 +37,10 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadKind, setUploadKind] = useState<'image' | 'audio' | null>(null);
   const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingStartedAtRef = useRef<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const sendMessage = useSendMessage(conversationId);
@@ -126,6 +129,27 @@ export function MessageInput({ conversationId, disabled }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!recording) {
+      setRecordingSeconds(0);
+      recordingStartedAtRef.current = null;
+      return;
+    }
+    recordingStartedAtRef.current = Date.now();
+    const timer = window.setInterval(() => {
+      if (recordingStartedAtRef.current) {
+        setRecordingSeconds(Math.floor((Date.now() - recordingStartedAtRef.current) / 1000));
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [recording]);
+
+  function formatRecordingTime(seconds: number) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
   function onPickImage(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -189,6 +213,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
           return;
         }
         setUploading(true);
+        setUploadKind('audio');
         try {
           const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
           await conversationsApi.sendAudio(conversationId, file, body.trim());
@@ -203,13 +228,32 @@ export function MessageInput({ conversationId, disabled }: Props) {
           toast.error(parsed.message);
         } finally {
           setUploading(false);
+          setUploadKind(null);
         }
       };
       mediaRecorderRef.current = recorder;
       setRecording(true);
-      recorder.start();
-    } catch {
-      toast.error('تعذّر الوصول إلى الميكروفون');
+      setRecordingSeconds(0);
+      recorder.start(250);
+      window.setTimeout(() => {
+        if (mediaRecorderRef.current === recorder && recorder.state === 'recording') {
+          recorder.stop();
+          toast.info('تم إيقاف التسجيل بعد دقيقتين.');
+        }
+      }, 120000);
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : '';
+      if (!window.isSecureContext) {
+        toast.error('التسجيل الصوتي يحتاج اتصالاً آمناً (HTTPS).');
+      } else if (name === 'NotAllowedError' || name === 'SecurityError') {
+        toast.error('تم رفض إذن الميكروفون. اسمح للمتصفح باستخدام الميكروفون من إعدادات الموقع ثم حاول مرة أخرى.');
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        toast.error('لم يتم العثور على ميكروفون متاح على الجهاز.');
+      } else {
+        toast.error('تعذّر الوصول إلى الميكروفون. تحقق من إذن الميكروفون ثم حاول مرة أخرى.');
+      }
+      setRecording(false);
+      mediaRecorderRef.current = null;
     }
   }
 
@@ -223,6 +267,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
     if (imageFile) {
       setUploading(true);
+      setUploadKind('image');
       try {
         const form = new FormData();
         form.append('image', imageFile);
@@ -264,6 +309,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         }
       } finally {
         setUploading(false);
+        setUploadKind(null);
       }
       // Keep keyboard open on mobile: avoid focus thrash (blur→focus).
       keepComposerFocus();
@@ -319,10 +365,19 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
   return (
     <div className="border-t border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/90 dark:bg-card/95">
+      {uploading && (
+        <div role="status" aria-live="polite" className="flex items-center gap-2 border-b bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
+          <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري رفع الصورة…' : 'جاري الإرسال…'}</span>
+        </div>
+      )}
       {imagePreview && (
         <div className="flex items-center gap-2 border-b px-3 py-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imagePreview} alt="" className="h-16 w-16 rounded-lg object-cover" />
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg">
+            <img src={imagePreview} alt="معاينة الصورة" className="h-full w-full object-cover" />
+            {uploading && <div className="absolute inset-0 flex items-center justify-center bg-black/45"><Loader2 className="h-5 w-5 animate-spin text-white" aria-hidden /></div>}
+          </div>
           <button
             type="button"
             onClick={clearImage}
@@ -405,6 +460,12 @@ export function MessageInput({ conversationId, disabled }: Props) {
           >
             <ImagePlus className="h-5 w-5" />
           </button>
+          {recording && (
+            <div className="flex min-h-10 items-center gap-2 rounded-full bg-destructive/10 px-3 text-xs font-medium tabular-nums text-destructive" aria-live="polite">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" aria-hidden />
+              <span>{formatRecordingTime(recordingSeconds)}</span>
+            </div>
+          )}
           <button
             type="button"
             aria-label={recording ? 'إيقاف التسجيل الصوتي' : 'تسجيل رسالة صوتية'}
@@ -452,6 +513,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
           <button
             type="submit"
             aria-label="إرسال"
+            onPointerDown={(e) => {
+              // Prevent the send button from taking focus on touch devices;
+              // that focus transfer is what closes the soft keyboard after send.
+              e.preventDefault();
+            }}
             disabled={!canSend}
             className={cn(
               'mb-0.5 me-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-md transition-all',

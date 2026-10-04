@@ -51,6 +51,7 @@ export function ConversationList({ selectedId }: Props = {}) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [archivedOnly, setArchivedOnly] = useState(false);
   const [role, setRole] = useState<'all' | 'buying' | 'selling'>('all');
+  const [inbox, setInbox] = useState<'all' | 'users' | 'stores'>('all');
   const { data, isLoading, isError, refetch, isFetching } = useMyConversations({
     page: 1,
     limit,
@@ -67,6 +68,8 @@ export function ConversationList({ selectedId }: Props = {}) {
 
   const filtered = useMemo(() => {
     let list = items;
+    if (inbox === 'stores') list = list.filter((c) => c.context?.type === 'product');
+    if (inbox === 'users') list = list.filter((c) => c.context?.type !== 'product');
     if (unreadOnly) list = list.filter((c) => c.unreadCount > 0);
     const q = query.trim().toLowerCase();
     if (!q) return list;
@@ -80,7 +83,7 @@ export function ConversationList({ selectedId }: Props = {}) {
         preview.toLowerCase().includes(q)
       );
     });
-  }, [items, query, unreadOnly, user?.id]);
+  }, [items, query, unreadOnly, inbox, user?.id]);
 
   const totalUnread = useMemo(
     () => items.reduce((sum, c) => sum + (c.unreadCount > 0 ? 1 : 0), 0),
@@ -157,7 +160,12 @@ export function ConversationList({ selectedId }: Props = {}) {
             </span>
           )}
         </div>
-        <div className="flex gap-1.5 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="نوع المحادثات">
+        <div className="flex gap-1.5 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
+          {([['all', 'الكل'], ['users', 'المستخدمون'], ['stores', 'المتاجر']] as const).map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'}>{label}</button>
+          ))}
+        </div>
+        <div className="flex gap-1.5 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="دور المحادثة">
           {([['all', 'الكل'], ['buying', 'شراء'], ['selling', 'بيع']] as const).map(([value, label]) => (
             <button
               key={value}
@@ -240,7 +248,12 @@ export function ConversationList({ selectedId }: Props = {}) {
 
       {/* Mobile search */}
       <div className="md:hidden space-y-2 border-b px-3 py-2">
-        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="نوع المحادثات">
+        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
+          {([['all', 'الكل'], ['users', 'المستخدمون'], ['stores', 'المتاجر']] as const).map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
+          ))}
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="دور المحادثة">
           {([['all', 'الكل'], ['buying', 'شراء'], ['selling', 'بيع']] as const).map(([value, label]) => (
             <button key={value} type="button" role="tab" aria-selected={role === value} onClick={() => { setRole(value); setLimit(PAGE_SIZE); setArchivedOnly(false); }} className={role === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
           ))}
@@ -290,14 +303,20 @@ export function ConversationList({ selectedId }: Props = {}) {
               ? `لا نتائج لـ «${query}»`
               : unreadOnly
                 ? 'لا محادثات غير مقروءة'
-                : 'لا نتائج'}
+                : inbox === 'stores'
+                  ? 'لا توجد محادثات مع المتاجر'
+                  : inbox === 'users'
+                    ? 'لا توجد محادثات مع المستخدمين'
+                    : 'لا نتائج'}
           </p>
-          {(query || unreadOnly) && (
+          {(query || unreadOnly || inbox !== 'all' || role !== 'all') && (
             <button
               type="button"
               onClick={() => {
                 setQuery('');
                 setUnreadOnly(false);
+                setInbox('all');
+                setRole('all');
               }}
               className="text-sm text-primary hover:underline"
             >

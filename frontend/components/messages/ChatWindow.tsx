@@ -26,7 +26,6 @@ import {
   DropdownMenuItem,
 } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
-import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { retryQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
@@ -112,6 +111,7 @@ export function ChatWindow({ conversationId }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
+  const [showSafetyTip, setShowSafetyTip] = useState(false);
   const {
     data: conversation,
     isLoading: conversationLoading,
@@ -136,6 +136,19 @@ export function ChatWindow({ conversationId }: Props) {
   const [partyTyping, setPartyTyping] = useState(false);
   const { mutate: setFlags, isPending: flagsPending } = useSetConversationFlags();
   const pendingQueued = usePendingMessages(conversationId);
+
+  // Show the safety reminder once when entering a thread, then remove it
+  // automatically so it never becomes permanent visual noise. sessionStorage
+  // keeps it from reappearing when the user briefly remounts the thread.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !conversationId) return;
+    const key = `chat-safety-tip:${conversationId}`;
+    if (window.sessionStorage.getItem(key)) return;
+    setShowSafetyTip(true);
+    window.sessionStorage.setItem(key, '1');
+    const timer = window.setTimeout(() => setShowSafetyTip(false), 9000);
+    return () => window.clearTimeout(timer);
+  }, [conversationId]);
   useEffect(() => {
     setPartyTyping(false);
     let clearTimer: ReturnType<typeof setTimeout> | null = null;
@@ -384,22 +397,25 @@ export function ChatWindow({ conversationId }: Props) {
           </div>
         </Link>
       )}
-      {conversation?.ad && conversation.ad.status === 'ACTIVE' && (
-        <div className="flex justify-end border-b bg-card/50 px-3 py-1.5">
-          <ReportAdButton adId={conversation.ad.id} />
+      {showSafetyTip && (
+        <div
+          role="note"
+          className="flex shrink-0 items-start gap-2 border-b border-warning/25 bg-warning-soft px-3 py-2 text-xs text-muted-foreground transition-opacity"
+        >
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
+          <p className="min-w-0 flex-1">
+            نصيحة أمان: تفاوض داخل المنصة، ولا تدفع مقدّماً خارجها.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowSafetyTip(false)}
+            className="-my-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-warning/10 hover:text-foreground"
+            aria-label="إخفاء نصيحة الأمان"
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
         </div>
       )}
-
-      {/* Trust tip — once per thread, above the sticky party header */}
-      <div
-        role="note"
-        className="flex items-start gap-2 border-b border-warning/25 bg-warning-soft px-3 py-2 text-xs text-muted-foreground"
-      >
-        <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
-        <p>
-          نصيحة أمان: تفاوض داخل المنصة، ولا تدفع مقدّماً خارجها. إن شعرت بشيء مريب استخدم «خيارات المحادثة».
-        </p>
-      </div>
 
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/70 bg-card/90 px-3 py-3 shadow-xs backdrop-blur-md">
         {/* SW-FIX-CHAT-MOBILE-BACK: previously a <Link> that pushed a new
@@ -778,7 +794,7 @@ export function ChatWindow({ conversationId }: Props) {
       </div>
 
       {partyTyping && (
-        <p className="border-t border-border/40 px-4 py-1.5 text-2xs-tight text-muted-foreground">
+        <p aria-live="polite" className="border-t border-border/40 px-4 py-1.5 text-2xs-tight text-muted-foreground">
           يكتب الآن…
         </p>
       )}
