@@ -41,6 +41,8 @@ export function ListPageShell({
   children,
   className,
 }: ListPageShellProps) {
+  const titleId = `list-page-title-${title.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}`;
+
   return (
     <div
       className={cn(
@@ -58,7 +60,7 @@ export function ListPageShell({
               {icon}
             </div>
             <div className="min-w-0">
-              <h1 className="text-balance text-lg font-bold tracking-tight text-foreground sm:text-2xl">
+              <h1 id={titleId} className="text-balance text-lg font-bold tracking-tight text-foreground sm:text-2xl">
                 {title}
               </h1>
               {description ? (
@@ -72,9 +74,9 @@ export function ListPageShell({
         </div>
       </header>
 
-      <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6">
+      <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6" aria-labelledby={titleId}>
         {toolbar ? (
-          <div className="flex flex-wrap items-center gap-2">{toolbar}</div>
+          <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label={`أدوات ${title}`}>{toolbar}</div>
         ) : null}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">

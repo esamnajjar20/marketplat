@@ -65,7 +65,7 @@ export function SearchBar({ className }: { className?: string }) {
       />
       <button
         type="submit"
-        className="absolute start-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+        className="absolute start-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         aria-label="بحث"
       >
         <Search className="h-4 w-4" />
@@ -79,7 +79,8 @@ export function SearchBar({ className }: { className?: string }) {
             <li key={s}>
               <button
                 type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-start hover:bg-muted"
+                role="option"
+                className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   setQuery(s);

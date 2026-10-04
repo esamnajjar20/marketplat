@@ -5,6 +5,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 import Link       from 'next/link';
 import { Logo }   from './Logo';
@@ -25,6 +26,7 @@ export function ProtectedHeader() {
   // ProtectedSidebar/UserMenu already compute. Swaps the CTA to
   // "أنشئ حساب بائع" (→ /settings/seller) instead of hiding it
   // outright, since this is the site's primary conversion button.
+  const pathname = usePathname();
   const { isLoaded: sellerLoaded } = useIsSeller();
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -44,21 +46,21 @@ export function ProtectedHeader() {
           PublicHeader's same three links, same position (between logo
           and account controls), same lg breakpoint — below lg they stay
           reachable via ProtectedMobileNav's "تصفح" section (REORG-07). */}
-      <nav className="hidden items-center gap-1 lg:flex">
+      <nav aria-label="التنقل العام" className="hidden items-center gap-1 lg:flex">
         {/* NAV-GAP FIX: mirrors PublicHeader's own addition — see
             lib/navigation.ts's BROWSE_LINKS comment for why ads gets a
             standing link here (and products deliberately doesn't). */}
         <Button asChild variant="ghost" size="sm">
-          <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
+          <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={pathname === ROUTES.search ? 'page' : undefined}>الإعلانات</Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link prefetch={false} href={ROUTES.stores}>المتاجر</Link>
+          <Link prefetch={false} href={ROUTES.stores} aria-current={pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`) ? 'page' : undefined}>المتاجر</Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link prefetch={false} href={ROUTES.services}>الخدمات</Link>
+          <Link prefetch={false} href={ROUTES.services} aria-current={pathname === ROUTES.services || pathname.startsWith(`${ROUTES.services}/`) ? 'page' : undefined}>الخدمات</Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link prefetch={false} href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
+          <Link prefetch={false} href={ROUTES.serviceProviders} aria-current={pathname === ROUTES.serviceProviders || pathname.startsWith(`${ROUTES.serviceProviders}/`) ? 'page' : undefined}>مقدمو الخدمة</Link>
         </Button>
       </nav>
 

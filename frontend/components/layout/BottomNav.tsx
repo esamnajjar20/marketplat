@@ -119,7 +119,7 @@ export function BottomNav() {
         prefetch={false}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors',
+          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -159,7 +159,7 @@ export function BottomNav() {
         aria-current={isExploreActive ? 'page' : undefined}
         aria-haspopup="dialog"
         className={cn(
-          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors',
+          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -245,7 +245,7 @@ export function BottomNav() {
           <button
             type="button"
             onClick={toggleMobileNav}
-            className="flex w-full flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="flex min-h-[48px] w-full flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           >
             <span className="relative inline-flex">
               <Menu className="h-5 w-5" aria-hidden={true} />

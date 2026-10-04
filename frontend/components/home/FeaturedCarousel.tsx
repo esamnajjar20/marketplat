@@ -303,7 +303,7 @@ export function FeaturedCarousel() {
           <div className="pointer-events-none absolute inset-y-0 start-0 end-0 flex items-center justify-between px-1 sm:px-2">
             <button
               type="button"
-              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 sm:h-9 sm:w-9"
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9 sm:w-9"
               aria-label="الشريحة السابقة"
               onClick={() => go(index - 1)}
             >
@@ -313,7 +313,7 @@ export function FeaturedCarousel() {
             </button>
             <button
               type="button"
-              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 sm:h-9 sm:w-9"
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9 sm:w-9"
               aria-label="الشريحة التالية"
               onClick={() => go(index + 1)}
             >
@@ -328,7 +328,7 @@ export function FeaturedCarousel() {
               onClick={() => setPaused((p) => !p)}
               aria-pressed={paused}
               aria-label={paused ? 'تشغيل التقدّم التلقائي' : 'إيقاف التقدّم التلقائي مؤقتًا'}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-8 sm:w-8"
             >
               {paused ? (
                 <Play className="h-3.5 w-3.5" aria-hidden />
@@ -343,7 +343,7 @@ export function FeaturedCarousel() {
                 aria-current={i === index ? 'true' : undefined}
                 aria-label={`الشريحة ${i + 1}`}
                 onClick={() => go(i)}
-                className="flex h-10 w-8 items-center justify-center sm:h-8 sm:w-6"
+                className="flex h-10 w-8 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-8 sm:w-6"
               >
                 <span
                   className={cn(

@@ -58,6 +58,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
   // other context (SearchBar also drives HeroBanner's desktop search).
   const pathname = usePathname();
   const onSearchPage = pathname === ROUTES.search;
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <header className="pwa-safe-top sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
@@ -94,7 +95,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
             Providers silently vanish with zero fallback, since
             MobileNav itself is md:hidden at that width. Matches the
             container's own md:flex so the whole row turns on together. */}
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav aria-label="التنقل العام" className="hidden items-center gap-1 md:flex">
           {/* NAV-GAP FIX: ads previously had no standing nav link here
               (only reachable via Home's CTA or the /search type tab) —
               see lib/navigation.ts's BROWSE_LINKS comment for the full
@@ -103,16 +104,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
               been its own literal list, not sourced from that shared
               array (only the mobile drawers read BROWSE_LINKS). */}
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>الإعلانات</Link>
+            <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={onSearchPage ? 'page' : undefined}>الإعلانات</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link prefetch={false} href={ROUTES.stores}>المتاجر</Link>
+            <Link prefetch={false} href={ROUTES.stores} aria-current={isActive(ROUTES.stores) ? 'page' : undefined}>المتاجر</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link prefetch={false} href={ROUTES.services}>الخدمات</Link>
+            <Link prefetch={false} href={ROUTES.services} aria-current={isActive(ROUTES.services) ? 'page' : undefined}>الخدمات</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link prefetch={false} href={ROUTES.serviceProviders}>مقدمو الخدمة</Link>
+            <Link prefetch={false} href={ROUTES.serviceProviders} aria-current={isActive(ROUTES.serviceProviders) ? 'page' : undefined}>مقدمو الخدمة</Link>
           </Button>
         </nav>
 

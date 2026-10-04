@@ -204,7 +204,28 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 
+  html {
+    @apply scroll-smooth;
+    scroll-padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+  }
+
   html, body { @apply overflow-x-hidden; }
+
+  /* Keyboard users should always see where focus landed, including
+     native links/buttons that don't use the shared Button primitive. */
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 /**

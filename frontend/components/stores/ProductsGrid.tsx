@@ -12,6 +12,7 @@ import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/shared/ui/Button';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import type { ProductSortField } from '@/types/product.types';
@@ -70,13 +71,9 @@ export function ProductsGrid() {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <p className="text-destructive">حدث خطأ أثناء تحميل المنتجات</p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="text-sm text-primary hover:underline"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
           إعادة المحاولة
-        </button>
+        </Button>
       </div>
     );
   }

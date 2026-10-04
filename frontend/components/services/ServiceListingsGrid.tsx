@@ -2,6 +2,7 @@
 
 import { LIST_SERVICE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/shared/ui/Button';
 
 import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
@@ -61,13 +62,9 @@ export function ServiceListingsGrid() {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <p className="text-destructive">حدث خطأ أثناء تحميل الخدمات</p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="text-sm text-primary hover:underline"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
           إعادة المحاولة
-        </button>
+        </Button>
       </div>
     );
   }

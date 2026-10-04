@@ -50,7 +50,7 @@ export default async function SearchPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div className="container mx-auto space-y-6 px-4 pt-6">
+      <main id="search-results" className="container mx-auto space-y-6 px-3 pt-5 sm:px-4 sm:pt-6">
         <Suspense>
           <SearchTabsWrapper />
         </Suspense>
@@ -77,13 +77,13 @@ export default async function SearchPage({ searchParams }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-4 md:gap-6">
           <aside className="hidden md:col-span-1 md:block">
             <Suspense>
               <SearchFilters />
             </Suspense>
           </aside>
-          <div className="md:col-span-3">
+          <section id="search-results-panel" className="min-w-0 md:col-span-3" role="tabpanel" aria-label="نتائج البحث">
             <Suspense
               fallback={
                 <div className="flex justify-center py-12">
@@ -93,9 +93,9 @@ export default async function SearchPage({ searchParams }: Props) {
             >
               <SearchResults />
             </Suspense>
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
