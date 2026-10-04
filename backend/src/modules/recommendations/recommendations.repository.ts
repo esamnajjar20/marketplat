@@ -1412,7 +1412,7 @@ export const storeRecommendationsRepository = {
       ? Prisma.sql`(CASE WHEN sd."city" = ${trimmedCity} THEN 2.0 ELSE 0.0 END)`
       : Prisma.sql`0.0`;
     const interestBoostExpr = interestCategoryIds.length > 0
-      ? Prisma.sql`(CASE WHEN p."categoryId" IN (${Prisma.join(interestCategoryIds)}) THEN 1.5 ELSE 0.0 END)`
+      ? Prisma.sql`(CASE WHEN BOOL_OR(p."categoryId" IN (${Prisma.join(interestCategoryIds)})) THEN 1.5 ELSE 0.0 END)`
       : Prisma.sql`0.0`;
     const freshnessTimestampExpr = Prisma.sql`GREATEST(sd."updatedAt", COALESCE(MAX(p."createdAt"), sd."updatedAt"))`;
     const freshnessScoreExpr = storeFreshnessScoreExprSql(freshnessTimestampExpr);
