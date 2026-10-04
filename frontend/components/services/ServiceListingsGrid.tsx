@@ -2,28 +2,26 @@
 
 import { LIST_SERVICE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { cn } from '@/lib/utils';
+import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 import { Button } from '@/components/shared/ui/Button';
 
 import { useSearchParams } from 'next/navigation';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { ServiceListingCard } from './ServiceListingCard';
-import { Pagination } from '@/components/shared/ui/Pagination';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
-import { useServiceListings } from '@/hooks/queries/useServiceListings';
-import { ROUTES } from '@/lib/constants';
+import { serviceListingsApi } from '@/api/service-listings.api';
+import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import type { ServiceListingSortField } from '@/types/service.types';
-import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 
 export function ServiceListingsGrid() {
   const sp = useSearchParams();
 
   const search = sp.get('search') ?? undefined;
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const categoryId = sp.get('categoryId') ?? undefined;
   const providerId = sp.get('providerId') ?? undefined;
   const city = sp.get('city') ?? undefined;
@@ -32,16 +30,23 @@ export function ServiceListingsGrid() {
   const maxPrice = sp.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined;
   const sortBy = (sp.get('sortBy') as ServiceListingSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
-
-  const { data, isLoading, isFetching, isError, isPlaceholderData, refetch } = useServiceListings({
-    search, page, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
-  });
-
-  const items = data?.items ?? [];
-  const totalPages = data?.meta?.totalPages ?? 1;
-  const total = data?.meta?.total ?? 0;
-  const searchParams = Object.fromEntries(sp.entries());
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
+
+  const query = useInfiniteQuery({
+    queryKey: ['service-listings', 'infinite', { search, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder }],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => serviceListingsApi.getAll({
+      search, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
+      page: pageParam,
+    }).then((r) => r.data.data),
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+  });
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+  const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
+  const firstMeta = data?.pages[0]?.meta;
+  const total = firstMeta?.total ?? items.length;
+  const loadMore = () => { void fetchNextPage(); };
+
 
   // FIX UX-04: mirrors the same fix in SearchResults — a centered
   // spinner replaced the whole grid on every filter change instead of
@@ -74,7 +79,7 @@ export function ServiceListingsGrid() {
   return (
     <>
       {/* SLOW-NET phase4 */}
-      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
+      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={false} />
       <div className="space-y-4">
       {/* Toolbar — queryParamKey="search" for the same reason as
           ProductsGrid.tsx (see SaveSearchButton's own doc comment). */}
@@ -100,13 +105,8 @@ export function ServiceListingsGrid() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <Pagination
-          totalPages={totalPages}
-          currentPage={page}
-          baseUrl={ROUTES.services}
-          searchParams={searchParams}
-        />
+      {items.length > 0 && (
+        <InfiniteScrollTrigger hasNextPage={Boolean(hasNextPage)} isFetchingNextPage={isFetchingNextPage} onLoadMore={loadMore} />
       )}
     </div>
       </>

@@ -1,21 +1,21 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { ProductCard } from './ProductCard';
-import { Pagination } from '@/components/shared/ui/Pagination';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
-import { useProducts } from '@/hooks/queries/useProducts';
-import { ROUTES } from '@/lib/constants';
+import { productsApi } from '@/api/products.api';
 import { cn } from '@/lib/utils';
+import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 import { Button } from '@/components/shared/ui/Button';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
+import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
-import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 import type { ProductSortField } from '@/types/product.types';
 
 /**
@@ -36,8 +36,6 @@ export function ProductsGrid() {
 
   const search = sp.get('search') ?? undefined;
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const city = sp.get('city') ?? undefined;
   const sortBy = (sp.get('sortBy') as ProductSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
@@ -46,16 +44,21 @@ export function ProductsGrid() {
   // toggle UI here yet (that's the fuller Phase 12 scope), just making
   // the URL param this page already receives actually take effect.
   const hasPromotion = sp.get('hasPromotion') === 'true' ? true : undefined;
-
-  const { data, isLoading, isFetching, isError, isPlaceholderData, refetch } = useProducts({
-    search, page, city, sortBy, sortOrder, hasPromotion, limit: 12,
-  });
-
-  const items = data?.items ?? [];
-  const totalPages = data?.meta?.totalPages ?? 1;
-  const total = data?.meta?.total ?? 0;
-  const searchParams = Object.fromEntries(sp.entries());
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
+
+  const query = useInfiniteQuery({
+    queryKey: ['products', 'infinite', { search, city, sortBy, sortOrder, hasPromotion }],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => productsApi.getAll({
+      search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: 12,
+    }).then((r) => r.data.data),
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+  });
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+  const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
+  const firstMeta = data?.pages[0]?.meta;
+  const total = firstMeta?.total ?? items.length;
+  const loadMore = () => { void fetchNextPage(); };
 
 
   if (isLoading && !data) {
@@ -82,7 +85,7 @@ export function ProductsGrid() {
 
   return (
     <PullToRefresh onRefresh={() => refetch()}>
-      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
+      <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={false} />
       <div className="space-y-4">
       {/* Toolbar — same "count on the left, save-search on the right"
           pattern as ads/SearchResults.tsx. queryParamKey="search"
@@ -116,17 +119,18 @@ export function ProductsGrid() {
         // SearchResults/StoresGrid.
         <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_CARD_GRID_CLASS, 'stagger-fade-in')}>
           {items.map((product) => (
-            <div key={product.id} className="min-w-0"><ProductCard product={product} storeId={product.store.id} context="catalog" density={view === 'list' ? 'compact' : 'default'} layout={view} /></div>
+            <div key={product.id} className="space-y-1.5">
+              <ProductCard product={product} storeId={product.store.id} context="catalog" density={view === 'list' ? 'compact' : 'default'} layout={view} />
+            </div>
           ))}
         </div>
       )}
 
-      {totalPages > 1 && (
-        <Pagination
-          totalPages={totalPages}
-          currentPage={page}
-          baseUrl={ROUTES.products}
-          searchParams={searchParams}
+      {items.length > 0 && (
+        <InfiniteScrollTrigger
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={loadMore}
         />
       )}
     </div>

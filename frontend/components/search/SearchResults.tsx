@@ -4,20 +4,21 @@ import { cn } from '@/lib/utils';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
-import { Pagination } from '@/components/shared/ui/Pagination';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptySearchSuggestions } from '@/components/search/EmptySearchSuggestions';
 import { EmptySearchAlternatives } from '@/components/search/EmptySearchAlternatives';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
-import { useSearch } from '@/hooks/queries/useSearch';
+import { searchApi } from '@/api/search.api';
+import { searchOffline } from '@/lib/offlineSearchIndex';
 import { useProgressiveSearchRadius } from '@/hooks/queries/useProgressiveSearchRadius';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
@@ -27,6 +28,7 @@ import { track } from '@/lib/analytics';
 import type { SearchSort, SearchType } from '@/types/search.types';
 import { SearchViewToggle, type SearchViewMode } from '@/components/search/SearchViewToggle';
 import { SearchResultsMap } from '@/components/map/SearchResultsMap';
+import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 
 /**
  * Unified results grid — reads q/city/type/categoryId/sort/page
@@ -48,9 +50,6 @@ export function SearchResults() {
   const maxPrice = sp.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined;
   const condition = type === 'ads' ? (sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | null) ?? undefined : undefined;
   const sort       = (sp.get('sort') as SearchSort) ?? 'relevance';
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   // TRACK-NEARBY-SEARCH: lat/lng/radius live in the URL like every
   // other filter on this page (SearchNearbyToggle writes them via
   // router.push, the same "URL is the source of truth" convention
@@ -105,24 +104,34 @@ export function SearchResults() {
   // previous expression missed.
   const hasActiveFilters = Boolean(city || categoryId || minPrice !== undefined || maxPrice !== undefined || condition || (sort && sort !== 'relevance') || lat !== undefined || lng !== undefined);
 
-  const { data, isLoading: searchLoading, isFetching, isError, isPlaceholderData, refetch } = useSearch({
-    q,
-    city,
-    type,
-    categoryId,
-    minPrice,
-    maxPrice,
-    condition,
-    sort: effectiveSort,
-    page,
-    lat,
-    lng,
-    radius: effectiveRadius,
+  const infiniteQuery = useInfiniteQuery({
+    queryKey: ['search', 'infinite', { q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort, lat, lng, radius: effectiveRadius }],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const params = {
+        q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort,
+        page: pageParam,
+        limit: 12,
+        lat, lng, radius: effectiveRadius,
+      };
+      try {
+        const r = await searchApi.search(params);
+        return r.data.data;
+      } catch (err) {
+        if (pageParam === 1) {
+          const offline = await searchOffline(params).catch(() => null);
+          if (offline?.hasBundle) return { items: offline.items, meta: offline.meta };
+        }
+        throw err;
+      }
+    },
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
-
+  const { data, isLoading: searchLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = infiniteQuery;
   const isLoading = searchLoading || (Boolean(lat !== undefined && lng !== undefined) && !progressive.resolved);
 
-  const items = useMemo(() => data?.items ?? [], [data?.items]);
+
+  const items = useMemo(() => data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [], [data?.pages]);
 
   const [viewMode, setViewMode] = useState<SearchViewMode>('list');
   const userLocation =
@@ -143,10 +152,7 @@ export function SearchResults() {
         })),
     [items]
   );
-  const totalPages = data?.meta?.totalPages ?? 1;
-  const total      = data?.meta?.total ?? 0;
-
-  const searchParams = Object.fromEntries(sp.entries());
+  const total = data?.pages[0]?.meta?.total ?? items.length;
 
   // Gap #7 (product analytics): fires once per resolved query — depends
   // on the actual query params (not `data`) so it doesn't re-fire on
@@ -154,9 +160,9 @@ export function SearchResults() {
   // issues a (possibly) different one. Only tracks non-empty queries —
   // landing on /search with no `q` yet isn't a search event.
   useEffect(() => {
-    if (q) track('SEARCH', { q, city, type, categoryId, resultCount: data?.meta?.total });
+    if (q) track('SEARCH', { q, city, type, categoryId, resultCount: total });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, city, type, categoryId, page]);
+  }, [q, city, type, categoryId]);
 
   if (isLoading) {
     // FIX AUDIT-2: was a single centered LoadingSpinner that replaced
@@ -227,7 +233,7 @@ export function SearchResults() {
   return (
     <div className="space-y-4">
       <BrowseCityHint />
-      <ListDataStatus isFetching={isFetching} hasData={items.length > 0 || Boolean(data)} isPlaceholderData={isPlaceholderData} />
+      <ListDataStatus isFetching={isFetching} hasData={items.length > 0 || Boolean(data)} isPlaceholderData={false} />
       {lat !== undefined && lng !== undefined && effectiveRadius != null && (
         <div className="flex flex-wrap items-center gap-2">
           <LocationSourceBadge source="gps" radiusKm={effectiveRadius} />
@@ -323,12 +329,11 @@ export function SearchResults() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <Pagination
-          totalPages={totalPages}
-          currentPage={page}
-          baseUrl={ROUTES.search}
-          searchParams={searchParams}
+      {items.length > 0 && viewMode !== 'map' && (
+        <InfiniteScrollTrigger
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={() => void fetchNextPage()}
         />
       )}
     </div>

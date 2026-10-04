@@ -54,7 +54,7 @@ export function ForYouMixedSection() {
         eyebrow={isAuth ? 'لك' : 'رائج'}
         title="مخصص لك"
         icon={<Sparkles className="h-3.5 w-3.5" />}
-        cta={{ href: ROUTES.suggestions, label: 'عرض الكل ←' }}
+        cta={{ href: ROUTES.forYou, label: 'عرض الكل ←' }}
       />
       <HomeScrollRail className="stagger-fade-in">
         {items.map((item) => (
@@ -70,7 +70,7 @@ export function ForYouMixedSection() {
         ))}
         <HomeScrollRailItem>
           <Link
-            href={ROUTES.suggestions}
+            href={ROUTES.forYou}
             prefetch={false}
             className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/80 p-4 text-center text-sm font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-card active:scale-[0.98]"
           >

@@ -1,15 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Flame, ArrowRight, ShoppingBag } from 'lucide-react';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
-import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { useProducts } from '@/hooks/queries/useProducts';
+import { productsApi } from '@/api/products.api';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 
 const PAGE_SIZE = 16;
 
@@ -18,22 +18,23 @@ const PAGE_SIZE = 16;
  * GET /products?hasPromotion=true مع ترقيم صفحات.
  */
 export function PromotedPageClient() {
-  const sp = useSearchParams();
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-
-  const { data, isLoading, isError, refetch, isFetching } = useProducts({
-    hasPromotion: true,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-    page,
-    limit: PAGE_SIZE,
+  const query = useInfiniteQuery({
+    queryKey: ['products', 'promoted', 'infinite'],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => productsApi.getAll({
+      hasPromotion: true,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      page: pageParam,
+      limit: PAGE_SIZE,
+    }).then((r) => r.data.data),
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
+  const { data, isLoading, isError, refetch, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
 
-  const items = data?.items ?? [];
-  const totalPages = data?.meta?.totalPages ?? 1;
-  const total = data?.meta?.total ?? 0;
-  const searchParams = Object.fromEntries(sp.entries());
+
+  const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
+  const total = data?.pages[0]?.meta?.total ?? items.length;
 
   return (
     <div className="min-h-[50vh]">
@@ -126,14 +127,7 @@ export function PromotedPageClient() {
               ))}
             </div>
 
-            {totalPages > 1 ? (
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                searchParams={searchParams}
-                baseUrl={ROUTES.promoted}
-              />
-            ) : null}
+            <InfiniteScrollTrigger hasNextPage={Boolean(hasNextPage)} isFetchingNextPage={isFetchingNextPage} onLoadMore={() => void fetchNextPage()} />
           </>
         )}
       </div>

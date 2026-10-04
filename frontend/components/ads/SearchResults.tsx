@@ -1,17 +1,17 @@
 'use client';
 
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
 import { AdCardSkeleton, AdListItemSkeleton } from '@/components/shared/skeletons';
-import { Pagination }     from '@/components/shared/ui/Pagination';
 import { EmptySearchSuggestions } from '@/components/search/EmptySearchSuggestions';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { Button }        from '@/components/shared/ui/Button';
-import { useAds, useSearchAds } from '@/hooks/queries/useAds';
+import { adsApi } from '@/api/ads.api';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { ROUTES } from '@/lib/constants';
 import { useCategoryBySlug } from '@/hooks/queries/useCategories';
@@ -20,6 +20,7 @@ import { LayoutGrid, LayoutList, Search } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
+import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 
 interface Props {
   /**
@@ -58,9 +59,6 @@ export function SearchResults({ categorySlug }: Props = {}) {
   const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
   const q          = sp.get('q') ?? '';
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   // An explicit ?categoryId= in the URL (e.g. a sub-filter picked from
   // SearchFilters while already on the category page) takes precedence
   // over the route's own slug so users can still narrow further.
@@ -91,20 +89,24 @@ export function SearchResults({ categorySlug }: Props = {}) {
   // useAds.ts) and the pinned test contract — a query shorter than 2
   // trimmed characters falls back to the unfiltered browse query
   // instead of firing a dedicated search request.
-  const isSearch   = q.trim().length >= 2;
-  const searchQ    = useSearchAds({ q, page, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder });
-  // FIX PERF-04: only fire the browse query when we're NOT doing a
-  // real search — otherwise this fired in parallel with useSearchAds
-  // on every keystroke-driven search, wasting a full GET /ads request
-  // whose result was never even read (see useAds.ts).
-  const browseQ    = useAds({ page, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { enabled: !isSearch });
-  const { data, isLoading, isFetching, isError, isPlaceholderData, refetch } = isSearch ? searchQ : browseQ;
+  const isSearch = q.trim().length >= 2;
+  const infiniteQuery = useInfiniteQuery({
+    queryKey: ['ads', 'infinite', isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => {
+      if (isSearch) {
+        return adsApi.searchAds({ q, page: pageParam, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }).then((r) => r.data.data);
+      }
+      return adsApi.getAll({ page: pageParam, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder })
+        .then((r) => r.data.data);
+    },
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+  });
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = infiniteQuery;
+  const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
+  const total = data?.pages[0]?.meta?.total ?? items.length;
+  const loadMore = () => { void fetchNextPage(); };
 
-  const items      = data?.items ?? [];
-  const totalPages = data?.meta?.totalPages ?? 1;
-  const total      = data?.meta?.total ?? 0;
-
-  const searchParams = Object.fromEntries(sp.entries());
 
   // FIX UX-04: was a single centered LoadingSpinner that replaced the
   // entire results area — jarring specifically on /search, since this
@@ -150,7 +152,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
 
   return (
     <>
-<ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
+<ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={false} />
 
     <div className="space-y-4">
       {/* Toolbar */}
@@ -218,28 +220,12 @@ export function SearchResults({ categorySlug }: Props = {}) {
         </div>
       )}
 
-      {totalPages > 1 && page < totalPages && (
-        <div className="flex flex-col items-center gap-2 pt-2 sm:hidden">
-          <button
-            type="button"
-            className="min-h-[48px] w-full max-w-sm rounded-full border bg-card px-6 py-3 text-sm font-medium shadow-sm hover:bg-muted"
-            onClick={() => {
-              const params = new URLSearchParams(sp.toString());
-              params.set('page', String(page + 1));
-              const base = categorySlug ? ROUTES.category(categorySlug) : pathname;
-              router.push(`${base}?${params.toString()}`);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          >
-            عرض المزيد — الصفحة {page + 1} من {totalPages}
-          </button>
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <Pagination totalPages={totalPages} currentPage={page}
-          baseUrl={categorySlug ? ROUTES.category(categorySlug) : pathname}
-          searchParams={searchParams} />
+      {items.length > 0 && (
+        <InfiniteScrollTrigger
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={loadMore}
+        />
       )}
     </div>
     </>

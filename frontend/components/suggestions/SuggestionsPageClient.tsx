@@ -29,7 +29,9 @@ const PER_TYPE = 16;
  * Full-page "اقتراحات لك" — same logic as the home rail, higher limits, 2-col grid.
  */
 
-export function SuggestionsPageClient() {
+export type SuggestionsMode = 'suggestions' | 'trending' | 'for-you';
+
+export function SuggestionsPageClient({ mode = 'suggestions' }: { mode?: SuggestionsMode }) {
   const isAuth = useAuthStore(selectIsAuthenticated);
   const isHydrated = useAuthStore(selectIsHydrated);
   const { city, isReady } = useBrowseCity();
@@ -37,11 +39,12 @@ export function SuggestionsPageClient() {
   const ready = isHydrated && isReady;
   const cityParam = city ? { city } : {};
 
+  const wantsPersonalized = mode !== 'trending';
   const mixedQ = useMixedRecommendations(
     { limit: PER_TYPE, ...cityParam },
-    { enabled: ready && isAuth, scope: 'user' },
+    { enabled: ready && isAuth && wantsPersonalized, scope: 'user' },
   );
-  const guestOpts = { enabled: ready && !isAuth, scope: 'guest' as const };
+  const guestOpts = { enabled: ready && (!isAuth || mode === 'trending'), scope: 'guest' as const };
   const adsQ = useRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
   const productsQ = useProductRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
   const servicesQ = useServiceRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
@@ -59,9 +62,10 @@ export function SuggestionsPageClient() {
     { enabled: ready },
   );
 
-  const recAds = isAuth ? mixedQ.data?.ads : adsQ.data;
-  const recProducts = isAuth ? mixedQ.data?.products : productsQ.data;
-  const recServices = isAuth ? mixedQ.data?.services : servicesQ.data;
+  const usePersonalized = isAuth && wantsPersonalized;
+  const recAds = usePersonalized ? mixedQ.data?.ads : adsQ.data;
+  const recProducts = usePersonalized ? mixedQ.data?.products : productsQ.data;
+  const recServices = usePersonalized ? mixedQ.data?.services : servicesQ.data;
 
   const recAdsFeed = Array.isArray(recAds) ? recAds : undefined;
   const recProductsFeed = Array.isArray(recProducts) ? recProducts : undefined;
@@ -92,7 +96,7 @@ export function SuggestionsPageClient() {
 
   const loading =
     !ready ||
-    (isAuth ? mixedQ.isLoading : adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading) ||
+    (usePersonalized ? mixedQ.isLoading : adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading) ||
     (items.length === 0 &&
       (fallbackAds.isLoading || fallbackProducts.isLoading || fallbackServices.isLoading));
 
@@ -111,13 +115,15 @@ export function SuggestionsPageClient() {
         <div className="space-y-1">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            {isAuth ? 'مخصّص' : 'رائج'}
+            {mode === 'trending' ? 'رائج' : usePersonalized ? 'مخصّص لك' : 'رائج'}
           </p>
-          <h1 className="text-xl font-bold sm:text-2xl">اقتراحات لك</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{mode === 'trending' ? 'الرائج' : 'مخصّص لك'}</h1>
           <p className="text-sm text-muted-foreground">
-            {isAuth
-              ? 'محتوى مختار حسب نشاطك واهتماماتك'
-              : 'اتجاهات رائجة — سجّل دخولك لاقتراحات أدق'}
+            {mode === 'trending'
+              ? 'المحتوى الأكثر رواجًا واكتشافًا الآن'
+              : usePersonalized
+                ? 'محتوى مختار حسب نشاطك واهتماماتك'
+                : 'سجّل دخولك للحصول على اقتراحات مخصّصة لك'}
           </p>
         </div>
         <Link
@@ -141,8 +147,8 @@ export function SuggestionsPageClient() {
           title="لا اقتراحات حالياً"
           description="ستظهر هنا اقتراحات عند توفر محتوى في السوق."
           action={
-            <Link href={ROUTES.ads} className="text-sm font-medium text-primary hover:underline">
-              تصفّح الإعلانات
+            <Link href={mode === 'trending' ? ROUTES.ads : '/login'} className="text-sm font-medium text-primary hover:underline">
+              {mode === 'trending' ? 'تصفّح الإعلانات' : 'تسجيل الدخول'}
             </Link>
           }
         />
