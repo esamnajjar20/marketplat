@@ -253,16 +253,22 @@
 .sticky-contact-bar {
   position: fixed;
   inset-inline: 0;
-  bottom: var(--bottom-nav-offset);
+  /* CHAT-FAB-FIX: BottomNav's floating "+" protrudes 1.25rem (20px) above
+     the nav bar via -mt-5. Sitting flush at --bottom-nav-offset left the
+     bar's lower 20px hidden behind that FAB. Push the bar just clear of
+     the FAB so both stay fully visible. */
+  bottom: calc(var(--bottom-nav-offset) + 1.25rem);
   z-index: 40;
 }
 
 .pb-sticky-contact {
-  padding-bottom: calc(9.25rem + env(safe-area-inset-bottom, 0px));
+  /* Was 9.25rem against a bar flush at 4.25rem; +1.25rem matches the
+     raised offset added to .sticky-contact-bar above. */
+  padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 .pb-sticky-contact-tall {
-  padding-bottom: calc(11.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(12.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 1024px) {

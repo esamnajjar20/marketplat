@@ -4,6 +4,7 @@ import { Megaphone } from 'lucide-react';
 import { RecentAds } from '@/components/home/RecentAds';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
+import { ROUTES } from '@/lib/constants';
 
 /** Dedicated ad rail: ranking combines interest, city priority and freshness. */
 export function HomeAboveFold() {
@@ -15,6 +16,7 @@ export function HomeAboveFold() {
         eyebrow="إعلانات"
         title={city ? `إعلانات تناسبك في ${city}` : 'إعلانات تناسبك'}
         icon={<Megaphone className="h-3.5 w-3.5" />}
+        cta={{ href: ROUTES.ads, label: 'عرض الكل ←' }}
       />
       <RecentAds />
     </section>
