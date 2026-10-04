@@ -8,5 +8,5 @@ import type { ReactNode } from 'react';
 // is just a passthrough — settings pages get the same single-column
 // <main> every other protected route gets.
 export default function SettingsLayout({ children }: { children: ReactNode }) {
-  return <div className="max-w-3xl">{children}</div>;
+  return <div className="w-full">{children}</div>;
 }

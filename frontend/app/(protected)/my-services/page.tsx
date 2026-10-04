@@ -11,7 +11,13 @@ export const metadata: Metadata = buildMetadata({ title: 'خدماتي', noIndex
 // every tab.
 export default function MyServicesPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <header className="desktop-page-header">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">لوحة الخدمات</h1>
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">أدر خدماتك والطلبات الواردة والمواعيد والإحصائيات من مكان واحد.</p>
+        </div>
+      </header>
       <Suspense>
         <MyServicesTabsHub />
       </Suspense>

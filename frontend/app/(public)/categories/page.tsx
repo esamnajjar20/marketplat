@@ -4,6 +4,8 @@ import { CategoriesIndex } from '@/components/categories/CategoriesIndex';
 import { getQueryClient } from '@/lib/queryClient';
 import { prefetchHomepage } from '@/lib/prefetch';
 import { buildMetadata } from '@/lib/seo';
+import { PageHeader } from '@/components/shared/layout/PageHeader';
+import { Layers3 } from 'lucide-react';
 
 export const metadata: Metadata = buildMetadata({
   title: 'كل الفئات',
@@ -22,10 +24,11 @@ export default async function CategoriesIndexPage() {
 
   return (
     <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:space-y-6 sm:px-4 sm:py-6 sm:pb-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold">كل الفئات</h1>
-        <p className="text-sm text-muted-foreground">اختر فئة لتصفّح الإعلانات أو المنتجات أو الخدمات.</p>
-      </header>
+      <PageHeader
+        icon={<Layers3 className="h-6 w-6" />}
+        title="كل الفئات"
+        description="اختر فئة لتصفّح الإعلانات أو المنتجات أو الخدمات."
+      />
       <HydrationBoundary state={dehydrate(qc)}>
         <CategoriesIndex />
       </HydrationBoundary>

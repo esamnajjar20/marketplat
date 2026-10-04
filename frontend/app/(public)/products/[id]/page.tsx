@@ -52,7 +52,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-6">
+    <div className="container mx-auto max-w-7xl px-3 py-6 sm:px-4 lg:py-8">
       {product && (
         <script
           type="application/ld+json"

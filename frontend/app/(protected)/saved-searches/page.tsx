@@ -7,9 +7,13 @@ export const metadata: Metadata = buildMetadata({ title: 'عمليات البح�
 
 export default function SavedSearchesPage() {
   return (
-    // FIX DESKTOP-WIDTH-01: see my-reports/page.tsx's matching comment.
-    <div className="mx-auto max-w-2xl space-y-4">
-      <h1 className="text-xl font-bold">عمليات البحث المحفوظة</h1>
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 pb-5">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">عمليات البحث المحفوظة</h1>
+          <p className="mt-1 text-sm text-muted-foreground">عمليات البحث التي حفظتها للوصول إليها بسرعة.</p>
+        </div>
+      </header>
       <Suspense><SavedSearchesList /></Suspense>
     </div>
   );

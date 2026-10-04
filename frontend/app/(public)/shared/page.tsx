@@ -22,7 +22,7 @@ export const metadata: Metadata = buildMetadata({
  */
 export default function SharedPayloadPage() {
   return (
-    <div className="container mx-auto max-w-lg px-4 py-6">
+    <div className="container mx-auto w-full max-w-3xl px-3 py-8 sm:px-4 lg:py-12">
       <Suspense fallback={<div className="py-12 text-center text-sm text-muted-foreground">جارٍ الفتح…</div>}>
         <SharedPayloadView />
       </Suspense>

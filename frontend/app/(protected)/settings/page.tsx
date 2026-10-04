@@ -11,7 +11,7 @@ export const metadata: Metadata = buildMetadata({ title: 'الإعدادات', n
 // identical for every tab. Legacy sub-paths redirect via next.config.
 export default function SettingsPage() {
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6">
       <Suspense>
         <SettingsTabsHub />
       </Suspense>

@@ -76,7 +76,7 @@ export default function ServiceRequestDetailPage({ params }: Props) {
   const backHref = isProvider ? ROUTES.incomingServiceRequests : ROUTES.myServiceRequests;
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-6 space-y-6">
+    <div className="container mx-auto w-full max-w-5xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
       <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowRight className="h-4 w-4" />رجوع
       </Link>

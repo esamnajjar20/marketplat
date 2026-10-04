@@ -40,7 +40,7 @@ export default async function CategoryPage({ params }: Props) {
   await prefetchCategories(qc);
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto w-full max-w-7xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
       <HydrationBoundary state={dehydrate(qc)}>
         <CategoryHero slug={slug} />
         {/* P0 FIX (layout audit §1): SearchFiltersSheet mirrors /search's
@@ -60,7 +60,9 @@ export default async function CategoryPage({ params }: Props) {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <aside className="hidden lg:col-span-1 lg:block">
-            <Suspense><SearchFilters categorySlug={slug} /></Suspense>
+            <div className="sticky top-24">
+              <Suspense><SearchFilters categorySlug={slug} /></Suspense>
+            </div>
           </aside>
           <div className="lg:col-span-3">
             <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>

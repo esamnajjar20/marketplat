@@ -15,7 +15,9 @@ export default async function MyStoreCollectionManagePage({ params }: Props) {
 
   return (
     <Suspense fallback={<div className="flex justify-center py-8"><LoadingSpinner /></div>}>
-      <CollectionProductsManager collectionId={id} />
+      <div className="mx-auto w-full max-w-5xl">
+        <CollectionProductsManager collectionId={id} />
+      </div>
     </Suspense>
   );
 }

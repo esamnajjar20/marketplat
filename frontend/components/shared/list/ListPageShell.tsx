@@ -50,7 +50,7 @@ export function ListPageShell({
         className,
       )}
     >
-      <header className="border-b border-border/70 bg-surface-1/90">
+      <header className="border-b border-border/70 bg-surface-1/95 shadow-[0_1px_0_hsl(var(--border)/0.35)]">
         <div className="container mx-auto flex min-h-20 max-w-7xl flex-wrap items-center justify-between gap-4 px-3 py-4 sm:px-4 sm:py-5 lg:min-h-24 lg:py-6">
           <div className="flex min-w-0 items-center gap-3">
             <div
@@ -76,10 +76,10 @@ export function ListPageShell({
 
       <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6 lg:pt-7" aria-labelledby={titleId}>
         {toolbar ? (
-          <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label={`أدوات ${title}`}>{toolbar}</div>
+          <div className="desktop-toolbar flex flex-wrap items-center gap-2" role="toolbar" aria-label={`أدوات ${title}`}>{toolbar}</div>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-7">
           {sidebar ? (
             <aside className="hidden lg:col-span-1 lg:block">
               <div className="sticky top-24 space-y-4">{sidebar}</div>

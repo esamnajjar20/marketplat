@@ -21,6 +21,7 @@ import { buildForYouFeed } from '@/lib/forYouFeed';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
+import { PageHeader } from '@/components/shared/layout/PageHeader';
 
 const PAGE_LIMIT = 36;
 const PER_TYPE = 16;
@@ -111,29 +112,18 @@ export function SuggestionsPageClient({ mode = 'suggestions' }: { mode?: Suggest
 
   return (
     <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 sm:px-4 sm:py-8">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            {mode === 'trending' ? 'رائج' : usePersonalized ? 'مخصّص لك' : 'رائج'}
-          </p>
-          <h1 className="text-xl font-bold sm:text-2xl">{mode === 'trending' ? 'الرائج' : 'مخصّص لك'}</h1>
-          <p className="text-sm text-muted-foreground">
-            {mode === 'trending'
-              ? 'المحتوى الأكثر رواجًا واكتشافًا الآن'
-              : usePersonalized
-                ? 'محتوى مختار حسب نشاطك واهتماماتك'
-                : 'سجّل دخولك للحصول على اقتراحات مخصّصة لك'}
-          </p>
-        </div>
-        <Link
-          href={ROUTES.home}
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-        >
-          الرئيسية
-          <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
-        </Link>
-      </header>
+      <PageHeader
+        icon={<Sparkles className="h-6 w-6" />}
+        eyebrow={mode === 'trending' ? 'رائج' : usePersonalized ? 'مخصّص لك' : 'رائج'}
+        title={mode === 'trending' ? 'الرائج' : 'مخصّص لك'}
+        description={mode === 'trending' ? 'المحتوى الأكثر رواجًا واكتشافًا الآن' : usePersonalized ? 'محتوى مختار حسب نشاطك واهتماماتك' : 'سجّل دخولك للحصول على اقتراحات مخصّصة لك'}
+        actions={
+          <Link href={ROUTES.home} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-sm font-medium text-primary shadow-xs hover:border-primary/30 hover:bg-primary-soft/40">
+            الرئيسية
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
+          </Link>
+        }
+      />
 
       {showLoading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">

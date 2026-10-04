@@ -64,7 +64,7 @@ export default async function PublicProfilePage({ params }: Props) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
+    <div className="container mx-auto w-full max-w-5xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
       <PublicProfileHeader user={user} />
       <ProfileTabsSection user={user} />
 

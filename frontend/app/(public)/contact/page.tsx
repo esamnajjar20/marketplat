@@ -16,6 +16,7 @@ export default function ContactPage() {
       title="تواصل معنا"
       description="نسعد بملاحظاتك وبلاغات المشاكل. اختر القناة الأنسب لحالتك."
     >
+      <div className="content-prose space-y-5">
       <h2>الدعم العام</h2>
       <p>
         للأسئلة حول الحساب أو النشر، راسلنا على البريد (يُستبدل بعنوانكم الرسمي):
@@ -39,6 +40,7 @@ export default function ContactPage() {
           <Link href={ROUTES.about}>من نحن</Link>
         </li>
       </ul>
+      </div>
     </LegalPageShell>
   );
 }

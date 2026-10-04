@@ -37,7 +37,7 @@ export default function RequestDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-24 sm:p-4" dir="rtl" aria-busy>
+      <div className="mx-auto w-full max-w-5xl space-y-4 px-3 py-5 pb-24 sm:px-4 lg:py-8" dir="rtl" aria-busy>
         <div className="h-4 w-24 animate-pulse rounded bg-muted" />
         <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
         <div className="h-24 animate-pulse rounded-xl bg-muted" />
@@ -76,7 +76,7 @@ export default function RequestDetailPage() {
 
   return (
     <div
-      className="mx-auto max-w-3xl space-y-5 px-3 py-4 pb-28 sm:space-y-6 sm:p-4 sm:pb-10"
+      className="mx-auto w-full max-w-5xl space-y-6 px-3 py-5 pb-28 sm:px-4 sm:pb-10 lg:py-8"
       dir="rtl"
     >
       <div>

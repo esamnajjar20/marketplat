@@ -15,7 +15,7 @@ export const metadata: Metadata = buildMetadata({ title: 'استكمال الت�
  */
 export default function CompleteProfilePage() {
   return (
-    <div className="mx-auto max-w-md space-y-8 px-4 py-10">
+    <div className="mx-auto w-full max-w-xl space-y-8 px-3 py-10 sm:px-4 lg:py-14">
       <div className="text-center">
         <h1 className="text-3xl font-bold text-primary sm:text-4xl">أهلاً بك 👋</h1>
         <p className="mt-3 text-muted-foreground">

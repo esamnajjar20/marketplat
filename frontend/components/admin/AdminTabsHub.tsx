@@ -65,7 +65,6 @@ import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
 import { AdminSystemHealth } from '@/components/admin/AdminSystemHealth';
 import { AdminSystemTools } from '@/components/admin/AdminSystemTools';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 
 const AdminAnalyticsDashboard = dynamic(
   () =>
@@ -80,12 +79,6 @@ const AdminAnalyticsDashboard = dynamic(
 const tableFallback = (
   <PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز الجدول…" />
 );
-const spinnerFallback = (
-  <div className="flex justify-center py-12">
-    <LoadingSpinner />
-  </div>
-);
-
 function TabBody({ tab }: { tab: AdminTab }) {
   switch (tab) {
     case 'ads':
@@ -113,12 +106,9 @@ function TabBody({ tab }: { tab: AdminTab }) {
       );
     case 'sellers':
       return (
-        <div className="space-y-4">
-          <h1 className="text-xl font-bold">إدارة البائعين</h1>
-          <Suspense fallback={spinnerFallback}>
-            <AdminSellersTable />
-          </Suspense>
-        </div>
+        <AdminPageShell title="إدارة البائعين" description="البائعون، التقييمات، والحالة الحالية للحسابات.">
+          <Suspense fallback={tableFallback}><AdminSellersTable /></Suspense>
+        </AdminPageShell>
       );
     case 'stores':
       return (
@@ -150,44 +140,31 @@ function TabBody({ tab }: { tab: AdminTab }) {
       );
     case 'fraud':
       return (
-        <div className="space-y-4">
-          <h1 className="text-xl font-bold">مكافحة الاحتيال</h1>
-          <Suspense fallback={spinnerFallback}>
-            <AdminFraudTable />
-          </Suspense>
-        </div>
+        <AdminPageShell title="مكافحة الاحتيال" description="مراجعة الحالات والإشارات التي تحتاج إلى تدخل.">
+          <Suspense fallback={tableFallback}><AdminFraudTable /></Suspense>
+        </AdminPageShell>
       );
     case 'products':
       return (
-        <div className="space-y-4">
-          <h1 className="text-xl font-bold">المنتجات</h1>
-          <Suspense>
+        <AdminPageShell title="المنتجات" description="مراجعة المحتوى وإدارته من مكان واحد.">
+          <Suspense fallback={tableFallback}>
             <AdminProductsTable />
           </Suspense>
-        </div>
+        </AdminPageShell>
       );
     case 'service-listings':
       return (
-        <div className="space-y-4">
-          <h1 className="text-xl font-bold">عروض الخدمات</h1>
-          <Suspense>
+        <AdminPageShell title="عروض الخدمات" description="مراجعة المحتوى وإدارته من مكان واحد.">
+          <Suspense fallback={tableFallback}>
             <AdminServiceListingsTable />
           </Suspense>
-        </div>
+        </AdminPageShell>
       );
     case 'open-requests':
       return (
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-xl font-bold">الطلبات المفتوحة</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              طلبات الخدمة والمنتج والإيجار — مراجعة وإلغاء الطلبات عند الحاجة.
-            </p>
-          </div>
-          <Suspense>
-            <AdminOpenRequestsTable />
-          </Suspense>
-        </div>
+        <AdminPageShell title="الطلبات المفتوحة" description="طلبات الخدمة والمنتج والإيجار — مراجعة وإلغاء الطلبات عند الحاجة.">
+          <Suspense fallback={tableFallback}><AdminOpenRequestsTable /></Suspense>
+        </AdminPageShell>
       );
     case 'categories':
       return (
@@ -238,12 +215,9 @@ function TabBody({ tab }: { tab: AdminTab }) {
       );
     case 'audit-logs':
       return (
-        <div className="space-y-4">
-          <h1 className="text-xl font-bold">سجل العمليات</h1>
-          <Suspense fallback={spinnerFallback}>
-            <AdminAuditLogsTable />
-          </Suspense>
-        </div>
+        <AdminPageShell title="سجل العمليات" description="تتبع الإجراءات الإدارية المهمة داخل المنصة.">
+          <Suspense fallback={tableFallback}><AdminAuditLogsTable /></Suspense>
+        </AdminPageShell>
       );
     case 'analytics':
       return (

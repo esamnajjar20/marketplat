@@ -20,13 +20,13 @@ export function AdminPageShell({
 }) {
   return (
     <div className={cn('mx-auto w-full max-w-[1600px] space-y-5 lg:space-y-6', className)}>
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border/70 bg-surface-1/60 px-4 py-4 shadow-xs sm:px-5 lg:px-6">
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border/70 bg-card px-4 py-5 shadow-xs sm:px-5 lg:px-7 lg:py-6">
         <div className="min-w-0">
-          <h1 className="text-balance text-xl font-bold tracking-tight text-foreground">
+          <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground">
             {title}
           </h1>
           {description ? (
-            <p className="mt-0.5 max-w-2xl text-pretty text-sm text-muted-foreground">
+            <p className="mt-1 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
               {description}
             </p>
           ) : null}

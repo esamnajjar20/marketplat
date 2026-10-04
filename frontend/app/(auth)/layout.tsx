@@ -54,7 +54,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink —
             this group has no <main> (single-column card layout), so the
             id goes on the content wrapper instead. */}
-        <div id="main-content" className="w-full max-w-md">
+        <div id="main-content" className="w-full max-w-lg">
           <PageTransition>{children}</PageTransition>
         </div>
       </div>

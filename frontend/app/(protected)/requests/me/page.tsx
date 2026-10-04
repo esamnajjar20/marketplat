@@ -52,7 +52,7 @@ export default function MyRequestsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 pb-10" dir="rtl">
+    <div className="mx-auto w-full max-w-5xl space-y-6 px-3 pb-10 sm:px-4 lg:px-0" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight">طلباتي</h1>

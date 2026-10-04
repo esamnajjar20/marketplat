@@ -10,7 +10,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default function SavedPaymentsPage() {
   return (
-    <div className="container mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <div className="container mx-auto w-full max-w-5xl space-y-6 px-3 py-8 sm:px-4 lg:py-10">
       <header className="space-y-2">
         <h1 className="text-2xl font-bold sm:text-3xl">المحفوظات</h1>
         <p className="text-sm text-muted-foreground sm:text-base">

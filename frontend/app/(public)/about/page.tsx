@@ -16,6 +16,7 @@ export default function AboutPage() {
       title="من نحن"
       description="منصة محلية تجمع الجيران للبيع والشراء وطلب الخدمات بثقة ووضوح."
     >
+      <div className="content-prose space-y-5">
       <h2>رسالتنا</h2>
       <p>
         سوق غزة وُجد لتسهيل التبادل التجاري اليومي داخل القطاع: إعلانات فردية،
@@ -33,6 +34,7 @@ export default function AboutPage() {
         تصفّح <Link href={ROUTES.search}>البحث</Link> أو{' '}
         <Link href={ROUTES.register}>أنشئ حسابًا</Link> لنشر أول إعلان.
       </p>
+      </div>
     </LegalPageShell>
   );
 }

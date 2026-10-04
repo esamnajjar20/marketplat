@@ -68,7 +68,7 @@ export default async function StorePage({ params }: Props) {
 
   if (!store) {
     return (
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto max-w-7xl px-3 py-6 sm:px-4 lg:py-8">
         <EmptyState
           icon={<SearchX className="h-10 w-10" />}
           title="المتجر غير موجود"
@@ -89,7 +89,7 @@ export default async function StorePage({ params }: Props) {
     // PHASE1-STOREFRONT: widen from max-w-3xl → max-w-5xl so the
     // product grid and tabs breathe on tablet/desktop without losing
     // the centered mobile-first feel.
-    <div className="container mx-auto max-w-5xl space-y-8 px-4 py-6">
+    <div className="container mx-auto w-full max-w-7xl space-y-8 px-3 py-6 sm:px-4 lg:py-8">
       {/* SW-SEO-JSONLD-STORE-01: LocalBusiness/Store schema. Phone and
           address are present on StoreDetails, so Google can surface a
           store card with contact info and location. */}
