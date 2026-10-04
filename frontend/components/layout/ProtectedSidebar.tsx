@@ -118,7 +118,7 @@ function NavLink({
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors',
+        'flex min-h-10 items-center gap-3 rounded-lg py-2 text-sm font-medium transition-colors',
         indent ? 'px-3 ms-7' : 'px-3',
         isActive
           ? 'bg-primary-soft text-primary shadow-xs'
@@ -157,7 +157,7 @@ function DisclosureGroup({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={cn(
-          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+          'flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
           isAnyChildActive && !isOpen
             ? 'bg-primary-soft text-primary'
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -208,8 +208,8 @@ export function ProtectedSidebar() {
 
   return (
     // UX-09 FIX: border-e is the logical equivalent of border-r, correct in RTL
-    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-52 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-56">
-      <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1 p-4">
+    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-60">
+      <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1.5 p-3 lg:p-4">
         {NAV_ITEMS.map((item) => {
           // SW-FIX-SIDEBAR-DEAD-CAST: NAV_ITEMS has no activeMatch field
           // — the cast and ?? fallback were always resolving to item.href.
@@ -225,6 +225,8 @@ export function ProtectedSidebar() {
             />
           );
         })}
+
+        <div className="my-1.5 border-t border-border/70" aria-hidden="true" />
 
         {/* NAV-ORDER: align with BROWSE_LINKS priority — ads/store first
             for sellers, then provider tools, then open-requests hub,

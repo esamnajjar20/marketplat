@@ -105,7 +105,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               // min-h for comfortable touch targets on mobile
-              'flex min-h-[44px] items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors md:min-h-0',
+              'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors md:min-h-10',
               isActive
                 ? 'bg-primary-soft text-primary shadow-xs'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -135,7 +135,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 /** Desktop sidebar — fixed, always visible on lg+ screens. */
 function DesktopSidebar() {
   return (
-    <aside className="sticky top-0 z-20 hidden h-screen w-52 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-56">
+    <aside className="sticky top-0 z-20 hidden h-screen w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-60">
       <NavLinks />
     </aside>
   );

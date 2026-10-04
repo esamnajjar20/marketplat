@@ -50,7 +50,7 @@ export default async function SearchPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <main id="search-results" className="container mx-auto space-y-6 px-3 pt-5 sm:px-4 sm:pt-6">
+      <div id="search-results" className="container mx-auto space-y-6 px-3 pt-5 sm:px-4 sm:pt-6">
         <Suspense>
           <SearchTabsWrapper />
         </Suspense>
@@ -61,8 +61,8 @@ export default async function SearchPage({ searchParams }: Props) {
             single match. Below `lg` that's now a "تصفية" trigger that
             opens the same SearchFilters in a bottom sheet instead;
             above `lg` the sheet trigger hides itself and the always-
-            visible <aside> (now explicitly `hidden md:block`, matching
-            the audit's suggested fix) takes over, unchanged from before. */}
+            visible <aside> (now explicitly `hidden lg:block`, matching
+            the shared browse-page breakpoint) takes over, unchanged from before. */}
         {/* FIX P2-08 (audit item #8): sort sits next to the filters
             trigger, independent of it, on every breakpoint — not nested
             inside the "تصفية" sheet/panel it used to live in. */}
@@ -77,13 +77,15 @@ export default async function SearchPage({ searchParams }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-4 md:gap-6">
-          <aside className="hidden md:col-span-1 md:block">
-            <Suspense>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-4 lg:gap-6">
+          <aside className="hidden lg:col-span-1 lg:block">
+            <div className="sticky top-24">
+              <Suspense>
               <SearchFilters />
             </Suspense>
+            </div>
           </aside>
-          <section id="search-results-panel" className="min-w-0 md:col-span-3" role="tabpanel" aria-label="نتائج البحث">
+          <section id="search-results-panel" className="min-w-0 lg:col-span-3" role="tabpanel" aria-label="نتائج البحث">
             <Suspense
               fallback={
                 <div className="flex justify-center py-12">
@@ -95,7 +97,7 @@ export default async function SearchPage({ searchParams }: Props) {
             </Suspense>
           </section>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

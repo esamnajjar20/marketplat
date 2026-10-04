@@ -5,7 +5,7 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 import Link       from 'next/link';
 import { Logo }   from './Logo';
@@ -30,8 +30,16 @@ export function ProtectedHeader() {
   const { isLoaded: sellerLoaded } = useIsSeller();
   const [createOpen, setCreateOpen] = useState(false);
 
+  const searchParams = useSearchParams();
+  const isAdsBrowseActive = pathname === ROUTES.search && (searchParams.get('type') ?? 'all') === 'ads';
+  const navItemClass = (active: boolean) =>
+    active
+      ? 'bg-primary-soft text-primary hover:bg-primary-soft/80 hover:text-primary'
+      : 'text-muted-foreground hover:bg-muted hover:text-foreground';
+
   return (
-    <header className="pwa-safe-top sticky top-0 z-50 flex min-h-16 w-full items-center gap-4 border-b border-border/80 bg-background/90 px-6 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+    <header className="pwa-safe-top sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+      <div className="mx-auto flex min-h-16 w-full max-w-[1440px] items-center gap-3 px-4 lg:gap-4 lg:px-6">
       {/* AUDIT-FIX (protected #1): hamburger trigger for ProtectedMobileNav,
           the only way to reach ProtectedSidebar's destinations below `lg`. */}
       <ProtectedMobileNav />
@@ -46,20 +54,20 @@ export function ProtectedHeader() {
           PublicHeader's same three links, same position (between logo
           and account controls), same lg breakpoint — below lg they stay
           reachable via ProtectedMobileNav's "تصفح" section (REORG-07). */}
-      <nav aria-label="التنقل العام" className="hidden items-center gap-1 lg:flex">
+      <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-lg border border-transparent bg-surface-1/50 p-1 lg:flex">
         {/* NAV-GAP FIX: mirrors PublicHeader's own addition — see
             lib/navigation.ts's BROWSE_LINKS comment for why ads gets a
             standing link here (and products deliberately doesn't). */}
-        <Button asChild variant="ghost" size="sm">
-          <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={pathname === ROUTES.search ? 'page' : undefined}>الإعلانات</Link>
+        <Button asChild variant="ghost" size="sm" className={navItemClass(isAdsBrowseActive)}>
+          <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</Link>
         </Button>
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm" className={navItemClass(pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`))}>
           <Link prefetch={false} href={ROUTES.stores} aria-current={pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`) ? 'page' : undefined}>المتاجر</Link>
         </Button>
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm" className={navItemClass(pathname === ROUTES.services || pathname.startsWith(`${ROUTES.services}/`))}>
           <Link prefetch={false} href={ROUTES.services} aria-current={pathname === ROUTES.services || pathname.startsWith(`${ROUTES.services}/`) ? 'page' : undefined}>الخدمات</Link>
         </Button>
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm" className={navItemClass(pathname === ROUTES.serviceProviders || pathname.startsWith(`${ROUTES.serviceProviders}/`))}>
           <Link prefetch={false} href={ROUTES.serviceProviders} aria-current={pathname === ROUTES.serviceProviders || pathname.startsWith(`${ROUTES.serviceProviders}/`) ? 'page' : undefined}>مقدمو الخدمة</Link>
         </Button>
       </nav>
@@ -87,6 +95,7 @@ export function ProtectedHeader() {
         <UserMenu />
       </div>
       <CreateSheet open={createOpen} onOpenChange={setCreateOpen} />
+      </div>
     </header>
   );
 }

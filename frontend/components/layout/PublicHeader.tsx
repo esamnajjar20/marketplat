@@ -9,7 +9,7 @@
 import { useState } from 'react';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
 import { UserMenu }       from './UserMenu';
@@ -58,7 +58,13 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
   // other context (SearchBar also drives HeroBanner's desktop search).
   const pathname = usePathname();
   const onSearchPage = pathname === ROUTES.search;
+  const searchParams = useSearchParams();
+  const isAdsBrowseActive = onSearchPage && (searchParams.get('type') ?? 'all') === 'ads';
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const navItemClass = (active: boolean) =>
+    active
+      ? 'bg-primary-soft text-primary hover:bg-primary-soft/80 hover:text-primary'
+      : 'text-muted-foreground hover:bg-muted hover:text-foreground';
 
   return (
     <header className="pwa-safe-top sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
@@ -81,7 +87,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
         </div>
       </div>
 
-      <div className="container mx-auto hidden h-16 max-w-7xl items-center gap-4 px-4 md:flex">
+      <div className="container mx-auto hidden h-16 max-w-7xl items-center gap-3 px-4 lg:gap-4 md:flex">
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo />
         </Link>
@@ -95,7 +101,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
             Providers silently vanish with zero fallback, since
             MobileNav itself is md:hidden at that width. Matches the
             container's own md:flex so the whole row turns on together. */}
-        <nav aria-label="التنقل العام" className="hidden items-center gap-1 md:flex">
+        <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-lg border border-transparent bg-surface-1/50 p-1 md:flex">
           {/* NAV-GAP FIX: ads previously had no standing nav link here
               (only reachable via Home's CTA or the /search type tab) —
               see lib/navigation.ts's BROWSE_LINKS comment for the full
@@ -103,16 +109,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
               BROWSE_LINKS since this header's desktop nav has always
               been its own literal list, not sourced from that shared
               array (only the mobile drawers read BROWSE_LINKS). */}
-          <Button asChild variant="ghost" size="sm" className="transition-colors">
-            <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={onSearchPage ? 'page' : undefined}>الإعلانات</Link>
+          <Button asChild variant="ghost" size="sm" className={navItemClass(isAdsBrowseActive)}>
+            <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className="transition-colors">
+          <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.stores))}>
             <Link prefetch={false} href={ROUTES.stores} aria-current={isActive(ROUTES.stores) ? 'page' : undefined}>المتاجر</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className="transition-colors">
+          <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.services))}>
             <Link prefetch={false} href={ROUTES.services} aria-current={isActive(ROUTES.services) ? 'page' : undefined}>الخدمات</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className="transition-colors">
+          <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.serviceProviders))}>
             <Link prefetch={false} href={ROUTES.serviceProviders} aria-current={isActive(ROUTES.serviceProviders) ? 'page' : undefined}>مقدمو الخدمة</Link>
           </Button>
         </nav>

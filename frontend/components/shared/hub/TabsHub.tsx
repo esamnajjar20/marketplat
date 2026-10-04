@@ -139,7 +139,7 @@ export function TabsHub<T extends string>({
       <div
         role="tablist"
         aria-label={tabListLabel}
-        className="sticky top-0 z-10 -mx-1 mb-4 flex gap-1 overflow-x-auto bg-background/95 px-1 py-2 backdrop-blur"
+        className="sticky top-16 z-20 -mx-1 mb-5 flex gap-1 overflow-x-auto border-b border-border/70 bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:-mx-2 lg:px-2"
       >
         {tabs.map((tab) => {
           const { label, Icon } = meta[tab];
@@ -157,10 +157,10 @@ export function TabsHub<T extends string>({
               onClick={() => select(tab)}
               onKeyDown={(event) => onTabKeyDown(event, tab)}
               className={cn(
-                'flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:min-h-11 lg:px-3.5',
                 selected
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border text-muted-foreground hover:text-foreground',
+                  ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                  : 'border-border/80 bg-card/50 text-muted-foreground hover:border-primary/30 hover:bg-primary-soft/50 hover:text-foreground',
               )}
             >
               <Icon className="h-4 w-4" aria-hidden={true} />

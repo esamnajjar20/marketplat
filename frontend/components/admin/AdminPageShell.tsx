@@ -19,8 +19,8 @@ export function AdminPageShell({
   className?: string;
 }) {
   return (
-    <div className={cn('mx-auto w-full max-w-[1600px] space-y-4 lg:space-y-5', className)}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3">
+    <div className={cn('mx-auto w-full max-w-[1600px] space-y-5 lg:space-y-6', className)}>
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border/70 bg-surface-1/60 px-4 py-4 shadow-xs sm:px-5 lg:px-6">
         <div className="min-w-0">
           <h1 className="text-balance text-xl font-bold tracking-tight text-foreground">
             {title}

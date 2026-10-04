@@ -50,8 +50,8 @@ export function ListPageShell({
         className,
       )}
     >
-      <header className="border-b border-border/70 bg-secondary/40">
-        <div className="container mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 px-3 py-4 sm:px-4 sm:py-6">
+      <header className="border-b border-border/70 bg-surface-1/90">
+        <div className="container mx-auto flex min-h-20 max-w-7xl flex-wrap items-center justify-between gap-4 px-3 py-4 sm:px-4 sm:py-5 lg:min-h-24 lg:py-6">
           <div className="flex min-w-0 items-center gap-3">
             <div
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
@@ -60,7 +60,7 @@ export function ListPageShell({
               {icon}
             </div>
             <div className="min-w-0">
-              <h1 id={titleId} className="text-balance text-lg font-bold tracking-tight text-foreground sm:text-2xl">
+              <h1 id={titleId} className="text-balance text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-[1.65rem]">
                 {title}
               </h1>
               {description ? (
@@ -74,14 +74,16 @@ export function ListPageShell({
         </div>
       </header>
 
-      <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6" aria-labelledby={titleId}>
+      <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6 lg:pt-7" aria-labelledby={titleId}>
         {toolbar ? (
           <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label={`أدوات ${title}`}>{toolbar}</div>
         ) : null}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           {sidebar ? (
-            <aside className="hidden lg:col-span-1 lg:block">{sidebar}</aside>
+            <aside className="hidden lg:col-span-1 lg:block">
+              <div className="sticky top-24 space-y-4">{sidebar}</div>
+            </aside>
           ) : null}
           <div className={cn(sidebar ? 'lg:col-span-3' : 'lg:col-span-4', 'min-w-0')}>
             {children}
