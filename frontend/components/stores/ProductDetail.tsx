@@ -19,6 +19,7 @@ import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ReportProductButton } from '@/components/stores/ReportProductButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
+import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
@@ -221,6 +222,8 @@ export function ProductDetail({ product, related = [] }: Props) {
               </div>
             </section>
           )}
+
+          <DetailSafetyTips />
 
           {/* توصيات من متاجر أخرى فقط — حتى لا تتكرر مع قسم نفس المتجر */}
           <ProductRecommendations

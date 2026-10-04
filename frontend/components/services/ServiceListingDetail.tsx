@@ -10,6 +10,7 @@ import { ReportServiceButton } from '@/components/services/ReportServiceButton';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { ProviderContactCard } from '@/components/services/ProviderContactCard';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
+import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -251,6 +252,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
               </p>
             </div>
           )}
+
+          <DetailSafetyTips />
 
           {/* CTA + Provider — mobile (desktop has sidebar) */}
           <div className="space-y-3 md:hidden">

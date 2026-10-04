@@ -12,13 +12,13 @@ import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { ServiceListingWithProvider, ServiceAvailability } from '@/types/service.types';
 
-interface Props { listing: ServiceListingWithProvider; context?: CardContext; className?: string; priority?: boolean; density?: 'default' | 'compact'; showKind?: boolean; }
+interface Props { listing: ServiceListingWithProvider; context?: CardContext; className?: string; priority?: boolean; density?: 'default' | 'compact'; layout?: 'grid' | 'list'; showKind?: boolean; }
 const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = { AVAILABLE: 'متاح الآن', BUSY: 'مشغول', UNAVAILABLE: 'غير متاح' };
 const AVAILABILITY_VARIANT: Record<ServiceAvailability, 'overlay-success' | 'warning' | 'secondary'> = { AVAILABLE: 'overlay-success', BUSY: 'warning', UNAVAILABLE: 'secondary' };
 const SERVICE_LOCATION_HINT: Record<string, string> = { AT_CUSTOMER: 'عند العميل', AT_PROVIDER: 'عند مقدم الخدمة', REMOTE: 'عن بُعد' };
 
-export function ServiceListingCard({ listing, context = 'public', className, priority = false, density = 'default', showKind = false }: Props) {
-  const compact = density === 'compact';
+export function ServiceListingCard({ listing, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false }: Props) {
+  const compact = density === 'compact' || layout === 'list';
   const detailHref = ROUTES.serviceDetail(listing.id);
   const rawImage = listing.images[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 240) : PLACEHOLDER_SVG;
@@ -33,8 +33,8 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
 
   return (
     <article className={cn('group relative h-full min-w-0', className)}>
-      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex flex-col transition-[transform,box-shadow,border-color] duration-200', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', CARD_PRESS)}>
-        <div className={CARD_IMAGE_43}>
+      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex transition-[transform,box-shadow,border-color] duration-200', layout === 'list' ? 'flex-row' : 'flex-col', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', CARD_PRESS)}>
+        <div className={cn(CARD_IMAGE_43, layout === 'list' && 'aspect-auto h-32 w-32 shrink-0 sm:h-36 sm:w-44')}>
           <SafeImage src={thumb} alt={listing.title} fill className="object-cover transition-transform duration-200 group-hover/card:scale-[1.02]" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
           <CardOfflineBadge />
           <div className="absolute start-2 top-2 z-10 flex max-w-[68%] flex-col items-start gap-1">

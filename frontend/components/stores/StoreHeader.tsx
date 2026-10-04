@@ -18,6 +18,7 @@ import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
+import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { StoreAttributesSummary } from '@/components/stores/StoreAttributesSummary';
 import { ROUTES, APP_URL } from '@/lib/constants';
@@ -377,6 +378,8 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             </ul>
           </details>
         )}
+
+        <DetailSafetyTips className="mt-4 w-full max-w-2xl text-start" />
 
         {isAuthenticated && !isOwnStore && (
           <div className="mt-3">

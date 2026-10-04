@@ -15,6 +15,7 @@ import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { ROUTES } from '@/lib/constants';
 import type { ServiceListingSortField } from '@/types/service.types';
+import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 
 export function ServiceListingsGrid() {
   const sp = useSearchParams();
@@ -40,6 +41,7 @@ export function ServiceListingsGrid() {
   const totalPages = data?.meta?.totalPages ?? 1;
   const total = data?.meta?.total ?? 0;
   const searchParams = Object.fromEntries(sp.entries());
+  const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
   // FIX UX-04: mirrors the same fix in SearchResults — a centered
   // spinner replaced the whole grid on every filter change instead of
@@ -81,7 +83,7 @@ export function ServiceListingsGrid() {
           {total > 0 ? `${total} خدمة` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
         </p>
-        <SaveSearchButton type="services" queryParamKey="search" />
+        <div className="flex items-center gap-2"><SaveSearchButton type="services" queryParamKey="search" /><ListViewToggle /></div>
       </div>
 
       {items.length === 0 ? (
@@ -91,9 +93,9 @@ export function ServiceListingsGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد خدمات مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className={cn(LIST_SERVICE_GRID_CLASS, "stagger-fade-in")}>
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_SERVICE_GRID_CLASS, 'stagger-fade-in')}>
           {items.map((listing) => (
-            <ServiceListingCard key={listing.id} listing={listing} />
+            <ServiceListingCard key={listing.id} listing={listing} density={view === 'list' ? 'compact' : 'default'} layout={view} />
           ))}
         </div>
       )}

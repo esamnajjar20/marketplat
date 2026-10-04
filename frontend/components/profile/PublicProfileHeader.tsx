@@ -10,9 +10,11 @@ import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate'
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { EditProfileButtonGate } from '@/components/profile/EditProfileButtonGate';
 import { BlockUserButtonGate } from '@/components/profile/BlockUserButtonGate';
+import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ProfileBadges } from '@/components/profile/ProfileBadges';
 import { useMemo } from 'react';
 import type { PublicUser } from '@/types/user.types';
+import { APP_URL, ROUTES } from '@/lib/constants';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { normalizePaymentMethods, type StorePaymentMethod } from '@/lib/storePaymentMethods';
 
@@ -125,6 +127,11 @@ export function PublicProfileHeader({ user }: Props) {
             useAuthStore) — only show on someone else's profile; edit
             only shows on your own. */}
         <div className="mt-4 flex w-full max-w-sm flex-wrap items-center justify-center gap-2">
+          <ShareAdButton
+            title={user.name}
+            url={`${APP_URL}${ROUTES.userProfile(user.id)}`}
+            variant="button"
+          />
           <MessageUserButtonGate targetUserId={user.id} />
           <EditProfileButtonGate targetUserId={user.id} />
           <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />

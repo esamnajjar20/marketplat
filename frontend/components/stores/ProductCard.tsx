@@ -12,13 +12,13 @@ import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { ProductAvailability, ProductWithStore } from '@/types/product.types';
 
-interface Props { product: ProductWithStore; storeId?: string; context?: CardContext; className?: string; priority?: boolean; density?: 'default' | 'compact'; showKind?: boolean;
+interface Props { product: ProductWithStore; storeId?: string; context?: CardContext; className?: string; priority?: boolean; density?: 'default' | 'compact'; layout?: 'grid' | 'list'; showKind?: boolean;
   /** في الرفوف/الشبكات المختلطة (إعلان+منتج+خدمة) تُوحَّد الصورة 4:3 كي يتساوى الارتفاع (القاعدة 4). */
   mixedList?: boolean; }
 const AVAILABILITY_LABEL: Record<ProductAvailability, string> = { IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'غير متوفر' };
 
-export function ProductCard({ product, context = 'public', className, priority = false, density = 'default', showKind = false, mixedList = false }: Props) {
-  const compact = density === 'compact';
+export function ProductCard({ product, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false, mixedList = false }: Props) {
+  const compact = density === 'compact' || layout === 'list';
   const detailHref = ROUTES.productDetail(product.id);
   const rawImage = product.images?.[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, mixedList ? 240 : 320) : PLACEHOLDER_SVG;
@@ -42,8 +42,8 @@ export function ProductCard({ product, context = 'public', className, priority =
 
   return (
     <article className={cn('group relative h-full min-w-0', className)}>
-      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex flex-col transition-[transform,box-shadow,border-color] duration-200', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', CARD_PRESS)}>
-        <div className={mixedList ? CARD_IMAGE_43 : CARD_IMAGE_SQUARE}>
+      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex transition-[transform,box-shadow,border-color] duration-200', layout === 'list' ? 'flex-row' : 'flex-col', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', CARD_PRESS)}>
+        <div className={cn(mixedList ? CARD_IMAGE_43 : CARD_IMAGE_SQUARE, layout === 'list' && 'aspect-auto h-32 w-32 shrink-0 sm:h-36 sm:w-44') }>
           <SafeImage src={thumb} alt={product.name} fill className={cn('object-cover transition-transform duration-200 group-hover/card:scale-[1.02]', outOfStock && 'opacity-60')} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
           <CardOfflineBadge />
           <div className="absolute start-2 top-2 z-10 flex max-w-[68%] flex-col items-start gap-1">

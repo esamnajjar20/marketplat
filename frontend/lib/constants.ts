@@ -1,5 +1,7 @@
 import type { AdSortField, AdSortOrder } from '@/types/ad.types';
 import type { StoreSortField } from '@/types/store.types';
+import type { ProductSortField } from '@/types/product.types';
+import type { ServiceListingSortField } from '@/types/service.types';
 import { getRawApiUrl } from './env';
 
 export const APP_NAME = 'سوق غزة';
@@ -242,6 +244,22 @@ export const AD_SORT_OPTIONS: readonly { label: string; sortBy: AdSortField; sor
 // UI was missing from the /stores page itself, leaving those params
 // reachable by hand-editing the URL only. Mirrors AD_SORT_OPTIONS' shape
 // so the new StoresFilters component can follow the same select pattern.
+export const PRODUCT_SORT_OPTIONS: readonly { label: string; sortBy: ProductSortField; sortOrder: AdSortOrder }[] = [
+  { label: 'الأحدث', sortBy: 'createdAt', sortOrder: 'desc' },
+  { label: 'الأقدم', sortBy: 'createdAt', sortOrder: 'asc' },
+  { label: 'السعر (أقل)', sortBy: 'price', sortOrder: 'asc' },
+  { label: 'السعر (أعلى)', sortBy: 'price', sortOrder: 'desc' },
+  { label: 'الأكثر مشاهدة', sortBy: 'views', sortOrder: 'desc' },
+] as const;
+
+export const SERVICE_SORT_OPTIONS: readonly { label: string; sortBy: ServiceListingSortField; sortOrder: AdSortOrder }[] = [
+  { label: 'الأحدث', sortBy: 'createdAt', sortOrder: 'desc' },
+  { label: 'الأقدم', sortBy: 'createdAt', sortOrder: 'asc' },
+  { label: 'السعر (أقل)', sortBy: 'price', sortOrder: 'asc' },
+  { label: 'السعر (أعلى)', sortBy: 'price', sortOrder: 'desc' },
+  { label: 'الأكثر مشاهدة', sortBy: 'views', sortOrder: 'desc' },
+] as const;
+
 export const STORE_SORT_OPTIONS: readonly { label: string; sortBy: StoreSortField; sortOrder: AdSortOrder }[] = [
   { label: 'الأحدث', sortBy: 'createdAt', sortOrder: 'desc' },
   { label: 'الأقدم', sortBy: 'createdAt', sortOrder: 'asc'  },

@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/ui/Button';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
+import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 import type { ProductSortField } from '@/types/product.types';
 
 /**
@@ -54,6 +55,7 @@ export function ProductsGrid() {
   const totalPages = data?.meta?.totalPages ?? 1;
   const total = data?.meta?.total ?? 0;
   const searchParams = Object.fromEntries(sp.entries());
+  const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
 
   if (isLoading && !data) {
@@ -94,7 +96,7 @@ export function ProductsGrid() {
           {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
         </p>
-        <SaveSearchButton type="products" queryParamKey="search" />
+        <div className="flex items-center gap-2"><SaveSearchButton type="products" queryParamKey="search" /><ListViewToggle /></div>
       </div>
       </div>
 
@@ -112,11 +114,9 @@ export function ProductsGrid() {
         // ~1600px instead of an extra column of actual content. Same
         // change applied to ServiceListingsGrid/search+ads
         // SearchResults/StoresGrid.
-        <div className={cn(LIST_CARD_GRID_CLASS, "stagger-fade-in")}>
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_CARD_GRID_CLASS, 'stagger-fade-in')}>
           {items.map((product) => (
-            <div key={product.id} className="space-y-1.5">
-              <ProductCard product={product} storeId={product.store.id} context="catalog" />
-            </div>
+            <div key={product.id} className="min-w-0"><ProductCard product={product} storeId={product.store.id} context="catalog" density={view === 'list' ? 'compact' : 'default'} layout={view} /></div>
           ))}
         </div>
       )}

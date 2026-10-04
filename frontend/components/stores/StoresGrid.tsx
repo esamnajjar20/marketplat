@@ -15,6 +15,7 @@ import { useStores } from '@/hooks/queries/useStores';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ROUTES } from '@/lib/constants';
 import type { StoreSortField } from '@/types/store.types';
+import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 
 /** GET /stores directory grid. Mirrors ServiceListingsGrid's layout/behaviour. */
 export function StoresGrid() {
@@ -37,6 +38,7 @@ export function StoresGrid() {
   const totalPages = data?.meta?.totalPages ?? 1;
   const total = data?.meta?.total ?? 0;
   const searchParams = Object.fromEntries(sp.entries());
+  const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
   // FIX UX-04: same fix as SearchResults/ServiceListingsGrid — a
   // centered spinner replaced the whole directory on every filter
@@ -90,10 +92,10 @@ export function StoresGrid() {
       {/* SLOW-NET phase4 */}
       <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={isPlaceholderData} />
       <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <div className="flex items-center justify-between gap-2"><p className="text-sm text-muted-foreground">
         {total > 0 ? `${total} متجر` : 'لا توجد نتائج'}
         {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
-      </p>
+      </p><ListViewToggle /></div>
 
       {items.length === 0 ? (
         <EmptyState
@@ -102,10 +104,8 @@ export function StoresGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد متاجر مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className={cn(LIST_STORE_GRID_CLASS, "stagger-fade-in")}>
-          {items.map((store) => (
-            <StoreCard key={store.id} store={store} />
-          ))}
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_STORE_GRID_CLASS, 'stagger-fade-in')}>
+          {items.map((store) => (<StoreCard key={store.id} store={store} density={view === 'list' ? 'compact' : 'default'} layout={view} />))}
         </div>
       )}
 

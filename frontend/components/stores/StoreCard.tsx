@@ -17,11 +17,12 @@ interface Props {
   className?: string;
   density?: 'default' | 'compact';
   context?: CardContext;
+  layout?: 'grid' | 'list';
 }
 
 /** Directory card for /stores — aligned with design system. */
-export function StoreCard({ store, className, density = 'default', context = 'public' }: Props) {
-  const compact = density === 'compact';
+export function StoreCard({ store, className, density = 'default', context = 'public', layout = 'grid' }: Props) {
+  const compact = density === 'compact' || layout === 'list';
   const avatar = getAvatarUrl(store.logoUrl ?? '', 96);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 720) : null;
   const rating = parseFloat(store.sellerProfile.averageRating);
@@ -37,14 +38,14 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
         href={ROUTES.storeDetail(store.id)}
         prefetch={false}
         className={cn(
-          'flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm',
-          'transition-[transform,box-shadow,border-color] duration-200',
+          'flex h-full min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm',
+          'transition-[transform,box-shadow,border-color] duration-200', layout === 'list' ? 'flex-row' : 'flex-col',
           'hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           CARD_PRESS,
         )}
       >
-        <div className="relative aspect-[3/1] overflow-hidden bg-muted">
+        <div className={cn('relative overflow-hidden bg-muted', layout === 'list' ? 'aspect-auto h-32 w-32 shrink-0 sm:h-36 sm:w-44' : 'aspect-[3/1]') }>
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, 360px" />
           ) : (

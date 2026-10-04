@@ -9,6 +9,7 @@ import { ServiceFiltersSheet } from '@/components/services/ServiceFiltersSheet';
 import { ServiceListingsGrid } from '@/components/services/ServiceListingsGrid';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
+import { ServiceSearchSortBarWrapper } from '@/components/services/ServiceSearchSortBarWrapper';
 
 export const metadata: Metadata = buildMetadata({ title: 'الخدمات', path: '/services' });
 
@@ -28,9 +29,10 @@ export default function ServicesPage() {
         </Link>
       }
       toolbar={
-        <Suspense>
-          <ServiceFiltersSheet />
-        </Suspense>
+        <>
+          <Suspense><ServiceFiltersSheet /></Suspense>
+          <div className="min-w-0 flex-1 sm:flex-none sm:w-48 lg:ms-auto"><Suspense><ServiceSearchSortBarWrapper /></Suspense></div>
+        </>
       }
       sidebar={
         <Suspense>
