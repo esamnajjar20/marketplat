@@ -5,7 +5,7 @@
  * بدون QR / مسح (مخفي لأن النظام غير مستقر) — الإضافة والتعديل اليدوي هما الأساس.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import {
   Banknote,
   Wifi,
@@ -254,6 +254,20 @@ export function SavedPaymentsPageClient() {
     window.location.href = ussdTelHref(code);
   }
 
+  const paymentTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  function handlePaymentTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next = index;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') next = index === 0 ? 1 : 0;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = 1;
+    else return;
+    event.preventDefault();
+    const nextTab = next === 0 ? 'pay' : 'cards';
+    setTab(nextTab);
+    paymentTabRefs.current[next]?.focus();
+  }
+
   return (
     <div className="space-y-6">
       {!online && (
@@ -278,9 +292,14 @@ export function SavedPaymentsPageClient() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border p-1">
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border p-1" role="tablist" aria-label="نوع المحفوظات">
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === 'pay'}
+          tabIndex={tab === 'pay' ? 0 : -1}
+          ref={(el) => { paymentTabRefs.current[0] = el; }}
+          onKeyDown={(event) => handlePaymentTabKeyDown(event, 0)}
           onClick={() => setTab('pay')}
           className={cn(
             'flex min-h-[48px] items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
@@ -292,6 +311,11 @@ export function SavedPaymentsPageClient() {
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === 'cards'}
+          tabIndex={tab === 'cards' ? 0 : -1}
+          ref={(el) => { paymentTabRefs.current[1] = el; }}
+          onKeyDown={(event) => handlePaymentTabKeyDown(event, 1)}
           onClick={() => setTab('cards')}
           className={cn(
             'flex min-h-[48px] items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
@@ -450,8 +474,8 @@ export function SavedPaymentsPageClient() {
             <DialogDescription>تُحفظ محليًا على جهازك — بدون رفع للسيرفر.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="الاسم" value={pName} onChange={(e) => setPName(e.target.value)} />
-            <Input placeholder="الرقم" value={pNumber} onChange={(e) => setPNumber(e.target.value)} dir="ltr" />
+            <Input aria-label="اسم جهة الدفع" placeholder="الاسم" value={pName} onChange={(e) => setPName(e.target.value)} />
+            <Input aria-label="رقم جهة الدفع" placeholder="الرقم" value={pNumber} onChange={(e) => setPNumber(e.target.value)} dir="ltr" />
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={pMethod}
@@ -483,8 +507,8 @@ export function SavedPaymentsPageClient() {
             <DialogTitle>تعديل جهة دفع</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="الاسم" value={pName} onChange={(e) => setPName(e.target.value)} />
-            <Input placeholder="الرقم" value={pNumber} onChange={(e) => setPNumber(e.target.value)} dir="ltr" />
+            <Input aria-label="اسم جهة الدفع" placeholder="الاسم" value={pName} onChange={(e) => setPName(e.target.value)} />
+            <Input aria-label="رقم جهة الدفع" placeholder="الرقم" value={pNumber} onChange={(e) => setPNumber(e.target.value)} dir="ltr" />
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={pMethod}
@@ -509,9 +533,9 @@ export function SavedPaymentsPageClient() {
             <DialogDescription>تُحفظ محليًا — بدون رفع للسيرفر.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
-            <Input placeholder="اسم المستخدم / الرقم" value={cUser} onChange={(e) => setCUser(e.target.value)} dir="ltr" />
-            <Input placeholder="كلمة السر" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
+            <Input aria-label="وصف البطاقة اختياري" placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
+            <Input aria-label="اسم المستخدم أو الرقم" placeholder="اسم المستخدم / الرقم" value={cUser} onChange={(e) => setCUser(e.target.value)} dir="ltr" />
+            <Input aria-label="كلمة السر" placeholder="كلمة السر" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
             <Button type="button" className="w-full" onClick={handleAddCard}>
               حفظ البطاقة
             </Button>
@@ -534,9 +558,9 @@ export function SavedPaymentsPageClient() {
             <DialogTitle>تعديل بطاقة نت</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
-            <Input placeholder="اسم المستخدم / الرقم" value={cUser} onChange={(e) => setCUser(e.target.value)} dir="ltr" />
-            <Input placeholder="كلمة السر" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
+            <Input aria-label="وصف البطاقة اختياري" placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
+            <Input aria-label="اسم المستخدم أو الرقم" placeholder="اسم المستخدم / الرقم" value={cUser} onChange={(e) => setCUser(e.target.value)} dir="ltr" />
+            <Input aria-label="كلمة السر" placeholder="كلمة السر" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
             <Button type="button" className="w-full" onClick={handleEditCard}>
               حفظ التعديلات
             </Button>
@@ -554,6 +578,7 @@ export function SavedPaymentsPageClient() {
           <div className="space-y-3">
             <Input
               placeholder="المبلغ بالشيكل"
+              aria-label="المبلغ بالشيكل"
               value={ussdAmount}
               onChange={(e) => setUssdAmount(e.target.value)}
               inputMode="decimal"

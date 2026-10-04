@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef, type KeyboardEvent } from 'react';
+
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Package, Tag, Layers, Star, Megaphone, Info, MapPin, Phone, Clock } from 'lucide-react';
 import { StoreAds } from '@/components/stores/StoreAds';
@@ -48,6 +50,23 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   const presentation = getStoreTypePresentation(store?.storeType);
   const active: Tab = TABS.some((t) => t.id === tab) ? tab : 'products';
   const tabs = TABS.map((item) => ({ ...item, label: presentation.page[item.id === 'products' ? 'products' : item.id === 'offers' ? 'offers' : item.id === 'collections' ? 'collections' : item.id === 'ads' ? 'ads' : item.id === 'reviews' ? 'reviews' : 'about'] }));
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next = index;
+    if (event.key === 'ArrowLeft') next = index + 1;
+    else if (event.key === 'ArrowRight') next = index - 1;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    const bounded = (next + tabs.length) % tabs.length;
+    const nextTab = tabs[bounded];
+    if (!nextTab) return;
+    setTab(nextTab.id);
+    tabRefs.current[bounded]?.focus();
+  }
 
   function setTab(next: Tab) {
     const params = new URLSearchParams(sp.toString());
@@ -64,12 +83,17 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
         role="tablist"
         aria-label="أقسام المتجر"
       >
-        {tabs.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon }, index) => (
           <button
             key={id}
             type="button"
             role="tab"
+            id={`store-tab-${id}`}
             aria-selected={active === id}
+            aria-controls={`store-panel-${id}`}
+            tabIndex={active === id ? 0 : -1}
+            ref={(el) => { tabRefs.current[index] = el; }}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
             onClick={() => setTab(id)}
             className={cn(
               'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors',
@@ -85,32 +109,42 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
       </div>
 
       {active === 'products' && (
-        <section className="rounded-2xl border border-border/60 bg-background/60 p-1" role="tabpanel">
+        <section className="rounded-2xl border border-border/60 bg-background/60 p-1" role="tabpanel"
+          id="store-panel-products"
+          aria-labelledby="store-tab-products">
           <StoreProducts storeId={storeId} storeName={storeName} />
         </section>
       )}
 
       {active === 'ads' && (
-        <section className="space-y-3" role="tabpanel">
+        <section className="space-y-3" role="tabpanel"
+          id="store-panel-ads"
+          aria-labelledby="store-tab-ads">
           <StoreAds storeId={storeId} storeName={storeName} />
         </section>
       )}
 
       {active === 'offers' && (
-        <section className="space-y-3" role="tabpanel">
+        <section className="space-y-3" role="tabpanel"
+          id="store-panel-offers"
+          aria-labelledby="store-tab-offers">
           <p className="text-sm text-muted-foreground">{presentation.page.offers}</p>
           <StoreProducts storeId={storeId} storeName={storeName} offersOnly />
         </section>
       )}
 
       {active === 'collections' && (
-        <section className="space-y-3" role="tabpanel">
+        <section className="space-y-3" role="tabpanel"
+          id="store-panel-collections"
+          aria-labelledby="store-tab-collections">
           <StoreCollections storeId={storeId} />
         </section>
       )}
 
       {active === 'reviews' && (
-        <section className="space-y-3" role="tabpanel">
+        <section className="space-y-3" role="tabpanel"
+          id="store-panel-reviews"
+          aria-labelledby="store-tab-reviews">
           <div className="flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-1.5 text-lg font-bold">
               <Star className="h-4 w-4 text-muted-foreground" />

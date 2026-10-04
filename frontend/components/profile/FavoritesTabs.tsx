@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, type KeyboardEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { FavoritesList } from '@/components/profile/FavoritesList';
@@ -30,6 +31,23 @@ export function FavoritesTabs() {
   const sp = useSearchParams();
   const type = (sp.get('type') as FavoritesTabValue) ?? 'ad';
 
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next = index;
+    if (event.key === 'ArrowLeft') next = index + 1;
+    else if (event.key === 'ArrowRight') next = index - 1;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = TABS.length - 1;
+    else return;
+    event.preventDefault();
+    const bounded = (next + TABS.length) % TABS.length;
+    const nextTab = TABS[bounded];
+    if (!nextTab) return;
+    handleChange(nextTab.value);
+    refs.current[bounded]?.focus();
+  }
+
   function handleChange(next: FavoritesTabValue) {
     const params = new URLSearchParams(sp.toString());
     if (next === 'ad') params.delete('type');
@@ -42,12 +60,15 @@ export function FavoritesTabs() {
   return (
     <div className="space-y-4">
       <div role="tablist" aria-label="نوع المفضلة" className="flex gap-1 overflow-x-auto border-b">
-        {TABS.map((tab) => (
+        {TABS.map((tab, index) => (
           <button
             key={tab.value}
             type="button"
             role="tab"
             aria-selected={type === tab.value}
+            tabIndex={type === tab.value ? 0 : -1}
+            ref={(el) => { refs.current[index] = el; }}
+            onKeyDown={(event) => handleKeyDown(event, index)}
             onClick={() => handleChange(tab.value)}
             className={cn(
               'min-h-11 shrink-0 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',

@@ -161,6 +161,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
                     key={`${src}-${i}`}
                     type="button"
                     onClick={() => setImgIdx(i)}
+                    aria-label={`الصورة ${i + 1} من ${thumbnailImages.length}`}
+                    aria-current={i === imgIdx ? 'true' : undefined}
                     className={cn(
                       'relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2',
                       i === imgIdx ? 'border-primary' : 'border-transparent opacity-70',
