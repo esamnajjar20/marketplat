@@ -302,6 +302,8 @@ describe('sw.js — service worker logic', () => {
         '/messages',
         '/notifications',
         '/ads/create',
+        '/ads/abc123/edit',
+        '/ads/abc123/edit/images',
         '/admin',
         '/admin/sellers',
       ];
@@ -311,7 +313,7 @@ describe('sw.js — service worker logic', () => {
     });
 
     it('does not flag public pages', () => {
-      const paths = ['/', '/ads/123', '/sellers/abc', '/login', '/register'];
+      const paths = ['/', '/ads/123', '/sellers/abc', '/ads/123/edit-not-really', '/login', '/register'];
       for (const pathname of paths) {
         expect(isProtectedPage()(new URL(`https://example.com${pathname}`))).toBe(false);
       }

@@ -30,7 +30,8 @@ export function useSavedSearches() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const cached = getOfflineList<SavedSearch>(OFFLINE_LIST_KEYS.savedSearches);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const cached = getOfflineList<SavedSearch>(OFFLINE_LIST_KEYS.savedSearches, userId);
 
   const query = useQuery({
     queryKey: queryKeys.savedSearches.all(),
@@ -41,10 +42,11 @@ export function useSavedSearches() {
           OFFLINE_LIST_KEYS.savedSearches,
           data ?? [],
           OFFLINE_LIST_LIMITS.savedSearches,
+          userId,
         );
         return data;
       } catch (err) {
-        const local = getOfflineList<SavedSearch>(OFFLINE_LIST_KEYS.savedSearches);
+        const local = getOfflineList<SavedSearch>(OFFLINE_LIST_KEYS.savedSearches, userId);
         if (local?.items.length) return local.items;
         throw err;
       }

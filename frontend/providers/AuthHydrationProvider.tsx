@@ -284,7 +284,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // intentionally NOT threaded through `controller.signal`, so a
         // slow network doesn't extend this effect's own 8s window and
         // an early unmount doesn't cancel the warmup for nothing.
-        void warmSelfDataForOffline(queryClient);
+        void warmSelfDataForOffline(queryClient, user.id);
 
         // AUDIT-FIX M-1: prefetch page 1 of favorites so the ids Set is
         // populated app-wide before the user visits /dashboard or
@@ -459,7 +459,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
               cookieMaxAgeFromExpiresIn(retryExpires);
             setCookie('app_user_role', retryUser.role, retryCookieMaxAge);
 
-            void warmSelfDataForOffline(queryClient);
+            void warmSelfDataForOffline(queryClient, retryUser.id);
             console.info('[auth] session recovered after refresh-race retry');
             return; // success — skip the original error handling entirely
           } catch (retryErr) {

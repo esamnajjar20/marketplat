@@ -24,6 +24,7 @@ export function useMyActivity(params?: ActivityQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   // FIX ACTIVITY-OFFLINE-CACHE-SCOPE-01: `isBase` only checked page,
   // but ActivityQuery (types/activity.types.ts) also carries three
   // filter fields — type, group, and q. A type-filtered or
@@ -59,7 +60,7 @@ export function useMyActivity(params?: ActivityQuery) {
     params?.limit !== undefined;
   const isBase = (!params?.page || params.page === 1) && !hasRealFilter;
   const cached = isBase
-    ? getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity)
+    ? getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity, userId)
     : null;
 
   // FIX ACTIVITY-DOUBLE-SAVE-01: the offline list was being written
@@ -81,12 +82,13 @@ export function useMyActivity(params?: ActivityQuery) {
             OFFLINE_LIST_KEYS.activity,
             data.items,
             OFFLINE_LIST_LIMITS.activity,
+            userId,
           );
         }
         return data;
       } catch (err) {
         if (isBase) {
-          const local = getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity);
+          const local = getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity, userId);
           if (local?.items.length) {
             return {
               items: local.items,

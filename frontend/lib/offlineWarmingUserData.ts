@@ -294,7 +294,7 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
       try {
         const { getQueryClient } = await import('@/lib/queryClient');
         const { warmSelfDataForOffline } = await import('@/lib/offlineSelfWarm');
-        await warmSelfDataForOffline(getQueryClient());
+        await warmSelfDataForOffline(getQueryClient(), userId);
       } catch (err) {
         console.warn('[user-data] self-warm failed:', err);
       }

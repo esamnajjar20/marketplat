@@ -45,24 +45,27 @@ import {
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 
-export async function warmSelfDataForOffline(queryClient: QueryClient): Promise<void> {
+export async function warmSelfDataForOffline(
+  queryClient: QueryClient,
+  userId: string | null | undefined,
+): Promise<void> {
   await Promise.allSettled([
     (async () => {
       const data = await sellersApi.getMyProfile().then((r) => r.data.data);
       if (!data) return;
-      saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data);
+      saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data, userId);
       queryClient.setQueryData(queryKeys.sellers.me(), data);
     })(),
     (async () => {
       const data = await storesApi.getMyStore().then((r) => r.data.data);
       if (!data) return;
-      saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data);
+      saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data, userId);
       queryClient.setQueryData(queryKeys.stores.me(), data);
     })(),
     (async () => {
       const data = await serviceProvidersApi.getMyProvider().then((r) => r.data.data);
       if (!data) return;
-      saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data);
+      saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data, userId);
       queryClient.setQueryData(queryKeys.serviceProviders.me(), data);
     })(),
     // FIX CATEGORIES-OFFLINE-01: category trees are needed for EVERY

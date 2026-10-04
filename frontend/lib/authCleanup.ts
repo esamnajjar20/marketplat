@@ -31,6 +31,7 @@ import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearAppBadge } from '@/lib/appBadge';
 import { clearRecentSearches } from '@/lib/recentSearches';
 import { clearAutoReadCache } from '@/lib/offlineAutoRead';
+import { clearOfflineActivity } from '@/lib/offlineActivityLog';
 import { clearPersonalWarmingState } from '@/lib/offlineWarmingState';
 import { clearNativeSessionMeta } from '@/lib/capacitor/nativeSessionStorage';
 
@@ -180,6 +181,10 @@ export async function clearSensitiveLocalData(): Promise<void> {
   // يمنع ظهور إشعارات المستخدم السابق على جهاز مشترك بعد تسجيل الدخول
   // بحساب آخر.
   clearNotificationsCache();
+  // Offline activity can contain session-specific counts/messages; clear it
+  // when the session changes so a shared device does not expose the prior
+  // account's offline history after logout or account switch.
+  clearOfflineActivity();
   // FIX AUTH-CLEAR-RECENT-SEARCHES-01: recentSearches.ts stores
   // the user's history in its own localStorage key
   // ('marketplat:recent-searches-v2'), which clearAllOfflineLists()

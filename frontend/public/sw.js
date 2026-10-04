@@ -262,6 +262,20 @@ const QUEUE_STRIP_HEADERS = new Set([
   'authorization',
 ]);
 
+function decodeAccessTokenUserId(token) {
+  if (typeof token !== 'string' || !token) return null;
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const normalized = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
+    return typeof payload?.userId === 'string' && payload.userId ? payload.userId : null;
+  } catch {
+    return null;
+  }
+}
+
 function sanitizeQueueHeaders(raw) {
   const out = {};
   if (!raw || typeof raw !== 'object') return out;
@@ -312,7 +326,10 @@ const API_PATH_PREFIX = '/api/v1';
  * صفحات محمية/شخصية — لا تُقرأ ولا تُكتب أبدًا في STATIC_CACHE (audit #7):
  * محتواها خاص بالمستخدم، وتخزينه يخاطر بعرضه لمستخدم آخر على نفس الجهاز.
  */
+const PROTECTED_AD_EDIT_RE = /^\/ads\/[^/]+\/edit(?:\/.*)?$/;
+
 function isProtectedPage(url) {
+  if (PROTECTED_AD_EDIT_RE.test(url.pathname)) return true;
   const protectedPrefixes = [
     '/dashboard',
     '/settings',
@@ -530,6 +547,7 @@ function isPersonalShellRoute(url) {
   // + بادئات للفروع (محادثة، منتج متجر، إعدادات فرعية…).
   // لا يشمل /admin أبدًا.
   const path = url.pathname;
+  if (PROTECTED_AD_EDIT_RE.test(path)) return false;
   const exact = [
     '/messages',
     '/notifications',
@@ -1715,15 +1733,49 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         authorization: `Bearer ${freshCreds.accessToken}`,
       };
     }
-    const response = await fetch(entry.url, {
-      method: entry.method,
-      headers: sendHeaders,
-      body: entry.body ?? undefined,
-      // FIX SW-CREDENTIALS-01: 'include' بدل 'same-origin' — Backend على
-      // origin مختلف (Render)، فلزم إرسال cookies (refreshToken في httpOnly
-      // cookie) للاتساق مع refreshAccessToken الذي يستخدم 'include'.
-      credentials: 'include',
-    });
+    if (queueClearInFlight) return 'still-offline';
+    // Defense-in-depth for shared devices: the queue records the user id
+    // from the access token at enqueue time, without storing the token. If
+    // a stale row survives an account switch, never send it as the new user.
+    // Legacy rows may still carry Authorization and are decoded on demand.
+    const queuedOwner =
+      entry.ownerUserId || decodeAccessTokenUserId(entry.headers?.authorization);
+    const currentOwner = freshCreds ? decodeAccessTokenUserId(freshCreds.accessToken) : null;
+    if (queuedOwner && currentOwner && queuedOwner !== currentOwner) {
+      await markQueuedEntry(entry.id, {
+        status: 'failed',
+        lastError: {
+          status: 403,
+          message: 'هذه العملية مرتبطة بحساب آخر ولن تُرسل بهذا الحساب',
+        },
+      });
+      await notifyClients({
+        type: 'QUEUE_ITEM_FAILED',
+        id: entry.id,
+        url: entry.url,
+        status: 403,
+        message: 'هذه العملية مرتبطة بحساب آخر ولن تُرسل بهذا الحساب',
+        operationId: entry.operationId || null,
+      });
+      return 'failed';
+    }
+    const replayController = new AbortController();
+    activeReplayControllers.add(replayController);
+    let response;
+    try {
+      response = await fetch(entry.url, {
+        method: entry.method,
+        headers: sendHeaders,
+        body: entry.body ?? undefined,
+        signal: replayController.signal,
+        // FIX SW-CREDENTIALS-01: 'include' بدل 'same-origin' — Backend على
+        // origin مختلف (Render)، فلزم إرسال cookies (refreshToken في httpOnly
+        // cookie) للاتساق مع refreshAccessToken الذي يستخدم 'include'.
+        credentials: 'include',
+      });
+    } finally {
+      activeReplayControllers.delete(replayController);
+    }
 
     if (response.ok) {
       await deleteQueuedEntry(entry.id);
@@ -1974,9 +2026,11 @@ function isOrderSensitiveQueueEntry(entry) {
 // يُشغَّل 2-4 مرات متوازية، كل واحد يقرأ نفس العناصر من IndexedDB
 // قبل حذفها → POSTs مكررة لنفس الإعلان/الرسالة.
 let replayQueueInFlight = false;
+let queueClearInFlight = false;
+const activeReplayControllers = new Set();
 
 async function replayQueue() {
-  if (replayQueueInFlight) return;
+  if (queueClearInFlight || replayQueueInFlight) return;
   replayQueueInFlight = true;
   try {
     await replayQueueImpl();
@@ -2276,6 +2330,7 @@ async function handleMutation(request) {
     }
 
     const headers = {};
+    let ownerUserId = null;
     // FIX QUEUE-CSRF-STALE-01: strip x-csrf-token at queue time and
     // record only that the entry needs one.
     let needsCsrf = false;
@@ -2290,6 +2345,7 @@ async function handleMutation(request) {
       }
       if (lower === 'authorization') {
         needsAuth = true;
+        ownerUserId = decodeAccessTokenUserId(value);
         return;
       }
       // FIX OFFLINE-QUEUE-RELIABILITY-01: لا نخزّن headers تُكسر الـ replay
@@ -2313,6 +2369,7 @@ async function handleMutation(request) {
         priority,
         needsCsrf,
         needsAuth,
+        ownerUserId,
         retryCount: 0,
       };
       // PHASE-4: merge offline analytics beacons into one queue row
@@ -2505,15 +2562,24 @@ self.addEventListener('message', (event) => {
   if (type === 'CLEAR_QUEUE') {
     event.waitUntil(
       (async () => {
+        queueClearInFlight = true;
+        // Abort mutations currently on the wire before deleting their
+        // IndexedDB rows. Logout must not race a replay and let an old
+        // user's mutation reach the server after local session teardown.
+        activeReplayControllers.forEach((controller) => {
+          try { controller.abort(); } catch {}
+        });
         try {
           const all = await getAllQueuedEntries();
           for (const entry of all) {
             await deleteQueuedEntry(entry.id);
           }
-          await notifyClients({ type: 'QUEUE_REPLAYED' });
+          await notifyClients({ type: 'QUEUE_CLEARED' });
         } catch (err) {
-          // لا توقف الـ SW إن فشل الحذف.
           console.warn('[SW] CLEAR_QUEUE failed:', err);
+          await notifyClients({ type: 'QUEUE_CLEAR_FAILED' });
+        } finally {
+          queueClearInFlight = false;
         }
       })(),
     );
@@ -2573,7 +2639,7 @@ self.addEventListener('message', (event) => {
         // Short delay so page refreshSessionShared can complete; then
         // drain the whole queue (single-entry path lacked creds).
         await new Promise((r) => setTimeout(r, 400));
-        await replayQueueImpl();
+        await replayQueue();
         await notifyClients({ type: 'QUEUE_REPLAYED' });
       })(),
     );

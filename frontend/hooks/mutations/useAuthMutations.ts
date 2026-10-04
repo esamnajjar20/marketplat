@@ -143,7 +143,7 @@ export function useLogin() {
       // a prior stop at /dashboard or /my-services. See
       // lib/offlineSelfWarm.ts's header for the exact gap this closes.
       // Fire-and-forget — must not delay the toast/navigate below.
-      void warmSelfDataForOffline(queryClient);
+      void warmSelfDataForOffline(queryClient, data.user.id);
 
       // Background fetch to enrich user with avatarUrl/city.
       // FIX ME-QUERY-UNIFY-01: was a direct usersApi.getMe() call here,
@@ -232,7 +232,7 @@ export function useRegister() {
       // profile setup in a prior session and is re-registering on a
       // shared device, this still saves a network round trip on the
       // first visit to any create page. Harmless when it 404s.
-      void warmSelfDataForOffline(queryClient);
+      void warmSelfDataForOffline(queryClient, data.user.id);
       // Gap #7 (product analytics): completes the signup funnel this
       // event pairs with (see RegisterForm.tsx's SIGNUP_STARTED on
       // mount, and backend's analyticsRepository.signupFunnelSessions).

@@ -266,13 +266,72 @@ function setLastReplayAt(value: number): void {
  * يُرسل رسالة للـ SW (owner الفعلي للطابور) بدل الكتابة مباشرة — تفادياً
  * لتعارض محتمل مع replay جارٍ.
  */
+async function clearQueueDirectly(): Promise<void> {
+  const db = await openQueueDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('queue clear failed'));
+    tx.onabort = () => reject(tx.error ?? new Error('queue clear aborted'));
+  });
+}
+
+/**
+ * Clears the queue and waits for the SW to finish. Logout/account-switch
+ * cleanup must not merely enqueue a CLEAR_QUEUE message and continue: the
+ * next user could otherwise start a replay before the old rows disappear.
+ * A bounded direct-IDB fallback covers development/private contexts where no
+ * active SW exists.
+ */
 export async function clearOfflineQueue(): Promise<void> {
-  if (!('serviceWorker' in navigator)) return;
   try {
+    if (!('serviceWorker' in navigator)) {
+      await clearQueueDirectly();
+      return;
+    }
     const registration = await getActiveSW();
-    registration?.active?.postMessage({ type: 'CLEAR_QUEUE' });
+    const worker = registration?.active;
+    if (!worker) {
+      await clearQueueDirectly();
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = (err?: Error) => {
+        if (settled) return;
+        settled = true;
+        navigator.serviceWorker.removeEventListener('message', onMessage);
+        window.clearTimeout(timeoutId);
+        err ? reject(err) : resolve();
+      };
+      const onMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'QUEUE_CLEARED') finish();
+        else if (event.data?.type === 'QUEUE_CLEAR_FAILED') {
+          finish(new Error('Service Worker failed to clear offline queue'));
+        }
+      };
+      const timeoutId = window.setTimeout(() => {
+        finish(new Error('Service Worker queue clear timed out'));
+      }, 5_000);
+      navigator.serviceWorker.addEventListener('message', onMessage);
+      try {
+        worker.postMessage({ type: 'CLEAR_QUEUE' });
+      } catch (err) {
+        finish(err instanceof Error ? err : new Error('Unable to message Service Worker'));
+      }
+    });
   } catch (err) {
-    console.warn('[queue] clearOfflineQueue failed:', err);
+    // If the SW is unavailable or failed to acknowledge, remove the rows
+    // directly. This is preferable to leaving another user's mutations on
+    // disk after logout.
+    try {
+      await clearQueueDirectly();
+    } catch (directErr) {
+      console.warn('[queue] clearOfflineQueue failed:', err, directErr);
+      throw directErr;
+    }
   }
 }
 

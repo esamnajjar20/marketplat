@@ -207,6 +207,7 @@ export function useRelatedAds(id: string) {
  * FIX C-06: URL is /ads/me (was /ads/my in old code — fixed in ads.api.ts).
  */
 export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>) {
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   // FIX ADS-OFFLINE-CACHE-SCOPE-01 (same as useAds above): a
   // status-filtered first page (e.g. my SOLD ads) was being written
   // into the generic myAds offline slot, so a later unfiltered offline
@@ -214,7 +215,7 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
   const isBase =
     (!params?.page || params.page === 1) &&
     params?.status === undefined;
-  const cached = isBase ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds) : null;
+  const cached = isBase ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds, userId) : null;
 
   return useQuery({
     queryKey:        queryKeys.ads.mine(params),
@@ -226,12 +227,13 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
             OFFLINE_LIST_KEYS.myAds,
             data.items,
             OFFLINE_LIST_LIMITS.myAds,
+            userId,
           );
         }
         return data;
       } catch (err) {
         if (isBase) {
-          const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds);
+          const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds, userId);
           if (local?.items.length) {
             return { items: local.items, meta: offlineMeta(local.items.length) };
           }

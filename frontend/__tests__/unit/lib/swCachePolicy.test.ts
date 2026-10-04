@@ -11,6 +11,10 @@ const read = (rel: string) => readFileSync(path.resolve(__dirname, rel), 'utf-8'
 const sw = read('../../../public/sw.js');
 const userData = read('../../../lib/offlineWarmingUserData.ts');
 const authCleanup = read('../../../lib/authCleanup.ts');
+const activityHook = read('../../../hooks/queries/useActivity.ts');
+const savedSearchesHook = read('../../../hooks/queries/useSavedSearches.ts');
+const adsHook = read('../../../hooks/queries/useAds.ts');
+const selfWarm = read('../../../lib/offlineSelfWarm.ts');
 
 function fnBody(src: string, name: string): string {
   const start = src.indexOf(`async function ${name}(`);
@@ -22,6 +26,11 @@ function fnBody(src: string, name: string): string {
 }
 
 describe('service worker cache policy', () => {
+  it('protects the legacy ad-edit route from shared page caching', () => {
+    expect(sw).toMatch(/PROTECTED_AD_EDIT_RE/);
+    expect(sw).toMatch(/PROTECTED_AD_EDIT_RE\.test\(url\.pathname\)/);
+  });
+
   it('does not bypass the image cache (no TEMP DEBUG)', () => {
     expect(sw).not.toMatch(/TEMP DEBUG/);
     expect(sw).toMatch(/respondWith\(cacheFirstImage\(event, request, url\)\)/);
@@ -51,6 +60,39 @@ describe('user-data warming', () => {
     expect(userData).toMatch(/if \(r\.ok\) completed \+= 1;/);
     expect(userData).toMatch(/usedSession && !useAuthStore\.getState\(\)\.isAuthenticated/);
   });
+});
+
+
+describe('offline identity and cleanup hardening', () => {
+  it('keeps owner-scoped offline lists tied to the current user', () => {
+    expect(activityHook).toMatch(/getOfflineList<UserActivity>\(OFFLINE_LIST_KEYS\.activity, userId\)/);
+    expect(activityHook).toMatch(/OFFLINE_LIST_LIMITS\.activity,\s*userId/);
+    expect(savedSearchesHook).toMatch(/getOfflineList<SavedSearch>\(OFFLINE_LIST_KEYS\.savedSearches, userId\)/);
+    expect(savedSearchesHook).toMatch(/OFFLINE_LIST_LIMITS\.savedSearches,\s*userId/);
+    expect(adsHook).toMatch(/getOfflineList<AdListItem>\(OFFLINE_LIST_KEYS\.myAds, userId\)/);
+    expect(adsHook).toMatch(/OFFLINE_LIST_LIMITS\.myAds,\s*userId/);
+  });
+
+  it('passes the authenticated user id into self-profile warming', () => {
+    expect(selfWarm).toMatch(/warmSelfDataForOffline\(\s*queryClient,\s*userId/);
+    expect(selfWarm).toMatch(/saveOfflineJson\(OFFLINE_JSON_KEYS\.sellerProfileSelf, data, userId\)/);
+    expect(selfWarm).toMatch(/saveOfflineJson\(OFFLINE_JSON_KEYS\.storeSelf, data, userId\)/);
+    expect(selfWarm).toMatch(/saveOfflineJson\(OFFLINE_JSON_KEYS\.serviceProviderSelf, data, userId\)/);
+  });
+
+  it('clears offline activity during session cleanup', () => {
+    expect(authCleanup).toMatch(/import \{ clearOfflineActivity \} from '@\/lib\/offlineActivityLog'/);
+    expect(authCleanup).toMatch(/clearOfflineActivity\(\)/);
+  });
+
+  it('waits for the service worker queue-clear acknowledgement', () => {
+    const queue = read('../../../lib/offlineQueue.ts');
+    expect(queue).toMatch(/QUEUE_CLEARED/);
+    expect(queue).toMatch(/QUEUE_CLEAR_FAILED/);
+    expect(queue).toMatch(/5_000/);
+    expect(queue).toMatch(/clearQueueDirectly/);
+  });
+
 });
 
 describe('logout cleanup', () => {
