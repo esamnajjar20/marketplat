@@ -153,7 +153,7 @@ export function SuggestionsPageClient() {
               {item.kind === 'ad' ? (
                 <AdCard ad={item.data} context="featured" density="compact" showKind />
               ) : item.kind === 'product' ? (
-                <ProductCard product={item.data} context="featured" density="compact" showKind />
+                <ProductCard product={item.data} context="featured" density="compact" showKind mixedList />
               ) : (
                 <ServiceListingCard listing={item.data} context="featured" density="compact" showKind />
               )}

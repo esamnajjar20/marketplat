@@ -256,7 +256,7 @@ export function EntityFavoritesList({ type }: Props) {
       <div
         className={
           type === 'STORE'
-            ? 'grid grid-cols-1 sm:grid-cols-2 gap-3 stagger-fade-in'
+            ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in' /* FIX ENTLIST-GRID: Rule 11 */
             : 'grid grid-cols-2 lg:grid-cols-3 gap-3 stagger-fade-in'
         }
       >

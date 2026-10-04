@@ -2,12 +2,12 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
 /** هيكل بطاقة منتج — نفس نسبة الصورة والحشوة لـProductCard. */
-export function ProductCardSkeleton({ density = 'default' }: { density?: 'default' | 'compact' }) {
+export function ProductCardSkeleton({ density = 'default', mixedList = false }: { density?: 'default' | 'compact'; mixedList?: boolean }) {
   const compact = density === 'compact';
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
       <div className="relative">
-        <Skeleton className={cn('w-full rounded-none', compact ? 'aspect-[3/2]' : 'aspect-[4/3]')} />
+        <Skeleton className={cn('w-full rounded-none', mixedList ? 'aspect-[4/3]' : 'aspect-square')} />
         <Skeleton className="absolute end-2 top-2 h-9 w-9 rounded-full" />
       </div>
       <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>

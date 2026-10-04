@@ -22,7 +22,8 @@ export function RelatedAds({ adId }: Props) {
           <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
           إعلانات مشابهة
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        {/* FIX RELATEDADS-GRID: matches CARD_GRID_CLASS (Rule 11). */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       </section>

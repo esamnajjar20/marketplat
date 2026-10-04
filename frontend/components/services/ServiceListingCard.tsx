@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { CardKindBadge, CardOfflineBadge, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
-import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_IMAGE_43, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
+import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_HEART_POSITION, CARD_IMAGE_43, CARD_PRESS, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
@@ -15,11 +14,11 @@ import type { ServiceListingWithProvider, ServiceAvailability } from '@/types/se
 
 interface Props { listing: ServiceListingWithProvider; context?: CardContext; className?: string; priority?: boolean; density?: 'default' | 'compact'; showKind?: boolean; }
 const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = { AVAILABLE: 'متاح الآن', BUSY: 'مشغول', UNAVAILABLE: 'غير متاح' };
+const AVAILABILITY_VARIANT: Record<ServiceAvailability, 'overlay-success' | 'warning' | 'secondary'> = { AVAILABLE: 'overlay-success', BUSY: 'warning', UNAVAILABLE: 'secondary' };
 const SERVICE_LOCATION_HINT: Record<string, string> = { AT_CUSTOMER: 'عند العميل', AT_PROVIDER: 'عند مقدم الخدمة', REMOTE: 'عن بُعد' };
 
 export function ServiceListingCard({ listing, context = 'public', className, priority = false, density = 'default', showKind = false }: Props) {
   const compact = density === 'compact';
-  const router = useRouter();
   const detailHref = ROUTES.serviceDetail(listing.id);
   const rawImage = listing.images[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 240) : PLACEHOLDER_SVG;
@@ -28,22 +27,20 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
   const now = useNowAfterMount();
   const timeColorClass = freshnessClass(now, listing.createdAt);
   const showLocation = context !== 'store' && context !== 'owner';
-  const showTime = context === 'public' || context === 'favorites' || context === 'featured';
-  const showProvider = context === 'favorites';
+  const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
+  const showProvider = context === 'favorites' || context === 'catalog';
   const showHeart = context !== 'owner';
-  function warmDetail() { router.prefetch(detailHref); }
 
   return (
     <article className={cn('group relative h-full min-w-0', className)}>
-      <Link href={detailHref} prefetch={false} onPointerEnter={warmDetail} onFocus={warmDetail} className={cn(CARD_SHELL, 'group/card flex flex-col transition-[transform,box-shadow,border-color] duration-200', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', 'active:scale-[0.99]')}>
+      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex flex-col transition-[transform,box-shadow,border-color] duration-200', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', CARD_PRESS)}>
         <div className={CARD_IMAGE_43}>
           <SafeImage src={thumb} alt={listing.title} fill className="object-cover transition-transform duration-200 group-hover/card:scale-[1.02]" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
           <CardOfflineBadge />
           <div className="absolute start-2 top-2 z-10 flex max-w-[68%] flex-col items-start gap-1">
             {showKind && <CardKindBadge kind="service" />}
-            <Badge size="xs" variant="overlay">{AVAILABILITY_LABEL[listing.provider.availabilityStatus]}</Badge>
+            <Badge size="xs" variant={AVAILABILITY_VARIANT[listing.provider.availabilityStatus]}>{AVAILABILITY_LABEL[listing.provider.availabilityStatus]}</Badge>
           </div>
-          {showHeart && <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} size="sm" className={`absolute end-2 top-2 z-20 !h-9 !w-9 bg-background/95 shadow-md backdrop-blur ${HIT_AREA}`} />}
         </div>
         <div className={compact ? CARD_BODY_COMPACT : CARD_BODY_DEFAULT}>
           <div className="flex min-h-6 flex-wrap items-baseline gap-1.5"><span dir="ltr" className={cn('font-mono font-bold tabular-nums tracking-tight text-primary', compact ? 'text-base' : 'text-lg')}>{priceLabel}</span>{listing.pricingType === 'NEGOTIABLE' && <Badge size="xs" variant="soft">قابل للتفاوض</Badge>}</div>
@@ -56,6 +53,7 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
           </div>
         </div>
       </Link>
+      {showHeart && <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
     </article>
   );
 }

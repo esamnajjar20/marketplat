@@ -12,3 +12,17 @@ export function freshnessClass(now: number | null, createdAt: string): string {
 
 export const TIME_PLACEHOLDER = '\u00A0';
 export const HIT_AREA = "after:absolute after:-inset-1.5 after:content-['']";
+
+/** القاعدة 8: صفّان من الشارات كحد أقصى فوق الصورة. */
+export const CARD_MAX_BADGES = 2;
+/** القاعدة 12: ضغط خفيف فقط. */
+export const CARD_PRESS = 'active:scale-[0.98]';
+/** القاعدة 7: زر القلب — end-2 top-2، 36px، خارج الـLink. */
+export const CARD_HEART_POSITION = 'absolute end-2 top-2 z-20';
+export const CARD_PRICE_UNSET = 'السعر غير معلن';
+
+/** Rule 7 + 10: heart button styles shared between AdCard and FavoriteButton variant="card". */
+export const CARD_HEART_BUTTON_BASE = 'flex items-center justify-center rounded-full backdrop-blur transition-transform active:scale-90 disabled:opacity-60';
+export const CARD_HEART_BUTTON_BG = 'bg-background/95 shadow-md';
+export const CARD_HEART_ICON_FILLED = 'fill-rating text-rating';
+export const CARD_HEART_ICON_OUTLINE = 'text-foreground/80';

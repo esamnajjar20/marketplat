@@ -10,7 +10,7 @@ export function AdCardSkeleton({ density = 'default' }: { density?: 'default' | 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
       <div className="relative">
-        <Skeleton className={cn('w-full rounded-none', compact ? 'aspect-[3/2]' : 'aspect-[4/3]')} />
+        <Skeleton className={cn('w-full rounded-none', 'aspect-[4/3]')} />
         <Skeleton className="absolute end-2 top-2 h-9 w-9 rounded-full" />
       </div>
       <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>

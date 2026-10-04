@@ -7,7 +7,7 @@ import { BadgeCheck, Star, MapPin, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
-import { HIT_AREA } from '@/components/shared/cards/cardTokens';
+import { CARD_HEART_POSITION, CARD_PRESS, HIT_AREA } from '@/components/shared/cards/cardTokens';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { getStoreTypePresentation, type StoreWithSeller } from '@/types/store.types';
 import { CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
@@ -41,10 +41,10 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
           'transition-[transform,box-shadow,border-color] duration-200',
           'hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          'active:scale-[0.99]',
+          CARD_PRESS,
         )}
       >
-        <div className={cn('relative overflow-hidden bg-muted', compact ? 'h-20' : 'h-24 sm:h-28')}>
+        <div className="relative aspect-[3/1] overflow-hidden bg-muted">
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover transition-transform duration-300 group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, 360px" />
           ) : (
@@ -53,7 +53,7 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
           <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" aria-hidden />
           <CardOfflineBadge />
           {store.plan === 'FEATURED' && (
-            <Badge size="sm" variant="soft-accent" className="absolute start-3 top-3 gap-1 bg-background/85 backdrop-blur">
+            <Badge size="sm" variant="soft-accent" className="absolute start-2 top-2 gap-1 bg-background/85 backdrop-blur">
               <Sparkles className="h-3 w-3" aria-hidden />
               مميز
             </Badge>
@@ -99,7 +99,7 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
         </div>
       </Link>
 
-      {showHeart && <FavoriteButton entityType="STORE" entityId={store.id} size="sm" className={`absolute top-2 end-2 ${HIT_AREA}`} />}
+      {showHeart && <FavoriteButton entityType="STORE" entityId={store.id} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
     </article>
   );
 }
