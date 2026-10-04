@@ -21,15 +21,15 @@ export interface ListPageShellProps {
 
 /** Consistent product/ad/search card grid on browse pages. */
 export const LIST_CARD_GRID_CLASS =
-  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4';
+  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';
 
 /** Store directory cards (horizontal layout — fewer columns). */
 export const LIST_STORE_GRID_CLASS =
-  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4';
+  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';
 
 /** Service listing cards. */
 export const LIST_SERVICE_GRID_CLASS =
-  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4';
+  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';
 
 export function ListPageShell({
   icon,

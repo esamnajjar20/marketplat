@@ -85,7 +85,7 @@ export function AvailabilityCalendar({ providerId, onSelectRange, className }: P
               key={range.start}
               type="button"
               onClick={() => onSelectRange?.(range)}
-              className="rounded-md border px-3 py-2 text-sm text-center hover:bg-primary/10 hover:border-primary transition-colors"
+              className="min-h-11 rounded-md border px-3 py-2 text-sm text-center hover:bg-primary/10 hover:border-primary transition-colors active:scale-[0.99]"
             >
               {formatTime(range.start)} – {formatTime(range.end)}
             </button>

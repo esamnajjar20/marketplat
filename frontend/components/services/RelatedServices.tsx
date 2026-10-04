@@ -38,7 +38,7 @@ export function RelatedServices({
           <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
           {title}
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
           {Array.from({ length: 4 }).map((_, i) => (
             <ServiceListingCardSkeleton key={i} />
           ))}

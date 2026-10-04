@@ -69,7 +69,7 @@ export function CreateAppointmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>حجز موعد</DialogTitle>
         </DialogHeader>
