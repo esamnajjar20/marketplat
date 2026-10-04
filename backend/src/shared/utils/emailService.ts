@@ -12,7 +12,7 @@ import { logger } from './logger';
  * an SMTP relay (Gmail, AWS SES, SendGrid, Resend, Mailgun, a self-hosted
  * Postfix, etc.) without locking the project into one vendor's SDK.
  *
- * Degrades gracefully: if SMTP isn't configured (env.email.isConfigured
+ * Degrades gracefully: if no email provider is configured (env.email.isConfigured
  * is false — the default in dev/test/CI without real credentials), every
  * send function logs what *would* have been sent instead of throwing.
  * This matches the existing project convention for optional third-party
@@ -372,7 +372,7 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     // thing that happened (logger.info with the token). Now it's
     // explicitly the *fallback* path, clearly labeled, so it's obvious
     // in logs that an email was supposed to go out but SMTP isn't set up.
-    logger.warn('[EMAIL NOT SENT — SMTP not configured] Would have sent email', {
+    logger.warn('[EMAIL NOT SENT — no email provider configured] Would have sent email', {
       to: options.to,
       subject: options.subject,
     });

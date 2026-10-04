@@ -317,20 +317,11 @@ const envSchema = z.object({
   // architectural limit — tune per deployment if real query patterns
   // need more.
   ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default('10000'),
-  // PROD-FIX-03: /metrics was previously unauthenticated at the
-  // application level with only a code comment recommending a
-  // reverse-proxy allowlist — no such reverse-proxy config exists
-  // anywhere in this repo, so a deployment that doesn't add its own
-  // network-level restriction exposes internal route structure (every
-  // req.route label value ever observed) to anyone who requests the
-  // URL. Optional, like CLOUDINARY_*/SMTP_*/SENTRY_DSN — if unset,
-  // /metrics keeps its previous unauthenticated behavior (matches
-  // /health, /ready — meant to be reachable by an infra scraper with
-  // no credentials). If set, GET /metrics requires this exact value
-  // in an `Authorization: Bearer <token>` header. This does not
-  // replace a real network-level restriction (a reverse-proxy
-  // allowlist is still the more robust fix) — it's a zero-infra
-  // baseline for deployments that haven't set one up yet.
+  // PROD-FIX-03 (optional for now): if set, GET /metrics requires
+  // Authorization: Bearer <token>. Unset by default — /metrics stays
+  // unauthenticated (matches /health, /ready), which is only safe if
+  // it's also restricted at the network level. TODO: enforce in
+  // production before launch.
   METRICS_TOKEN: z.string().optional(),
   // CENTRALIZE-04: previously read directly via process.env in
   // rateLimit.middleware.ts with no schema entry — worked, but meant
@@ -690,15 +681,15 @@ export const env = {
     // env.email.fromEmail silently ignores a configured Resend key.
     fromEmail: (_env.SMTP_FROM_EMAIL || _env.GMAIL_USER || 'no-reply@example.com').trim(),
     fromName: _env.SMTP_FROM_NAME || 'سوق غزة',
-    // Email sending is considered "configured" only once host+user+password
-    // are all present — partial config (e.g. just a from-address) isn't
-    // enough to attempt a real SMTP connection.
-    // FIX GMAIL-OAUTH-EMAIL-01: "configured" now means any of the
-    // three senders is usable: Gmail OAuth, Resend, or legacy SMTP.
+    // Email sending is considered configured only when the selected
+    // provider has everything it needs to actually send a message.
+    // This mirrors the production validation above and prevents a partial
+    // Gmail configuration from entering the Gmail path with missing OAuth
+    // client credentials.
     isConfigured: Boolean(
-      (_env.GMAIL_USER && _env.GOOGLE_REFRESH_TOKEN) ||
-      _env.RESEND_API_KEY ||
-      (_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD)
+      (_env.GMAIL_USER && _env.GOOGLE_REFRESH_TOKEN && _env.GOOGLE_CLIENT_ID && _env.GOOGLE_CLIENT_SECRET) ||
+      (_env.RESEND_API_KEY && _env.SMTP_FROM_EMAIL) ||
+      (_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD && _env.SMTP_FROM_EMAIL)
     ),
     // T590 — see schema entry above for the full rationale.
     verificationGating: _env.EMAIL_VERIFICATION_GATING,
@@ -764,7 +755,7 @@ export const env = {
   observability: {
     sentryDsn: _env.SENTRY_DSN || '',
     sentryTracesSampleRate: parseFloat(_env.SENTRY_TRACES_SAMPLE_RATE),
-    metricsToken: _env.METRICS_TOKEN || '',
+    metricsToken: (_env.METRICS_TOKEN || '').trim(),
     errorReporterWebhookUrl: _env.ERROR_REPORTER_WEBHOOK_URL || '',
   },
   // CENTRALIZE-04

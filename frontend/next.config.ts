@@ -48,7 +48,6 @@ const isProd = process.env.NODE_ENV === 'production';
 
 // FIX NEXT-04: Use the cloud-name-scoped path.
 const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? '';
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 

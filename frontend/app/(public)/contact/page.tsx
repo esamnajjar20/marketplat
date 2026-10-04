@@ -11,6 +11,8 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default function ContactPage() {
+  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() ?? '';
+
   return (
     <LegalPageShell
       title="تواصل معنا"
@@ -19,9 +21,18 @@ export default function ContactPage() {
       <div className="content-prose space-y-5">
       <h2>الدعم العام</h2>
       <p>
-        للأسئلة حول الحساب أو النشر، راسلنا على البريد (يُستبدل بعنوانكم الرسمي):
+        للأسئلة حول الحساب أو النشر، راسلنا على البريد:
         <br />
-        <span className="font-medium text-foreground">support@example.com</span>
+        {supportEmail ? (
+          <a
+            href={`mailto:${supportEmail}`}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            {supportEmail}
+          </a>
+        ) : (
+          <span className="font-medium text-muted-foreground">بريد الدعم غير مهيأ حاليًا.</span>
+        )}
       </p>
       <h2>الإبلاغ عن محتوى</h2>
       <p>
