@@ -10,7 +10,7 @@
  * to import from anywhere.
  */
 
-export const OFFLINE_TABS = ['saved', 'drafts', 'sync', 'storage', 'warming'] as const;
+export const OFFLINE_TABS = ['saved', 'drafts', 'sync', 'payments', 'storage', 'warming'] as const;
 export type OfflineTab = (typeof OFFLINE_TABS)[number];
 
 /** Tabs a signed-out visitor may see. 'warming' only touches localStorage /
@@ -29,6 +29,7 @@ const LEGACY_PATH_TO_TAB: Record<string, OfflineTab> = {
   '/settings/sync': 'sync',
   '/settings/storage': 'storage',
   '/settings/offline': 'warming',
+  '/saved-payments': 'payments',
 };
 
 export function isOfflineTab(value: unknown): value is OfflineTab {

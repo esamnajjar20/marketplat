@@ -11,15 +11,7 @@ import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadg
 
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import {
-  RefreshCw,
-  Trash2,
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  FileText,
-  Pencil,
-} from 'lucide-react';
+import { RefreshCw, Trash2, AlertCircle, CheckCircle2, FileText, Pencil } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -48,6 +40,7 @@ import { resumeHrefForDraft } from '@/lib/offlineDraftResume';
 import { getErrorMessage } from '@/lib/i18n/ar/errors';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export function SyncCenterClient() {
   const isOnline = useOnlineStatus();
@@ -156,7 +149,7 @@ export function SyncCenterClient() {
   const lastLabel = isOnline ? 'متصل' : 'غير متصل';
 
   return (
-    <div dir="rtl" className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <div dir="rtl" className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2">
       <div>
         <h1 className="text-xl font-bold">المزامنة</h1>
         {!isOnline ? (
@@ -190,30 +183,33 @@ export function SyncCenterClient() {
         status:'draft' (لا operationId — لم تُحاول الإرسال أصلًا بعد) تُضاف
         هنا كعدد إضافي حقيقي غير مُحتسَب بمكان آخر.
       */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          label="قيد الانتظار"
+          icon={<RefreshCw className="h-4 w-4" />}
+          label="في الطابور"
           value={loading ? '…' : String(Math.max(0, pending))}
-          hint="في الطابور"
+          hint="سيُرسل تلقائيًا"
         />
         <StatCard
-          icon={<Clock className="h-4 w-4 text-warning" />}
-          label="بالانتظار"
+          icon={<FileText className="h-4 w-4 text-primary" />}
+          label="مسودات"
           value={
             loading
               ? '…'
-              : String(pending + drafts.filter((d) => !d.operationId && d.status !== 'failed').length)
+              : String(drafts.filter((d) => !d.operationId && d.status !== 'failed').length)
           }
+          hint="لم تبدأ المزامنة بعد"
         />
         <StatCard
           icon={<AlertCircle className="h-4 w-4 text-destructive" />}
-          label="فشل"
+          label="تحتاج انتباهًا"
           value={
             loading
               ? '…'
               : String(failed + drafts.filter((d) => !d.operationId && d.status === 'failed').length)
           }
+          hint="مراجعة أو إعادة محاولة"
+          tone="danger"
         />
       </div>
 
@@ -241,7 +237,11 @@ export function SyncCenterClient() {
           مسودات محفوظة محليًا
         </h2>
         {drafts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">لا توجد مسودات محفوظة محليًا.</p>
+          <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-8 text-center">
+            <FileText className="mx-auto h-8 w-8 text-muted-foreground/70" />
+            <p className="mt-2 text-sm font-medium">لا توجد مسودات محفوظة محليًا</p>
+            <p className="mt-1 text-xs text-muted-foreground">ستظهر هنا المسودات التي تبدأها أثناء انقطاع الاتصال.</p>
+          </div>
         ) : (
           <ul className="divide-y rounded-xl border">
             {drafts.map((d) => (
@@ -317,7 +317,11 @@ export function SyncCenterClient() {
       <section className="space-y-2">
         <h2 className="text-base font-semibold">طلبات فاشلة</h2>
         {failedItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground">لا توجد طلبات فاشلة في الطابور.</p>
+          <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-7 text-center">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-success/80" />
+            <p className="mt-2 text-sm font-medium">لا توجد طلبات فاشلة</p>
+            <p className="mt-1 text-xs text-muted-foreground">كل ما فشل سيظهر هنا مع خيار المراجعة أو إعادة المحاولة.</p>
+          </div>
         ) : (
           <ul className="divide-y rounded-xl border">
             {failedItems.map((item) => {
@@ -406,18 +410,25 @@ function StatCard({
   label,
   value,
   hint,
+  tone = 'default',
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   hint?: string;
+  tone?: 'default' | 'danger';
 }) {
   return (
-    <div className="rounded-xl border bg-card p-3 text-center">
-      <div className="mb-1 flex justify-center">{icon}</div>
-      <p className="text-lg font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      {hint ? <p className="text-2xs text-muted-foreground">{hint}</p> : null}
+    <div className={cn(
+      'rounded-2xl border bg-card p-4 shadow-xs transition-shadow hover:shadow-sm',
+      tone === 'danger' && 'border-destructive/25 bg-destructive/[0.03]',
+    )}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/70">{icon}</span>
+        <p className="text-2xl font-bold tabular-nums tracking-tight">{value}</p>
+      </div>
+      <p className="mt-3 text-sm font-semibold">{label}</p>
+      {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

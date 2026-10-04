@@ -21,6 +21,7 @@ describe('offline hub tab model (OFFLINE-HUB-01)', () => {
     expect(resolveOfflineTab('', '/settings/drafts')).toBe('drafts');
     expect(resolveOfflineTab('', '/saved-ads')).toBe('saved');
     expect(resolveOfflineTab('', '/downloads')).toBe('saved');
+    expect(resolveOfflineTab('', '/saved-payments')).toBe('payments');
   });
 
   it('query wins over legacy path', () => {
@@ -30,10 +31,12 @@ describe('offline hub tab model (OFFLINE-HUB-01)', () => {
   it('guests only see tabs that need no account', () => {
     expect(visibleOfflineTabs(false)).toEqual(['saved', 'warming']);
     expect(visibleOfflineTabs(true)).toEqual(OFFLINE_TABS);
+    expect(visibleOfflineTabs(false)).not.toContain('payments');
   });
 
   it('builds canonical links', () => {
     expect(offlineTabHref('sync')).toBe('/offline?tab=sync');
+    expect(offlineTabHref('payments')).toBe('/offline?tab=payments');
     expect(isOfflineTab('storage')).toBe(true);
     expect(isOfflineTab('x')).toBe(false);
   });

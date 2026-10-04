@@ -20,7 +20,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WifiOff, RotateCw, AlertTriangle, X } from 'lucide-react';
-import Link from 'next/link';
 import { Button } from '@/components/shared/ui/Button';
 import {
   getQueuedRequestCounts,
@@ -36,7 +35,7 @@ import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { formatNumber } from '@/lib/formatters';
 import { formatSyncEta } from '@/lib/connectionQuality';
 import { OfflineHub } from '@/components/offline/OfflineHub';
-import { ROUTES } from '@/lib/constants';
+
 import { resolveOfflineTab, type OfflineTab } from '@/lib/offlineHubTabs';
 
 export default function OfflinePage() {
@@ -176,8 +175,8 @@ export default function OfflinePage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen min-h-dvh w-full max-w-2xl flex-col gap-8 px-4 py-8">
-      <div className="flex flex-col items-center gap-5 text-center">
+    <main className="mx-auto flex min-h-screen min-h-dvh w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 text-center">
       <span
         className={`flex h-20 w-20 items-center justify-center rounded-full ${
           isOnline ? 'bg-online/10 text-online' : 'bg-muted text-muted-foreground'
@@ -252,14 +251,13 @@ export default function OfflinePage() {
         {isOnline ? 'إعادة المحاولة' : 'العودة للرئيسية'}
       </Button>
 
-      <Button variant="ghost" size="sm" asChild>
-        <Link href={ROUTES.savedPayments}>دفع وبطاقات محفوظة</Link>
-      </Button>
       </div>
 
       {/* OFFLINE-HUB-01: replaces the old link list (التنزيلات / إعلانات
           محفوظة / إدارة التسخين) — those are now tabs below. */}
-      <OfflineHub initialTab={initialTab} />
+      <div className="w-full rounded-3xl border border-border/70 bg-card/40 p-3 shadow-sm sm:p-5 lg:p-6">
+        <OfflineHub initialTab={initialTab} />
+      </div>
     </main>
   );
 }

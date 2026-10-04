@@ -369,7 +369,7 @@ export function OfflineControlClient() {
     : 'ابدأ التسخين الآن';
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-5xl space-y-5">
       <div className="flex gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning-strong dark:text-warning">
         <Info className="mt-0.5 h-4 w-4 shrink-0 opacity-80" aria-hidden />
         <p>
@@ -395,16 +395,18 @@ export function OfflineControlClient() {
             اختر المستوى ثم اضغط «ابدأ التسخين».
           </p>
         </div>
-        <div className="divide-y">
+        <div role="radiogroup" aria-label="مستوى تجهيز الأوفلاين" className="grid gap-3 p-3 sm:grid-cols-3">
           {MODES.map((m) => (
             <button
               key={m}
               type="button"
+              role="radio"
+              aria-checked={mode === m}
               onClick={() => handleModeChange(m)}
               disabled={warmingActive}
               aria-disabled={warmingActive}
               className={cn(
-                'flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-colors',
+                'flex w-full items-start gap-3 rounded-2xl border px-4 py-4 text-start transition-colors',
                 mode === m
                   ? 'border-primary/40 bg-primary/5 shadow-xs'
                   : 'border-transparent hover:bg-muted/50',
@@ -437,10 +439,10 @@ export function OfflineControlClient() {
         <div className="border-b px-4 py-2.5">
           <h2 className="text-sm font-semibold">تحكم</h2>
         </div>
-        <div className="space-y-2 p-4">
+        <div className="grid gap-2 p-4 sm:grid-cols-2">
           <Button
             type="button"
-            className="w-full justify-start gap-2"
+            className="w-full justify-start gap-2 sm:col-span-2"
             onClick={handleStartNow}
             disabled={anyBusy || !online || mode === 'off' || warmingActive}
           >
@@ -494,7 +496,7 @@ export function OfflineControlClient() {
 
       <div className="rounded-lg border bg-card p-4">
         <h2 className="mb-3 text-sm font-semibold">الحالة</h2>
-        <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="grid gap-3 text-sm sm:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">صفحات عامة مُكتملة</p>
             <p className="mt-0.5 font-mono font-semibold">{snapshot ? snapshot.publicComplete : '—'}</p>
@@ -503,7 +505,7 @@ export function OfflineControlClient() {
             <p className="text-xs text-muted-foreground">صفحات شخصية مُكتملة</p>
             <p className="mt-0.5 font-mono font-semibold">{snapshot ? snapshot.personalComplete : '—'}</p>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-3">
             <p className="text-xs text-muted-foreground">آخر تسخين</p>
             <p className="mt-0.5 font-mono text-xs">{snapshot ? formatAge(snapshot.lastWarmedAt) : '—'}</p>
             {snapshot?.lastWarmedAt ? (

@@ -125,7 +125,7 @@ export function StorageManagementClient() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-5xl space-y-5">
       {toast && (
         <div
           role="status"
@@ -178,7 +178,14 @@ export function StorageManagementClient() {
               {usagePct != null ? ` · ${usagePct}%` : ''}
             </span>
           </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-3 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-label="نسبة استخدام التخزين"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={usagePct ?? 0}
+          >
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-500',
@@ -192,6 +199,10 @@ export function StorageManagementClient() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
+            {usagePct != null && stats?.quotaBytes ? (
+              <span className="font-medium text-foreground">المتبقي تقريبًا {formatStorageBytes(Math.max(0, stats.quotaBytes - (stats.usageBytes ?? stats.totalBytes ?? 0)))}</span>
+            ) : null}
+            {usagePct != null && stats?.quotaBytes ? ' · ' : ''}
             كاش التطبيق المقاس:{' '}
             <span className="font-medium text-foreground">
               {loading ? '…' : formatStorageBytes(stats?.totalBytes ?? 0)}

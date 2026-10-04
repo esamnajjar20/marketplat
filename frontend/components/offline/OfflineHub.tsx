@@ -24,6 +24,7 @@ import {
   RefreshCw,
   HardDrive,
   Flame,
+  CreditCard,
   Wifi,
   WifiOff,
   CheckCircle2,
@@ -59,6 +60,7 @@ import { DraftsCenterClient } from '@/components/settings/DraftsCenterClient';
 import { SyncCenterClient } from '@/components/settings/SyncCenterClient';
 import { StorageManagementClient } from '@/components/settings/StorageManagementClient';
 import { OfflineControlClient } from '@/components/settings/OfflineControlClient';
+import { SavedPaymentsPageClient } from '@/components/payments/SavedPaymentsPageClient';
 import {
   DEFAULT_OFFLINE_TAB,
   resolveOfflineTab,
@@ -74,6 +76,7 @@ const TAB_META: Record<
   drafts: { label: 'مسودات', shortLabel: 'مسودات', Icon: FileText },
   sync: { label: 'بانتظار الإرسال', shortLabel: 'مزامنة', Icon: RefreshCw },
   storage: { label: 'المساحة', shortLabel: 'مساحة', Icon: HardDrive },
+  payments: { label: 'الدفع والبطاقات', shortLabel: 'دفع', Icon: CreditCard },
   warming: { label: 'جاهزية بدون نت', shortLabel: 'جاهزية', Icon: Flame },
 };
 
@@ -116,6 +119,15 @@ function TabBody({ tab }: { tab: OfflineTab }) {
       );
     case 'sync':
       return <SyncCenterClient />;
+    case 'payments':
+      return (
+        <section>
+          <Intro title="الدفع والبطاقات المحفوظة">
+            جهات الدفع وبطاقات النت التي حفظتها على جهازك. يمكنك البحث والتعديل والنسخ واستخدام USSD عند توفره، حتى بدون إنترنت.
+          </Intro>
+          <SavedPaymentsPageClient embedded />
+        </section>
+      );
     case 'storage':
       return (
         <section>
@@ -152,6 +164,7 @@ function OnboardingTip({ onDismiss }: { onDismiss: () => void }) {
         <li>احفظ إعلاناتاً لفتحها بدون نت من «محفوظاتي».</li>
         <li>المسودات وما لم يُرسل يظهر في «مسودات» و«بانتظار الإرسال».</li>
         <li>من «جاهزية بدون نت» جهّز الصفحات مسبقاً حسب استهلاك بياناتك.</li>
+        <li>من «الدفع والبطاقات» أدِر بيانات الدفع المحفوظة على هذا الجهاز فقط.</li>
       </ul>
       <Button type="button" size="sm" className="mt-3 min-h-10" onClick={onDismiss}>
         حسناً، فهمت
@@ -517,11 +530,11 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
   }
 
   return (
-    <section aria-label="مركز الأوفلاين" className="w-full text-start" dir="rtl">
+    <section aria-label="مركز الأوفلاين" className="mx-auto w-full max-w-6xl text-start" dir="rtl">
       <header className="mb-3">
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">مركز الأوفلاين</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          محفوظاتك، مسوداتك، وما ينتظر الإرسال — في مكان واحد.
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+          محفوظاتك، مسوداتك، المزامنة، التخزين، والدفع والبطاقات المحلية — في مركز واحد واضح.
         </p>
       </header>
 
@@ -576,9 +589,8 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
         role="tablist"
         aria-label="أقسام مركز الأوفلاين"
         className={cn(
-          'sticky top-0 z-10 -mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 py-2',
-          'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90',
-          '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          'sticky top-2 z-20 -mx-1 mb-5 flex gap-1.5 overflow-x-auto rounded-2xl border border-border/60 bg-background/95 px-2 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85',
+          '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:overflow-visible',
         )}
       >
         {tabs.map((tab) => {
@@ -602,7 +614,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
               data-selected={selected}
               onClick={() => select(tab)}
               className={cn(
-                'group flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
+                'group flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors lg:min-w-0 lg:flex-1',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                   : 'border-border/80 bg-card text-muted-foreground hover:border-primary/35 hover:text-foreground',
@@ -622,6 +634,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
       <div
         role="tabpanel"
         id={`offline-panel-${active}`}
+        className="scroll-mt-24"
         aria-labelledby={`offline-tab-${active}`}
         onClickCapture={onPanelClickCapture}
       >

@@ -10,6 +10,7 @@ import { offlineFreshnessLabel, type OfflineFreshnessKind } from '@/lib/offlineF
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 
+
 export interface OfflineFreshnessBadgeProps {
   savedAt?: string | null;
   kind?: OfflineFreshnessKind;

@@ -17,6 +17,10 @@ import {
   WifiOff,
   Search,
   Pencil,
+  ShieldCheck,
+  KeyRound,
+  ArrowUpRight,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -86,7 +90,7 @@ function CopyBtn({ value, label }: { value: string; label: string }) {
   );
 }
 
-export function SavedPaymentsPageClient() {
+export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boolean }) {
   const [payees, setPayees] = useState<SavedPayee[]>([]);
   const [cards, setCards] = useState<SavedNetCard[]>([]);
   const [tab, setTab] = useState<'pay' | 'cards'>('pay');
@@ -269,7 +273,36 @@ export function SavedPaymentsPageClient() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn('space-y-6', embedded && 'space-y-5')}>
+      <div className={cn('grid gap-3 sm:grid-cols-3', embedded ? 'lg:grid-cols-3' : 'lg:grid-cols-3')}>
+        <div className="rounded-2xl border border-border/70 bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">جهات الدفع</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums">{payees.length}</p>
+            </div>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Banknote className="h-5 w-5" /></span>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">بطاقات النت</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums">{cards.length}</p>
+            </div>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><CreditCard className="h-5 w-5" /></span>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-primary/15 bg-primary/[0.04] p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><ShieldCheck className="h-5 w-5" /></span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">محفوظة محليًا</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">لا تُرسل هذه المحفوظات إلى الخادم. استخدمها فقط على جهاز تثق به.</p>
+            </div>
+          </div>
+        </div>
+      </div>
       {!online && (
         <div className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-strong dark:text-warning">
           <WifiOff className="h-4 w-4 shrink-0" />
@@ -277,9 +310,17 @@ export function SavedPaymentsPageClient() {
         </div>
       )}
 
-      <p className="text-sm text-muted-foreground">
-        أضف جهات الدفع وبطاقات النت يدويًا هنا. البيانات تُحفظ على جهازك فقط ويمكن تعديلها أو البحث عنها.
-      </p>
+      <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <p className="text-sm leading-6 text-muted-foreground">أضف جهات الدفع وبطاقات النت يدويًا. بيانات البطاقة محفوظة محليًا على هذا الجهاز، لذلك تجنب حفظها على جهاز مشترك.</p>
+        </div>
+        {embedded && (
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
+            جزء من مركز الأوفلاين <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+        )}
+      </div>
 
       <div className="relative">
         <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -289,6 +330,7 @@ export function SavedPaymentsPageClient() {
           placeholder={tab === 'pay' ? 'بحث في جهات الدفع…' : 'بحث في البطاقات…'}
           className="h-11 ps-10"
           aria-label="بحث في المحفوظات"
+          autoComplete="off"
         />
       </div>
 
@@ -328,11 +370,17 @@ export function SavedPaymentsPageClient() {
       </div>
 
       {tab === 'pay' && (
-        <section className="space-y-3">
-          <Button type="button" className="w-full gap-2" size="lg" onClick={() => { resetPayForm(); setAddPayOpen(true); }}>
+        <section className="space-y-4" role="tabpanel" aria-label="جهات الدفع المحفوظة">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-base font-semibold">جهات الدفع</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">انسخ الرقم بسرعة أو افتح USSD للجهات المدعومة.</p>
+            </div>
+          <Button type="button" className="w-full gap-2 sm:w-auto" size="lg" onClick={() => { resetPayForm(); setAddPayOpen(true); }}>
             <Plus className="h-4 w-4" />
             إضافة جهة دفع
           </Button>
+          </div>
           {filteredPayees.length === 0 ? (
             <EmptyState
               icon={<Banknote className="h-7 w-7" />}
@@ -344,9 +392,9 @@ export function SavedPaymentsPageClient() {
               }
             />
           ) : (
-            <ul className="space-y-3">
+            <ul className="grid gap-3 lg:grid-cols-2">
               {filteredPayees.map((p) => (
-                <li key={p.id} className="space-y-3 rounded-xl border bg-card p-4">
+                <li key={p.id} className="flex h-full flex-col justify-between space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold">{p.name}</p>
@@ -406,11 +454,17 @@ export function SavedPaymentsPageClient() {
       )}
 
       {tab === 'cards' && (
-        <section className="space-y-3">
-          <Button type="button" className="w-full gap-2" size="lg" onClick={() => { resetCardForm(); setAddCardOpen(true); }}>
+        <section className="space-y-4" role="tabpanel" aria-label="بطاقات النت المحفوظة">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-base font-semibold">بطاقات النت</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">بيانات الدخول مخفية في القوائم وتُنسخ فقط عند طلبك.</p>
+            </div>
+          <Button type="button" className="w-full gap-2 sm:w-auto" size="lg" onClick={() => { resetCardForm(); setAddCardOpen(true); }}>
             <Plus className="h-4 w-4" />
             إضافة بطاقة نت
           </Button>
+          </div>
           {filteredCards.length === 0 ? (
             <EmptyState
               icon={<Wifi className="h-7 w-7" />}
@@ -422,9 +476,9 @@ export function SavedPaymentsPageClient() {
               }
             />
           ) : (
-            <ul className="space-y-3">
+            <ul className="grid gap-3 lg:grid-cols-2">
               {filteredCards.map((c) => (
-                <li key={c.id} className="space-y-3 rounded-xl border bg-card p-4">
+                <li key={c.id} className="flex h-full flex-col justify-between space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold">{c.label || 'بطاقة نت'}</p>
@@ -535,7 +589,7 @@ export function SavedPaymentsPageClient() {
           <div className="space-y-3">
             <Input aria-label="وصف البطاقة اختياري" placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
             <Input aria-label="اسم المستخدم أو الرقم" placeholder="اسم المستخدم / الرقم" value={cUser} onChange={(e) => setCUser(e.target.value)} dir="ltr" />
-            <Input aria-label="كلمة السر" placeholder="كلمة السر" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
+            <Input aria-label="كلمة السر" placeholder="كلمة السر" type="password" autoComplete="new-password" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
             <Button type="button" className="w-full" onClick={handleAddCard}>
               حفظ البطاقة
             </Button>
@@ -560,7 +614,7 @@ export function SavedPaymentsPageClient() {
           <div className="space-y-3">
             <Input aria-label="وصف البطاقة اختياري" placeholder="وصف (اختياري)" value={cLabel} onChange={(e) => setCLabel(e.target.value)} />
             <Input aria-label="اسم المستخدم أو الرقم" placeholder="اسم المستخدم / الرقم" value={cUser} onChange={(e) => setCUser(e.target.value)} dir="ltr" />
-            <Input aria-label="كلمة السر" placeholder="كلمة السر" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
+            <Input aria-label="كلمة السر" placeholder="كلمة السر" type="password" autoComplete="new-password" value={cPass} onChange={(e) => setCPass(e.target.value)} dir="ltr" />
             <Button type="button" className="w-full" onClick={handleEditCard}>
               حفظ التعديلات
             </Button>
