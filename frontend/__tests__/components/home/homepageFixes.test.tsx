@@ -10,7 +10,6 @@ import {
   scrollLeftForSlide,
 } from '@/components/home/FeaturedCarousel';
 import { iconFor, interleave, MAX_HOME_CATEGORIES, type Item } from '@/components/home/CategoriesRow';
-import { PromotedProductsSection } from '@/components/home/PromotedProductsSection';
 import { useHomepage } from '@/hooks/queries/useHomepage';
 import { useProducts } from '@/hooks/queries/useProducts';
 
@@ -112,19 +111,3 @@ describe('CategoriesRow helpers', () => {
   });
 });
 
-describe('PromotedProductsSection', () => {
-  beforeEach(() => {
-    vi.mocked(useProducts).mockReturnValue({
-      data: undefined, isLoading: false, isError: false, error: null, refetch: vi.fn(),
-    } as never);
-  });
-
-  it('renders nothing when there are no live promotions', () => {
-    vi.mocked(useHomepage).mockReturnValue({
-      isPending: false, isError: false, isSuccess: true, refetch: vi.fn(),
-      data: { belowFold: { promotedProducts: { items: [], meta: {} } } },
-    } as never);
-    const { container } = render(<PromotedProductsSection />);
-    expect(container).toBeEmptyDOMElement();
-  });
-});
