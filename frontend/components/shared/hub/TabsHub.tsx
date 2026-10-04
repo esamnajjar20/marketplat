@@ -19,7 +19,7 @@
  *  - Switching tabs drops per-tab query params (page/status/q/section …).
  */
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
@@ -63,6 +63,7 @@ export function TabsHub<T extends string>({
   const urlTab: T = resolveTab(sp.toString() ? `?${sp.toString()}` : '') ?? defaultTab;
 
   const [active, setActive] = useState<T>(urlTab);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
     setActive(urlTab);
@@ -86,6 +87,26 @@ export function TabsHub<T extends string>({
       window.scrollTo({ top: 0 });
     },
     [writeUrl, searchForTabSwitch],
+  );
+
+  const onTabKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, current: T) => {
+      const index = tabs.indexOf(current);
+      if (index < 0) return;
+      let nextIndex = index;
+      if (event.key === 'ArrowLeft') nextIndex = index === 0 ? tabs.length - 1 : index - 1;
+      else if (event.key === 'ArrowRight') nextIndex = index === tabs.length - 1 ? 0 : index + 1;
+      else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = tabs.length - 1;
+      else return;
+
+      event.preventDefault();
+      const nextTab = tabs[nextIndex];
+      if (!nextTab) return;
+      select(nextTab);
+      requestAnimationFrame(() => tabRefs.current[nextTab]?.focus());
+    },
+    [select, tabs],
   );
 
   const onPanelClickCapture = useCallback(
@@ -131,9 +152,12 @@ export function TabsHub<T extends string>({
               id={`${idPrefix}-tab-${tab}`}
               aria-selected={selected}
               aria-controls={`${idPrefix}-panel-${tab}`}
+              ref={(node) => { tabRefs.current[tab] = node; }}
+              tabIndex={selected ? 0 : -1}
               onClick={() => select(tab)}
+              onKeyDown={(event) => onTabKeyDown(event, tab)}
               className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                'flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border text-muted-foreground hover:text-foreground',

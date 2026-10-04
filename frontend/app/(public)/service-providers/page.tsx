@@ -37,7 +37,7 @@ export default function ServiceProvidersPage() {
           </div>
           <Link
             href={ROUTES.services}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-sm font-medium text-primary hover:underline"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-primary hover:bg-primary/10 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Wrench className="h-4 w-4" aria-hidden />
             عروض الخدمات

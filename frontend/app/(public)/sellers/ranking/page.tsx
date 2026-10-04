@@ -10,7 +10,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default function SellersRankingPage() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-3xl space-y-6 px-3 py-6 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-4 sm:py-8 sm:pb-8">
       <div>
         <h1 className="text-xl font-bold">أفضل البائعين</h1>
         <p className="text-sm text-muted-foreground">
@@ -20,6 +20,6 @@ export default function SellersRankingPage() {
       <Suspense>
         <SellersRankingList limit={30} />
       </Suspense>
-    </div>
+    </main>
   );
 }

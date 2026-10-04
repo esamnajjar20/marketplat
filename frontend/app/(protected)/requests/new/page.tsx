@@ -30,7 +30,7 @@ export default function NewRequestPage() {
       <div>
         <Link
           href={ROUTES.requests}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <ArrowRight className="h-4 w-4" aria-hidden />
           سوق الطلبات

@@ -170,6 +170,7 @@ export function RequestsPageClient() {
                 <Link
                   key={label}
                   href={buildTypeHref(value, city, q, sort)}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
                     'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
                     active

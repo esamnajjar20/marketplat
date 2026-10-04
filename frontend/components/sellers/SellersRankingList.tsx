@@ -74,7 +74,7 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
         تعذّر تحميل الترتيب.{' '}
-        <button type="button" className="text-primary hover:underline" onClick={() => refetch()}>
+        <button type="button" className="inline-flex min-h-10 items-center rounded-lg px-2 text-primary hover:bg-primary/10 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" onClick={() => refetch()}>
           إعادة المحاولة
         </button>
       </div>
@@ -87,7 +87,7 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
   }
 
   return (
-    <ol className="space-y-2">
+    <ol className="space-y-2" aria-label="ترتيب أفضل البائعين">
       {rows.map((r) => (
         <li
           key={r.sellerProfileId}

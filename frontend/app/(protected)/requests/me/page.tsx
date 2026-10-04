@@ -63,7 +63,7 @@ export default function MyRequestsPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="حالة الطلب">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="حالة الطلب" aria-orientation="horizontal">
         {STATUS_TABS.map((tab) => {
           const active = tab.value === status;
           return (
@@ -72,8 +72,9 @@ export default function MyRequestsPage() {
               href={statusHref(tab.value)}
               role="tab"
               aria-selected={active}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                'inline-flex min-h-10 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 active
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:text-foreground',

@@ -52,7 +52,7 @@ export function NearbyServiceProviders() {
           <button
             type="button"
             onClick={() => void refetch()}
-            className="text-sm text-primary hover:underline"
+            className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-primary hover:bg-primary/10 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             إعادة المحاولة
           </button>
@@ -101,6 +101,7 @@ export function NearbyServiceProviders() {
                 variant="outline"
                 size="sm"
                 disabled={page <= 1}
+                aria-label="الصفحة السابقة"
                 onClick={() => setPage?.((p) => Math.max(1, p - 1))}
               >
                 السابق
@@ -112,6 +113,7 @@ export function NearbyServiceProviders() {
                 variant="outline"
                 size="sm"
                 disabled={page >= totalPages}
+                aria-label="الصفحة التالية"
                 onClick={() => setPage?.((p) => Math.min(totalPages, p + 1))}
               >
                 التالي
