@@ -79,7 +79,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   return (
     <div className="space-y-5">
       <div
-        className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-thin"
+        className="sticky top-[var(--protected-header-offset,4rem)] z-20 -mx-2 flex gap-1.5 overflow-x-auto border-b border-border/70 bg-background/95 px-2 py-2 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/85"
         role="tablist"
         aria-label="أقسام المتجر"
       >
@@ -157,13 +157,17 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
       )}
 
       {active === 'about' && store && (
-        <section className="space-y-5" role="tabpanel">
+        <section className="space-y-5" role="tabpanel"
+          id="store-panel-about"
+          aria-labelledby="store-tab-about">
           <StoreAboutPanel store={store} />
         </section>
       )}
 
       {active === 'about' && !store && (
-        <section className="space-y-3" role="tabpanel">
+        <section className="space-y-3" role="tabpanel"
+          id="store-panel-about"
+          aria-labelledby="store-tab-about">
           <p className="text-sm text-muted-foreground">لا تتوفر تفاصيل إضافية لهذا المتجر.</p>
         </section>
       )}

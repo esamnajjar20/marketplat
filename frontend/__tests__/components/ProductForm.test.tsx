@@ -8,8 +8,8 @@
  * remove/add before the field PATCH) — but with two real differences
  * pinned down here instead of assumed:
  *
- *  - unlike AdForm, ProductForm's "at least one image" rule is NOT
- *    temporarily disabled — it's live in both create and edit mode
+ *  - ProductForm mirrors the backend's required-image rule in both
+ *    create and edit mode
  *  - ProductForm's cancel button calls history.back() directly with no
  *    confirm-discard dialog (AdForm has one; ProductForm does not)
  *
@@ -216,6 +216,17 @@ describe('ProductForm', () => {
       submitForm(container);
 
       expect(screen.getByText('أدخل سعراً صحيحاً')).toBeInTheDocument();
+      expect(mockCreateMutate).not.toHaveBeenCalled();
+    });
+
+    it('requires at least one product image', async () => {
+      const user = setupUser();
+      const { container } = render(<ProductForm mode="create" />);
+
+      await fillRequiredFields(user);
+      submitForm(container);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('أضف صورة واحدة على الأقل');
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 

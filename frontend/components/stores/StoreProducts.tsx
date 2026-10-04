@@ -153,6 +153,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
           />
           <input
             type="search"
+            autoComplete="off"
             value={searchInput}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => {
@@ -179,15 +180,16 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/70 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="ترتيب المنتجات">
           {SORT_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setSort(opt.value)}
+              aria-pressed={sortKey === opt.value}
               className={cn(
-                'shrink-0 rounded-full border px-3 py-1 text-xs transition-colors',
+                'shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors',
                 sortKey === opt.value
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-muted',

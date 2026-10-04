@@ -86,12 +86,12 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const presentation = getStoreTypePresentation(store.storeType);
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-5xl">
       {/* الغلاف — الصورة فقط داخل القص؛ الشعار خارجها */}
       <div className="relative">
-        <div className="relative h-44 w-full overflow-hidden rounded-2xl bg-muted shadow-sm sm:h-56">
+        <div className="relative h-44 w-full overflow-hidden rounded-2xl bg-muted shadow-sm sm:h-56 lg:h-64">
           {cover ? (
-            <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 512px" priority />
+            <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1024px" priority />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted-foreground/15" aria-hidden />
           )}
@@ -133,7 +133,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
       </div>
 
       {/* المحتوى — وسط الشاشة */}
-      <div className="mt-4 flex flex-col items-center gap-0.5 px-1 text-center sm:px-4">
+      <div className="mt-4 flex flex-col items-center gap-0.5 px-1 text-center sm:px-4 lg:mx-auto lg:max-w-4xl">
         <p className="text-2xs-tight font-medium text-primary">{presentation.page.title}</p>
         <h1 className="flex flex-wrap items-center justify-center gap-2 text-lg font-bold leading-snug text-foreground sm:text-xl">
           {store.name}
@@ -204,7 +204,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         <StoreAttributesSummary storeTypeId={store.storeTypeId} fields={store.storeType?.fields} attributes={store.attributes} presentation={store.storeType?.presentation} />
 
         {/* Call + follow row */}
-        <div className="mt-4 grid w-full max-w-2xl grid-cols-2 gap-2">
+        <div className="mt-4 grid w-full max-w-2xl grid-cols-2 gap-2 lg:max-w-4xl">
           <a
             href={`tel:${store.phone}`}
             className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition active:scale-[0.98]"
@@ -224,7 +224,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
         </div>
 
-        <div className="mt-2 grid w-full max-w-2xl grid-cols-2 gap-2">
+        <div className="mt-2 grid w-full max-w-2xl grid-cols-2 gap-2 lg:max-w-4xl">
           {!isOwnStore && waPhone.length >= 9 && (
             <a
               href={`https://wa.me/${waPhone}`}

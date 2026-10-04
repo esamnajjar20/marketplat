@@ -103,7 +103,7 @@ export function ProductDetail({ product, related = [] }: Props) {
       <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', ownerId ? 'pb-sticky-contact' : 'pb-8' /* FIX PB-STICKY-FALLBACK */)}>
         {/* Gallery + description */}
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
-          <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm lg:shadow-md">
             <div
               className="relative aspect-[4/3] bg-muted touch-pan-y sm:aspect-[16/9]"
               onTouchStart={(e) => {
@@ -177,8 +177,8 @@ export function ProductDetail({ product, related = [] }: Props) {
                     onClick={() => setImgIdx(i)}
                     aria-label={`صورة ${i + 1}`}
                     className={cn(
-                      'relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2',
-                      i === imgIdx ? 'border-primary' : 'border-transparent opacity-70',
+                      'relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      i === imgIdx ? 'border-primary opacity-100 ring-2 ring-primary/15 ring-offset-1' : 'border-transparent opacity-70 hover:opacity-100',
                     )}
                   >
                     <SafeImage

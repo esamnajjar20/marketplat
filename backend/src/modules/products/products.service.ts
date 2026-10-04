@@ -358,6 +358,33 @@ export const productsService = {
         input.availability ?? product.availability,
       );
     }
+
+    // Validate the final persisted pricing state, not just the PATCH fields.
+    // A partial update can otherwise make an existing discount >= price or
+    // leave only one half of the wholesale pair populated.
+    const finalPrice = input.price ?? Number(product.price);
+    const finalDiscountPrice = input.discountPrice === undefined
+      ? (product.discountPrice == null ? null : Number(product.discountPrice))
+      : input.discountPrice;
+    const finalWholesalePrice = input.wholesalePrice === undefined
+      ? (product.wholesalePrice == null ? null : Number(product.wholesalePrice))
+      : input.wholesalePrice;
+    const finalWholesaleMinQty = input.wholesaleMinQty === undefined
+      ? product.wholesaleMinQty
+      : input.wholesaleMinQty;
+
+    if (finalDiscountPrice !== null && finalDiscountPrice >= finalPrice) {
+      throw new BadRequestError('discountPrice must be less than price', 'INVALID_DISCOUNT_PRICE');
+    }
+    const wholesalePricePresent = finalWholesalePrice !== null;
+    const wholesaleQtyPresent = finalWholesaleMinQty !== null;
+    if (wholesalePricePresent !== wholesaleQtyPresent) {
+      throw new BadRequestError(
+        'wholesalePrice and wholesaleMinQty must be provided together',
+        'INVALID_WHOLESALE_PRICING',
+      );
+    }
+
     const updated = await productsRepository.update(id, patch);
     // Edits (incl. stock/availability): soft invalidation (stale once, then
     // refreshed). A status change away from ACTIVE must hide the product now.

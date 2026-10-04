@@ -46,13 +46,19 @@ export default async function ProductDetailPage({ params }: Props) {
   try {
     const res = await getCachedProduct(id);
     product = res.data.data ?? null;
-  } catch {
-    /* 404 — ProductDetailSection renders the empty state */
+  } catch (err) {
+    const statusCode =
+      (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
+      (err as { response?: { status?: number } })?.response?.status;
+    // Only a confirmed 404 should become a not-found state. Propagate
+    // transport/5xx failures so an existing product is not presented as
+    // deleted during an outage.
+    if (statusCode !== 404) throw err;
   }
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <div className="container mx-auto max-w-7xl px-3 py-6 sm:px-4 lg:py-8">
+    <div className="container mx-auto max-w-7xl px-4 py-6">
       {product && (
         <script
           type="application/ld+json"

@@ -43,6 +43,8 @@ const mockEffectivePrice = {
 const mockActiveStore = { id: 'store-1', status: 'ACTIVE', plan: 'FREE', name: 'My Store', storeTypeId: 'st_general' };
 const mockCategory = { id: 'cat-1', isActive: true };
 
+const validFiles = [{ buffer: Buffer.from('product-image') }] as any;
+
 const validInput = {
   categoryId: 'cat-1',
   name: 'Phone',
@@ -73,7 +75,7 @@ describe('productsService', () => {
     });
 
     it('creates the product when the store is ACTIVE and the category is valid', async () => {
-      const result = await productsService.createProduct('user-1', validInput, []);
+      const result = await productsService.createProduct('user-1', validInput, validFiles);
       expect(result).toEqual({ id: 'product-1' });
       expect(productsRepository.create).toHaveBeenCalled();
     });
@@ -82,7 +84,7 @@ describe('productsService', () => {
       await productsService.createProduct(
         'user-1',
         { ...validInput, stockQuantity: 0, availability: 'IN_STOCK' },
-        []
+        validFiles
       );
       const data = (productsRepository.create as jest.Mock).mock.calls[0][2];
       expect(data.availability).toBe('OUT_OF_STOCK');
@@ -93,7 +95,7 @@ describe('productsService', () => {
       await productsService.createProduct(
         'user-1',
         { ...validInput, stockQuantity: 3 },
-        []
+        validFiles
       );
       const data = (productsRepository.create as jest.Mock).mock.calls[0][2];
       expect(data.availability).toBe('LIMITED');
@@ -104,7 +106,7 @@ describe('productsService', () => {
       await productsService.createProduct(
         'user-1',
         { ...validInput, stockQuantity: 20, availability: 'OUT_OF_STOCK' },
-        []
+        validFiles
       );
       const data = (productsRepository.create as jest.Mock).mock.calls[0][2];
       expect(data.availability).toBe('IN_STOCK');
@@ -117,7 +119,7 @@ describe('productsService', () => {
         status: 'PENDING',
       });
 
-      await expect(productsService.createProduct('user-1', validInput, [])).rejects.toThrow(
+      await expect(productsService.createProduct('user-1', validInput, validFiles)).rejects.toThrow(
         ForbiddenError
       );
       expect(productsRepository.create).not.toHaveBeenCalled();
@@ -126,7 +128,7 @@ describe('productsService', () => {
     it('rejects when the category does not exist', async () => {
       (productCategoriesRepository.findById as jest.Mock).mockResolvedValue(null);
 
-      await expect(productsService.createProduct('user-1', validInput, [])).rejects.toThrow(
+      await expect(productsService.createProduct('user-1', validInput, validFiles)).rejects.toThrow(
         BadRequestError
       );
       expect(productsRepository.create).not.toHaveBeenCalled();
@@ -138,7 +140,7 @@ describe('productsService', () => {
         isActive: false,
       });
 
-      await expect(productsService.createProduct('user-1', validInput, [])).rejects.toThrow(
+      await expect(productsService.createProduct('user-1', validInput, validFiles)).rejects.toThrow(
         BadRequestError
       );
     });
@@ -146,7 +148,7 @@ describe('productsService', () => {
     it('enforces the FREE plan product limit', async () => {
       (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(20);
 
-      await expect(productsService.createProduct('user-1', validInput, [])).rejects.toThrow(
+      await expect(productsService.createProduct('user-1', validInput, validFiles)).rejects.toThrow(
         BadRequestError
       );
       expect(productsRepository.create).not.toHaveBeenCalled();
@@ -160,7 +162,7 @@ describe('productsService', () => {
       (storeTypesRepository.findById as jest.Mock).mockResolvedValue({ freeProductLimit: 100 });
       (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(99);
 
-      await productsService.createProduct('user-1', validInput, []);
+      await productsService.createProduct('user-1', validInput, validFiles);
 
       expect(productsRepository.create).toHaveBeenCalled();
     });
@@ -168,7 +170,7 @@ describe('productsService', () => {
     it('allows creation under the FREE plan limit', async () => {
       (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(19);
 
-      const result = await productsService.createProduct('user-1', validInput, []);
+      const result = await productsService.createProduct('user-1', validInput, validFiles);
       expect(result).toEqual({ id: 'product-1' });
     });
 
@@ -178,7 +180,7 @@ describe('productsService', () => {
         plan: 'PREMIUM',
       });
 
-      await productsService.createProduct('user-1', validInput, []);
+      await productsService.createProduct('user-1', validInput, validFiles);
       expect(storesRepository.countActiveProducts).not.toHaveBeenCalled();
     });
 
@@ -222,7 +224,7 @@ describe('productsService', () => {
         'follower-2',
       ]);
 
-      await productsService.createProduct('user-1', validInput, []);
+      await productsService.createProduct('user-1', validInput, validFiles);
       // allow the fire-and-forget promise chain to flush
       await new Promise(process.nextTick);
 
@@ -235,7 +237,7 @@ describe('productsService', () => {
       );
 
       await expect(
-        productsService.createProduct('user-1', validInput, [])
+        productsService.createProduct('user-1', validInput, validFiles)
       ).resolves.toEqual({ id: 'product-1' });
     });
   });
@@ -388,6 +390,40 @@ describe('productsService', () => {
         name: 'New name',
       });
       expect(result).toEqual({ id: 'product-1' });
+    });
+
+    it('rejects a partial price update that would invalidate an existing discount', async () => {
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (productsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        storeId: 'store-1',
+        price: '100',
+        discountPrice: '80',
+        wholesalePrice: null,
+        wholesaleMinQty: null,
+      });
+
+      await expect(
+        productsService.updateProduct('user-1', 'product-1', { price: 70 })
+      ).rejects.toThrow(BadRequestError);
+      expect(productsRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a partial wholesale update that leaves the pair incomplete', async () => {
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (productsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        storeId: 'store-1',
+        price: '100',
+        discountPrice: null,
+        wholesalePrice: '70',
+        wholesaleMinQty: 10,
+      });
+
+      await expect(
+        productsService.updateProduct('user-1', 'product-1', { wholesalePrice: null })
+      ).rejects.toThrow(BadRequestError);
+      expect(productsRepository.update).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundError for a nonexistent product', async () => {

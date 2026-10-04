@@ -261,35 +261,30 @@ export function ProductForm({ mode, product }: Props) {
         break;
       }
     }
-    // Gap #3 fix: edit mode now has a real image-replace flow, so the
-    // "at least one image" rule applies to the combined staged +
-    // existing set, not just create-mode's staged uploads.
-    // TEMPORARY (remove once image hosting is configured — mirrors the
-    // matching disable in AdForm.tsx / backend's ads.controller.ts
-    // createAd): image upload requires configured storage that isn't
-    // set up in this local environment yet, so the required-image
-    // check is disabled here to allow local testing without it.
-    // const totalImages = mode === 'create'
-    //   ? values.images.length
-    //   : values.images.length + values.existingImages.length;
-    // if (totalImages === 0) {
-    //   e.images = 'أضف صورة واحدة على الأقل';
-    // }
+    // Keep the client-side rule aligned with productsService.createProduct:
+    // a published product must always have at least one image. In edit mode
+    // staged files and existing server images count as one combined gallery.
+    const totalImages = mode === 'create'
+      ? values.images.length
+      : values.images.length + values.existingImages.length;
+    if (totalImages === 0) {
+      e.images = 'أضف صورة واحدة على الأقل';
+    }
     setErrors(e);
     setServerErrors(undefined);
     return Object.keys(e).length === 0;
   }
 
-  // UX-FIX: mirrors validate()'s required-field rules read-only
-  // (category/name/description/price, plus the combined image count
-  // now that edit mode supports add/remove too — Gap #3 fix).
-  // TEMPORARY: totalImageCount required-image gate disabled to match
-  // validate() above — remove once image hosting is configured.
+  // Keep the submit affordance aligned with validate(): incomplete
+  // required fields or an empty gallery should never expose an action
+  // that the backend is guaranteed to reject.
+  const totalImageCount = values.images.length + values.existingImages.length;
   const isFormIncomplete =
     !values.categoryId ||
     values.name.trim().length < 2 ||
     values.description.trim().length < 10 ||
-    !values.price || parseFloat(values.price) <= 0;
+    !values.price || parseFloat(values.price) <= 0 ||
+    totalImageCount === 0;
 
   // SW-PRODFORM-HISTORY-GUARD-01: same fix as AdForm.tsx's
   // SW-HISTORY-GUARD-01. history.back() with no previous in-app entry
@@ -697,7 +692,7 @@ export function ProductForm({ mode, product }: Props) {
           dedicated add/remove endpoints — same ImageUpload usage as AdForm. */}
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
         <h2 className="font-semibold">الصور</h2>
-        {fieldError('images') && <p className="text-sm text-destructive">{fieldError('images')}</p>}
+        {fieldError('images') && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{fieldError('images')}</p>}
         <ImageUpload
           value={values.images}
           existingUrls={mode === 'edit' ? values.existingImages : undefined}
