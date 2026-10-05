@@ -29,6 +29,7 @@ import { MessageInput } from './MessageInput';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { MessageMediaGallery } from './MessageMediaGallery';
+import { MediaDownloadButton } from './MediaDownloadButton';
 import { useConversation, useMessages, useConversationMedia } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { retryQueuedMessage, cancelQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
@@ -442,7 +443,7 @@ export function ChatWindow({ conversationId }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
       <Sheet open={showMedia} onOpenChange={setShowMedia}>
         <SheetContent>
           <SheetHeader>
@@ -557,21 +558,21 @@ export function ChatWindow({ conversationId }: Props) {
               disabled={flagsPending}
               className="flex items-center gap-2 cursor-pointer"
               onClick={() =>
-                setFlags({ id: conversationId, pinned: !conversation.pinnedAt })
+                setFlags({ id: conversationId, pinned: !conversation.mySettings?.pinnedAt })
               }
             >
               <Pin className="h-4 w-4" />
-              {conversation.pinnedAt ? 'إلغاء التثبيت' : 'تثبيت المحادثة'}
+              {conversation.mySettings?.pinnedAt ? 'إلغاء التثبيت' : 'تثبيت المحادثة'}
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={flagsPending}
               className="flex items-center gap-2 cursor-pointer"
               onClick={() =>
-                setFlags({ id: conversationId, archived: !conversation.archivedAt })
+                setFlags({ id: conversationId, archived: !conversation.mySettings?.archivedAt })
               }
             >
               <Archive className="h-4 w-4" />
-              {conversation.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة المحادثة'}
+              {conversation.mySettings?.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة المحادثة'}
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={togglingBlock}
@@ -590,7 +591,7 @@ export function ChatWindow({ conversationId }: Props) {
 
       <div
         ref={scrollRef}
-        className="relative flex flex-1 flex-col gap-3 overflow-y-auto bg-surface-1/50 px-4 py-5"
+        className="relative min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-surface-1/50 px-4 py-4"
         role="log"
         aria-relevant="additions"
         aria-label="سجل الرسائل"
@@ -750,6 +751,7 @@ export function ChatWindow({ conversationId }: Props) {
                             src={message.audioUrl}
                             variant={isMine ? 'mine' : 'theirs'}
                           />
+                          <MediaDownloadButton conversationId={conversationId} messageId={message.id} kind="audio" label="تحميل التسجيل" className="mt-1" />
                         </div>
                       )}
                       {!isDeleted && message.imageUrl && (
@@ -771,7 +773,7 @@ export function ChatWindow({ conversationId }: Props) {
                         <div className="mb-2 flex max-w-[280px] items-center gap-3 rounded-xl border border-border/70 bg-black/5 p-3 dark:bg-white/5">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">📎</div>
                           <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold" title={message.fileName ?? undefined}>{message.fileName ?? 'ملف مرفق'}</p>{message.fileSize ? <p className="text-2xs text-muted-foreground">{message.fileSize < 1048576 ? `${Math.round(message.fileSize / 1024)} KB` : `${(message.fileSize / 1048576).toFixed(1)} MB`}</p> : null}</div>
-                          <div className="flex shrink-0 items-center gap-1"><a href={message.fileUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg p-2 text-xs text-primary hover:bg-muted">فتح</a><a href={message.fileUrl} download className="rounded-lg p-2 text-xs text-primary hover:bg-muted">تنزيل</a></div>
+                          <div className="flex shrink-0 items-center gap-1"><a href={message.fileUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg p-2 text-xs text-primary hover:bg-muted">فتح</a><MediaDownloadButton conversationId={conversationId} messageId={message.id} kind="file" fileName={message.fileName} label="تحميل" className="h-9 min-h-9 px-2" /></div>
                         </div>
                       )}
                       {!isDeleted && !message.imageUrl && message.clientHasImage && (

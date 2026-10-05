@@ -40,6 +40,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadKind, setUploadKind] = useState<'image' | 'audio' | 'file' | null>(null);
   const [recording, setRecording] = useState(false);
+  const cancelRecordingRef = useRef(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingStartedAtRef = useRef<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -139,6 +140,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
   useEffect(() => {
     return () => {
+      cancelRecordingRef.current = true;
       mediaRecorderRef.current?.stop();
       mediaRecorderRef.current = null;
     };
@@ -190,13 +192,20 @@ export function MessageInput({ conversationId, disabled }: Props) {
     setImageFile(file);
   }
 
-  function onPickAttachment(e: ChangeEvent<HTMLInputElement>) { const file=e.target.files?.[0]; e.target.value=''; if(!file)return; if(file.size>10*1024*1024){toast.error('الحد الأقصى للملف 10 ميغابايت');return;} setAttachmentFile(file); }
+  function onPickAttachment(e: ChangeEvent<HTMLInputElement>) { const file=e.target.files?.[0]; e.target.value=''; if(!file)return; if(file.size>15*1024*1024){toast.error('الحد الأقصى للملف 15 ميغابايت');return;} setAttachmentFile(file); }
   function clearAttachment() { setAttachmentFile(null); }
 
   function clearImage() {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview(null);
+  }
+
+  function cancelRecording() {
+    if (!mediaRecorderRef.current) return;
+    cancelRecordingRef.current = true;
+    mediaRecorderRef.current.stop();
+    toast.message('تم إلغاء التسجيل');
   }
 
   async function toggleRecording() {
@@ -224,8 +233,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
         stream.getTracks().forEach((track) => track.stop());
         setRecording(false);
         mediaRecorderRef.current = null;
+        const wasCancelled = cancelRecordingRef.current;
+        cancelRecordingRef.current = false;
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        if (blob.size === 0) return;
+        audioChunksRef.current = [];
+        if (wasCancelled || blob.size === 0) return;
         setUploading(true);
         setUploadKind('audio');
         try {
@@ -403,14 +415,14 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
   const nearLimit = body.length >= WARN_THRESHOLD;
   const canSend =
-    (Boolean(body.trim()) || Boolean(imageFile)) && !sendMessage.isPending && !uploading && !recording;
+    (Boolean(body.trim()) || Boolean(imageFile) || Boolean(attachmentFile)) && !sendMessage.isPending && !uploading && !recording;
 
   return (
     <div className="border-t border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/90 dark:bg-card/95">
       {uploading && (
         <div role="status" aria-live="polite" className="flex items-center gap-2 border-b bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
-          <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري رفع الصورة…' : 'جاري الإرسال…'}</span>
+          <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري رفع الصورة…' : uploadKind === 'file' ? 'جاري رفع الملف…' : 'جاري الإرسال…'}</span>
         </div>
       )}
       {attachmentFile && <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs"><Paperclip className="h-4 w-4 text-primary"/><span className="min-w-0 flex-1 truncate">{attachmentFile.name}</span><button type="button" onClick={clearAttachment} className="rounded-full p-1 hover:bg-background" aria-label="إزالة الملف"><X className="h-4 w-4"/></button></div>}
@@ -432,7 +444,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         </div>
       )}
 
-      {!body.trim() && !imageFile && (
+      {!body.trim() && !imageFile && !attachmentFile && (
         <div
           className="flex gap-2 overflow-x-auto px-3 pt-2.5 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
           role="group"
@@ -491,7 +503,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
           <input
             ref={attachmentRef}
             type="file"
-            accept=".pdf,.txt,.csv,.zip,.doc,.docx,.xls,.xlsx"
+            accept=".pdf,.txt,.csv,.json,.zip,.7z,.rar,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
             className="hidden"
             onChange={onPickAttachment}
           />
@@ -511,6 +523,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
           >
             <ImagePlus className="h-5 w-5" />
           </button>
+          {recording && (
+            <button type="button" onClick={cancelRecording} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:bg-muted hover:text-destructive" aria-label="إلغاء التسجيل" title="إلغاء التسجيل">
+              <X className="h-4 w-4" />
+            </button>
+          )}
           {recording && (
             <div className="flex min-h-10 items-center gap-2 rounded-2xl border border-destructive/15 bg-destructive/5 px-2.5 text-xs font-medium tabular-nums text-destructive" aria-live="polite">
               <Radio className="h-3.5 w-3.5 animate-pulse" aria-hidden />

@@ -207,9 +207,10 @@ export const conversationsService = {
   },
 
   getConversationById: async (userId: string, id: string): Promise<ConversationWithRelations> => {
-    const conversation = await conversationsRepository.findById(id);
+    const conversation = await conversationsRepository.findByIdForUser(id, userId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
+    if (conversation.mySettings?.deletedAt) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     return conversation;
   },
 
@@ -574,15 +575,24 @@ export const conversationsService = {
   setConversationFlags: async (
     userId: string,
     conversationId: string,
-    flags: { pinned?: boolean; archived?: boolean }
+    flags: { pinned?: boolean; archived?: boolean; mutedUntil?: Date | null }
   ): Promise<Conversation> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
-    const data: { pinnedAt?: Date | null; archivedAt?: Date | null } = {};
+    const data: { pinnedAt?: Date | null; archivedAt?: Date | null; mutedUntil?: Date | null } = {};
     if (flags.pinned !== undefined) data.pinnedAt = flags.pinned ? new Date() : null;
     if (flags.archived !== undefined) data.archivedAt = flags.archived ? new Date() : null;
-    return conversationsRepository.setFlags(conversationId, data);
+    if (flags.mutedUntil !== undefined) data.mutedUntil = flags.mutedUntil;
+    await conversationsRepository.upsertUserSetting(conversationId, userId, data);
+    return conversation;
+  },
+
+  deleteConversationForUser: async (userId: string, conversationId: string): Promise<void> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+    await conversationsRepository.upsertUserSetting(conversationId, userId, { deletedAt: new Date(), archivedAt: new Date(), pinnedAt: null });
   },
 
   /** Ephemeral typing signal — no DB write; SSE only. */

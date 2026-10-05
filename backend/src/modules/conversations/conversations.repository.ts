@@ -28,6 +28,7 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
 export type ConversationListItem = ConversationWithRelations & {
   unreadCount: number;
   lastMessage: Message | null;
+  mySettings: { pinnedAt: Date | null; archivedAt: Date | null; deletedAt: Date | null; mutedUntil: Date | null } | null;
 };
 
 const conversationWithRelations = {
@@ -81,12 +82,12 @@ export const conversationsRepository = {
   /** Raw insert — no dedup, no race handling. Use findOrCreate for the
    * idempotent start-a-conversation flow; this stays a thin primitive
    * mainly so tests can assert the exact row shape being written. */
-  create: (
+  create: async (
     buyerId: string,
     sellerId: string,
     context: { adId?: string | null; serviceRequestId?: string | null; listingContext?: Prisma.InputJsonValue | null } = {}
-  ): Promise<Conversation> =>
-    prisma.conversation.create({
+  ): Promise<Conversation> => prisma.$transaction(async (tx) => {
+    const conversation = await tx.conversation.create({
       data: {
         buyerId,
         sellerId,
@@ -94,7 +95,23 @@ export const conversationsRepository = {
         serviceRequestId: context.serviceRequestId ?? null,
         context: context.listingContext ?? undefined,
       },
-    }),
+    });
+    await tx.conversationUserSetting.createMany({
+      data: [
+        { conversationId: conversation.id, userId: buyerId },
+        { conversationId: conversation.id, userId: sellerId },
+      ],
+    });
+    return conversation;
+  }),
+
+  /** Ensures both participants have a private settings row. */
+  ensureUserSettings: async (conversationId: string, userIds: string[]): Promise<void> => {
+    await prisma.conversationUserSetting.createMany({
+      data: [...new Set(userIds)].map((userId) => ({ conversationId, userId })),
+      skipDuplicates: true,
+    });
+  },
 
   /**
    * Idempotent start-a-conversation: reuse the existing thread for this
@@ -127,20 +144,33 @@ export const conversationsRepository = {
     // migration. A future LEAST/GREATEST unique index can harden this
     // without rewriting column semantics.
     const existing = await conversationsRepository.findByUserPair(buyerId, sellerId);
-    if (existing) return existing;
+    if (existing) {
+      await conversationsRepository.ensureUserSettings(existing.id, [buyerId, sellerId]);
+      return existing;
+    }
 
     try {
       return await conversationsRepository.create(buyerId, sellerId, context);
     } catch (err) {
       if (!isPrismaError(err, 'P2002')) throw err;
       const winner = await conversationsRepository.findByUserPair(buyerId, sellerId);
-      if (winner) return winner;
+      if (winner) {
+        await conversationsRepository.ensureUserSettings(winner.id, [buyerId, sellerId]);
+        return winner;
+      }
       throw err;
     }
   },
 
   findById: (id: string): Promise<ConversationWithRelations | null> =>
     prisma.conversation.findUnique({ where: { id }, include: conversationWithRelations }),
+
+  findByIdForUser: async (id: string, userId: string): Promise<(ConversationWithRelations & { mySettings: { pinnedAt: Date | null; archivedAt: Date | null; deletedAt: Date | null; mutedUntil: Date | null } | null }) | null> => {
+    const conversation = await prisma.conversation.findUnique({ where: { id }, include: conversationWithRelations });
+    if (!conversation) return null;
+    const setting = await prisma.conversationUserSetting.findUnique({ where: { conversationId_userId: { conversationId: id, userId } }, select: { pinnedAt: true, archivedAt: true, deletedAt: true, mutedUntil: true } });
+    return { ...conversation, mySettings: setting };
+  },
 
   /** Every conversation the caller is a party to, as either buyer or
    * seller, most-recently-active first (updatedAt bumps on every new
@@ -181,11 +211,7 @@ export const conversationsRepository = {
 
     const where: Prisma.ConversationWhereInput = {
       ...(role === 'buying' ? { buyerId: userId } : role === 'selling' ? { sellerId: userId } : { OR: [{ buyerId: userId }, { sellerId: userId }] }),
-      ...(archivedOnly
-        ? { archivedAt: { not: null } }
-        : includeArchived
-          ? {} // any archivedAt value — active and archived together
-          : { archivedAt: null }), // default: exclude archived
+      userSettings: { some: { userId, ...(archivedOnly ? { archivedAt: { not: null } } : includeArchived ? {} : { archivedAt: null }), deletedAt: null } },
     };
 
     const [conversations, total] = await Promise.all([
@@ -208,6 +234,7 @@ export const conversationsRepository = {
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
+          userSettings: { where: { userId }, take: 1 },
         },
         orderBy: { updatedAt: 'desc' },
         skip,
@@ -217,11 +244,22 @@ export const conversationsRepository = {
     ]);
 
     return {
-      conversations: conversations.map(({ _count, messages, ...conversation }) => ({
-        ...conversation,
-        unreadCount: _count.messages,
-        lastMessage: messages[0] ?? null,
-      })),
+      conversations: conversations.map(({ _count, messages, userSettings, ...conversation }) => {
+        const settings = userSettings?.[0];
+        return {
+          ...conversation,
+          unreadCount: _count.messages,
+          lastMessage: messages[0] ?? null,
+          mySettings: settings
+            ? {
+                pinnedAt: settings.pinnedAt,
+                archivedAt: settings.archivedAt,
+                deletedAt: settings.deletedAt,
+                mutedUntil: settings.mutedUntil,
+              }
+            : null,
+        };
+      }),
       total,
     };
   },
@@ -232,12 +270,28 @@ export const conversationsRepository = {
   touchUpdatedAt: (id: string): Promise<Conversation> =>
     prisma.conversation.update({ where: { id }, data: { updatedAt: new Date() } }),
 
-  /** MSG-FEAT: pin / archive flags (null = not pinned / not archived). */
-  setFlags: (
-    id: string,
-    data: { pinnedAt?: Date | null; archivedAt?: Date | null }
-  ): Promise<Conversation> =>
-    prisma.conversation.update({ where: { id }, data }),
+  getUserSetting: (conversationId: string, userId: string) =>
+    prisma.conversationUserSetting.findUnique({ where: { conversationId_userId: { conversationId, userId } } }),
+
+  upsertUserSetting: (
+    conversationId: string,
+    userId: string,
+    data: { pinnedAt?: Date | null; archivedAt?: Date | null; deletedAt?: Date | null; mutedUntil?: Date | null }
+  ) =>
+    prisma.conversationUserSetting.upsert({
+      where: { conversationId_userId: { conversationId, userId } },
+      create: { conversationId, userId, ...data },
+      update: data,
+    }),
+
+  deleteUserSetting: (conversationId: string, userId: string) =>
+    prisma.conversationUserSetting.deleteMany({ where: { conversationId, userId } }),
+
+  isMuted: async (conversationId: string, userId: string): Promise<boolean> => {
+    const setting = await prisma.conversationUserSetting.findUnique({ where: { conversationId_userId: { conversationId, userId } }, select: { mutedUntil: true } });
+    return Boolean(setting?.mutedUntil && setting.mutedUntil > new Date());
+  },
+
 };
 
 export const messagesRepository = {

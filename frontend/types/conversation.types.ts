@@ -39,6 +39,13 @@ export interface ConversationServiceRequestSummary {
   listing: { id: string; title: string; images: string[] };
 }
 
+export interface ConversationUserSettings {
+  pinnedAt: string | null;
+  archivedAt: string | null;
+  deletedAt: string | null;
+  mutedUntil: string | null;
+}
+
 export interface Conversation {
   id: string;
   adId: string | null;
@@ -54,6 +61,7 @@ export interface Conversation {
   serviceRequest: ConversationServiceRequestSummary | null;
   buyer: ConversationParticipant;
   seller: ConversationParticipant;
+  mySettings?: ConversationUserSettings | null;
 }
 
 /**

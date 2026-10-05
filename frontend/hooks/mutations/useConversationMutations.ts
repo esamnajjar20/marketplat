@@ -225,9 +225,11 @@ export function useSetConversationFlags() {
       id: string;
       pinned?: boolean;
       archived?: boolean;
+      mutedUntil?: string | null;
     }) => conversationsApi.setFlags(id, flags).then((r) => r.data.data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      if (variables?.id) queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', variables.id] });
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });
@@ -247,6 +249,20 @@ export function useMessageMarkMutation(conversationId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'media'] });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => conversationsApi.deleteConversation(id).then((r) => r.data.data),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: ['conversations', 'detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('تم حذف المحادثة من محادثاتك');
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });

@@ -99,6 +99,7 @@ conversationsRouter.delete(
   sendMessageRateLimit,
   conversationsController.deleteMessage
 );
+conversationsRouter.delete('/:id', authenticate, sendMessageRateLimit, conversationsController.deleteConversation);
 conversationsRouter.patch(
   '/:id/flags',
   authenticate,

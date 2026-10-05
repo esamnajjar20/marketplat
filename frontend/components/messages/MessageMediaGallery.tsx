@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, ExternalLink, FileText, Music2 } from 'lucide-react';
+import { ExternalLink, FileText, Music2 } from 'lucide-react';
 import { MessageImageViewer } from './MessageImageViewer';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
 import type { Message } from '@/types/conversation.types';
@@ -12,6 +12,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
+import { MediaDownloadButton } from './MediaDownloadButton';
 
 interface Props {
   items: Message[];
@@ -156,8 +157,8 @@ export function MessageMediaGallery({ items, queuedItems = [], conversationId = 
           const audioUrl = getUrl(item, 'audio');
           const fileUrl = getUrl(item, 'file');
           if (item.imageUrl && imageUrl) return <button key={item.id} type="button" onClick={() => setPreviewIndex(imageItems.findIndex((image) => image.id === item.id))} className="group relative aspect-square overflow-hidden rounded-xl bg-muted" aria-label="معاينة صورة"><SafeImg src={imageUrl} alt="صورة من المحادثة" className="h-full w-full object-cover transition group-hover:scale-105" onError={() => void cacheOnError(item, 'image')} /></button>;
-          if (item.audioUrl && audioUrl) return <div key={item.id} className="col-span-2 flex min-h-24 flex-col justify-center gap-2 rounded-xl border border-border/70 bg-muted/40 p-3 sm:col-span-1"><div className="flex items-center gap-2 text-xs font-medium"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary"><Music2 className="h-4 w-4" /></span>{(item as { queued?: unknown }).queued ? 'تسجيل صوتي — بانتظار الإرسال' : 'تسجيل صوتي'}</div><VoiceMessagePlayer src={audioUrl} variant="theirs" onError={() => void cacheOnError(item, 'audio')} /><a href={audioUrl} target="_blank" rel="noopener noreferrer" download={item.fileName ?? `voice-${item.id}`} className="inline-flex items-center justify-center gap-1 text-xs text-primary"><Download className="h-3.5 w-3.5" />تنزيل</a></div>;
-          return <div key={item.id} className="flex min-h-24 flex-col justify-between rounded-xl border border-border/70 bg-muted/40 p-3"><div className="flex min-w-0 items-center gap-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText className="h-4 w-4" /></span><span className="min-w-0 truncate text-xs font-medium" title={item.fileName ?? undefined}>{item.fileName ?? 'ملف'}</span></div><div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>{formatBytes(item.fileSize)}</span><span className="flex gap-2">{fileUrl && <><a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary" aria-label="فتح الملف" onClick={() => void cacheOnError(item, 'file')}><ExternalLink className="h-3.5 w-3.5" /></a><a href={fileUrl} download={item.fileName ?? 'attachment'} className="text-primary" aria-label="تنزيل الملف"><Download className="h-3.5 w-3.5" /></a></>}</span></div></div>;
+          if (item.audioUrl && audioUrl) return <div key={item.id} className="col-span-2 flex min-h-24 flex-col justify-center gap-2 rounded-xl border border-border/70 bg-muted/40 p-3 sm:col-span-1"><div className="flex items-center gap-2 text-xs font-medium"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary"><Music2 className="h-4 w-4" /></span>{(item as { queued?: unknown }).queued ? 'تسجيل صوتي — بانتظار الإرسال' : 'تسجيل صوتي'}</div><VoiceMessagePlayer src={audioUrl} variant="theirs" onError={() => void cacheOnError(item, 'audio')} /><MediaDownloadButton conversationId={conversationId} messageId={item.id} kind="audio" fileName={item.fileName ?? `voice-${item.id}.webm`} label="تحميل التسجيل" /></div>;
+          return <div key={item.id} className="flex min-h-24 flex-col justify-between rounded-xl border border-border/70 bg-muted/40 p-3"><div className="flex min-w-0 items-center gap-2"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText className="h-4 w-4" /></span><span className="min-w-0 truncate text-xs font-medium" title={item.fileName ?? undefined}>{item.fileName ?? 'ملف'}</span></div><div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>{formatBytes(item.fileSize)}</span><span className="flex gap-2">{fileUrl && <><a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary" aria-label="فتح الملف" onClick={() => void cacheOnError(item, 'file')}><ExternalLink className="h-3.5 w-3.5" /></a><MediaDownloadButton conversationId={conversationId} messageId={item.id} kind="file" fileName={item.fileName} label="تحميل" className="h-8 min-h-8 px-2" /></>}</span></div></div>;
         })}
       </div>}
 

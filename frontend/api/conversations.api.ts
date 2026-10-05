@@ -53,8 +53,11 @@ export const conversationsApi = {
   starMessage: (id: string, messageId: string) => apiClient.post<ApiResponse<void>>(`/conversations/${id}/messages/${messageId}/star`),
   unstarMessage: (id: string, messageId: string) => apiClient.delete<ApiResponse<void>>(`/conversations/${id}/messages/${messageId}/star`),
 
-  setFlags: (id: string, flags: { pinned?: boolean; archived?: boolean }) =>
+  setFlags: (id: string, flags: { pinned?: boolean; archived?: boolean; mutedUntil?: string | null }) =>
     apiClient.patch<ApiResponse<Conversation>>(`/conversations/${id}/flags`, flags),
+
+  deleteConversation: (id: string) =>
+    apiClient.delete<ApiResponse<void>>(`/conversations/${id}`),
 
   sendFile: (id: string, file: File, body?: string) => {
     const form = new FormData(); form.append('file', file); if (body?.trim()) form.append('body', body.trim());
@@ -69,6 +72,9 @@ export const conversationsApi = {
       headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() },
     });
   },
+
+  downloadMedia: (conversationId: string, messageId: string, kind: 'image' | 'audio' | 'file') =>
+    apiClient.get<Blob>(`/conversations/${conversationId}/messages/${messageId}/media/${kind}`, { responseType: 'blob' }),
 
   signalTyping: (id: string, isTyping: boolean) =>
     apiClient.post<ApiResponse<void>>(`/conversations/${id}/typing`, { isTyping }),

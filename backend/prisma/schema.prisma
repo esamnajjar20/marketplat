@@ -164,6 +164,7 @@ model User {
   auditLogs                   AuditLog[]
   conversationsAsBuyer        Conversation[]            @relation("ConversationsAsBuyer")
   conversationsAsSeller       Conversation[]            @relation("ConversationsAsSeller")
+  conversationSettings        ConversationUserSetting[]
   favorites                   Favorite[]
   messagesSent                Message[]                 @relation("MessagesSent")
   messagePins                 MessagePin[]              @relation("MessagePins")
@@ -1149,6 +1150,7 @@ model Conversation {
   buyer            User            @relation("ConversationsAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   seller           User            @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   messages         Message[]
+  userSettings     ConversationUserSetting[]
 
   // FEAT-CONV-DEDUP: was @@unique([adId, buyerId, sellerId]) — that let
   // the same two users accumulate a separate conversation per ad. The
@@ -1163,6 +1165,27 @@ model Conversation {
   @@index([buyerId, updatedAt])
   @@index([sellerId, updatedAt])
   @@map("conversations")
+}
+
+
+model ConversationUserSetting {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  pinnedAt       DateTime?
+  archivedAt     DateTime?
+  deletedAt      DateTime?
+  mutedUntil     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, archivedAt, updatedAt])
+  @@index([userId, deletedAt])
+  @@index([conversationId, userId, mutedUntil])
+  @@map("conversation_user_settings")
 }
 
 model Message {

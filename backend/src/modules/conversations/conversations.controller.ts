@@ -197,6 +197,15 @@ export const conversationsController = {
     }
   },
 
+  deleteConversation: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = conversationIdSchema.parse({ params: req.params });
+      await conversationsService.deleteConversationForUser(user.userId, params.id);
+      res.status(200).json(successResponse('Conversation deleted'));
+    } catch (error) { next(error); }
+  },
+
   setFlags: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
@@ -207,7 +216,7 @@ export const conversationsController = {
       const conversation = await conversationsService.setConversationFlags(
         user.userId,
         params.id,
-        body
+        { ...body, mutedUntil: body.mutedUntil === undefined ? undefined : body.mutedUntil ? new Date(body.mutedUntil) : null }
       );
       res.status(200).json(successResponse('Conversation updated', conversation));
     } catch (error) {

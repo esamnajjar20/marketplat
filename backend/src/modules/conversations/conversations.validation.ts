@@ -94,9 +94,10 @@ export const setConversationFlagsSchema = z.object({
     .object({
       pinned: z.boolean().optional(),
       archived: z.boolean().optional(),
+      mutedUntil: z.union([z.string().datetime(), z.null()]).optional(),
     })
-    .refine((d) => d.pinned !== undefined || d.archived !== undefined, {
-      message: 'Provide pinned and/or archived',
+    .refine((d) => d.pinned !== undefined || d.archived !== undefined || d.mutedUntil !== undefined, {
+      message: 'Provide a conversation setting',
     }),
 });
 

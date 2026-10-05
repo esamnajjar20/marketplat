@@ -548,6 +548,11 @@ export const notificationEvents = {
    * is created — notifies the OTHER party in the thread, never the
    * sender. */
   onNewMessage: async (recipientUserId: string, conversationId: string, senderName: string) => {
+    const conversationMute = await prisma.conversationUserSetting.findUnique({
+      where: { conversationId_userId: { conversationId, userId: recipientUserId } },
+      select: { mutedUntil: true, deletedAt: true },
+    });
+    if (conversationMute?.deletedAt || (conversationMute?.mutedUntil && conversationMute.mutedUntil > new Date())) return null;
     if (!(await userAllowsPref(recipientUserId, 'newMessage'))) return null;
     const title = 'رسالة جديدة';
     const body = `${senderName} أرسل لك رسالة`;
