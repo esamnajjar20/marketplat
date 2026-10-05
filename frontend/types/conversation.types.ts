@@ -86,6 +86,8 @@ export interface Message {
   // needs to blank it itself, only decide how to render the placeholder.
   deletedAt: string | null;
   createdAt: string;
+  isPinned?: boolean;
+  isStarredByMe?: boolean;
 }
 
 // ── Payloads ─────────────────────────────────────────────────────

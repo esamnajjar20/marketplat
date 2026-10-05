@@ -261,9 +261,44 @@ export const messagesRepository = {
   softDelete: (id: string): Promise<Message> =>
     prisma.message.update({ where: { id }, data: { deletedAt: new Date() } }),
 
+  findMediaByConversationId: (
+    conversationId: string,
+    limit = 100,
+  ): Promise<Message[]> =>
+    prisma.message.findMany({
+      where: {
+        conversationId,
+        deletedAt: null,
+        OR: [{ imageUrl: { not: null } }, { audioUrl: { not: null } }],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 100),
+    }),
+
+  pinMessage: (messageId: string, pinnedById: string): Promise<void> =>
+    prisma.messagePin.upsert({
+      where: { messageId },
+      create: { messageId, pinnedById },
+      update: { pinnedById, createdAt: new Date() },
+    }).then(() => undefined),
+
+  unpinMessage: (messageId: string): Promise<void> =>
+    prisma.messagePin.deleteMany({ where: { messageId } }).then(() => undefined),
+
+  starMessage: (messageId: string, userId: string): Promise<void> =>
+    prisma.messageStar.upsert({
+      where: { messageId_userId: { messageId, userId } },
+      create: { messageId, userId },
+      update: {},
+    }).then(() => undefined),
+
+  unstarMessage: (messageId: string, userId: string): Promise<void> =>
+    prisma.messageStar.deleteMany({ where: { messageId, userId } }).then(() => undefined),
+
   findManyByConversationId: async (
     conversationId: string,
-    query: { page?: number; limit?: number }
+    query: { page?: number; limit?: number },
+    viewerId?: string,
   ): Promise<{ messages: Message[]; total: number }> => {
     const { page = 1, limit = 30 } = query;
     const { skip, take } = getPaginationParams(page, limit);
@@ -278,7 +313,16 @@ export const messagesRepository = {
       // keep the placeholder in its correct chronological slot; only
       // `body` is stripped, in the service layer just before the
       // response is built.
-      prisma.message.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.message.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: {
+          pin: true,
+          ...(viewerId ? { stars: { where: { userId: viewerId }, select: { userId: true } } } : {}),
+        },
+      }),
       prisma.message.count({ where }),
     ]);
     return { messages, total };

@@ -105,3 +105,12 @@ export const typingSchema = z.object({
     isTyping: z.boolean(),
   }),
 });
+
+export const messageMarkSchema = z.object({
+  params: z.object({ id: z.string().min(1), messageId: z.string().min(1) }),
+});
+
+export const mediaQuerySchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  query: z.object({ limit: optionalQueryNumber(z.number().int().min(1).max(100)) }),
+});

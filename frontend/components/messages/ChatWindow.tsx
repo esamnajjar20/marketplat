@@ -4,11 +4,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
-import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive, Star, Images, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
 import { classifyHttpConflict } from '@/lib/conflictResolver';
-import { useSetConversationFlags } from '@/hooks/mutations/useConversationMutations';
+import { useSetConversationFlags, useMessageMarkMutation } from '@/hooks/mutations/useConversationMutations';
 import {
   messageDayLabel,
   sameCalendarDay,
@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
 } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
-import { useConversation, useMessages } from '@/hooks/queries/useConversations';
+import { useConversation, useMessages, useConversationMedia } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { retryQueuedMessage, cancelQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
@@ -113,6 +113,7 @@ export function ChatWindow({ conversationId }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
   const [showSafetyTip, setShowSafetyTip] = useState(false);
+  const [showMedia, setShowMedia] = useState(false);
   const {
     data: conversation,
     isLoading: conversationLoading,
@@ -136,6 +137,8 @@ export function ChatWindow({ conversationId }: Props) {
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
   const [partyTyping, setPartyTyping] = useState(false);
   const { mutate: setFlags, isPending: flagsPending } = useSetConversationFlags();
+  const messageMarkMutation = useMessageMarkMutation(conversationId);
+  const { data: mediaItems = [], isLoading: mediaLoading } = useConversationMedia(conversationId);
   const pendingQueued = usePendingMessages(conversationId);
 
   // Show the safety reminder once when entering a thread, then remove it
@@ -526,6 +529,19 @@ export function ChatWindow({ conversationId }: Props) {
           </div>
         </Link>
 
+        <button
+          type="button"
+          onClick={() => setShowMedia((value) => !value)}
+          className={cn(
+            'shrink-0 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors',
+            showMedia ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted',
+          )}
+          aria-label="وسائط المحادثة"
+          title="الصور والتسجيلات في المحادثة"
+        >
+          <Images className="h-5 w-5" />
+        </button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -571,6 +587,38 @@ export function ChatWindow({ conversationId }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {showMedia && (
+        <section className="shrink-0 border-b border-border/70 bg-card px-3 py-3" aria-label="وسائط المحادثة">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">وسائط المحادثة</p>
+              <p className="text-2xs text-muted-foreground">الصور والتسجيلات الصوتية المرسلة</p>
+            </div>
+            <button type="button" onClick={() => setShowMedia(false)} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="إغلاق الوسائط">
+              <XIcon className="h-4 w-4" />
+            </button>
+          </div>
+          {mediaLoading ? (
+            <div className="flex items-center justify-center py-5"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : mediaItems.length === 0 ? (
+            <p className="rounded-xl bg-muted/50 px-3 py-5 text-center text-xs text-muted-foreground">لا توجد وسائط في هذه المحادثة بعد.</p>
+          ) : (
+            <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+              {mediaItems.map((item) => item.imageUrl ? (
+                <a key={item.id} href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="group relative aspect-square overflow-hidden rounded-xl bg-muted">
+                  <SafeImg src={item.imageUrl} alt="صورة من المحادثة" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                </a>
+              ) : (
+                <div key={item.id} className="col-span-3 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/40 p-2 sm:col-span-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Play className="h-4 w-4" /></div>
+                  <audio controls preload="metadata" src={item.audioUrl ?? undefined} className="min-w-0 flex-1 h-9" aria-label="تسجيل صوتي" />
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div
         ref={scrollRef}
@@ -658,6 +706,26 @@ export function ChatWindow({ conversationId }: Props) {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {!isDeleted && (
+                            <>
+                              <DropdownMenuItem
+                                className="flex items-center gap-2 cursor-pointer"
+                                disabled={messageMarkMutation.isPending}
+                                onClick={() => messageMarkMutation.mutate({ messageId: message.id, kind: 'star', active: !message.isStarredByMe })}
+                              >
+                                <Star className={cn('h-4 w-4', message.isStarredByMe && 'fill-current')} />
+                                {message.isStarredByMe ? 'إلغاء التمييز' : 'تمييز الرسالة'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="flex items-center gap-2 cursor-pointer"
+                                disabled={messageMarkMutation.isPending}
+                                onClick={() => messageMarkMutation.mutate({ messageId: message.id, kind: 'pin', active: !message.isPinned })}
+                              >
+                                <Pin className={cn('h-4 w-4', message.isPinned && 'fill-current')} />
+                                {message.isPinned ? 'إلغاء تثبيت الرسالة' : 'تثبيت الرسالة'}
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           <DropdownMenuItem
                             className="flex items-center gap-2 cursor-pointer"
                             onClick={async () => {
@@ -701,6 +769,13 @@ export function ChatWindow({ conversationId }: Props) {
                         clientStatus === 'failed' && 'opacity-80 ring-1 ring-destructive/40'
                       )}
                     >
+                      {!isDeleted && (message.isPinned || message.isStarredByMe) && (
+                        <div className={cn('mb-1.5 flex items-center gap-1 text-2xs', isMine ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                          {message.isPinned && <><Pin className="h-3 w-3" /> <span>مثبتة</span></>}
+                          {message.isPinned && message.isStarredByMe && <span>·</span>}
+                          {message.isStarredByMe && <><Star className="h-3 w-3 fill-current" /> <span>مميزة</span></>}
+                        </div>
+                      )}
                       {!isDeleted && message.audioUrl && (
                         <audio
                           controls

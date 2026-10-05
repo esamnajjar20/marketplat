@@ -128,6 +128,26 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
   });
 }
 
+/**
+ * GET /conversations/:id/messages/media — الصور والتسجيلات الصوتية.
+ * تُستخدم في لوحة وسائط المحادثة (ChatWindow).
+ */
+export function useConversationMedia(conversationId: string, limit = 100) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
+
+  return useQuery({
+    queryKey: ['conversations', 'detail', conversationId, 'media', { limit }],
+    queryFn: async () => {
+      const res = await conversationsApi.getMedia(conversationId, limit);
+      return res.data.data ?? [];
+    },
+    staleTime: CACHE_TTL.messages,
+    enabled: isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
+  });
+}
+
 /** GET /conversations/unread-count — badge + تخزين محلي. */
 export function useUnreadConversationCount() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);

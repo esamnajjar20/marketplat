@@ -30,6 +30,9 @@ export const conversationsApi = {
   getById: (id: string) =>
     apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`),
 
+  getMedia: (id: string, limit = 100) =>
+    apiClient.get<ApiResponse<Message[]>>(`/conversations/${id}/messages/media`, { params: { limit }}),
+
   getMessages: (id: string, params?: MessagesQuery) =>
     apiClient
       .get<ApiResponse<Message[]>>(`/conversations/${id}/messages`, { params })
@@ -44,6 +47,11 @@ export const conversationsApi = {
     apiClient.delete<ApiResponse<Message>>(
       `/conversations/${conversationId}/messages/${messageId}`
     ),
+
+  pinMessage: (id: string, messageId: string) => apiClient.post<ApiResponse<void>>(`/conversations/${id}/messages/${messageId}/pin`),
+  unpinMessage: (id: string, messageId: string) => apiClient.delete<ApiResponse<void>>(`/conversations/${id}/messages/${messageId}/pin`),
+  starMessage: (id: string, messageId: string) => apiClient.post<ApiResponse<void>>(`/conversations/${id}/messages/${messageId}/star`),
+  unstarMessage: (id: string, messageId: string) => apiClient.delete<ApiResponse<void>>(`/conversations/${id}/messages/${messageId}/star`),
 
   setFlags: (id: string, flags: { pinned?: boolean; archived?: boolean }) =>
     apiClient.patch<ApiResponse<Conversation>>(`/conversations/${id}/flags`, flags),

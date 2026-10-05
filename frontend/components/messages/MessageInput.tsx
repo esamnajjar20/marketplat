@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
-import { Send, Ban, ImagePlus, X, Mic, Square, Loader2 } from 'lucide-react';
+import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Radio } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
@@ -224,7 +224,21 @@ export function MessageInput({ conversationId, disabled }: Props) {
         setUploadKind('audio');
         try {
           const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
-          await conversationsApi.sendAudio(conversationId, file, body.trim());
+          const response = await conversationsApi.sendAudio(conversationId, file, body.trim());
+          const sentMessage = response.data.data;
+          if (!sentMessage) throw new Error('Empty audio send response');
+          // Audio is not covered by useSendMessage's optimistic mutation.
+          // Insert the real server message immediately so the recorder does
+          // not appear to have produced an empty bubble while the polling
+          // cycle catches up.
+          queryClient.setQueryData(
+            ['conversations', 'detail', conversationId, 'messages', { limit: 50 }],
+            (current: { items?: unknown[]; meta?: unknown } | undefined) => {
+              if (!current || !Array.isArray(current.items)) return current;
+              if (current.items.some((item: any) => item?.id === sentMessage.id)) return current;
+              return { ...current, items: [...current.items, sentMessage] };
+            },
+          );
           setBody('');
           clearMessageDraft(conversationId);
           setLastSendError(null);
@@ -477,22 +491,31 @@ export function MessageInput({ conversationId, disabled }: Props) {
             <ImagePlus className="h-5 w-5" />
           </button>
           {recording && (
-            <div className="flex min-h-10 items-center gap-2 rounded-full bg-destructive/10 px-3 text-xs font-medium tabular-nums text-destructive" aria-live="polite">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" aria-hidden />
+            <div className="flex min-h-10 items-center gap-2 rounded-2xl border border-destructive/15 bg-destructive/5 px-2.5 text-xs font-medium tabular-nums text-destructive" aria-live="polite">
+              <Radio className="h-3.5 w-3.5 animate-pulse" aria-hidden />
+              <span className="flex items-end gap-0.5" aria-hidden>
+                <i className="h-2 w-0.5 rounded-full bg-current animate-pulse" />
+                <i className="h-3.5 w-0.5 rounded-full bg-current animate-pulse [animation-delay:120ms]" />
+                <i className="h-2.5 w-0.5 rounded-full bg-current animate-pulse [animation-delay:240ms]" />
+              </span>
               <span>{formatRecordingTime(recordingSeconds)}</span>
             </div>
           )}
           <button
             type="button"
             aria-label={recording ? 'إيقاف التسجيل الصوتي' : 'تسجيل رسالة صوتية'}
+            title={recording ? 'إيقاف التسجيل وإرسال التسجيل' : 'تسجيل رسالة صوتية'}
             onClick={() => void toggleRecording()}
             disabled={uploading}
             className={cn(
-              'mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
-              recording ? 'bg-destructive text-destructive-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              'group relative mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all duration-200',
+              recording
+                ? 'border-destructive/40 bg-destructive text-destructive-foreground shadow-md shadow-destructive/20'
+                : 'border-transparent text-muted-foreground hover:border-primary/20 hover:bg-primary/10 hover:text-primary active:scale-95',
             )}
           >
-            {recording ? <Square className="h-4 w-4" /> : <Mic className="h-5 w-5" />}
+            {recording && <span className="absolute inset-0 animate-ping rounded-full border border-destructive/30" aria-hidden /> }
+            {recording ? <Square className="relative h-4 w-4" fill="currentColor" /> : <Mic className="relative h-5 w-5 transition-transform group-hover:scale-110" />}
           </button>
           <div className="min-w-0 flex-1">
             <textarea

@@ -33,7 +33,7 @@ const assertParty = (conversation: Conversation, userId: string): void => {
  * read by the other via getMessages moments later. */
 const redactIfDeleted = (message: Message): Message =>
   message.deletedAt
-    ? { ...message, body: '', imageUrl: null }
+    ? { ...message, body: '', imageUrl: null, audioUrl: null }
     : message;
 
 // FIX MSG-SCAN-01: same high-signal scam phrasing the ad fraud scorer
@@ -597,6 +597,37 @@ export const conversationsService = {
     });
   },
 
+  getMedia: async (userId: string, conversationId: string, limit = 100): Promise<Message[]> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+    return messagesRepository.findMediaByConversationId(conversationId, limit);
+  },
+
+  setMessagePin: async (userId: string, conversationId: string, messageId: string, pinned: boolean): Promise<void> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+    const message = await messagesRepository.findById(messageId);
+    if (!message || message.conversationId !== conversationId || message.deletedAt) {
+      throw new NotFoundError('Message not found', 'MESSAGE_NOT_FOUND');
+    }
+    if (pinned) await messagesRepository.pinMessage(messageId, userId);
+    else await messagesRepository.unpinMessage(messageId);
+  },
+
+  setMessageStar: async (userId: string, conversationId: string, messageId: string, starred: boolean): Promise<void> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+    const message = await messagesRepository.findById(messageId);
+    if (!message || message.conversationId !== conversationId || message.deletedAt) {
+      throw new NotFoundError('Message not found', 'MESSAGE_NOT_FOUND');
+    }
+    if (starred) await messagesRepository.starMessage(messageId, userId);
+    else await messagesRepository.unstarMessage(messageId, userId);
+  },
+
   getMessages: async (
     userId: string,
     conversationId: string,
@@ -607,7 +638,7 @@ export const conversationsService = {
     assertParty(conversation, userId);
 
     const [{ messages, total }] = await Promise.all([
-      messagesRepository.findManyByConversationId(conversationId, query),
+      messagesRepository.findManyByConversationId(conversationId, query, userId),
       messagesRepository.markReadForRecipient(conversationId, userId),
     ]);
 
@@ -617,7 +648,11 @@ export const conversationsService = {
       .catch(() => {});
 
     return {
-      items: messages.map(redactIfDeleted),
+      items: messages.map((message) => ({
+        ...redactIfDeleted(message),
+        isPinned: Boolean((message as Message & { pin?: unknown }).pin),
+        isStarredByMe: Array.isArray((message as Message & { stars?: unknown[] }).stars) && (message as Message & { stars?: unknown[] }).stars!.length > 0,
+      })),
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),
     };
   },

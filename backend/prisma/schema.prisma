@@ -166,6 +166,8 @@ model User {
   conversationsAsSeller       Conversation[]            @relation("ConversationsAsSeller")
   favorites                   Favorite[]
   messagesSent                Message[]                 @relation("MessagesSent")
+  messagePins                 MessagePin[]              @relation("MessagePins")
+  messageStars                MessageStar[]             @relation("MessageStars")
   notifications               Notification[]
   pushSubscriptions           PushSubscription[]
   fcmDeviceTokens              FcmDeviceToken[]
@@ -1165,6 +1167,8 @@ model Message {
   createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  pin            MessagePin?  @relation("MessagePin")
+  stars          MessageStar[] @relation("MessageStars")
 
   @@index([conversationId, createdAt])
   // FIX UX-15: powers the per-conversation unreadCount added to
@@ -1174,6 +1178,29 @@ model Message {
   // createdAt] above doesn't cover.
   @@index([conversationId, senderId, readAt])
   @@map("messages")
+}
+
+model MessagePin {
+  messageId  String   @id
+  pinnedById String
+  createdAt  DateTime @default(now())
+  message    Message  @relation("MessagePin", fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy   User     @relation("MessagePins", fields: [pinnedById], references: [id], onDelete: Cascade)
+
+  @@index([pinnedById, createdAt])
+  @@map("message_pins")
+}
+
+model MessageStar {
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+  message   Message  @relation("MessageStars", fields: [messageId], references: [id], onDelete: Cascade)
+  user     User     @relation("MessageStars", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([userId, createdAt])
+  @@map("message_stars")
 }
 
 model Notification {

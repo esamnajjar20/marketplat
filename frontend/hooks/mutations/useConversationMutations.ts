@@ -232,3 +232,22 @@ export function useSetConversationFlags() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+export function useMessageMarkMutation(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageId, kind, active }: { messageId: string; kind: 'pin' | 'star'; active: boolean }) => {
+      if (kind === 'pin') {
+        if (active) return conversationsApi.pinMessage(conversationId, messageId);
+        return conversationsApi.unpinMessage(conversationId, messageId);
+      }
+      if (active) return conversationsApi.starMessage(conversationId, messageId);
+      return conversationsApi.unstarMessage(conversationId, messageId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'media'] });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}

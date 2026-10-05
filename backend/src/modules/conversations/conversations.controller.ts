@@ -9,6 +9,8 @@ import {
   deleteMessageSchema,
   setConversationFlagsSchema,
   typingSchema,
+  messageMarkSchema,
+  mediaQuerySchema,
 } from './conversations.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -100,6 +102,53 @@ export const conversationsController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  getMedia: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params, query } = mediaQuerySchema.parse({ params: req.params, query: req.query });
+      const media = await conversationsService.getMedia(user.userId, params.id, query.limit);
+      res.status(200).json(successResponse('Conversation media fetched', media));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  pinMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = messageMarkSchema.parse({ params: req.params });
+      await conversationsService.setMessagePin(user.userId, params.id, params.messageId, true);
+      res.status(200).json(successResponse('Message pinned'));
+    } catch (error) { next(error); }
+  },
+
+  unpinMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = messageMarkSchema.parse({ params: req.params });
+      await conversationsService.setMessagePin(user.userId, params.id, params.messageId, false);
+      res.status(200).json(successResponse('Message unpinned'));
+    } catch (error) { next(error); }
+  },
+
+  starMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = messageMarkSchema.parse({ params: req.params });
+      await conversationsService.setMessageStar(user.userId, params.id, params.messageId, true);
+      res.status(200).json(successResponse('Message starred'));
+    } catch (error) { next(error); }
+  },
+
+  unstarMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = messageMarkSchema.parse({ params: req.params });
+      await conversationsService.setMessageStar(user.userId, params.id, params.messageId, false);
+      res.status(200).json(successResponse('Message unstarred'));
+    } catch (error) { next(error); }
   },
 
   deleteMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

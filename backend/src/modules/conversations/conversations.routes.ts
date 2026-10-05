@@ -32,6 +32,12 @@ conversationsRouter.get(
   CACHE.NONE,
   conversationsController.getMessages
 );
+conversationsRouter.get(
+  '/:id/messages/media',
+  authenticate,
+  CACHE.NONE,
+  conversationsController.getMedia
+);
 conversationsRouter.post(
   '/:id/messages',
   authenticate,
@@ -61,6 +67,11 @@ conversationsRouter.post(
   uploadMiddleware,
   conversationsController.sendMessageImage
 );
+conversationsRouter.post('/:id/messages/:messageId/pin', authenticate, sendMessageRateLimit, conversationsController.pinMessage);
+conversationsRouter.delete('/:id/messages/:messageId/pin', authenticate, sendMessageRateLimit, conversationsController.unpinMessage);
+conversationsRouter.post('/:id/messages/:messageId/star', authenticate, sendMessageRateLimit, conversationsController.starMessage);
+conversationsRouter.delete('/:id/messages/:messageId/star', authenticate, sendMessageRateLimit, conversationsController.unstarMessage);
+
 conversationsRouter.delete(
   '/:id/messages/:messageId',
   authenticate,
