@@ -53,7 +53,7 @@ export const adsRepublishService = {
     if (source.userId !== userId) {
       throw new ForbiddenError('You can only republish your own ads.', 'NOT_YOUR_AD');
     }
-    if (source.status !== AdStatus.SOLD && source.status !== AdStatus.DELETED) {
+    if (![AdStatus.SOLD, AdStatus.DELETED, AdStatus.EXPIRED].includes(source.status)) {
       throw new BadRequestError('Ad cannot be republished from this status.', 'AD_NOT_REPUBLISHABLE');
     }
     if (!source.images || source.images.length < 1) {
@@ -151,6 +151,8 @@ export const adsRepublishService = {
             condition: source.condition,
             isNegotiable: source.isNegotiable,
             status: AdStatus.ACTIVE,
+            expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+            expirationNotifiedAt: null,
             views: 0,
             isFeatured: false,
             isPinned: false,

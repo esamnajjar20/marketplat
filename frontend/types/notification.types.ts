@@ -29,7 +29,11 @@ export type NotificationType =
   | 'SERVICE_QUOTE_ACCEPTED'
   | 'SERVICE_REQUEST_NEW'
   | 'SERVICE_REQUEST_UPDATE'
-  | 'APPOINTMENT_UPDATE';
+  | 'APPOINTMENT_UPDATE'
+  | 'AD_EXPIRING_SOON'
+  | 'AD_EXPIRED'
+  | 'MODERATION_REPORT_RECEIVED'
+  | 'MODERATION_DECISION';
 
 /** Per-type deep-link payload — only relevant keys are present per type. */
 export interface NotificationData {
@@ -47,6 +51,9 @@ export interface NotificationData {
   status?: string;
   memberId?: string;
   event?: 'started' | 'expiring' | 'expired';
+  reportId?: string;
+  targetType?: string;
+  targetId?: string;
   /** Set by dailyNotificationDigest job */
   digest?: boolean;
   counts?: Record<string, number>;

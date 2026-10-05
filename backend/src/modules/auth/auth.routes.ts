@@ -226,7 +226,7 @@ authRouter.get(
     // short-lived httpOnly cookie rather than round-tripped through
     // Google, so a third party cannot alter the flow mid-consent.
     const purpose = req.query.purpose;
-    if (purpose === 'verify' || purpose === 'reset') {
+    if (purpose === 'verify' || purpose === 'reset' || purpose === 'link') {
       setOAuthPurpose(res, purpose);
     } else {
       // FIX OAUTH-PURPOSE-LEAK: explicitly clear any purpose cookie

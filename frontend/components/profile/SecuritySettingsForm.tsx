@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button }    from '@/components/shared/ui/Button';
 import { PasswordInput } from '@/components/shared/ui/PasswordInput';
@@ -9,8 +9,57 @@ import { cn } from '@/lib/utils';
 import { useChangePassword } from '@/hooks/mutations/useAuthMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '@/lib/constants';
 
 interface Errors { current?: string; newPass?: string; confirm?: string; }
+
+
+
+function GoogleLinkSection() {
+  const [status, setStatus] = useState<'idle' | 'linked'>('idle');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google') === 'linked') {
+      setStatus('linked');
+      window.history.replaceState(window.history.state, '', '/settings?tab=security');
+    }
+    const code = params.get('code');
+    const error = params.get('error');
+    if (code === 'GOOGLE_LINK_EMAIL_MISMATCH') {
+      toast.error('يجب أن يكون بريد Google هو نفس البريد المرتبط بحسابك.');
+    } else if (code === 'GOOGLE_ALREADY_LINKED_ELSEWHERE') {
+      toast.error('حساب Google هذا مرتبط بحساب سوق غزة آخر بالفعل.');
+    } else if (error === 'session_expired') {
+      toast.error('انتهت جلستك. سجّل الدخول ثم حاول مرة أخرى.');
+    } else if (error === 'google_auth_failed') {
+      toast.error('تعذر ربط Google. حاول مرة أخرى.');
+    }
+    if (code || error) {
+      window.history.replaceState(window.history.state, '', '/settings?tab=security');
+    }
+  }, []);
+
+  return (
+    <section className="max-w-lg space-y-3 rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
+      <div>
+        <h2 className="font-semibold">حساب Google</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          اربط Google بحسابك الحالي لتتمكن من تسجيل الدخول به لاحقًا. يجب أن يكون البريد مطابقًا لبريد حسابك.
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          window.location.assign(`${API_BASE_URL}/auth/google?purpose=link`);
+        }}
+      >
+        {status === 'linked' ? 'تم ربط Google بنجاح' : 'ربط Google'}
+      </Button>
+    </section>
+  );
+}
 
 export function SecuritySettingsForm() {
   const [current,  setCurrent]  = useState('');
@@ -82,6 +131,7 @@ export function SecuritySettingsForm() {
   }
 
   return (
+    <div className="space-y-6">
     <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-lg">
       <h2 className="font-semibold">تغيير كلمة المرور</h2>
       <FormField label="كلمة المرور الحالية" htmlFor="current" required error={errors.current}>
@@ -108,5 +158,7 @@ export function SecuritySettingsForm() {
         {changePassword.isPending ? 'جارٍ التغيير…' : 'تغيير كلمة المرور'}
       </Button>
     </form>
+    <GoogleLinkSection />
+    </div>
   );
 }

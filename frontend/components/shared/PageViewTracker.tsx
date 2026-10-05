@@ -25,6 +25,13 @@ export function PageViewTracker() {
   useEffect(() => {
     if (pathname?.startsWith('/admin')) return;
     track('PAGE_VIEW');
+
+    const onConsent = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+      if (detail === 'granted') track('PAGE_VIEW');
+    };
+    window.addEventListener('marketplat:analytics-consent', onConsent);
+    return () => window.removeEventListener('marketplat:analytics-consent', onConsent);
   }, [pathname]);
 
   return null;

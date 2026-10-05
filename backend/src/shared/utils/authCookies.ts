@@ -306,9 +306,9 @@ export function clearOAuthStateCookie(res: Response): void {
 }
 
 // ── OAuth purpose cookie ──────────────────────────────────────────
-// FEAT-GOOGLE-VERIFY-RESET: the same /auth/google + /auth/google/callback
-// endpoints now serve three flows: sign-in (the original), verify the
-// caller's email without signing in, and issue a password-reset token.
+// FEAT-GOOGLE-VERIFY-RESET / LINK: the same /auth/google +
+// /auth/google/callback endpoints serve sign-in, email verification,
+// password reset, and the explicit Settings -> Security Google-link flow.
 // The flow is selected by a `?purpose=` query param on the initial
 // /auth/google call, mirrored into an httpOnly cookie for the same
 // reason and with the same attributes as OAUTH_STATE above (never read
@@ -319,7 +319,9 @@ export function clearOAuthStateCookie(res: Response): void {
 // compared for equality, not secrets an attacker can grind).
 const OAUTH_PURPOSE_COOKIE_NAME = 'oauth_purpose';
 
-export function setOAuthPurpose(res: Response, purpose: 'verify' | 'reset'): void {
+export type OAuthPurpose = 'verify' | 'reset' | 'link';
+
+export function setOAuthPurpose(res: Response, purpose: OAuthPurpose): void {
   res.cookie(OAUTH_PURPOSE_COOKIE_NAME, purpose, {
     httpOnly: true,
     secure: isProduction,
@@ -329,9 +331,9 @@ export function setOAuthPurpose(res: Response, purpose: 'verify' | 'reset'): voi
   });
 }
 
-export function getOAuthPurpose(req: Request): 'verify' | 'reset' | undefined {
+export function getOAuthPurpose(req: Request): OAuthPurpose | undefined {
   const value = req.cookies?.[OAUTH_PURPOSE_COOKIE_NAME];
-  return value === 'verify' || value === 'reset' ? value : undefined;
+  return value === 'verify' || value === 'reset' || value === 'link' ? value : undefined;
 }
 
 export function clearOAuthPurpose(res: Response): void {

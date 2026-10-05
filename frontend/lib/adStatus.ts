@@ -19,4 +19,5 @@ export const AD_STATUS_VARIANT: Record<
   ACTIVE:  'success',
   SOLD:    'secondary',
   DELETED: 'destructive',
+  EXPIRED: 'secondary',
 };

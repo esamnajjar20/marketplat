@@ -42,6 +42,20 @@ export const reportsRepository = {
       },
     }),
 
+  countDistinctPendingReporters: async (targetType: ReportTargetType, targetId: string): Promise<number> => {
+    return prisma.report.count({
+      where: { targetType, targetId, status: ReportStatus.PENDING },
+    });
+  },
+
+  autoHideAdIfStillActive: async (adId: string): Promise<boolean> => {
+    const result = await prisma.ad.updateMany({
+      where: { id: adId, status: 'ACTIVE', flaggedForReview: false },
+      data: { flaggedForReview: true },
+    });
+    return result.count > 0;
+  },
+
   findByUserAndTarget: async (
     userId: string,
     targetType: ReportTargetType,

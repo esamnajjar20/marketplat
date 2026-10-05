@@ -305,6 +305,10 @@ const envSchema = z.object({
   FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default('24'),
   // Ad riskScore (0-100) at or above this auto-sets flaggedForReview.
   FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default('60'),
+  // Report-driven moderation: unique user reports needed to temporarily
+  // hide an ACTIVE ad. Kept configurable so a small marketplace can use 3
+  // while a larger one can raise the threshold without a code change.
+  AD_REPORT_AUTO_HIDE_THRESHOLD: z.string().regex(/^\d+$/).default('3'),
   // AUDIT-FIX 1.3: analytics.repository.ts's trendByEvent/topCategories
   // run raw, unindexed-aggregate-friendly but potentially expensive
   // GROUP BY queries (date_trunc bucketing, JSON metadata extraction)
@@ -317,11 +321,21 @@ const envSchema = z.object({
   // architectural limit — tune per deployment if real query patterns
   // need more.
   ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default('10000'),
-  // PROD-FIX-03 (optional for now): if set, GET /metrics requires
-  // Authorization: Bearer <token>. Unset by default — /metrics stays
-  // unauthenticated (matches /health, /ready), which is only safe if
-  // it's also restricted at the network level. TODO: enforce in
-  // production before launch.
+  ANALYTICS_RETENTION_DAYS: z.string().regex(/^\d+$/).default('90'),
+  // PROD-FIX-03: /metrics was previously unauthenticated at the
+  // application level with only a code comment recommending a
+  // reverse-proxy allowlist — no such reverse-proxy config exists
+  // anywhere in this repo, so a deployment that doesn't add its own
+  // network-level restriction exposes internal route structure (every
+  // req.route label value ever observed) to anyone who requests the
+  // URL. Optional, like CLOUDINARY_*/SMTP_*/SENTRY_DSN — if unset,
+  // /metrics keeps its previous unauthenticated behavior (matches
+  // /health, /ready — meant to be reachable by an infra scraper with
+  // no credentials). If set, GET /metrics requires this exact value
+  // in an `Authorization: Bearer <token>` header. This does not
+  // replace a real network-level restriction (a reverse-proxy
+  // allowlist is still the more robust fix) — it's a zero-infra
+  // baseline for deployments that haven't set one up yet.
   METRICS_TOKEN: z.string().optional(),
   // CENTRALIZE-04: previously read directly via process.env in
   // rateLimit.middleware.ts with no schema entry — worked, but meant
@@ -681,11 +695,11 @@ export const env = {
     // env.email.fromEmail silently ignores a configured Resend key.
     fromEmail: (_env.SMTP_FROM_EMAIL || _env.GMAIL_USER || 'no-reply@example.com').trim(),
     fromName: _env.SMTP_FROM_NAME || 'سوق غزة',
-    // Email sending is considered configured only when the selected
-    // provider has everything it needs to actually send a message.
-    // This mirrors the production validation above and prevents a partial
-    // Gmail configuration from entering the Gmail path with missing OAuth
-    // client credentials.
+    // Email sending is considered "configured" only once host+user+password
+    // are all present — partial config (e.g. just a from-address) isn't
+    // enough to attempt a real SMTP connection.
+    // FIX GMAIL-OAUTH-EMAIL-01: "configured" now means any of the
+    // three senders is usable: Gmail OAuth, Resend, or legacy SMTP.
     isConfigured: Boolean(
       (_env.GMAIL_USER && _env.GOOGLE_REFRESH_TOKEN && _env.GOOGLE_CLIENT_ID && _env.GOOGLE_CLIENT_SECRET) ||
       (_env.RESEND_API_KEY && _env.SMTP_FROM_EMAIL) ||
@@ -748,9 +762,11 @@ export const env = {
     rapidPostingMaxPosts: parseInt(_env.FRAUD_RAPID_POSTING_MAX_POSTS, 10),
     newAccountWindowHours: parseInt(_env.FRAUD_NEW_ACCOUNT_WINDOW_HOURS, 10),
     autoFlagThreshold: parseInt(_env.FRAUD_AUTO_FLAG_THRESHOLD, 10),
+    reportAutoHideThreshold: parseInt(_env.AD_REPORT_AUTO_HIDE_THRESHOLD, 10),
   },
   analytics: {
     queryTimeoutMs: parseInt(_env.ANALYTICS_QUERY_TIMEOUT_MS, 10),
+    retentionDays: parseInt(_env.ANALYTICS_RETENTION_DAYS, 10),
   },
   observability: {
     sentryDsn: _env.SENTRY_DSN || '',

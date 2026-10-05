@@ -12,7 +12,7 @@ import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { STATUS_LABELS } from '@/lib/constants';
 import type { AdStatus } from '@/types/ad.types';
 
-const ALL_STATUSES: AdStatus[] = ['ACTIVE', 'SOLD', 'DELETED'];
+const ALL_STATUSES: AdStatus[] = ['ACTIVE', 'SOLD', 'DELETED', 'EXPIRED'];
 
 describe('adStatus', () => {
   it('has a badge variant for every status', () => {
@@ -40,7 +40,15 @@ describe('adStatus', () => {
     expect(AD_STATUS_VARIANT.SOLD).toBe('secondary');
   });
 
-  it('only defines the three known statuses (no stale/extra keys)', () => {
+  it('marks EXPIRED as secondary (closed but recoverable)', () => {
+    expect(AD_STATUS_VARIANT.EXPIRED).toBe('secondary');
+  });
+
+  it('labels EXPIRED as منتهي', () => {
+    expect(STATUS_LABELS.EXPIRED).toBe('منتهي');
+  });
+
+  it('only defines the known statuses (no stale/extra keys)', () => {
     expect(Object.keys(AD_STATUS_VARIANT).sort()).toEqual([...ALL_STATUSES].sort());
   });
 });

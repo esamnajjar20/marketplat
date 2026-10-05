@@ -419,6 +419,60 @@ export const authService = {
    * must not both pass the "no existing account" check and both
    * attempt to create/link — see oauthLock.ts's own comment.
    */
+  /**
+   * Link a verified Google identity to the currently authenticated
+   * session represented by the refresh-token cookie. This is used only
+   * by the explicit Settings -> Security flow; it never creates a
+   * session and never links by email alone.
+   */
+  linkGoogleFromRefreshToken: async (
+    refreshToken: string,
+    profile: GoogleProfileData,
+  ): Promise<void> => {
+    const genericError = new UnauthorizedError('Session expired. Please login again', 'SESSION_EXPIRED');
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch {
+      throw genericError;
+    }
+
+    const valid = await tokenStore.validateRefreshToken(payload.userId, payload.sessionId, refreshToken);
+    if (!valid) throw genericError;
+
+    const user = await authRepository.findByEmail(profile.email);
+    if (!user || user.id !== payload.userId) {
+      throw new BadRequestError(
+        'The Google account email must match the email on your marketplace account',
+        'GOOGLE_LINK_EMAIL_MISMATCH',
+      );
+    }
+    if (!user.isActive) {
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+    }
+
+    return withOAuthAccountResolutionLock(profile.email, async () => {
+      const existingGoogleUser = await authRepository.findByGoogleId(profile.googleId);
+      if (existingGoogleUser && existingGoogleUser.id !== user.id) {
+        throw new BadRequestError(
+          'This Google account is already linked to another marketplace account',
+          'GOOGLE_ALREADY_LINKED_ELSEWHERE',
+        );
+      }
+
+      if (user.googleId === profile.googleId) return;
+
+      await authRepository.linkGoogleAccount(user.id, profile.googleId);
+      await userCache.invalidate(user.id);
+      auditLog({
+        event: AuditEvent.OAUTH_ACCOUNT_LINKED,
+        userId: user.id,
+        sessionId: payload.sessionId,
+        details: { provider: 'google', source: 'settings' },
+      }).catch(() => {});
+    });
+  },
+
   loginWithGoogle: async (
     profile: GoogleProfileData,
     ip = 'unknown',

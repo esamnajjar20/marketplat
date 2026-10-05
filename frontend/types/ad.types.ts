@@ -10,7 +10,7 @@
 // ── Enums (must match backend Prisma enums exactly) ───────────────
 
 /** FIX T-02: backend schema has only ACTIVE | SOLD | DELETED */
-export type AdStatus    = 'ACTIVE' | 'SOLD' | 'DELETED';
+export type AdStatus    = 'ACTIVE' | 'SOLD' | 'DELETED' | 'EXPIRED';
 export type AdCondition = 'NEW' | 'USED' | 'REFURBISHED';
 
 /**
@@ -45,6 +45,8 @@ export interface Ad {
   longitude:    number | null;
   images:       string[];
   status:       AdStatus;
+  expiresAt?: string | null;
+  expirationNotifiedAt?: string | null;
   views:        number;
   isFeatured:   boolean;
   isPinned:     boolean;

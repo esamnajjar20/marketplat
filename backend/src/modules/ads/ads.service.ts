@@ -255,6 +255,8 @@ export const adsService = {
               images: uploads.map(upload => upload.url),
               sellerProfileId: sellerProfile.id,
               storeId: resolvedStoreId,
+              expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+              expirationNotifiedAt: null,
               ...(offlineOperationId ? { offlineOperationId } : {}),
             },
             include: {

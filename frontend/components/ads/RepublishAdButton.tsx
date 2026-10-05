@@ -8,8 +8,8 @@ import { useState } from 'react';
 
 interface Props {
   adId: string;
-  /** اعرض الزر فقط للإعلانات المباعة/المحذوفة */
-  status: 'SOLD' | 'DELETED' | string;
+  /** يظهر للإعلانات المغلقة التي يمكن إنشاء نسخة جديدة منها. */
+  status: 'SOLD' | 'DELETED' | 'EXPIRED' | string;
   className?: string;
 }
 
@@ -17,7 +17,7 @@ export function RepublishAdButton({ adId, status, className }: Props) {
   const republish = useRepublishAd();
   const [open, setOpen] = useState(false);
 
-  if (status !== 'SOLD' && status !== 'DELETED') return null;
+  if (status !== 'SOLD' && status !== 'DELETED' && status !== 'EXPIRED') return null;
 
   return (
     <>

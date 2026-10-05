@@ -18,6 +18,8 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { Report, ReportTargetType } from '@prisma/client';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { env } from '../../config/env';
+import { notificationEvents } from '../notifications/notifications.service';
 
 const TARGET_LABEL: Record<ReportTargetType, string> = {
   AD: 'ad',
@@ -58,7 +60,28 @@ const submitReport = async (
   // previously bubbled up unhandled to a generic 500 instead of the
   // same friendly "already reported" error.
   try {
-    return await reportsRepository.create(userId, targetType, targetId, input.reason, input.notes);
+    const report = await reportsRepository.create(userId, targetType, targetId, input.reason, input.notes);
+
+    // Only ADs have an existing public visibility flag. Three distinct reporters
+    // temporarily hide an active ad while leaving the report queue and audit trail
+    // intact; moderators can clear the flag after review.
+    let autoHidden = false;
+    if (targetType === 'AD') {
+      const reportCount = await reportsRepository.countDistinctPendingReporters(targetType, targetId);
+      if (reportCount >= env.fraud.reportAutoHideThreshold) {
+        autoHidden = await reportsRepository.autoHideAdIfStillActive(targetId);
+      }
+    }
+
+    void notificationEvents.onModerationReportReceived({
+      reportId: report.id,
+      targetType,
+      targetId,
+      targetLabel: TARGET_LABEL[targetType],
+      autoHidden,
+    }).catch(() => {});
+
+    return report;
   } catch (err) {
     if (isPrismaError(err, 'P2002')) {
       throw new BadRequestError(`You have already reported this ${TARGET_LABEL[targetType]}`);
@@ -160,7 +183,25 @@ export const reportsService = {
   ): Promise<ReportWithDetails> => {
     const report = await reportsRepository.findById(id);
     if (!report) throw new NotFoundError('Report not found');
-    return reportsRepository.updateStatus(id, input.status);
+    const updated = await reportsRepository.updateStatus(id, input.status);
+
+    // The reporter always gets the outcome. For AD reports the owner also gets
+    // a neutral review-result notice; no internal moderation notes are exposed.
+    const recipients = new Set<string>([report.user.id]);
+    if (report.targetType === 'AD' && report.ad?.userId) recipients.add(report.ad.userId);
+    void notificationEvents.onModerationDecision({
+      userIds: [...recipients],
+      reportId: report.id,
+      targetType: report.targetType,
+      targetId: report.targetId,
+      status: input.status,
+      targetTitle: report.ad?.title ?? TARGET_LABEL[report.targetType],
+    }).catch(() => {});
+
+    // A resolved/dismissed AD is safe to surface again only when the moderator
+    // explicitly clears the review flag; changing report status alone must not
+    // accidentally publish content.
+    return updated;
   },
 
   // BULK-ADMIN (item 17): best-effort batch, not all-or-nothing — an

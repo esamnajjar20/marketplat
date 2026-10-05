@@ -41,6 +41,8 @@ const recommendationAdSelect = {
   condition: true,
   isNegotiable: true,
   status: true,
+  expiresAt: true,
+  expirationNotifiedAt: true,
   views: true,
   viewsAtLastReport: true,
   isFeatured: true,
@@ -1064,7 +1066,7 @@ export const recommendationsRepository = {
     // uses) rather than checked in a second round-trip, since this path
     // is already a raw query.
     const whereParts: Prisma.Sql[] = [
-      Prisma.sql`a."status" = ${AdStatus.ACTIVE}::"AdStatus"`,
+      Prisma.sql`a."status" = ${AdStatus.ACTIVE}::"AdStatus" AND a."flaggedForReview" = false`,
       Prisma.sql`sp."suspended" = false`,
     ];
     if (excludeIds.length > 0) {
@@ -1118,6 +1120,7 @@ export const recommendationsRepository = {
   ): Promise<AdListRow[]> => {
     const baseWhere: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
+      flaggedForReview: false,
       sellerProfile: { suspended: false },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };

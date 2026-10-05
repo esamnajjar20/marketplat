@@ -61,7 +61,9 @@ export const errorMessages: Record<string, ErrorMessageEntry> = {
   OAUTH_EMAIL_ALREADY_REGISTERED:
     'يوجد حساب مسجّل بهذا البريد مسبقًا. سجّل الدخول بكلمة المرور أولاً، ثم اربط Google من الإعدادات.',
   GOOGLE_ALREADY_LINKED_ELSEWHERE:
-    'هذا الحساب مرتبط بحساب Google آخر بالفعل. تواصل مع الدعم لمراجعة الحالة.',
+    'حساب Google هذا مرتبط بحساب سوق غزة آخر بالفعل.',
+  GOOGLE_LINK_EMAIL_MISMATCH:
+    'يجب أن يكون بريد Google هو نفس البريد المرتبط بحسابك في سوق غزة.',
 
   // ── Users ────────────────────────────────────────────────────────
   USER_NOT_FOUND: 'المستخدم غير موجود',

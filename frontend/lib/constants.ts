@@ -177,11 +177,12 @@ export const CONDITION_LABELS: Record<string, string> = {
   REFURBISHED: 'مجدد',
 };
 
-/** Keys must match AdStatus exactly: ACTIVE | SOLD | DELETED (see types/ad.types.ts). */
+/** Keys must match AdStatus exactly (see types/ad.types.ts). */
 export const STATUS_LABELS: Record<string, string> = {
   ACTIVE:  'نشط',
   SOLD:    'تم البيع',
   DELETED: 'محذوف',
+  EXPIRED: 'منتهي',
 };
 
 /** Must match the backend Prisma `ReportReason` enum exactly (prisma/schema.prisma). */

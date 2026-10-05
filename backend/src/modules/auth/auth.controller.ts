@@ -278,6 +278,7 @@ export const authController = {
     const errorRedirect = (query: string): string => {
       if (purpose === 'verify') return `${base}verify-email${query}`;
       if (purpose === 'reset') return `${base}forgot-password${query}`;
+      if (purpose === 'link') return `${base}settings?tab=security${query}`;
       return `${loginRedirect}${query}`;
     };
 
@@ -301,6 +302,17 @@ export const authController = {
       // failure path can be context-aware — see errorRedirect's own
       // comment. The purpose cookie was cleared there too, so a
       // replayed callback URL cannot re-enter the same branch.)
+      if (purpose === 'link') {
+        const refreshToken = getRefreshTokenFromCookie(req);
+        if (!refreshToken) {
+          res.redirect(errorRedirect('?error=session_expired'));
+          return;
+        }
+        await authService.linkGoogleFromRefreshToken(refreshToken, profile);
+        res.redirect(`${base}settings?tab=security&google=linked`);
+        return;
+      }
+
       if (purpose === 'verify') {
         // Google has already proven the email is verified
         // (extractGoogleProfile only accepts email_verified === true).

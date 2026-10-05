@@ -52,6 +52,7 @@ import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
+import { AnalyticsConsentBanner } from '@/components/shared/AnalyticsConsentBanner';
 import { NavigationProgress } from '@/components/shared/NavigationProgress';
 import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
 
@@ -149,6 +150,7 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         {/* Gap #7 (product analytics): see PageViewTracker.tsx's own
             header for why this is mounted here rather than per-page. */}
         <PageViewTracker />
+        <AnalyticsConsentBanner />
 
         {/* Chat presence heartbeat — see PresenceHeartbeat.tsx's own
             header; same mount-once, no-props posture as the two above. */}

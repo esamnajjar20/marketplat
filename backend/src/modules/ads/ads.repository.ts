@@ -60,6 +60,8 @@ const adListSelect = {
   condition: true,
   isNegotiable: true,
   status: true,
+  expiresAt: true,
+  expirationNotifiedAt: true,
   views: true,
   // Added alongside the viewsAtLastReport migration: adListSelect is an
   // explicit column allowlist, and AdListRow is derived from
@@ -139,7 +141,13 @@ export const adsRepository = {
     sellerProfileId: string
   ): Promise<AdWithAuthor> =>
     prisma.ad.create({
-      data: { ...data, userId, images, sellerProfileId },
+      data: {
+        ...data,
+        userId,
+        images,
+        sellerProfileId,
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+      },
       include: adWithRelations,
     }),
 
@@ -176,6 +184,7 @@ export const adsRepository = {
       const effectiveTs = tsQueryString ?? search;
       const whereParts: Prisma.Sql[] = [
         Prisma.sql`"status" = ${AdStatus.ACTIVE}::"AdStatus"`,
+        Prisma.sql`"flaggedForReview" = false`,
         // AUDIT-FIX (ads-feature review): the SEC-FIX below (see the
         // plain where-clause branch further down) hides ads from
         // suspended sellers via `sellerProfile: { suspended: false }` —
@@ -273,6 +282,7 @@ export const adsRepository = {
 
     const where: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
+      flaggedForReview: false,
       ...(storeId ? { storeId } : {}),
       // SEC-FIX: same gap as products.repository.ts's findMany — an
       // admin suspending a seller only ever blocked that seller from

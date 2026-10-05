@@ -32,6 +32,7 @@ chmod +x scripts/run-job.sh
 | `weekly-store-views` | `report:weekly-store-views` | Mon 08:15 |
 | `weekly-service-views` | `report:weekly-service-views` | Mon 08:30 |
 | `expire-open-requests` | `report:expire-open-requests` | Hourly at :20 |
+| `cleanup-analytics` | `report:cleanup-analytics` | Daily 03:45 |
 
 ### New jobs (phase C)
 
@@ -51,6 +52,7 @@ chmod +x scripts/run-job.sh
 export STALE_BOOST_DAYS=60
 export FAILED_TASK_RETENTION_DAYS=30
 export DRY_RUN=1   # only for demote-stale-boosts trial
+export ANALYTICS_RETENTION_DAYS=90
 ```
 
 ## Not automated yet
@@ -59,7 +61,39 @@ export DRY_RUN=1   # only for demote-stale-boosts trial
 - Automatic retry of each `FailedBackgroundTask.taskType`
 - Hard auto-archive/delete of old ACTIVE ads (product decision)
 
+### Analytics retention
+
+`report:cleanup-analytics` deletes raw `analytics_events` older than
+`ANALYTICS_RETENTION_DAYS` (default 90) in batches of 5,000. The admin
+dashboard currently offers a maximum 90-day range, so no dashboard range
+is lost by the cleanup job. If longer historical reporting is needed later,
+add a daily rollup table before extending the UI beyond the retention window.
+
+## Scheduling (production)
+
+Scheduled jobs run via `.github/workflows/cron.yml` on GitHub Actions:
+
+- Trigger: `0 4 * * *` (daily, 04:00 UTC = 06:00–07:00 Gaza)
+- Command: `npm run cron:scheduled`
+- Runner matches weekday-only for weekly jobs; every daily job runs on
+  every invocation. Every script is idempotent.
+- **Note:** the `hour` field on each JOBS entry documents the intended
+  business hour but is not matched — daily cron fires once, so hour
+  matching would silently skip all but one job.
+
+The Render API service stays a long-lived HTTP process; the cron
+workflow runs outside it. To trigger manually: GitHub → Actions →
+Scheduled Jobs (daily) → Run workflow.
+
+
 ## Related
 
 - `deploy/crontab.example`
 - `scripts/run-job.sh`
+
+
+### Ad lifecycle
+
+- `report:expire-ads` runs from the scheduled-job runner. It warns sellers roughly 7 days before expiry and transitions due ACTIVE ads to `EXPIRED`.
+- The job is idempotent and safe to invoke every 15 minutes.
+- New ads receive a 60-day `expiresAt`; existing ACTIVE ads are backfilled by the lifecycle migration.

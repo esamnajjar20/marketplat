@@ -1,7 +1,7 @@
 {
   "name": "classifieds-platform-backend",
   "version": "3.0.0",
-  "description": "Classifieds & Marketplace Platform \u2014 Backend API",
+  "description": "Classifieds & Marketplace Platform — Backend API",
   "license": "UNLICENSED",
   "main": "dist/server.js",
   "engines": {
@@ -44,7 +44,10 @@
     "report:cleanup-failed-tasks": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupFailedBackgroundTasks.ts",
     "report:demote-stale-boosts": "ts-node-dev --transpile-only --exit-child src/scripts/demoteStaleAdBoosts.ts",
     "report:expire-open-requests": "ts-node-dev --transpile-only --exit-child src/scripts/expireOpenRequests.ts",
-    "report:expire-service-requests": "ts-node-dev --transpile-only --exit-child src/scripts/expireStaleServiceRequests.ts"
+    "report:expire-service-requests": "ts-node-dev --transpile-only --exit-child src/scripts/expireStaleServiceRequests.ts",
+    "cron:scheduled": "ts-node-dev --transpile-only --exit-child src/scripts/runScheduledJobs.ts",
+    "report:expire-ads": "ts-node-dev --transpile-only --exit-child src/scripts/expireAds.ts",
+    "report:cleanup-analytics": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupAnalytics.ts"
   },
   "lint-staged": {
     "src/**/*.ts": [

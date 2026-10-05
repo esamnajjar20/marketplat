@@ -18,6 +18,7 @@ import {
   Users,
   Wrench,
   CalendarClock,
+  ShieldAlert,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -44,6 +45,10 @@ export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   SERVICE_REQUEST_NEW: Wrench,
   SERVICE_REQUEST_UPDATE: Wrench,
   APPOINTMENT_UPDATE: CalendarClock,
+  AD_EXPIRING_SOON: CalendarClock,
+  AD_EXPIRED: CalendarClock,
+  MODERATION_REPORT_RECEIVED: ShieldAlert,
+  MODERATION_DECISION: ShieldAlert,
 };
 
 export const TYPE_LABEL: Record<NotificationType, string> = {
@@ -67,6 +72,10 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   SERVICE_REQUEST_NEW: 'طلب خدمة جديد',
   SERVICE_REQUEST_UPDATE: 'تحديث طلب خدمة',
   APPOINTMENT_UPDATE: 'موعد',
+  AD_EXPIRING_SOON: 'إعلان يقترب من الانتهاء',
+  AD_EXPIRED: 'انتهاء إعلان',
+  MODERATION_REPORT_RECEIVED: 'بلاغ جديد',
+  MODERATION_DECISION: 'نتيجة المراجعة',
 };
 
 export type NotificationCategoryId =
@@ -121,6 +130,10 @@ export const NOTIFICATION_CATEGORIES: {
       'WEEKLY_AD_VIEWS_REPORT',
       'WEEKLY_STORE_VIEWS_REPORT',
       'WEEKLY_SERVICE_VIEWS_REPORT',
+      'AD_EXPIRING_SOON',
+      'AD_EXPIRED',
+      'MODERATION_REPORT_RECEIVED',
+      'MODERATION_DECISION',
     ],
   },
 ];
@@ -130,6 +143,9 @@ export type HrefSource = Pick<Notification, 'type' | 'data'>;
 
 export function hrefFor(notification: HrefSource): string | null {
   const d = notification.data;
+  if ((notification.type === 'AD_EXPIRING_SOON' || notification.type === 'AD_EXPIRED') && d?.adId) {
+    return ROUTES.adDetail(d.adId);
+  }
   if (notification.type === 'NEW_MESSAGE' && d?.conversationId) {
     return ROUTES.conversationDetail(d.conversationId);
   }

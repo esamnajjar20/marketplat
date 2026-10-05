@@ -482,6 +482,68 @@ const unreadMessageCount = (data: unknown): number => {
 };
 
 export const notificationEvents = {
+  /** Seller-facing lifecycle warning, emitted once per ad. */
+  onAdExpiringSoon: async (userId: string, adId: string, adTitle: string, expiresAt: Date): Promise<void> => {
+    const title = 'إعلانك يقترب من الانتهاء';
+    const body = `سينتهي إعلان "${adTitle}" خلال 7 أيام تقريبًا`;
+    const data = { adId, expiresAt: expiresAt.toISOString(), event: 'expiring' };
+    await notificationsRepository.create({ userId, type: 'AD_EXPIRING_SOON', title, body, data });
+    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expiry-${adId}`, type: 'AD_EXPIRING_SOON' }).catch(() => {});
+  },
+
+  /** Seller-facing terminal lifecycle event. */
+  onAdExpired: async (userId: string, adId: string, adTitle: string): Promise<void> => {
+    const title = 'انتهى إعلانك';
+    const body = `انتهت مدة نشر "${adTitle}". يمكنك تجديده من إعلاناتك.`;
+    const data = { adId, event: 'expired' };
+    await notificationsRepository.create({ userId, type: 'AD_EXPIRED', title, body, data });
+    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expired-${adId}`, type: 'AD_EXPIRED' }).catch(() => {});
+  },
+
+  /** Moderation queue: every moderator/admin gets a durable in-app row and a push. */
+  onModerationReportReceived: async (input: {
+    reportId: string;
+    targetType: string;
+    targetId: string;
+    targetLabel: string;
+    autoHidden: boolean;
+  }): Promise<{ count: number }> => {
+    const moderators = await prisma.user.findMany({
+      where: { role: { in: ['MODERATOR', 'ADMIN', 'SUPER_ADMIN'] } },
+      select: { id: true },
+    });
+    const userIds = moderators.map((m) => m.id);
+    if (userIds.length === 0) return { count: 0 };
+    const title = input.autoHidden ? 'تم إخفاء محتوى تلقائيًا' : 'بلاغ جديد يحتاج مراجعة';
+    const body = `${input.targetLabel} تلقى بلاغًا جديدًا${input.autoHidden ? ' وتم إخفاؤه مؤقتًا' : ''}`;
+    const data = { reportId: input.reportId, targetType: input.targetType, targetId: input.targetId };
+    void pushService.notifyUsers(userIds, {
+      title, body, url: '/admin?tab=reports', tag: `report-${input.reportId}`, type: 'MODERATION_REPORT_RECEIVED',
+    }).catch(() => {});
+    return notificationsRepository.createMany(userIds.map((userId) => ({
+      userId, type: 'MODERATION_REPORT_RECEIVED' as const, title, body, data,
+    })));
+  },
+
+
+  /** Report outcome for the reporter and, for ad reports, the affected owner. */
+  onModerationDecision: async (input: {
+    userIds: string[]; reportId: string; targetType: string; targetId: string; status: string; targetTitle: string;
+  }): Promise<{ count: number }> => {
+    const resolved = input.status === 'RESOLVED';
+    const title = resolved ? 'تمت مراجعة البلاغ' : 'تمت مراجعة البلاغ';
+    const body = resolved
+      ? `تم اتخاذ إجراء بشأن البلاغ المتعلق بـ"${input.targetTitle}"`
+      : `تمت مراجعة البلاغ المتعلق بـ"${input.targetTitle}" دون إجراء نشر جديد`;
+    const data = { reportId: input.reportId, targetType: input.targetType, targetId: input.targetId, status: input.status };
+    void pushService.notifyUsers(input.userIds, {
+      title, body, url: '/notifications', tag: `moderation-${input.reportId}`, type: 'MODERATION_DECISION',
+    }).catch(() => {});
+    return notificationsRepository.createMany(input.userIds.map((userId) => ({
+      userId, type: 'MODERATION_DECISION' as const, title, body, data,
+    })));
+  },
+
   /** conversations.service.ts's sendMessage calls this after a message
    * is created — notifies the OTHER party in the thread, never the
    * sender. */

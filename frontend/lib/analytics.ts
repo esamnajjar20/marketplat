@@ -19,6 +19,7 @@
  * designed to survive exactly that.
  */
 import { API_BASE_URL } from './constants';
+import { hasAnalyticsConsent } from './analyticsConsent';
 
 export type AnalyticsEventType =
   | 'PAGE_VIEW'
@@ -140,6 +141,10 @@ function send(events: QueuedEvent[]): void {
 }
 
 function flush(): void {
+  if (!hasAnalyticsConsent()) {
+    queue.length = 0;
+    return;
+  }
   if (queue.length === 0) return;
   const batch = queue.splice(0, MAX_BATCH_SIZE);
   send(batch);
@@ -166,6 +171,7 @@ export function track(
   metadata?: Record<string, unknown>
 ): void {
   if (typeof window === 'undefined') return; // no-op during SSR
+  if (!hasAnalyticsConsent()) return;
 
   ensureFlushLifecycle();
 

@@ -32,3 +32,10 @@ describe('hrefFor — service requests & appointments', () => {
     expect(hrefFor(n('SERVICE_REQUEST_UPDATE'))).toBe('/notifications');
   });
 });
+
+
+describe('hrefFor — ad lifecycle', () => {
+  it.each(['AD_EXPIRING_SOON', 'AD_EXPIRED'])('%s → ad detail', (type) => {
+    expect(hrefFor(n(type, { adId: 'ad-1' }))).toBe('/ads/ad-1');
+  });
+});

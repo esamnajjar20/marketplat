@@ -259,7 +259,7 @@ export function MyAdsList() {
       {/* BULK-ADS-01-JSX */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3">
         <div className="flex gap-2 overflow-x-auto" role="group" aria-label="تصفية الإعلانات حسب الحالة">
-          {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
+          {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['EXPIRED', 'منتهية'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
             <button key={val} onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}
               className={`min-h-10 shrink-0 rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
@@ -296,6 +296,7 @@ export function MyAdsList() {
             !status ? 'لم تنشر أي إعلانات بعد'
             : status === 'ACTIVE' ? 'لا توجد إعلانات نشطة حالياً'
             : status === 'SOLD' ? 'لم تُعلّم أي إعلانات كمباعة بعد'
+            : status === 'EXPIRED' ? 'لا توجد إعلانات منتهية'
             : 'لا توجد إعلانات محذوفة'
           }
           action={!status ? <Link href={ROUTES.adCreate}><Button>نشر إعلان</Button></Link> : undefined} />

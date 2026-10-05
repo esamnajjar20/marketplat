@@ -230,6 +230,10 @@ model Ad {
   condition         AdCondition?
   isNegotiable      Boolean        @default(false)
   status            AdStatus       @default(ACTIVE)
+  // Public listings have a finite 60-day lifecycle. `expirationNotifiedAt`
+  // makes the 7-day warning idempotent across repeated cron runs.
+  expiresAt             DateTime?
+  expirationNotifiedAt  DateTime?
   views             Int            @default(0)
   // Snapshot of `views` at the moment the last WEEKLY_AD_VIEWS_REPORT
   // notification was generated for this ad's owner. The weekly report
@@ -288,6 +292,8 @@ model Ad {
   @@index([status, userId, createdAt])
   @@index([status, createdAt])
   @@index([status, city])
+  @@index([status, expiresAt])
+  @@index([expirationNotifiedAt])
   @@index([userId, status])
   @@index([isFeatured, isPinned])
   @@index([flaggedForReview, createdAt])
@@ -1482,6 +1488,10 @@ enum NotificationType {
   SERVICE_REQUEST_NEW
   SERVICE_REQUEST_UPDATE
   APPOINTMENT_UPDATE
+  AD_EXPIRING_SOON
+  AD_EXPIRED
+  MODERATION_REPORT_RECEIVED
+  MODERATION_DECISION
 }
 
 // Gap #10 ("نشاطي"): every distinct event type the personal activity
@@ -1555,6 +1565,7 @@ enum AdStatus {
   ACTIVE
   SOLD
   DELETED
+  EXPIRED
 }
 
 enum AdCondition {

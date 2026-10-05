@@ -38,6 +38,10 @@ const notificationTypeEnum = z.enum([
   'SERVICE_REQUEST_NEW',
   'SERVICE_REQUEST_UPDATE',
   'APPOINTMENT_UPDATE',
+  'AD_EXPIRING_SOON',
+  'AD_EXPIRED',
+  'MODERATION_REPORT_RECEIVED',
+  'MODERATION_DECISION',
 ]);
 
 /** فئة واجهة المستخدم → مجموعة أنواع (نفس تجميع الواجهة). */
@@ -70,6 +74,10 @@ export const NOTIFICATION_CATEGORY_TYPES = {
     'WEEKLY_AD_VIEWS_REPORT',
     'WEEKLY_STORE_VIEWS_REPORT',
     'WEEKLY_SERVICE_VIEWS_REPORT',
+    'AD_EXPIRING_SOON',
+    'AD_EXPIRED',
+    'MODERATION_REPORT_RECEIVED',
+    'MODERATION_DECISION',
   ],
 } as const;
 
