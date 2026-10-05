@@ -70,7 +70,7 @@ export function BecomeStoreOwnerCard() {
   const [latitude, setLatitude] = useState(() => draftSeed?.latitude ?? '');
   const [longitude, setLongitude] = useState(() => draftSeed?.longitude ?? '');
   const [storeTypeId, setStoreTypeId] = useState(() => draftSeed?.storeTypeId ?? 'st_general');
-  const [attributes, setAttributes] = useState<StoreAttributes>({});
+  const [attributes, setAttributes] = useState<StoreAttributes>(() => draftSeed?.attributes ?? {});
   const [errors, setErrors] = useState<Errors>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
 
@@ -94,7 +94,7 @@ export function BecomeStoreOwnerCard() {
 
   if (!sellerProfile) {
     return (
-      <div className="space-y-3 max-w-lg">
+      <div dir="rtl" className="max-w-lg space-y-3 text-right">
         <h2 className="text-lg font-semibold">افتح متجرك</h2>
         <p className="text-sm text-muted-foreground">
           يجب أن يكون لديك ملف بائع أولاً قبل فتح متجر.
@@ -158,7 +158,7 @@ export function BecomeStoreOwnerCard() {
   }
 
   return (
-    <div className="space-y-4 max-w-lg">
+    <div dir="rtl" className="max-w-lg space-y-4 text-right">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">افتح متجرك</h2>
         <p className="text-sm text-muted-foreground">
@@ -178,7 +178,7 @@ export function BecomeStoreOwnerCard() {
           </p>
         )}
         <FormField label="اسم المتجر" htmlFor="store-name" required error={fieldError('name')}>
-          <Input
+          <Input dir="rtl"
             id="store-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -188,6 +188,7 @@ export function BecomeStoreOwnerCard() {
 
         <FormField label="الوصف" htmlFor="store-description" required error={fieldError('description')}>
           <textarea
+            dir="rtl"
             id="store-description"
             rows={4}
             maxLength={1000}
@@ -207,10 +208,10 @@ export function BecomeStoreOwnerCard() {
             file list (BecomeStoreOwnerCard was explicitly marked
             "not covered in depth"), found on a follow-up sweep of the
             same pattern. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="المدينة" htmlFor="store-city" required error={fieldError('city')}>
             <Select value={city} onValueChange={setCity}>
-              <SelectTrigger id="store-city"><SelectValue placeholder="اختر المدينة" /></SelectTrigger>
+              <SelectTrigger dir="rtl" id="store-city"><SelectValue placeholder="اختر المدينة" /></SelectTrigger>
               <SelectContent>
                 {CITIES.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -220,7 +221,7 @@ export function BecomeStoreOwnerCard() {
           </FormField>
 
           <FormField label="رقم الهاتف" htmlFor="store-phone" required error={fieldError('phone')}>
-            <Input
+            <Input dir="rtl"
               id="store-phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -231,7 +232,7 @@ export function BecomeStoreOwnerCard() {
 
         <FormField label="نوع المتجر" htmlFor="store-type" required>
           <Select value={storeTypeId} onValueChange={setStoreTypeId}>
-            <SelectTrigger id="store-type">
+            <SelectTrigger dir="rtl" id="store-type">
               <SelectValue placeholder="اختر نوع المتجر" />
             </SelectTrigger>
             <SelectContent>
@@ -245,7 +246,7 @@ export function BecomeStoreOwnerCard() {
         <StoreDynamicFields storeTypeId={storeTypeId} value={attributes} onChange={setAttributes} errors={serverErrors} />
 
         <FormField label="العنوان (اختياري)" htmlFor="store-address">
-          <Input
+          <Input dir="rtl"
             id="store-address"
             value={address}
             maxLength={200}
@@ -254,12 +255,12 @@ export function BecomeStoreOwnerCard() {
           />
         </FormField>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="خط العرض (اختياري)" htmlFor="store-lat">
-            <Input id="store-lat" inputMode="decimal" placeholder="31.5" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+            <Input dir="ltr" id="store-lat" inputMode="decimal" placeholder="31.5" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
           </FormField>
           <FormField label="خط الطول (اختياري)" htmlFor="store-lng">
-            <Input id="store-lng" inputMode="decimal" placeholder="34.4" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+            <Input dir="ltr" id="store-lng" inputMode="decimal" placeholder="34.4" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
           </FormField>
         </div>
 

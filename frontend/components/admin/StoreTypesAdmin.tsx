@@ -104,12 +104,12 @@ export function StoreTypesAdmin() {
     setForm((prev) => ({ ...prev, labels: { ...prev.labels, [key]: value } }));
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+    <div dir="rtl" className="space-y-4 text-right">
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           إدارة الأنواع والمصطلحات وحدود المنتجات المجانية. لا يمكن حذف النوع.
         </p>
-        <Button size="sm" className="gap-1.5" onClick={startCreate}>
+        <Button size="sm" className="w-full gap-1.5 sm:w-auto" onClick={startCreate}>
           <Plus className="h-4 w-4" /> نوع جديد
         </Button>
       </div>
@@ -156,7 +156,7 @@ export function StoreTypesAdmin() {
                       الحد المجاني: {type.freeProductLimit ?? 'بدون حد'}
                     </span>
                   </div>
-                  <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                  <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
                     <span>الجمع: {type.labels.products}</span>
                     <span>المفرد: {type.labels.product}</span>
                     <span>زر الإضافة: {type.labels.addProduct}</span>
@@ -208,17 +208,20 @@ function Editor({
   onCancel: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Slug" value={form.slug} disabled={!isNew} onChange={(value) => setForm((p) => ({ ...p, slug: value }))} />
+    <div dir="rtl" className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4 text-right">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <Field label="Slug" dir="ltr" value={form.slug} disabled={!isNew} onChange={(value) => setForm((p) => ({ ...p, slug: value }))} />
         <Field label="الاسم العربي" value={form.nameAr} onChange={(value) => setForm((p) => ({ ...p, nameAr: value }))} />
-        <Field label="الأيقونة" value={form.icon} onChange={(value) => setForm((p) => ({ ...p, icon: value }))} />
-        <Field label="الحد المجاني" type="number" value={form.freeProductLimit == null ? '' : String(form.freeProductLimit)} onChange={(value) => setForm((p) => ({ ...p, freeProductLimit: value === '' ? null : Number(value) }))} />
+        <Field label="الأيقونة" dir="ltr" value={form.icon} onChange={(value) => setForm((p) => ({ ...p, icon: value }))} />
+        <div className="space-y-1">
+          <Field label="الحد المجاني" type="number" value={form.freeProductLimit == null ? '' : String(form.freeProductLimit)} onChange={(value) => setForm((p) => ({ ...p, freeProductLimit: value === '' ? null : Math.max(0, Number(value)) }))} />
+          <p className="text-[11px] text-muted-foreground">اتركه فارغًا لبدون حد. يطبّق على منتجات هذا النوع فقط.</p>
+        </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
         <Field label="ترتيب العرض" type="number" value={String(form.sortOrder ?? 0)} onChange={(value) => setForm((p) => ({ ...p, sortOrder: Number(value) }))} />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
         <Field label="الجمع" value={form.labels.products} onChange={(v) => setLabel('products', v)} />
         <Field label="المفرد" value={form.labels.product} onChange={(v) => setLabel('product', v)} />
         <Field label="زر الإضافة" value={form.labels.addProduct} onChange={(v) => setLabel('addProduct', v)} />
@@ -226,7 +229,7 @@ function Editor({
       </div>
       <div className="space-y-2 rounded-lg border bg-background/70 p-3">
         <p className="text-sm font-semibold">أسماء البطاقة والصفحة</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2">
           <Field label="عنوان البطاقة" value={form.presentation?.card.title ?? ''} onChange={(v) => setPresentation('card', 'title', v)} />
           <Field label="وصف البطاقة" value={form.presentation?.card.subtitle ?? ''} onChange={(v) => setPresentation('card', 'subtitle', v)} />
           <Field label="اسم المنتجات في البطاقة" value={form.presentation?.card.products ?? ''} onChange={(v) => setPresentation('card', 'products', v)} />
@@ -246,11 +249,11 @@ function Editor({
           <Field label="عنوان الموقع" value={form.presentation?.page.location ?? ''} onChange={(v) => setPresentation('page', 'location', v)} />
         </div>
       </div>
-      <div className="flex gap-2">
-        <Button size="sm" disabled={pending} onClick={onSave} className="gap-1.5">
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row">
+        <Button size="sm" disabled={pending} className="w-full gap-1.5 sm:w-auto" onClick={onSave}>
           <Save className="h-3.5 w-3.5" /> حفظ
         </Button>
-        <Button size="sm" variant="outline" disabled={pending} onClick={onCancel} className="gap-1.5">
+        <Button size="sm" variant="outline" disabled={pending} className="w-full gap-1.5 sm:w-auto" onClick={onCancel}>
           <X className="h-3.5 w-3.5" /> إلغاء
         </Button>
       </div>
@@ -264,17 +267,19 @@ function Field({
   onChange,
   type = 'text',
   disabled = false,
+  dir,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   disabled?: boolean;
+  dir?: "rtl" | "ltr";
 }) {
   return (
-    <label className="space-y-1.5 text-xs font-medium">
-      <span>{label}</span>
-      <Input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+    <label dir="rtl" className="space-y-1.5 text-xs font-medium">
+      <span className="block break-words leading-5">{label}</span>
+      <Input dir={dir} type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }

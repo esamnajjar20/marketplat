@@ -11,6 +11,7 @@ import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useMyStore } from '@/hooks/queries/useStores';
+import { useStoreTypeFields } from '@/hooks/queries/useStoreTypes';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
@@ -32,7 +33,7 @@ import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
 import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
 import type { Product, ProductAvailability, UpdateProductPayload, ProductFormValues } from '@/types/product.types';
-import type { StoreAttributes, StoreTypeField } from '@/types/store.types';
+import { getStoreTypeLabels, type StoreAttributes, type StoreTypeField } from '@/types/store.types';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -77,17 +78,20 @@ function ProductTypeFieldInput({
   const id = `product-attribute-${field.key}`;
   if (field.type === 'BOOLEAN') {
     return (
-      <label className="flex items-center gap-2 text-sm">
+      <div dir="rtl" className="rounded-lg border border-border/60 px-3 py-2.5 text-right">
+      <label className="flex items-center gap-2 text-sm leading-6">
         <input id={id} type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />
         <span>{field.labelAr}{field.required ? ' *' : ''}</span>
       </label>
+      {error && <p className="mt-1 text-xs text-destructive" role="alert">{error}</p>}
+      </div>
     );
   }
   if (field.type === 'SELECT') {
     return (
       <FormField label={field.labelAr} htmlFor={id} required={field.required} error={error}>
         <Select value={typeof value === 'string' ? value : ''} onValueChange={onChange}>
-          <SelectTrigger id={id}><SelectValue placeholder={`اختر ${field.labelAr}`} /></SelectTrigger>
+          <SelectTrigger dir="rtl" id={id}><SelectValue placeholder={`اختر ${field.labelAr}`} /></SelectTrigger>
           <SelectContent>{(field.options ?? []).map((option) => <SelectItem key={option.value} value={option.value}>{option.labelAr}</SelectItem>)}</SelectContent>
         </Select>
       </FormField>
@@ -96,6 +100,7 @@ function ProductTypeFieldInput({
   return (
     <FormField label={field.labelAr} htmlFor={id} required={field.required} error={error}>
       <Input
+        dir={field.type === 'NUMBER' ? 'ltr' : 'rtl'}
         id={id}
         type={field.type === 'NUMBER' ? 'number' : 'text'}
         value={value === undefined ? '' : String(value)}
@@ -109,7 +114,18 @@ export function ProductForm({ mode, product }: Props) {
   const { data: categories } = useProductCategories();
   const { data: myStore } = useMyStore();
   const productStoreType = (product as Product & { store?: { storeType?: { fields?: StoreTypeField[] } } } | undefined)?.store?.storeType;
-  const productFields = (productStoreType?.fields ?? myStore?.storeType?.fields ?? []).filter((field) => field.scope === 'PRODUCT' && field.isActive !== false);
+  const { data: fetchedStoreTypeFields } = useStoreTypeFields(myStore?.storeTypeId, {
+    enabled: !productStoreType?.fields?.length && !!myStore?.storeTypeId,
+  });
+  const productFields = (
+    productStoreType?.fields
+    ?? myStore?.storeType?.fields
+    ?? fetchedStoreTypeFields
+    ?? []
+  ).filter((field) => field.scope === 'PRODUCT' && field.isActive !== false);
+  const storeTypeLabels = getStoreTypeLabels(productStoreType ?? myStore?.storeType);
+  const availableCategories = (categories ?? []).filter((cat) => !cat.storeTypeId || cat.storeTypeId === myStore?.storeTypeId);
+  const hasCategories = availableCategories.length > 0;
   const searchParams = useSearchParams();
   const offlineDraftId = searchParams.get('draftId');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -494,7 +510,7 @@ export function ProductForm({ mode, product }: Props) {
   }
 
   const formElement = (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+    <form dir="rtl" onSubmit={handleSubmit} noValidate className="space-y-6 text-right">
       {mode === 'create' && lastSavedAt && (
         <p
           className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
@@ -537,7 +553,10 @@ export function ProductForm({ mode, product }: Props) {
         </div>
       )}
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 1 ? "hidden" : ""}`}>
-        <h2 className="font-semibold">معلومات المنتج</h2>
+        <div>
+          <h2 className="font-semibold">معلومات {storeTypeLabels.product}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">اختر التصنيف المناسب ثم أضف بيانات {storeTypeLabels.product} الأساسية.</p>
+        </div>
 
         {/* FIX BUG-XX: this field required Select but was hand-rolled
             outside FormField — its error <p> had no role="alert"/
@@ -545,24 +564,30 @@ export function ProductForm({ mode, product }: Props) {
             gets both), and the Select itself had no aria-describedby/
             aria-invalid pointing at that error. FormField's auto-clone
             (UX-FIX P2-11) wires both automatically. */}
-        <FormField label="الفئة" htmlFor="categoryId" required error={fieldError('categoryId')}>
-          <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
-            <SelectTrigger id="categoryId"><SelectValue placeholder="اختر فئة المنتج" /></SelectTrigger>
-            <SelectContent>
-              {categories?.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <FormField label={storeTypeLabels.categories} htmlFor="categoryId" required error={fieldError('categoryId')}>
+          {hasCategories ? (
+            <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
+              <SelectTrigger id="categoryId"><SelectValue placeholder={`اختر ${storeTypeLabels.categories}`} /></SelectTrigger>
+              <SelectContent>
+                {availableCategories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-3 text-sm text-muted-foreground" role="status">
+              لا توجد {storeTypeLabels.categories} متاحة لهذا النوع حاليًا.
+            </div>
+          )}
         </FormField>
 
-        <FormField label="اسم المنتج" htmlFor="name" required error={fieldError('name')}>
+        <FormField label={`اسم ${storeTypeLabels.product}`} htmlFor="name" required error={fieldError('name')}>
           <Input
             id="name"
             value={values.name}
             maxLength={200}
             onChange={(e) => set('name', e.target.value)}
-            placeholder="مثال: خلاط كهربائي 500 واط"
+            placeholder={storeTypeLabels.product === 'طبق' ? 'مثال: مقلوبة دجاج' : storeTypeLabels.product === 'دواء' ? 'مثال: اسم الدواء وتركيزه' : 'أدخل الاسم بوضوح'}
           />
         </FormField>
 
@@ -583,9 +608,13 @@ export function ProductForm({ mode, product }: Props) {
       {productFields.length > 0 && (
         <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
           <div>
-            <h2 className="font-semibold">معلومات خاصة بنوع المتجر</h2>
-            <p className="mt-1 text-xs text-muted-foreground">هذه الحقول يحددها الأدمن حسب نوع المتجر.</p>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-semibold">بيانات {storeTypeLabels.product} الخاصة</h2>
+              <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">{productFields.length} {productFields.length === 1 ? 'حقل' : 'حقول'}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">حقول إضافية يحددها الأدمن لهذا النوع. الحقول المعلّمة بنجمة مطلوبة.</p>
           </div>
+          <div className="grid gap-4 md:grid-cols-2">
           {productFields.map((field) => (
             <ProductTypeFieldInput
               key={field.id}
@@ -595,6 +624,7 @@ export function ProductForm({ mode, product }: Props) {
               error={field.required && (values.attributes[field.key] === undefined || values.attributes[field.key] === '') ? 'هذا الحقل مطلوب' : undefined}
             />
           ))}
+          </div>
           {fieldError('attributes') && <p className="text-sm text-destructive" role="alert">{fieldError('attributes')}</p>}
         </div>
       )}
@@ -602,11 +632,12 @@ export function ProductForm({ mode, product }: Props) {
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">التسعير والتوفر</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="السعر (₪)" htmlFor="price" required error={fieldError('price')}>
             <Input
               id="price"
               type="number"
+              inputMode="decimal"
               min="0"
               step="0.01"
               value={values.price}
@@ -619,6 +650,7 @@ export function ProductForm({ mode, product }: Props) {
             <Input
               id="discountPrice"
               type="number"
+              inputMode="decimal"
               min="0"
               step="0.01"
               value={values.discountPrice}
@@ -628,11 +660,12 @@ export function ProductForm({ mode, product }: Props) {
           </FormField>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="سعر الجملة (اختياري)" htmlFor="wholesalePrice" error={fieldError('wholesalePrice')}>
             <Input
               id="wholesalePrice"
               type="number"
+              inputMode="decimal"
               min="0"
               step="0.01"
               value={values.wholesalePrice}
@@ -645,6 +678,7 @@ export function ProductForm({ mode, product }: Props) {
             <Input
               id="wholesaleMinQty"
               type="number"
+              inputMode="numeric"
               min="1"
               step="1"
               value={values.wholesaleMinQty}
