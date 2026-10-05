@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
-import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive, Star, Images } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
 import { classifyHttpConflict } from '@/lib/conflictResolver';
@@ -26,6 +26,8 @@ import {
   DropdownMenuItem,
 } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
+import { VoiceMessagePlayer } from './VoiceMessagePlayer';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { MessageMediaGallery } from './MessageMediaGallery';
 import { useConversation, useMessages, useConversationMedia } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
@@ -441,6 +443,17 @@ export function ChatWindow({ conversationId }: Props) {
 
   return (
     <div className="flex h-full flex-col bg-background">
+      <Sheet open={showMedia} onOpenChange={setShowMedia}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>وسائط المحادثة</SheetTitle>
+            <SheetDescription>الصور والتسجيلات الصوتية والملفات المرسلة في هذه المحادثة.</SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+            <MessageMediaGallery items={mediaItems} queuedItems={pendingQueued} loading={mediaLoading} />
+          </div>
+        </SheetContent>
+      </Sheet>
       {contextCard && (
         <Link
           prefetch={false}
@@ -501,12 +514,7 @@ export function ChatWindow({ conversationId }: Props) {
         >
           <ChevronRight className="h-5 w-5" />
         </button>
-        <Link
-          prefetch={false}
-          href={ROUTES.userProfile(party.id)}
-          className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity"
-        >
-          <div className="relative w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0">
+        <button type="button" onClick={() => setShowMedia(true)} aria-label="عرض وسائط المحادثة" title="وسائط المحادثة" className="relative w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0 transition-shadow hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
             <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="44px" />
             {isPartyOnline && (
               <span
@@ -515,7 +523,8 @@ export function ChatWindow({ conversationId }: Props) {
                 title="متصل الآن"
               />
             )}
-          </div>
+          </button>
+        <Link prefetch={false} href={ROUTES.userProfile(party.id)} className="min-w-0 flex-1 hover:opacity-80 transition-opacity">
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
             {/* DESIGN-PASS MSG-01: "بخصوص: {title}" dropped here — the
@@ -532,19 +541,6 @@ export function ChatWindow({ conversationId }: Props) {
             ) : null}
           </div>
         </Link>
-
-        <button
-          type="button"
-          onClick={() => setShowMedia((value) => !value)}
-          className={cn(
-            'shrink-0 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors',
-            showMedia ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted',
-          )}
-          aria-label="وسائط المحادثة"
-          title="الصور والتسجيلات في المحادثة"
-        >
-          <Images className="h-5 w-5" />
-        </button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -591,13 +587,6 @@ export function ChatWindow({ conversationId }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      {showMedia && (
-        <section className="shrink-0 border-b border-border/70 bg-card px-3 py-3" aria-label="معرض وسائط المحادثة">
-          <div className="mb-2 flex items-center justify-between gap-2"><div><p className="text-sm font-semibold">معرض الوسائط</p><p className="text-2xs text-muted-foreground">محفوظ من كامل المحادثة، وليس من الرسائل الظاهرة فقط.</p></div><button type="button" onClick={() => setShowMedia(false)} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="إغلاق الوسائط"><XIcon className="h-4 w-4" /></button></div>
-          <MessageMediaGallery items={mediaItems} queuedItems={pendingQueued} loading={mediaLoading} />
-        </section>
-      )}
 
       <div
         ref={scrollRef}
@@ -756,22 +745,11 @@ export function ChatWindow({ conversationId }: Props) {
                         </div>
                       )}
                       {!isDeleted && message.audioUrl && (
-                        <div className="mb-2 w-60 max-w-full">
-                          <audio
-                            controls
-                            preload="metadata"
+                        <div className="mb-2">
+                          <VoiceMessagePlayer
                             src={message.audioUrl}
-                            className="h-10 w-full"
-                            aria-label="رسالة صوتية"
+                            variant={isMine ? 'mine' : 'theirs'}
                           />
-                          <a
-                            href={message.audioUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 inline-block text-2xs underline opacity-80"
-                          >
-                            فتح في المتصفح
-                          </a>
                         </div>
                       )}
                       {!isDeleted && message.imageUrl && (
