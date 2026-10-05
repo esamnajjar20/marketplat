@@ -110,6 +110,7 @@ export default async function ServiceListingPage({ params }: Props) {
       <RelatedServices
         serviceListingId={listing.id}
         categoryId={listing.categoryId}
+        serviceTypeId={listing.serviceTypeId}
         title="خدمات مشابهة"
       />
     </div>

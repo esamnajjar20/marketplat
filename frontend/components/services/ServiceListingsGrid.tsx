@@ -23,6 +23,7 @@ export function ServiceListingsGrid() {
   const search = sp.get('search') ?? undefined;
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
   const categoryId = sp.get('categoryId') ?? undefined;
+  const serviceTypeId = sp.get('serviceTypeId') ?? undefined;
   const providerId = sp.get('providerId') ?? undefined;
   const city = sp.get('city') ?? undefined;
   const serviceLocation = (sp.get('serviceLocation') as 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' | undefined) ?? undefined;
@@ -33,10 +34,10 @@ export function ServiceListingsGrid() {
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
   const query = useInfiniteQuery({
-    queryKey: ['service-listings', 'infinite', { search, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder }],
+    queryKey: ['service-listings', 'infinite', { search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder }],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => serviceListingsApi.getAll({
-      search, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
+      search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
       page: pageParam,
     }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,

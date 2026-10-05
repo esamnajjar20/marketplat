@@ -46,6 +46,8 @@ const getRecommendationsQueryObjectSchema = z.object({
   // and have it silently do nothing.
   excludeProductId: z.string().min(1).optional(),
   excludeServiceListingId: z.string().min(1).optional(),
+  // Optional service-domain constraint for type-aware recommendation shelves.
+  serviceTypeId: z.string().min(1).optional(),
   // PR4B: store-detail-page mode, same "exclude this one" role
   // excludeAdId/excludeProductId/excludeServiceListingId already
   // play — NOT a weighting signal (storeRecommendationsRepository has

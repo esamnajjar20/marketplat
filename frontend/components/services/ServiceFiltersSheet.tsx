@@ -10,6 +10,7 @@ import { ServiceCategoryFilter } from './ServiceCategoryFilter';
 /** URL keys written by ServiceCategoryFilter */
 const FILTER_KEYS = [
   'search',
+  'serviceTypeId',
   'categoryId',
   'city',
   'serviceLocation',

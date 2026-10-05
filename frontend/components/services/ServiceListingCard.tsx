@@ -10,12 +10,22 @@ import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import type { ServiceListingWithProvider, ServiceAvailability } from '@/types/service.types';
+import type { ServiceListingWithProvider, ServiceAvailability, ServiceTypeField } from '@/types/service.types';
 
 interface Props { listing: ServiceListingWithProvider; context?: CardContext; className?: string; priority?: boolean; density?: 'default' | 'compact'; layout?: 'grid' | 'list'; showKind?: boolean; }
 const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = { AVAILABLE: 'متاح الآن', BUSY: 'مشغول', UNAVAILABLE: 'غير متاح' };
 const AVAILABILITY_VARIANT: Record<ServiceAvailability, 'overlay-success' | 'warning' | 'secondary'> = { AVAILABLE: 'overlay-success', BUSY: 'warning', UNAVAILABLE: 'secondary' };
 const SERVICE_LOCATION_HINT: Record<string, string> = { AT_CUSTOMER: 'عند العميل', AT_PROVIDER: 'عند مقدم الخدمة', REMOTE: 'عن بُعد' };
+
+function fieldValue(field: ServiceTypeField, value: unknown): string {
+  if (field.type === 'BOOLEAN') return value === true ? 'نعم' : 'لا';
+  if (field.type === 'MULTI_SELECT' && Array.isArray(value)) {
+    const labels = new Map((field.options ?? []).map((option) => [option.value, option.labelAr]));
+    return value.map((item) => labels.get(String(item)) ?? String(item)).join('، ');
+  }
+  if (field.type === 'SELECT') return field.options?.find((option) => option.value === value)?.labelAr ?? String(value);
+  return String(value);
+}
 
 export function ServiceListingCard({ listing, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false }: Props) {
   const compact = density === 'compact' || layout === 'list';
@@ -30,6 +40,7 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
   const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
   const showProvider = context === 'favorites' || context === 'catalog';
   const showHeart = context !== 'owner';
+  const cardFields = (listing.serviceType?.fields ?? []).filter((field) => field.scope === 'LISTING' && field.isActive && field.showOnCard && listing.attributes?.[field.key] !== undefined && listing.attributes?.[field.key] !== null && listing.attributes?.[field.key] !== '').slice(0, compact ? 1 : 2);
 
   return (
     <article className={cn('group relative h-full min-w-0', className)}>
@@ -49,6 +60,13 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
             {listing.serviceType?.nameAr && <Badge size="xs" variant="outline">{listing.serviceType.nameAr}</Badge>}
           </div>
           <h3 className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-snug text-foreground">{listing.title}</h3>
+          {cardFields.length > 0 && (
+            <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              {cardFields.map((field) => (
+                <span key={field.id} className="truncate">{field.cardLabelAr || field.labelAr}: {fieldValue(field, listing.attributes?.[field.key])}</span>
+              ))}
+            </div>
+          )}
           <div className="mt-auto flex min-h-5 items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
             {showLocation && (SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]) && <span className="truncate">{SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]}</span>}
             {showProvider && <span className="truncate">{listing.provider.businessName}</span>}

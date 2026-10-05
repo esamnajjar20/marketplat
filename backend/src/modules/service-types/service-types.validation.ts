@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { ServiceTypeFieldScope, ServiceTypeFieldType } from '@prisma/client';
 
 const jsonValue = z.record(z.string(), z.unknown());
+const capabilitiesSchema = z.object({
+  appointments: z.boolean().optional(), requestQuote: z.boolean().optional(), remote: z.boolean().optional(),
+  atCustomer: z.boolean().optional(), atProvider: z.boolean().optional(),
+  allowedPricingTypes: z.array(z.enum(['FIXED','STARTING_FROM','NEGOTIABLE'])).min(1).max(3).optional(),
+  allowedLocations: z.array(z.enum(['AT_CUSTOMER','AT_PROVIDER','REMOTE'])).min(1).max(3).optional(),
+}).passthrough();
+
 
 export const createServiceTypeSchema = z.object({
   body: z.object({
@@ -10,7 +17,7 @@ export const createServiceTypeSchema = z.object({
     nameAr: z.string().min(2).max(100),
     icon: z.string().max(100).nullable().optional(),
     labels: jsonValue.optional(),
-    capabilities: jsonValue.optional(),
+    capabilities: capabilitiesSchema.optional(),
     presentation: jsonValue.optional(),
     sortOrder: z.number().int().min(0).optional(),
     isActive: z.boolean().optional(),

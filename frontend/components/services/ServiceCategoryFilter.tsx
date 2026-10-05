@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { SlidersHorizontal, Search } from 'lucide-react';
 import { CITIES, ROUTES } from '@/lib/constants';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
@@ -18,6 +19,16 @@ export function ServiceCategoryFilter() {
   const router = useRouter();
   const sp = useSearchParams();
   const { data: categories } = useServiceCategories();
+  const { data: serviceTypes } = useServiceTypes();
+  const selectedType = serviceTypes?.find((type) => type.id === sp.get('serviceTypeId'));
+  const availableLocations = Object.entries(LOCATION_LABELS).filter(([value]) => {
+    const caps = selectedType?.capabilities;
+    if (!caps) return true;
+    if (value === 'REMOTE') return caps.remote !== false;
+    if (value === 'AT_CUSTOMER') return caps.atCustomer !== false;
+    if (value === 'AT_PROVIDER') return caps.atProvider !== false;
+    return true;
+  });
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -64,6 +75,17 @@ export function ServiceCategoryFilter() {
       </div>
 
       <div className="space-y-1.5">
+        <label htmlFor="svc-filter-type" className="text-xs text-muted-foreground font-medium">مجال الخدمة</label>
+        <Select value={sp.get('serviceTypeId') || 'ALL'} onValueChange={(v) => update('serviceTypeId', v === 'ALL' ? '' : v)}>
+          <SelectTrigger id="svc-filter-type" className="w-full"><SelectValue placeholder="كل المجالات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">كل المجالات</SelectItem>
+            {serviceTypes?.map((type) => <SelectItem key={type.id} value={type.id}>{type.nameAr}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
         <label htmlFor="svc-filter-category" className="text-xs text-muted-foreground font-medium">الفئة</label>
         <Select value={sp.get('categoryId') || 'ALL'} onValueChange={(v) => update('categoryId', v === 'ALL' ? '' : v)}>
           <SelectTrigger id="svc-filter-category" className="w-full"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
@@ -93,7 +115,7 @@ export function ServiceCategoryFilter() {
           <SelectTrigger id="svc-filter-location" className="w-full"><SelectValue placeholder="كل المواقع" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل المواقع</SelectItem>
-            {Object.entries(LOCATION_LABELS).map(([value, label]) => (
+            {availableLocations.map(([value, label]) => (
               <SelectItem key={value} value={value}>{label}</SelectItem>
             ))}
           </SelectContent>

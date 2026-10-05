@@ -25,6 +25,7 @@ serviceListingsRouter.get(
   CACHE.NONE,
   serviceListingsController.getMyServiceListings
 );
+serviceListingsRouter.get('/:id/matches', CACHE.SHORT, serviceListingsController.getServiceListingMatches);
 serviceListingsRouter.get('/:id', CACHE.MEDIUM, serviceListingsController.getServiceListingById);
 
 // Protected — owner-only, enforced in service-listings.service.ts

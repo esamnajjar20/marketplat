@@ -379,12 +379,12 @@ export const recommendationsService = {
 
     if (categoryWeights.length > 0) {
       personalized = await serviceListingRecommendationsRepository.findByWeightedCategories(
-        categoryWeights, excludeIdList, limit, city,
+        categoryWeights, excludeIdList, limit, city, query.serviceTypeId,
       );
       if (city && personalized.length < limit) {
         const more = await serviceListingRecommendationsRepository.findByWeightedCategories(
           categoryWeights, [...excludeIdList, ...personalized.map(l => l.id)],
-          limit - personalized.length, null,
+          limit - personalized.length, null, query.serviceTypeId,
         );
         personalized = [...personalized, ...more];
       }
@@ -394,13 +394,13 @@ export const recommendationsService = {
 
     const cityExclude = [...excludeIdList, ...personalized.map(l => l.id)];
     const cityTrending = city
-      ? await serviceListingRecommendationsRepository.findTrending(cityExclude, limit - personalized.length, city)
+      ? await serviceListingRecommendationsRepository.findTrending(cityExclude, limit - personalized.length, city, query.serviceTypeId)
       : [];
     const afterCity = [...personalized, ...cityTrending];
     if (afterCity.length >= limit) return afterCity;
 
     const generalTrending = await serviceListingRecommendationsRepository.findTrending(
-      [...excludeIdList, ...afterCity.map(l => l.id)], limit - afterCity.length, null,
+      [...excludeIdList, ...afterCity.map(l => l.id)], limit - afterCity.length, null, query.serviceTypeId,
     );
     const ranked = [...afterCity, ...generalTrending];
     if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
@@ -408,7 +408,7 @@ export const recommendationsService = {
     // Last resort: bring back owned/favorited items (never the reference
     // item itself) so the rail is not left nearly empty.
     const rest = await serviceListingRecommendationsRepository.findTrending(
-      [...hardExcludeIds, ...ranked.map(l => l.id)], limit - ranked.length, null,
+      [...hardExcludeIds, ...ranked.map(l => l.id)], limit - ranked.length, null, query.serviceTypeId,
     );
     if (rest.length > 0) {
       logger.debug('[recommendations] last-resort backfill used', { kind: 'service', userId, restored: rest.length });

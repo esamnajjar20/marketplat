@@ -49,6 +49,7 @@ import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
 import { AdminSellersTable } from '@/components/admin/AdminSellersTable';
 import { AdminStoresTable } from '@/components/admin/AdminStoresTable';
 import { StoreTypesAdmin } from '@/components/admin/StoreTypesAdmin';
+import { ServiceTypesAdmin } from '@/components/admin/ServiceTypesAdmin';
 import { AdminReportsTable } from '@/components/admin/AdminReportsTable';
 import { AdminFraudTable } from '@/components/admin/AdminFraudTable';
 import { AdminProductsTable } from '@/components/admin/AdminProductsTable';
@@ -116,6 +117,12 @@ function TabBody({ tab }: { tab: AdminTab }) {
           <Suspense fallback={tableFallback}>
             <AdminStoresTable />
           </Suspense>
+        </AdminPageShell>
+      );
+    case 'service-types':
+      return (
+        <AdminPageShell title="أنواع الخدمات" description="إدارة مجالات الخدمات والحقول الديناميكية والقدرات المسموحة.">
+          <Suspense fallback={tableFallback}><ServiceTypesAdmin /></Suspense>
         </AdminPageShell>
       );
     case 'store-types':

@@ -68,6 +68,7 @@ export const getServiceListingsSchema = z.object({
       page: optionalQueryNumber(z.number().int().min(1).max(1000)),
       limit: optionalQueryNumber(z.number().int().min(1).max(100)),
       categoryId: z.string().optional(),
+      serviceTypeId: z.string().optional(),
       providerId: z.string().optional(),
       city: z.string().max(100).optional(),
       serviceLocation: z.nativeEnum(ServiceLocationType).optional(),

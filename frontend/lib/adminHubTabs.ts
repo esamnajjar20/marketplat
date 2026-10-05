@@ -27,6 +27,7 @@ export const ADMIN_TABS = [
   'sellers',
   'stores',
   'store-types',
+  'service-types',
   'reports',
   'fraud',
   'products',

@@ -9,6 +9,29 @@ import { CreateServiceTypeFieldInput, CreateServiceTypeInput, UpdateServiceTypeF
 const CACHE_KEY = 'service_types:active:v1';
 const CACHE_TTL = 30 * 60;
 
+export interface ServiceTypeCapabilities {
+  appointments?: boolean; requestQuote?: boolean; remote?: boolean; atCustomer?: boolean; atProvider?: boolean;
+  allowedPricingTypes?: Array<'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE'>;
+  allowedLocations?: Array<'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE'>;
+}
+
+export function getServiceTypeCapabilities(capabilities: unknown): ServiceTypeCapabilities {
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return {};
+  const raw = capabilities as Record<string, unknown>;
+  const pricing = Array.isArray(raw.allowedPricingTypes) ? raw.allowedPricingTypes.filter((v): v is 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE' => ['FIXED','STARTING_FROM','NEGOTIABLE'].includes(String(v))) as Array<'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE'> : undefined;
+  const locations = Array.isArray(raw.allowedLocations) ? raw.allowedLocations.filter((v): v is 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' => ['AT_CUSTOMER','AT_PROVIDER','REMOTE'].includes(String(v))) as Array<'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE'> : undefined;
+  return { appointments: typeof raw.appointments==='boolean'?raw.appointments:undefined, requestQuote: typeof raw.requestQuote==='boolean'?raw.requestQuote:undefined, remote: typeof raw.remote==='boolean'?raw.remote:undefined, atCustomer: typeof raw.atCustomer==='boolean'?raw.atCustomer:undefined, atProvider: typeof raw.atProvider==='boolean'?raw.atProvider:undefined, allowedPricingTypes: pricing, allowedLocations: locations };
+}
+
+export function validateServiceTypeCapabilities(serviceType: { capabilities: unknown }, pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE', serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE'): void {
+  const caps=getServiceTypeCapabilities(serviceType.capabilities);
+  if (caps.allowedPricingTypes?.length && !caps.allowedPricingTypes.includes(pricingType)) throw new BadRequestError('This pricing type is not supported for this service type.','SERVICE_PRICING_TYPE_NOT_ALLOWED');
+  if (caps.allowedLocations?.length && !caps.allowedLocations.includes(serviceLocation)) throw new BadRequestError('This service location is not supported for this service type.','SERVICE_LOCATION_NOT_ALLOWED');
+  if (serviceLocation==='REMOTE' && caps.remote===false) throw new BadRequestError('Remote delivery is not supported for this service type.','SERVICE_REMOTE_NOT_ALLOWED');
+  if (serviceLocation==='AT_CUSTOMER' && caps.atCustomer===false) throw new BadRequestError('Customer-location service is not supported for this service type.','SERVICE_AT_CUSTOMER_NOT_ALLOWED');
+  if (serviceLocation==='AT_PROVIDER' && caps.atProvider===false) throw new BadRequestError('Provider-location service is not supported for this service type.','SERVICE_AT_PROVIDER_NOT_ALLOWED');
+}
+
 async function invalidate(): Promise<void> {
   try { await redis.del(CACHE_KEY); } catch { logger.warn('Service types cache invalidation failed'); }
 }

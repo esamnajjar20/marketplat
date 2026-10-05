@@ -41,6 +41,7 @@ export interface GetProductRecommendationsParams {
 export interface GetServiceRecommendationsParams {
   limit?: number;
   excludeServiceListingId?: string;
+  serviceTypeId?: string;
   /** تفضيل خدمات نفس المدينة في الترتيب */
   city?: string;
 }

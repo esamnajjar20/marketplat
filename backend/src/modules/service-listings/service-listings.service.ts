@@ -18,7 +18,8 @@ import { uploadImage, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
-import { validateServiceListingAttributes } from '../service-types/service-types.service';
+import { validateServiceListingAttributes, validateServiceTypeCapabilities } from '../service-types/service-types.service';
+import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
@@ -128,6 +129,9 @@ export const serviceListingsService = {
     if (serviceTypeId !== category.serviceTypeId) {
       throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
     }
+    const serviceType = await serviceTypesRepository.findActiveById(serviceTypeId);
+    if (!serviceType) throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
+    validateServiceTypeCapabilities(serviceType, input.pricingType, input.serviceLocation);
     await validateServiceListingAttributes(serviceTypeId, input.attributes);
 
     if (files.length > MAX_LISTING_IMAGES) {
@@ -314,6 +318,9 @@ export const serviceListingsService = {
       throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
     }
     const serviceTypeChanged = finalServiceTypeId !== listing.serviceTypeId;
+    const effectiveServiceType = await serviceTypesRepository.findActiveById(finalServiceTypeId);
+    if (!effectiveServiceType) throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
+    validateServiceTypeCapabilities(effectiveServiceType, input.pricingType ?? listing.pricingType, input.serviceLocation ?? listing.serviceLocation);
     const attributesToValidate = input.attributes !== undefined
       ? input.attributes
       : serviceTypeChanged

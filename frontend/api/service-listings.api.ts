@@ -81,6 +81,9 @@ export const serviceListingsApi = {
   },
 
   /** PATCH /service-listings/:id — JSON only, no images (see file header). */
+  getMatches: (id: string, limit = 8) =>
+    apiClient.get<ApiResponse<ServiceListingWithProvider[]>>(`/service-listings/${id}/matches`, { params: { limit } }),
+
   update: (id: string, payload: UpdateServiceListingPayload, operationId?: string) =>
     apiClient.patch<ApiResponse<ServiceListing>>(`/service-listings/${id}`, payload, {
       headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined,

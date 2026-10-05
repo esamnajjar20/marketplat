@@ -39,6 +39,11 @@ export interface ServiceTypeField {
   isActive: boolean;
 }
 
+export interface ServiceTypeCapabilities {
+  appointments?: boolean; requestQuote?: boolean; remote?: boolean; atCustomer?: boolean; atProvider?: boolean;
+  allowedPricingTypes?: ServicePricingType[]; allowedLocations?: ServiceLocationType[];
+}
+
 export interface ServiceType {
   id: string;
   slug: string;
@@ -46,7 +51,7 @@ export interface ServiceType {
   nameAr: string;
   icon: string | null;
   labels: Record<string, unknown> | null;
-  capabilities: Record<string, unknown> | null;
+  capabilities: ServiceTypeCapabilities | null;
   presentation: Record<string, unknown> | null;
   isActive: boolean;
   sortOrder: number;
@@ -365,6 +370,7 @@ export interface ServiceListingsQuery {
   page?: number;
   limit?: number;
   categoryId?: string;
+  serviceTypeId?: string;
   providerId?: string;
   city?: string;
   serviceLocation?: ServiceLocationType;

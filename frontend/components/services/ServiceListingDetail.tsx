@@ -13,6 +13,7 @@ import { ProviderContactCard } from '@/components/services/ProviderContactCard';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { ServiceTypeAttributesDisplay } from '@/components/services/ServiceTypeAttributesDisplay';
+import { ServiceListingMatches } from '@/components/services/ServiceListingMatches';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -255,6 +256,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
           </header>
 
           <ServiceTypeAttributesDisplay listing={listing} />
+          <ServiceListingMatches listingId={listing.id} />
 
           {/* Description */}
           {listing.description && (

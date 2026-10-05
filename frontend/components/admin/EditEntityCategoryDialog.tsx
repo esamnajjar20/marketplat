@@ -96,7 +96,7 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
     }
     if (icon.trim() !== (category.icon ?? '')) patch.icon = icon.trim();
     if (storeTypes.length && storeTypeId !== (category.storeTypeId ?? null)) patch.storeTypeId = storeTypeId;
-    if (serviceTypes.length && serviceTypeId !== (category.serviceTypeId ?? null)) patch.serviceTypeId = serviceTypeId === null ? undefined : serviceTypeId;
+    if (serviceTypes.length && serviceTypeId !== (category.serviceTypeId ?? null)) patch.serviceTypeId = serviceTypeId ?? undefined;
 
     if (Object.keys(patch).length === 0) {
       setOpen(false);

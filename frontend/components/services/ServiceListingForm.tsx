@@ -192,12 +192,21 @@ export function ServiceListingForm({ mode, listing }: Props) {
   );
 
   const selectedServiceType = serviceTypes?.find((type) => type.id === values.serviceTypeId);
+  const allowedPricingTypes = selectedServiceType?.capabilities?.allowedPricingTypes?.length
+    ? selectedServiceType.capabilities.allowedPricingTypes
+    : (Object.keys(PRICING_LABELS) as ServicePricingType[]);
+  const allowedLocations = selectedServiceType?.capabilities?.allowedLocations?.length
+    ? selectedServiceType.capabilities.allowedLocations
+    : (Object.keys(LOCATION_LABELS) as ServiceLocationType[]);
   const availableCategories = (categories ?? [])
     .filter((category) => category.serviceTypeId === values.serviceTypeId)
     .flatMap((category) => category.children?.length ? category.children : [category]);
 
   function setServiceType(id: string) {
-    setValues((current) => ({ ...current, serviceTypeId: id, categoryId: '', attributes: {} }));
+    const nextType = serviceTypes?.find((type) => type.id === id);
+    const nextPricing = nextType?.capabilities?.allowedPricingTypes?.[0] ?? 'NEGOTIABLE';
+    const nextLocation = nextType?.capabilities?.allowedLocations?.[0] ?? 'AT_PROVIDER';
+    setValues((current) => ({ ...current, serviceTypeId: id, categoryId: '', attributes: {}, pricingType: nextPricing, serviceLocation: nextLocation }));
     setErrors((current) => ({ ...current, serviceTypeId: undefined, categoryId: undefined, attributes: undefined }));
   }
 
@@ -230,7 +239,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
 
   function fieldError(field: keyof Errors): string | undefined {
-    return (errors[field] as string | undefined) ?? serverErrors?.[field as keyof typeof serverErrors]?.[0];
+    return (errors[field] as string | undefined) ?? serverErrors?.[field]?.[0];
   }
 
   function attributeError(key: string): string | undefined {
@@ -615,7 +624,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
             >
               <SelectTrigger id="pricingType"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(Object.entries(PRICING_LABELS) as [ServicePricingType, string][]).map(
+                {(Object.entries(PRICING_LABELS) as [ServicePricingType, string][]).filter(([value]) => allowedPricingTypes.includes(value)).map(
                   ([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   )
@@ -632,7 +641,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
             >
               <SelectTrigger id="serviceLocation"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(Object.entries(LOCATION_LABELS) as [ServiceLocationType, string][]).map(
+                {(Object.entries(LOCATION_LABELS) as [ServiceLocationType, string][]).filter(([value]) => allowedLocations.includes(value)).map(
                   ([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
                   )

@@ -35,7 +35,7 @@ const serviceListingListSelect = {
   views: true,
   createdAt: true,
   updatedAt: true,
-  serviceType: { select: { id: true, slug: true, nameAr: true, icon: true, capabilities: true, presentation: true } },
+  serviceType: { select: { id: true, slug: true, nameAr: true, icon: true, capabilities: true, presentation: true, fields: { where: { isActive: true, scope: 'LISTING' }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } } },
   attributes: true,
   provider: {
     select: {
@@ -57,7 +57,7 @@ const serviceListingListSelect = {
     },
   },
   category: { select: { id: true, name: true, nameAr: true } },
-} as const;
+} satisfies Prisma.ServiceListingSelect;
 
 
 
@@ -91,7 +91,7 @@ export const serviceListingsRepository = {
         durationEstimate: data.durationEstimate,
         serviceLocation: data.serviceLocation,
         serviceTypeId: data.serviceTypeId,
-        attributes: data.attributes as Prisma.InputJsonValue | undefined,
+        attributes: data.attributes as unknown as Prisma.InputJsonValue | undefined,
         ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
       },
     }),
@@ -120,7 +120,7 @@ export const serviceListingsRepository = {
       attributes?: Record<string, unknown>;
       status: ServiceListingStatus;
     }>
-  ): Promise<ServiceListing> => prisma.serviceListing.update({ where: { id }, data: data as Prisma.ServiceListingUncheckedUpdateInput }),
+  ): Promise<ServiceListing> => prisma.serviceListing.update({ where: { id }, data: data as unknown as Prisma.ServiceListingUncheckedUpdateInput }),
 
   // Soft delete, same convention as ads (status DELETED rather than a
   // row removal) — keeps historical service_requests referencing this
@@ -204,6 +204,7 @@ export const serviceListingsRepository = {
       page = 1,
       limit = 20,
       categoryId,
+      serviceTypeId,
       providerId,
       city,
       serviceLocation,
@@ -250,6 +251,7 @@ export const serviceListingsRepository = {
       status: 'ACTIVE',
       provider: { sellerProfile: { suspended: false } },
       ...(categoryId && { categoryId }),
+      ...(serviceTypeId && { serviceTypeId }),
       ...(providerId && { providerId }),
       ...(serviceLocation && { serviceLocation }),
       // Providers list the cities they serve (serviceAreaCities), not

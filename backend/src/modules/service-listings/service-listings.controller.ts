@@ -11,6 +11,7 @@ import {
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { serviceListingMatchesService } from './service-listing-matches.service';
 
 export const serviceListingsController = {
   createServiceListing: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -59,6 +60,17 @@ export const serviceListingsController = {
         .json(
           successResponse('Service listings fetched', result.items, { pagination: result.meta })
         );
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getServiceListingMatches: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { params } = serviceListingIdSchema.parse({ params: req.params });
+      const limit = Math.min(Math.max(Number(req.query.limit ?? 8), 1), 12);
+      const matches = await serviceListingMatchesService.getMatches(params.id, limit);
+      res.status(200).json(successResponse('Service listing matches fetched', matches));
     } catch (error) {
       next(error);
     }

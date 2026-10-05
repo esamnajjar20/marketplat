@@ -6,7 +6,7 @@ export type ServiceCategoryWithChildren = ServiceCategory & { children?: Service
 
 export const serviceCategoriesRepository = {
   create: async (data: CreateServiceCategoryInput): Promise<ServiceCategory> =>
-    prisma.serviceCategory.create({ data: data as Prisma.ServiceCategoryUncheckedCreateInput }),
+    prisma.serviceCategory.create({ data: data as unknown as Prisma.ServiceCategoryUncheckedCreateInput }),
 
   // Only active top-level categories (+ their children) for the public
   // browse tree — same shape as categoriesRepository.findMany, but also

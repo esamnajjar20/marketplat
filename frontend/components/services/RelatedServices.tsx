@@ -1,35 +1,37 @@
 'use client';
 
 import { Layers } from 'lucide-react';
-import { useServiceListings } from '@/hooks/queries/useServiceListings';
+import { useServiceRecommendations } from '@/hooks/queries/useRecommendations';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 
 interface Props {
   serviceListingId: string;
   categoryId: string | null;
+  serviceTypeId?: string | null;
   /** عنوان موحّد مع "إعلانات مشابهة" / "منتجات مشابهة" */
   title?: string;
 }
 
 /**
  * قسم "خدمات مشابهة" — نفس بنية RelatedAds / RelatedProducts.
- * يعتمد على GET /service-listings?categoryId=… (لا يوجد endpoint related مخصص).
+ * يعتمد على محرك التوصيات العام مع تقييد ServiceType، بدل طلب قائمة عامة ثم تصفيتها في العميل.
  */
 export function RelatedServices({
   serviceListingId,
   categoryId,
+  serviceTypeId,
   title = 'خدمات مشابهة',
 }: Props) {
-  const enabled = Boolean(categoryId);
-  const { data, isLoading } = useServiceListings(
-    enabled ? { categoryId: categoryId!, limit: 8 } : undefined,
+  const enabled = Boolean(categoryId || serviceTypeId);
+  const { data, isLoading } = useServiceRecommendations(
+    enabled ? { excludeServiceListingId: serviceListingId, serviceTypeId: serviceTypeId ?? undefined, limit: 8 } : undefined,
   );
 
-  // بدون فئة لا نعرض قسماً عشوائياً من كل الخدمات
+  // بدون مجال/فئة لا نعرض قسماً عشوائياً من كل الخدمات
   if (!enabled) return null;
 
-  const items = (data?.items ?? []).filter((s) => s.id !== serviceListingId).slice(0, 6);
+  const items = (data ?? []).filter((s) => s.id !== serviceListingId).slice(0, 6);
 
   if (isLoading) {
     return (

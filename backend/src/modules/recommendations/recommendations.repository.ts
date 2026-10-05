@@ -738,6 +738,7 @@ export const serviceListingRecommendationsRepository = {
     excludeIds: string[],
     limit: number,
     city?: string | null,
+    serviceTypeId?: string | null,
   ): Promise<ServiceListingWithProvider[]> => {
     if (weights.length === 0) return [];
     const weightValues = Prisma.join(
@@ -749,6 +750,9 @@ export const serviceListingRecommendationsRepository = {
     ];
     if (excludeIds.length > 0) {
       whereParts.push(Prisma.sql`sl."id" NOT IN (${Prisma.join(excludeIds)})`);
+    }
+    if (serviceTypeId) {
+      whereParts.push(Prisma.sql`sl."serviceTypeId" = ${serviceTypeId}`);
     }
     const whereSql = Prisma.join(whereParts, ' AND ');
     const trimmedCity = city?.trim() || null;
@@ -785,11 +789,13 @@ export const serviceListingRecommendationsRepository = {
     excludeIds: string[],
     limit: number,
     city?: string | null,
+    serviceTypeId?: string | null,
   ): Promise<ServiceListingWithProvider[]> => {
     const where: Prisma.ServiceListingWhereInput = {
       status: ServiceListingStatus.ACTIVE,
       provider: { sellerProfile: { suspended: false } },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
+      ...(serviceTypeId ? { serviceTypeId } : {}),
     };
     const [topByViews, mostRecent] = await Promise.all([
       prisma.serviceListing.findMany({
