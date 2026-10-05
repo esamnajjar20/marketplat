@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Product } from '@prisma/client';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import { productsRepository, ProductWithStore } from './products.repository';
 import { CreateProductInput, UpdateProductInput, GetProductsQuery } from './products.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -160,8 +161,8 @@ export const productsService = {
           }
         }
 
-        return prisma.$transaction(async tx =>
-          productsRepository.create(tx, store.id, {
+        return prisma.$transaction(async tx => {
+          const created = await productsRepository.create(tx, store.id, {
             categoryId: input.categoryId,
             name: input.name,
             description: input.description,
@@ -174,8 +175,22 @@ export const productsService = {
             stockQuantity: input.stockQuantity ?? null,
             offlineOperationId: offlineOperationId ?? null,
             ...(validatedAttributes ? { attributes: validatedAttributes } : {}),
-          })
-        );
+          });
+          if (input.stockQuantity !== undefined) {
+            await tx.stockMovement.create({
+              data: {
+                productId: created.id,
+                storeId: store.id,
+                changedByUserId: userId,
+                previousQuantity: null,
+                newQuantity: input.stockQuantity ?? null,
+                delta: null,
+                reason: 'INITIAL_STOCK',
+              },
+            });
+          }
+          return created;
+        });
       });
     } catch (error: unknown) {
       // FIX OFFLINE-IDEMPOTENCY-01: concurrent same offline op id
@@ -385,7 +400,15 @@ export const productsService = {
       );
     }
 
-    const updated = await productsRepository.update(id, patch);
+    const updated = input.stockQuantity !== undefined
+      ? await productsRepository.updateWithStockMovement(
+          id,
+          store.id,
+          userId,
+          patch,
+          'MANUAL_ADJUSTMENT',
+        )
+      : await productsRepository.update(id, patch);
     // Edits (incl. stock/availability): soft invalidation (stale once, then
     // refreshed). A status change away from ACTIVE must hide the product now.
     if (patch.status && patch.status !== 'ACTIVE') {
@@ -425,6 +448,61 @@ export const productsService = {
     }
 
     return updated;
+  },
+
+  adjustStock: async (
+    userId: string,
+    id: string,
+    stockQuantity: number | null,
+    reason = 'MANUAL_ADJUSTMENT',
+  ): Promise<Product> => {
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    const product = await productsRepository.findById(id);
+    if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    if (product.storeId !== store.id) {
+      throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
+    }
+
+    const availability = deriveAvailabilityFromStock(stockQuantity, product.availability);
+    const updated = await productsRepository.updateWithStockMovement(
+      id,
+      store.id,
+      userId,
+      { stockQuantity, availability },
+      reason,
+    );
+
+    await bumpPublicListCache('products');
+    activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });
+
+    if (product.availability === 'OUT_OF_STOCK' && updated.availability !== 'OUT_OF_STOCK') {
+      storeFollowersRepository
+        .findUserIdsByStoreId(store.id)
+        .then(followerIds =>
+          notificationEvents.onStoreProductRestocked(followerIds, store.id, updated.id, updated.name)
+        )
+        .catch(() => undefined);
+    }
+
+    return updated;
+  },
+
+  getStockSummary: async (userId: string) => {
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    return productsRepository.getStockSummary(store.id);
+  },
+
+  getStockHistory: async (
+    userId: string,
+    query: { page?: number; limit?: number; productId?: string },
+  ) => {
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    const { page, limit } = getPaginationParams(query, 20);
+    const result = await productsRepository.getStockHistory(store.id, page, limit, query.productId);
+    return {
+      items: result.items,
+      meta: buildPaginationMeta(result.total, page, limit),
+    };
   },
 
   deleteProduct: async (userId: string, id: string): Promise<void> => {

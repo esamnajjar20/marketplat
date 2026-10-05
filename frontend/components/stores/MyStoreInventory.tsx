@@ -8,9 +8,10 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Package, AlertTriangle, Pencil } from 'lucide-react';
+import { Package, AlertTriangle, Pencil, History, Boxes, TrendingDown, CircleAlert } from 'lucide-react';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useAdjustProductStock } from '@/hooks/mutations/useAdjustProductStock';
+import { useStockHistory, useStockSummary } from '@/hooks/queries/useStockInventory';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -62,7 +63,7 @@ function StockRow({
       return;
     }
     adjust.mutate(
-      { id, stockQuantity: qty },
+      { id, stockQuantity: qty, reason: 'MANUAL_ADJUSTMENT' },
       { onSuccess: () => setEditing(false) }
     );
   }
@@ -71,7 +72,7 @@ function StockRow({
     const current = stockQuantity ?? 0;
     const next = Math.max(0, current + delta);
     setValue(String(next));
-    adjust.mutate({ id, stockQuantity: next });
+    adjust.mutate({ id, stockQuantity: next, reason: delta > 0 ? 'RESTOCK' : 'SALE_OR_CORRECTION' });
   }
 
   return (
@@ -206,6 +207,8 @@ export function MyStoreInventory() {
   // field is precisely the kind of drift the codebase already avoids
   // elsewhere (T760 family, AGENTS.md).
   const rows = items;
+  const { data: summary } = useStockSummary();
+  const { data: historyData } = useStockHistory({ page: 1, limit: 8 });
 
   function pushParams(mutator: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(sp.toString());
@@ -267,6 +270,26 @@ export function MyStoreInventory() {
           <Link href={ROUTES.myStoreProducts}>كل المنتجات</Link>
         </Button>
       </div>
+
+      {summary && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {([
+            ['إجمالي المنتجات', summary.totalProducts, Package],
+            ['الوحدات المتاحة', summary.totalUnits, Boxes],
+            ['متوفر', summary.inStock, Package],
+            ['منخفض', summary.limited, TrendingDown],
+            ['نافد', summary.outOfStock, CircleAlert],
+          ] as const).map(([label, value, Icon]) => (
+            <div key={String(label)} className="rounded-xl border bg-card p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">{String(label)}</span>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="mt-1 text-xl font-bold tabular-nums">{String(value)}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         {(
@@ -339,6 +362,44 @@ export function MyStoreInventory() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {(historyData?.items?.length ?? 0) > 0 && (
+        <section className="rounded-xl border">
+          <div className="flex items-center gap-2 border-b px-3 py-3">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <h2 className="text-sm font-semibold">آخر حركات المخزون</h2>
+              <p className="text-xs text-muted-foreground">سجل تدقيقي لآخر التعديلات على الكميات</p>
+            </div>
+          </div>
+          <div className="divide-y">
+            {(historyData?.items ?? []).map((movement) => (
+              <div key={movement.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{movement.product.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {movement.reason === 'INITIAL_STOCK' ? 'رصيد افتتاحي' : 'تعديل يدوي'}
+                    {' · '}
+                    {new Date(movement.createdAt).toLocaleString('ar')}
+                  </p>
+                </div>
+                <div className="text-end tabular-nums">
+                  <p className={cn(
+                    'font-semibold',
+                    movement.delta != null && movement.delta > 0 && 'text-success',
+                    movement.delta != null && movement.delta < 0 && 'text-destructive',
+                  )}>
+                    {movement.delta == null ? 'تعيين' : movement.delta > 0 ? `+${movement.delta}` : movement.delta}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {movement.previousQuantity ?? '—'} ← {movement.newQuantity ?? '—'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {totalPages > 1 && (

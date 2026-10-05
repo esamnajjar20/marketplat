@@ -25,6 +25,10 @@ productsRouter.get('/', CACHE.SHORT, productsController.getProducts);
 productsRouter.get('/me', authenticate, CACHE.NONE, productsController.getMyProducts);
 productsRouter.get('/:id', CACHE.MEDIUM, productsController.getProductById);
 
+// Inventory reads are scoped to the caller's store by the service layer.
+productsRouter.get('/stock/summary', authenticate, CACHE.NONE, productsStockController.getSummary);
+productsRouter.get('/stock/history', authenticate, CACHE.NONE, productsStockController.getHistory);
+
 // Protected — owner-only, enforced in products.service.ts
 productsRouter.post(
   '/',

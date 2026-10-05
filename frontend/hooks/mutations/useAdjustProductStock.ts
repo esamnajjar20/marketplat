@@ -10,11 +10,20 @@ export function useAdjustProductStock() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, stockQuantity }: { id: string; stockQuantity: number | null }) =>
-      adjustProductStock(id, stockQuantity),
+    mutationFn: ({
+      id,
+      stockQuantity,
+      reason,
+    }: {
+      id: string;
+      stockQuantity: number | null;
+      reason?: string;
+    }) => adjustProductStock(id, stockQuantity, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.products.mine() });
       qc.invalidateQueries({ queryKey: queryKeys.products.all() });
+      qc.invalidateQueries({ queryKey: queryKeys.products.stockSummary() });
+      qc.invalidateQueries({ queryKey: ['products', 'stock', 'history'] });
       toast.success('تم تحديث المخزون');
     },
     onError: toastMutationError,

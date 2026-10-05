@@ -149,6 +149,8 @@ export const queryKeys = {
     list:   (params?: object) => ['products', 'list', params ?? {}] as const,
     detail: (id: string)      => ['products', 'detail', id] as const,
     mine:   (params?: object) => ['products', 'me', params ?? {}] as const,
+    stockSummary: () => ['products', 'stock', 'summary'] as const,
+    stockHistory: (params?: object) => ['products', 'stock', 'history', params ?? {}] as const,
   },
 
   // ── Promotions ─────────────────────────────────────────────────

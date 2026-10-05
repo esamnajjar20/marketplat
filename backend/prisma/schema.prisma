@@ -964,11 +964,31 @@ model Product {
   category        ProductCategory          @relation(fields: [categoryId], references: [id])
   promotions      Promotion[]
   collections     StoreCollectionProduct[]
+  stockMovements  StockMovement[]
 
   @@index([storeId, status])
   @@index([categoryId, status])
   @@index([status, createdAt])
   @@map("products")
+}
+
+model StockMovement {
+  id                String   @id @default(cuid())
+  productId         String
+  storeId           String
+  changedByUserId   String
+  previousQuantity  Int?
+  newQuantity       Int?
+  delta             Int?
+  reason            String   @db.VarChar(120)
+  createdAt         DateTime @default(now())
+
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@index([productId, createdAt])
+  @@index([changedByUserId, createdAt])
+  @@map("stock_movements")
 }
 
 // PROMO-1: scheduled/time-boxed discount on a single Product, decoupled

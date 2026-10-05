@@ -161,6 +161,105 @@ export const productsRepository = {
     }>
   ): Promise<Product> => prisma.product.update({ where: { id }, data }),
 
+  updateWithStockMovement: async (
+    id: string,
+    storeId: string,
+    changedByUserId: string,
+    data: Partial<{
+      categoryId: string;
+      name: string;
+      description: string;
+      images: string[];
+      price: number;
+      stockQuantity: number | null;
+      discountPrice: number | null;
+      wholesalePrice: number | null;
+      wholesaleMinQty: number | null;
+      availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
+      status: ProductStatus;
+      attributes: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+    }>,
+    reason = 'MANUAL_ADJUSTMENT',
+  ): Promise<Product> => prisma.$transaction(async tx => {
+    const current = await tx.product.findUnique({ where: { id } });
+    if (!current || current.storeId !== storeId) throw new Error('PRODUCT_NOT_FOUND');
+
+    const updated = await tx.product.update({ where: { id }, data });
+    if (data.stockQuantity !== undefined && current.stockQuantity !== updated.stockQuantity) {
+      const previousQuantity = current.stockQuantity;
+      const newQuantity = updated.stockQuantity;
+      await tx.stockMovement.create({
+        data: {
+          productId: id,
+          storeId,
+          changedByUserId,
+          previousQuantity,
+          newQuantity,
+          delta:
+            previousQuantity != null && newQuantity != null
+              ? newQuantity - previousQuantity
+              : null,
+          reason,
+        },
+      });
+    }
+    return updated;
+  }),
+
+  getStockSummary: async (storeId: string) => {
+    const [totalProducts, trackedProducts, inStock, limited, outOfStock, totalUnits] =
+      await Promise.all([
+        prisma.product.count({ where: { storeId, status: 'ACTIVE' } }),
+        prisma.product.count({ where: { storeId, status: 'ACTIVE', stockQuantity: { not: null } } }),
+        prisma.product.count({ where: { storeId, status: 'ACTIVE', availability: 'IN_STOCK' } }),
+        prisma.product.count({ where: { storeId, status: 'ACTIVE', availability: 'LIMITED' } }),
+        prisma.product.count({ where: { storeId, status: 'ACTIVE', availability: 'OUT_OF_STOCK' } }),
+        prisma.product.aggregate({
+          where: { storeId, status: 'ACTIVE', stockQuantity: { not: null } },
+          _sum: { stockQuantity: true },
+        }),
+      ]);
+    return {
+      totalProducts,
+      trackedProducts,
+      untrackedProducts: totalProducts - trackedProducts,
+      inStock,
+      limited,
+      outOfStock,
+      totalUnits: totalUnits._sum.stockQuantity ?? 0,
+    };
+  },
+
+  getStockHistory: async (
+    storeId: string,
+    page: number,
+    limit: number,
+    productId?: string,
+  ) => {
+    const where = { storeId, ...(productId ? { productId } : {}) };
+    const [total, items] = await Promise.all([
+      prisma.stockMovement.count({ where }),
+      prisma.stockMovement.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          productId: true,
+          changedByUserId: true,
+          previousQuantity: true,
+          newQuantity: true,
+          delta: true,
+          reason: true,
+          createdAt: true,
+          product: { select: { name: true } },
+        },
+      }),
+    ]);
+    return { total, items };
+  },
+
   // Soft delete, same convention as ads/service-listings — keeps
   // historical references (e.g. conversations about this product)
   // intact rather than a hard row removal.
