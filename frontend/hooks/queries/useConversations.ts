@@ -89,7 +89,7 @@ export function useConversation(id: string) {
  * GET /conversations/:id/messages — مع IndexedDB للرسائل السابقة offline.
  * الترتيب المعروض تصاعدي (أقدم → أحدث) كما كان.
  */
-export function useConversationMedia(conversationId: string) {
+export function useConversationMedia(conversationId: string, enabled = true) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const userId = useAuthStore(selectUser)?.id ?? null;
@@ -114,7 +114,7 @@ export function useConversationMedia(conversationId: string) {
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
-    enabled: isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
+    enabled: enabled && isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
   });
 }
 

@@ -135,7 +135,7 @@ export function useStore(id: string) {
  * falls back to the last successfully fetched store; a confirmed 404
  * still blocks as before.
  */
-export function useMyStore() {
+export function useMyStore(options?: { enabled?: boolean }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
@@ -159,7 +159,7 @@ export function useMyStore() {
       }
     },
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: isAuthenticated && (hasToken || !isOnline),
+    enabled: (options?.enabled ?? true) && isAuthenticated && (hasToken || !isOnline),
     retry: false,
   });
 }

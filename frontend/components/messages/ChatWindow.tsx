@@ -144,7 +144,7 @@ export function ChatWindow({ conversationId }: Props) {
   const [partyTyping, setPartyTyping] = useState(false);
   const { mutate: setFlags, isPending: flagsPending } = useSetConversationFlags();
   const messageMarkMutation = useMessageMarkMutation(conversationId);
-  const { data: mediaItems = [], isLoading: mediaLoading } = useConversationMedia(conversationId);
+  const { data: mediaItems = [], isLoading: mediaLoading } = useConversationMedia(conversationId, showMedia);
   const pendingQueued = usePendingMessages(conversationId);
 
   // Show the safety reminder once when entering a thread, then remove it

@@ -65,6 +65,7 @@ import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGrou
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
+import { useNavigationUsage } from '@/hooks/useNavigationUsage';
 
 const selectCloseMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.closeMobileNav;
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
@@ -147,7 +148,10 @@ export function ProtectedMobileNav() {
   useEffect(() => setMounted(true), []);
   const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
   const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
-  const { data: myStore } = useMyStore();
+  const { data: myStore } = useMyStore({ enabled: isSeller });
+  const { recordNavigation, isUsed } = useNavigationUsage();
+  const [showMore, setShowMore] = useState(false);
+  const [showBrowse, setShowBrowse] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -281,26 +285,36 @@ export function ProtectedMobileNav() {
           </button>
         </div>
 
-        {/* REORG-07: "تصفح" section — same content/order as public
-            MobileNav's own BROWSE_LINKS, first in the drawer. */}
-        <p className="mt-6 px-3 pb-1 text-xs font-medium text-muted-foreground">تصفح</p>
-        <ul className="flex flex-col gap-1">
-          {BROWSE_LINKS.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                // FIX RSC-PREFETCH-STORM-01: 9-item discovery list —
-                // see ExploreSheet.tsx for the full rationale.
-                prefetch={false}
-                onClick={close}
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
-              >
-                <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <button
+          type="button"
+          onClick={() => setShowBrowse((value) => !value)}
+          aria-expanded={showBrowse}
+          className="mt-6 flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+        >
+          <span className="flex-1 text-start">استكشاف</span>
+          {showBrowse ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />}
+        </button>
+        {showBrowse && (
+          <ul className="flex flex-col gap-1">
+            {BROWSE_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  prefetch={false}
+                  onClick={() => { recordNavigation(link.href); close(); }}
+                  aria-current={pathname === link.href ? 'page' : undefined}
+                  className={cn(
+                    'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted',
+                    pathname === link.href ? 'bg-primary text-primary-foreground' : '',
+                  )}
+                >
+                  <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <ul className="mt-3 flex flex-col gap-1 border-t pt-3">
           {LINKS.map((link) => {
@@ -313,7 +327,7 @@ export function ProtectedMobileNav() {
                   href={link.href}
                   // FIX RSC-PREFETCH-STORM-02: see ProtectedSidebar.
                   prefetch={false}
-                  onClick={close}
+                  onClick={() => { recordNavigation(link.href); close(); }}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'block rounded-md px-3 py-2 text-base font-medium transition-colors',
@@ -409,7 +423,9 @@ export function ProtectedMobileNav() {
               </WithSearch>
             </Suspense>
           )}
-          <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={close} />
+          {(pathname.startsWith(ROUTES.myOpenRequests) || isUsed(ROUTES.myOpenRequests) || isUsed(ROUTES.myOpenRequestOffers)) && (
+            <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.myOpenRequests); close(); }} />
+          )}
           {user && (
             <li>
               <Link
@@ -429,21 +445,34 @@ export function ProtectedMobileNav() {
               </Link>
             </li>
           )}
-          <Suspense fallback={<DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />}>
-            <WithSearch>
-              {(search) => (
-                <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} search={search} />
-              )}
-            </WithSearch>
-          </Suspense>
-          {/* SETTINGS-SIDEBAR-RESTORE-01: pass search so /settings?tab=… active state works. */}
-          <Suspense fallback={<DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />}>
-            <WithSearch>
-              {(search) => (
-                <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} search={search} />
-              )}
-            </WithSearch>
-          </Suspense>
+          {(pathname.startsWith(ROUTES.activity) || isUsed(ROUTES.activity) || isUsed(ROUTES.favorites) || isUsed(ROUTES.savedSearches)) && (
+            <Suspense fallback={<DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={close} />}>
+              <WithSearch>
+                {(search) => (
+                  <DrawerDisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.activity); close(); }} search={search} />
+                )}
+              </WithSearch>
+            </Suspense>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowMore((value) => !value)}
+            aria-expanded={showMore}
+            className="mt-2 flex w-full items-center gap-2 rounded-md border-t px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-muted"
+          >
+            <span className="flex-1 text-start">{showMore ? 'إخفاء المزيد' : 'المزيد'}</span>
+            {showMore ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />}
+          </button>
+          {showMore && (
+            <Suspense fallback={<DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />}>
+              <WithSearch>
+                {(search) => (
+                  <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.settings.root); close(); }} search={search} />
+                )}
+              </WithSearch>
+            </Suspense>
+          )}
 
           {isAdmin && (
             <li>

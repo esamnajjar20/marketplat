@@ -80,8 +80,9 @@ import {
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
+import { useNavigationUsage } from '@/hooks/useNavigationUsage';
 import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
-import { useAuthStore, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -99,14 +100,15 @@ const NAV_ITEMS = [
 // comment for the full reasoning.
 
 function NavLink({
-  label, href, icon: Icon, isActive, indent = false, badge,
+  label, href, icon: Icon, isActive, indent = false, badge, onNavigate,
 }: {
   label: string; href: string; icon?: React.ComponentType<{ className?: string }>;
-  isActive: boolean; indent?: boolean; badge?: number;
+  isActive: boolean; indent?: boolean; badge?: number; onNavigate?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       // FIX RSC-PREFETCH-STORM-02: every nav row this renders (top-level
       // items + all disclosure children) is a Link. Next.js auto-prefetches
       // every one of them on mount, so a signed-in page load fired RSC
@@ -137,11 +139,12 @@ function NavLink({
 }
 
 function DisclosureGroup({
-  group, pathname, search = '',
+  group, pathname, search = '', onNavigate,
 }: {
   group: typeof ACTIVITY_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
   pathname: string;
   search?: string;
+  onNavigate?: (href: string) => void;
 }) {
   const isAnyChildActive = group.children.some((c) => navChildIsActive(pathname, c, search));
   // Starts open if the user is already somewhere inside the group, so
@@ -178,6 +181,7 @@ function DisclosureGroup({
               href={child.href}
               isActive={navChildIsActive(pathname, child, search)}
               indent
+              onNavigate={() => onNavigate?.(child.href)}
             />
           ))}
         </div>
@@ -199,130 +203,82 @@ export function ProtectedSidebar() {
   const pathname = usePathname();
   const { data: unreadMessages = 0 } = useUnreadConversationCount();
   const user = useAuthStore(selectUser);
-  // ROLE-SEP 3.2: isSuccess && data is the only positive signal —
-  // everything else (loading, 404, network error) reads as "no
-  // profile yet" and renders the CTA. No isError branch.
-  const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
-  const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
-  const { data: myStore } = useMyStore();
+  const isAdmin = useAuthStore(selectIsAdmin);
+  const { isSeller, showRoleSkeleton } = useIsSeller();
+  const { isProvider } = useIsProvider();
+  const { data: myStore } = useMyStore({ enabled: isSeller });
+  const { recordNavigation, isUsed, sortSmart } = useNavigationUsage();
+
+  const current = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const hasCurrentInGroup = (group: NavDisclosureGroup) => group.children.some((child) => navChildIsActive(pathname, child));
+  const activityVisible = hasCurrentInGroup(ACTIVITY_GROUP) || isUsed(ROUTES.activity) || isUsed(ROUTES.favorites) || isUsed(ROUTES.savedSearches);
+  const requestsVisible = hasCurrentInGroup(requestsGroupFor(true)) || isUsed(ROUTES.myOpenRequests) || isUsed(ROUTES.myOpenRequestOffers);
+
+  const navigate = (href: string) => recordNavigation(href);
+
+  // Dashboard/messages are intentionally fixed. Everything below is ranked
+  // locally by role importance + recent/frequent usage. The importance map
+  // prevents a low-value page from permanently displacing a role-critical hub.
+  const secondaryItems = sortSmart([
+    ...(isSeller
+      ? [{ key: 'ads', href: ROUTES.myAds, label: 'إعلاناتي', icon: ListOrdered, active: current(ROUTES.myAds) }]
+      : (!isProvider ? [{ key: 'seller', href: ROUTES.settings.seller, label: 'أنشئ حساب بائع', icon: Store, active: current(ROUTES.settings.root) }] : [])),
+    ...(isSeller && myStore
+      ? [{ key: 'store', href: STORE_GROUP.href, label: STORE_GROUP.label, icon: STORE_GROUP.icon, active: hasCurrentInGroup(STORE_GROUP) }]
+      : []),
+    ...(isSeller && myStore?.status === 'ACTIVE' ? [{ key: 'store-public', href: ROUTES.storeDetail(myStore.id), label: 'عرض متجري', icon: ExternalLink, active: current(ROUTES.storeDetail(myStore.id)) }] : []),
+    ...(isProvider ? [{ key: 'services', href: SERVICES_GROUP.href, label: SERVICES_GROUP.label, icon: SERVICES_GROUP.icon, active: hasCurrentInGroup(SERVICES_GROUP) }] : []),
+    { key: 'requests', href: requestsGroupFor(true).href, label: requestsGroupFor(true).label, icon: requestsGroupFor(true).icon, active: requestsVisible },
+    ...(user ? [{ key: 'profile', href: ROUTES.userProfile(user.id), label: 'عرض ملفي', icon: User, active: current(ROUTES.userProfile(user.id)) }] : []),
+    ...(activityVisible ? [{ key: 'activity', href: ACTIVITY_GROUP.href, label: ACTIVITY_GROUP.label, icon: ACTIVITY_GROUP.icon, active: hasCurrentInGroup(ACTIVITY_GROUP) }] : []),
+  ] as const, {
+    [ROUTES.myAds]: isSeller ? 72 : 15,
+    [STORE_GROUP.href]: 90,
+    ...(isSeller && myStore ? { [ROUTES.storeDetail(myStore.id)]: 55 } : {}),
+    [SERVICES_GROUP.href]: isProvider ? 90 : 20,
+    [requestsGroupFor(true).href]: 62,
+    ...(user ? { [ROUTES.userProfile(user.id)]: 35 } : {}),
+    [ACTIVITY_GROUP.href]: 25,
+  });
 
   return (
-    // UX-09 FIX: border-e is the logical equivalent of border-r, correct in RTL
     <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-60">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1.5 p-3 lg:p-4">
-        {NAV_ITEMS.map((item) => {
-          // SW-FIX-SIDEBAR-DEAD-CAST: NAV_ITEMS has no activeMatch field
-          // — the cast and ?? fallback were always resolving to item.href.
-          const isActive = pathname.startsWith(item.href);
-          return (
-            <NavLink
-              key={item.href}
-              label={item.label}
-              href={item.href}
-              icon={item.icon}
-              isActive={isActive}
-              badge={item.href === ROUTES.messages ? unreadMessages : undefined}
-            />
-          );
-        })}
+        {NAV_ITEMS.map((item) => (
+          <NavLink
+            key={item.href}
+            label={item.label}
+            href={item.href}
+            icon={item.icon}
+            isActive={current(item.href)}
+            badge={item.href === ROUTES.messages ? unreadMessages : undefined}
+            onNavigate={() => navigate(item.href)}
+          />
+        ))}
 
         <div className="my-1.5 border-t border-border/70" aria-hidden="true" />
 
-        {/* NAV-ORDER: align with BROWSE_LINKS priority — ads/store first
-            for sellers, then provider tools, then open-requests hub,
-            then secondary (profile view, activity), then settings. */}
-
-        {/* 3. إعلاناتي (seller) — skeleton while roles unknown (slow net) */}
         {showRoleSkeleton && <RoleNavSkeleton />}
-        {!showRoleSkeleton && isSeller && (
-          <Suspense
-            fallback={
-              <NavLink label="إعلاناتي" href={ROUTES.myAds} icon={ListOrdered} isActive={false} />
-            }
-          >
-            <WithSearch>
-              {(search) => (
-                <NavLink
-                  label="إعلاناتي"
-                  href={ROUTES.myAds}
-                  icon={ListOrdered}
-                  isActive={pathname === ROUTES.activity && search.includes('tab=ads')}
-                />
-              )}
-            </WithSearch>
-          </Suspense>
-        )}
-        {sellerLoaded && !isSeller && (
-          <Suspense fallback={<NavLink label="أنشئ حساب بائع" href={ROUTES.settings.seller} icon={Store} isActive={false} />}>
-            <WithSearch>
-              {(search) => (
-                <NavLink
-                  label="أنشئ حساب بائع"
-                  href={ROUTES.settings.seller}
-                  icon={Store}
-                  isActive={pathname === ROUTES.settings.root && search.includes('section=seller')}
-                />
-              )}
-            </WithSearch>
-          </Suspense>
-        )}
+        {!showRoleSkeleton && secondaryItems.map((item) => {
+          if (item.key === 'store' || item.key === 'services') {
+            const group = item.key === 'store' ? STORE_GROUP : SERVICES_GROUP;
+            return (
+              <Suspense key={item.key} fallback={<DisclosureGroup group={group} pathname={pathname} />}>
+                <WithSearch>{(search) => <DisclosureGroup group={group} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
+              </Suspense>
+            );
+          }
+          return <NavLink key={item.key} label={item.label} href={item.href} icon={item.icon} isActive={item.active} onNavigate={() => navigate(item.href)} />;
+        })}
 
-        {/* 4. متجري + عرض متجري */}
-        {isSeller && (
-          <Suspense fallback={<DisclosureGroup group={STORE_GROUP} pathname={pathname} />}>
-            <WithSearch>
-              {(search) => <DisclosureGroup group={STORE_GROUP} pathname={pathname} search={search} />}
-            </WithSearch>
-          </Suspense>
-        )}
-        {isSeller && myStore?.status === 'ACTIVE' && (
-          <NavLink
-            label="عرض متجري"
-            href={ROUTES.storeDetail(myStore.id)}
-            icon={ExternalLink}
-            isActive={pathname.startsWith(ROUTES.storeDetail(myStore.id))}
-          />
-        )}
-
-        {/* 5. خدماتي (provider) */}
-        {showProviderSkeleton && (
-          <div className="h-9 animate-pulse rounded-md bg-muted/60" aria-hidden />
-        )}
-        {!showProviderSkeleton && isProvider && (
-          <Suspense fallback={<DisclosureGroup group={SERVICES_GROUP} pathname={pathname} />}>
-            <WithSearch>
-              {(search) => <DisclosureGroup group={SERVICES_GROUP} pathname={pathname} search={search} />}
-            </WithSearch>
-          </Suspense>
-        )}
-
-        {/* 6. طلباتي (open marketplace hub) */}
-        <DisclosureGroup group={requestsGroupFor(true)} pathname={pathname} />
-
-        {/* 7. عرض ملفي */}
-        {user && (
-          <NavLink
-            label="عرض ملفي"
-            href={ROUTES.userProfile(user.id)}
-            icon={User}
-            isActive={pathname.startsWith(ROUTES.userProfile(user.id))}
-          />
-        )}
-
-        {/* 8. نشاطي — secondary destinations (favorites, reports, …) */}
-        <Suspense fallback={<DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />}>
-          <WithSearch>
-            {(search) => <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} search={search} />}
-          </WithSearch>
-        </Suspense>
-
-        {/* 9. الإعدادات — settingsGroupFor drops متجري when STORE_GROUP is shown.
-            SETTINGS-SIDEBAR-RESTORE-01: pass search so /settings?tab=… active state works. */}
-        <Suspense fallback={<DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />}>
-          <WithSearch>
-            {(search) => <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} search={search} />}
-          </WithSearch>
-        </Suspense>
+        {!requestsVisible && <DisclosureGroup group={requestsGroupFor(true)} pathname={pathname} onNavigate={navigate} />}
+            
+            <Suspense fallback={<DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />}>
+              <WithSearch>{(search) => <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
+            </Suspense>
+            {isAdmin && (
+              <NavLink label="لوحة الإدارة" href={ROUTES.admin.dashboard} icon={LayoutDashboard} isActive={current(ROUTES.admin.dashboard)} onNavigate={() => navigate(ROUTES.admin.dashboard)} />
+            )}
       </nav>
     </aside>
   );
