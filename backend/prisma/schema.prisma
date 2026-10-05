@@ -1154,6 +1154,10 @@ model Message {
   imageUrl       String?
   // CHAT-VOICE: optional voice-note URL stored outside the message body.
   audioUrl       String?
+  fileUrl        String?
+  fileName       String?
+  fileMimeType   String?
+  fileSize       Int?
   readAt         DateTime?
   // Soft-delete: set by the sender via DELETE /conversations/:id/messages/:messageId.
   // The row is kept (not physically removed) so the other party's thread

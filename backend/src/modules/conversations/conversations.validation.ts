@@ -60,6 +60,7 @@ export const sendMessageSchema = z.object({
       body: z.string().max(2000).optional(),
       imageUrl: z.string().url().optional(),
       audioUrl: z.string().url().optional(),
+      fileUrl: z.string().url().optional(),
     })
     .refine(
       (d) => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl || d.audioUrl),

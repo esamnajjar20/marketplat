@@ -250,3 +250,21 @@ export const uploadAudioMiddleware = (req: Request, res: Response, next: NextFun
     next();
   });
 };
+
+
+const MESSAGE_FILE_MIME_TYPES = ['application/pdf','text/plain','text/csv','application/zip','application/x-zip-compressed','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/msword','application/vnd.ms-excel'] as const;
+const MAX_MESSAGE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const messageFileUpload = multer({ storage: multer.memoryStorage(), fileFilter: (_req, file, cb) => {
+  if (!(MESSAGE_FILE_MIME_TYPES as readonly string[]).includes(file.mimetype)) { cb(new BadRequestError('نوع الملف غير مدعوم', 'INVALID_FILE_TYPE')); return; }
+  cb(null, true);
+}, limits: { fileSize: MAX_MESSAGE_FILE_SIZE_BYTES, files: 1, fields: 4, parts: 5, fieldSize: 10_240 } });
+export const uploadMessageFileMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  const contentLength = req.headers['content-length'];
+  if (contentLength && Number(contentLength) > MAX_MESSAGE_FILE_SIZE_BYTES + 64 * 1024) { next(new BadRequestError('الملف كبير جدًا', 'FILE_TOO_LARGE')); return; }
+  messageFileUpload.single('file')(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') { next(new BadRequestError('الملف كبير جدًا (الحد 10 ميغابايت)', 'FILE_TOO_LARGE')); return; }
+    if (err instanceof BadRequestError) { next(err); return; }
+    if (err instanceof Error) { next(new BadRequestError(err.message, 'INVALID_FILE_TYPE')); return; }
+    next();
+  });
+};

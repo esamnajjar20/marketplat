@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
-import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive, Star, Images, Play } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive, Star, Images } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
 import { classifyHttpConflict } from '@/lib/conflictResolver';
@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
 } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
+import { MessageMediaGallery } from './MessageMediaGallery';
 import { useConversation, useMessages, useConversationMedia } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { retryQueuedMessage, cancelQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
@@ -66,6 +67,8 @@ type DisplayMessage = Message & {
   /** Offline image upload still in SW queue (no preview URL available). */
   clientHasImage?: boolean;
   clientHasAudio?: boolean;
+  clientHasFile?: boolean;
+  clientFileName?: string;
 };
 
 /**
@@ -221,6 +224,7 @@ export function ChatWindow({ conversationId }: Props) {
     // DisplayMessage allows extra fields via intersection; stamp for UI.
     ...(q.hasImage ? { clientHasImage: true as const } : {}),
     ...(q.hasAudio ? { clientHasAudio: true as const } : {}),
+    ...(q.hasFile ? { clientHasFile: true as const, clientFileName: q.fileName } : {}),
   })) as DisplayMessage[];
   const messages: DisplayMessage[] = [
     ...olderMessages.filter((m) => !liveIds.has(m.id)),
@@ -589,34 +593,9 @@ export function ChatWindow({ conversationId }: Props) {
       </div>
 
       {showMedia && (
-        <section className="shrink-0 border-b border-border/70 bg-card px-3 py-3" aria-label="وسائط المحادثة">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">وسائط المحادثة</p>
-              <p className="text-2xs text-muted-foreground">الصور والتسجيلات الصوتية المرسلة</p>
-            </div>
-            <button type="button" onClick={() => setShowMedia(false)} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="إغلاق الوسائط">
-              <XIcon className="h-4 w-4" />
-            </button>
-          </div>
-          {mediaLoading ? (
-            <div className="flex items-center justify-center py-5"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-          ) : mediaItems.length === 0 ? (
-            <p className="rounded-xl bg-muted/50 px-3 py-5 text-center text-xs text-muted-foreground">لا توجد وسائط في هذه المحادثة بعد.</p>
-          ) : (
-            <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
-              {mediaItems.map((item) => item.imageUrl ? (
-                <a key={item.id} href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="group relative aspect-square overflow-hidden rounded-xl bg-muted">
-                  <SafeImg src={item.imageUrl} alt="صورة من المحادثة" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                </a>
-              ) : (
-                <div key={item.id} className="col-span-3 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/40 p-2 sm:col-span-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Play className="h-4 w-4" /></div>
-                  <audio controls preload="metadata" src={item.audioUrl ?? undefined} className="min-w-0 flex-1 h-9" aria-label="تسجيل صوتي" />
-                </div>
-              ))}
-            </div>
-          )}
+        <section className="shrink-0 border-b border-border/70 bg-card px-3 py-3" aria-label="معرض وسائط المحادثة">
+          <div className="mb-2 flex items-center justify-between gap-2"><div><p className="text-sm font-semibold">معرض الوسائط</p><p className="text-2xs text-muted-foreground">محفوظ من كامل المحادثة، وليس من الرسائل الظاهرة فقط.</p></div><button type="button" onClick={() => setShowMedia(false)} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="إغلاق الوسائط"><XIcon className="h-4 w-4" /></button></div>
+          <MessageMediaGallery items={mediaItems} queuedItems={pendingQueued} loading={mediaLoading} />
         </section>
       )}
 
@@ -777,13 +756,23 @@ export function ChatWindow({ conversationId }: Props) {
                         </div>
                       )}
                       {!isDeleted && message.audioUrl && (
-                        <audio
-                          controls
-                          preload="metadata"
-                          src={message.audioUrl}
-                          className="mb-2 max-w-[260px] w-full"
-                          aria-label="رسالة صوتية"
-                        />
+                        <div className="mb-2 w-60 max-w-full">
+                          <audio
+                            controls
+                            preload="metadata"
+                            src={message.audioUrl}
+                            className="h-10 w-full"
+                            aria-label="رسالة صوتية"
+                          />
+                          <a
+                            href={message.audioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-block text-2xs underline opacity-80"
+                          >
+                            فتح في المتصفح
+                          </a>
+                        </div>
                       )}
                       {!isDeleted && message.imageUrl && (
                         <a
@@ -800,6 +789,13 @@ export function ChatWindow({ conversationId }: Props) {
                           />
                         </a>
                       )}
+                      {!isDeleted && message.fileUrl && (
+                        <div className="mb-2 flex max-w-[280px] items-center gap-3 rounded-xl border border-border/70 bg-black/5 p-3 dark:bg-white/5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">📎</div>
+                          <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold" title={message.fileName ?? undefined}>{message.fileName ?? 'ملف مرفق'}</p>{message.fileSize ? <p className="text-2xs text-muted-foreground">{message.fileSize < 1048576 ? `${Math.round(message.fileSize / 1024)} KB` : `${(message.fileSize / 1048576).toFixed(1)} MB`}</p> : null}</div>
+                          <div className="flex shrink-0 items-center gap-1"><a href={message.fileUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg p-2 text-xs text-primary hover:bg-muted">فتح</a><a href={message.fileUrl} download className="rounded-lg p-2 text-xs text-primary hover:bg-muted">تنزيل</a></div>
+                        </div>
+                      )}
                       {!isDeleted && !message.imageUrl && message.clientHasImage && (
                         <div
                           className="mb-2 flex h-28 max-w-[12rem] items-center justify-center rounded-xl bg-muted/80 text-2xl"
@@ -807,6 +803,9 @@ export function ChatWindow({ conversationId }: Props) {
                         >
                           📷
                         </div>
+                      )}
+                      {!isDeleted && !message.fileUrl && message.clientHasFile && (
+                        <div className="mb-2 flex min-w-[12rem] items-center gap-2 rounded-xl bg-muted/80 px-3 py-2 text-sm"><span aria-hidden>📎</span><span className="truncate">{message.clientFileName ?? 'ملف'}</span></div>
                       )}
                       {!isDeleted && !message.audioUrl && message.clientHasAudio && (
                         <div

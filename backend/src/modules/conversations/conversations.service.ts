@@ -17,6 +17,7 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { logger } from '../../shared/utils/logger';
 import { cacheRedis } from '../../config/redis';
 import { sellerResponseTimeService } from '../sellers/seller-response-time.service';
+import { env } from '../../config/env';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
   if (conversation.buyerId !== userId && conversation.sellerId !== userId) {
@@ -244,7 +245,7 @@ export const conversationsService = {
   sendMessage: async (
     userId: string,
     conversationId: string,
-    input: { body?: string; imageUrl?: string; audioUrl?: string },
+    input: { body?: string; imageUrl?: string; audioUrl?: string; file?: { url: string; name: string; mimeType: string; size: number } },
     offlineOperationId?: string | null,
   ): Promise<Message> => {
     const conversation = await conversationsRepository.findById(conversationId);
@@ -264,7 +265,8 @@ export const conversationsService = {
     const body = (input.body ?? '').trim();
     const imageUrl = input.imageUrl?.trim() || null;
     const audioUrl = input.audioUrl?.trim() || null;
-    if (!body && !imageUrl && !audioUrl) {
+    const file = input.file ?? null;
+    if (!body && !imageUrl && !audioUrl && !file) {
       throw new BadRequestError('Message cannot be empty', 'MESSAGE_EMPTY');
     }
     if (body) assertMessageBodySafe(body);
@@ -399,9 +401,10 @@ export const conversationsService = {
       message = await messagesRepository.create(
         conversationId,
         userId,
-        body || (imageUrl ? '📷' : audioUrl ? '🎤 رسالة صوتية' : ''),
+        body || (imageUrl ? '📷' : audioUrl ? '🎤 رسالة صوتية' : file ? `📎 ${file.name}` : ''),
         imageUrl,
-        audioUrl
+        audioUrl,
+        file
       );
     } catch (err) {
       // Release claim so a client/queue retry can re-enter cleanly.
@@ -470,6 +473,10 @@ export const conversationsService = {
       body: message.body,
       imageUrl: (message as { imageUrl?: string | null }).imageUrl ?? null,
       audioUrl: (message as { audioUrl?: string | null }).audioUrl ?? null,
+      fileUrl: (message as { fileUrl?: string | null }).fileUrl ?? null,
+      fileName: (message as { fileName?: string | null }).fileName ?? null,
+      fileMimeType: (message as { fileMimeType?: string | null }).fileMimeType ?? null,
+      fileSize: (message as { fileSize?: number | null }).fileSize ?? null,
       readAt: message.readAt ? message.readAt.toISOString() : null,
       deletedAt: message.deletedAt ? message.deletedAt.toISOString() : null,
       createdAt: message.createdAt.toISOString(),
@@ -602,6 +609,42 @@ export const conversationsService = {
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
     return messagesRepository.findMediaByConversationId(conversationId, limit);
+  },
+
+  getMediaAsset: async (
+    userId: string,
+    conversationId: string,
+    messageId: string,
+    kind: 'image' | 'audio' | 'file',
+  ): Promise<{ url: string; mimeType: string; fileName: string | null; fileSize: number | null }> => {
+    const conversation = await conversationsRepository.findById(conversationId);
+    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    assertParty(conversation, userId);
+
+    const message = await messagesRepository.findById(messageId);
+    if (!message || message.conversationId !== conversationId || message.deletedAt) {
+      throw new NotFoundError('Message media not found', 'MESSAGE_MEDIA_NOT_FOUND');
+    }
+
+    const url = kind === 'image' ? message.imageUrl : kind === 'audio' ? message.audioUrl : message.fileUrl;
+    if (!url) throw new NotFoundError('Message media not found', 'MESSAGE_MEDIA_NOT_FOUND');
+    try {
+      const parsed = new URL(url);
+      const cloudinaryHost = parsed.hostname === 'cloudinary.com' || parsed.hostname.endsWith('.cloudinary.com');
+      const belongsToConfiguredCloud = parsed.pathname.includes(`/${env.cloudinary.cloudName}/`);
+      if (parsed.protocol !== 'https:' || !cloudinaryHost || !belongsToConfiguredCloud) {
+        throw new Error('Unsupported media provider');
+      }
+    } catch {
+      throw new NotFoundError('Message media provider is not supported', 'MESSAGE_MEDIA_PROVIDER_UNSUPPORTED');
+    }
+
+    return {
+      url,
+      mimeType: kind === 'file' ? (message.fileMimeType || 'application/octet-stream') : kind === 'audio' ? 'audio/mpeg' : 'image/*',
+      fileName: message.fileName ?? null,
+      fileSize: message.fileSize ?? null,
+    };
   },
 
   setMessagePin: async (userId: string, conversationId: string, messageId: string, pinned: boolean): Promise<void> => {

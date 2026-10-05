@@ -1,4 +1,4 @@
-import { uploadMiddleware, uploadAudioMiddleware } from '../../middlewares/upload.middleware';
+import { uploadMiddleware, uploadAudioMiddleware, uploadMessageFileMiddleware } from '../../middlewares/upload.middleware';
 import { Router } from 'express';
 import { conversationsController } from './conversations.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
@@ -38,6 +38,12 @@ conversationsRouter.get(
   CACHE.NONE,
   conversationsController.getMedia
 );
+conversationsRouter.get(
+  '/:id/messages/:messageId/media/:kind',
+  authenticate,
+  CACHE.NONE,
+  conversationsController.getMediaAsset
+);
 conversationsRouter.post(
   '/:id/messages',
   authenticate,
@@ -51,6 +57,14 @@ conversationsRouter.post(
   requireVerifiedEmail,
   sendMessageRateLimit,
   conversationsController.sendMessage
+);
+conversationsRouter.post(
+  '/:id/messages/file',
+  authenticate,
+  requireVerifiedEmail,
+  sendMessageRateLimit,
+  uploadMessageFileMiddleware,
+  conversationsController.sendMessageFile
 );
 conversationsRouter.post(
   '/:id/messages/audio',

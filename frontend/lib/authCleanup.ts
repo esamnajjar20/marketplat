@@ -28,6 +28,7 @@ import { clearCatalogDownloads } from '@/lib/downloadStorage';
 import { clearSavedPaymentMethods } from '@/lib/paymentStorage';
 import { getQueryClient } from '@/lib/queryClient';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
+import { clearConversationMediaStore } from '@/lib/conversationMediaStore';
 import { clearAppBadge } from '@/lib/appBadge';
 import { clearRecentSearches } from '@/lib/recentSearches';
 import { clearAutoReadCache } from '@/lib/offlineAutoRead';
@@ -251,6 +252,7 @@ export async function clearSensitiveLocalData(): Promise<void> {
   // plaintext) كانت تبقى — User B يرى بيانات User A المالية.
   clearSavedPaymentMethods();
   void clearOfflineMessagesStore();
+  void clearConversationMediaStore();
   // FIX SW-CLEAR-PERSONAL-WARMING-01: without this, the IndexedDB
   // warming snapshot would still say every personal route was complete
   // on the next login, so warming would skip them all and the personal

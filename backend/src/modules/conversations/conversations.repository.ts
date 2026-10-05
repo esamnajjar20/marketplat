@@ -246,10 +246,11 @@ export const messagesRepository = {
     senderId: string,
     body: string,
     imageUrl?: string | null,
-    audioUrl?: string | null
+    audioUrl?: string | null,
+    file?: { url: string; name: string; mimeType: string; size: number } | null
   ): Promise<Message> =>
     prisma.message.create({
-      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null, audioUrl: audioUrl ?? null },
+      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null, audioUrl: audioUrl ?? null, fileUrl: file?.url ?? null, fileName: file?.name ?? null, fileMimeType: file?.mimeType ?? null, fileSize: file?.size ?? null },
     }),
 
   findById: (id: string): Promise<Message | null> =>
@@ -269,7 +270,7 @@ export const messagesRepository = {
       where: {
         conversationId,
         deletedAt: null,
-        OR: [{ imageUrl: { not: null } }, { audioUrl: { not: null } }],
+        OR: [{ imageUrl: { not: null } }, { audioUrl: { not: null } }, { fileUrl: { not: null } }],
       },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), 100),

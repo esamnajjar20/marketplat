@@ -22,6 +22,7 @@ import {
   getUnreadConversationCount,
 } from '@/lib/offlineMessagesStore';
 import { offlineMeta } from '@/lib/apiPagination';
+import { saveConversationMedia, getConversationMedia, cacheConversationMediaBlobs } from '@/lib/conversationMediaStore';
 
 /** GET /conversations — مع تخزين IndexedDB للقراءة دون اتصال. */
 export function useMyConversations(params?: ConversationsQuery) {
@@ -88,6 +89,35 @@ export function useConversation(id: string) {
  * GET /conversations/:id/messages — مع IndexedDB للرسائل السابقة offline.
  * الترتيب المعروض تصاعدي (أقدم → أحدث) كما كان.
  */
+export function useConversationMedia(conversationId: string) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const userId = useAuthStore(selectUser)?.id ?? null;
+  const isOnline = useOnlineStatus();
+  return useQuery({
+    queryKey: [...queryKeys.conversations.detail(conversationId), 'media'],
+    queryFn: async () => {
+      try {
+        const items = await conversationsApi.getMedia(conversationId, 100).then((r) => r.data.data ?? []);
+        if (userId) {
+          void saveConversationMedia(userId, conversationId, items).catch(() => undefined);
+          void cacheConversationMediaBlobs(userId, conversationId, items).catch(() => undefined);
+        }
+        return items;
+      } catch (error) {
+        if (userId) {
+          const cached = await getConversationMedia(userId, conversationId).catch(() => []);
+          if (cached.length) return cached;
+        }
+        throw error;
+      }
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    enabled: isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
+  });
+}
+
 export function useMessages(conversationId: string, params?: MessagesQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
@@ -124,26 +154,6 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
     },
     staleTime: CACHE_TTL.messages,
     refetchInterval: () => pollingInterval(CACHE_TTL.messages, 6),
-    enabled: isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
-  });
-}
-
-/**
- * GET /conversations/:id/messages/media — الصور والتسجيلات الصوتية.
- * تُستخدم في لوحة وسائط المحادثة (ChatWindow).
- */
-export function useConversationMedia(conversationId: string, limit = 100) {
-  const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  const hasToken = useAuthStore(selectHasAccessToken);
-  const isOnline = useOnlineStatus();
-
-  return useQuery({
-    queryKey: ['conversations', 'detail', conversationId, 'media', { limit }],
-    queryFn: async () => {
-      const res = await conversationsApi.getMedia(conversationId, limit);
-      return res.data.data ?? [];
-    },
-    staleTime: CACHE_TTL.messages,
     enabled: isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
   });
 }

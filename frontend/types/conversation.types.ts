@@ -79,6 +79,10 @@ export interface Message {
   /** Optional image attachment URL (Cloudinary). */
   imageUrl: string | null;
   audioUrl?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileMimeType?: string | null;
+  fileSize?: number | null;
   readAt: string | null;
   // Soft-delete marker — mirrors backend's Message.deletedAt. When set,
   // `body` has already been redacted to '' by the backend (see

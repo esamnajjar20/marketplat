@@ -14,6 +14,8 @@ import {
 } from './conversations.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { uploadRawFile, deleteMedia } from '../../config/cloudinary';
+import { extractCloudinaryPublicId } from '../../shared/utils/cloudinaryHelpers';
 
 export const conversationsController = {
   startConversation: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -110,6 +112,39 @@ export const conversationsController = {
       const { params, query } = mediaQuerySchema.parse({ params: req.params, query: req.query });
       const media = await conversationsService.getMedia(user.userId, params.id, query.limit);
       res.status(200).json(successResponse('Conversation media fetched', media));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getMediaAsset: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const conversationId = String(req.params.id || '');
+      const messageId = String(req.params.messageId || '');
+      const kind = req.params.kind as 'image' | 'audio' | 'file';
+      if (!conversationId || !messageId || !['image', 'audio', 'file'].includes(kind)) {
+        res.status(400).json({ success: false, message: 'Invalid media request' });
+        return;
+      }
+
+      const asset = await conversationsService.getMediaAsset(user.userId, conversationId, messageId, kind);
+      const remote = await fetch(asset.url, { redirect: 'follow' });
+      if (!remote.ok || !remote.body) {
+        res.status(502).json({ success: false, message: 'Media provider unavailable' });
+        return;
+      }
+
+      const contentType = remote.headers.get('content-type') || asset.mimeType || 'application/octet-stream';
+      const contentLength = remote.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.setHeader('Content-Disposition', kind === 'file' && asset.fileName
+        ? `inline; filename*=UTF-8''${encodeURIComponent(asset.fileName)}`
+        : 'inline');
+      const arrayBuffer = await remote.arrayBuffer();
+      res.status(200).send(Buffer.from(arrayBuffer));
     } catch (error) {
       next(error);
     }
@@ -235,6 +270,19 @@ export const conversationsController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  sendMessageFile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req); const { params } = conversationIdSchema.parse({ params: req.params }); const file = req.file;
+      if (!file) { res.status(400).json({ success: false, message: 'File required' }); return; }
+      const uploaded = await uploadRawFile(file.buffer, 'chat-files', file.originalname);
+      try {
+        const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
+        const message = await conversationsService.sendMessage(user.userId, params.id, { body: typeof req.body?.body === 'string' ? req.body.body : undefined, file: { url: uploaded.url, name: file.originalname, mimeType: file.mimetype, size: file.size } }, offlineOperationId);
+        res.status(201).json(successResponse('File message sent', message));
+      } catch (err) { const publicId = extractCloudinaryPublicId(uploaded.url); if (publicId) deleteMedia(publicId, 'raw').catch(() => undefined); throw err; }
+    } catch (error) { next(error); }
   },
 
   sendMessageAudio: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

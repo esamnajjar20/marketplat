@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
-import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Radio } from 'lucide-react';
+import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Radio, Paperclip } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
@@ -35,9 +35,10 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const [body, setBody] = useState('');
   const [draftReady, setDraftReady] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadKind, setUploadKind] = useState<'image' | 'audio' | null>(null);
+  const [uploadKind, setUploadKind] = useState<'image' | 'audio' | 'file' | null>(null);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingStartedAtRef = useRef<number | null>(null);
@@ -47,6 +48,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const attachmentRef = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingActive = useRef(false);
 
@@ -54,6 +56,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
     setBody(loadMessageDraft(conversationId));
     setDraftReady(true);
     setImageFile(null);
+    setAttachmentFile(null);
     // SW-MSG-PREVIEW-URL-LEAK-01 (second site): also revoke on
     // conversation switch. Prior version unconditionally set the
     // preview to null, orphaning a blob URL if the user had picked an
@@ -187,6 +190,9 @@ export function MessageInput({ conversationId, disabled }: Props) {
     setImageFile(file);
   }
 
+  function onPickAttachment(e: ChangeEvent<HTMLInputElement>) { const file=e.target.files?.[0]; e.target.value=''; if(!file)return; if(file.size>10*1024*1024){toast.error('الحد الأقصى للملف 10 ميغابايت');return;} setAttachmentFile(file); }
+  function clearAttachment() { setAttachmentFile(null); }
+
   function clearImage() {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
@@ -290,10 +296,16 @@ export function MessageInput({ conversationId, disabled }: Props) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = body.trim();
-    if ((!trimmed && !imageFile) || sendMessage.isPending || uploading || disabled) return;
+    if ((!trimmed && !imageFile && !attachmentFile) || sendMessage.isPending || uploading || disabled) return;
 
     if (typingActive.current) signalTyping(false);
     if (typingTimer.current) clearTimeout(typingTimer.current);
+
+    if (attachmentFile) {
+      setUploading(true); setUploadKind('file');
+      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(['conversations','detail',conversationId,'messages',{limit:50}],(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); setBody(''); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void queryClient.invalidateQueries({queryKey:['conversations','detail',conversationId,'messages']}); }
+      catch(err){const parsed=parseApiError(err); if(parsed.queued){setBody('');clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);}else{setLastSendError(parsed.message);toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
+    }
 
     if (imageFile) {
       setUploading(true);
@@ -401,6 +413,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
           <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري رفع الصورة…' : 'جاري الإرسال…'}</span>
         </div>
       )}
+      {attachmentFile && <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs"><Paperclip className="h-4 w-4 text-primary"/><span className="min-w-0 flex-1 truncate">{attachmentFile.name}</span><button type="button" onClick={clearAttachment} className="rounded-full p-1 hover:bg-background" aria-label="إزالة الملف"><X className="h-4 w-4"/></button></div>}
       {imagePreview && (
         <div className="flex items-center gap-2 border-b px-3 py-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -476,12 +489,20 @@ export function MessageInput({ conversationId, disabled }: Props) {
           )}
         >
           <input
+            ref={attachmentRef}
+            type="file"
+            accept=".pdf,.txt,.csv,.zip,.doc,.docx,.xls,.xlsx"
+            className="hidden"
+            onChange={onPickAttachment}
+          />
+          <input
             ref={fileRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
             onChange={onPickImage}
           />
+          <button type="button" aria-label="إرفاق ملف" onClick={() => attachmentRef.current?.click()} disabled={uploading || disabled} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50" title="إرفاق ملف"><Paperclip className="h-5 w-5" /></button>
           <button
             type="button"
             aria-label="إرفاق صورة"

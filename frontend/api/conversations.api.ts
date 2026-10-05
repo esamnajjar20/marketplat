@@ -30,7 +30,7 @@ export const conversationsApi = {
   getById: (id: string) =>
     apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`),
 
-  getMedia: (id: string, limit = 100) =>
+  getMedia: (id: string, limit = 200) =>
     apiClient.get<ApiResponse<Message[]>>(`/conversations/${id}/messages/media`, { params: { limit }}),
 
   getMessages: (id: string, params?: MessagesQuery) =>
@@ -55,6 +55,11 @@ export const conversationsApi = {
 
   setFlags: (id: string, flags: { pinned?: boolean; archived?: boolean }) =>
     apiClient.patch<ApiResponse<Conversation>>(`/conversations/${id}/flags`, flags),
+
+  sendFile: (id: string, file: File, body?: string) => {
+    const form = new FormData(); form.append('file', file); if (body?.trim()) form.append('body', body.trim());
+    return apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages/file`, form, { headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() } });
+  },
 
   sendAudio: (id: string, file: File, body?: string) => {
     const form = new FormData();

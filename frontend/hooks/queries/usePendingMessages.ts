@@ -43,6 +43,7 @@ export function usePendingMessages(conversationId: string): QueuedMessageEntry[]
         if (type === 'QUEUE_ITEM_SENT') {
           void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
           void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+          void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'media'] });
         }
       }
     }
