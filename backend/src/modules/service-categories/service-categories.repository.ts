@@ -1,12 +1,12 @@
 import { prisma } from '../../config/prisma';
-import { ServiceCategory } from '@prisma/client';
+import { Prisma, ServiceCategory } from '@prisma/client';
 import { CreateServiceCategoryInput, UpdateServiceCategoryInput } from './service-categories.validation';
 
 export type ServiceCategoryWithChildren = ServiceCategory & { children?: ServiceCategory[] };
 
 export const serviceCategoriesRepository = {
   create: async (data: CreateServiceCategoryInput): Promise<ServiceCategory> =>
-    prisma.serviceCategory.create({ data }),
+    prisma.serviceCategory.create({ data: data as Prisma.ServiceCategoryUncheckedCreateInput }),
 
   // Only active top-level categories (+ their children) for the public
   // browse tree — same shape as categoriesRepository.findMany, but also
@@ -15,7 +15,7 @@ export const serviceCategoriesRepository = {
   findMany: async (): Promise<ServiceCategoryWithChildren[]> =>
     prisma.serviceCategory.findMany({
       where: { parentId: null, isActive: true },
-      include: { children: { where: { isActive: true } } },
+      include: { children: { where: { isActive: true } }, serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } } },
       orderBy: { name: 'asc' },
     }),
 
@@ -50,7 +50,7 @@ export const serviceCategoriesRepository = {
   // Admin/ownership path — deliberately unfiltered so an admin editing
   // or deleting a deactivated category still resolves it.
   findById: async (id: string): Promise<ServiceCategory | null> =>
-    prisma.serviceCategory.findUnique({ where: { id }, include: { children: true } }),
+    prisma.serviceCategory.findUnique({ where: { id }, include: { children: true, serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } } } }),
 
   // T510 — public read path (getServiceCategoryById). isActive is
   // enforced so a deactivated category can't be reached at
@@ -59,7 +59,7 @@ export const serviceCategoriesRepository = {
   findPublicById: async (id: string): Promise<ServiceCategory | null> =>
     prisma.serviceCategory.findUnique({
       where: { id, isActive: true },
-      include: { children: { where: { isActive: true } } },
+      include: { children: { where: { isActive: true } }, serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } } },
     }),
 
   // T441 — this module previously had NO cycle guard on update (unlike

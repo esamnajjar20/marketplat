@@ -58,12 +58,14 @@ export const serviceListingsApi = {
     operationId?: string,
   ) => {
     const form = new FormData();
+    form.append('serviceTypeId', payload.serviceTypeId);
     form.append('categoryId', payload.categoryId);
     form.append('title', payload.title);
     form.append('description', payload.description);
     form.append('pricingType', payload.pricingType);
     if (payload.price !== undefined) form.append('price', String(payload.price));
     if (payload.durationEstimate) form.append('durationEstimate', payload.durationEstimate);
+    if (payload.attributes && Object.keys(payload.attributes).length > 0) form.append('attributes', JSON.stringify(payload.attributes));
     form.append('serviceLocation', payload.serviceLocation);
     payload.images.forEach((file) => form.append('images', file));
 

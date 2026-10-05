@@ -9,10 +9,11 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { serviceTypesRepository } from '../service-types/service-types.repository';
 
 // FIX CATEGORIES-CACHE-VERSION-01: versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
-const SERVICE_CATEGORIES_CACHE_KEY = 'service_categories:all:v1';
+const SERVICE_CATEGORIES_CACHE_KEY = 'service_categories:all:v2';
 const SERVICE_CATEGORIES_TTL = 60 * 60; // 1 hour — same as categories, rarely changes
 
 const invalidateServiceCategoriesCache = async (): Promise<void> => {
@@ -34,6 +35,14 @@ export const serviceCategoriesService = {
     if (existingNameAr) throw new BadRequestError('Arabic service category name already exists');
     if (existingSlug) throw new BadRequestError('Service category slug already exists');
 
+    const serviceTypeId = input.serviceTypeId ?? 'st_general';
+    if (input.serviceTypeId) {
+      const serviceType = await serviceTypesRepository.findById(serviceTypeId);
+      if (!serviceType || !serviceType.isActive) {
+        throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
+      }
+    }
+
     // T440 — reject unknown parentId before it falls through to a raw
     // P2003 -> 500.
     // T425 — same 2-level depth guard as categories.
@@ -51,7 +60,7 @@ export const serviceCategoriesService = {
     }
 
     try {
-      const category = await serviceCategoriesRepository.create(input);
+      const category = await serviceCategoriesRepository.create({ ...input, serviceTypeId });
       await invalidateServiceCategoriesCache();
       return category;
     } catch (err) {
@@ -145,6 +154,13 @@ export const serviceCategoriesService = {
           'Cannot set parent to one of this category\'s own subcategories',
           'CIRCULAR_CATEGORY_REFERENCE'
         );
+      }
+    }
+
+    if (input.serviceTypeId && input.serviceTypeId !== category.serviceTypeId) {
+      const serviceType = await serviceTypesRepository.findById(input.serviceTypeId);
+      if (!serviceType || !serviceType.isActive) {
+        throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
       }
     }
 

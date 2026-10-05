@@ -10,6 +10,7 @@ export const createServiceCategorySchema = z.object({
       .max(100)
       .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers and hyphens only'),
     icon: z.string().max(100).optional(),
+    serviceTypeId: z.string().min(1).optional(),
     parentId: z.string().optional(),
   }),
 });
@@ -26,6 +27,7 @@ export const updateServiceCategorySchema = z.object({
       .regex(/^[a-z0-9-]+$/)
       .optional(),
     icon: z.string().max(100).nullable().optional(),
+    serviceTypeId: z.string().min(1).optional(),
     parentId: z.string().nullable().optional(),
     isActive: z.boolean().optional(),
   }),

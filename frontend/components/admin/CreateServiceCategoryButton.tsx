@@ -9,9 +9,11 @@
  */
 
 import { useCreateServiceCategory } from '@/hooks/mutations/useServiceCategoryMutations';
+import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 import { CreateEntityCategoryDialog } from '@/components/admin/CreateEntityCategoryDialog';
 
 export function CreateServiceCategoryButton() {
+  const { data: serviceTypes = [] } = useServiceTypes();
   return (
     <CreateEntityCategoryDialog
       useCreateCategory={useCreateServiceCategory}
@@ -20,6 +22,7 @@ export function CreateServiceCategoryButton() {
       namePlaceholderAr="مثال: كهرباء"
       namePlaceholderEn="e.g. Electrical"
       iconPlaceholder="e.g. zap"
+      serviceTypes={serviceTypes.map((type) => ({ id: type.id, nameAr: type.nameAr }))}
     />
   );
 }

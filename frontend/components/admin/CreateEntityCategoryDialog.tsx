@@ -32,6 +32,7 @@ interface CreateCategoryPayload {
   slug: string;
   icon?: string;
   storeTypeId?: string | null;
+  serviceTypeId?: string | undefined;
 }
 
 export interface CreateEntityCategoryDialogProps {
@@ -47,6 +48,7 @@ export interface CreateEntityCategoryDialogProps {
   namePlaceholderEn: string;
   iconPlaceholder: string;
   storeTypes?: Array<{ id: string; nameAr: string }>;
+  serviceTypes?: Array<{ id: string; nameAr: string }>;
 }
 
 export function CreateEntityCategoryDialog({
@@ -57,11 +59,13 @@ export function CreateEntityCategoryDialog({
   namePlaceholderEn,
   iconPlaceholder,
   storeTypes = [],
+  serviceTypes = [],
 }: CreateEntityCategoryDialogProps) {
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [icon,   setIcon]   = useState('');
   const [storeTypeId, setStoreTypeId] = useState<string | null>(null);
+  const [serviceTypeId, setServiceTypeId] = useState<string | null>(null);
   const createCategory = useCreateCategory();
 
   // FIX CREATE-ENTITY-RESET-01: replaced raw useState(open) with the
@@ -73,6 +77,7 @@ export function CreateEntityCategoryDialog({
     setNameEn('');
     setIcon('');
     setStoreTypeId(null);
+    setServiceTypeId(null);
   });
 
   function handleCreate() {
@@ -86,6 +91,7 @@ export function CreateEntityCategoryDialog({
         slug: slugify(nameEn, slugFallbackPrefix),
         icon: icon.trim() || undefined,
         ...(storeTypes.length ? { storeTypeId } : {}),
+        ...(serviceTypes.length ? { serviceTypeId: serviceTypeId ?? undefined } : {}),
       },
       {
         onSuccess: () => {
@@ -123,6 +129,20 @@ export function CreateEntityCategoryDialog({
                 <p className="text-xs text-muted-foreground" dir="ltr">slug: {slugify(nameEn, slugFallbackPrefix)}</p>
               )}
             </div>
+            {serviceTypes.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">مجال الخدمة</label>
+                <select
+                  value={serviceTypeId ?? ''}
+                  onChange={(e) => setServiceTypeId(e.target.value || null)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">مجال الخدمة</option>
+                  {serviceTypes.map((type) => <option key={type.id} value={type.id}>{type.nameAr}</option>)}
+                </select>
+              </div>
+            )}
+
             {storeTypes.length > 0 && (
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">نوع المتجر</label>

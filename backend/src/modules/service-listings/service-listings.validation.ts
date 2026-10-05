@@ -2,8 +2,14 @@ import { z } from 'zod';
 import { ServicePricingType, ServiceLocationType, ServiceListingStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
+const serviceAttributesSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}, z.record(z.string(), z.unknown())).optional();
+
 export const createServiceListingSchema = z.object({
   body: z.object({
+    serviceTypeId: z.string().min(1).optional(),
     categoryId: z.string().min(1, 'categoryId is required'),
     title: z.string().min(3, 'Title must be at least 3 characters').max(200),
     description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
@@ -14,6 +20,7 @@ export const createServiceListingSchema = z.object({
       .multipleOf(0.01, 'Price cannot have more than 2 decimal places')
       .optional(),
     durationEstimate: z.string().max(100).optional(),
+    attributes: serviceAttributesSchema,
     serviceLocation: z.nativeEnum(ServiceLocationType).default('AT_PROVIDER'),
   }).superRefine((data, ctx) => {
     if (data.pricingType !== 'NEGOTIABLE' && data.price === undefined) {
@@ -30,12 +37,14 @@ export type CreateServiceListingInput = z.infer<typeof createServiceListingSchem
 export const updateServiceListingSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
+    serviceTypeId: z.string().min(1).optional(),
     categoryId: z.string().min(1).optional(),
     title: z.string().min(3).max(200).optional(),
     description: z.string().min(10).max(2000).optional(),
     pricingType: z.nativeEnum(ServicePricingType).optional(),
     price: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
     durationEstimate: z.string().max(100).nullable().optional(),
+    attributes: serviceAttributesSchema,
     serviceLocation: z.nativeEnum(ServiceLocationType).optional(),
     status: z.enum(['ACTIVE', 'PAUSED']).optional(),
   }).superRefine((data, ctx) => {

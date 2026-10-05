@@ -26,6 +26,7 @@ interface EditableCategory {
   nameAr: string;
   icon: string | null;
   storeTypeId?: string | null;
+  serviceTypeId?: string | null;
 }
 
 interface UpdateCategoryPatch {
@@ -34,6 +35,7 @@ interface UpdateCategoryPatch {
   slug?: string;
   icon?: string;
   storeTypeId?: string | null;
+  serviceTypeId?: string | undefined;
 }
 
 export interface EditEntityCategoryDialogProps<TCategory extends EditableCategory> {
@@ -50,6 +52,7 @@ export interface EditEntityCategoryDialogProps<TCategory extends EditableCategor
   namePlaceholderEn: string;
   iconPlaceholder: string;
   storeTypes?: Array<{ id: string; nameAr: string }>;
+  serviceTypes?: Array<{ id: string; nameAr: string }>;
 }
 
 export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
@@ -61,11 +64,13 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
   namePlaceholderEn,
   iconPlaceholder,
   storeTypes = [],
+  serviceTypes = [],
 }: EditEntityCategoryDialogProps<TCategory>) {
   const [nameAr, setNameAr] = useState(category.nameAr);
   const [nameEn, setNameEn] = useState(category.name);
   const [icon,   setIcon]   = useState(category.icon ?? '');
   const [storeTypeId, setStoreTypeId] = useState<string | null>(category.storeTypeId ?? null);
+  const [serviceTypeId, setServiceTypeId] = useState<string | null>(category.serviceTypeId ?? null);
   const updateCategory = useUpdateCategory(category.id);
 
   // AUDIT-FIX (issue #7.1): reset-on-open sequencing lives in one shared
@@ -76,6 +81,7 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
     setNameEn(category.name);
     setIcon(category.icon ?? '');
     setStoreTypeId(category.storeTypeId ?? null);
+    setServiceTypeId(category.serviceTypeId ?? null);
   });
 
   function handleSave() {
@@ -90,6 +96,7 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
     }
     if (icon.trim() !== (category.icon ?? '')) patch.icon = icon.trim();
     if (storeTypes.length && storeTypeId !== (category.storeTypeId ?? null)) patch.storeTypeId = storeTypeId;
+    if (serviceTypes.length && serviceTypeId !== (category.serviceTypeId ?? null)) patch.serviceTypeId = serviceTypeId === null ? undefined : serviceTypeId;
 
     if (Object.keys(patch).length === 0) {
       setOpen(false);
@@ -134,6 +141,20 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
                 <p className="text-xs text-muted-foreground" dir="ltr">slug: {slugify(nameEn, slugFallbackPrefix)}</p>
               )}
             </div>
+            {serviceTypes.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">مجال الخدمة</label>
+                <select
+                  value={serviceTypeId ?? ''}
+                  onChange={(e) => setServiceTypeId(e.target.value || null)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">مجال الخدمة</option>
+                  {serviceTypes.map((type) => <option key={type.id} value={type.id}>{type.nameAr}</option>)}
+                </select>
+              </div>
+            )}
+
             {storeTypes.length > 0 && (
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">نوع المتجر</label>

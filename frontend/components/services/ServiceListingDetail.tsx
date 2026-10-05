@@ -12,6 +12,7 @@ import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { ProviderContactCard } from '@/components/services/ProviderContactCard';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
+import { ServiceTypeAttributesDisplay } from '@/components/services/ServiceTypeAttributesDisplay';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -252,6 +253,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
               <span>{now === null ? '—' : formatRelativeTime(listing.createdAt, now)}</span>
             </div>
           </header>
+
+          <ServiceTypeAttributesDisplay listing={listing} />
 
           {/* Description */}
           {listing.description && (

@@ -29,6 +29,7 @@ describe('serviceListingsRepository', () => {
         price: 100,
         durationEstimate: '2 hours',
         serviceLocation: 'AT_CUSTOMER' as const,
+        serviceTypeId: 'st_general',
       };
       mockTx.serviceListing.create.mockResolvedValue({ id: 'listing-1' });
 

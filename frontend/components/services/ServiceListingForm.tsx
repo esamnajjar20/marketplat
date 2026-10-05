@@ -10,6 +10,8 @@ import { FormSteps } from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
+import { ServiceTypeFieldsForm } from '@/components/services/ServiceTypeFieldsForm';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
@@ -36,6 +38,7 @@ import type {
   ServiceLocationType,
   UpdateServiceListingPayload,
   ServiceListingFormValues,
+  ServiceTypeField,
 } from '@/types/service.types';
 
 interface Props {
@@ -44,11 +47,13 @@ interface Props {
 }
 
 interface Errors {
+  serviceTypeId?: string;
   categoryId?: string;
   title?: string;
   description?: string;
   price?: string;
   images?: string;
+  attributes?: Record<string, string>;
 }
 
 const PRICING_LABELS: Record<ServicePricingType, string> = {
@@ -68,6 +73,7 @@ type ServiceDraftValues = Omit<ServiceListingFormValues, 'images' | 'existingIma
 
 export function ServiceListingForm({ mode, listing }: Props) {
   const { data: categories } = useServiceCategories();
+  const { data: serviceTypes } = useServiceTypes();
   const searchParams = useSearchParams();
   const offlineDraftId = searchParams.get('draftId');
   // UX-FIX P3-10b: same real upload-progress pattern as AdForm — 0-100
@@ -94,6 +100,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
   const [values, setValues] = useState<ServiceListingFormValues>(() => {
     if (listing) {
       return {
+        serviceTypeId: listing.serviceTypeId,
         categoryId: listing.categoryId,
         title: listing.title,
         description: listing.description,
@@ -101,11 +108,13 @@ export function ServiceListingForm({ mode, listing }: Props) {
         price: listing.price ?? '',
         durationEstimate: listing.durationEstimate ?? '',
         serviceLocation: listing.serviceLocation,
+        attributes: listing.attributes ?? {},
         images: [],
         existingImages: listing.images,
       };
     }
     const empty = {
+      serviceTypeId: '',
       categoryId: '',
       title: '',
       description: '',
@@ -113,6 +122,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
       price: '',
       durationEstimate: '',
       serviceLocation: 'AT_PROVIDER' as ServiceLocationType,
+      attributes: {},
       images: [] as File[],
       existingImages: [] as string[],
     };
@@ -139,6 +149,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
         setValues((prev) => ({
           ...prev,
           ...fields,
+          attributes: fields.attributes ?? prev.attributes,
           pricingType: (fields.pricingType as ServicePricingType) || prev.pricingType,
           serviceLocation: (fields.serviceLocation as ServiceLocationType) || prev.serviceLocation,
           images: [],
@@ -167,6 +178,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
   const { clearDraft, lastSavedAt } = useFormDraft<ServiceDraftValues>(
     'service:create',
     {
+      serviceTypeId: values.serviceTypeId,
       categoryId: values.categoryId,
       title: values.title,
       description: values.description,
@@ -174,12 +186,55 @@ export function ServiceListingForm({ mode, listing }: Props) {
       price: values.price,
       durationEstimate: values.durationEstimate,
       serviceLocation: values.serviceLocation,
+      attributes: values.attributes,
     },
     { enabled: mode === 'create' },
   );
 
+  const selectedServiceType = serviceTypes?.find((type) => type.id === values.serviceTypeId);
+  const availableCategories = (categories ?? [])
+    .filter((category) => category.serviceTypeId === values.serviceTypeId)
+    .flatMap((category) => category.children?.length ? category.children : [category]);
+
+  function setServiceType(id: string) {
+    setValues((current) => ({ ...current, serviceTypeId: id, categoryId: '', attributes: {} }));
+    setErrors((current) => ({ ...current, serviceTypeId: undefined, categoryId: undefined, attributes: undefined }));
+  }
+
+  function setAttribute(key: string, value: unknown) {
+    setValues((current) => ({ ...current, attributes: { ...current.attributes, [key]: value } }));
+  }
+
+  function normalizeAttributes(fields: ServiceTypeField[] | undefined): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const field of fields ?? []) {
+      if (field.scope !== 'LISTING' || !field.isActive) continue;
+      const value = values.attributes[field.key];
+      if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) continue;
+      result[field.key] = value;
+    }
+    return result;
+  }
+
+  function getDynamicFieldErrors(): Record<string, string> {
+    const attributeErrors: Record<string, string> = {};
+    for (const field of selectedServiceType?.fields ?? []) {
+      if (field.scope !== 'LISTING' || !field.isActive || !field.required) continue;
+      const value = values.attributes[field.key];
+      if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+        attributeErrors[field.key] = `${field.labelAr} مطلوب`;
+      }
+    }
+    return attributeErrors;
+  }
+
+
   function fieldError(field: keyof Errors): string | undefined {
-    return errors[field] ?? serverErrors?.[field]?.[0];
+    return (errors[field] as string | undefined) ?? serverErrors?.[field as keyof typeof serverErrors]?.[0];
+  }
+
+  function attributeError(key: string): string | undefined {
+    return errors.attributes?.[key];
   }
 
   function set<K extends keyof ServiceListingFormValues>(key: K, val: ServiceListingFormValues[K]) {
@@ -190,9 +245,12 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   function validate(): boolean {
     const e: Errors = {};
-    if (!values.categoryId) e.categoryId = 'اختر فئة الخدمة';
+    if (!values.serviceTypeId) e.serviceTypeId = 'اختر مجال الخدمة';
+    if (!values.categoryId) e.categoryId = 'اختر تخصص الخدمة';
     if (values.title.trim().length < 3) e.title = 'العنوان قصير جداً (3 أحرف على الأقل)';
     if (values.description.trim().length < 10) e.description = 'الوصف قصير جداً (10 أحرف على الأقل)';
+    const dynamicErrors = getDynamicFieldErrors();
+    if (Object.keys(dynamicErrors).length > 0) e.attributes = dynamicErrors;
     if (priceRequired && (!values.price || parseFloat(values.price) <= 0)) {
       e.price = 'أدخل سعراً صحيحاً';
     }
@@ -217,7 +275,10 @@ export function ServiceListingForm({ mode, listing }: Props) {
   const totalImageCount = mode === 'create'
     ? values.images.length
     : values.images.length + values.existingImages.length;
+  const dynamicFieldsIncomplete = Object.keys(getDynamicFieldErrors()).length > 0;
   const isFormIncomplete =
+    dynamicFieldsIncomplete ||
+    !values.serviceTypeId ||
     !values.categoryId ||
     values.title.trim().length < 3 ||
     values.description.trim().length < 10 ||
@@ -273,12 +334,14 @@ export function ServiceListingForm({ mode, listing }: Props) {
       setUploadProgress(values.images.length > 0 ? 0 : null);
       create.mutate(
         {
+          serviceTypeId: values.serviceTypeId,
           categoryId: values.categoryId,
           title: values.title.trim(),
           description: values.description.trim(),
           pricingType: values.pricingType,
           price: priceRequired ? parseFloat(values.price) : undefined,
           durationEstimate: values.durationEstimate.trim() || undefined,
+          attributes: normalizeAttributes(selectedServiceType?.fields),
           serviceLocation: values.serviceLocation,
           images: values.images,
         },
@@ -326,12 +389,14 @@ export function ServiceListingForm({ mode, listing }: Props) {
     // ran, and useUpdateServiceListing's own onError — the only place
     // a draft is saved — was never invoked.
     const payload = {
+      serviceTypeId: values.serviceTypeId,
       categoryId: values.categoryId,
       title: values.title.trim(),
       description: values.description.trim(),
       pricingType: values.pricingType,
       price: priceRequired ? parseFloat(values.price) : null,
       durationEstimate: values.durationEstimate.trim() || null,
+      attributes: normalizeAttributes(selectedServiceType?.fields),
       serviceLocation: values.serviceLocation,
     } satisfies UpdateServiceListingPayload;
 
@@ -392,12 +457,18 @@ export function ServiceListingForm({ mode, listing }: Props) {
   function canProceedFromStep(s: number): boolean {
     if (s === 1) {
       return (
+        Boolean(values.serviceTypeId) &&
         Boolean(values.categoryId) &&
         values.title.trim().length >= 3 &&
         values.description.trim().length >= 10
       );
     }
     if (s === 2) {
+      const dynamicErrors = getDynamicFieldErrors();
+      if (Object.keys(dynamicErrors).length > 0) {
+        setErrors((current) => ({ ...current, attributes: dynamicErrors }));
+        return false;
+      }
       if (priceRequired) {
         return Boolean(values.price.trim()) && Number(values.price) > 0;
       }
@@ -475,11 +546,22 @@ export function ServiceListingForm({ mode, listing }: Props) {
             hand-rolled outside FormField, error <p> missing role="alert"/
             aria-live, Select missing aria-describedby/aria-invalid.
             FormField's auto-clone (UX-FIX P2-11) wires both. */}
-        <FormField label="الفئة" htmlFor="categoryId" required error={fieldError('categoryId')}>
-          <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
-            <SelectTrigger id="categoryId"><SelectValue placeholder="اختر فئة الخدمة" /></SelectTrigger>
+        <FormField label="مجال الخدمة" htmlFor="serviceTypeId" required error={fieldError('serviceTypeId')}>
+          <Select value={values.serviceTypeId} onValueChange={setServiceType}>
+            <SelectTrigger id="serviceTypeId"><SelectValue placeholder="اختر مجال الخدمة" /></SelectTrigger>
             <SelectContent>
-              {categories?.map((cat) => (
+              {serviceTypes?.map((type) => (
+                <SelectItem key={type.id} value={type.id}>{type.nameAr}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+
+        <FormField label="التخصص" htmlFor="categoryId" required error={fieldError('categoryId')}>
+          <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)} disabled={!values.serviceTypeId}>
+            <SelectTrigger id="categoryId"><SelectValue placeholder={values.serviceTypeId ? 'اختر تخصص الخدمة' : 'اختر مجال الخدمة أولاً'} /></SelectTrigger>
+            <SelectContent>
+              {availableCategories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.nameAr}</SelectItem>
               ))}
             </SelectContent>
@@ -509,6 +591,17 @@ export function ServiceListingForm({ mode, listing }: Props) {
           <p className="text-xs text-muted-foreground text-end">{values.description.length}/2000</p>
         </FormField>
       </div>
+
+      {selectedServiceType && (
+        <div className={isWizard && step !== 2 ? 'hidden' : ''}>
+          <ServiceTypeFieldsForm
+            fields={selectedServiceType.fields}
+            values={values.attributes}
+            onChange={setAttribute}
+            getError={attributeError}
+          />
+        </div>
+      )}
 
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
         <h2 className="font-semibold">التسعير والموقع</h2>

@@ -127,6 +127,7 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
         await productsApi.create(payload, undefined, opId);
       } else if (kind === 'service') {
         const payload: CreateServiceListingPayload = {
+          serviceTypeId: str(draft.payload.serviceTypeId),
           categoryId: str(draft.payload.categoryId),
           title: str(draft.payload.title),
           description: str(draft.payload.description),
@@ -134,6 +135,9 @@ async function publishOne(draft: AdDraft): Promise<'sent' | 'failed' | 'skipped'
           price: num(draft.payload.price),
           durationEstimate: draft.payload.durationEstimate
             ? str(draft.payload.durationEstimate)
+            : undefined,
+          attributes: draft.payload.attributes && typeof draft.payload.attributes === 'object' && !Array.isArray(draft.payload.attributes)
+            ? draft.payload.attributes as Record<string, unknown>
             : undefined,
           serviceLocation:
             (draft.payload.serviceLocation as ServiceLocationType) || 'AT_PROVIDER',

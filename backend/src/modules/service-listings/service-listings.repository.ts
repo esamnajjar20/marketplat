@@ -35,6 +35,8 @@ const serviceListingListSelect = {
   views: true,
   createdAt: true,
   updatedAt: true,
+  serviceType: { select: { id: true, slug: true, nameAr: true, icon: true, capabilities: true, presentation: true } },
+  attributes: true,
   provider: {
     select: {
       id: true,
@@ -72,6 +74,8 @@ export const serviceListingsRepository = {
       price?: number;
       durationEstimate?: string;
       serviceLocation: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE';
+      serviceTypeId: string;
+      attributes?: Record<string, unknown>;
       offlineOperationId?: string | null;
     }
   ): Promise<ServiceListing> =>
@@ -86,6 +90,8 @@ export const serviceListingsRepository = {
         price: data.price,
         durationEstimate: data.durationEstimate,
         serviceLocation: data.serviceLocation,
+        serviceTypeId: data.serviceTypeId,
+        attributes: data.attributes as Prisma.InputJsonValue | undefined,
         ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
       },
     }),
@@ -110,9 +116,11 @@ export const serviceListingsRepository = {
       price: number | null;
       durationEstimate: string | null;
       serviceLocation: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE';
+      serviceTypeId?: string;
+      attributes?: Record<string, unknown>;
       status: ServiceListingStatus;
     }>
-  ): Promise<ServiceListing> => prisma.serviceListing.update({ where: { id }, data }),
+  ): Promise<ServiceListing> => prisma.serviceListing.update({ where: { id }, data: data as Prisma.ServiceListingUncheckedUpdateInput }),
 
   // Soft delete, same convention as ads (status DELETED rather than a
   // row removal) — keeps historical service_requests referencing this

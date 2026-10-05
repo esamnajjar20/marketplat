@@ -32,6 +32,7 @@ function makeFile(name: string): File {
 
 function makePayload(overrides: Partial<CreateServiceListingPayload> = {}): CreateServiceListingPayload {
   return {
+    serviceTypeId: 'st_general',
     categoryId: 'cat-1',
     title: 'تصليح أجهزة كهربائية',
     description: 'وصف طويل بما فيه الكفاية لتجاوز حد الأحرف الأدنى',
@@ -49,6 +50,7 @@ describe('serviceListingsApi.create — FormData construction', () => {
     );
 
     const form = (apiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as FormData;
+    expect(form.get('serviceTypeId')).toBe('st_general');
     expect(form.get('categoryId')).toBe('cat-1');
     expect(form.get('title')).toBe('تصليح أجهزة كهربائية');
     expect(form.get('pricingType')).toBe('FIXED');

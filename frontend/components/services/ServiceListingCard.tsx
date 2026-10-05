@@ -46,6 +46,7 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
           <div className="flex min-h-6 flex-wrap items-center gap-1.5">
             <span dir="ltr" className={cn('font-mono font-bold tabular-nums tracking-tight text-primary', compact ? 'text-base' : 'text-lg')}>{priceLabel}</span>
             {listing.pricingType === 'NEGOTIABLE' && <Badge size="xs" variant="soft">قابل للتفاوض</Badge>}
+            {listing.serviceType?.nameAr && <Badge size="xs" variant="outline">{listing.serviceType.nameAr}</Badge>}
           </div>
           <h3 className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-snug text-foreground">{listing.title}</h3>
           <div className="mt-auto flex min-h-5 items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">

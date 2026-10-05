@@ -196,10 +196,24 @@ describe('Recommendations API', () => {
   });
 
   describe('GET /api/v1/recommendations?type=service', () => {
+    const ensureServiceType = async () => {
+      return prisma.serviceType.upsert({
+        where: { id: 'st_general' },
+        update: {},
+        create: { id: 'st_general', slug: 'general', name: 'General', nameAr: 'عام' },
+      });
+    };
+
     const createTestServiceCategory = async () => {
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const serviceType = await ensureServiceType();
       return prisma.serviceCategory.create({
-        data: { name: `SCat ${unique}`, nameAr: `فئة خدمة ${unique}`, slug: `scat-${unique}` },
+        data: {
+          name: `SCat ${unique}`,
+          nameAr: `فئة خدمة ${unique}`,
+          slug: `scat-${unique}`,
+          serviceTypeId: serviceType.id,
+        },
       });
     };
 
@@ -212,6 +226,12 @@ describe('Recommendations API', () => {
         data: {
           providerId,
           categoryId,
+          serviceTypeId: (
+            await prisma.serviceCategory.findUnique({
+              where: { id: categoryId },
+              select: { serviceTypeId: true },
+            })
+          )?.serviceTypeId ?? 'st_general',
           title: overrides?.title ?? 'Test Service Listing',
           description: 'A perfectly fine service listing description here',
           images: [],

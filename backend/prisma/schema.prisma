@@ -572,20 +572,69 @@ model ServiceProviderDetails {
   @@map("service_provider_details")
 }
 
+model ServiceType {
+  id            String             @id @default(cuid())
+  slug          String             @unique
+  name          String             @unique
+  nameAr        String             @unique
+  icon          String?
+  labels        Json?
+  capabilities  Json?
+  presentation  Json?
+  isActive      Boolean            @default(true)
+  sortOrder     Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  fields        ServiceTypeField[]
+  categories    ServiceCategory[]
+  listings      ServiceListing[]
+
+  @@index([isActive, sortOrder])
+  @@map("service_types")
+}
+
+model ServiceTypeField {
+  id           String                 @id @default(cuid())
+  serviceTypeId String
+  key          String
+  scope        ServiceTypeFieldScope   @default(LISTING)
+  label        String
+  labelAr      String
+  cardLabelAr  String?
+  pageLabelAr  String?
+  type         ServiceTypeFieldType
+  required     Boolean                @default(false)
+  showOnCard   Boolean                @default(false)
+  showOnPage   Boolean                @default(true)
+  options      Json?
+  sortOrder    Int                    @default(0)
+  isActive     Boolean                @default(true)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  serviceType  ServiceType            @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceTypeId, key])
+  @@index([serviceTypeId, scope, isActive, sortOrder])
+  @@map("service_type_fields")
+}
+
 model ServiceCategory {
-  id         String                    @id @default(cuid())
-  name       String                    @unique
-  nameAr     String                    @unique
-  slug       String                    @unique
-  icon       String?
-  parentId   String?
-  isActive   Boolean                   @default(true)
-  createdAt  DateTime                  @default(now())
-  parent     ServiceCategory?          @relation("ServiceCategoryParent", fields: [parentId], references: [id])
-  children   ServiceCategory[]         @relation("ServiceCategoryParent")
-  listings   ServiceListing[]
+  id           String                    @id @default(cuid())
+  name         String                    @unique
+  nameAr       String                    @unique
+  slug         String                    @unique
+  icon         String?
+  parentId     String?
+  serviceTypeId String
+  isActive     Boolean                   @default(true)
+  createdAt    DateTime                  @default(now())
+  parent       ServiceCategory?          @relation("ServiceCategoryParent", fields: [parentId], references: [id])
+  children     ServiceCategory[]         @relation("ServiceCategoryParent")
+  serviceType  ServiceType              @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  listings     ServiceListing[]
 
   @@index([parentId])
+  @@index([serviceTypeId, isActive])
   @@map("service_categories")
 }
 
@@ -593,9 +642,11 @@ model ServiceListing {
   id                String                 @id @default(cuid())
   providerId        String
   categoryId        String
+  serviceTypeId     String
   title             String
   description       String                 @db.VarChar(2000)
   images            String[]
+  attributes        Json?
   pricingType       ServicePricingType     @default(NEGOTIABLE)
   price             Decimal?               @db.Decimal(10, 2)
   durationEstimate  String?
@@ -609,10 +660,12 @@ model ServiceListing {
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
   category          ServiceCategory        @relation(fields: [categoryId], references: [id])
+  serviceType       ServiceType            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
   provider          ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
   requests          ServiceRequest[]
 
   @@index([categoryId, status])
+  @@index([serviceTypeId, status])
   @@index([providerId, status])
   @@index([status, createdAt])
   @@map("service_listings")
@@ -1717,6 +1770,20 @@ enum SellerVerificationStatus {
 enum ServiceBusinessType {
   INDIVIDUAL
   SMALL_BUSINESS
+}
+
+enum ServiceTypeFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+}
+
+enum ServiceTypeFieldScope {
+  LISTING
+  PROVIDER
 }
 
 enum ServiceAvailability {

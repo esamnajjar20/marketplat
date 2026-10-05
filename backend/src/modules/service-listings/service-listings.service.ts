@@ -18,6 +18,7 @@ import { uploadImage, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
+import { validateServiceListingAttributes } from '../service-types/service-types.service';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
@@ -123,6 +124,12 @@ export const serviceListingsService = {
       throw new BadRequestError('Invalid or inactive service category.');
     }
 
+    const serviceTypeId = input.serviceTypeId ?? category.serviceTypeId;
+    if (serviceTypeId !== category.serviceTypeId) {
+      throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
+    }
+    await validateServiceListingAttributes(serviceTypeId, input.attributes);
+
     if (files.length > MAX_LISTING_IMAGES) {
       throw new BadRequestError(`You can upload at most ${MAX_LISTING_IMAGES} images.`);
     }
@@ -135,6 +142,8 @@ export const serviceListingsService = {
       listing = await prisma.$transaction(async tx =>
         serviceListingsRepository.create(tx, provider.id, {
           categoryId: input.categoryId,
+          serviceTypeId,
+          attributes: input.attributes,
           title: input.title,
           description: input.description,
           images: uploads.map(u => u.url),
@@ -293,12 +302,24 @@ export const serviceListingsService = {
       throw new BadRequestError('Deleted service listings cannot be edited.', 'SERVICE_LISTING_DELETED');
     }
 
+    let finalServiceTypeId = listing.serviceTypeId;
     if (input.categoryId) {
       const category = await serviceCategoriesRepository.findById(input.categoryId);
       if (!category || !category.isActive) {
         throw new BadRequestError('Invalid or inactive service category.');
       }
+      finalServiceTypeId = category.serviceTypeId;
     }
+    if (input.serviceTypeId && input.serviceTypeId !== finalServiceTypeId) {
+      throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
+    }
+    const serviceTypeChanged = finalServiceTypeId !== listing.serviceTypeId;
+    const attributesToValidate = input.attributes !== undefined
+      ? input.attributes
+      : serviceTypeChanged
+        ? undefined
+        : (listing.attributes as Record<string, unknown> | null) ?? undefined;
+    await validateServiceListingAttributes(finalServiceTypeId, attributesToValidate);
 
     const finalPricingType = input.pricingType ?? listing.pricingType;
     const finalPrice = input.price !== undefined ? input.price : listing.price;

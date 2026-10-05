@@ -146,6 +146,7 @@ export function productFieldsFromDraftPayload(payload: AdDraft['payload']): {
 }
 
 export function serviceFieldsFromDraftPayload(payload: AdDraft['payload']): {
+  serviceTypeId: string;
   categoryId: string;
   title: string;
   description: string;
@@ -153,8 +154,10 @@ export function serviceFieldsFromDraftPayload(payload: AdDraft['payload']): {
   price: string;
   durationEstimate: string;
   serviceLocation: string;
+  attributes?: Record<string, string | number | boolean | string[]>;
 } {
   return {
+    serviceTypeId: String(payload.serviceTypeId ?? ''),
     categoryId: String(payload.categoryId ?? ''),
     title: String(payload.title ?? ''),
     description: String(payload.description ?? ''),
@@ -162,5 +165,8 @@ export function serviceFieldsFromDraftPayload(payload: AdDraft['payload']): {
     price: payload.price != null && payload.price !== '' ? String(payload.price) : '',
     durationEstimate: String(payload.durationEstimate ?? ''),
     serviceLocation: String(payload.serviceLocation ?? 'AT_PROVIDER'),
+    attributes: payload.attributes && typeof payload.attributes === 'object' && !Array.isArray(payload.attributes)
+      ? payload.attributes as Record<string, string | number | boolean | string[]>
+      : {},
   };
 }

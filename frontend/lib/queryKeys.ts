@@ -168,6 +168,11 @@ export const queryKeys = {
   },
 
   // ── Service categories ────────────────────────────────────────
+  serviceTypes: {
+    all: () => ['service-types'] as const,
+    adminAll: () => ['service-types', 'admin', 'all'] as const,
+  },
+
   serviceCategories: {
     all:      ()             => ['service-categories'] as const,
     slug:     (slug: string) => ['service-categories', 'slug', slug] as const,

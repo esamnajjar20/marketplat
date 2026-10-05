@@ -13,6 +13,55 @@
  */
 import type { SellerProfile } from './seller.types';
 
+export type ServiceTypeFieldType = 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'BOOLEAN' | 'SELECT' | 'MULTI_SELECT';
+export type ServiceTypeFieldScope = 'LISTING' | 'PROVIDER';
+
+export interface ServiceTypeFieldOption {
+  value: string;
+  labelAr: string;
+}
+
+export interface ServiceTypeField {
+  id: string;
+  serviceTypeId: string;
+  key: string;
+  scope: ServiceTypeFieldScope;
+  label: string;
+  labelAr: string;
+  cardLabelAr: string | null;
+  pageLabelAr: string | null;
+  type: ServiceTypeFieldType;
+  required: boolean;
+  showOnCard: boolean;
+  showOnPage: boolean;
+  options: ServiceTypeFieldOption[] | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ServiceType {
+  id: string;
+  slug: string;
+  name: string;
+  nameAr: string;
+  icon: string | null;
+  labels: Record<string, unknown> | null;
+  capabilities: Record<string, unknown> | null;
+  presentation: Record<string, unknown> | null;
+  isActive: boolean;
+  sortOrder: number;
+  fields: ServiceTypeField[];
+  _count?: { categories: number; listings: number };
+}
+
+export interface CreateServiceTypePayload {
+  slug: string; name: string; nameAr: string; icon?: string | null;
+  labels?: unknown; capabilities?: unknown; presentation?: unknown; sortOrder?: number; isActive?: boolean;
+}
+export type UpdateServiceTypePayload = Partial<CreateServiceTypePayload>;
+export type CreateServiceTypeFieldPayload = Omit<ServiceTypeField, 'id' | 'serviceTypeId' | 'createdAt' | 'updatedAt'> & { serviceTypeId: string };
+export type UpdateServiceTypeFieldPayload = Partial<Omit<CreateServiceTypeFieldPayload, 'serviceTypeId'>>;
+
 export type ServiceBusinessType = 'INDIVIDUAL' | 'SMALL_BUSINESS';
 export type ServiceAvailability = 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE';
 export type ServicePricingType = 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE';
@@ -95,6 +144,8 @@ export interface ServiceCategory {
   slug: string;
   icon: string | null;
   parentId: string | null;
+  serviceTypeId: string;
+  serviceType?: Pick<ServiceType, 'id' | 'slug' | 'nameAr' | 'icon'>;
   isActive: boolean;
   createdAt: string;
   // EPIC 1.2: only present on the admin listing (GET /service-categories/admin/all —
@@ -111,6 +162,7 @@ export interface CreateServiceCategoryPayload {
   slug:      string;
   icon?:     string;
   parentId?: string;
+  serviceTypeId?: string;
 }
 
 /** isActive is only ever settable via update — matches
@@ -123,6 +175,7 @@ export type UpdateServiceCategoryPayload = Partial<CreateServiceCategoryPayload>
 export interface ServiceListing {
   id: string;
   providerId: string;
+  serviceTypeId: string;
   categoryId: string;
   title: string;
   description: string;
@@ -132,6 +185,8 @@ export interface ServiceListing {
   price: string | null;
   durationEstimate: string | null;
   serviceLocation: ServiceLocationType;
+  attributes: Record<string, unknown> | null;
+  serviceType?: Pick<ServiceType, 'id' | 'slug' | 'nameAr' | 'icon' | 'capabilities' | 'presentation'> & { fields?: ServiceTypeField[] };
   status: ServiceListingStatus;
   views: number;
   createdAt: string;
@@ -274,6 +329,7 @@ export type NearbyServiceProviderRow = ServiceProviderDetails & {
 
 /** POST /service-listings (multipart/form-data — images come from files, not this payload). */
 export interface CreateServiceListingPayload {
+  serviceTypeId: string;
   categoryId: string;
   title: string;
   description: string;
@@ -281,6 +337,7 @@ export interface CreateServiceListingPayload {
   /** Required when pricingType is FIXED or STARTING_FROM; omit for NEGOTIABLE. */
   price?: number;
   durationEstimate?: string;
+  attributes?: Record<string, unknown>;
   serviceLocation: ServiceLocationType;
   images: File[];
 }
@@ -290,12 +347,14 @@ export interface CreateServiceListingPayload {
  * the dedicated POST/DELETE /service-listings/:id/images endpoints
  * (Gap #3 fix), same convention as ads' /ads/:id/images routes. */
 export interface UpdateServiceListingPayload {
+  serviceTypeId?: string;
   categoryId?: string;
   title?: string;
   description?: string;
   pricingType?: ServicePricingType;
   price?: number | null;
   durationEstimate?: string | null;
+  attributes?: Record<string, unknown>;
   serviceLocation?: ServiceLocationType;
   status?: ServiceListingStatus;
 }
@@ -395,12 +454,14 @@ export type ServiceQuoteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAW
 // ServiceListingFormPreview import the type without a circular import
 // back through the form component itself.
 export interface ServiceListingFormValues {
+  serviceTypeId: string;
   categoryId: string;
   title: string;
   description: string;
   pricingType: ServicePricingType;
   price: string;
   durationEstimate: string;
+  attributes: Record<string, unknown>;
   serviceLocation: ServiceLocationType;
   images: File[];           // new uploads staged for this submit
   existingImages: string[]; // URLs already on server (edit mode)

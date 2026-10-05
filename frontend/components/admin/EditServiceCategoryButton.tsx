@@ -9,6 +9,7 @@
  */
 
 import { useUpdateServiceCategory } from '@/hooks/mutations/useServiceCategoryMutations';
+import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 import { EditEntityCategoryDialog } from '@/components/admin/EditEntityCategoryDialog';
 import type { ServiceCategory } from '@/types/service.types';
 
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function EditServiceCategoryButton({ category }: Props) {
+  const { data: serviceTypes = [] } = useServiceTypes();
   return (
     <EditEntityCategoryDialog
       category={category}
@@ -26,6 +28,7 @@ export function EditServiceCategoryButton({ category }: Props) {
       namePlaceholderAr="مثال: كهرباء"
       namePlaceholderEn="e.g. Electrical"
       iconPlaceholder="e.g. zap"
+      serviceTypes={serviceTypes.map((type) => ({ id: type.id, nameAr: type.nameAr }))}
     />
   );
 }
