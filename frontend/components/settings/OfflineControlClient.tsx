@@ -4,12 +4,12 @@
  * UI for /settings/offline. Warming is user-driven:
  *   - "ابدأ التسخين الآن" runs the current mode (force=true).
  *   - "ألغِ" stops the in-flight pass, whether started here or by the
- *     background 6h timer / mount bootstrap.
+ *     background freshness tick / mount bootstrap.
  *   - "أكمل الناقص" retries only pending/failed routes.
  *   - "أعد التحميل من الصفر" wipes route caches and re-warms.
  *   - "امسح كل التسخين" deletes warming caches only.
  *
- * An automatic top-up runs every 6 hours from OfflineBootstrap.
+ * Background top-ups are triggered by visibility/reconnect and the 10-minute freshness tick.
  *
  * WARM-RAN-01: the Cancel button reflects the REAL warming state,
  * subscribed from lib/warmingProgress, not only the local `busy` flag
@@ -22,11 +22,10 @@
  */
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Wifi, WifiOff, Trash2, Info, Loader2,
+  Wifi, WifiOff, Trash2, Loader2,
   Play, Square, RotateCcw, ListChecks,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -35,7 +34,7 @@ import { cn } from '@/lib/utils';
 import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadge';
 import {
   getWarmingMode, setWarmingMode,
-  WARMING_MODE_LABELS, WARMING_MODE_DESCRIPTIONS, WARMING_MODE_BYTES_EST,
+  WARMING_MODE_LABELS, WARMING_MODE_DESCRIPTIONS,
   type WarmingMode,
 } from '@/lib/warmingPreferences';
 import { readSnapshot, clearSnapshot } from '@/lib/offlineWarmingState';
@@ -59,15 +58,6 @@ interface Snapshot {
   liveUrlsCount: number;
 }
 
-interface StorageInfo { usage: number; quota: number; }
-
-function formatBytes(n: number): string {
-  if (n < 1024) return n + ' B';
-  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-  if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + ' MB';
-  return (n / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
-}
-
 function formatAge(ts: number): string {
   if (!ts) return '—';
   const ms = Date.now() - ts;
@@ -80,7 +70,6 @@ function formatAge(ts: number): string {
 export function OfflineControlClient() {
   const [mode, setMode] = useState<WarmingMode>('fast');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
@@ -88,7 +77,7 @@ export function OfflineControlClient() {
   const [progress, setProgress] = useState<AggregatedProgress | null>(null);
 
   // WARM-RAN-01: subscribe to the aggregate warming state so a
-  // background pass (6h timer, mount bootstrap, online event) makes
+  // background pass (freshness tick, mount bootstrap, online event) makes
   // the Cancel button live and the Start button show progress.
   useEffect(() => {
     return subscribeWarmingProgress(setProgress);
@@ -132,24 +121,13 @@ export function OfflineControlClient() {
     } catch { /* IndexedDB unavailable */ }
   }, []);
 
-  const readStorage = useCallback(async () => {
-    try {
-      if (navigator.storage?.estimate) {
-        const est = await navigator.storage.estimate();
-        setStorage({ usage: est.usage ?? 0, quota: est.quota ?? 0 });
-      }
-    } catch { /* silent */ }
-  }, []);
-
   useEffect(() => {
     void readSnapshotLive();
-    void readStorage();
     setMode(getWarmingMode());
     setOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
     const id = window.setInterval(() => {
       void readSnapshotLive();
-      void readStorage();
     }, 5_000);
 
     const onOnline = () => setOnline(true);
@@ -161,7 +139,7 @@ export function OfflineControlClient() {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [readSnapshotLive, readStorage]);
+  }, [readSnapshotLive]);
 
   // Refresh the snapshot the moment warming flips from active → idle,
   // so the counters reflect the just-finished pass immediately instead
@@ -169,9 +147,8 @@ export function OfflineControlClient() {
   useEffect(() => {
     if (!warmingActive) {
       void readSnapshotLive();
-      void readStorage();
     }
-  }, [warmingActive, readSnapshotLive, readStorage]);
+  }, [warmingActive, readSnapshotLive]);
 
   function handleModeChange(next: WarmingMode) {
     if (warmingActive) {
@@ -193,7 +170,6 @@ export function OfflineControlClient() {
     const { ran } = await runWarmingPipeline({
       authenticated: true,
       force: true,
-      skipQueueWait: true,
     });
     return ran;
   }
@@ -211,7 +187,6 @@ export function OfflineControlClient() {
     try {
       const ran = await runWarmingPipelineLocal();
       await readSnapshotLive();
-      await readStorage();
       if (isWarmingCancelled()) {
         toast.info('أُلغي التسخين');
       } else if (!ran) {
@@ -282,7 +257,6 @@ export function OfflineControlClient() {
         await runWarmingPipelineLocal();
       }
       await readSnapshotLive();
-      await readStorage();
       if (isWarmingCancelled()) {
         toast.info('أُلغي إعادة التحميل');
       } else {
@@ -348,7 +322,6 @@ export function OfflineControlClient() {
       } catch { /* private mode — harmless */ }
       toast.success('حُذف ' + cleared + ' كاش + snapshot');
       await readSnapshotLive();
-      await readStorage();
     } catch (err) {
       console.warn('[offline] clear warming failed:', err);
       toast.error('فشل مسح الكاش');
@@ -356,10 +329,6 @@ export function OfflineControlClient() {
       setBusy(null);
     }
   }
-
-  const pct = storage && storage.quota > 0
-    ? Math.round((storage.usage / storage.quota) * 100)
-    : 0;
 
   const anyBusy = busy !== null;
 
@@ -370,15 +339,6 @@ export function OfflineControlClient() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5">
-      <div className="flex gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning-strong dark:text-warning">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 opacity-80" aria-hidden />
-        <p>
-          على شبكة ضعيفة، انتقل إلى{' '}
-          <Link href="/offline" className="underline font-medium">صفحة العمل بدون إنترنت</Link>{' '}
-          لتصفح المحتوى المُسخَّن مسبقاً.
-        </p>
-      </div>
-
       <div className={cn(
         'flex items-center gap-3 rounded-xl border p-3 text-sm',
         online ? 'border-success/40 bg-success/10 text-success'
@@ -422,9 +382,6 @@ export function OfflineControlClient() {
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="font-medium">{WARMING_MODE_LABELS[m]}</span>
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                    {WARMING_MODE_BYTES_EST[m]}
-                  </span>
                 </span>
                 <span className="mt-0.5 block text-xs text-muted-foreground leading-relaxed">
                   {WARMING_MODE_DESCRIPTIONS[m]}
@@ -519,28 +476,6 @@ export function OfflineControlClient() {
           </div>
         </div>
 
-        {storage && (
-          <div className="mt-4 border-t pt-3">
-            <div className="flex items-baseline justify-between text-xs">
-              <span className="text-muted-foreground">المساحة المستخدمة</span>
-              <span className="font-mono">
-                {formatBytes(storage.usage)} / {formatBytes(storage.quota)}
-                {storage.quota > 0 && ' (' + pct + '%)'}
-              </span>
-            </div>
-            {storage.quota > 0 && (
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all',
-                    pct > 80 ? 'bg-destructive' : pct > 50 ? 'bg-warning' : 'bg-success',
-                  )}
-                  style={{ width: Math.min(100, pct) + '%' }}
-                />
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <OfflineRoutesList />

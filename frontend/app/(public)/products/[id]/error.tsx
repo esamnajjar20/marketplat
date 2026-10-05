@@ -22,16 +22,6 @@ export default function ProductDetailError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    // OFFLINE-REDIRECT-01: an offline ChunkLoadError means there is no
-    // cached shell to serve and no network to fetch one. The generic
-    // "حدث خطأ غير متوقع" UI is wrong here — /offline exists exactly
-    // for this situation. Redirect instead of showing an error the
-    // user can't act on.
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      window.location.replace('/offline');
-    }
-  }, []);
 
 useEffect(() => {
     // Mobile remote-inspect consoles often render an Error object as an
@@ -40,12 +30,6 @@ useEffect(() => {
     // they're visible without needing to expand the object.
     // eslint-disable-next-line no-console
     console.error('[ProductDetailError] message:', error.message, '| stack:', error.stack);
-    // CHUNK-OFFLINE-NOREPORT-01: skip the report when this is
-
-    // a chunk error on an offline device — no recovery is
-
-    // possible and it spams the reporter on weak networks.
-
     if (!isOfflineChunkLoadError(error)) {
 
       reportClientError(error, { boundary: 'ProductDetailError', digest: error.digest });

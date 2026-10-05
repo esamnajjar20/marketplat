@@ -66,6 +66,18 @@ export function MessageInput({ conversationId, disabled }: Props) {
   }, [conversationId]);
 
   useEffect(() => {
+    const onOfflineMessageEdit = (event: Event) => {
+      const detail = (event as CustomEvent<{ conversationId?: string; body?: string }>).detail;
+      if (!detail || detail.conversationId !== conversationId) return;
+      setBody(String(detail.body ?? ''));
+      setLastSendError(null);
+      window.setTimeout(() => textareaRef.current?.focus(), 0);
+    };
+    window.addEventListener('offline-message-edit', onOfflineMessageEdit);
+    return () => window.removeEventListener('offline-message-edit', onOfflineMessageEdit);
+  }, [conversationId]);
+
+  useEffect(() => {
     if (!draftReady) return;
     const t = window.setTimeout(() => saveMessageDraft(conversationId, body), 300);
     return () => window.clearTimeout(t);
@@ -208,10 +220,6 @@ export function MessageInput({ conversationId, disabled }: Props) {
         mediaRecorderRef.current = null;
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         if (blob.size === 0) return;
-        if (!navigator.onLine) {
-          toast.error('الرسائل الصوتية تحتاج اتصالاً بالإنترنت حاليًا');
-          return;
-        }
         setUploading(true);
         setUploadKind('audio');
         try {
@@ -224,8 +232,16 @@ export function MessageInput({ conversationId, disabled }: Props) {
           void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
         } catch (err) {
           const parsed = parseApiError(err);
-          setLastSendError(parsed.message);
-          toast.error(parsed.message);
+          if (parsed.queued) {
+            setBody('');
+            clearMessageDraft(conversationId);
+            setLastSendError(null);
+            void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
+            void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+          } else {
+            setLastSendError(parsed.message);
+            toast.error(parsed.message);
+          }
         } finally {
           setUploading(false);
           setUploadKind(null);

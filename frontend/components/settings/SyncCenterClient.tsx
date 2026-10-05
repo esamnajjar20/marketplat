@@ -20,6 +20,8 @@ import {
   listFailedRequests,
   retryFailedRequest,
   discardFailedRequest,
+  retryQueuedOperation,
+  cancelQueuedOperation,
   requestQueueReplay,
   isConflictFailure,
   describeQueueFailure,
@@ -31,6 +33,8 @@ import { toastDraftPublishResult, toastSyncStarted } from '@/lib/offlinePublishF
 import {
   listAdDrafts,
   deleteAdDraft,
+  cancelAdDraftSync,
+  saveAdDraft,
   draftDisplayTitle,
   draftKindLabel,
   type AdDraft,
@@ -126,13 +130,58 @@ export function SyncCenterClient() {
     }
   }
 
-  async function handleDiscard(id: number) {
+  async function handleDiscard(id: number, operationId?: string | null) {
     try {
-      await discardFailedRequest(id);
-      toast.success('تم الحذف من الطابور');
+      if (operationId) {
+        await cancelQueuedOperation(operationId);
+        toast.message('تم إيقاف الإرسال', { description: 'بقي المحتوى محفوظًا في المسودة ولن يُرسل تلقائيًا.' });
+      } else {
+        await discardFailedRequest(id);
+        toast.message('تم إلغاء الطلب');
+      }
       await refresh();
     } catch {
-      toast.error('تعذّر الحذف');
+      toast.error('تعذّر إيقاف الإرسال');
+    }
+  }
+
+  async function handleRetryDraft(draft: AdDraft) {
+    try {
+      await saveAdDraft({
+        ...draft,
+        status: 'pending_sync',
+        lastError: undefined,
+        lastErrorCode: undefined,
+        lastErrorStatus: undefined,
+        publishRetryCount: 0,
+      });
+      if (draft.operationId) {
+        const ownedByQueue = await retryQueuedOperation(draft.operationId);
+        if (ownedByQueue) {
+          await requestQueueReplay();
+        } else {
+          // No live SW queue owns this operation, so the local draft publisher
+          // is the single fallback sender. This avoids duplicate sends.
+          await syncPendingOfflineDrafts({ userId, includeFailed: true });
+        }
+      } else {
+        await syncPendingOfflineDrafts({ userId, includeFailed: true });
+      }
+      toast.message('أُعيدت المحاولة', { description: 'سيُرسل المحتوى الآن. لن تُفقد المسودة إذا فشل الإرسال مرة أخرى.' });
+      await refresh();
+    } catch {
+      toast.error('تعذّرت إعادة المحاولة');
+    }
+  }
+
+  async function handleCancelDraftSync(draft: AdDraft) {
+    try {
+      if (draft.operationId) await cancelQueuedOperation(draft.operationId);
+      await cancelAdDraftSync(draft.id);
+      toast.message('تم إيقاف الإرسال', { description: 'بقي المحتوى محفوظًا كمسودة ويمكنك تعديله أو إرساله لاحقًا.' });
+      await refresh();
+    } catch {
+      toast.error('تعذّر إيقاف الإرسال');
     }
   }
 
@@ -286,17 +335,28 @@ export function SyncCenterClient() {
                     </p>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                   <Button variant="outline" size="sm" asChild>
                     <Link href={resumeHrefForDraft(d)}>
                       <Pencil className="me-1 h-3.5 w-3.5" />
-                      متابعة
+                      تعديل
                     </Link>
                   </Button>
+                  {d.status === 'failed' ? (
+                    <>
+                      <Button size="sm" onClick={() => void handleRetryDraft(d)} disabled={!isOnline}>
+                        <RefreshCw className="me-1 h-3.5 w-3.5" />
+                        إعادة المحاولة
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => void handleCancelDraftSync(d)}>
+                        إيقاف الإرسال
+                      </Button>
+                    </>
+                  ) : null}
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label="حذف المسودة"
+                    aria-label="حذف المسودة نهائيًا"
                     onClick={() => void handleDeleteDraft(d.id)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -336,6 +396,11 @@ export function SyncCenterClient() {
                   <p className="text-xs text-muted-foreground">
                     {describeQueueFailure(item)}
                   </p>
+                  {item.operationId ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      المحتوى المرتبط بهذه العملية محفوظ أيضًا كمسودة، ويمكنك تعديله من قسم المسودات أعلاه.
+                    </p>
+                  ) : null}
                   {conflict ? (
                     <p className="mt-1 text-xs text-warning-strong dark:text-warning">
                       {action === 'edit'
@@ -362,8 +427,8 @@ export function SyncCenterClient() {
                       {conflict && action !== 'retry' ? 'تعارض' : 'إعادة'}
                     </Button>
                   ) : null}
-                  <Button size="sm" variant="ghost" onClick={() => void handleDiscard(item.id)}>
-                    {action === 'discard' ? 'تجاهل' : 'حذف'}
+                  <Button size="sm" variant="ghost" onClick={() => void handleDiscard(item.id, item.operationId)}>
+                    إلغاء الطلب
                   </Button>
                 </div>
               </li>

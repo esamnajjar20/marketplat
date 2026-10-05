@@ -53,7 +53,6 @@ export const TICK_MS = 10 * 60 * 1000;
 
 interface Pending {
   authenticated: boolean;
-  skipQueueWait: boolean;
 }
 
 let pending: Pending | null = null;
@@ -79,7 +78,6 @@ function start(): void {
   pending = null;
   void runWarmingPipeline({
     authenticated: job.authenticated,
-    skipQueueWait: job.skipQueueWait,
   }).catch((err) => {
     console.warn('[offline] runWarmingPipeline failed:', err);
   });
@@ -129,7 +127,6 @@ export function scheduleWarming(
       authenticated: (pending?.authenticated ?? false) || opts.authenticated,
       // Only the background tick may skip the queue wait, and only when every
       // trigger merged into this run was a tick.
-      skipQueueWait: trigger === 'tick' && (pending === null || pending.skipQueueWait),
     };
   }
 

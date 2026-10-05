@@ -28,7 +28,7 @@ import {
 import { MessageInput } from './MessageInput';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
-import { retryQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
+import { retryQueuedMessage, cancelQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
@@ -60,11 +60,12 @@ function otherParty(conversation: Conversation, userId: string | undefined) {
  * إعادة المحاولة/الحذف.
  */
 type DisplayMessage = Message & {
-  clientStatus?: 'sending' | 'queued' | 'failed';
+  clientStatus?: 'sending' | 'queued' | 'failed' | 'cancelled';
   queueId?: number;
   lastError?: { status: number; message?: string };
   /** Offline image upload still in SW queue (no preview URL available). */
   clientHasImage?: boolean;
+  clientHasAudio?: boolean;
 };
 
 /**
@@ -216,6 +217,7 @@ export function ChatWindow({ conversationId }: Props) {
     lastError: q.lastError,
     // DisplayMessage allows extra fields via intersection; stamp for UI.
     ...(q.hasImage ? { clientHasImage: true as const } : {}),
+    ...(q.hasAudio ? { clientHasAudio: true as const } : {}),
   })) as DisplayMessage[];
   const messages: DisplayMessage[] = [
     ...olderMessages.filter((m) => !liveIds.has(m.id)),
@@ -373,6 +375,62 @@ export function ChatWindow({ conversationId }: Props) {
             }
           : null)
     : null;
+
+  function renderQueuedActions(
+    message: DisplayMessage,
+    clientStatus: DisplayMessage['clientStatus'],
+  ) {
+    if ((clientStatus !== 'failed' && clientStatus !== 'cancelled') || message.queueId == null) return null;
+    const conflict = classifyHttpConflict(message.lastError?.status, message.lastError?.message);
+    const editMessage = () => {
+      window.dispatchEvent(new CustomEvent('offline-message-edit', {
+        detail: {
+          conversationId,
+          body: message.body === '📷' || message.body === '🎤 رسالة صوتية' ? '' : message.body,
+        },
+      }));
+      toast.message('المحتوى موجود في المحرر', {
+        description: 'عدّل النص ثم أرسل رسالة جديدة. الرسالة السابقة محفوظة حتى تقرر حذفها.',
+      });
+    };
+    return (
+      <div className="flex flex-wrap items-center gap-2 ms-1">
+        <button
+          type="button"
+          onClick={() => handleRetryQueued(message.queueId!)}
+          disabled={retryingQueueId === message.queueId || (clientStatus === 'failed' && conflict.isTerminal)}
+          className="flex items-center gap-0.5 text-2xs font-medium text-primary hover:underline disabled:opacity-50"
+          title={conflict.isTerminal ? conflict.message : 'إعادة الإرسال'}
+        >
+          <RotateCw className={cn('h-3 w-3', retryingQueueId === message.queueId && 'animate-spin')} />
+          إعادة الإرسال
+        </button>
+        <button type="button" onClick={editMessage} className="text-2xs font-medium text-primary hover:underline">
+          تعديل
+        </button>
+        {clientStatus === 'failed' ? (
+          <button
+            type="button"
+            onClick={() => {
+              void cancelQueuedMessage(message.queueId!);
+              toast.message('تم إيقاف الإرسال', { description: 'المحتوى محفوظ على جهازك ويمكنك إعادة إرساله لاحقًا.' });
+            }}
+            className="text-2xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            إلغاء الإرسال
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => handleDiscardQueued(message.queueId!)}
+            className="text-2xs font-medium text-muted-foreground hover:text-destructive"
+          >
+            حذف نهائي
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -574,7 +632,7 @@ export function ChatWindow({ conversationId }: Props) {
               // persisted message yet" bucket as isOptimistic for the
               // purposes of the delete-message menu below.
               const clientStatus = message.clientStatus;
-              const isLocalOnly = isOptimistic || clientStatus === 'queued' || clientStatus === 'failed';
+              const isLocalOnly = isOptimistic || clientStatus === 'queued' || clientStatus === 'failed' || clientStatus === 'cancelled';
               return (
                 <div key={message.id} className={cn('flex w-full flex-col', tight ? 'mt-0.5' : 'mt-0')}>
                   {showDay && (
@@ -638,7 +696,8 @@ export function ChatWindow({ conversationId }: Props) {
                           : isMine
                             ? 'rounded-ee-sm bg-primary text-primary-foreground shadow-xs'
                             : 'rounded-es-sm border border-border/80 bg-card text-foreground shadow-xs',
-                        (isOptimistic || clientStatus === 'queued') && 'opacity-60',
+                        isOptimistic && 'opacity-60',
+                        clientStatus === 'queued' && 'opacity-100',
                         clientStatus === 'failed' && 'opacity-80 ring-1 ring-destructive/40'
                       )}
                     >
@@ -674,6 +733,15 @@ export function ChatWindow({ conversationId }: Props) {
                           📷
                         </div>
                       )}
+                      {!isDeleted && !message.audioUrl && message.clientHasAudio && (
+                        <div
+                          className="mb-2 flex min-w-[12rem] items-center gap-2 rounded-xl bg-muted/80 px-3 py-2 text-sm"
+                          aria-label="رسالة صوتية بانتظار الإرسال"
+                        >
+                          <span aria-hidden>🎤</span>
+                          <span>رسالة صوتية</span>
+                        </div>
+                      )}
                       <p className="whitespace-pre-wrap break-words">
                         {isDeleted
                           ? 'تم حذف هذه الرسالة'
@@ -703,12 +771,12 @@ export function ChatWindow({ conversationId }: Props) {
                   </div>
                   <div className="flex items-center gap-1 px-1">
                     <span className="text-2xs text-muted-foreground">
-                      {clientStatus === 'failed' ? 'فشل الإرسال' : formatTime(message.createdAt)}
+                      {clientStatus === 'failed' ? 'تعذّر الإرسال' : clientStatus === 'cancelled' ? 'الإرسال ملغى — المحتوى محفوظ' : formatTime(message.createdAt)}
                     </span>
                     {isMine && !isDeleted && (
                       isOptimistic || clientStatus === 'queued'
                         ? <Clock className="h-3 w-3 text-muted-foreground" aria-label={clientStatus === 'queued' ? 'بانتظار الاتصال' : 'جارٍ الإرسال'} />
-                        : clientStatus === 'failed'
+                        : clientStatus === 'failed' || clientStatus === 'cancelled'
                           ? <AlertTriangle className="h-3.5 w-3.5 text-destructive" aria-label="فشل الإرسال" />
                           : message.readAt
                             ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
@@ -718,38 +786,7 @@ export function ChatWindow({ conversationId }: Props) {
                         المحاولة، مثلًا حظر الطرف الآخر أثناء الانقطاع) —
                         القرار (إعادة محاولة/حذف) يُترك للمستخدم صراحة بدل
                         إسقاطها بصمت (انظر FIX CONFLICT-01 بـ sw.js). */}
-                    {clientStatus === 'failed' && message.queueId != null && (() => {
-                      const conflict = classifyHttpConflict(
-                        message.lastError?.status,
-                        message.lastError?.message,
-                      );
-                      const showRetry = conflict.primaryAction === 'retry' || conflict.primaryAction === 'edit';
-                      return (
-                      <div className="flex items-center gap-2 ms-1">
-                        {showRetry ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRetryQueued(message.queueId!)}
-                          disabled={retryingQueueId === message.queueId || conflict.isTerminal}
-                          title={conflict.isTerminal ? conflict.message : 'إعادة المحاولة'}
-                          className="flex items-center gap-0.5 text-2xs font-medium text-primary hover:underline disabled:opacity-50"
-                        >
-                          <RotateCw className={cn('h-3 w-3', retryingQueueId === message.queueId && 'animate-spin')} />
-                          {conflict.isTerminal ? 'تعارض' : 'إعادة المحاولة'}
-                        </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => handleDiscardQueued(message.queueId!)}
-                          className="flex items-center gap-0.5 text-2xs font-medium text-muted-foreground hover:text-destructive"
-                        >
-                          <XIcon className="h-3 w-3" />
-                          {conflict.primaryAction === 'discard' ? 'تجاهل' : 'حذف'}
-                        </button>
-                      </div>
-                      );
-                    })()}
-                  </div>
+                    {renderQueuedActions(message, clientStatus)}
                   {/* CHATWINDOW-LASTERROR-GUARD-01: only render the
                       error line when lastError exists. Before this,
                       a failed message with no lastError (rare but
@@ -765,6 +802,7 @@ export function ChatWindow({ conversationId }: Props) {
                       {classifyHttpConflict(message.lastError.status, message.lastError.message).message}
                     </p>
                   )}
+                </div>
                 </div>
                 </div>
               );

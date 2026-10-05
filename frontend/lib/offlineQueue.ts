@@ -37,7 +37,7 @@ const DB_NAME = 'market-offline-queue';
 const DB_VERSION = 1;
 const STORE_NAME = 'requests';
 
-export type QueuedRequestStatus = 'pending' | 'failed';
+export type QueuedRequestStatus = 'pending' | 'failed' | 'cancelled';
 
 export interface QueuedRequestSummary {
   id: number;
@@ -92,7 +92,7 @@ async function getAllEntries(): Promise<RawQueueEntry[]> {
 
 /** عنصر بلا status (تنسيق قديم) يُعامَل كـ pending — نفس افتراض sw.js. */
 function isPending(entry: RawQueueEntry): boolean {
-  return entry.status !== 'failed';
+  return entry.status !== 'failed' && entry.status !== 'cancelled';
 }
 
 /**
@@ -140,7 +140,7 @@ export async function getQueuedRequestCounts(): Promise<{ pending: number; faile
 function isMessageSendUrl(url: string): boolean {
   try {
     const { pathname } = new URL(url);
-    return /\/conversations\/[^/]+\/messages$/.test(pathname);
+    return /\/conversations\/[^/]+\/messages(?:\/(?:image|audio))?$/.test(pathname);
   } catch {
     return false;
   }
@@ -194,6 +194,30 @@ export async function retryFailedRequest(id: number): Promise<void> {
 }
 
 /** يحذف عنصرًا فاشلاً نهائيًا دون إعادة محاولة. */
+/** يعيد تشغيل كل طلب مرتبط بنفس operationId، مع الحفاظ على body الأصلي. */
+export async function retryQueuedOperation(operationId: string): Promise<boolean> {
+  if (!operationId || !('serviceWorker' in navigator)) return false;
+  const registration = await getActiveSW();
+  const worker = registration?.active;
+  if (!worker) return false;
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = window.setTimeout(() => resolve(false), 1200);
+    channel.port1.onmessage = (event) => {
+      window.clearTimeout(timer);
+      resolve(Boolean(event.data?.found));
+    };
+    worker.postMessage({ type: 'RETRY_QUEUE_OPERATION', operationId }, [channel.port2]);
+  });
+}
+
+/** يلغي الإرسال التلقائي لعملية مرتبطة بـ operationId دون حذف المسودة المحلية. */
+export async function cancelQueuedOperation(operationId: string): Promise<void> {
+  if (!operationId || !('serviceWorker' in navigator)) return;
+  const registration = await getActiveSW();
+  registration?.active?.postMessage({ type: 'CANCEL_QUEUE_OPERATION', operationId });
+}
+
 export async function discardFailedRequest(id: number): Promise<void> {
   // FIX QUEUE-ID-VALIDATION: نفس التحقق كما في retryFailedRequest.
   if (!Number.isInteger(id) || id <= 0) {
@@ -214,6 +238,7 @@ export const QUEUE_EVENT_TYPES = [
   'QUEUE_ITEM_SENT',
   'QUEUE_ITEM_FAILED',
   'QUEUE_ITEM_DISCARDED',
+  'QUEUE_ITEM_CANCELLED',
 ] as const;
 
 /**
@@ -398,7 +423,7 @@ export async function listQueuedOperationIds(): Promise<Set<string>> {
     const entries = await getAllEntries();
     const ids = new Set<string>();
     for (const e of entries) {
-      if (e.operationId && e.status !== 'failed') ids.add(e.operationId);
+      if (e.operationId && e.status !== 'failed' && e.status !== 'cancelled') ids.add(e.operationId);
     }
     return ids;
   } catch (err) {
@@ -425,7 +450,7 @@ export async function listQueuedOperationsWithAge(): Promise<Map<string, number>
     const entries = await getAllEntries();
     const map = new Map<string, number>();
     for (const e of entries) {
-      if (e.operationId && e.status !== 'failed' && typeof e.queuedAt === 'number') {
+      if (e.operationId && e.status !== 'failed' && e.status !== 'cancelled' && typeof e.queuedAt === 'number') {
         map.set(e.operationId, e.queuedAt);
       }
     }

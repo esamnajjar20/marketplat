@@ -88,7 +88,7 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
   });
 
   // FIX WARM-ADAPTIVE-01: 2g / slow-2g / very low downlink throttle to critical
-  it("2g throttles 'fast' and 'full' down to critical (FIX WARM-ADAPTIVE-01)", () => {
+  it("2g throttles 'fast' but keeps explicit 'full' scope", () => {
     Object.defineProperty(globalThis, 'navigator', {
       value: { onLine: true, connection: { effectiveType: '2g', downlink: 0.05 } },
       configurable: true,
@@ -102,9 +102,11 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     });
     mode = 'full';
     expect(getWarmingPlan()).toMatchObject({
-      tier: 'critical',
-      reason: 'user-full-2g',
+      tier: 'full',
+      reason: 'user-full-2g-paced',
       concurrency: 1,
+      interRouteDelayMs: 2500,
+      requestTimeoutMs: 25_000,
     });
   });
 
@@ -138,7 +140,7 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
   });
 });
 
-  it("3g throttles 'fast' to critical and 'full' to core (FIX WARM-ADAPTIVE-3G-01)", () => {
+  it("3g throttles 'fast' to critical while preserving full scope (FIX WARM-ADAPTIVE-3G-01)", () => {
     Object.defineProperty(globalThis, 'navigator', {
       value: { onLine: true, connection: { effectiveType: '3g', downlink: 0.8 } },
       configurable: true,
@@ -146,5 +148,5 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     mode = 'fast';
     expect(getWarmingPlan()).toMatchObject({ tier: 'critical', reason: 'user-fast-3g' });
     mode = 'full';
-    expect(getWarmingPlan()).toMatchObject({ tier: 'core', reason: 'user-full-3g' });
+    expect(getWarmingPlan()).toMatchObject({ tier: 'full', reason: 'user-full-3g-paced', concurrency: 1 });
   });

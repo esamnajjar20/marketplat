@@ -8,6 +8,9 @@ import {
 } from '../../../lib/offlineHubTabs';
 
 describe('offline hub tab model (OFFLINE-HUB-01)', () => {
+  it('keeps the requested product order for the hub', () => {
+    expect(OFFLINE_TABS).toEqual(['storage', 'saved', 'payments', 'warming', 'sync', 'drafts']);
+  });
   it('reads ?tab= and ignores unknown values', () => {
     expect(resolveOfflineTab('?tab=sync', '/offline')).toBe('sync');
     expect(resolveOfflineTab('?tab=nope', '/offline')).toBeNull();

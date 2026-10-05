@@ -1956,7 +1956,7 @@ async function tryCoalesceAnalyticsEntry(entry) {
   const all = await getAllQueuedEntries();
   const existing = all.find(
     (e) =>
-      e.status !== 'failed' &&
+      e.status !== 'failed' && e.status !== 'cancelled' &&
       e.method === 'POST' &&
       isBatchableAnalyticsUrl(e.url),
   );
@@ -2082,7 +2082,7 @@ async function replayQueueImpl() {
   let refreshReason = null; // 'auth' | 'network' | null
   const anyNeedsCsrf = entries.some(
     (e) =>
-      e.status !== 'failed' &&
+      e.status !== 'failed' && e.status !== 'cancelled' &&
       (e.needsCsrf || e.needsAuth || isUnsafeMethod(e.method)),
   );
   if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
@@ -2113,7 +2113,7 @@ async function replayQueueImpl() {
   });
 
   for (const entry of entries) {
-    if (entry.status === 'failed') continue;
+    if (entry.status === 'failed' || entry.status === 'cancelled') continue;
 
     const now = Date.now();
     const lastAttemptAt =
@@ -2641,6 +2641,55 @@ self.addEventListener('message', (event) => {
         await new Promise((r) => setTimeout(r, 400));
         await replayQueue();
         await notifyClients({ type: 'QUEUE_REPLAYED' });
+      })(),
+    );
+  }
+
+  // إلغاء الإرسال بدون حذف الحمولة: تبقى محليًا بحالة cancelled،
+  // فلا تعود للمزامنة تلقائيًا ولا يفقد المستخدم محتواه. يمكنه لاحقًا
+  // إعادة المحاولة أو حذفها صراحة.
+  if (type === 'CANCEL_QUEUE_ITEM' && event.data.id != null) {
+    event.waitUntil(
+      (async () => {
+        const entry = await getQueuedEntry(event.data.id);
+        if (!entry) return;
+        await markQueuedEntry(event.data.id, { status: 'cancelled' });
+        await notifyClients({
+          type: 'QUEUE_ITEM_CANCELLED',
+          id: event.data.id,
+          operationId: entry.operationId || null,
+        });
+      })(),
+    );
+  }
+
+  if (type === 'RETRY_QUEUE_OPERATION' && typeof event.data.operationId === 'string') {
+    event.waitUntil(
+      (async () => {
+        const all = await getAllQueuedEntries();
+        const matches = all.filter((entry) => entry.operationId === event.data.operationId);
+        for (const entry of matches) {
+          await markQueuedEntry(entry.id, { status: 'pending', lastError: undefined });
+        }
+        event.ports?.[0]?.postMessage({ found: matches.length > 0 });
+        if (matches.length > 0) {
+          await replayQueue();
+          await notifyClients({ type: 'QUEUE_REPLAYED' });
+        }
+      })(),
+    );
+  }
+
+  if (type === 'CANCEL_QUEUE_OPERATION' && typeof event.data.operationId === 'string') {
+    event.waitUntil(
+      (async () => {
+        const all = await getAllQueuedEntries();
+        const matches = all.filter((entry) => entry.operationId === event.data.operationId);
+        for (const entry of matches) {
+          await markQueuedEntry(entry.id, { status: 'cancelled' });
+          await notifyClients({ type: 'QUEUE_ITEM_CANCELLED', id: entry.id, operationId: entry.operationId || null });
+        }
+        event.ports?.[0]?.postMessage({ found: matches.length > 0 });
       })(),
     );
   }

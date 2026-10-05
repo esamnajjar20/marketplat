@@ -58,16 +58,14 @@ describe('offlineWarmingScheduler', () => {
     expect(runWarmingPipeline).toHaveBeenCalledTimes(1);
     expect(runWarmingPipeline).toHaveBeenCalledWith({
       authenticated: true,
-      skipQueueWait: false,
     });
   });
 
-  it('a tick alone may skip the queue wait; merged with another trigger it may not', async () => {
+  it('a tick remains queue-first', async () => {
     scheduleWarming('tick', { authenticated: true });
     await vi.advanceTimersByTimeAsync(10);
     expect(runWarmingPipeline).toHaveBeenLastCalledWith({
       authenticated: true,
-      skipQueueWait: true,
     });
 
     getLastPipelineRun.mockReturnValue({ startedAt: 0, authenticated: true });
@@ -76,7 +74,6 @@ describe('offlineWarmingScheduler', () => {
     await vi.advanceTimersByTimeAsync(TRIGGER_DELAY_MS.visible + 10);
     expect(runWarmingPipeline).toHaveBeenLastCalledWith({
       authenticated: true,
-      skipQueueWait: false,
     });
   });
 

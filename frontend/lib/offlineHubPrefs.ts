@@ -1,12 +1,9 @@
 /**
  * تفضيلات مركز الأوفلاين (محلية على الجهاز).
  * - wifiOnlySync: لا تُزامَن تلقائياً على بيانات الجوال
- * - onboardingDismissed: إخفاء تلميح أول زيارة
  */
 
 const WIFI_KEY = 'offline-hub:wifi-only-sync';
-const ONBOARD_KEY = 'offline-hub:onboarding-dismissed-v1';
-
 export function getWifiOnlySync(): boolean {
   try {
     const v = localStorage.getItem(WIFI_KEY);
@@ -23,23 +20,6 @@ export function setWifiOnlySync(enabled: boolean): void {
     window.dispatchEvent(new CustomEvent('offline-hub:prefs-changed'));
   } catch {
     /* private mode */
-  }
-}
-
-export function isOfflineHubOnboardingDismissed(): boolean {
-  try {
-    return localStorage.getItem(ONBOARD_KEY) === '1';
-  } catch {
-    return true;
-  }
-}
-
-export function dismissOfflineHubOnboarding(): void {
-  try {
-    localStorage.setItem(ONBOARD_KEY, '1');
-    window.dispatchEvent(new CustomEvent('offline-hub:prefs-changed'));
-  } catch {
-    /* ignore */
   }
 }
 

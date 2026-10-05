@@ -46,6 +46,7 @@ const AVAIL_LABELS: Record<ProductAvailability, string> = {
   OUT_OF_STOCK: 'غير متوفر',
 };
 
+import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 export function MyProductsList() {
   const router = useRouter();
   const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStore);
@@ -73,6 +74,8 @@ export function MyProductsList() {
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
 
   const items = data?.items ?? [];
+  const showPendingOffline = page === 1 && !status && !(sp.get('q') ?? '').trim();
+
   const totalPages = data?.meta?.totalPages ?? 1;
 
   const isOutOfRange = useOutOfRangeRedirect({
@@ -178,6 +181,7 @@ export function MyProductsList() {
 
   return (
     <div className="space-y-4">
+      {showPendingOffline && <PendingOfflinePublishCard kind="product" />}
       <form onSubmit={submitSearch} className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

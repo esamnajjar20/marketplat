@@ -19,18 +19,12 @@ interface AuthErrorProps {
  * This boundary keeps the header in place and offers a way back.
  *
  * Same policy as the sibling boundaries: error.message is never
- * rendered (SEC-06), only error.digest as a support reference; offline
- * chunk failures go to /offline; online chunk failures get one forced
- * reload via handleChunkLoadError.
+ * rendered (SEC-06), only error.digest as a support reference. Offline
+ * failures stay on this local error surface instead of forcibly navigating
+ * the user away from the page they were using.
  */
 export default function AuthError({ error, reset }: AuthErrorProps) {
   const [recovering, setRecovering] = useState(false);
-
-  useEffect(() => {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      window.location.replace('/offline');
-    }
-  }, []);
 
   useEffect(() => {
     if (handleChunkLoadError(error)) {

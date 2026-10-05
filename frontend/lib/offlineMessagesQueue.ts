@@ -4,7 +4,7 @@ import { getActiveSW } from '@/lib/swReady';
  * نفس طابور IndexedDB العام الذي يديره public/sw.js (نفس القاعدة/المخزن
  * الذي يقرأ منه lib/offlineQueue.ts للعدّاد العام — هذا الملف يقرأ نفس
  * البيانات لكن يُخرجها كرسائل معروضة، مصفّاة على محادثة واحدة، مع تمييز
- * pending/failed بدل مجرد عدد).
+ * pending/failed/cancelled بدل مجرد عدد).
  *
  * DB_NAME/DB_VERSION/STORE_NAME يجب أن تبقى مطابقة تمامًا لـ sw.js
  * و lib/offlineQueue.ts.
@@ -19,15 +19,17 @@ const DB_NAME = 'market-offline-queue';
 const DB_VERSION = 1;
 const STORE_NAME = 'requests';
 
-export type QueuedMessageStatus = 'pending' | 'failed';
+export type QueuedMessageStatus = 'pending' | 'failed' | 'cancelled';
 
 export interface QueuedMessageEntry {
   /** معرّف عنصر الطابور بحد ذاته (id بـ IndexedDB) — يُستخدم لإعادة
    * المحاولة/الحذف عبر postMessage للـ SW. */
   queueId: number;
   body: string;
-  /** true when the queued request is POST .../messages/image (FormData). */
+  /** true when the queued request is a multipart image message. */
   hasImage?: boolean;
+  /** true when the queued request is a multipart audio message. */
+  hasAudio?: boolean;
   queuedAt: number;
   status: QueuedMessageStatus;
   lastError?: { status: number; message?: string };
@@ -79,7 +81,7 @@ function isSendMessageUrl(url: string, conversationId: string): boolean {
     const { pathname } = new URL(url);
     const base = `/conversations/${conversationId}/messages`;
     // FIX CHAT-OFFLINE-IMG-QUEUE-01: include image uploads, not only JSON text.
-    return pathname.endsWith(base) || pathname.endsWith(`${base}/image`);
+    return pathname.endsWith(base) || pathname.endsWith(`${base}/image`) || pathname.endsWith(`${base}/audio`);
   } catch {
     return false;
   }
@@ -89,6 +91,15 @@ function isSendMessageImageUrl(url: string, conversationId: string): boolean {
   try {
     const { pathname } = new URL(url);
     return pathname.endsWith(`/conversations/${conversationId}/messages/image`);
+  } catch {
+    return false;
+  }
+}
+
+function isSendMessageAudioUrl(url: string, conversationId: string): boolean {
+  try {
+    const { pathname } = new URL(url);
+    return pathname.endsWith(`/conversations/${conversationId}/messages/audio`);
   } catch {
     return false;
   }
@@ -118,21 +129,17 @@ export async function listQueuedMessages(conversationId: string): Promise<Queued
 
   const parsed = await Promise.all(
     relevant.map(async (entry): Promise<QueuedMessageEntry | null> => {
-      const status: QueuedMessageStatus = entry.status === 'failed' ? 'failed' : 'pending';
+      const status: QueuedMessageStatus = entry.status === 'failed' ? 'failed' : entry.status === 'cancelled' ? 'cancelled' : 'pending';
       const isImage = isSendMessageImageUrl(entry.url, conversationId);
+      const isAudio = isSendMessageAudioUrl(entry.url, conversationId);
 
       // Image uploads are multipart FormData — cannot JSON.parse the blob.
       // Still surface a pending/failed bubble so the user sees the send.
-      if (isImage) {
-        let caption = '📷';
+      if (isImage || isAudio) {
+        let caption = isAudio ? '🎤 رسالة صوتية' : '📷';
         if (entry.body) {
           try {
             const rawText = await entry.body.text();
-            // TODO CHAT-MULTIPART-CAPTION-TODO: regex is fragile (breaks on
-            // caption containing "\r\n--", unusual encodings, extra headers).
-            // Proper fix: persist caption on QueuedMessageEntry at enqueue time
-            // in MessageInput, then read it here directly. Deferred — needs
-            // coordinated change across MessageInput, this file, and sw.js.
             const m = rawText.match(/name="body"[\r\n]+([\s\S]*?)(?=\r?\n--)/);
             if (m && m[1] && m[1].trim()) caption = m[1].trim().slice(0, 2000);
           } catch {
@@ -141,8 +148,9 @@ export async function listQueuedMessages(conversationId: string): Promise<Queued
         }
         return {
           queueId: entry.id,
-          body: caption || '📷',
-          hasImage: true,
+          body: caption,
+          hasImage: isImage,
+          hasAudio: isAudio,
           queuedAt: entry.queuedAt,
           status,
           lastError: entry.lastError,
@@ -186,6 +194,14 @@ export async function retryQueuedMessage(queueId: number): Promise<void> {
   registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id: queueId });
 }
 
+/** يلغي الإرسال مع إبقاء الحمولة محليًا كرسالة ملغاة قابلة لإعادة المحاولة لاحقًا. */
+export async function cancelQueuedMessage(queueId: number): Promise<void> {
+  if (!Number.isInteger(queueId) || queueId <= 0) return;
+  if (!('serviceWorker' in navigator)) return;
+  const registration = await getActiveSW();
+  registration?.active?.postMessage({ type: 'CANCEL_QUEUE_ITEM', id: queueId });
+}
+
 /** يحذف عنصرًا فاشلاً نهائيًا من الطابور دون إعادة محاولة (زر "حذف"). */
 export async function discardQueuedMessage(queueId: number): Promise<void> {
   // FIX MSG-QUEUE-ID-VALIDATION
@@ -205,4 +221,5 @@ export const QUEUE_MESSAGE_EVENT_TYPES = [
   'QUEUE_ITEM_SENT',
   'QUEUE_ITEM_FAILED',
   'QUEUE_ITEM_DISCARDED',
+  'QUEUE_ITEM_CANCELLED',
 ] as const;

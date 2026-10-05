@@ -33,12 +33,12 @@ export function toastOfflineSaved(opts: {
 }): void {
   const isEdit = opts.mode === 'edit';
   const title = isEdit
-    ? `تعديل ${opts.entity} محفوظ محليًا`
-    : `${opts.entity} محفوظ محليًا — لم يُنشر بعد`;
+    ? `تم تطبيق تعديل ${opts.entity} على جهازك`
+    : `تم إنشاء ${opts.entity} على جهازك`;
 
   const description = opts.queuedBySw
-    ? 'الطلب في طابور الإرسال وسيُرفع تلقائيًا عند استقرار الاتصال. تابع الحالة من مركز المزامنة.'
-    : 'سيُرفع تلقائيًا عند عودة الإنترنت (مع الصور إن وُجدت). يمكنك المتابعة أو إعادة المحاولة من مركز المزامنة.';
+    ? 'سترى العنصر الآن ضمن قائمتك. سيُرفع تلقائيًا عند استقرار الاتصال.'
+    : 'العنصر ظاهر لك الآن على جهازك، وسيُنشر تلقائيًا عند عودة الاتصال. يمكنك متابعة حالته من مركز المزامنة.';
 
   toast.message(title, {
     description,
@@ -52,15 +52,17 @@ export function toastOfflineSaved(opts: {
  */
 export function toastSoftNetworkDraft(opts: {
   mode?: 'create' | 'edit';
+  entity?: string;
 }): void {
+  const entity = opts.entity ?? 'العنصر';
   const title =
     opts.mode === 'edit'
-      ? 'تعذّر حفظ التعديل — حُفظت نسخة محلية'
-      : 'تعذّر الإرسال — حُفظت نسخة محلية';
+      ? 'تم تطبيق التعديل على جهازك'
+      : `تم إنشاء ${entity} على جهازك`;
 
   toast.message(title, {
     description:
-      'ليس بالضرورة بسبب انقطاع الإنترنت. أعد المحاولة لاحقًا أو افتح مركز المزامنة للمتابعة.',
+      'العنصر ظاهر لك الآن على جهازك، وسيتابع الإرسال تلقائيًا إذا عاد الاتصال.',
     duration: 9000,
     action: SYNC_ACTION,
   });

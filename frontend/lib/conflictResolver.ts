@@ -107,6 +107,7 @@ export function initConflictResolver(): void {
 
 export type ConflictKind =
   | 'version_conflict'
+  | 'temporary_conflict'
   | 'validation'
   | 'forbidden'
   | 'not_found'
@@ -126,6 +127,7 @@ export interface ConflictInfo {
 
 const TERMINAL_KINDS: ReadonlySet<ConflictKind> = new Set([
   'version_conflict',
+  'temporary_conflict',
   'validation',
   'forbidden',
   'not_found',
@@ -142,7 +144,9 @@ export function classifyHttpConflict(
 
   let kind: ConflictKind;
   if (s === 0) kind = 'network';
-  else if (s === 409 || s === 412) kind = 'version_conflict';
+  else if (s === 412) kind = 'version_conflict';
+  else if (s === 409 && /currently being updated|already in progress|try again in a moment|try again shortly|قيد التحديث|قيد المعالجة|حاول مرة أخرى بعد قليل|حاول لاحقًا|جار(?:ي|ٍ) تحديث|جار(?:ي|ٍ) معالجة/i.test(msg)) kind = 'temporary_conflict';
+  else if (s === 409) kind = 'other_client';
   else if (s === 422) kind = 'validation';
   else if (s === 403) kind = 'forbidden';
   else if (s === 404) kind = 'not_found';
@@ -153,7 +157,8 @@ export function classifyHttpConflict(
   else kind = 'network';
 
   const defaults: Record<ConflictKind, string> = {
-    version_conflict: 'تم تعديل هذا العنصر من مكان آخر — حدّث ثم أعد المحاولة',
+    version_conflict: 'لم يُطبَّق التغيير لأن النسخة التي يعتمد عليها الطلب لم تعد مطابقة لنسخة السيرفر',
+    temporary_conflict: 'العملية قيد التنفيذ على السيرفر الآن — انتظر قليلًا ثم أعد المحاولة',
     validation: 'البيانات المرسلة غير مقبولة — راجع الحقول',
     forbidden: 'ليس لديك صلاحية لهذا الإجراء',
     not_found: 'العنصر لم يعد موجودًا',
@@ -166,9 +171,11 @@ export function classifyHttpConflict(
 
   let primaryAction: ConflictInfo['primaryAction'] = 'retry';
   if (kind === 'validation') primaryAction = 'edit';
+  else if (kind === 'temporary_conflict') primaryAction = 'retry';
   else if (kind === 'forbidden') primaryAction = 'none';
   else if (kind === 'not_found' || kind === 'gone') primaryAction = 'discard';
   else if (kind === 'version_conflict') primaryAction = 'edit';
+  else if (kind === 'other_client') primaryAction = 'edit';
   else if (kind === 'network' || kind === 'server' || kind === 'rate_limited') {
     primaryAction = 'retry';
   }

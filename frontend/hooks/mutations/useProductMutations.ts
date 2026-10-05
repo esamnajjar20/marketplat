@@ -110,6 +110,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
               mode: 'create',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            router.push(`${ROUTES.myStore}?tab=products`);
           } else {
             toastSoftNetworkDraft({ mode: 'create' });
           }
@@ -184,6 +185,7 @@ export function useUpdateProduct(productId: string) {
               mode: 'edit',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            router.push(`${ROUTES.myStore}?tab=products`);
           } else {
             toastSoftNetworkDraft({ mode: 'edit' });
           }

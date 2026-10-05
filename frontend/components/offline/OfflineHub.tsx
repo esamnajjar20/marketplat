@@ -3,7 +3,7 @@
 /**
  * OFFLINE-HUB-01 — مركز الأوفلاين: one page for everything offline.
  *
- * Tabs: محفوظات · مسودات · مزامنة · مساحة · جاهزية (تسخين).
+ * Tabs: مساحة · محفوظات · دفع · جاهزية · مزامنة · مسودات.
  *
  * Deliberate design choices:
  *  - Tab bodies are STATICALLY imported, never next/dynamic (SW warming).
@@ -11,7 +11,7 @@
  *  - Signed-out visitors only get GUEST_OFFLINE_TABS.
  *
  * UX phase 1+2:
- *  - Status Hero (اتصال + أعداد + CTA سياقي)
+ *  - حالة الاتصال والطابور تظهر فقط داخل تبويب المزامنة
  *  - Badges على التبويبات
  *  - تسميات أوضح للمستخدم
  *  - تبويبات sticky بارتفاع لمس أفضل
@@ -40,8 +40,6 @@ import { requestQueueReplay } from '@/lib/offlineQueue';
 import {
   getWifiOnlySync,
   setWifiOnlySync,
-  isOfflineHubOnboardingDismissed,
-  dismissOfflineHubOnboarding,
   shouldAutoSyncNow,
   describeNetworkForSync,
 } from '@/lib/offlineHubPrefs';
@@ -74,7 +72,7 @@ const TAB_META: Record<
 > = {
   saved: { label: 'محفوظاتي', shortLabel: 'محفوظات', Icon: Download },
   drafts: { label: 'مسودات', shortLabel: 'مسودات', Icon: FileText },
-  sync: { label: 'بانتظار الإرسال', shortLabel: 'مزامنة', Icon: RefreshCw },
+  sync: { label: 'المزامنة', shortLabel: 'مزامنة', Icon: RefreshCw },
   storage: { label: 'المساحة', shortLabel: 'مساحة', Icon: HardDrive },
   payments: { label: 'الدفع والبطاقات', shortLabel: 'دفع', Icon: CreditCard },
   warming: { label: 'جاهزية بدون نت', shortLabel: 'جاهزية', Icon: Flame },
@@ -89,20 +87,36 @@ function Intro({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function TabBody({ tab }: { tab: OfflineTab }) {
+type SyncTabProps = {
+  isSignedIn: boolean;
+  isOnline: boolean;
+  pendingQueue: number;
+  failedQueue: number;
+  draftsCount: number;
+  wifiOnly: boolean;
+  networkLabel: string;
+  activity: OfflineActivityEntry[];
+  retrying: boolean;
+  onWifiOnlyChange: (value: boolean) => void;
+  onGoDrafts: () => void;
+  onRetryAll: () => void;
+  onClearActivity: () => void;
+};
+
+function TabBody({ tab, syncProps }: { tab: OfflineTab; syncProps: SyncTabProps }) {
   switch (tab) {
     case 'saved':
       return (
         <div className="space-y-8">
           <section>
-            <Intro title="إعلانات محفوظة على الجهاز">
-              تفتح كاملة (صور وتفاصيل) حتى بدون إنترنت. احفظ أي إعلان من صفحته بزر الحفظ.
+            <Intro title="المحفوظات المتاحة دون اتصال">
+              تشمل الإعلانات والمنتجات والخدمات والمتاجر والبائعين الذين حفظتهم يدويًا لهذا الجهاز.
             </Intro>
             <SavedOfflineAdsPageClient />
           </section>
           <section>
-            <Intro title="تنزيلات الكتالوجات">
-              كتالوجات متاجر حمّلتها للتصفح دون اتصال. أعد التحميل من صفحة المتجر عند الحاجة.
+            <Intro title="كتالوجات المتاجر المحمّلة">
+              هذه تنزيلات مستقلة عن المحفوظات اليدوية، وتبقى متاحة للتصفح دون اتصال.
             </Intro>
             <DownloadsPageClient />
           </section>
@@ -117,8 +131,25 @@ function TabBody({ tab }: { tab: OfflineTab }) {
           <DraftsCenterClient />
         </section>
       );
+
     case 'sync':
-      return <SyncCenterClient />;
+      return (
+        <SyncTabBody
+          isSignedIn={syncProps.isSignedIn}
+          isOnline={syncProps.isOnline}
+          pendingQueue={syncProps.pendingQueue}
+          failedQueue={syncProps.failedQueue}
+          draftsCount={syncProps.draftsCount}
+          wifiOnly={syncProps.wifiOnly}
+          networkLabel={syncProps.networkLabel}
+          activity={syncProps.activity}
+          retrying={syncProps.retrying}
+          onWifiOnlyChange={syncProps.onWifiOnlyChange}
+          onGoDrafts={syncProps.onGoDrafts}
+          onRetryAll={syncProps.onRetryAll}
+          onClearActivity={syncProps.onClearActivity}
+        />
+      );
     case 'payments':
       return (
         <section>
@@ -152,26 +183,6 @@ function TabBody({ tab }: { tab: OfflineTab }) {
   }
 }
 
-
-function OnboardingTip({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div
-      className="mb-4 rounded-2xl border border-primary/25 bg-primary/[0.06] p-4"
-      role="note"
-    >
-      <p className="text-sm font-semibold">مرحباً في مركز الأوفلاين</p>
-      <ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-relaxed text-muted-foreground">
-        <li>احفظ إعلاناتاً لفتحها بدون نت من «محفوظاتي».</li>
-        <li>المسودات وما لم يُرسل يظهر في «مسودات» و«بانتظار الإرسال».</li>
-        <li>من «جاهزية بدون نت» جهّز الصفحات مسبقاً حسب استهلاك بياناتك.</li>
-        <li>من «الدفع والبطاقات» أدِر بيانات الدفع المحفوظة على هذا الجهاز فقط.</li>
-      </ul>
-      <Button type="button" size="sm" className="mt-3 min-h-10" onClick={onDismiss}>
-        حسناً، فهمت
-      </Button>
-    </div>
-  );
-}
 
 function WifiOnlyToggle({
   enabled,
@@ -252,7 +263,6 @@ function StatusHero({
   failedQueue,
   draftsCount,
   isSignedIn,
-  onGoSync,
   onGoDrafts,
   onRetryAll,
   retrying,
@@ -262,7 +272,6 @@ function StatusHero({
   failedQueue: number;
   draftsCount: number;
   isSignedIn: boolean;
-  onGoSync: () => void;
   onGoDrafts: () => void;
   onRetryAll: () => void;
   retrying: boolean;
@@ -346,23 +355,13 @@ function StatusHero({
         </div>
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[10rem]">
-          {isOnline && (pendingQueue > 0 || failedQueue > 0) && (
+          {isOnline && pendingQueue > 0 && (
             <Button
               className="min-h-11 w-full"
               onClick={onRetryAll}
               disabled={retrying}
             >
               {retrying ? 'جاري الإرسال…' : 'إرسال المعلّق الآن'}
-            </Button>
-          )}
-          {isOnline && failedQueue > 0 && (
-            <Button variant="outline" className="min-h-11 w-full" onClick={onGoSync}>
-              عرض التفاصيل
-            </Button>
-          )}
-          {!isOnline && (pendingQueue > 0 || failedQueue > 0) && (
-            <Button variant="outline" className="min-h-11 w-full" onClick={onGoSync}>
-              عرض قائمة الانتظار
             </Button>
           )}
           {isOnline && failedQueue === 0 && pendingQueue === 0 && draftsCount > 0 && (
@@ -375,6 +374,47 @@ function StatusHero({
     </div>
   );
 }
+
+function SyncTabBody({
+  isSignedIn,
+  isOnline,
+  pendingQueue,
+  failedQueue,
+  draftsCount,
+  wifiOnly,
+  networkLabel,
+  activity,
+  retrying,
+  onWifiOnlyChange,
+  onGoDrafts,
+  onRetryAll,
+  onClearActivity,
+}: SyncTabProps) {
+  return (
+    <div className="space-y-5">
+      {isSignedIn && (
+        <WifiOnlyToggle
+          enabled={wifiOnly}
+          networkLabel={networkLabel}
+          onChange={onWifiOnlyChange}
+        />
+      )}
+      <StatusHero
+        isOnline={isOnline}
+        pendingQueue={isSignedIn ? pendingQueue : 0}
+        failedQueue={isSignedIn ? failedQueue : 0}
+        draftsCount={isSignedIn ? draftsCount : 0}
+        isSignedIn={isSignedIn}
+        onGoDrafts={onGoDrafts}
+        onRetryAll={onRetryAll}
+        retrying={retrying}
+      />
+      <ActivityPanel items={activity} onClear={onClearActivity} />
+      <SyncCenterClient />
+    </div>
+  );
+}
+
 
 function TabBadge({ count, tone = 'default' }: { count: number; tone?: 'default' | 'danger' }) {
   if (count <= 0) return null;
@@ -403,7 +443,6 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
   const [failedQueue, setFailedQueue] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [wifiOnly, setWifiOnly] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [activity, setActivity] = useState<OfflineActivityEntry[]>([]);
   const [networkLabel, setNetworkLabel] = useState('—');
 
@@ -415,15 +454,12 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
 
   useEffect(() => {
     setWifiOnly(getWifiOnlySync());
-    setShowOnboarding(!isOfflineHubOnboardingDismissed());
     setActivity(listOfflineActivity(8));
     setNetworkLabel(describeNetworkForSync());
-    logOfflineActivity('hub_open', 'تم فتح مركز الأوفلاين');
     // analytics soft (optional)
     function onPrefs() {
       setWifiOnly(getWifiOnlySync());
-      setShowOnboarding(!isOfflineHubOnboardingDismissed());
-      setNetworkLabel(describeNetworkForSync());
+        setNetworkLabel(describeNetworkForSync());
     }
     function onActivity() {
       setActivity(listOfflineActivity(8));
@@ -466,7 +502,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
 
   const tabs = visibleOfflineTabs(isSignedIn);
   const active: OfflineTab =
-    tabs.includes(requested) || !isHydrated ? requested : DEFAULT_OFFLINE_TAB;
+    tabs.includes(requested) || !isHydrated ? requested : (tabs[0] ?? DEFAULT_OFFLINE_TAB);
 
   const select = useCallback((tab: OfflineTab) => {
     setRequested(tab);
@@ -517,7 +553,6 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
     try {
       logOfflineActivity('queue_retry', 'طلب إعادة إرسال المعلّق يدوياً');
       await requestQueueReplay();
-      logOfflineActivity('sync_ok', 'اكتملت محاولة إعادة الإرسال');
     } catch {
       logOfflineActivity('sync_fail', 'فشلت إعادة الإرسال');
     } finally {
@@ -537,53 +572,6 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
           محفوظاتك، مسوداتك، المزامنة، التخزين، والدفع والبطاقات المحلية — في مركز واحد واضح.
         </p>
       </header>
-
-      {showOnboarding && (
-        <OnboardingTip
-          onDismiss={() => {
-            dismissOfflineHubOnboarding();
-            setShowOnboarding(false);
-          }}
-        />
-      )}
-
-      {isSignedIn && (
-        <WifiOnlyToggle
-          enabled={wifiOnly}
-          networkLabel={networkLabel}
-          onChange={(v) => {
-            setWifiOnlySync(v);
-            setWifiOnly(v);
-            if (v && !shouldAutoSyncNow()) {
-              logOfflineActivity(
-                'sync_skipped_wifi',
-                'المزامنة التلقائية مؤجلة حتى Wi‑Fi (الإعداد مفعّل)',
-              );
-              setActivity(listOfflineActivity(8));
-            }
-          }}
-        />
-      )}
-
-      <StatusHero
-        isOnline={isOnline}
-        pendingQueue={isSignedIn ? pendingQueue : 0}
-        failedQueue={isSignedIn ? failedQueue : 0}
-        draftsCount={isSignedIn ? draftsCount : 0}
-        isSignedIn={isSignedIn}
-        onGoSync={() => select('sync')}
-        onGoDrafts={() => select('drafts')}
-        onRetryAll={() => void onRetryAll()}
-        retrying={retrying}
-      />
-
-      <ActivityPanel
-        items={activity}
-        onClear={() => {
-          clearOfflineActivity();
-          setActivity([]);
-        }}
-      />
 
       <div
         role="tablist"
@@ -638,7 +626,37 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
         aria-labelledby={`offline-tab-${active}`}
         onClickCapture={onPanelClickCapture}
       >
-        <TabBody tab={active} />
+        <TabBody
+          tab={active}
+          syncProps={{
+            isSignedIn,
+            isOnline,
+            pendingQueue,
+            failedQueue,
+            draftsCount,
+            wifiOnly,
+            networkLabel,
+            activity,
+            retrying,
+            onWifiOnlyChange: (v) => {
+              setWifiOnlySync(v);
+              setWifiOnly(v);
+              if (v && !shouldAutoSyncNow()) {
+                logOfflineActivity(
+                  'sync_skipped_wifi',
+                  'المزامنة التلقائية مؤجلة حتى Wi‑Fi (الإعداد مفعّل)',
+                );
+                setActivity(listOfflineActivity(8));
+              }
+            },
+            onGoDrafts: () => select('drafts'),
+            onRetryAll: () => void onRetryAll(),
+            onClearActivity: () => {
+              clearOfflineActivity();
+              setActivity([]);
+            },
+          }}
+        />
       </div>
     </section>
   );

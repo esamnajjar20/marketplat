@@ -43,6 +43,7 @@ const STATUS_LABELS: Record<ServiceListingStatus, string> = {
   DELETED: 'محذوفة',
 };
 
+import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 export function MyServiceListingsList() {
   const router = useRouter();
   const { data: provider, isSuccess: providerOk } = useMyServiceProvider();
@@ -106,6 +107,8 @@ export function MyServiceListingsList() {
   if (!hasProvider) return null;
 
   const items = data?.items ?? [];
+  const showPendingOffline = page === 1 && !status && !(sp.get('q') ?? '').trim();
+
   const totalPages = data?.meta?.totalPages ?? 1;
 
   function pushParams(mutator: (params: URLSearchParams) => void) {
@@ -209,6 +212,7 @@ export function MyServiceListingsList() {
 
   return (
     <div className="space-y-4">
+      {showPendingOffline && <PendingOfflinePublishCard kind="service" />}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-sm font-semibold text-muted-foreground">قائمة الخدمات</h2>
         <Link href={ROUTES.myServiceCreate}>

@@ -159,7 +159,7 @@ export async function readSnapshotForCacheVersion(
     // pass sees 'warmed 5 minutes ago' (from the pre-bump pass), hits
     // the throttle, and returns without re-filling the fresh, empty
     // cache. Symptom: every page hits the /offline fallback for hours
-    // after each deploy until the 6h timer eventually fires.
+    // after each deploy until a later freshness trigger eventually fires.
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         // Actual key shapes (see offlineRouteShells.ts's own constants):

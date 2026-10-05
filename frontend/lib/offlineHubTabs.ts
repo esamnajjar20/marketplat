@@ -1,16 +1,15 @@
 /**
  * OFFLINE-HUB-01 — tab model for the merged "مركز الأوفلاين" page (/offline).
  *
- * The hub replaces seven pages (/saved-ads, /downloads, /settings/drafts,
- * /settings/sync, /settings/storage, /settings/offline and the old /offline
- * fallback) with one route so the service worker only has to keep ONE
- * document + one chunk set warm for the whole offline surface.
+ * The hub replaces the separate offline management pages with one route so
+ * the service worker only has to keep ONE document + one chunk set warm for
+ * the whole offline surface.
  *
  * Pure module (no React, no browser globals) so it is unit-testable and safe
  * to import from anywhere.
  */
 
-export const OFFLINE_TABS = ['saved', 'drafts', 'sync', 'payments', 'storage', 'warming'] as const;
+export const OFFLINE_TABS = ['storage', 'saved', 'payments', 'warming', 'sync', 'drafts'] as const;
 export type OfflineTab = (typeof OFFLINE_TABS)[number];
 
 /** Tabs a signed-out visitor may see. 'warming' only touches localStorage /
@@ -18,7 +17,8 @@ export type OfflineTab = (typeof OFFLINE_TABS)[number];
  * per-user drafts / queue / storage stats and need a signed-in user. */
 export const GUEST_OFFLINE_TABS: readonly OfflineTab[] = ['saved', 'warming'];
 
-export const DEFAULT_OFFLINE_TAB: OfflineTab = 'saved';
+// Authenticated users start with storage; guests fall back to their first visible tab.
+export const DEFAULT_OFFLINE_TAB: OfflineTab = 'storage';
 
 /** Old URLs → tab. Used when the service worker serves the /offline fallback
  * for a request whose address bar still shows the legacy path. */

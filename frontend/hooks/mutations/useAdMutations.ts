@@ -157,6 +157,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               mode: 'create',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            router.push(ROUTES.myAds);
           } else {
             toastSoftNetworkDraft({ mode: 'create' });
           }
@@ -226,6 +227,7 @@ export function useUpdateAd(adId: string) {
               mode: 'edit',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            router.push(ROUTES.myAds);
           } else {
             toastSoftNetworkDraft({ mode: 'edit' });
           }

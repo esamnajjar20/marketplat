@@ -55,16 +55,20 @@ export function isQueueReplayInFlight(): boolean {
   return queueReplayInFlight;
 }
 
-function waitForQueueReplayIdle(timeoutMs = 45_000): Promise<void> {
-  if (!queueReplayInFlight) return Promise.resolve();
+function waitForQueueReplayIdle(timeoutMs = 90_000): Promise<boolean> {
+  if (!queueReplayInFlight) return Promise.resolve(true);
   return new Promise((resolve) => {
     const timer = window.setTimeout(() => {
       cleanup();
-      resolve();
+      // Never start background warming alongside a still-running queue drain.
+      // On weak links the queue can legitimately exceed the old 45s timeout;
+      // returning false lets the scheduler try again later without stealing
+      // bandwidth from the user's pending mutations.
+      resolve(false);
     }, timeoutMs);
     const onIdle = () => {
       cleanup();
-      resolve();
+      resolve(true);
     };
     const cleanup = () => {
       window.clearTimeout(timer);
@@ -77,8 +81,6 @@ function waitForQueueReplayIdle(timeoutMs = 45_000): Promise<void> {
 export type WarmingPipelineOptions = {
   /** Include personal shells + user-data endpoints. */
   authenticated?: boolean;
-  /** Skip waiting for queue (e.g. periodic background tick). */
-  skipQueueWait?: boolean;
   /** MANUAL-WARM-FORCE-01: user-triggered run — skip the throttle and
    *  freshness checks so the button always produces visible work. */
   force?: boolean;
@@ -96,7 +98,8 @@ export async function runWarmingPipeline(
   options: WarmingPipelineOptions = {},
 ): Promise<{ ran: boolean }> {
   if (typeof window === 'undefined') return { ran: false };
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { ran: false };
+  const online = navigator.onLine;
+  if (!online) return { ran: false };
   if (pipelineInFlight) {
     // WARM-PIPELINE-QUEUE-01: see the flag's doc comment. Only a
     // *later* authenticated run is worth remembering — a plain repeat
@@ -106,14 +109,17 @@ export async function runWarmingPipeline(
   }
 
   pipelineInFlight = true;
-  lastPipelineStartedAt = Date.now();
-  if (options.authenticated) lastPipelineAuthenticated = true;
   try {
-    if (!options.skipQueueWait) {
-      await waitForQueueReplayIdle();
-    }
+    const queueIdle = await waitForQueueReplayIdle();
+    if (!queueIdle) return { ran: false };
+
+    // Count a run only after the queue gate has opened. This prevents a
+    // timed-out queue wait from consuming the scheduler's rate-limit window.
+    lastPipelineStartedAt = Date.now();
+    if (options.authenticated) lastPipelineAuthenticated = true;
 
     // Phase 2 — core JSON bundle (categories, featured listings).
+    if (!online) return { ran: false };
     try {
       // FIX WARM-FORCE-CORE-01: `force` was passed only to the shell
       // phases, so the manual "warm now" button never refreshed the core
@@ -124,6 +130,7 @@ export async function runWarmingPipeline(
     }
 
     // Phase 3 — public shells (marketplace browse paths).
+    if (!online) return { ran: true };
     try {
       await warmRouteShellsAtomic(options.force === true);
     } catch (err) {
@@ -131,6 +138,7 @@ export async function runWarmingPipeline(
     }
 
     if (options.authenticated) {
+      if (!online) return { ran: true };
       // Phase 4 — personal page shells.
       try {
         await warmPersonalShellsAtomic(options.force === true);
@@ -149,10 +157,10 @@ export async function runWarmingPipeline(
     // WARM-PIPELINE-QUEUE-01: if an authenticated run arrived while
     // this one was in flight, chain it now. Once so: the first pass
     // already warmed core + public, this one adds personal + user
-    // data. skipQueueWait avoids a redundant 45s wait.
+    // data. The queued mutation remains the higher-priority workload.
     if (pendingAuthenticatedRerun) {
       pendingAuthenticatedRerun = false;
-      void runWarmingPipeline({ authenticated: true, skipQueueWait: true });
+      void runWarmingPipeline({ authenticated: true });
     }
   }
   return { ran: true };

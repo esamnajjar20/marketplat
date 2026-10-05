@@ -111,6 +111,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
               mode: 'create',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            router.push(ROUTES.myServices);
           } else {
             toastSoftNetworkDraft({ mode: 'create' });
           }
@@ -185,6 +186,7 @@ export function useUpdateServiceListing(listingId: string) {
               mode: 'edit',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            router.push(ROUTES.myServices);
           } else {
             toastSoftNetworkDraft({ mode: 'edit' });
           }

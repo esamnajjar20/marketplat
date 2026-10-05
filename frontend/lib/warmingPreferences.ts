@@ -5,15 +5,13 @@
  *
  * Three modes:
  *   off   — no automatic warming
- *   fast  — top 20 pages (browse + publish essentials)
+ *   fast  — the core route budget + the pinned offline hub
  *   full  — every known route
  *
- * Warming is scheduled by lib/offlineWarmingScheduler.ts: shortly after load /
- * login / reconnect / tab-visible, plus a cheap in-app tick every 10 minutes
- * while visible. The tick is not a re-download: each phase has its own
- * freshness gate (shells 6h full / 30min partial, routes 24h, core bundle
- * 1.5-6h, user data 10min-2h). It can also be triggered on demand from
- * /settings/offline.
+ * Warming is scheduled by lib/offlineWarmingScheduler.ts after load/login/
+ * reconnect/visibility, plus a cheap in-app tick every 10 minutes while
+ * visible. Freshness gates decide whether anything is actually fetched. It
+ * can also be triggered on demand from /settings/offline.
  */
 'use client';
 
@@ -29,14 +27,8 @@ export const WARMING_MODE_LABELS: Record<WarmingMode, string> = {
 
 export const WARMING_MODE_DESCRIPTIONS: Record<WarmingMode, string> = {
   off:  'لا نُحضّر شيئاً. الصفحات تُخزَّن عند زيارتك لها فقط.',
-  fast: 'أهم 20 صفحة — أخف وأسرع وأقل استهلاكاً للبيانات. باقي الصفحات تُخزَّن عند زيارتها.',
-  full: 'كل الصفحات — أوفلاين كامل لكن يستهلك بيانات أكثر.',
-};
-
-export const WARMING_MODE_BYTES_EST: Record<WarmingMode, string> = {
-  off:  '0 MB',
-  fast: '~5 MB',
-  full: '~20 MB',
+  fast: 'الصفحات الأساسية الأكثر استخدامًا — أخف وأسرع وأقل استهلاكاً للبيانات. باقي الصفحات تُخزَّن عند زيارتها.',
+  full: 'كل الصفحات المعروفة للتطبيق — يستهلك بيانات وتخزينًا أكثر. على الشبكات البطيئة نُبطّئ التنفيذ بدل تقليص النطاق.',
 };
 
 let current: WarmingMode = 'fast';

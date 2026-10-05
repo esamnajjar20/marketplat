@@ -26,6 +26,7 @@ import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { ShoppingBag, AlertTriangle } from 'lucide-react';
 import type { AdStatus } from '@/types/ad.types';
 
+import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 export function MyAdsList() {
   // Page/status logic shared with MyServiceListingsList and
   // MyProductsList — see useOwnedListPage.
@@ -202,6 +203,8 @@ export function MyAdsList() {
   }
 
   const items      = data?.items ?? [];
+  const showPendingOffline = page === 1 && !status && !(sp.get('q') ?? '').trim();
+
   const totalPages = data?.meta?.totalPages ?? 1;
 
   // Out-of-range-page recovery — shared with MyServiceListingsList and
@@ -255,6 +258,7 @@ export function MyAdsList() {
 
   return (
     <div className="space-y-4">
+      {showPendingOffline && <PendingOfflinePublishCard kind="ad" />}
       {/* Status filter tabs */}
       {/* BULK-ADS-01-JSX */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3">

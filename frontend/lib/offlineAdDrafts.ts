@@ -489,6 +489,28 @@ export async function saveAdDraft(
   return draft;
 }
 
+/**
+ * إيقاف الإرسال التلقائي مع إبقاء المحتوى كاملًا كمسودة قابلة للتعديل.
+ * يُستخدم عند فشل النشر: الإلغاء هنا لا يعني حذف المحتوى.
+ */
+export async function cancelAdDraftSync(id: string): Promise<AdDraft | null> {
+  const existing = await getAdDraft(id);
+  if (!existing) return null;
+  return saveAdDraft({
+    id: existing.id,
+    mode: existing.mode,
+    kind: existing.kind,
+    remoteAdId: existing.remoteAdId,
+    payload: existing.payload,
+    status: 'draft',
+    operationId: null,
+    userId: existing.userId,
+    images: existing.images,
+    publishFiles: existing.publishFiles,
+    publishRetryCount: 0,
+  });
+}
+
 export async function deleteAdDraft(id: string): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -538,7 +560,7 @@ export async function clearDraftOnlyAdDrafts(): Promise<void> {
  * الـ SW لمسودة مرتبطة بـ operationId معيّن. */
 export async function markAdDraftByOperationId(
   operationId: string,
-  patch: { status: AdDraftStatus; lastError?: string },
+  patch: { status: AdDraftStatus; lastError?: string; lastErrorCode?: string; lastErrorStatus?: number },
 ): Promise<void> {
   const draft = await findAdDraftByOperationId(operationId);
   if (!draft) return;
@@ -547,7 +569,7 @@ export async function markAdDraftByOperationId(
     await deleteAdDraft(draft.id);
     return;
   }
-  await saveAdDraft({ ...draft, status: patch.status, lastError: patch.lastError });
+  await saveAdDraft({ ...draft, status: patch.status, lastError: patch.lastError, lastErrorCode: patch.lastErrorCode, lastErrorStatus: patch.lastErrorStatus });
 }
 
 /** يُستدعى عند QUEUE_ITEM_DISCARDED — المستخدم رفض إعادة المحاولة صراحة

@@ -235,16 +235,26 @@ export function getWarmingPlan(): WarmingPlan {
   }
 
   // userMode === 'full'
-  if (isVerySlow) return criticalPlan('user-full-2g');
+  if (isVerySlow) {
+    return {
+      tier: 'full',
+      concurrency: 1,
+      interBatchDelayMs: 0,
+      interRouteDelayMs: 2500,
+      requestTimeoutMs: 25_000,
+      minRoutes: 9_999,
+      reason: 'user-full-2g-paced',
+    };
+  }
   if (isModeratelySlow) {
     return {
-      tier: 'core',
+      tier: 'full',
       concurrency: 1,
       interBatchDelayMs: 0,
       interRouteDelayMs: 1500,
       requestTimeoutMs: 18_000,
-      minRoutes: CORE_ROUTE_BUDGET,
-      reason: 'user-full-3g',
+      minRoutes: 9_999,
+      reason: 'user-full-3g-paced',
     };
   }
   return {

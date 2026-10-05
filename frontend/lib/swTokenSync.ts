@@ -42,6 +42,7 @@
  */
 import { useAuthStore } from '@/store/auth.store';
 import { refreshSessionShared } from '@/api/client';
+import { requestQueueReplay } from '@/lib/offlineQueue';
 
 interface SwTokenMessage {
   type: 'SW_TOKEN_REFRESHED';
@@ -75,9 +76,11 @@ export function initSwTokenSync(): void {
     // so a failing refresh here just rejects once — no loop.
     const raw = event.data as { type?: unknown } | null | undefined;
     if (raw && typeof raw === 'object' && raw.type === 'SW_REQUEST_REFRESH') {
-      void refreshSessionShared().catch(() => {
-        /* SW will fall back to its own refresh on the next drain */
-      });
+      void refreshSessionShared()
+        .then(() => requestQueueReplay())
+        .catch(() => {
+          /* SW will fall back to its own refresh on the next drain */
+        });
       return;
     }
     if (!isSwTokenMessage(event.data)) return;

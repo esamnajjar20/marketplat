@@ -34,7 +34,15 @@ async function handleMessage(data: QueueMessage): Promise<void> {
     await markAdDraftByOperationId(data.operationId, {
       status: 'failed',
       lastError: data.message || (data.status ? `رُفض الطلب (${data.status})` : undefined),
+      lastErrorStatus: data.status,
+      lastErrorCode: undefined,
     });
+    return;
+  }
+
+  if (data.type === 'QUEUE_ITEM_CANCELLED') {
+    const draft = await markAdDraftByOperationId(data.operationId, { status: 'draft' });
+    void draft;
     return;
   }
 
