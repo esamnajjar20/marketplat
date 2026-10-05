@@ -25,6 +25,8 @@ import { sellersRepository } from '../sellers/sellers.repository';
 import { withServiceProviderCreationLock } from '../../shared/utils/serviceProviderLock';
 import { getPaginationParams, PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 import { cachedPublicList, bumpPublicListCache } from '../../shared/utils/publicListCache';
+import { serviceTypesRepository } from '../service-types/service-types.repository';
+import { validateServiceProviderAttributes } from '../service-types/service-types.service';
 
 // ANALYTICS: mirrors stores.service.ts's StoreAnalytics shape (same
 // "views / pipeline counts / top items" structure) adapted to what a
@@ -167,6 +169,42 @@ export const serviceProvidersService = {
         throw error;
       }
     });
+  },
+
+  getMyServiceTypeProfiles: async (userId: string) => {
+    const sellerProfile = await sellersRepository.findByUserId(userId);
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+    const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
+    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    return serviceProvidersRepository.findServiceTypeProfiles(provider.id);
+  },
+
+  updateMyServiceTypeProfile: async (
+    userId: string,
+    serviceTypeId: string,
+    input: { attributes: Record<string, unknown>; isActive?: boolean },
+  ) => {
+    const sellerProfile = await sellersRepository.findByUserId(userId);
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+    if (sellerProfile.suspended) throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
+    const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
+    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    const serviceType = await serviceTypesRepository.findById(serviceTypeId);
+    if (!serviceType) throw new NotFoundError('Service type not found', 'SERVICE_TYPE_NOT_FOUND');
+    const hasListingForType = await prisma.serviceListing.count({ where: { providerId: provider.id, serviceTypeId } });
+    if (!hasListingForType) {
+      throw new BadRequestError('Create a service listing for this service type before editing provider-specific fields.', 'SERVICE_TYPE_NOT_IN_PROVIDER_CATALOG');
+    }
+    if (!serviceType.isActive && input.isActive !== false) {
+      throw new BadRequestError('Inactive service types cannot be enabled for a provider.', 'SERVICE_TYPE_INVALID');
+    }
+    await validateServiceProviderAttributes(serviceTypeId, input.attributes, { allowInactive: !serviceType.isActive, allowInactiveFields: true });
+    return serviceProvidersRepository.upsertServiceTypeProfile(
+      provider.id,
+      serviceTypeId,
+      input.attributes as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      input.isActive ?? true,
+    );
   },
 
   getMyServiceProvider: async (userId: string): Promise<ServiceProviderDetails> => {

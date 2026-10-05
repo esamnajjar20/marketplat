@@ -16,6 +16,7 @@ const FILTER_KEYS = [
   'serviceLocation',
   'minPrice',
   'maxPrice',
+  'attributeFilters',
   'sortBy',
   'sortOrder',
 ] as const;

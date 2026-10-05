@@ -1,10 +1,12 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SlidersHorizontal, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { SlidersHorizontal, Search, X } from 'lucide-react';
 import { CITIES, ROUTES } from '@/lib/constants';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
+import type { ServiceTypeField } from '@/types/service.types';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
@@ -33,15 +35,93 @@ export function ServiceCategoryFilter() {
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set(key, value); else params.delete(key);
+
+    // Changing the service domain changes the meaning/availability of its
+    // category and dynamic fields. Do not carry incompatible filters into
+    // the new domain and make the user wonder why results disappeared.
+    if (key === 'serviceTypeId') {
+      params.delete('categoryId');
+      params.delete('attributeFilters');
+      params.delete('serviceLocation');
+    }
+
     params.delete('page');
     router.push(`${ROUTES.services}?${params.toString()}`);
   }
 
+  function readAttributeFilters(): Record<string, unknown> {
+    const raw = sp.get('attributeFilters');
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function updateAttributeFilter(field: ServiceTypeField, value: unknown) {
+    const filters = readAttributeFilters();
+    if (value === '' || value === null || value === undefined || (Array.isArray(value) && value.length === 0)) {
+      delete filters[field.key];
+    } else {
+      filters[field.key] = value;
+    }
+    const params = new URLSearchParams(sp.toString());
+    if (Object.keys(filters).length) params.set('attributeFilters', JSON.stringify(filters));
+    else params.delete('attributeFilters');
+    params.delete('page');
+    router.push(`${ROUTES.services}?${params.toString()}`);
+  }
+
+  const dynamicFields = (selectedType?.fields ?? []).filter(
+    (field) => field.isActive && field.scope === 'LISTING' && ['SELECT', 'BOOLEAN', 'NUMBER', 'TEXT'].includes(field.type),
+  );
+  const activeAttributeFilters = readAttributeFilters();
+  const [draftAttributes, setDraftAttributes] = useState<Record<string, string | number>>({});
+
+  useEffect(() => {
+    setDraftAttributes({});
+  }, [sp.get('serviceTypeId'), sp.get('attributeFilters')]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    for (const key of ['search', 'serviceTypeId', 'categoryId', 'city', 'serviceLocation', 'minPrice', 'maxPrice']) {
+      if (sp.get(key)) count += 1;
+    }
+    count += Object.keys(activeAttributeFilters).length;
+    const sortIsDefault = (!sp.get('sortBy') || sp.get('sortBy') === 'createdAt') && (!sp.get('sortOrder') || sp.get('sortOrder') === 'desc');
+    if (!sortIsDefault) count += 1;
+    return count;
+  }, [sp, activeAttributeFilters]);
+
+  function clearAll() {
+    router.push(ROUTES.services);
+  }
+
+  function applyDraftAttribute(field: ServiceTypeField) {
+    const value = draftAttributes[field.key];
+    updateAttributeFilter(field, value === '' || value === undefined ? '' : value);
+  }
+
   return (
     <div className="rounded-lg border bg-card p-4 space-y-4">
-      <div className="flex items-center gap-2 font-semibold text-sm">
-        <SlidersHorizontal className="h-4 w-4" />
-        تصفية النتائج
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 font-semibold text-sm">
+          <SlidersHorizontal className="h-4 w-4" />
+          تصفية النتائج
+          {activeFilterCount > 0 ? (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              {activeFilterCount}
+            </span>
+          ) : null}
+        </div>
+        {activeFilterCount > 0 ? (
+          <button type="button" onClick={clearAll} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" aria-hidden />
+            مسح الكل
+          </button>
+        ) : null}
       </div>
 
       {/*
@@ -148,6 +228,59 @@ export function ServiceCategoryFilter() {
           />
         </div>
       </div>
+
+      {dynamicFields.length > 0 && (
+        <div className="space-y-3 border-t pt-4">
+          <div className="text-xs font-semibold text-muted-foreground">خصائص {selectedType?.nameAr}</div>
+          {dynamicFields.map((field) => {
+            const current = activeAttributeFilters[field.key];
+            if (field.type === 'SELECT') {
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">{field.labelAr}</label>
+                  <Select value={typeof current === 'string' ? current : 'ALL'} onValueChange={(v) => updateAttributeFilter(field, v === 'ALL' ? '' : v)}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder={`كل ${field.labelAr}`} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">الكل</SelectItem>
+                      {(field.options ?? []).map((option) => <SelectItem key={option.value} value={option.value}>{option.labelAr}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            }
+            if (field.type === 'BOOLEAN') {
+              const value = current === true ? 'true' : current === false ? 'false' : 'ALL';
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">{field.labelAr}</label>
+                  <Select value={value} onValueChange={(v) => updateAttributeFilter(field, v === 'ALL' ? '' : v === 'true')}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">الكل</SelectItem>
+                      <SelectItem value="true">نعم</SelectItem>
+                      <SelectItem value="false">لا</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            }
+            return (
+              <div key={field.key} className="space-y-1.5">
+                <label htmlFor={`svc-filter-${field.key}`} className="text-xs text-muted-foreground font-medium">{field.labelAr}</label>
+                <input
+                  id={`svc-filter-${field.key}`}
+                  type={field.type === 'NUMBER' ? 'number' : 'text'}
+                  value={draftAttributes[field.key] ?? (typeof current === 'string' || typeof current === 'number' ? String(current) : '')}
+                  onChange={(e) => setDraftAttributes((draft) => ({ ...draft, [field.key]: field.type === 'NUMBER' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value }))}
+                  onBlur={() => applyDraftAttribute(field)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyDraftAttribute(field); } }}
+                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <label htmlFor="svc-filter-sort" className="text-xs text-muted-foreground font-medium">الترتيب</label>

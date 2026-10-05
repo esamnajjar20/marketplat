@@ -116,4 +116,26 @@ export const serviceCategoriesRepository = {
   // categoriesService's "Cannot delete category with N active ads" rule.
   countListings: async (id: string): Promise<number> =>
     prisma.serviceListing.count({ where: { categoryId: id, status: 'ACTIVE' } }),
+
+  // A service-type change is a data-integrity operation, so paused/deleted
+  // listings still count: their historical serviceTypeId must remain aligned
+  // with the category even when they are not publicly discoverable.
+
+  countAllListings: async (id: string): Promise<number> =>
+    prisma.serviceListing.count({ where: { categoryId: id } }),
+
+  // Listing creation locks the category row so an admin cannot change its
+  // serviceTypeId between validation and the listing insert.
+  lockForListingCreation: async (
+    tx: Prisma.TransactionClient,
+    id: string,
+  ): Promise<{ isActive: boolean; serviceTypeId: string } | null> => {
+    const rows = await tx.$queryRaw<Array<{ isActive: boolean; serviceTypeId: string }>>`
+      SELECT "isActive", "serviceTypeId"
+      FROM "service_categories"
+      WHERE "id" = ${id}
+      FOR UPDATE
+    `;
+    return rows.length ? rows[0] : null;
+  },
 };

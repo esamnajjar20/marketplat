@@ -41,12 +41,14 @@ const TYPE_CHIPS: Array<{
 function buildTypeHref(
   type: RequestType | undefined,
   city?: string,
+  serviceTypeId?: string,
   q?: string,
   sort?: RequestSort,
 ): string {
   const params = new URLSearchParams();
   if (type) params.set('type', type);
   if (city) params.set('city', city);
+  if (serviceTypeId && type === 'SERVICE') params.set('serviceTypeId', serviceTypeId);
   if (q) params.set('q', q);
   if (sort && sort !== 'newest') params.set('sort', sort);
   const qs = params.toString();
@@ -57,11 +59,13 @@ function emptyDescription(opts: {
   type?: RequestType;
   city?: string;
   q?: string;
+  serviceTypeId?: string;
 }): string {
   const parts: string[] = [];
   if (opts.type) parts.push(`نوع «${REQUEST_TYPE_LABEL[opts.type]}»`);
   if (opts.city) parts.push(`مدينة «${opts.city}»`);
   if (opts.q) parts.push(`بحث «${opts.q}»`);
+  if (opts.serviceTypeId && opts.type === 'SERVICE') parts.push('مجال خدمة محدد');
   if (parts.length === 0) {
     return 'كن أول من ينشر طلبًا — أو عد لاحقًا لرؤية الطلبات الجديدة.';
   }
@@ -78,12 +82,14 @@ export function RequestsPageClient() {
       ? (typeParam as RequestType)
       : undefined;
   const city = searchParams.get('city') || undefined;
+  const serviceTypeId = type === 'SERVICE' ? searchParams.get('serviceTypeId') || undefined : undefined;
   const q = searchParams.get('q') || undefined;
   const sort = parseRequestSort(searchParams.get('sort'));
 
   const { data, isLoading, isFetching, isError, refetch } = useOpenRequests({
     type,
     city,
+    serviceTypeId,
     q,
     page,
     limit: 20,
@@ -110,11 +116,12 @@ export function RequestsPageClient() {
   const spRecord: Record<string, string | undefined> = {
     type,
     city,
+    serviceTypeId,
     q,
     sort: sort !== 'newest' ? sort : undefined,
   };
 
-  const hasActiveFilters = Boolean(type || city || q || sort !== 'newest');
+  const hasActiveFilters = Boolean(type || city || serviceTypeId || q || sort !== 'newest');
 
   return (
     <div className="min-h-[50vh] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-10">
@@ -169,7 +176,7 @@ export function RequestsPageClient() {
               return (
                 <Link
                   key={label}
-                  href={buildTypeHref(value, city, q, sort)}
+                  href={buildTypeHref(value, city, value === 'SERVICE' ? serviceTypeId : undefined, q, sort)}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
                     'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
@@ -188,7 +195,7 @@ export function RequestsPageClient() {
       </div>
 
       <div className="container mx-auto max-w-7xl space-y-4 px-3 py-5 sm:px-4 sm:py-6">
-        <RequestFilters type={type} city={city} q={q} sort={sort} hideTypeChips />
+        <RequestFilters type={type} city={city} serviceTypeId={serviceTypeId} q={q} sort={sort} hideTypeChips />
 
 
         <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} />
@@ -212,7 +219,7 @@ export function RequestsPageClient() {
             <EmptyState
               icon={<ClipboardList className="h-8 w-8" />}
               title={hasActiveFilters ? 'لا طلبات مطابقة' : 'لا طلبات مفتوحة بعد'}
-              description={emptyDescription({ type, city, q })}
+              description={emptyDescription({ type, city, q, serviceTypeId })}
               action={
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {hasActiveFilters ? (

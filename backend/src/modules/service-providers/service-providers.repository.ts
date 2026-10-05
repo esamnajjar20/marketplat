@@ -19,10 +19,21 @@ export const serviceProvidersRepository = {
   findById: (id: string): Promise<ServiceProviderDetails | null> =>
     prisma.serviceProviderDetails.findUnique({ where: { id } }),
 
-  findPublicById: (id: string): Promise<ServiceProviderWithSeller | null> =>
+  findPublicById: (id: string) =>
     prisma.serviceProviderDetails.findUnique({
       where: { id },
-      include: { sellerProfile: true },
+      include: {
+        sellerProfile: true,
+        serviceTypeProfiles: {
+          where: { isActive: true, serviceType: { isActive: true } },
+          include: {
+            serviceType: {
+              include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } },
+            },
+          },
+          orderBy: [{ createdAt: 'asc' }],
+        },
+      },
     }),
 
   create: (
@@ -232,4 +243,34 @@ export const serviceProvidersRepository = {
 
     return { rows, total: Number(countRows[0]?.count ?? 0) };
   },
+
+  findServiceTypeProfiles: (providerId: string) =>
+    prisma.serviceProviderServiceType.findMany({
+      where: { providerId },
+      include: {
+        serviceType: {
+          include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } },
+        },
+      },
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
+    }),
+
+  findServiceTypeProfile: (providerId: string, serviceTypeId: string) =>
+    prisma.serviceProviderServiceType.findUnique({
+      where: { providerId_serviceTypeId: { providerId, serviceTypeId } },
+      include: { serviceType: { include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } } } },
+    }),
+
+  upsertServiceTypeProfile: (
+    providerId: string,
+    serviceTypeId: string,
+    attributes: Prisma.InputJsonValue,
+    isActive = true,
+  ) => prisma.serviceProviderServiceType.upsert({
+    where: { providerId_serviceTypeId: { providerId, serviceTypeId } },
+    create: { providerId, serviceTypeId, attributes, isActive },
+    update: { attributes, isActive },
+    include: { serviceType: { include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } } } },
+  }),
+
 };

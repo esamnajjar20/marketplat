@@ -120,3 +120,15 @@ export const serviceProviderAnalyticsQuerySchema = z.object({
 });
 
 export type ServiceProviderAnalyticsQuery = z.infer<typeof serviceProviderAnalyticsQuerySchema>['query'];
+
+export const serviceProviderServiceTypeIdSchema = z.object({
+  params: z.object({ serviceTypeId: z.string().min(1, 'Service type ID is required') }),
+});
+
+export const updateServiceProviderServiceTypeSchema = z.object({
+  params: z.object({ serviceTypeId: z.string().min(1, 'Service type ID is required') }),
+  body: z.object({
+    attributes: z.record(z.string(), z.unknown()).default({}),
+    isActive: z.boolean().optional(),
+  }).strict(),
+});

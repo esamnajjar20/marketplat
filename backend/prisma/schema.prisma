@@ -560,6 +560,7 @@ model ServiceProviderDetails {
   appointments           Appointment[]
   listings               ServiceListing[]
   sellerProfile          SellerProfile       @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  serviceTypeProfiles     ServiceProviderServiceType[]
 
   @@index([availabilityStatus])
   @@index([latitude, longitude])
@@ -588,9 +589,27 @@ model ServiceType {
   fields        ServiceTypeField[]
   categories    ServiceCategory[]
   listings      ServiceListing[]
+  openRequests  Request[]
+  providerProfiles ServiceProviderServiceType[]
 
   @@index([isActive, sortOrder])
   @@map("service_types")
+}
+
+model ServiceProviderServiceType {
+  id           String              @id @default(cuid())
+  providerId   String
+  serviceTypeId String
+  attributes   Json?
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  provider     ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceType  ServiceType        @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([providerId, serviceTypeId])
+  @@index([serviceTypeId, isActive])
+  @@map("service_provider_service_types")
 }
 
 model ServiceTypeField {
@@ -782,6 +801,7 @@ model Request {
   /// Not a Prisma FK on purpose — different category tables per type;
   /// the service layer validates existence and type alignment.
   categoryId      String
+  serviceTypeId   String?
   title           String
   description     String        @db.VarChar(1000)
   city            String?
@@ -798,11 +818,13 @@ model Request {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   customer        User          @relation("RequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  serviceType     ServiceType?   @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
   offers          RequestOffer[] @relation("RequestOffers")
   acceptedOffer   RequestOffer?  @relation("AcceptedRequestOffer", fields: [acceptedOfferId], references: [id])
 
   @@index([type, status, createdAt])
   @@index([categoryId, status, createdAt])
+  @@index([serviceTypeId, status, createdAt])
   @@index([customerId])
   @@index([status, expiresAt])
   @@map("requests")

@@ -4,8 +4,10 @@ import { redis } from '../../src/config/redis';
 import { Prisma } from '@prisma/client';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
 
 jest.mock('../../src/modules/service-categories/service-categories.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
 
 const mockCategory = {
   id: 'cat-1',
@@ -227,6 +229,24 @@ describe('serviceCategoriesService', () => {
       expect(serviceCategoriesRepository.findBySlug).not.toHaveBeenCalled();
     });
 
+    it('locks the category service type once any listing references it', async () => {
+      (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockCategory,
+        serviceTypeId: 'type-a',
+      });
+      (serviceTypesRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'type-b',
+        isActive: true,
+      });
+      (serviceCategoriesRepository.countAllListings as jest.Mock).mockResolvedValue(1);
+
+      await expect(
+        serviceCategoriesService.updateServiceCategory('cat-1', { serviceTypeId: 'type-b' } as any)
+      ).rejects.toThrow('Cannot change service type');
+
+      expect(serviceCategoriesRepository.update).not.toHaveBeenCalled();
+    });
+
     it('throws BadRequestError when changing to a slug already used by another category', async () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (serviceCategoriesRepository.findBySlug as jest.Mock).mockResolvedValue({
@@ -296,17 +316,17 @@ describe('serviceCategoriesService', () => {
       );
     });
 
-    it('throws BadRequestError when active listings still reference the category', async () => {
+    it('throws BadRequestError when listings still reference the category', async () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (serviceCategoriesRepository.countListings as jest.Mock).mockResolvedValue(3);
 
       await expect(serviceCategoriesService.deleteServiceCategory('cat-1')).rejects.toThrow(
-        'Cannot delete category with 3 active listings'
+        'Cannot delete category with 3 service listings'
       );
       expect(serviceCategoriesRepository.delete).not.toHaveBeenCalled();
     });
 
-    it('deletes and invalidates the cache when there are no active listings', async () => {
+    it('deletes and invalidates the cache when there are no listings', async () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (serviceCategoriesRepository.countListings as jest.Mock).mockResolvedValue(0);
       (serviceCategoriesRepository.delete as jest.Mock).mockResolvedValue(undefined);

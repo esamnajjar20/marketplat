@@ -27,6 +27,8 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { logger } from '../../shared/utils/logger';
+import { getServiceTypeCapabilities } from '../service-types/service-types.service';
+import { serviceTypesRepository } from '../service-types/service-types.repository';
 
 /** Max simultaneous OPEN requests per customer (spam guard). */
 const MAX_OPEN_REQUESTS = 5;
@@ -114,6 +116,27 @@ export const requestsService = {
 
     await assertCategoryForType(input.type, input.categoryId);
 
+    let serviceTypeId: string | null = null;
+    if (input.type === 'SERVICE') {
+      const category = await serviceCategoriesRepository.findById(input.categoryId);
+      if (!category?.serviceTypeId) {
+        throw new BadRequestError('The selected service category has no service type.', 'SERVICE_TYPE_REQUIRED');
+      }
+      if (input.serviceTypeId && input.serviceTypeId !== category.serviceTypeId) {
+        throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
+      }
+      serviceTypeId = category.serviceTypeId;
+      const serviceType = await serviceTypesRepository.findById(serviceTypeId);
+      if (!serviceType || !serviceType.isActive) {
+        throw new BadRequestError('The selected service type is inactive.', 'SERVICE_TYPE_INVALID');
+      }
+      if (getServiceTypeCapabilities(serviceType.capabilities).requestQuote === false) {
+        throw new BadRequestError('This service type does not accept open service requests.', 'SERVICE_REQUESTS_NOT_SUPPORTED');
+      }
+    } else if (input.serviceTypeId) {
+      throw new BadRequestError('serviceTypeId is only valid for service requests.', 'SERVICE_TYPE_NOT_ALLOWED');
+    }
+
     const openCount = await requestsRepository.countOpenByCustomer(customerId);
     if (openCount >= MAX_OPEN_REQUESTS) {
       throw new ConflictError(
@@ -126,6 +149,7 @@ export const requestsService = {
       return await requestsRepository.create(customerId, {
         type: input.type,
         categoryId: input.categoryId,
+        serviceTypeId,
         title: input.title,
         description: input.description,
         city: input.city,
@@ -230,6 +254,24 @@ export const requestsService = {
     }
 
     await assertCanSubmitOffer(request.type, userId);
+
+    if (request.type === 'SERVICE' && request.serviceTypeId) {
+      const seller = await sellersRepository.findByUserId(userId);
+      const provider = seller ? await serviceProvidersRepository.findBySellerProfileId(seller.id) : null;
+      if (!provider) {
+        throw new ForbiddenError('Only service providers can offer on service requests.', 'NOT_A_SERVICE_PROVIDER');
+      }
+      const supported = await prisma.serviceProviderServiceType.findFirst({
+        where: { providerId: provider.id, serviceTypeId: request.serviceTypeId, isActive: true },
+        select: { id: true },
+      });
+      if (!supported) {
+        throw new ForbiddenError('Your service provider profile does not support this service type.', 'SERVICE_TYPE_NOT_SUPPORTED');
+      }
+      if (request.city && !provider.serviceAreaCities.includes(request.city)) {
+        throw new ForbiddenError('You do not currently serve the requested city.', 'SERVICE_CITY_NOT_SUPPORTED');
+      }
+    }
 
     const existing = await requestOffersRepository.findByRequestAndOfferer(requestId, userId);
     const payload = {

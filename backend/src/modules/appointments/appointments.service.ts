@@ -15,6 +15,8 @@ import { activityService, activityTemplates } from '../activity';
 import { blockedUsersService } from '../blocked-users';
 import { notificationEvents } from '../notifications/notifications.service';
 import { logger } from '../../shared/utils/logger';
+import { serviceTypesRepository } from '../service-types/service-types.repository';
+import { getServiceTypeCapabilities } from '../service-types/service-types.service';
 import {
   WorkingHoursMap,
   fitsWorkingHours,
@@ -63,6 +65,13 @@ export const appointmentsService = {
       if (!['ACCEPTED', 'IN_PROGRESS'].includes(request.status)) {
         throw new BadRequestError('Can only schedule an appointment for an accepted request.');
       }
+      const serviceType = await serviceTypesRepository.findById(request.listing.serviceTypeId);
+      if (!serviceType || !serviceType.isActive) {
+        throw new BadRequestError('The service type is inactive and cannot be scheduled.', 'SERVICE_TYPE_INVALID');
+      }
+      if (getServiceTypeCapabilities(serviceType.capabilities).appointments === false) {
+        throw new BadRequestError('This service type does not support appointments.', 'APPOINTMENTS_NOT_SUPPORTED');
+      }
       // SECURITY FIX (blocked-user coverage gap): same gap closed in
       // service-requests.service.ts's createRequest — isBlockedEitherDirection
       // was never checked here either. Appointments in this project are
@@ -76,6 +85,7 @@ export const appointmentsService = {
       if (await blockedUsersService.isBlockedEitherDirection(userId, request.customerId)) {
         throw new ForbiddenError('You cannot schedule an appointment with this user.', 'USER_BLOCKED');
       }
+
     }
 
     // FIX APPT-WORKING-HOURS (audit H3): the slot must sit fully inside one

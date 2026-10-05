@@ -8,7 +8,9 @@ import { Button } from '@/components/shared/ui/Button';
 import { useSearchParams } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
+import Link from 'next/link';
 import { ServiceListingCard } from './ServiceListingCard';
+import { ROUTES } from '@/lib/constants';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
@@ -97,6 +99,13 @@ export function ServiceListingsGrid() {
           icon={<Search className="h-10 w-10" />}
           title="لا توجد خدمات"
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد خدمات مطابقة لهذه الفلاتر'}
+          action={
+            (search || serviceTypeId || categoryId || city || serviceLocation || minPrice !== undefined || maxPrice !== undefined || sp.get('attributeFilters')) ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={ROUTES.services}>مسح الفلاتر وتجربة الكل</Link>
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_SERVICE_GRID_CLASS, 'stagger-fade-in')}>

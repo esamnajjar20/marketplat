@@ -67,6 +67,15 @@ export type UpdateServiceTypePayload = Partial<CreateServiceTypePayload>;
 export type CreateServiceTypeFieldPayload = Omit<ServiceTypeField, 'id' | 'serviceTypeId' | 'createdAt' | 'updatedAt'> & { serviceTypeId: string };
 export type UpdateServiceTypeFieldPayload = Partial<Omit<CreateServiceTypeFieldPayload, 'serviceTypeId'>>;
 
+export interface ServiceProviderServiceTypeProfile {
+  id: string;
+  providerId: string;
+  serviceTypeId: string;
+  attributes: Record<string, unknown> | null;
+  isActive: boolean;
+  serviceType: ServiceType;
+}
+
 export type ServiceBusinessType = 'INDIVIDUAL' | 'SMALL_BUSINESS';
 export type ServiceAvailability = 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE';
 export type ServicePricingType = 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE';
@@ -114,6 +123,7 @@ export interface ServiceProviderDetails {
 export type ServiceProviderPublic = ServiceProviderDetails & {
   sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings' | 'paymentMethods'>;
   listings: ServiceListing[];
+  serviceTypeProfiles?: ServiceProviderServiceTypeProfile[];
 };
 
 /**
@@ -376,6 +386,8 @@ export interface ServiceListingsQuery {
   serviceLocation?: ServiceLocationType;
   minPrice?: number;
   maxPrice?: number;
+  /** JSON-encoded map of dynamic listing attributes used by service search. */
+  attributeFilters?: Record<string, unknown>;
   search?: string;
   sortBy?: ServiceListingSortField;
   sortOrder?: 'asc' | 'desc';

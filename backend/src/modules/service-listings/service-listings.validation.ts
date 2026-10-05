@@ -7,6 +7,11 @@ const serviceAttributesSchema = z.preprocess((value) => {
   try { return JSON.parse(value); } catch { return value; }
 }, z.record(z.string(), z.unknown())).optional();
 
+const serviceAttributeFiltersSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}, z.record(z.string(), z.unknown())).optional();
+
 export const createServiceListingSchema = z.object({
   body: z.object({
     serviceTypeId: z.string().min(1).optional(),
@@ -74,6 +79,7 @@ export const getServiceListingsSchema = z.object({
       serviceLocation: z.nativeEnum(ServiceLocationType).optional(),
       minPrice: optionalQueryNumber(z.number().min(0)),
       maxPrice: optionalQueryNumber(z.number().min(0)),
+      attributeFilters: serviceAttributeFiltersSchema,
       search: z.string().min(1).max(200).optional(),
       sortBy: z.enum(SERVICE_LISTING_SORT_FIELDS).optional(),
       sortOrder: z.enum(['asc', 'desc']).optional(),

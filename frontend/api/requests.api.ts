@@ -12,6 +12,7 @@ import type {
 export type CreateRequestBody = {
   type: RequestType;
   categoryId: string;
+  serviceTypeId?: string;
   title: string;
   description: string;
   city?: string;
@@ -34,6 +35,7 @@ export const requestsApi = {
     limit?: number;
     type?: RequestType;
     categoryId?: string;
+    serviceTypeId?: string;
     city?: string;
     q?: string;
     /** Server-side sort — newest | expiring | budget_high | fewest_offers */

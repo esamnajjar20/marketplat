@@ -20,6 +20,7 @@ import type {
   ServiceProvidersQuery,
   NearbyServiceProvidersParams,
   NearbyServiceProviderRow,
+  ServiceProviderServiceTypeProfile,
 } from '@/types/service.types';
 
 export const serviceProvidersApi = {
@@ -44,6 +45,14 @@ export const serviceProvidersApi = {
   /** PATCH /service-providers/me — partial update, including availabilityStatus. */
   updateMyProvider: (payload: UpdateServiceProviderPayload) =>
     apiClient.patch<ApiResponse<ServiceProviderDetails>>('/service-providers/me', payload),
+
+  /** GET /service-providers/me/service-types — provider-specific dynamic fields by service type. */
+  getMyServiceTypeProfiles: () =>
+    apiClient.get<ApiResponse<ServiceProviderServiceTypeProfile[]>>('/service-providers/me/service-types'),
+
+  /** PATCH /service-providers/me/service-types/:serviceTypeId — update provider attributes for one service type. */
+  updateMyServiceTypeProfile: (serviceTypeId: string, payload: { attributes: Record<string, unknown>; isActive?: boolean }) =>
+    apiClient.patch<ApiResponse<ServiceProviderServiceTypeProfile>>(`/service-providers/me/service-types/${serviceTypeId}`, payload),
 
   /** GET /service-providers/me/analytics — owner-only dashboard. */
   getMyAnalytics: (period: '7d' | '30d' | 'all' = 'all') =>

@@ -14,9 +14,11 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
+import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { activityService, activityTemplates } from '../activity';
 import { notificationEvents } from '../notifications/notifications.service';
 import { logger } from '../../shared/utils/logger';
+import { getServiceTypeCapabilities } from '../service-types/service-types.service';
 import { blockedUsersService } from '../blocked-users';
 
 // services-design.md §5-§7: single source of truth for legal status
@@ -112,6 +114,14 @@ export const serviceRequestsService = {
     const listing = await serviceListingsRepository.findById(input.listingId);
     if (!listing || listing.status !== 'ACTIVE') {
       throw new BadRequestError('This service listing is not available for requests.');
+    }
+
+    const serviceType = await serviceTypesRepository.findById(listing.serviceTypeId);
+    if (!serviceType || !serviceType.isActive) {
+      throw new BadRequestError('This service type is no longer available for new requests.', 'SERVICE_TYPE_INVALID');
+    }
+    if (getServiceTypeCapabilities(serviceType.capabilities).requestQuote === false) {
+      throw new BadRequestError('This service does not accept service requests.', 'SERVICE_REQUESTS_NOT_SUPPORTED');
     }
 
     // SECURITY FIX (self-dealing): a provider must not be able to open a
@@ -297,17 +307,31 @@ export const serviceRequestsService = {
     // through, after the actor check) rather than at the schema level,
     // because the requirement depends on request.status — a fact the
     // schema cannot see.
-    if (action === 'ACCEPTED' && extra?.quotedPrice === undefined) {
+    const capabilities = getServiceTypeCapabilities(request.listing.serviceType?.capabilities);
+    const requiresQuote = capabilities.requestQuote === true;
+    if (action === 'ACCEPTED' && requiresQuote && extra?.quotedPrice === undefined) {
       throw new BadRequestError(
-        'quotedPrice is required when accepting a request.',
+        'quotedPrice is required when accepting a quote-based request.',
         'QUOTED_PRICE_REQUIRED',
       );
     }
-    if (action === 'COMPLETED' && extra?.agreedPrice === undefined) {
+    if (action === 'ACCEPTED' && !requiresQuote && extra?.quotedPrice !== undefined) {
       throw new BadRequestError(
-        'agreedPrice is required when completing a request.',
-        'AGREED_PRICE_REQUIRED',
+        'This service type does not use quote pricing.',
+        'QUOTED_PRICE_NOT_ALLOWED',
       );
+    }
+    if (action === 'COMPLETED' && extra?.agreedPrice === undefined) {
+      const fixedListingPrice = request.listing.pricingType === 'FIXED' ? request.listing.price : null;
+      if (fixedListingPrice == null && requiresQuote) {
+        throw new BadRequestError(
+          'agreedPrice is required when completing a quote-based request.',
+          'AGREED_PRICE_REQUIRED',
+        );
+      }
+      if (fixedListingPrice != null) {
+        extra = { ...extra, agreedPrice: Number(fixedListingPrice) };
+      }
     }
 
     const updatedRequest = await prisma.$transaction(async tx => {

@@ -11,6 +11,7 @@ export function useOpenRequests(params?: {
   limit?: number;
   type?: RequestType;
   categoryId?: string;
+  serviceTypeId?: string;
   city?: string;
   q?: string;
   sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';

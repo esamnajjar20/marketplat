@@ -162,6 +162,19 @@ export const serviceCategoriesService = {
       if (!serviceType || !serviceType.isActive) {
         throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
       }
+      // A category is the taxonomy anchor for every listing beneath it.
+      // Moving a category that already has listings would silently create
+      // `listing.serviceTypeId !== category.serviceTypeId` and make the
+      // listing invalid for its own filters/attributes. Require an empty
+      // category before changing its service type; admins can create a new
+      // category under the target type and migrate listings explicitly.
+      const listingsCount = await serviceCategoriesRepository.countAllListings(id);
+      if (listingsCount > 0) {
+        throw new BadRequestError(
+          `Cannot change service type while the category has ${listingsCount} active listings.`,
+          'CATEGORY_SERVICE_TYPE_LOCKED',
+        );
+      }
     }
 
     if (input.slug && input.slug !== category.slug) {

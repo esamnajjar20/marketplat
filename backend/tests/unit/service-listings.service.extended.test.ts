@@ -2,6 +2,7 @@ import { serviceListingsService } from '../../src/modules/service-listings/servi
 import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../../src/modules/service-categories/service-categories.repository';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
@@ -11,6 +12,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 jest.mock('../../src/modules/service-listings/service-listings.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
 jest.mock('../../src/modules/service-categories/service-categories.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/config/cloudinary');
 
@@ -20,7 +22,7 @@ const mockProvider = {
   sellerProfileId: 'seller-profile-1',
   availabilityStatus: 'AVAILABLE',
 };
-const mockCategory = { id: 'cat-1', isActive: true };
+const mockCategory = { id: 'cat-1', isActive: true, serviceTypeId: 'st_general' };
 // extractCloudinaryPublicId rejects URLs whose path cloud-name does not
 // match CLOUDINARY_CLOUD_NAME when that env var is set. Use the configured
 // name (or "demo") so cleanup assertions stay valid across environments.
@@ -38,6 +40,29 @@ describe('serviceListingsService — additional coverage', () => {
     jest.clearAllMocks();
     (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
     (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(mockProvider);
+    (serviceTypesRepository.findActiveById as jest.Mock).mockResolvedValue({
+      id: 'st_general',
+      isActive: true,
+      capabilities: {},
+      fields: [],
+    });
+    (serviceTypesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'st_general',
+      isActive: true,
+      capabilities: {},
+      fields: [],
+    });
+    (serviceTypesRepository.findByIdWithFields as jest.Mock).mockResolvedValue({
+      id: 'st_general',
+      isActive: true,
+      capabilities: {},
+      fields: [],
+    });
+    (serviceTypesRepository.lockForListingCreation as jest.Mock).mockResolvedValue(true);
+    (serviceCategoriesRepository.lockForListingCreation as jest.Mock).mockResolvedValue({
+      serviceTypeId: 'st_general',
+      isActive: true,
+    });
   });
 
   afterEach(() => jest.restoreAllMocks());

@@ -6,6 +6,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { ROUTES, CITIES } from '@/lib/constants';
 import type { RequestType } from '@/types/request.types';
+import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 import { Button } from '@/components/shared/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +23,7 @@ export const REQUEST_SORT_OPTIONS: { value: RequestSort; label: string }[] = [
 export function buildRequestsHref(opts: {
   type?: RequestType;
   city?: string;
+  serviceTypeId?: string;
   q?: string;
   sort?: RequestSort;
   page?: number;
@@ -31,6 +33,7 @@ export function buildRequestsHref(opts: {
   const p = new URLSearchParams();
   if (opts.type) p.set('type', opts.type);
   if (opts.city) p.set('city', opts.city);
+  if (opts.serviceTypeId && opts.type === 'SERVICE') p.set('serviceTypeId', opts.serviceTypeId);
   if (opts.q) p.set('q', opts.q);
   if (opts.sort && opts.sort !== 'newest') p.set('sort', opts.sort);
   if (opts.page && opts.page > 1) p.set('page', String(opts.page));
@@ -53,6 +56,7 @@ export function parseRequestSort(raw: string | null | undefined): RequestSort {
 type Props = {
   type?: RequestType;
   city?: string;
+  serviceTypeId?: string;
   q?: string;
   sort?: RequestSort;
   className?: string;
@@ -67,6 +71,7 @@ type Props = {
 export function RequestFilters({
   type,
   city,
+  serviceTypeId,
   q,
   sort = 'newest',
   className,
@@ -75,7 +80,8 @@ export function RequestFilters({
 }: Props) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState(q ?? '');
-  const hasFilters = Boolean(type || city || q || (sort && sort !== 'newest'));
+  const { data: serviceTypes } = useServiceTypes();
+  const hasFilters = Boolean(type || city || serviceTypeId || q || (sort && sort !== 'newest'));
 
   useEffect(() => {
     setSearchInput(q ?? '');
@@ -87,6 +93,7 @@ export function RequestFilters({
       buildRequestsHref({
         type,
         city,
+        serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined,
         q: searchInput.trim() || undefined,
         sort,
         page: 1,
@@ -133,7 +140,7 @@ export function RequestFilters({
           value={city ?? ''}
           onChange={(e) => {
             const next = e.target.value || undefined;
-            router.replace(buildRequestsHref({ type, city: next, q, sort, page: 1 }));
+            router.replace(buildRequestsHref({ type, city: next, serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined, q, sort, page: 1 }));
           }}
         >
           <option value="">كل المدن</option>
@@ -144,6 +151,26 @@ export function RequestFilters({
           ))}
         </select>
 
+        {type === 'SERVICE' ? (
+          <>
+            <label htmlFor="req-service-type-filter" className="text-sm text-muted-foreground">المجال</label>
+            <select
+              id="req-service-type-filter"
+              className="h-11 min-w-[8rem] flex-1 rounded-lg border border-input bg-background px-3 text-base sm:h-9 sm:flex-none sm:min-w-[10rem] sm:text-sm"
+              value={serviceTypeId ?? ''}
+              onChange={(e) => {
+                const next = e.target.value || undefined;
+                router.replace(buildRequestsHref({ type, city, serviceTypeId: next, q, sort, page: 1 }));
+              }}
+            >
+              <option value="">كل المجالات</option>
+              {(serviceTypes ?? []).filter((t) => t.isActive).map((t) => (
+                <option key={t.id} value={t.id}>{t.nameAr}</option>
+              ))}
+            </select>
+          </>
+        ) : null}
+
         <label htmlFor="req-sort-filter" className="text-sm text-muted-foreground">
           الترتيب
         </label>
@@ -153,7 +180,7 @@ export function RequestFilters({
           value={sort}
           onChange={(e) => {
             const next = parseRequestSort(e.target.value);
-            router.replace(buildRequestsHref({ type, city, q, sort: next, page: 1 }));
+            router.replace(buildRequestsHref({ type, city, serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined, q, sort: next, page: 1 }));
           }}
         >
           {REQUEST_SORT_OPTIONS.map((o) => (
@@ -165,7 +192,7 @@ export function RequestFilters({
 
         {hasFilters && (
           <Button variant="ghost" size="sm" className="h-9 gap-1" asChild>
-            <Link href={ROUTES.requests}>
+            <Link href={buildRequestsHref({ type, city, serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined, q, sort, page: 1 })}>
               <X className="h-3.5 w-3.5" aria-hidden />
               مسح الفلاتر
             </Link>

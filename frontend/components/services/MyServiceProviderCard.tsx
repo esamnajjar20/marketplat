@@ -14,6 +14,7 @@ import { ROUTES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 import type { ServiceAvailability, ServiceProviderDetails, WorkingHours } from '@/types/service.types';
+import { ServiceProviderServiceTypesEditor } from './ServiceProviderServiceTypesEditor';
 
 interface Props {
   provider: ServiceProviderDetails;
@@ -241,6 +242,10 @@ export function MyServiceProviderCard({ provider }: Props) {
         <Button variant="outline" size="sm" asChild>
           <Link href={ROUTES.myServiceProviderAnalytics}>الإحصائيات</Link>
         </Button>
+      </div>
+      <div className="border-t pt-4">
+        <h3 className="mb-3 text-sm font-semibold">بيانات التخصصات</h3>
+        <ServiceProviderServiceTypesEditor />
       </div>
     </div>
   );

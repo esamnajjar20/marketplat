@@ -4,7 +4,8 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { serviceTypesRepository } from './service-types.repository';
-import { CreateServiceTypeFieldInput, CreateServiceTypeInput, UpdateServiceTypeFieldInput, UpdateServiceTypeInput } from './service-types.validation';
+import { CreateServiceTypeFieldInput, CreateServiceTypeInput, UpdateServiceTypeFieldInput, UpdateServiceTypeInput, validateServiceTypeFieldDefinition, validateServiceTypeCapabilitiesDefinition } from './service-types.validation';
+export { validateServiceTypeFieldDefinition, validateServiceTypeCapabilitiesDefinition } from './service-types.validation';
 
 const CACHE_KEY = 'service_types:active:v1';
 const CACHE_TTL = 30 * 60;
@@ -36,31 +37,35 @@ async function invalidate(): Promise<void> {
   try { await redis.del(CACHE_KEY); } catch { logger.warn('Service types cache invalidation failed'); }
 }
 
-export async function validateServiceListingAttributes(
+export async function validateServiceTypeAttributes(
   serviceTypeId: string,
   attributes: Record<string, unknown> | undefined,
+  scope: 'LISTING' | 'PROVIDER',
+  options: { allowInactive?: boolean; allowInactiveFields?: boolean } = {},
 ): Promise<void> {
-  const serviceType = await serviceTypesRepository.findActiveById(serviceTypeId);
-  if (!serviceType) {
+  const serviceType = options.allowInactive
+    ? await serviceTypesRepository.findByIdWithAllFields(serviceTypeId)
+    : await serviceTypesRepository.findActiveById(serviceTypeId);
+  if (!serviceType || (!options.allowInactive && !serviceType.isActive)) {
     throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
   }
-  const fields = serviceType.fields.filter((field) => field.scope === 'LISTING');
+  const fields = serviceType.fields.filter((field) => field.scope === scope && (field.isActive || options.allowInactiveFields));
   const values = attributes ?? {};
   const allowed = new Map(fields.map((field) => [field.key, field]));
 
   for (const key of Object.keys(values)) {
     if (!allowed.has(key)) {
-      throw new BadRequestError(`Unknown service attribute: ${key}`, 'SERVICE_ATTRIBUTE_NOT_ALLOWED');
+      throw new BadRequestError(`Unknown service ${scope.toLowerCase()} attribute: ${key}`, 'SERVICE_ATTRIBUTE_NOT_ALLOWED');
     }
   }
 
   for (const field of fields) {
     const value = values[field.key];
-    if (field.required && (value === undefined || value === null || value === '')) {
+    if (field.required && field.isActive && (value === undefined || value === null || value === '')) {
       throw new BadRequestError(`${field.labelAr} is required.`, 'SERVICE_ATTRIBUTE_REQUIRED');
     }
     if (value === undefined || value === null || value === '') continue;
-    const options = Array.isArray(field.options) ? field.options as Array<{ value: string }> : [];
+    const fieldOptions = Array.isArray(field.options) ? field.options as Array<{ value: string }> : [];
     if (field.type === 'TEXT' || field.type === 'TEXTAREA' || field.type === 'SELECT') {
       if (typeof value !== 'string') throw new BadRequestError(`Invalid value for ${field.key}.`, 'SERVICE_ATTRIBUTE_INVALID');
     }
@@ -73,8 +78,8 @@ export async function validateServiceListingAttributes(
     if (field.type === 'MULTI_SELECT' && (!Array.isArray(value) || value.some((item) => typeof item !== 'string'))) {
       throw new BadRequestError(`Invalid value for ${field.key}.`, 'SERVICE_ATTRIBUTE_INVALID');
     }
-    if (options.length > 0) {
-      const valid = new Set(options.map((option) => option.value));
+    if (fieldOptions.length > 0) {
+      const valid = new Set(fieldOptions.map((option) => option.value));
       if (field.type === 'SELECT' && !valid.has(value as string)) {
         throw new BadRequestError(`Invalid option for ${field.key}.`, 'SERVICE_ATTRIBUTE_INVALID');
       }
@@ -84,6 +89,18 @@ export async function validateServiceListingAttributes(
     }
   }
 }
+
+export const validateServiceListingAttributes = (
+  serviceTypeId: string,
+  attributes: Record<string, unknown> | undefined,
+  options: { allowInactive?: boolean; allowInactiveFields?: boolean } = {},
+) => validateServiceTypeAttributes(serviceTypeId, attributes, 'LISTING', options);
+
+export const validateServiceProviderAttributes = (
+  serviceTypeId: string,
+  attributes: Record<string, unknown> | undefined,
+  options: { allowInactive?: boolean; allowInactiveFields?: boolean } = {},
+) => validateServiceTypeAttributes(serviceTypeId, attributes, 'PROVIDER', options);
 
 export const serviceTypesService = {
   getActive: async () => {
@@ -97,22 +114,44 @@ export const serviceTypesService = {
   },
   getAllForAdmin: () => serviceTypesRepository.findAllForAdmin(),
   create: async (input: CreateServiceTypeInput) => {
+    if (input.capabilities !== undefined) {
+      try { validateServiceTypeCapabilitiesDefinition(input.capabilities); }
+      catch (error) { throw new BadRequestError((error as Error).message, 'SERVICE_TYPE_CAPABILITIES_INVALID'); }
+    }
     if (await serviceTypesRepository.findBySlug(input.slug)) throw new BadRequestError('Service type slug already exists', 'SERVICE_TYPE_SLUG_EXISTS');
     try { const result = await serviceTypesRepository.create(input); await invalidate(); return result; }
     catch (error) { if (isPrismaError(error, 'P2002')) throw new BadRequestError('Service type already exists', 'SERVICE_TYPE_EXISTS'); throw error; }
   },
   update: async (id: string, input: UpdateServiceTypeInput) => {
+    if (input.capabilities !== undefined) {
+      try { validateServiceTypeCapabilitiesDefinition(input.capabilities); }
+      catch (error) { throw new BadRequestError((error as Error).message, 'SERVICE_TYPE_CAPABILITIES_INVALID'); }
+    }
     if (!(await serviceTypesRepository.findById(id))) throw new NotFoundError('Service type not found', 'SERVICE_TYPE_NOT_FOUND');
     try { const result = await serviceTypesRepository.update(id, input); await invalidate(); return result; }
     catch (error) { if (isPrismaError(error, 'P2002')) throw new BadRequestError('Service type already exists', 'SERVICE_TYPE_EXISTS'); throw error; }
   },
   createField: async (input: CreateServiceTypeFieldInput) => {
     if (!(await serviceTypesRepository.findById(input.serviceTypeId))) throw new BadRequestError('Service type not found', 'SERVICE_TYPE_NOT_FOUND');
+    try {
+      validateServiceTypeFieldDefinition({ type: input.type, options: input.options });
+    } catch (error) {
+      throw new BadRequestError((error as Error).message, 'SERVICE_TYPE_FIELD_DEFINITION_INVALID');
+    }
     try { const result = await serviceTypesRepository.createField(input); await invalidate(); return result; }
     catch (error) { if (isPrismaError(error, 'P2002')) throw new BadRequestError('Field key already exists for this service type', 'SERVICE_TYPE_FIELD_EXISTS'); throw error; }
   },
   updateField: async (id: string, input: UpdateServiceTypeFieldInput) => {
-    if (!(await serviceTypesRepository.findFieldById(id))) throw new NotFoundError('Service type field not found', 'SERVICE_TYPE_FIELD_NOT_FOUND');
+    const current = await serviceTypesRepository.findFieldById(id);
+    if (!current) throw new NotFoundError('Service type field not found', 'SERVICE_TYPE_FIELD_NOT_FOUND');
+    try {
+      validateServiceTypeFieldDefinition({
+        type: current.type,
+        options: input.options !== undefined ? (input.options as Array<{ value: string; labelAr: string }> | null) : (current.options as Array<{ value: string; labelAr: string }> | null),
+      });
+    } catch (error) {
+      throw new BadRequestError((error as Error).message, 'SERVICE_TYPE_FIELD_DEFINITION_INVALID');
+    }
     const result = await serviceTypesRepository.updateField(id, input); await invalidate(); return result;
   },
   deleteField: async (id: string) => {

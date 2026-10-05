@@ -210,6 +210,7 @@ export const serviceListingsRepository = {
       serviceLocation,
       minPrice,
       maxPrice,
+      attributeFilters,
       search,
       sortBy = 'createdAt',
       sortOrder = 'desc',
@@ -247,6 +248,19 @@ export const serviceListingsRepository = {
     // a one-hop relation to SellerProfile — so this is folded into the
     // same `provider` relation filter as the city branch below, same
     // "nested object replaces rather than merges" caveat.
+    const attributeFilterEntries = attributeFilters ? Object.entries(attributeFilters) : [];
+    if (attributeFilterEntries.length > 12) {
+      throw new Error('Too many service attribute filters.');
+    }
+    for (const [key, value] of attributeFilterEntries) {
+      if (!/^[a-zA-Z0-9_:-]{1,64}$/.test(key)) {
+        throw new Error('Invalid service attribute filter key.');
+      }
+      if (value === undefined || value === null || typeof value === 'function') {
+        throw new Error('Invalid service attribute filter value.');
+      }
+    }
+
     const where: Prisma.ServiceListingWhereInput = {
       status: 'ACTIVE',
       provider: { sellerProfile: { suspended: false } },
@@ -268,6 +282,16 @@ export const serviceListingsRepository = {
         },
       }),
       ...(ftsIds ? { id: { in: ftsIds } } : {}),
+      ...(attributeFilterEntries.length > 0
+        ? {
+            AND: attributeFilterEntries.map(([key, value]) => ({
+              attributes: {
+                path: [key],
+                equals: value as Prisma.InputJsonValue,
+              },
+            })),
+          }
+        : {}),
 
     };
 

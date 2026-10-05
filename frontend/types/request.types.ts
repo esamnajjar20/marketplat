@@ -17,6 +17,8 @@ export type RequestListItem = {
   description: string;
   city: string | null;
   categoryId: string;
+  serviceTypeId?: string | null;
+  serviceType?: { id: string; slug: string; nameAr: string; icon: string | null } | null;
   status: RequestStatus;
   budgetMin?: string | null;
   budgetMax?: string | null;

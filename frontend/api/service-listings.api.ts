@@ -26,10 +26,19 @@ import type {
 
 export const serviceListingsApi = {
   /** GET /service-listings — public browse/search, paginated. */
-  getAll: (params?: ServiceListingsQuery) =>
-    apiClient
-      .get<ApiResponse<ServiceListingWithProvider[]>>('/service-listings', { params })
-      .then((r) => unwrapPaginated<ServiceListingWithProvider>(r)),
+  getAll: (params?: ServiceListingsQuery) => {
+    const requestParams = params
+      ? {
+          ...params,
+          ...(params.attributeFilters
+            ? { attributeFilters: JSON.stringify(params.attributeFilters) }
+            : {}),
+        }
+      : params;
+    return apiClient
+      .get<ApiResponse<ServiceListingWithProvider[]>>('/service-listings', { params: requestParams })
+      .then((r) => unwrapPaginated<ServiceListingWithProvider>(r));
+  },
 
   /** GET /service-listings/me — caller's own listings, paginated. */
   getMine: (params?: ServiceListingsQuery) =>

@@ -143,10 +143,25 @@ export const serviceListingsService = {
 
     let listing: ServiceListing;
     try {
-      listing = await prisma.$transaction(async tx =>
-        serviceListingsRepository.create(tx, provider.id, {
+      listing = await prisma.$transaction(async tx => {
+        const lockedCategory = await serviceCategoriesRepository.lockForListingCreation(tx, input.categoryId);
+        if (!lockedCategory || !lockedCategory.isActive) {
+          throw new BadRequestError('Invalid or inactive service category.');
+        }
+        if (lockedCategory.serviceTypeId !== serviceTypeId) {
+          throw new BadRequestError(
+            'The selected service type no longer matches the selected category.',
+            'SERVICE_TYPE_CATEGORY_MISMATCH',
+          );
+        }
+        const lockedServiceTypeActive = await serviceTypesRepository.lockForListingCreation(tx, serviceTypeId);
+        if (lockedServiceTypeActive !== true) {
+          throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
+        }
+
+        const createdListing = await serviceListingsRepository.create(tx, provider.id, {
           categoryId: input.categoryId,
-          serviceTypeId,
+          serviceTypeId: lockedCategory.serviceTypeId,
           attributes: input.attributes,
           title: input.title,
           description: input.description,
@@ -156,8 +171,16 @@ export const serviceListingsService = {
           durationEstimate: input.durationEstimate,
           serviceLocation: input.serviceLocation,
           offlineOperationId: offlineOperationId ?? null,
-        })
-      );
+        });
+
+        await tx.serviceProviderServiceType.upsert({
+          where: { providerId_serviceTypeId: { providerId: provider.id, serviceTypeId: lockedCategory.serviceTypeId } },
+          create: { providerId: provider.id, serviceTypeId: lockedCategory.serviceTypeId, attributes: {} },
+          update: {},
+        });
+
+        return createdListing;
+      });
     } catch (error: unknown) {
       // FIX OFFLINE-IDEMPOTENCY-01: concurrent same offline op id
       if (
@@ -236,6 +259,44 @@ export const serviceListingsService = {
   getServiceListings: async (
     query: GetServiceListingsQuery
   ): Promise<PaginatedResult<ServiceListingWithProvider>> => {
+    if (query.attributeFilters && Object.keys(query.attributeFilters).length > 0) {
+      if (!query.serviceTypeId) {
+        throw new BadRequestError('A service type is required when filtering by service-specific attributes.', 'ATTRIBUTE_FILTER_SERVICE_TYPE_REQUIRED');
+      }
+      const type = await serviceTypesRepository.findByIdWithFields(query.serviceTypeId);
+      if (!type || !type.isActive) {
+        throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
+      }
+      const listingFields = type.fields.filter((field) => field.isActive && field.scope === 'LISTING');
+      const fieldMap = new Map(listingFields.map((field) => [field.key, field]));
+      for (const [key, value] of Object.entries(query.attributeFilters)) {
+        const field = fieldMap.get(key);
+        if (!field) {
+          throw new BadRequestError(`Unknown attribute filter: ${key}`, 'ATTRIBUTE_FILTER_NOT_ALLOWED');
+        }
+        if (value === null || value === undefined) continue;
+        if (field.type === 'BOOLEAN' && typeof value !== 'boolean') {
+          throw new BadRequestError(`Invalid value for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
+        }
+        if (field.type === 'NUMBER' && (typeof value !== 'number' || !Number.isFinite(value))) {
+          throw new BadRequestError(`Invalid value for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
+        }
+        if ((field.type === 'SELECT' || field.type === 'MULTI_SELECT') && !Array.isArray(field.options)) {
+          throw new BadRequestError(`Field ${key} is not configured with options.`, 'ATTRIBUTE_FILTER_INVALID');
+        }
+        if (field.type === 'SELECT' && typeof value === 'string') {
+          const allowed = (field.options as Array<{ value: string }>).some((option) => option.value === value);
+          if (!allowed) throw new BadRequestError(`Invalid option for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
+        }
+        if (field.type === 'MULTI_SELECT' && Array.isArray(value)) {
+          const allowed = new Set((field.options as Array<{ value: string }>).map((option) => option.value));
+          if (!value.every((item) => typeof item === 'string' && allowed.has(item))) {
+            throw new BadRequestError(`Invalid option for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
+          }
+        }
+      }
+    }
+
     // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('service-listings', query, async () => {
       const { listings, total } = await serviceListingsRepository.findMany(query);
@@ -312,21 +373,40 @@ export const serviceListingsService = {
       if (!category || !category.isActive) {
         throw new BadRequestError('Invalid or inactive service category.');
       }
+      const categoryServiceType = await serviceTypesRepository.findById(category.serviceTypeId);
+      if (!categoryServiceType || !categoryServiceType.isActive) {
+        throw new BadRequestError('The selected service category belongs to an inactive service type.', 'SERVICE_TYPE_INVALID');
+      }
       finalServiceTypeId = category.serviceTypeId;
     }
     if (input.serviceTypeId && input.serviceTypeId !== finalServiceTypeId) {
       throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
     }
     const serviceTypeChanged = finalServiceTypeId !== listing.serviceTypeId;
-    const effectiveServiceType = await serviceTypesRepository.findActiveById(finalServiceTypeId);
+    const effectiveServiceType = serviceTypeChanged
+      ? await serviceTypesRepository.findActiveById(finalServiceTypeId)
+      : await serviceTypesRepository.findByIdWithFields(finalServiceTypeId);
     if (!effectiveServiceType) throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
-    validateServiceTypeCapabilities(effectiveServiceType, input.pricingType ?? listing.pricingType, input.serviceLocation ?? listing.serviceLocation);
+
+    // Deactivating a ServiceType is a publication/configuration switch, not
+    // a historical-data lock. Existing listings must remain editable so an
+    // owner can pause, correct, or remove them. A new type assignment still
+    // requires an active type, and active types keep their full capability
+    // checks.
+    if (effectiveServiceType.isActive) {
+      validateServiceTypeCapabilities(effectiveServiceType, input.pricingType ?? listing.pricingType, input.serviceLocation ?? listing.serviceLocation);
+    }
+
     const attributesToValidate = input.attributes !== undefined
       ? input.attributes
       : serviceTypeChanged
         ? undefined
         : (listing.attributes as Record<string, unknown> | null) ?? undefined;
-    await validateServiceListingAttributes(finalServiceTypeId, attributesToValidate);
+    await validateServiceListingAttributes(
+      finalServiceTypeId,
+      attributesToValidate,
+      { allowInactive: !serviceTypeChanged, allowInactiveFields: !serviceTypeChanged },
+    );
 
     const finalPricingType = input.pricingType ?? listing.pricingType;
     const finalPrice = input.price !== undefined ? input.price : listing.price;
@@ -338,6 +418,13 @@ export const serviceListingsService = {
     }
 
     const updated = await serviceListingsRepository.update(id, input);
+    if (serviceTypeChanged) {
+      await prisma.serviceProviderServiceType.upsert({
+        where: { providerId_serviceTypeId: { providerId: provider.id, serviceTypeId: finalServiceTypeId } },
+        create: { providerId: provider.id, serviceTypeId: finalServiceTypeId, attributes: {} },
+        update: {},
+      });
+    }
     if (input.status && input.status !== 'ACTIVE') {
       await hidePublicEntities('service-listings');
     } else {

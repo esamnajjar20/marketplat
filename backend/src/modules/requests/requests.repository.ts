@@ -9,6 +9,7 @@ const offererSelect = {
 } as const;
 
 const requestDetailInclude = {
+  serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
   _count: { select: { offers: { where: { status: { not: 'WITHDRAWN' } } } } },
   offers: {
@@ -21,6 +22,7 @@ const requestDetailInclude = {
 } as const;
 
 const requestListInclude = {
+  serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
   _count: { select: { offers: { where: { status: { not: 'WITHDRAWN' } } } } },
 } as const;
@@ -37,7 +39,7 @@ export type OfferWithOfferer = Prisma.RequestOfferGetPayload<{
   include: {
     offerer: { select: typeof offererSelect };
     request: {
-      select: { id: true; title: true; type: true; status: true; city: true };
+      select: { id: true; title: true; type: true; serviceTypeId: true; status: true; city: true };
     };
   };
 }>;
@@ -55,6 +57,7 @@ export const requestsRepository = {
       budgetMin?: number;
       budgetMax?: number;
       attributes?: Prisma.InputJsonValue;
+      serviceTypeId?: string | null;
       expiresAt?: Date | null;
       offlineOperationId?: string | null;
     },
@@ -64,6 +67,7 @@ export const requestsRepository = {
         customerId,
         type: data.type,
         categoryId: data.categoryId,
+        serviceTypeId: data.serviceTypeId ?? null,
         title: data.title,
         description: data.description,
         city: data.city,
@@ -87,11 +91,12 @@ export const requestsRepository = {
     limit?: number;
     type?: 'SERVICE' | 'PRODUCT' | 'RENTAL';
     categoryId?: string;
+    serviceTypeId?: string;
     city?: string;
     q?: string;
     sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
   }): Promise<{ requests: RequestListItem[]; total: number }> => {
-    const { page = 1, limit = 20, type, categoryId, city, q, sort = 'newest' } = query;
+    const { page = 1, limit = 20, type, categoryId, serviceTypeId, city, q, sort = 'newest' } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const now = new Date();
     const search = q?.trim();
@@ -114,6 +119,7 @@ export const requestsRepository = {
       ],
       ...(type && { type }),
       ...(categoryId && { categoryId }),
+      ...(serviceTypeId && { serviceTypeId }),
       ...(city && { city: { contains: city, mode: 'insensitive' as const } }),
     };
 
@@ -247,7 +253,7 @@ export const requestOffersRepository = {
       include: {
         offerer: { select: offererSelect },
         request: {
-          select: { id: true, title: true, type: true, status: true, city: true },
+          select: { id: true, title: true, type: true, serviceTypeId: true, status: true, city: true },
         },
       },
     }),
@@ -316,6 +322,7 @@ export const requestOffersRepository = {
               id: true,
               title: true,
               type: true,
+              serviceTypeId: true,
               status: true,
               city: true,
             },

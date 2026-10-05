@@ -6,7 +6,8 @@ export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
   include: {
     listing: {
       include: {
-        provider: { include: { sellerProfile: true } };
+        provider: { include: { sellerProfile: true } },
+        serviceType: true,
       };
     };
     customer: { select: { id: true; name: true; avatarUrl: true } };
@@ -15,7 +16,7 @@ export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
 }>;
 
 const requestWithRelations = {
-  listing: { include: { provider: { include: { sellerProfile: true } } } },
+  listing: { include: { provider: { include: { sellerProfile: true } }, serviceType: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
   // Epic 3.2/3.3: lets the customer-side list/detail UI show "review
   // submitted" instead of a review button without a second round-trip —

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Star } from 'lucide-react';
 import { CardKindBadge, CardOfflineBadge, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
 import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_HEART_POSITION, CARD_IMAGE_43, CARD_PRESS, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,13 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
             {listing.serviceType?.nameAr && <Badge size="xs" variant="outline">{listing.serviceType.nameAr}</Badge>}
           </div>
           <h3 className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-snug text-foreground">{listing.title}</h3>
+          {listing.provider.sellerProfile.averageRating != null ? (
+            <div className="flex min-h-4 items-center gap-1 text-xs text-muted-foreground" aria-label={`التقييم ${Number(listing.provider.sellerProfile.averageRating).toFixed(1)} من 5`}>
+              <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-hidden />
+              <span className="font-medium text-foreground">{Number(listing.provider.sellerProfile.averageRating).toFixed(1)}</span>
+              <span>تقييم مقدم الخدمة</span>
+            </div>
+          ) : null}
           {cardFields.length > 0 && (
             <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
               {cardFields.map((field) => (

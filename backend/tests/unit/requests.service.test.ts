@@ -8,6 +8,7 @@ import { serviceProvidersRepository } from '../../src/modules/service-providers/
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
+import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/modules/requests/requests.repository');
 jest.mock('../../src/modules/service-categories/service-categories.repository');
@@ -23,6 +24,7 @@ jest.mock('../../src/config/prisma', () => ({
     $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
     request: { findUniqueOrThrow: jest.fn() },
     requestOffer: { update: jest.fn() },
+    serviceProviderServiceType: { findFirst: jest.fn() },
   },
 }));
 
@@ -47,6 +49,25 @@ describe('requestsService.create category guard', () => {
         description: 'Kitchen sink is leaking badly',
       }),
     ).rejects.toBeInstanceOf(BadRequestError);
+  });
+
+
+  it('inherits the ServiceType from the selected service category', async () => {
+    (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'sc1',
+      isActive: true,
+      serviceTypeId: 'st-digital',
+    });
+    await requestsService.create('u1', {
+      type: 'SERVICE',
+      categoryId: 'sc1',
+      title: 'Need a logo designer',
+      description: 'I need a professional logo for a small business',
+    });
+    expect(requestsRepository.create).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ serviceTypeId: 'st-digital' }),
+    );
   });
 
   it('creates PRODUCT when product category exists', async () => {
@@ -97,6 +118,25 @@ describe('requestsService.submitOffer eligibility', () => {
   it('rejects SERVICE offer without provider profile', async () => {
     (sellersRepository.findByUserId as jest.Mock).mockResolvedValue({ id: 'sp1' });
     (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+    await expect(
+      requestsService.submitOffer('offerer1', 'req1', { price: 100 }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+
+  it('rejects a SERVICE offer when the provider does not support the request ServiceType', async () => {
+    const prismaModule = prisma as unknown as { serviceProviderServiceType: { findFirst: jest.Mock } };
+    (requestsRepository.findById as jest.Mock).mockResolvedValue({
+      ...openRequest,
+      serviceTypeId: 'st-digital',
+    });
+    (sellersRepository.findByUserId as jest.Mock).mockResolvedValue({ id: 'sp1' });
+    (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({
+      id: 'provider1',
+      serviceAreaCities: ['غزة'],
+    });
+    prismaModule.serviceProviderServiceType.findFirst.mockResolvedValue(null);
+
     await expect(
       requestsService.submitOffer('offerer1', 'req1', { price: 100 }),
     ).rejects.toBeInstanceOf(ForbiddenError);

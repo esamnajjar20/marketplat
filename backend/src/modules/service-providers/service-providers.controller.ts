@@ -7,6 +7,7 @@ import {
   nearbyServiceProvidersSchema,
   getServiceProvidersSchema,
   serviceProviderAnalyticsQuerySchema,
+  updateServiceProviderServiceTypeSchema,
 } from './service-providers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -19,6 +20,27 @@ export const serviceProvidersController = {
       const { body } = createServiceProviderSchema.parse({ body: req.body });
       const details = await serviceProvidersService.createServiceProvider(user.userId, body);
       res.status(201).json(successResponse('Service provider profile created', details));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getMyServiceTypeProfiles: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const profiles = await serviceProvidersService.getMyServiceTypeProfiles(user.userId);
+      res.status(200).json(successResponse('Service provider service types fetched', profiles));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateMyServiceTypeProfile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params, body } = updateServiceProviderServiceTypeSchema.parse({ params: req.params, body: req.body });
+      const profile = await serviceProvidersService.updateMyServiceTypeProfile(user.userId, params.serviceTypeId, body);
+      res.status(200).json(successResponse('Service provider service type updated', profile));
     } catch (error) {
       next(error);
     }

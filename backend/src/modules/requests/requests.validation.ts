@@ -8,6 +8,7 @@ export const createRequestSchema = z.object({
     .object({
       type: requestTypeEnum,
       categoryId: z.string().min(1, 'categoryId is required'),
+      serviceTypeId: z.string().min(1).optional(),
       title: z.string().min(5, 'Title must be at least 5 characters').max(150),
       description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
       city: z.string().min(1).max(100).optional(),
@@ -48,10 +49,14 @@ export const getOpenRequestsSchema = z.object({
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
     type: requestTypeEnum.optional(),
     categoryId: z.string().min(1).optional(),
+    serviceTypeId: z.string().min(1).optional(),
     city: z.string().min(1).optional(),
     q: z.string().min(1).max(100).optional(),
     sort: openRequestSortEnum.optional(),
-  }),
+  }).refine(
+    (q) => q.serviceTypeId === undefined || q.type === 'SERVICE',
+    { message: 'serviceTypeId requires type=SERVICE', path: ['serviceTypeId'] },
+  ),
 });
 
 export type GetOpenRequestsQuery = z.infer<typeof getOpenRequestsSchema>['query'];

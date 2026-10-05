@@ -41,6 +41,21 @@ serviceProvidersRouter.patch(
   serviceProvidersController.updateMyServiceProvider
 );
 
+serviceProvidersRouter.get(
+  '/me/service-types',
+  authenticate,
+  CACHE.NONE,
+  serviceProvidersController.getMyServiceTypeProfiles
+);
+
+serviceProvidersRouter.patch(
+  '/me/service-types/:serviceTypeId',
+  authenticate, requireVerifiedEmail,
+  serviceProviderMutationRateLimit,
+  CACHE.NONE,
+  serviceProvidersController.updateMyServiceTypeProfile
+);
+
 // ANALYTICS — owner-only. Registered alongside the other /me routes,
 // same reasoning as /me/logo below: must never be swallowed by the
 // public /:id route.

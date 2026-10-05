@@ -3,24 +3,26 @@
 import { Input } from '@/components/shared/ui/Input';
 import { FormField } from '@/components/shared/forms/FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
-import type { ServiceTypeField } from '@/types/service.types';
+import type { ServiceTypeField, ServiceTypeFieldScope } from '@/types/service.types';
 
 interface Props {
   fields: ServiceTypeField[];
   values: Record<string, unknown>;
   onChange: (key: string, value: unknown) => void;
   getError?: (key: string) => string | undefined;
+  scope?: ServiceTypeFieldScope;
+  compact?: boolean;
 }
 
-export function ServiceTypeFieldsForm({ fields, values, onChange, getError }: Props) {
-  const listingFields = fields.filter((field) => field.scope === 'LISTING' && field.isActive);
+export function ServiceTypeFieldsForm({ fields, values, onChange, getError, scope = 'LISTING', compact = false }: Props) {
+  const listingFields = fields.filter((field) => field.scope === scope && field.isActive);
   if (listingFields.length === 0) return null;
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs">
+    <div className={compact ? 'space-y-4' : 'space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs'}>
       <div>
-        <h2 className="font-semibold">تفاصيل إضافية</h2>
-        <p className="mt-1 text-xs text-muted-foreground">هذه الحقول تختلف حسب نوع الخدمة وتساعد العملاء على فهم العرض بسرعة.</p>
+        <h2 className="font-semibold">{scope === 'PROVIDER' ? 'معلومات التخصص' : 'تفاصيل إضافية'}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{scope === 'PROVIDER' ? 'هذه المعلومات تظهر فقط لهذا المجال وتساعد العميل على تقييم خبرتك.' : 'هذه الحقول تختلف حسب نوع الخدمة وتساعد العملاء على فهم العرض بسرعة.'}</p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {listingFields.map((field) => {
