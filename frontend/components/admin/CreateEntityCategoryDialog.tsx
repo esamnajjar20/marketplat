@@ -32,7 +32,7 @@ interface CreateCategoryPayload {
   slug: string;
   icon?: string;
   storeTypeId?: string | null;
-  serviceTypeId?: string | undefined;
+  serviceTypeId?: string | null;
 }
 
 export interface CreateEntityCategoryDialogProps {
@@ -91,7 +91,7 @@ export function CreateEntityCategoryDialog({
         slug: slugify(nameEn, slugFallbackPrefix),
         icon: icon.trim() || undefined,
         ...(storeTypes.length ? { storeTypeId } : {}),
-        ...(serviceTypes.length ? { serviceTypeId: serviceTypeId ?? undefined } : {}),
+        ...(serviceTypes.length ? { serviceTypeId } : {}),
       },
       {
         onSuccess: () => {

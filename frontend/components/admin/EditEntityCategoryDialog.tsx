@@ -35,7 +35,7 @@ interface UpdateCategoryPatch {
   slug?: string;
   icon?: string;
   storeTypeId?: string | null;
-  serviceTypeId?: string | undefined;
+  serviceTypeId?: string | null;
 }
 
 export interface EditEntityCategoryDialogProps<TCategory extends EditableCategory> {

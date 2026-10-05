@@ -177,7 +177,7 @@ export interface CreateServiceCategoryPayload {
   slug:      string;
   icon?:     string;
   parentId?: string;
-  serviceTypeId?: string;
+  serviceTypeId?: string | null | undefined;
 }
 
 /** isActive is only ever settable via update — matches

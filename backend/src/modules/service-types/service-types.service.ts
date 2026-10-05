@@ -147,7 +147,7 @@ export const serviceTypesService = {
     try {
       validateServiceTypeFieldDefinition({
         type: current.type,
-        options: input.options !== undefined ? (input.options as Array<{ value: string; labelAr: string }> | null) : (current.options as Array<{ value: string; labelAr: string }> | null),
+        options: input.options !== undefined ? input.options : (current.options as Array<{ value: string; labelAr: string }> | null),
       });
     } catch (error) {
       throw new BadRequestError((error as Error).message, 'SERVICE_TYPE_FIELD_DEFINITION_INVALID');
