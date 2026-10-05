@@ -80,10 +80,28 @@ const storeWithSellerAndCounts = {
 
 export const storesRepository = {
   findBySellerProfileId: (sellerProfileId: string): Promise<StoreDetails | null> =>
-    prisma.storeDetails.findUnique({ where: { sellerProfileId }, include: { storeType: true } }),
+    prisma.storeDetails.findUnique({
+      where: { sellerProfileId },
+      include: {
+        storeType: {
+          include: {
+            fields: { where: { isActive: true }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] },
+          },
+        },
+      },
+    }),
 
   findById: (id: string): Promise<StoreDetails | null> =>
-    prisma.storeDetails.findUnique({ where: { id }, include: { storeType: true } }),
+    prisma.storeDetails.findUnique({
+      where: { id },
+      include: {
+        storeType: {
+          include: {
+            fields: { where: { isActive: true }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] },
+          },
+        },
+      },
+    }),
 
   // STORE-SLUG: used by storesService.createStore's collision-retry
   // loop (find-then-suffix, not a DB-level generated column) and by

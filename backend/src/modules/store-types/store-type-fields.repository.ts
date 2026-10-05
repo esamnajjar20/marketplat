@@ -12,6 +12,56 @@ export const storeTypeFieldsRepository = {
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   }),
   findById: (id: string) => prisma.storeTypeField.findUnique({ where: { id } }),
+
+  countStoresByType: (storeTypeId: string) =>
+    prisma.storeDetails.count({ where: { storeTypeId } }),
+
+  countProductsByType: (storeTypeId: string) =>
+    prisma.product.count({ where: { store: { storeTypeId } } }),
+
+  countRecordsWithAttribute: async (storeTypeId: string, scope: 'STORE' | 'PRODUCT', key: string): Promise<number> => {
+    if (scope === 'STORE') {
+      const rows = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(*)::bigint AS count
+        FROM "store_details"
+        WHERE "store_type_id" = ${storeTypeId}
+          AND "attributes" IS NOT NULL
+          AND "attributes" ? ${key}
+      `);
+      return Number(rows[0]?.count ?? 0);
+    }
+
+    const rows = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+      SELECT COUNT(*)::bigint AS count
+      FROM "products" p
+      INNER JOIN "store_details" s ON s."id" = p."store_id"
+      WHERE s."store_type_id" = ${storeTypeId}
+        AND p."attributes" IS NOT NULL
+        AND p."attributes" ? ${key}
+    `);
+    return Number(rows[0]?.count ?? 0);
+  },
+
+  countRecordsMissingRequiredAttribute: async (storeTypeId: string, scope: 'STORE' | 'PRODUCT', key: string): Promise<number> => {
+    if (scope === 'STORE') {
+      const rows = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(*)::bigint AS count
+        FROM "store_details"
+        WHERE "store_type_id" = ${storeTypeId}
+          AND ("attributes" IS NULL OR NOT ("attributes" ? ${key}) OR "attributes"->>${key} = '')
+      `);
+      return Number(rows[0]?.count ?? 0);
+    }
+
+    const rows = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+      SELECT COUNT(*)::bigint AS count
+      FROM "products" p
+      INNER JOIN "store_details" s ON s."id" = p."store_id"
+      WHERE s."store_type_id" = ${storeTypeId}
+        AND (p."attributes" IS NULL OR NOT (p."attributes" ? ${key}) OR p."attributes"->>${key} = '')
+    `);
+    return Number(rows[0]?.count ?? 0);
+  },
   create: (storeTypeId: string, input: CreateStoreTypeFieldInput) => prisma.storeTypeField.create({
     data: {
       storeTypeId,

@@ -1,4 +1,6 @@
 import { redis } from '../../config/redis';
+import { prisma } from '../../config/prisma';
+import { Prisma } from '@prisma/client';
 import { logger } from '../../shared/utils/logger';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -41,7 +43,7 @@ export const storeTypeFieldsService = {
   create: async (storeTypeId: string, input: CreateStoreTypeFieldInput) => {
     const type = await storeTypesRepository.findById(storeTypeId);
     if (!type) throw new NotFoundError('Store type not found', 'STORE_TYPE_NOT_FOUND');
-    const count = (await storeTypeFieldsRepository.findAll(storeTypeId)).length;
+    const count = (await storeTypeFieldsRepository.findAll(storeTypeId)).filter((field) => field.scope === (input.scope ?? 'STORE')).length;
     if (count >= MAX_FIELDS) throw new BadRequestError('A store type cannot have more than 20 custom fields.', 'STORE_TYPE_FIELD_LIMIT');
     try {
       const created = await storeTypeFieldsRepository.create(storeTypeId, input);
@@ -70,6 +72,64 @@ export const storeTypeFieldsService = {
     const nextOptions = input.options === undefined ? field.options : input.options;
     if (nextType === 'SELECT' && !nextOptions) throw new BadRequestError('Select fields require options.', 'STORE_TYPE_FIELD_OPTIONS_REQUIRED');
     if (nextType !== 'SELECT' && nextOptions) throw new BadRequestError('Only select fields may define options.', 'STORE_TYPE_FIELD_OPTIONS_INVALID');
+
+    const scope = field.scope;
+    const typeChanged = input.type !== undefined && input.type !== field.type;
+    const optionsChanged = input.options !== undefined && JSON.stringify(input.options) !== JSON.stringify(field.options);
+    const requiredEnabled = input.required === true && field.required === false;
+
+    if (typeChanged || optionsChanged) {
+      const usage = scope === 'PRODUCT'
+        ? await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "products" p
+            JOIN "store_details" s ON s.id = p."storeId"
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND p.status <> 'DELETED'
+              AND p.attributes IS NOT NULL
+              AND p.attributes ? ${field.key}
+          `)
+        : await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "store_details" s
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND s.attributes IS NOT NULL
+              AND s.attributes ? ${field.key}
+          `);
+      const usedCount = Number(usage[0]?.count ?? 0n);
+      if (usedCount > 0) {
+        throw new BadRequestError(
+          `Field cannot change type or options while ${usedCount} existing ${scope === 'PRODUCT' ? 'products' : 'stores'} use it. Create a new field instead.`,
+          'STORE_TYPE_FIELD_IN_USE',
+        );
+      }
+    }
+
+    if (requiredEnabled) {
+      const missing = scope === 'PRODUCT'
+        ? await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "products" p
+            JOIN "store_details" s ON s.id = p."storeId"
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND p.status <> 'DELETED'
+              AND (p.attributes IS NULL OR NOT (p.attributes ? ${field.key}) OR p.attributes->${field.key} IS NULL)
+          `)
+        : await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "store_details" s
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND (s.attributes IS NULL OR NOT (s.attributes ? ${field.key}) OR s.attributes->${field.key} IS NULL)
+          `);
+      const missingCount = Number(missing[0]?.count ?? 0n);
+      if (missingCount > 0) {
+        throw new BadRequestError(
+          `Field cannot become required because ${missingCount} existing ${scope === 'PRODUCT' ? 'products' : 'stores'} are missing it.`,
+          'STORE_TYPE_FIELD_REQUIRED_DATA_MISSING',
+        );
+      }
+    }
+
     const updated = await storeTypeFieldsRepository.update(fieldId, input);
     await invalidate(storeTypeId);
     await bumpPublicListCache('stores');

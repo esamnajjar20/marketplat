@@ -173,6 +173,16 @@ export const productCategoriesService = {
       }
     }
 
+    if (input.storeTypeId !== undefined && input.storeTypeId !== category.storeTypeId) {
+      const productsCount = await productCategoriesRepository.countProducts(id);
+      if (productsCount > 0) {
+        throw new BadRequestError(
+          `Category type cannot be changed while it has ${productsCount} active products.`,
+          'PRODUCT_CATEGORY_TYPE_CHANGE_HAS_PRODUCTS',
+        );
+      }
+    }
+
     try {
       const updated = await productCategoriesRepository.update(id, input);
       await invalidateProductCategoriesCache();

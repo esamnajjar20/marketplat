@@ -43,11 +43,12 @@ const productImageOperations = createEntityImageOperations({
   notOwnedCode: 'NOT_YOUR_PRODUCT',
 });
 
-// Stores proposal's "مجاني: 20 منتج" plan cap. Enforced here in
-// application code rather than a DB constraint, same as
-// service-listings' availabilityStatus gate — since it depends on
-// StoreDetails.plan, not a static schema rule.
-const FREE_PLAN_PRODUCT_LIMIT = 20;
+// The free-plan cap is defined by StoreType so different store types can
+// have different inventory allowances. null means no cap.
+function getFreeProductLimit(store: { plan: string; storeType?: { freeProductLimit: number | null } | null }): number | null {
+  if (store.plan !== 'FREE') return null;
+  return store.storeType?.freeProductLimit ?? null;
+}
 
 // PROMO-1: shape returned alongside every public-facing product,
 // folding in whatever promotions.service.ts's getEffectivePrice
@@ -119,16 +120,23 @@ export const productsService = {
     if (!category || !category.isActive) {
       throw new BadRequestError('Invalid or inactive product category.');
     }
+    if (category.storeTypeId !== null && category.storeTypeId !== store.storeTypeId) {
+      throw new BadRequestError(
+        'This product category is not available for this store type.',
+        'PRODUCT_CATEGORY_STORE_TYPE_MISMATCH',
+      );
+    }
 
     // FIX M-006: fast-path check, before doing any Cloudinary uploads —
     // this alone does NOT close the race (see the lock-guarded re-check
     // below, which is what actually prevents two concurrent requests
     // from both slipping past the cap).
-    if (store.plan === 'FREE') {
+    const freeProductLimit = getFreeProductLimit(store);
+    if (freeProductLimit !== null) {
       const activeCount = await storesRepository.countActiveProducts(store.id);
-      if (activeCount >= FREE_PLAN_PRODUCT_LIMIT) {
+      if (activeCount >= freeProductLimit) {
         throw new BadRequestError(
-          `Free plan stores can list up to ${FREE_PLAN_PRODUCT_LIMIT} products. Upgrade to add more.`,
+          `Free plan stores can list up to ${freeProductLimit} products. Upgrade to add more.`,
           'PRODUCT_LIMIT_REACHED'
         );
       }
@@ -151,11 +159,11 @@ export const productsService = {
       // above is only a fast-path so an obviously-over-the-cap request
       // doesn't pay for Cloudinary uploads first.
       product = await withStoreProductCreationLock(store.id, async () => {
-        if (store.plan === 'FREE') {
+        if (freeProductLimit !== null) {
           const activeCount = await storesRepository.countActiveProducts(store.id);
-          if (activeCount >= FREE_PLAN_PRODUCT_LIMIT) {
+          if (activeCount >= freeProductLimit) {
             throw new BadRequestError(
-              `Free plan stores can list up to ${FREE_PLAN_PRODUCT_LIMIT} products. Upgrade to add more.`,
+              `Free plan stores can list up to ${freeProductLimit} products. Upgrade to add more.`,
               'PRODUCT_LIMIT_REACHED'
             );
           }

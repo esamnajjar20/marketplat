@@ -8,7 +8,6 @@ export const createRequestSchema = z.object({
     .object({
       type: requestTypeEnum,
       categoryId: z.string().min(1, 'categoryId is required'),
-      serviceTypeId: z.string().min(1).optional(),
       title: z.string().min(5, 'Title must be at least 5 characters').max(150),
       description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
       city: z.string().min(1).max(100).optional(),
@@ -19,6 +18,7 @@ export const createRequestSchema = z.object({
       attributes: z.record(z.unknown()).optional(),
       /** Days until expiry; default applied in service if omitted (14). */
       expiresInDays: z.coerce.number().int().min(1).max(60).optional(),
+      serviceTypeId: z.string().min(1).optional(),
     })
     .refine(
       (b) =>
@@ -26,6 +26,10 @@ export const createRequestSchema = z.object({
         b.budgetMax === undefined ||
         b.budgetMin <= b.budgetMax,
       { message: 'budgetMin must be <= budgetMax', path: ['budgetMin'] },
+    )
+    .refine(
+      (b) => b.serviceTypeId === undefined || b.type === 'SERVICE',
+      { message: 'serviceTypeId requires type=SERVICE', path: ['serviceTypeId'] },
     ),
 });
 

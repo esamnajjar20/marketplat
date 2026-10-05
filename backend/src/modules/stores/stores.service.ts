@@ -400,6 +400,18 @@ export const storesService = {
     const storeType = await storeTypesRepository.findById(input.storeTypeId);
     if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
     if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+    if (store.storeTypeId === storeType.id) return store;
+
+    const productCount = await prisma.product.count({
+      where: { storeId: id, status: { not: 'DELETED' } },
+    });
+    if (productCount > 0) {
+      throw new BadRequestError(
+        `Store type cannot be changed while the store has ${productCount} existing products. Archive or remove the products first.`,
+        'STORE_TYPE_CHANGE_HAS_PRODUCTS',
+      );
+    }
+
     // FIX STORE-TYPE-SWITCH-LENIENT: an admin changing a store's type must
     // not be blocked by the store's pre-existing attributes (written under
     // the old type) or by the new type's required fields (which the owner

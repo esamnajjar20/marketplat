@@ -104,6 +104,9 @@ export const productCategoriesRepository = {
   countProducts: async (id: string): Promise<number> =>
     prisma.product.count({ where: { categoryId: id, status: 'ACTIVE' } }),
 
+  countAllProducts: async (id: string): Promise<number> =>
+    prisma.product.count({ where: { categoryId: id } }),
+
   // BUGFIX (FK violation on delete): a category with subcategories
   // (children.parentId -> this category's id) hits Prisma's P2003
   // foreign-key constraint if deleted directly — previously only
