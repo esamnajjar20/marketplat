@@ -5,6 +5,10 @@ import { salesController } from './sales.controller';
 export const salesRouter = Router();
 salesRouter.use(authenticate);
 
+salesRouter.get('/cost-settings', salesController.costSettings);
+salesRouter.patch('/cost-settings', salesController.updateCostSettings);
+salesRouter.get('/cost-products', salesController.costProducts);
+salesRouter.patch('/cost-products/:productId', salesController.updateProductCost);
 salesRouter.post('/', salesController.create);
 salesRouter.get('/', salesController.list);
 salesRouter.get('/summary', salesController.summary);

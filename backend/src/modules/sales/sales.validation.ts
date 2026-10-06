@@ -144,3 +144,16 @@ export type UpdateSaleInput = z.infer<typeof updateSaleSchema>['body'];
 export type ListSalesQuery = z.infer<typeof listSalesSchema>['query'];
 export type AddPaymentInput = z.infer<typeof addPaymentSchema>['body'];
 export type ReturnSaleInput = z.infer<typeof returnSaleSchema>['body'];
+
+
+export const updateCostSettingsSchema = z.object({
+  body: z.object({ enabled: z.boolean() }),
+});
+
+export const updateProductCostSchema = z.object({
+  params: z.object({ productId: z.string().min(1) }),
+  body: z.object({ costPrice: money.nullable() }),
+});
+
+export type UpdateCostSettingsInput = z.infer<typeof updateCostSettingsSchema>['body'];
+export type UpdateProductCostInput = z.infer<typeof updateProductCostSchema>['body'];

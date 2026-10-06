@@ -5,7 +5,7 @@ import { invoicesService } from './invoices.service';
 import { notificationsService } from '../notifications/notifications.service';
 import { customersService } from '../customers/customers.service';
 import { requireStoreAccess } from '../stores/store-members.service';
-import { CreateSaleInput, UpdateSaleInput, ListSalesQuery, AddPaymentInput, ReturnSaleInput } from './sales.validation';
+import { CreateSaleInput, UpdateSaleInput, ListSalesQuery, AddPaymentInput, ReturnSaleInput, UpdateCostSettingsInput, UpdateProductCostInput } from './sales.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
@@ -98,12 +98,43 @@ const refreshSalesStatsCache = async (sellerId: string, storeId: string | null) 
 };
 
 export const salesService = {
+  getCostSettings: async (userId: string) => {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { salesCostTrackingEnabled: true } });
+    return { enabled: user?.salesCostTrackingEnabled ?? true };
+  },
+
+  updateCostSettings: async (userId: string, input: UpdateCostSettingsInput) => {
+    const user = await prisma.user.update({ where: { id: userId }, data: { salesCostTrackingEnabled: input.enabled }, select: { salesCostTrackingEnabled: true } });
+    return { enabled: user.salesCostTrackingEnabled };
+  },
+
+  listCostProducts: async (userId: string) => {
+    return prisma.product.findMany({
+      where: {
+        status: { not: 'DELETED' },
+        store: { sellerProfile: { userId } },
+      },
+      select: { id: true, storeId: true, name: true, price: true, costPrice: true, stockQuantity: true, availability: true, images: true, store: { select: { id: true, name: true } } },
+      orderBy: [{ updatedAt: 'desc' }, { name: 'asc' }],
+    });
+  },
+
+  updateProductCost: async (userId: string, productId: string, input: UpdateProductCostInput) => {
+    const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true, storeId: true } });
+    if (!product) throw new NotFoundError('Product not found.', 'PRODUCT_NOT_FOUND');
+    const store = await prisma.storeDetails.findFirst({ where: { id: product.storeId, sellerProfile: { userId } }, select: { id: true } });
+    if (!store) throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
+    return prisma.product.update({ where: { id: productId }, data: { costPrice: input.costPrice }, select: { id: true, storeId: true, name: true, price: true, costPrice: true, stockQuantity: true, availability: true, images: true, store: { select: { id: true, name: true } } } });
+  },
+
   create: async (userId: string, input: CreateSaleInput, offlineOperationId?: string) => {
     if (offlineOperationId) {
       const existing = await prisma.saleRecord.findFirst({ where: { sellerId: userId, offlineOperationId } });
       if (existing) return salesRepository.findById(existing.id);
     }
     const entity = await ensureEntityOwnership(userId, input);
+    const costTracking = await salesService.getCostSettings(userId);
+    const effectiveCostPrice = costTracking.enabled ? entity.costPrice : null;
     const total = roundMoney(input.unitPrice * input.quantity);
     const initialPaid = roundMoney(input.payment?.amount ?? input.paidAmount ?? 0);
     if (initialPaid > total) throw new BadRequestError('Paid amount cannot exceed total.', 'PAYMENT_EXCEEDS_TOTAL');
@@ -125,7 +156,7 @@ export const salesService = {
         entityImageUrl: entity.imageUrl,
         quantity: input.quantity,
         unitPrice: input.unitPrice,
-        costPrice: entity.costPrice,
+        costPrice: effectiveCostPrice,
         totalPrice: total,
         currency: input.currency,
         invoiceNumber,

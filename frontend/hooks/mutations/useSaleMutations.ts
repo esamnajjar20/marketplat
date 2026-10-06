@@ -47,3 +47,14 @@ export function useAddSalePayment() {
 }
 
 export function useReturnSale() { const qc=useQueryClient(); return useMutation({ mutationFn: ({id,payload}:{id:string;payload:Parameters<typeof salesApi.addReturn>[1]})=>salesApi.addReturn(id,payload).then(r=>r.data.data), onSuccess:()=>{ void qc.invalidateQueries({queryKey:queryKeys.sales.all()}); void qc.invalidateQueries({queryKey:queryKeys.products.all()}); void qc.invalidateQueries({queryKey:queryKeys.products.stockSummary()}); void qc.invalidateQueries({queryKey:queryKeys.customers.all()}); toast.success('تم تسجيل المرتجع'); }}); }
+
+
+export function useUpdateSalesCostSettings() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (enabled:boolean) => salesApi.updateCostSettings(enabled).then(r => r.data.data), onSuccess: () => { void qc.invalidateQueries({ queryKey: [...queryKeys.sales.all(), 'cost-settings'] }); void qc.invalidateQueries({ queryKey: queryKeys.sales.all() }); toast.success('تم تحديث إعداد التكلفة الحقيقية'); } });
+}
+
+export function useUpdateProductCost() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({productId,costPrice}:{productId:string;costPrice:number|null}) => salesApi.updateProductCost(productId,costPrice).then(r => r.data.data), onSuccess: () => { void qc.invalidateQueries({ queryKey: [...queryKeys.sales.all(), 'cost-products'] }); void qc.invalidateQueries({ queryKey: queryKeys.products.all() }); toast.success('تم حفظ تكلفة المنتج'); } });
+}

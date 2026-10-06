@@ -4,7 +4,7 @@ import { useSalesChart } from '@/hooks/queries/useSales';
 
 export function SalesChart() {
   const [period, setPeriod] = useState<'day'|'week'|'month'>('day');
-  const { data = [], isLoading, isError } = useSalesChart(period);
+  const { data = [], isLoading, isError } = useSalesChart();
   const points = useMemo(() => data.slice(-30), [data]);
   const max = Math.max(1, ...points.map(p => Math.max(p.revenue, p.due, p.paid)));
   const width = 720, height = 230, padX = 24, padY = 20;

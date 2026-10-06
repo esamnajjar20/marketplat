@@ -50,6 +50,11 @@ const safeUserSelect = {
   // (the compiler caught exactly that on the first type-check).
   emailVerified: true,
   emailVerifiedAt: true,
+  // SALES-COST-TRACKING-01: added to the User model by the
+  // 20261006190000_sales_cost_tracking migration. SafeUser is
+  // Omit<User, 'passwordHash'>, so every SafeUser-typed query result
+  // must carry this column or TypeScript rejects the assignment.
+  salesCostTrackingEnabled: true,
   createdAt: true,
   updatedAt: true,
 } as const;

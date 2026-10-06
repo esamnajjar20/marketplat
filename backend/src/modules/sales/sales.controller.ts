@@ -1,10 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { salesService } from './sales.service';
-import { createSaleSchema, updateSaleSchema, saleIdSchema, listSalesSchema, addPaymentSchema, returnSaleSchema, statsPeriodSchema, compareSchema, topSchema } from './sales.validation';
+import { createSaleSchema, updateSaleSchema, saleIdSchema, listSalesSchema, addPaymentSchema, returnSaleSchema, statsPeriodSchema, compareSchema, topSchema, updateCostSettingsSchema, updateProductCostSchema } from './sales.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 
 export const salesController = {
+  costSettings: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales cost settings fetched', await salesService.getCostSettings(user.userId))); } catch (e) { next(e); } },
+  updateCostSettings: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { body } = updateCostSettingsSchema.parse({ body: req.body }); res.json(successResponse('Sales cost settings updated', await salesService.updateCostSettings(user.userId, body))); } catch (e) { next(e); } },
+  costProducts: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales cost products fetched', await salesService.listCostProducts(user.userId))); } catch (e) { next(e); } },
+  updateProductCost: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const parsed = updateProductCostSchema.parse({ params: req.params, body: req.body }); res.json(successResponse('Product cost updated', await salesService.updateProductCost(user.userId, parsed.params.productId, parsed.body))); } catch (e) { next(e); } },
   create: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { body } = createSaleSchema.parse({ body: req.body }); res.status(201).json(successResponse('Sale created', await salesService.create(user.userId, body, (req.headers['x-offline-op-id'] as string | undefined) ?? (req.headers['X-Offline-Op-Id'] as string | undefined)))); } catch (e) { next(e); } },
   list: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { query } = listSalesSchema.parse({ query: req.query }); res.json(successResponse('Sales fetched', await salesService.list(user.userId, query))); } catch (e) { next(e); } },
   getById: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { params } = saleIdSchema.parse({ params: req.params }); res.json(successResponse('Sale fetched', await salesService.getById(user.userId, params.id))); } catch (e) { next(e); } },

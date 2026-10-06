@@ -18,11 +18,25 @@ export function useSalesSummary(period: 'day' | 'week' | 'month' | 'year' = 'mon
   });
 }
 
-export function useSalesChart(period: 'day'|'week'|'month'|'year' = 'day') {
+export function useSalesChart() {
   return useQuery({
-    queryKey: [...queryKeys.sales.chart(), period],
-    queryFn: () => salesApi.chart({ period }).then((r) => r.data.data ?? []),
+    queryKey: queryKeys.sales.chart(),
+    queryFn: () => salesApi.chart().then((r) => r.data.data ?? []),
   });
 }
 
-export function useSalesCompare(period: 'week'|'month'|'year' = 'month') { return useQuery({ queryKey: [...queryKeys.sales.all(), 'compare', period], queryFn: () => salesApi.compare(period).then(r=>r.data.data) }); }
+export function useSalesCompare(period: 'week'|'month'|'year' = 'month') {
+  return useQuery({
+    queryKey: [...queryKeys.sales.all(), 'compare', period],
+    queryFn: () => salesApi.compare(period).then((r) => r.data.data),
+  });
+}
+
+
+export function useSalesCostSettings() {
+  return useQuery({ queryKey: [...queryKeys.sales.all(), 'cost-settings'], queryFn: () => salesApi.costSettings().then(r => r.data.data) });
+}
+
+export function useSalesCostProducts(enabled = true) {
+  return useQuery({ queryKey: [...queryKeys.sales.all(), 'cost-products'], queryFn: () => salesApi.costProducts().then(r => r.data.data ?? []), enabled });
+}

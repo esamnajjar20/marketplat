@@ -368,7 +368,7 @@ export function MyProductsList() {
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   {product.status === 'ACTIVE' && (
-                    <Button variant="ghost" size="icon" className="h-10 w-10 text-success" aria-label={`بيع ${product.name}`} title="بعت" onClick={() => setSalePrefill({ entityType: 'PRODUCT', entityId: product.id, entityTitle: product.name, entityImageUrl: product.images?.[0] ?? null, unitPrice: Number(product.discountPrice ?? product.price), costPrice: product.costPrice == null ? null : Number(product.costPrice), storeId: product.storeId })}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-success" aria-label={`بيع ${product.name}`} title="بعت" onClick={() => setSalePrefill({ entityType: 'PRODUCT', entityId: product.id, entityTitle: product.name, entityImageUrl: product.images?.[0] ?? null, unitPrice: Number(product.discountPrice ?? product.price), storeId: product.storeId })}>
                       <Package className="h-3.5 w-3.5" />
                     </Button>
                   )}

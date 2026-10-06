@@ -13,6 +13,7 @@ export const SALES_HUB_TABS = [
   'debts',
   'installments',
   'analytics',
+  'costs',
 ] as const;
 
 export type SalesHubTab = (typeof SALES_HUB_TABS)[number];

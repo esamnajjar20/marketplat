@@ -12,6 +12,8 @@ import { SalesDebtsSection } from './SalesDebtsSection';
 import { SalesInstallmentsSection } from './SalesInstallmentsSection';
 import { SalesChart } from './SalesChart';
 import { SalesCompareCard } from './SalesCompareCard';
+import { SalesCostSection } from './SalesCostSection';
+import { useSalesCostSettings } from '@/hooks/queries/useSales';
 import {
   DEFAULT_SALES_HUB_TAB,
   SALES_HUB_PATH,
@@ -28,6 +30,7 @@ const TAB_META: Record<SalesHubTab, { label: string; Icon: typeof WalletCards }>
   debts: { label: 'الديون', Icon: WalletCards },
   installments: { label: 'الأقساط', Icon: ClipboardList },
   analytics: { label: 'الإحصائيات', Icon: BarChart3 },
+  costs: { label: 'التكلفة الحقيقية', Icon: WalletCards },
 };
 
 function TabBody({ tab }: { tab: SalesHubTab }) {
@@ -40,6 +43,8 @@ function TabBody({ tab }: { tab: SalesHubTab }) {
       return <Suspense><SalesDebtsSection /></Suspense>;
     case 'installments':
       return <Suspense><SalesInstallmentsSection /></Suspense>;
+    case 'costs':
+      return <Suspense><SalesCostSection /></Suspense>;
     case 'analytics':
       return (
         <div className="space-y-4">
@@ -57,16 +62,22 @@ function TabBody({ tab }: { tab: SalesHubTab }) {
 }
 
 export function SalesTabsHub() {
+  const costSettings = useSalesCostSettings();
+  const visibleTabs = costSettings.data?.enabled === false ? SALES_HUB_TABS.filter((tab) => tab !== 'costs') : SALES_HUB_TABS;
+  const resolveTab = (value: string | null | undefined): SalesHubTab => {
+    const tab = resolveSalesHubTab(value ?? '') ?? DEFAULT_SALES_HUB_TAB;
+    return tab === 'costs' && costSettings.data?.enabled === false ? DEFAULT_SALES_HUB_TAB : tab;
+  };
   return (
     <TabsHub<SalesHubTab>
       idPrefix="sales"
       sectionLabel="لوحة المبيعات"
       tabListLabel="أقسام لوحة المبيعات"
       hubPath={SALES_HUB_PATH}
-      tabs={SALES_HUB_TABS}
+      tabs={visibleTabs}
       defaultTab={DEFAULT_SALES_HUB_TAB}
       meta={TAB_META}
-      resolveTab={resolveSalesHubTab}
+      resolveTab={resolveTab}
       searchForTabSwitch={searchForSalesHubTabSwitch}
       renderTab={(tab) => <TabBody tab={tab} />}
     />
