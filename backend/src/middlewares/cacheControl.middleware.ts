@@ -39,11 +39,11 @@ export const cacheControl =
 // Presets
 export const CACHE = {
   // Static-ish data: categories tree (1 hour)
-  LONG: cacheControl(3600, 600),
+  LONG: cacheControl(7200, 900),
   // Public lists — N2 longer TTL for weak nets (90s + 60s SWR)
-  SHORT: cacheControl(90, 60),
+  SHORT: cacheControl(180, 90),
   // Individual public resources (ad/product detail)
-  MEDIUM: cacheControl(120, 60),
+  MEDIUM: cacheControl(240, 120),
   // ad lists/details are invalidated in Redis
   // immediately (bumpAdsCacheVersion), but a browser/CDN copy can't be
   // purged — with SHORT/MEDIUM an admin takedown or a "sold" flip stayed
