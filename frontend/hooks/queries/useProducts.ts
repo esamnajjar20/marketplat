@@ -110,11 +110,12 @@ export function useProduct(id: string) {
 }
 
 /** GET /products/me — caller's own products (my-store products tab). */
-export function useMyProducts(params?: ProductsQuery) {
+export function useMyProducts(params?: ProductsQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.products.mine(params),
     queryFn: () => productsApi.getMine(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.myAds,
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }

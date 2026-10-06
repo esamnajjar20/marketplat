@@ -48,6 +48,7 @@ export const ROUTES = {
   notifications: '/notifications',
   conversationDetail: (id: string) => `/messages/${id}`,
   dashboard:     '/dashboard',
+  sales:         '/account/sales',
   services:            '/services',
   serviceDetail:        (id: string) => `/services/${id}`,
   serviceProviders:      '/service-providers',

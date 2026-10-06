@@ -75,6 +75,7 @@ import { getRawApiUrl } from './lib/env';
 const PROTECTED_PREFIXES = [
   '/ads/create',
   '/dashboard',
+  '/account',
   '/favorites',
   '/messages',
   '/my-ads',

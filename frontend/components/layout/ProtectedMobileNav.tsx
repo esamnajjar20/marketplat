@@ -55,7 +55,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WithSearch } from '@/components/layout/WithSearch';
-import { ChevronDown, ChevronLeft, User, ExternalLink, Store } from 'lucide-react';
+import { ChevronDown, ChevronLeft, User, ExternalLink, Store, WalletCards } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdminTier, selectUser } from '@/store/auth.store';
@@ -438,6 +438,23 @@ export function ProtectedMobileNav() {
           {showProviderSkeleton && (
             <li aria-hidden className="px-3 py-2">
               <div className="h-9 animate-pulse rounded-md bg-muted/60" />
+            </li>
+          )}
+          {(isSeller || isProvider) && (
+            <li>
+              <Link
+                href={ROUTES.sales}
+                prefetch={false}
+                onClick={() => { recordNavigation(ROUTES.sales); close(); }}
+                aria-current={pathname.startsWith(ROUTES.sales) ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  pathname.startsWith(ROUTES.sales) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+              >
+                <WalletCards className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                مبيعاتي
+              </Link>
             </li>
           )}
           {!showProviderSkeleton && isProvider && (

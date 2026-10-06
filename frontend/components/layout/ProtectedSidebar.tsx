@@ -81,7 +81,7 @@ import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
 import { useNavigationUsage } from '@/hooks/useNavigationUsage';
-import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
+import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, SALES_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useAuthStore, selectIsAdminTier, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
@@ -141,7 +141,7 @@ function NavLink({
 function DisclosureGroup({
   group, pathname, search = '', onNavigate,
 }: {
-  group: typeof ACTIVITY_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup;
+  group: typeof ACTIVITY_GROUP | typeof SERVICES_GROUP | typeof STORE_GROUP | typeof SALES_GROUP | NavDisclosureGroup;
   pathname: string;
   search?: string;
   onNavigate?: (href: string) => void;
@@ -224,6 +224,7 @@ export function ProtectedSidebar() {
     ...(isSeller ? [{ key: 'store', href: STORE_GROUP.href, label: STORE_GROUP.label, icon: STORE_GROUP.icon, active: hasCurrentInGroup(STORE_GROUP) }] : []),
     ...(isSeller && myStore?.status === 'ACTIVE' ? [{ key: 'store-public', href: ROUTES.storeDetail(myStore.id), label: 'عرض متجري', icon: ExternalLink, active: current(ROUTES.storeDetail(myStore.id)) }] : []),
     ...(isProvider ? [{ key: 'services', href: SERVICES_GROUP.href, label: SERVICES_GROUP.label, icon: SERVICES_GROUP.icon, active: hasCurrentInGroup(SERVICES_GROUP) }] : []),
+    ...((isSeller || isProvider) ? [{ key: 'sales', href: SALES_GROUP.href, label: SALES_GROUP.label, icon: SALES_GROUP.icon, active: pathname === ROUTES.sales || pathname.startsWith(`${ROUTES.sales}/`) }] : []),
     { key: 'requests', href: requestsGroupFor(true).href, label: requestsGroupFor(true).label, icon: requestsGroupFor(true).icon, active: requestsVisible },
     ...(user ? [{ key: 'profile', href: ROUTES.userProfile(user.id), label: 'عرض ملفي', icon: User, active: current(ROUTES.userProfile(user.id)) }] : []),
     ...(activityVisible ? [{ key: 'activity', href: ACTIVITY_GROUP.href, label: ACTIVITY_GROUP.label, icon: ACTIVITY_GROUP.icon, active: hasCurrentInGroup(ACTIVITY_GROUP) }] : []),
@@ -232,6 +233,7 @@ export function ProtectedSidebar() {
     [STORE_GROUP.href]: 90,
     ...(isSeller && myStore ? { [ROUTES.storeDetail(myStore.id)]: 55 } : {}),
     [SERVICES_GROUP.href]: isProvider ? 90 : 20,
+    [SALES_GROUP.href]: (isSeller || isProvider) ? 78 : 10,
     [requestsGroupFor(true).href]: 62,
     ...(user ? { [ROUTES.userProfile(user.id)]: 35 } : {}),
     [ACTIVITY_GROUP.href]: 25,
