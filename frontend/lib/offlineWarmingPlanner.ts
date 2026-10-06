@@ -13,7 +13,7 @@
 'use client';
 
 import { getWarmingMode } from './warmingPreferences';
-import { shouldPauseWarming, getAverageRequestMs } from './connectionQuality';
+import { getNetworkPolicy, type NetworkTier } from './networkPolicy';
 
 // NOTE: getWarmingPlan() no longer produces 'critical' (see FIX WARM-DEADCODE-01);
 // the member stays in the union because downstream consumers and their tests
@@ -34,20 +34,6 @@ export interface WarmingPlan {
   minRoutes: number;
   /** Human-readable reason, for logging / debug UI. */
   reason: string;
-}
-
-interface NetworkInformationLike {
-  effectiveType?: string;
-  downlink?: number;
-  saveData?: boolean;
-}
-
-function readConnection(): NetworkInformationLike | null {
-  if (typeof navigator === 'undefined') return null;
-  return (
-    (navigator as Navigator & { connection?: NetworkInformationLike }).connection ??
-    null
-  );
 }
 
 /**
@@ -145,7 +131,9 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  const policy = getNetworkPolicy();
+
+  if (policy.tier === 'offline') {
     return {
       tier: 'none',
       concurrency: 0,
@@ -157,9 +145,7 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  const conn = readConnection();
-
-  if (conn?.saveData) {
+  if (policy.saveData) {
     return {
       tier: 'none',
       concurrency: 0,
@@ -171,9 +157,7 @@ export function getWarmingPlan(): WarmingPlan {
     };
   }
 
-  // FIX WARM-TIMEOUT-CIRCUIT-01: stop background warming after repeated
-  // network failures so we do not keep burning a weak radio.
-  if (shouldPauseWarming()) {
+  if (!policy.allowBackgroundWarming) {
     return {
       tier: 'none',
       concurrency: 0,
@@ -181,90 +165,67 @@ export function getWarmingPlan(): WarmingPlan {
       interRouteDelayMs: 0,
       requestTimeoutMs: 0,
       minRoutes: 0,
-      reason: 'timeout-circuit',
+      reason: policy.consecutiveFailures >= 3 ? 'timeout-circuit' : 'network-policy',
     };
   }
 
-  // FIX WARM-ADAPTIVE-01 / WARM-ADAPTIVE-3G-01: throttle by effectiveType,
-  // downlink, and measured RTT. 2g → critical; 3g / high RTT → smaller core.
-  const effectiveType = (conn?.effectiveType || '').toLowerCase();
-  const downlink = typeof conn?.downlink === 'number' ? conn.downlink : undefined;
-  const avgMs = getAverageRequestMs();
-  const isVerySlow =
-    effectiveType === '2g' ||
-    effectiveType === 'slow-2g' ||
-    (downlink !== undefined && downlink > 0 && downlink < 0.4);
-  const isModeratelySlow =
-    !isVerySlow &&
-    (effectiveType === '3g' ||
-      (downlink !== undefined && downlink > 0 && downlink < 1.5) ||
-      (avgMs != null && avgMs >= 2500));
-
   const criticalPlan = (reason: string): WarmingPlan => ({
     tier: 'critical',
-    concurrency: 1,
+    concurrency: policy.queueConcurrency,
     interBatchDelayMs: 0,
-    interRouteDelayMs: 2500,
-    requestTimeoutMs: 25_000,
+    interRouteDelayMs: policy.tier === 'very-slow' ? 2500 : 1800,
+    requestTimeoutMs: policy.requestTimeoutMs,
     minRoutes: ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal,
     reason,
   });
 
+  const networkTier: NetworkTier = policy.tier;
+
   if (userMode === 'fast') {
-    if (isVerySlow) return criticalPlan('user-fast-2g');
-    if (isModeratelySlow) {
-      return {
-        tier: 'critical',
-        concurrency: 1,
-        interBatchDelayMs: 0,
-        interRouteDelayMs: 1800,
-        requestTimeoutMs: 20_000,
-        minRoutes: ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal,
-        reason: 'user-fast-3g',
-      };
-    }
+    if (networkTier === 'very-slow') return criticalPlan('user-fast-very-slow');
+    if (networkTier === 'slow') return criticalPlan('user-fast-slow');
     return {
       tier: 'core',
-      concurrency: 1,
+      concurrency: policy.queueConcurrency,
       interBatchDelayMs: 0,
       interRouteDelayMs: 1200,
-      requestTimeoutMs: 18_000,
+      requestTimeoutMs: policy.requestTimeoutMs,
       minRoutes: CORE_ROUTE_BUDGET,
       reason: 'user-fast',
     };
   }
 
   // userMode === 'full'
-  if (isVerySlow) {
+  if (networkTier === 'very-slow') {
     return {
       tier: 'full',
       concurrency: 1,
       interBatchDelayMs: 0,
       interRouteDelayMs: 2500,
-      requestTimeoutMs: 25_000,
+      requestTimeoutMs: policy.requestTimeoutMs,
       minRoutes: 9_999,
-      reason: 'user-full-2g-paced',
+      reason: 'user-full-very-slow-paced',
     };
   }
-  if (isModeratelySlow) {
+  if (networkTier === 'slow') {
     return {
       tier: 'full',
       concurrency: 1,
       interBatchDelayMs: 0,
       interRouteDelayMs: 1500,
-      requestTimeoutMs: 18_000,
+      requestTimeoutMs: policy.requestTimeoutMs,
       minRoutes: 9_999,
-      reason: 'user-full-3g-paced',
+      reason: 'user-full-slow-paced',
     };
   }
   return {
     tier: 'full',
-    concurrency: 2,
-    interBatchDelayMs: 300,
-    interRouteDelayMs: 400,
-    requestTimeoutMs: 12_000,
+    concurrency: policy.queueConcurrency,
+    interBatchDelayMs: policy.tier === 'fast' ? 300 : 500,
+    interRouteDelayMs: policy.tier === 'fast' ? 400 : 700,
+    requestTimeoutMs: policy.requestTimeoutMs,
     minRoutes: 9_999,
-    reason: 'user-full',
+    reason: networkTier === 'fast' ? 'user-full' : 'user-full-adaptive',
   };
 }
 

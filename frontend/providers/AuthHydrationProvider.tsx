@@ -65,6 +65,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
 import { usersApi }   from '@/api/users.api';
 import { favoritesApi } from '@/api/favorites.api';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
 import { queryKeys }    from '@/lib/queryKeys';
 import { CACHE_TTL, ROUTES }    from '@/lib/constants';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, clearAuthCookies } from '@/lib/cookies';
@@ -329,13 +330,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // hook reads, so no duplicate request later.
         const prefetchFavoritesIdle = () => {
           if (typeof window === 'undefined') return;
-          const conn =
-            (navigator as Navigator & {
-              connection?: { saveData?: boolean; effectiveType?: string };
-            }).connection;
-          if (conn?.saveData) return;
-          const et = conn?.effectiveType;
-          if (et === 'slow-2g' || et === '2g' || et === '3g') return;
+          if (!getNetworkPolicy().allowPrefetch) return;
 
           const run = () => {
             void (async () => {

@@ -1,3 +1,5 @@
+import { getNetworkPolicy } from '@/lib/networkPolicy';
+
 const KEY = 'marketplat:data-saver';
 const EVENT = 'marketplat:data-saver';
 
@@ -29,7 +31,7 @@ export function isDataSaverEnabled(): boolean {
     /* ignore */
   }
 
-  return connectionWantsSaver();
+  return connectionWantsSaver() || getNetworkPolicy().tier === 'very-slow';
 }
 
 export function hydrateDataSaver(): void {

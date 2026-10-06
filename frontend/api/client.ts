@@ -28,7 +28,8 @@
  * X-CSRF-Token header — see getCsrfToken()'s own comment for why that
  * is the necessary other half of moving to a cookie-based refresh flow.
  */
-import { recordRequestTiming } from '@/lib/connectionQuality';
+import { recordRequestFailure, recordRequestTiming, recordRequestSuccess } from '@/lib/connectionQuality';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
 import axios, {
   AxiosError,
   type AxiosInstance,
@@ -44,12 +45,55 @@ import { toast } from 'sonner';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { makeOfflineError } from '@/lib/offlineError';
-import { invalidateOfflineCachesForMutation } from '@/lib/offlineCacheInvalidation';
+import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 
 export type BatchGetRequest = {
   url: string;
   params?: Record<string, unknown>;
 };
+
+const NETWORK_RETRY_MARKER = '_networkRetryCount';
+function getRetryDelayMs(attempt: number, retryAfterMs?: number): number {
+  if (typeof retryAfterMs === 'number' && Number.isFinite(retryAfterMs)) {
+    return Math.min(Math.max(retryAfterMs, 250), 15_000);
+  }
+  const base = Math.min(1_000 * 2 ** Math.max(0, attempt - 1), 4_000);
+  return Math.round(base * (0.75 + Math.random() * 0.5));
+}
+
+function isSafeMethod(method?: string): boolean {
+  return SAFE_METHODS.has((method ?? 'get').toLowerCase());
+}
+
+function isNetworkRetryableAxiosError(error: AxiosError): boolean {
+  if (axios.isCancel(error)) return false;
+  const status = error.response?.status;
+  if (status === 408 || status === 429 || status === 502 || status === 503 || status === 504) return true;
+  return !error.response && Boolean(error.request || error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.code === 'ERR_NETWORK');
+}
+
+function getRetryAfterMs(error: AxiosError): number | undefined {
+  const raw = error.response?.headers?.['retry-after'];
+  if (raw == null) return undefined;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return seconds * 1000;
+  const dateMs = Date.parse(String(value));
+  return Number.isFinite(dateMs) ? Math.max(0, dateMs - Date.now()) : undefined;
+}
+
+function supportsOfflineOperationId(method: string, url: string): boolean {
+  if (method !== 'post') return false;
+  const path = url.split('?')[0] ?? url;
+  return (
+    /^\/ads$/.test(path) ||
+    /^\/products$/.test(path) ||
+    /^\/service-listings$/.test(path) ||
+    /^\/service-requests$/.test(path) ||
+    /^\/sales$/.test(path) ||
+    /^\/conversations\/[^/]+\/messages(?:\/(?:file|audio))?$/.test(path)
+  );
+}
 
 export type BatchGetResponse<T = unknown> = {
   data: T;
@@ -67,6 +111,46 @@ export const apiClient = axios.create({
 }) as ApiClientWithBatchGet;
 
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
+
+const inflightGetRequests = new Map<string, Promise<unknown>>();
+
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => [key, stableValue(item)]),
+    );
+  }
+  return value;
+}
+
+function getDedupKey(url: string, config?: AxiosRequestConfig): string {
+  const userId = useAuthStore.getState().user?.id ?? 'anonymous';
+  return `${userId}|${url}|${JSON.stringify(stableValue(config?.params ?? null))}|${config?.responseType ?? 'json'}`;
+}
+
+const rawGet = apiClient.get.bind(apiClient);
+apiClient.get = ((url: string, config?: AxiosRequestConfig) => {
+  // Do not share requests carrying an AbortSignal: one caller cancelling its
+  // request must never cancel another caller's request. Blob downloads are
+  // also excluded because they are usually user-initiated media actions.
+  const responseType = config?.responseType;
+  if (config?.signal || responseType === 'blob' || responseType === 'arraybuffer') {
+    return rawGet(url, config);
+  }
+
+  const key = getDedupKey(url, config);
+  const existing = inflightGetRequests.get(key);
+  if (existing) return existing as ReturnType<typeof rawGet>;
+
+  const request = rawGet(url, config).finally(() => {
+    if (inflightGetRequests.get(key) === request) inflightGetRequests.delete(key);
+  });
+  inflightGetRequests.set(key, request);
+  return request;
+}) as typeof apiClient.get;
 
 // ── Request interceptor — attach access token + CSRF token ────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -119,26 +203,34 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // per-call timeout (e.g. mediaApi's 30s multipart budget) alone
   // since those arrive non-zero.
   if (!config.timeout) {
-    // AUTH-RACE-TIMEOUT-01 — auth endpoints get a longer cap. Both
-    // /auth/refresh and /auth/login are on the critical path for
-    // every page load; the SW's own queue replay can also issue a
-    // concurrent /auth/refresh at the same moment (see
-    // refreshAccessToken in sw.js), and any timeout before the
-    // backend rotates its refreshToken cookie leaves the page
-    // unable to establish a session → false-logout redirect. The
-    // race loser specifically needs enough time for the winner to
-    // finish and update the browser's cookie.
+    // Phase 2: use the central NetworkPolicy instead of a fixed timeout.
+    // Auth remains deliberately longer because refresh rotation is a
+    // correctness-critical path; explicit per-call timeouts still win.
     const url = config.url ?? '';
     const isAuthPath = url.includes('/auth/');
+    const policyTimeout = getNetworkPolicy().requestTimeoutMs;
     config.timeout = isAuthPath
       ? 20_000
-      : (SAFE_METHODS.has(method) ? 15_000 : 8_000);
+      : (policyTimeout > 0 ? policyTimeout : (isSafeMethod(method) ? 15_000 : 8_000));
   }
 
   // PHASE-1 UX: sample RTT for connection quality indicator
   (config as AxiosRequestConfig & { metadata?: { start: number } }).metadata = {
     start: typeof performance !== 'undefined' ? performance.now() : Date.now(),
   };
+
+  // For create operations whose backend already enforces X-Offline-Op-Id,
+  // generate the id at the request boundary when the caller did not provide
+  // one. The same Axios config is reused by manual retries and SW replay, so
+  // the id remains stable and a late server response cannot turn into a
+  // duplicate create. We deliberately do not add this header to mutations
+  // whose backend has no matching idempotency contract.
+  if (supportsOfflineOperationId(method, config.url ?? '')) {
+    const headers = config.headers as Record<string, string | undefined>;
+    if (!headers[OFFLINE_OP_ID_HEADER] && !headers[OFFLINE_OP_ID_HEADER.toLowerCase()]) {
+      headers[OFFLINE_OP_ID_HEADER] = newOfflineOperationId();
+    }
+  }
 
   // useAuthStore.getState() is synchronous — safe outside React components.
   const token = useAuthStore.getState().accessToken;
@@ -386,6 +478,10 @@ apiClient.interceptors.response.use(
         const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
         recordRequestTiming(end - start);
       }
+      const measuredMs = typeof start === 'number'
+        ? ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
+        : null;
+      if (measuredMs != null && measuredMs >= 80) recordRequestSuccess();
     } catch { /* ignore */ }
 
     // FIX QUEUE-UX-01: sw.js queues an offline mutation (POST/PUT/PATCH/
@@ -419,20 +515,30 @@ apiClient.interceptors.response.use(
         queued:     true,
       });
     }
-
-    // A mutation is cache-invalidating only after a real 2xx server response.
-    // A queued 202 was handled above and must NOT invalidate anything because
-    // the server has not changed yet.
-    if (!SAFE_METHODS.has((response.config.method ?? 'get').toLowerCase())) {
-      invalidateOfflineCachesForMutation(
-        response.config.url ?? '',
-        response.config.method ?? 'get',
-      );
-    }
     return response;
   },
   async (error: AxiosError) => {
-    const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    if (isNetworkRetryableAxiosError(error)) {
+      recordRequestFailure();
+    }
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; [NETWORK_RETRY_MARKER]?: number }) | undefined;
+
+    // Phase 2: automatically retry only safe/idempotent HTTP methods.
+    // Mutations are intentionally excluded: a client-side timeout does not
+    // prove that the server failed to commit the mutation. Supported create
+    // flows already carry X-Offline-Op-Id for server-side idempotency.
+    if (original && isSafeMethod(original.method) && isNetworkRetryableAxiosError(error)) {
+      const policy = getNetworkPolicy();
+      const maxRetries = policy.tier === 'very-slow' ? 1 : policy.tier === 'slow' ? 2 : policy.tier === 'fast' ? 2 : 1;
+      const attempt = Number(original[NETWORK_RETRY_MARKER] ?? 0);
+      if (attempt < maxRetries && !axios.isCancel(error)) {
+        original[NETWORK_RETRY_MARKER] = attempt + 1;
+        await new Promise<void>((resolve) => setTimeout(resolve, getRetryDelayMs(attempt + 1, getRetryAfterMs(error))));
+        if (original.signal?.aborted) return Promise.reject(parseApiError(error));
+        return apiClient(original);
+      }
+    }
+
     const isRefreshCall = original?.url?.includes('/auth/refresh');
     // BUG-FIX: a wrong email/password on /auth/login (and a rejected
     // /auth/register, e.g. duplicate email) also returns 401 —

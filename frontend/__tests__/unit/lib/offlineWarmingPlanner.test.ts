@@ -2,9 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 let mode: 'off' | 'fast' | 'full' = 'fast';
 vi.mock('@/lib/warmingPreferences', () => ({ getWarmingMode: () => mode }));
-vi.mock('@/lib/connectionQuality', () => ({ getAverageRequestMs: () => null, shouldPauseWarming: () => false }));
+vi.mock('@/lib/connectionQuality', () => ({
+  getAverageRequestMs: () => null,
+  getConsecutiveFailures: () => 0,
+  getConnectionQuality: () => 'unknown',
+}));
 vi.mock('../../../lib/warmingPreferences', () => ({ getWarmingMode: () => mode }));
-vi.mock('../../../lib/connectionQuality', () => ({ getAverageRequestMs: () => null, shouldPauseWarming: () => false }));
+vi.mock('../../../lib/connectionQuality', () => ({
+  getAverageRequestMs: () => null,
+  getConsecutiveFailures: () => 0,
+  getConnectionQuality: () => 'unknown',
+}));
 
 import {
   getWarmingPlan,
@@ -96,14 +104,14 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     mode = 'fast';
     expect(getWarmingPlan()).toMatchObject({
       tier: 'critical',
-      reason: 'user-fast-2g',
+      reason: 'user-fast-very-slow',
       concurrency: 1,
       minRoutes: ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal,
     });
     mode = 'full';
     expect(getWarmingPlan()).toMatchObject({
       tier: 'full',
-      reason: 'user-full-2g-paced',
+      reason: 'user-full-very-slow-paced',
       concurrency: 1,
       interRouteDelayMs: 2500,
       requestTimeoutMs: 25_000,
@@ -146,7 +154,7 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
       configurable: true,
     });
     mode = 'fast';
-    expect(getWarmingPlan()).toMatchObject({ tier: 'critical', reason: 'user-fast-3g' });
+    expect(getWarmingPlan()).toMatchObject({ tier: 'critical', reason: 'user-fast-slow' });
     mode = 'full';
-    expect(getWarmingPlan()).toMatchObject({ tier: 'full', reason: 'user-full-3g-paced', concurrency: 1 });
+    expect(getWarmingPlan()).toMatchObject({ tier: 'full', reason: 'user-full-slow-paced', concurrency: 1 });
   });

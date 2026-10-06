@@ -22,6 +22,7 @@
 'use client';
 
 import { getQueryClient } from '@/lib/queryClient';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
 
 const scheduled = new Set<string>();
 
@@ -41,22 +42,7 @@ function runWhenIdle(fn: () => void) {
  * non-constrained connection — see this file's header comment. */
 function canPrefetch(): boolean {
   if (typeof window === 'undefined') return false;
-
-  if (
-    typeof window.matchMedia === 'function' &&
-    !window.matchMedia('(hover: hover)').matches
-  ) {
-    return false;
-  }
-
-  const conn = (navigator as Navigator & {
-    connection?: { saveData?: boolean; effectiveType?: string };
-  }).connection;
-  if (conn?.saveData) return false;
-  const et = conn?.effectiveType;
-  if (et === 'slow-2g' || et === '2g' || et === '3g') return false;
-
-  return true;
+  return getNetworkPolicy().allowPrefetch;
 }
 
 /** Fire once per key when the user shows intent (hover / keyboard focus). */
