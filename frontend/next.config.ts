@@ -106,14 +106,7 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react'],
   },
 
-  async rewrites() {
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: 'https://marketplat-api.esamnajjar6.workers.dev/api/v1/:path*',
-      },
-    ];
-  },
+
 
   // MY-STORE-HUB-01: the seven store-management pages are now tabs of
   // /my-store. Temporary (307) redirects keep old bookmarks, push-notification
