@@ -266,6 +266,14 @@ function buildCsp(nonce: string, isDev: boolean): string {
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
+  // FIX CPU-LIMIT-01: /api/* skips CSP nonce + cookie decoding entirely.
+  // Under Cloudflare Free tier's 10ms CPU/request, this saves ~6-7ms per
+  // API call — the difference between 5 and 40 concurrent users. The
+  // actual proxying happens in app/api/v1/[...path]/route.ts.
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   const tokenCookie = request.cookies.get('app_access_token')?.value ?? null;
   const decoded     = tokenCookie ? decodeToken(tokenCookie) : null;
   const hasValidAccessToken = decoded !== null && !isTokenExpired(decoded);
