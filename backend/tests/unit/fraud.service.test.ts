@@ -1,5 +1,5 @@
 /**
- * Unit coverage for modules/fraud/fraud.service.ts (Phase 1 / P0).
+ * Unit coverage for modules/fraud/fraud.service.ts (/ P0).
  *
  * Integration tests under tests/integration/fraud.test.ts exercise the
  * HTTP surface; this file pins the scoring heuristics, admin review

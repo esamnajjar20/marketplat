@@ -50,7 +50,7 @@ describe('authController', () => {
       expect(authCookies.setSessionHintCookie).toHaveBeenCalledWith(res);
 
       const jsonArg = (res.json as jest.Mock).mock.calls[0][0];
-      // FIX BUG-06: expiresIn is a new, deliberately-kept field — only
+      // expiresIn is a new, deliberately-kept field — only
       // refreshToken is stripped from the response body.
       expect(jsonArg.data.tokens).toEqual({ accessToken: 'access-1', expiresIn: 900 });
       expect(jsonArg.data.tokens.refreshToken).toBeUndefined();

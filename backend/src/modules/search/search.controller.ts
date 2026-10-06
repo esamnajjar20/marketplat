@@ -6,7 +6,7 @@ import { successResponse } from '../../shared/types/api-response.types';
 export const searchController = {
   // Response shape follows every other paginated list endpoint in the
   // codebase (data: T[] directly, meta.pagination separately) — see
-  // frontend's lib/apiPagination.ts's FIX API-SHAPE-01 comment for why
+  // frontend's lib/apiPagination.ts's comment for why
   // that specific split is load-bearing: unwrapPaginated() (reused
   // as-is by search.api.ts) assumes it verbatim for every list hook in
   // the app. A results-nested-under-data shape would silently break

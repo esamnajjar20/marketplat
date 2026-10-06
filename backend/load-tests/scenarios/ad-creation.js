@@ -29,7 +29,7 @@
  *      still bounded by MAX_ADS_PER_USER per account, though (see
  *      env.ads.maxPerUser / ads.extended.test.ts), so you'd also need
  *      many distinct user accounts, not just many IPs.
- *   2. Temporarily raise createAdRateLimit's `max` in a dedicated,
+ *   2. raise createAdRateLimit's `max` in a dedicated,
  *      non-production load-test environment config — never do this
  *      against a shared/staging environment other people or automated
  *      jobs are also relying on the real limit for.
@@ -87,7 +87,7 @@ if (!LOGIN_EMAIL || !LOGIN_PASSWORD) {
 // A 1x1 transparent PNG's real bytes (not a placeholder string) — this
 // script exercises the REAL upload path including fileSignature.ts's
 // magic-byte check, so it needs bytes that actually pass that check,
-// same reasoning as e2e/fixtures/test-image.png in marketplace-v10.
+// same reasoning as e2e/in marketplace-v10.
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
   0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,

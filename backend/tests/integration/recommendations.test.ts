@@ -327,7 +327,7 @@ describe('Recommendations API', () => {
     const freezeUpdatedAt = (storeId: string) =>
       prisma.$executeRaw`UPDATE "store_details" SET "updatedAt" = ${FIXED_TIME} WHERE "id" = ${storeId}`;
 
-    /** Push every ACTIVE store EXCEPT the given ids to FIXED_TIME so the
+    /** Push every ACTIVE store EXCEPT the given ids to so the
      *  pair under test isn't crowded out of the max-24 result window by
      *  stores created earlier in this suite (which still carry "now"
      *  timestamps and would otherwise monopolize ORDER BY freshness). */
@@ -341,7 +341,7 @@ describe('Recommendations API', () => {
         return;
       }
       // NOT IN with joined placeholders — Prisma does not bind JS arrays
-      // as Postgres arrays inside $executeRaw tagged templates.
+      // as Postgres arrays inside $executeRaw tagged 
       await prisma.$executeRaw`
         UPDATE "store_details"
         SET "updatedAt" = ${FIXED_TIME}
@@ -595,7 +595,7 @@ describe('Recommendations API', () => {
      *  as freezeUpdatedAt above (Prisma's @updatedAt would otherwise
      *  silently overwrite an explicit updatedAt on a plain update()
      *  call) — needed wherever a test has to pin an exact age in days
-     *  for the freshness formula rather than just "now vs FIXED_TIME". */
+     *  for the freshness formula rather than just "now vs ". */
     const setStoreTimestamps = (storeId: string, createdAt: Date, updatedAt: Date) =>
       prisma.$executeRaw`UPDATE "store_details" SET "createdAt" = ${createdAt}, "updatedAt" = ${updatedAt} WHERE "id" = ${storeId}`;
     const daysAgo = (n: number): Date => new Date(Date.now() - n * 24 * 60 * 60 * 1000);

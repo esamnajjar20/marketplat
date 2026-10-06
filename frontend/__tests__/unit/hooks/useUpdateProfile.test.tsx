@@ -4,20 +4,20 @@
  * Coverage targets:
  *  useUpdateProfile:
  *   - calls usersApi.updateMe with the given payload
- *   - on success: patches the auth store (name/city/avatarUrl)
+ *   - on success: the auth store (name/city/avatarUrl)
  *   - on success: invalidates the auth.me query
  *   - on success: shows a success toast
- *   - on error: shows an error toast, does not patch the store
+ *   - on error: shows an error toast, does not store
  *
  *  useUploadAvatar:
  *   - calls usersApi.uploadAvatar with the given File
- *   - on success: patches only avatarUrl in the auth store
+ *   - on success: only avatarUrl in the auth store
  *   - on success: invalidates the auth.me query
- *   - FIX UX-11: uses toast.promise (loading→success/error) instead of
+ *   - uses toast.promise (loading→success/error) instead of
  *     separate toast.success/toast.error calls, so a loading toast is
  *     visible immediately rather than no feedback until it settles
  *
- *  useDeleteAccount (FIX INTEG-08):
+ *  useDeleteAccount ():
  *   - calls usersApi.deleteMe with no arguments
  *   - on success: clears the auth store (logout), the two auth cookies,
  *     the entire query cache, shows a success toast, and redirects home
@@ -64,12 +64,12 @@ function createWrapper() {
 const mockUser = {
   id: 'user-1', name: 'Ahmed', email: 'ahmed@example.com', role: 'USER' as const,
 };
-// PROD-FIX-15: refreshToken removed — no longer part of AuthTokens.
+// refreshToken removed — no longer part of AuthTokens.
 const mockTokens = { accessToken: 'a' };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Seed the store with a logged-in user so patchUser() has something to patch.
+  // Seed the store with a logged-in user so () has something to patch.
   useAuthStore.getState().setAuth(mockUser, mockTokens);
 });
 

@@ -111,19 +111,8 @@ export const globalRateLimit = bypassRateLimit
   ? noRateLimit()
   : rateLimit({
       windowMs: FIFTEEN_MIN_MS,
-      // FIX AUDIT-V4-05: was 100. A single user browsing normally (ad list,
-      // several ad detail views, category filters, favorites) easily fires
-      // more than 100 /api/* requests in 15 minutes once you count every
-      // parallel request a single page navigation triggers (ads + categories
-      // + auth/me + favorites, etc.) — this was being hit by legitimate
-      // traffic, not just abuse. It's also especially punishing on
-      // shared-NAT mobile networks, where many unrelated users behind one
-      // carrier-grade NAT IP exhaust the same quota together. 600/15min
-      // (40/min average) still bounds sustained abuse while giving real
-      // headroom for normal multi-request browsing. Per-route limiters
-      // (auth, forgotPassword, createAd, etc.) remain the primary defense
-      // against abuse of specific sensitive actions — this global limit is
-      // a coarse backstop, not the main control.
+      // 600/15min is a coarse backstop for normal multi-request browsing;
+// sensitive endpoints retain stricter per-route limits.
       max: 600,
       standardHeaders: true,
       legacyHeaders: false,

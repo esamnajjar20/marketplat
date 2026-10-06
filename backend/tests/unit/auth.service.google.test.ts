@@ -201,7 +201,7 @@ describe('AuthService.loginWithGoogle', () => {
       expect(result.user.id).toBe('new-user-1');
       expect(auditLog).toHaveBeenCalledWith(expect.objectContaining({ event: AuditEvent.OAUTH_SIGNUP, userId: 'new-user-1' }));
 
-      // FIX OAUTH-01 requirement: Google signup never creates a
+      // requirement: Google signup never creates a
       // SellerProfile — that stays an explicit opt-in via a separate
       // POST /sellers call regardless of auth provider. This test
       // module never imports or mocks sellersService/prisma.sellerProfile

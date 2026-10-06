@@ -80,7 +80,6 @@ function normalize(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** يزيل التكرار داخل النوع الواحد فقط (أول ظهور يفوز). */
 function dedupeWithinType(items: Item[]): Item[] {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -91,7 +90,6 @@ function dedupeWithinType(items: Item[]): Item[] {
   });
 }
 
-/** ترتيب مخلوط: 2 إعلان، 1 منتج، 1 إعلان، 1 خدمة، تكرار — يطابق الخطة الأصلية. */
 export function interleave(ads: Item[], products: Item[], services: Item[]): Item[] {
   const pattern: SourceType[] = ['ad', 'ad', 'product', 'ad', 'service', 'ad', 'product', 'service'];
   const queues: Record<SourceType, Item[]> = {

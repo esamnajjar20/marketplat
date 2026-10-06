@@ -7,7 +7,7 @@ import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 import { createTestStore } from '../helpers/store.helper';
 
 describe('Admin API', () => {
-  // FIX E2E-GAP-01: GET /admin/stats had zero integration (HTTP) test
+  // GET /admin/stats had zero integration (HTTP) test
   // coverage — only a unit test on adminService.getStats() directly
   // (tests/unit/admin.service.test.ts), which never exercises the real
   // route/middleware/controller chain (authenticate, requireAdmin,
@@ -61,7 +61,7 @@ describe('Admin API', () => {
       expect(res.status).toBe(403);
     });
 
-    // FIX PERF-02 regression coverage via HTTP: getStats caches its
+    // regression coverage via HTTP: getStats caches its
     // result in Redis for 30s (adminStatsCache.ts) — verifies that
     // cache is actually reachable through the real route, not just
     // adminService.getStats() called directly in the unit test. Creates

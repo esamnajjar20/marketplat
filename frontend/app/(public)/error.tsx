@@ -33,7 +33,7 @@ interface PublicErrorProps {
  * API details). Only a generic Arabic message plus error.digest as a
  * support reference. Reported via reportClientError.
  *
- * ChunkLoadError handling (FIX CHUNK-LOAD-RECOVERY-01) is included for
+ * ChunkLoadError handling () is included for
  * the same reason it exists in the other boundaries: a stale cached
  * HTML document pointing at a rotated chunk hash is the single most
  * common cause of a route-level throw after a deploy, and a single

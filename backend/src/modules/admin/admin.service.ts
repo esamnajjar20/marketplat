@@ -23,14 +23,14 @@ let _systemHealthMem: { at: number; value: any } | null = null;
 /**
  * RFC 4180 CSV cell escaping + formula-injection guard.
  *
- * Fixes a real CSV injection vulnerability: the previous inline
+ * a real CSV injection vulnerability: the previous inline
  * .join(',') builders emitted raw values, so a user whose name (or a
  * report's notes) starts with =, +, -, @, tab, or CR would execute as
  * a formula when the exported file is opened in Excel / Google Sheets
  * / LibreOffice Calc. Prefixing those with a single quote is the
  * standard mitigation (OWASP: CSV Injection).
  *
- * Also fixes a structural escaping bug: JSON.stringify was used to
+ * Also a structural escaping bug: JSON.stringify was used to
  * quote name/notes, but JSON's escape rules do not match CSV's —
  * a name containing a double quote produced invalid CSV, and a value
  * containing a comma broke the column structure.
@@ -48,7 +48,7 @@ function escapeCsvCell(value: unknown): string {
 
 export const adminService = {
   /**
-   * FIX FEAT-05: previously the frontend's useAdminStats() computed this
+   * previously the frontend's useAdminStats() computed this
    * by firing three separate paginated requests (limit=1 each) just to
    * read each response's meta.total — three round-trips, three full
    * query-building/auth passes, for numbers that are cheap to get with
@@ -64,7 +64,7 @@ export const adminService = {
    * overhead), and computes real distinct numbers for each stat.
    */
   getStats: async () => {
-    // FIX PERF-02: see adminStatsCache.ts for the full reasoning.
+    // see adminStatsCache.ts for the full reasoning.
     const cached = await adminStatsCache.get();
     if (cached) return cached;
 
@@ -188,7 +188,7 @@ export const adminService = {
       // to_tsvector approach ads.repository.ts already uses.
       ...(q && { title: { contains: q, mode: 'insensitive' as const } }),
     };
-    // FIX AUDIT-V4-11: previously wrapped in $transaction, but both
+    // previously wrapped in $transaction, but both
     // queries are read-only with no write dependency between them —
     // matches the D-05 convention already used in ads.repository.ts's
     // findManyByUserId for the exact same situation. $transaction adds
@@ -204,7 +204,7 @@ export const adminService = {
         where,
         include: {
           user: { select: { id: true, name: true, email: true } },
-          // FIX INTEG-01: frontend's AdCategory type (types/ad.types.ts)
+          // frontend's AdCategory type (types/ad.types.ts)
           // requires { id, name, nameAr } — this select only returned
           // { id, name }, silently leaving category.nameAr undefined
           // for any admin UI that ends up displaying the Arabic
@@ -226,7 +226,7 @@ export const adminService = {
   setAdFeatured: async (adId: string, isFeatured: boolean, adminUserId = 'unknown') => {
     try {
       const ad = await prisma.ad.update({ where: { id: adId }, data: { isFeatured } });
-      // FIX AUDIT-BEFORE-CACHE-BUMP: fire the audit log first. If
+      // fire the audit log first. If
       // bumpAdsCacheVersion threw (Redis blip, quota), the previous
       // ordering skipped the audit row entirely — but the DB write had
       // already succeeded, so there is no trail of the change at all.
@@ -258,7 +258,7 @@ export const adminService = {
         where: { id: adId },
         data: { isPinned, pinnedByAdmin: isPinned },
       });
-      // FIX AUDIT-BEFORE-CACHE-BUMP: same reordering as setAdFeatured
+      // same reordering as setAdFeatured
       // above — durable audit row first, best-effort cache bump after.
       auditLog({
         event: AuditEventType.ADMIN_AD_PINNED,
@@ -277,13 +277,13 @@ export const adminService = {
   forceDeleteAd: async (adId: string, adminUserId = 'unknown', reason?: string) => {
     try {
       await prisma.ad.update({ where: { id: adId }, data: { status: AdStatus.DELETED } });
-      // FIX AUDIT-BEFORE-CACHE-BUMP: same reordering as setAdFeatured
+      // same reordering as setAdFeatured
       // above. Particularly important on this path — an urgent admin
       // takedown (fraud, legal) is exactly when the audit trail
       // matters most, so the durable row must not be lost to a
       // transient Redis blip on the cache-bump call.
       //
-      // FIX ADMIN-DELETE-REASON: carry the caller-supplied reason (if
+      // carry the caller-supplied reason (if
       // any) into the audit row so a fraud takedown, a legal request,
       // and a routine policy cleanup are distinguishable months later
       // without cross-referencing other systems. Optional for now —
@@ -301,7 +301,7 @@ export const adminService = {
       // urgent reason (fraud, a policy violation, a legal takedown
       // request) is exactly the case where "still visible to other
       // users for up to 30 more seconds" matters most.
-      // FIX HOME-CACHE-INVALIDATE-01: also clear the homepage cache — an
+      // also clear the homepage cache — an
       // urgent takedown must not linger on /home until its entry expires.
       await bumpAdsCacheVersionAndHome();
     } catch (e: any) {
@@ -329,7 +329,7 @@ export const adminService = {
         ],
       }),
     };
-    // FIX AUDIT-V4-11: same fix as getAllAds above — read-only pair,
+    // same getAllAds above — read-only pair,
     // no transaction needed.
     const [users, total] = await Promise.all([
       prisma.user.findMany({
@@ -367,7 +367,7 @@ export const adminService = {
     }
 
     try {
-      // FIX SEC-08: the "last active admin" guard used to read
+      // the "last active admin" guard used to read
       // activeAdminCount and then update() as two separate statements.
       // Two concurrent requests demoting/deactivating two *different*
       // admins could both read count=2, both pass the "> 1" check, and
@@ -463,7 +463,7 @@ export const adminService = {
   },
 
   /**
-   * FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): PATCH
+   * / Gap #20 (admin permission tiers): PATCH
    * /admin/users/:id/role.
    *
    * Authorization here is the rank rule from roleHierarchy.ts's
@@ -514,7 +514,7 @@ export const adminService = {
     }
 
     try {
-      // FIX SEC-08: same race as toggleUserActive above — the read
+      // same race as toggleUserActive above — the read
       // (target's current role / activeAdminCount) and the write (role
       // update) are now inside one Serializable transaction so two
       // concurrent role changes can't both pass their guard and both
@@ -628,7 +628,7 @@ export const adminService = {
     status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
     q?: string;
   }) => {
-    // FIX ADMIN-LIMIT-CAP: previously `query.limit ?? 20` with no upper
+    // previously `query.limit ?? 20` with no upper
     // bound. The controller passed through whatever the caller sent, so
     // GET /admin/products?limit=999999 produced a Prisma findMany with
     // take=999999 against a table with no index on the (status,
@@ -696,7 +696,7 @@ export const adminService = {
     status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
     q?: string;
   }) => {
-    // FIX ADMIN-LIMIT-CAP: see getAdminProducts above for the full
+    // see getAdminProducts above for the full
     // reasoning — same missing upper bound, same fix.
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(100, Math.max(1, query.limit ?? 20));
@@ -916,8 +916,8 @@ export const adminService = {
     });
     const header = 'id,email,name,role,isActive,createdAt';
     const lines = users.map((u) =>
-      // FIX CSV-INJECTION-01: every cell goes through escapeCsvCell —
-      // see its own doc comment for the two bugs it fixes.
+      // every cell goes through escapeCsvCell —
+      // see its own doc comment for the two bugs it 
       [u.id, u.email, u.name, u.role, u.isActive, u.createdAt.toISOString()]
         .map(escapeCsvCell)
         .join(','),
@@ -942,7 +942,7 @@ export const adminService = {
     });
     const header = 'id,reason,status,targetType,targetId,userId,notes,createdAt';
     const lines = reports.map((r) =>
-      // FIX CSV-INJECTION-01: see exportUsersCsv above.
+      // see exportUsersCsv above.
       [
         r.id,
         r.reason,
@@ -976,7 +976,7 @@ export const adminService = {
     return { openReports, pendingStores, pendingSellers, unreviewedFraud, total };
   },
 
-  // FIX DEAD-CODE-SERVICE-BROADCASTS-01: removed
+  // removed
   // getAdminServiceBroadcasts + adminCancelServiceBroadcast.
   // These backed an "Epic 6 / Feature 4" service-only broadcast
   // feed that was superseded by the newer /open-requests
@@ -992,7 +992,7 @@ export const adminService = {
 
   /**
    * Open Requests marketplace admin list (SERVICE | PRODUCT | RENTAL).
-   * Separate from service-broadcasts (legacy service-only feed).
+   * Separate from service-broadcasts (feed).
    */
   getAdminOpenRequests: async (query: {
     page?: number;
@@ -1060,7 +1060,7 @@ export const adminService = {
       },
     });
 
-    // FIX CANCEL-AUDIT-NON-BLOCKING: was `await auditLog(...)`. Every
+    // was `await auditLog(...)`. Every
     // other call site in this service writes the audit row as a
     // fire-and-forget with `.catch(() => {})` — see setAdFeatured /
     // setAdPinned / forceDeleteAd / broadcastPromotion. Awaiting here

@@ -148,7 +148,7 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
   }
 
   function handleOpen() {
-    // SW-FIX-SAVESEARCH-LOGIN: same pattern as AdCard/StickyContactBar —
+    // same pattern as AdCard/StickyContactBar —
     // redirect to login with the current page as the return target,
     // rather than a bare toast that stalls the save.
     if (!isAuth) {

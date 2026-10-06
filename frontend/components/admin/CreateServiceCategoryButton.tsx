@@ -3,7 +3,7 @@
 /**
  * CreateServiceCategoryButton.
  *
- * FIX SEC-4.3: thin wrapper around the shared CreateEntityCategoryDialog
+ * thin wrapper around the shared CreateEntityCategoryDialog
  * (was previously a full ~95-line near-duplicate of
  * CreateProductCategoryButton.tsx).
  */

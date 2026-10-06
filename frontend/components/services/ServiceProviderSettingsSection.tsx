@@ -17,7 +17,7 @@ export function ServiceProviderSettingsSection() {
     );
   }
 
-  // UX-FIX P1-5: mirrors the same fix in SellerSettingsSection — only a
+  // mirrors the same SellerSettingsSection — only a
   // real 404 means "hasn't activated service provider yet"; any other
   // error (network/5xx) should not be conflated with that and silently
   // show the same "become a provider" card as if the account vanished.

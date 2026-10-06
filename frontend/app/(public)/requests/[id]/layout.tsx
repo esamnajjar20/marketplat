@@ -11,7 +11,7 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-// SW-FIX-REQUEST-LAYOUT-CACHE: this layout fetches the request twice per
+// this layout fetches the request twice per
 // page load — once in generateMetadata, once in the default export — and
 // unlike stores/[id]/page.tsx and services/[id]/page.tsx (both of which
 // already wrap their fetcher in cache()), this layout had no dedup. On

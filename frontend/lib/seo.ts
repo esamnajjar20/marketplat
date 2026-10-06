@@ -78,7 +78,6 @@ export function buildAdMetadata(ad: {
   });
 }
 
-/** Metadata for category pages. */
 export function buildCategoryMetadata(category: {
   slug: string;
   name: string;

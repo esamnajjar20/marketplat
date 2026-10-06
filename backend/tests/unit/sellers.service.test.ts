@@ -146,7 +146,7 @@ describe('SellersService', () => {
   });
 
   // SEC-FIX: getSellerRatings previously checked only that the profile
-  // exists, never `suspended` — same gap FIX SELLER-PUBLIC-SUSPENDED
+  // exists, never `suspended` — same gap 
   // closed on getPublicSellerProfile.
   describe('getSellerRatings', () => {
     it('throws NotFoundError when the seller profile does not exist', async () => {

@@ -14,7 +14,7 @@
  * X-CSRF-Token: <old> while the browser attaches
  * cookie csrfToken=<new>, the backend's double-submit check in
  * csrf.middleware.ts compares them and rejects with 403. lib/api/
- * client.ts's FIX CSRF-403-REFRESH-01 self-heals by triggering its
+ * client.ts's self-heals by triggering its
  * own refresh + retry, so this is not a correctness hole — but it
  * costs an extra 403, an extra round-trip, and 403-Sentry noise on
  * exactly the weak-network scenarios the offline queue exists for.

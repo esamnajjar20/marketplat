@@ -29,7 +29,7 @@ describe('POST /api/v1/auth/register', () => {
     const res = await request(app).post('/api/v1/auth/register').send(user).expect(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.tokens.accessToken).toBeDefined();
-    // PROD-FIX-15: refreshToken must NEVER appear in the JSON body —
+    // refreshToken must NEVER appear in the JSON body —
     // it's set exclusively as an httpOnly cookie now (see
     // shared/utils/authCookies.ts / auth.controller.ts's
     // respondWithSession). This is a security-relevant assertion, not
@@ -53,7 +53,7 @@ describe('POST /api/v1/auth/register', () => {
     // echo it back in the X-CSRF-Token header (see csrf.middleware.ts).
     expect(csrfCookie).not.toContain('HttpOnly');
 
-    // AUDIT-FIX C-1: app_has_session must also be set — non-HttpOnly
+    // app_has_session must also be set — non-HttpOnly
     // (middleware.ts's Edge runtime and client JS both need to read
     // it), scoped site-wide, with a lifetime matching refreshToken's.
     const sessionHintCookie = setCookieHeader.find((c) => c.startsWith('app_has_session='));
@@ -122,7 +122,7 @@ describe('POST /api/v1/auth/login', () => {
   });
 
   /**
-   * PROD-FIX-15 / regression guard: csrfProtection is registered via
+   * / regression guard: csrfProtection is registered via
    * `router.use(csrfProtection)` in routes.ts (mounted at /api/v1 in
    * app.ts), and its CSRF_EXEMPT_PATHS set checks req.path against
    * bare values like '/auth/login' — NOT '/api/v1/auth/login'. This
@@ -194,7 +194,7 @@ describe('POST /api/v1/auth/logout', () => {
 });
 
 /**
- * PROD-FIX-15: /auth/refresh now reads the refresh token exclusively
+ * /auth/refresh now reads the refresh token exclusively
  * from an httpOnly cookie — request(app) alone (used everywhere else
  * in this file) does NOT persist cookies between separate calls, so
  * these tests specifically need request.agent(app), which behaves

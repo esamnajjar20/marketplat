@@ -3,7 +3,7 @@ import { swrGet, bumpGeneration } from './swrCache';
 import { invalidateHomeCache } from '../../modules/home/home.cache.keys';
 
 /**
- * FIX PUBLIC-LIST-CACHE-01: Redis SWR cache for the public browse lists of
+ * Redis SWR cache for the public browse lists of
  * stores, products, service listings and service providers.
  *
  * Before this, only ads and categories had a cache. The homepage was the only

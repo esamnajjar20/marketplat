@@ -1,10 +1,10 @@
 /**
- * FIX TEST-V4-06: logger.ts's WebhookErrorReporterTransport had zero
+ * logger.ts's WebhookErrorReporterTransport had zero
  * test coverage. Both the transport's existence (only added when
  * ERROR_REPORTER_WEBHOOK_URL is set) and its actual POST payload/
  * failure-handling behavior are tested here.
  *
- * FIX APM-02: extended to cover the new SentryErrorReporterTransport
+ * extended to cover the new SentryErrorReporterTransport
  * alongside it — same module-load-time-config problem, same fix
  * pattern (jest.resetModules() + manipulating process.env before
  * re-requiring).

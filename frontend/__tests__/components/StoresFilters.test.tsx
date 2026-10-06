@@ -1,7 +1,7 @@
 /**
  * __tests__/components/StoresFilters.test.tsx
  *
- * Coverage gap: 0% prior coverage (FIX BUG-02: the filter UI was
+ * Coverage gap: 0% prior coverage (the filter UI was
  * previously entirely missing while the data layer already read
  * these params). Covers the search input's Enter-to-apply and
  * blur-to-apply paths, that changing a filter always clears `page`,

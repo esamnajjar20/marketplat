@@ -3,7 +3,7 @@
  *
  * Active-filter count badge + sheet open/close. SearchFilters is stubbed.
  * useAds / useSearchAds / useCategoryBySlug are mocked so the live result
- * count (UX phase-7) does not require a real QueryClient or network.
+ * count (UX ) does not require a real QueryClient or network.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';

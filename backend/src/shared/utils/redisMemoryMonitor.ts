@@ -4,7 +4,7 @@ import client from 'prom-client';
 import { register } from './metrics';
 
 /**
- * PROD-FIX-11: docker-compose.yml's Redis runs `maxmemory-policy
+ * docker-compose.yml's Redis runs `maxmemory-policy
  * noeviction` — a deliberate, already-documented tradeoff (every key
  * this app writes carries an explicit TTL, so an LRU eviction policy
  * wouldn't meaningfully distinguish "safe to drop" from "must not
@@ -26,7 +26,7 @@ import { register } from './metrics';
  *   - A boot-time-style logger.warn() when usage crosses 80% of
  *     maxmemory, so it's visible in logs even without Prometheus/
  *     Grafana wired up yet — same "opt-in monitoring, but not silent"
- *     pattern as capacityCheck.ts and PROD-FIX-10's Sentry check.
+ *     pattern as capacityCheck.ts and 's Sentry check.
  *
  * Polls every 180s via INFO memory (a cheap, standard Redis command —
  * not a performance concern at this frequency) rather than reacting to

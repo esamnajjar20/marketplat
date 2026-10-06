@@ -1,6 +1,6 @@
 /**
  * Epic 5: replaces the redirect-to-/messages stub described in this
- * file's own pre-Epic-5 FIX AUDIT-V4-03 comment ("لا يوجد Conversation/
+ * file's own pre-Epic-5 comment ("لا يوجد Conversation/
  * Message Prisma models") — that note is now stale; the conversations
  * module exists end-to-end, so this renders the real thread instead.
  *

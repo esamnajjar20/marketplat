@@ -1,7 +1,7 @@
 /**
  * __tests__/components/BecomeStoreOwnerCard.test.tsx
  *
- * FIX P0-1 (unified pattern): mirrors BecomeSellerCard.test.tsx's
+ * (unified pattern): mirrors BecomeSellerCard.test.tsx's
  * redirect coverage — CreateProductGate now sends users here via
  * ?from=/my-store/products/new when they try to add a product without
  * a store yet, and this must send them back on success instead of

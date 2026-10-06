@@ -1,7 +1,7 @@
 /**
  * Favorites API — maps to backend /api/v1/favorites/* endpoints.
  *
- * FIX H-05 (superseded — see check() below): favoritesApi.check() was
+ * (superseded — see check() below): favoritesApi.check() was
  *           removed because GET /favorites/:adId/check didn't exist yet;
  *           favorite state was derived from the favorites list cache
  *           instead. UX-FIX (frontend audit P2-03) adds the real
@@ -10,20 +10,20 @@
  *           the gap in the meantime (see useFavorites.ts's
  *           useIsFavorited for that workaround's removal).
  *
- * FIX T-06: FavoriteToggleResponse corrected to match backend:
+ * FavoriteToggleResponse corrected to match backend:
  *           { action: 'added' | 'removed' } (not { favorited: boolean }).
  *
- * FIX TYPE-01: getAll's `items` was typed as AdListItem[], but the backend
+ * getAll's `items` was typed as AdListItem[], but the backend
  *   (favorites.service.ts's getMyFavorites, backed by
  *   Prisma.FavoriteGetPayload<{ include: { ad: {...} } }>) actually returns
  *   full Favorite records — { id, userId, adId, createdAt, ad: {...} } —
  *   with the ad nested under `.ad`, not the ad itself. FavoritesList.tsx
  *   already worked around this with a local inline type reading `fav.ad`;
- *   this fixes the type at the source instead of leaving every caller to
- *   redeclare it. See useFavorites.ts's fix for the real bug this caused:
+ *   this the type at the source instead of leaving every caller to
+ *   redeclare it. See useFavorites.ts's the real bug this caused:
  *   the favorited-ids Set was built from the wrong id field entirely.
  *
- * FIX API-SHAPE-01: getAll now also unwraps the backend's real response
+ * getAll now also unwraps the backend's real response
  *   shape (data: FavoriteRecord[] directly, meta.pagination for paging)
  *   via unwrapPaginated — see lib/apiPagination.ts.
  *
@@ -31,7 +31,7 @@
  *   below are the generic counterparts of getAll/toggle/check, backed
  *   by PR2's /favorites/:entityType/:entityId routes. They're
  *   additions, not replacements — getAll/toggle/check keep calling the
- *   legacy AD-only routes exactly as before, so every existing AD
+ *   routes exactly as before, so every existing AD
  *   consumer (FavoritesList.tsx, AdCard.tsx, useFavorites.ts) is
  *   untouched.
  */
@@ -44,13 +44,13 @@ import type { FavoriteEntityKind, FavoriteEntityRecord } from '@/types/favorite.
 import { FAVORITE_ROUTE_SEGMENT, FAVORITE_QUERY_TYPE } from '@/types/favorite.types';
 
 /**
- * FIX T-06: Backend favorites.service.ts returns { action: 'added' | 'removed' }.
+ * Backend favorites.service.ts returns { action: 'added' | 'removed' }.
  */
 export interface FavoriteToggleResponse {
   action: 'added' | 'removed';
 }
 
-/** FIX TYPE-01: shape of one item in GET /favorites — a Favorite record with its ad nested. */
+/** shape of one item in GET /favorites — a Favorite record with its ad nested. */
 export interface FavoriteRecord {
   id:        string;
   userId:    string;
@@ -63,7 +63,7 @@ export const favoritesApi = {
   /**
    * GET /favorites — paginated list of favorited ads.
    *
-   * FIX AUTH-05b: accepts an AxiosRequestConfig (signal, etc.) so callers
+   * accepts an AxiosRequestConfig (signal, etc.) so callers
    * that need the request to be abortable can pass one through — notably
    * AuthHydrationProvider's post-login favorites prefetch, which previously
    * called this with no config at all. That left it as the one call in that
@@ -118,7 +118,7 @@ export const favoritesApi = {
   /**
    * POST /favorites/:segment/:entityId — toggle favorite state for a
    * product/store/service listing. Same { action } response shape as
-   * the legacy toggle() above (favorites.service.ts's performToggle
+   * the () above (favorites.service.ts's performToggle
    * is shared for both).
    */
   toggleEntity: (type: FavoriteEntityKind, entityId: string) =>

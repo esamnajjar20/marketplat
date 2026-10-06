@@ -5,7 +5,7 @@ import { Clock, Ban } from 'lucide-react';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
 
-/** Fixed strip on every /my-store/* page while store is not ACTIVE. */
+/** strip on every /my-store/* page while store is not ACTIVE. */
 export function StorePendingBanner() {
   const { data: store, isSuccess } = useMyStore();
 

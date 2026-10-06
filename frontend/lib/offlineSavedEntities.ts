@@ -7,14 +7,14 @@
  * four entity types later without a connection.
  *
  * Storage design — intentionally reuses the existing keys:
- *   - One Cache Storage bucket: 'market-saved-ads' (legacy name; sw.js
+ *   - One Cache Storage bucket: 'market-saved-ads' (; sw.js
  *     already excludes it from activate-time cleanup under this name).
- *   - One localStorage index: 'saved-ads-offline' (same legacy name).
+ *   - One localStorage index: 'saved-ads-offline' (same ).
  *   - Every entry now carries a `type` field. Entries written before
  *     this file existed have no type → read as 'ad' automatically, so
  *     no migration is needed and previously-saved ads stay visible.
  *
- * The legacy names are kept because renaming 'market-saved-ads' would
+ * The are kept because renaming 'market-saved-ads' would
  * require editing sw.js's currentCaches in lockstep — a change with
  * its own bug surface, for zero functional gain.
  */
@@ -31,7 +31,7 @@ export const SAVED_ENTITIES_CACHE = 'market-saved-ads';
 const SAVED_INDEX_KEY = 'saved-ads-offline';
 
 /** Combined cap across all four types. Ads alone already cap at 30 via
- *  MAX_SAVED_ADS in the legacy module — same order of magnitude keeps
+ *  MAX_SAVED_ADS in the same order of magnitude keeps
  *  the Cache Storage bounded on low-end devices. */
 const MAX_SAVED_ENTITIES = 60;
 
@@ -67,7 +67,7 @@ export interface SaveEntityInput {
   imageUrls?: string[];
 }
 
-/** Entries written by the legacy saveAdOffline() have no `type`. */
+/** Entries written by the () have no `type`. */
 function normalize(
   entry: SavedEntityMeta & { type?: SavedEntityType },
 ): SavedEntityMeta {
@@ -115,7 +115,7 @@ async function fetchAndCache(
   try {
     const res = await fetchWithTimeout(url);
     if (!res.ok) return false;
-    // Same X-SW-Cached-At convention the legacy ads path uses, so
+    // Same X-SW-Cached-At convention the path uses, so
     // putTimestamped-compatible trims (if ever enabled here) work too.
     const headers = new Headers(res.headers);
     headers.set('X-SW-Cached-At', String(Date.now()));

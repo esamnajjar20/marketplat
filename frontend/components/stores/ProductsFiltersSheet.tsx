@@ -12,10 +12,10 @@ import { ProductsFilters } from './ProductsFilters';
 const FILTER_KEYS = ['search', 'city', 'hasPromotion'] as const;
 
 /**
- * PROMO-1 (Phase 12, full scope): wraps ProductsFilters behind a
+ * PROMO-1 (, full scope): wraps ProductsFilters behind a
  * "تصفية" trigger on mobile, shown only below `lg` — same
  * inline-on-mobile-forces-scrolling-past-the-panel fix
- * StoresFiltersSheet applied to /stores (FIX P2-09), applied here for
+ * StoresFiltersSheet applied to /stores (), applied here for
  * the first time since /products never had a filter sidebar at all
  * until this pass.
  */

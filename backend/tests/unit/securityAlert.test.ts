@@ -12,8 +12,8 @@ import { logger } from '../../src/shared/utils/logger';
 import { createTestUser } from '../helpers/auth.helper';
 
 /**
- * FIX TEST-V4-04: securityAlert.ts had zero test coverage despite being
- * the fix for a real gap — account lockouts and detected refresh-token
+ * securityAlert.ts had zero test coverage despite being
+ * the a real gap — account lockouts and detected refresh-token
  * reuse previously only ever produced a server-side log line, with the
  * affected account owner never actually notified (a real security event
  * they'd want to know about immediately, e.g. to change a compromised
@@ -155,9 +155,9 @@ describe('sendSecurityAlert', () => {
     });
 
     /**
-     * BUGFIX regression test — found during a post-implementation code
+     * test — found during a post-implementation code
      * audit. This fetch() call previously had no timeout at all — the
-     * same class of gap PROD-FIX-02 already closed for Cloudinary and
+     * same class of gap already closed for Cloudinary and
      * SMTP. Confirms the fix: an AbortSignal is actually passed through
      * to fetch(), so a hung webhook endpoint can be cut off rather than
      * accumulating indefinitely (this matters most exactly when this

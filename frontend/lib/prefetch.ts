@@ -12,7 +12,7 @@
  *
  * Reference: https://tanstack.com/query/latest/docs/framework/react/nextjs/server-rendering-prefetching
  *
- * FIX API-SHAPE-01: every prefetch function below used to store the
+ * every prefetch function below used to store the
  * FULL ApiResponse envelope ({ success, message, data, meta }) in the
  * query cache under the same queryKey the matching client hook
  * (useCategories, useAds, useAd — all via `.then(r => r.data.data)`)
@@ -79,7 +79,7 @@ async function serverFetch<T>(path: string): Promise<ApiResponse<T>> {
  * Prefetch the categories list.
  * Used in the homepage and search page server components.
  *
- * FIX API-SHAPE-01: GET /categories is not paginated — `data` is a
+ * GET /categories is not paginated — `data` is a
  * flat Category[] already. Resolving the prefetch to `.data` (not the
  * whole envelope) matches useCategories()'s `.then(r => r.data.data)`.
  */
@@ -95,7 +95,7 @@ export async function prefetchCategories(qc: QueryClient): Promise<void> {
  * Prefetch the active ad list for a given search.
  * Used in category pages and search results.
  *
- * FIX API-SHAPE-01: GET /ads puts the ad array directly on `data` and
+ * GET /ads puts the ad array directly on `data` and
  * pagination info under the top-level `meta.pagination` (not
  * `data.meta`) — reassembled here into the { items, meta } shape
  * useAds() expects from `.then(r => r.data.data)`.
@@ -121,7 +121,7 @@ export async function prefetchAdList(
 }
 
 /**
- * FIX PERF-11: ads/[id]/page.tsx's generateMetadata and the page
+ * ads/[id]/page.tsx's generateMetadata and the page
  * component each call getQueryClient() independently — on the server
  * that always returns a brand-new QueryClient per call (by design, so
  * requests never share state), so prefetchAdDetail below used to fire
@@ -129,10 +129,10 @@ export async function prefetchAdList(
  * data. React's cache() memoizes this fetch by `id` within a single
  * render pass, so the second call resolves from the first call's
  * already-settled promise instead of hitting the network again — this
- * is what actually fixes the duplicate request, independent of which
+ * is what actually the duplicate request, independent of which
  * QueryClient instance ends up holding the result.
  *
- * FIX API-SHAPE-01: GET /ads/:id is a single-item endpoint (not
+ * GET /ads/:id is a single-item endpoint (not
  * paginated) — `data` is the Ad object directly. Resolving to `.data`
  * matches useAd()'s `.then(r => r.data.data)`.
  */

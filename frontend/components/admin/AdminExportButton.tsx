@@ -19,7 +19,7 @@ async function downloadBlob(kind: Kind) {
   a.href = url;
   a.download = kind === 'users' ? 'users.csv' : 'reports.csv';
   a.click();
-  // SW-FIX-EXPORT-REVOKE: Safari iOS can abort the download if the URL
+  // Safari iOS can abort the download if the URL
   // is revoked in the same tick as click() — defer to match
   // DownloadStoreCatalogButton's fix.
   window.setTimeout(() => URL.revokeObjectURL(url), 5000);

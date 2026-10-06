@@ -34,7 +34,7 @@ type RequestRow = {
 
 export function AdminOpenRequestsTable() {
   const sp = useSearchParams();
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const q = sp.get('q') ?? '';

@@ -1,14 +1,14 @@
 /**
  * Admin layout.
  *
- * FIX C-04 / T-08: Role check uses useAuthStore (client-side),
+ * / T-08: Role check uses useAuthStore (client-side),
  *                   NOT the JWT payload (which doesn't contain role).
  *                   Middleware provides a first layer of protection via the
  *                   app_user_role cookie; this layout is the second layer.
  *
- * FIX AUTH-04: waits for isAuthResolving to settle (not just isHydrated)
+ * waits for isAuthResolving to settle (not just isHydrated)
  *              before making any redirect decision — see ProtectedLayout
- *              for the full explanation of the false-logout race this fixes.
+ *              for the full explanation of the false-logout race this 
  *
  * Non-admin authenticated users → redirect to /dashboard (not /login).
  */
@@ -67,7 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!isResolved) return;
     if (!isAuthenticated) {
-      // ROUTE-FIX-01: keep the current admin tab (?tab=…) across login.
+      // keep the current admin tab (?tab=…) across login.
       const search = typeof window !== 'undefined' ? window.location.search : '';
       router.replace(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.admin.root + search)}`);
       return;

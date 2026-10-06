@@ -11,7 +11,7 @@ export type StoreWithSeller = Prisma.StoreDetailsGetPayload<{
 export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
   include: {
     sellerProfile: true;
-    // PHASE1-STOREFRONT: only ACTIVE products — pending/deleted
+    // only ACTIVE products — pending/deleted
     // inventory must not inflate the public "منتج" stat on the
     // storefront or directory cards.
     _count: {
@@ -26,7 +26,7 @@ export type StoreWithSellerAndCounts = Prisma.StoreDetailsGetPayload<{
 // FEAT-FAVORITE-POLYMORPHIC PR2: exported so favorites.repository.ts
 // reuses the same StoreWithSeller include shape rather than a second
 // definition.
-// FIX STOREWITHSELLER-CONST: `as const` turned the orderBy tuple readonly,
+// `as const` turned the orderBy tuple readonly,
 // which Prisma rejects (StoreTypeFieldOrderByWithRelationInput[] is mutable).
 // A plain object literal infers the same shape without readonly.
 export const storeWithSeller = {
@@ -38,7 +38,7 @@ export const storeWithSeller = {
   },
 };
 
-/** SLOW-NET phase5: public directory — lighter seller fields. */
+/** SLOW-NET public directory — lighter seller fields. */
 const storeListInclude = {
   sellerProfile: {
     select: {
@@ -52,7 +52,7 @@ const storeListInclude = {
 } as const;
 
 
-// FIX STOREWITHSELLERANDCOUNTS-CONST: per-property `as const` keeps
+// per-property `as const` keeps
 // 'asc'/'ACTIVE' narrowed to literal types; without it TS widens to
 // `string` and Prisma's SortOrder/enum rejects the object.
 const storeWithSellerAndCounts = {
@@ -65,7 +65,7 @@ const storeWithSellerAndCounts = {
       },
     },
   },
-  // PHASE1-STOREFRONT: mirror the type above — public surfaces only
+  // mirror the type above — public surfaces only
   // count ACTIVE products so the header/stat card matches the
   // products the visitor can actually browse.
   _count: {
@@ -172,7 +172,7 @@ export const storesRepository = {
 
   // UNIFY-PAYMENTS-STORES: paymentMethods removed from this signature —
   // StoreDetails no longer has that column at all (see schema.prisma).
-  // The earlier fix here (routing null through Prisma.JsonNull) is now
+  // The earlier (routing null through Prisma.JsonNull) is now
   // moot: there's nothing to null out on this model anymore. A store's
   // payment methods are its parent seller's, updated only through
   // sellersRepository.updateMyProfile.
@@ -206,7 +206,7 @@ export const storesRepository = {
   updateStoreType: (id: string, storeTypeId: string): Promise<StoreDetails> =>
     prisma.storeDetails.update({ where: { id }, data: { storeTypeId }, include: { storeType: true } }),
 
-  // FIX BUG-02: the DB write half of the FEATURED-plan admin endpoint.
+  // the DB write half of the FEATURED-plan admin endpoint.
   setFeatureRequestedAt: (id: string, at: Date | null) =>
     prisma.storeDetails.update({ where: { id }, data: { featureRequestedAt: at } }),
 
@@ -253,7 +253,7 @@ export const storesRepository = {
     const where: Prisma.StoreDetailsWhereInput = {
       status: 'ACTIVE',
       // AUDIT-FIX (ads-feature review, extended to stores' own public
-      // listing): same gap already fixed in ads.repository.ts and
+      // listing): same gap already in ads.repository.ts and
       // search.repository.ts — this endpoint had no suspended-seller
       // filter at all, so a suspended seller's store kept showing up
       // in the public "browse stores" directory.

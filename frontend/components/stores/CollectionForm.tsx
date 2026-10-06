@@ -33,7 +33,7 @@ const emptyValues: Values = { name: '', description: '', imageUrl: '' };
  * COLLECTIONS (P1): create-and-edit dialog, unlike PromotionForm's
  * create-only design — a collection's name/description/cover are
  * meant to be tweaked freely over its lifetime (there's no "terms are
- * fixed once live" concept the way a Promotion has). imageUrl is a
+ * once live" concept the way a Promotion has). imageUrl is a
  * plain URL field, not a file upload — the collections backend module
  * has no multipart endpoint of its own (see collections.validation.ts's
  * z.string().url()), so pointing at an already-hosted image (e.g. one

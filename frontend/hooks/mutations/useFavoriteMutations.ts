@@ -1,12 +1,12 @@
 /**
  * useToggleFavorite — optimistically toggles an ad's favorite status.
  *
- * FIX H-06: queryKeys.favorites.ids() holds a Set<string> (populated by
+ * queryKeys.favorites.ids() holds a Set<string> (populated by
  * useFavorites.ts), but this optimistic updater previously read/wrote it
  * typed as string[] and called .includes()/.filter() on it — methods a
  * Set doesn't have. Once a real Set landed in the cache (after visiting
  * any page that calls useFavorites()), every toggle threw a TypeError
- * inside the onMutate updater. Fixed by using Set methods consistently.
+ * inside the onMutate updater. by using Set methods consistently.
  */
 'use client';
 

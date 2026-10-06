@@ -41,7 +41,7 @@ export const serviceRequestsRepository = {
       },
     }),
 
-  // FIX SR-DUPLICATE (audit H4): any not-yet-finished request by the same
+  // (audit H4): any not-yet-finished request by the same
   // customer for the same listing.
   findOpenByCustomerAndListing: (
     customerId: string,
@@ -52,7 +52,7 @@ export const serviceRequestsRepository = {
       select: { id: true, status: true },
     }),
 
-  // FIX SR-EXPIRY (audit H4): stale PENDING requests, oldest first, bounded.
+  // (audit H4): stale PENDING requests, oldest first, bounded.
   findStalePending: (
     cutoff: Date,
     limit: number
@@ -70,7 +70,7 @@ export const serviceRequestsRepository = {
   expirePending: (id: string, cutoff: Date): Promise<Prisma.BatchPayload> =>
     prisma.serviceRequest.updateMany({
       where: { id, status: 'PENDING', createdAt: { lt: cutoff } },
-      // FIX SR-EXPIRY-STATUS (audit H4): EXPIRED, not CANCELLED — distinguishes
+      // (audit H4): EXPIRED, not CANCELLED — distinguishes
       // system-closed from user-closed.
       data: { status: 'EXPIRED' },
     }),
@@ -81,7 +81,7 @@ export const serviceRequestsRepository = {
   // services-design.md §7: the WHERE clause includes the expected
   // current status, so the update silently no-ops (count=0) if the
   // status changed between the read above and this write — same
-  // atomic-conditional-update philosophy as the concurrency fix in
+  // atomic-conditional-update philosophy as the concurrency 
   // ads.service.ts, without needing a Redis lock here since this
   // single UPDATE is atomic by construction.
   transitionStatus: (
@@ -140,7 +140,7 @@ export const serviceRequestsRepository = {
       prisma.serviceRequest.count({
         where: { listing: { providerId }, status: 'COMPLETED', ...sinceFilter },
       }),
-      // FIX SR-EXPIRY-FULFILL (audit H4): auto-closed requests are EXPIRED
+      // (audit H4): auto-closed requests are EXPIRED
       // (never reached the provider), so only a user-driven CANCELLED — which
       // always goes through transitionStatus and stamps respondedAt — counts
       // against the provider. EXPIRED is deliberately excluded.

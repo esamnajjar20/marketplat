@@ -66,11 +66,11 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    // PROD-FIX-15: X-CSRF-Token added — the frontend must be allowed
+    // X-CSRF-Token added — the frontend must be allowed
     // to send this header for csrf.middleware.ts's double-submit
     // cookie check to work (a browser blocks a cross-origin request
     // from setting a header not in this allowlist).
-    // FIX CORS-OFFLINE-OP-ID-01: X-Offline-Op-Id (see frontend's
+    // X-Offline-Op-Id (see frontend's
     // lib/offlineOperationId.ts) is sent on every ad/product/
     // service-listing create & edit request so the SW's offline queue
     // can link a queued mutation back to its local draft. Missing from
@@ -99,13 +99,13 @@ app.use(
 // N3: threshold 1KB avoids compressing tiny health payloads; level 6 = size/CPU balance.
 app.use(compression({ threshold: 1024, level: 6 }));
 
-// PROD-FIX-15: parses the refreshToken/csrfToken cookies (see
+// parses the refreshToken/csrfToken cookies (see
 // shared/utils/authCookies.ts) into req.cookies. Registered right
 // after CORS/helmet, before anything that needs to read a cookie
 // (csrfProtection in routes.ts, authController.refresh/logout).
 app.use(cookieParser());
 
-// ── FIX OAUTH-01: Passport ────────────────────────────
+// ── Passport ────────────────────────────
 // Stateless only (session: false everywhere it's used — see
 // auth.routes.ts / google.strategy.ts's own comments) — no
 // express-session is registered anywhere in this app, and none is
@@ -187,7 +187,7 @@ if (env.nodeEnv !== 'production') {
 }
 
 // ── Logging ───────────────────────────────────────────
-// FIX MORGAN-ORDER-01: morgan was previously registered AFTER
+// morgan was previously registered AFTER
 // globalRateLimit, with a comment claiming that ordering logged 429s.
 // The opposite is true — express-rate-limit writes the 429 response
 // and terminates the chain, so morgan (which sits below it) never runs
@@ -196,7 +196,7 @@ if (env.nodeEnv !== 'production') {
 // that a legitimate user is hitting the tower-wide bucket, and that
 // signal was previously invisible in the logs. Registered here, before
 // globalRateLimit, with an explicit skip for the infra endpoints that
-// are meant to be hit on a fixed schedule (probes / scraping) rather
+// are meant to be hit on a schedule (probes / scraping) rather
 // than by users.
 //
 // M-09: 'combined' in production (no ANSI colors, structured for
@@ -239,7 +239,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // ── Sentry Error Handler ──────────────────────────────
-// FIX APM-02: must be registered AFTER all routes/the 404 handler
+// must be registered AFTER all routes/the 404 handler
 // above (so it sees errors from real route handlers) and BEFORE
 // errorMiddleware below (Sentry's own documented ordering requirement —
 // it needs to run before "any other error-handling middleware" so it

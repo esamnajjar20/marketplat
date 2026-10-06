@@ -26,7 +26,7 @@
  *     test (expects and asserts on 429s), not "how many users can log
  *     in per second" (that question is nonsensical against this
  *     limiter from a single IP).
- *   - browsing.js and search.js pre-authenticate a small, FIXED pool of
+ *   - browsing.js and search.js pre-authenticate a small, pool of
  *     users ONCE during setup() (well under the 10/15min ceiling) and
  *     reuse their tokens for the actual read-heavy load, which is
  *     where this app's real capacity questions live (GET /ads,

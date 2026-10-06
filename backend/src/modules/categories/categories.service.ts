@@ -7,7 +7,7 @@ import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 
-// FIX CATEGORIES-CACHE-VERSION-01: versioned key. Warmup/cache-aside never
+// versioned key. Warmup/cache-aside never
 // overwrite an existing key, so a deploy that changes the payload shape would
 // otherwise keep serving the old shape for up to the 1h TTL. Bump the suffix
 // whenever the cached shape changes.
@@ -85,7 +85,7 @@ export const categoriesService = {
   },
 
   /**
-   * FIX ADMIN-CATEGORIES-FRESH-01: admin list — deliberately bypasses the
+   * admin list — deliberately bypasses the
    * Redis cache getCategories() uses (CATEGORIES_CACHE_KEY). That cache
    * is public-facing and holds the shape public consumers need at an
    * hour of staleness; an admin editing or deleting a category must see
@@ -113,7 +113,7 @@ export const categoriesService = {
     const category = await categoriesRepository.findById(id);
     if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
 
-    // BUGFIX (circular category reference) — same fix as
+    // BUGFIX (circular category reference) — same 
     // productCategoriesService.updateProductCategory, applied here for
     // consistency.
     if (input.parentId && input.parentId !== category.parentId) {
@@ -175,7 +175,7 @@ export const categoriesService = {
     if (adsCount > 0) {
       throw new BadRequestError(`Cannot delete category with ${adsCount} active ads`);
     }
-    // BUGFIX (FK violation on delete) — same fix as
+    // BUGFIX (FK violation on delete) — same 
     // productCategoriesService.deleteProductCategory.
     const childrenCount = await categoriesRepository.countChildren(id);
     if (childrenCount > 0) {

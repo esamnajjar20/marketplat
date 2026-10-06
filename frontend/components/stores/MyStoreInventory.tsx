@@ -164,9 +164,9 @@ function StockRow({
 export function MyStoreInventory() {
   const router = useRouter();
   const sp = useSearchParams();
-  // SW-INVENTORY-FIXES-01: a hand-edited URL like ?page=abc produced
+  // SW-INVENTORY-a hand-edited URL like ?page=abc produced
   // NaN, which the products hook serialised onto the wire — same class
-  // of bug fixed across the seven admin tables. Clamp to a positive
+  // of bug across the seven admin tables. Clamp to a positive
   // integer with a fallback of 1.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
@@ -214,7 +214,7 @@ export function MyStoreInventory() {
     const params = new URLSearchParams(sp.toString());
     mutator(params);
     params.delete('page');
-    // SW-INVENTORY-FIXES-01: replace, not push. Filters and search are
+    // SW-INVENTORY-replace, not push. Filters and search are
     // refinements of the same view — pushing made Back require N presses
     // to actually leave the page after setting three filters, matching
     // the same reasoning already applied to SearchFilters.

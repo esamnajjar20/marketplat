@@ -160,7 +160,7 @@ describe('useServiceProvidersDirectory', () => {
     act(() => result.current.setPage?.((p) => p + 1));
     await waitFor(() => expect(result.current.page).toBe(2));
 
-    // A GPS fix arrives mid-session.
+    // A GPS mid-session.
     mockLocation({ source: 'gps-current', latitude: 1, longitude: 2 });
     (serviceProvidersApi.getNearby as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { items: [{ id: 'p1' }], meta: { totalPages: 1 } } },

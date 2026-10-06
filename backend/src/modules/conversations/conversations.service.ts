@@ -37,7 +37,7 @@ const redactIfDeleted = (message: Message): Message =>
     ? { ...message, body: '', imageUrl: null, audioUrl: null }
     : message;
 
-// FIX MSG-SCAN-01: same high-signal scam phrasing the ad fraud scorer
+// same high-signal scam phrasing the ad fraud scorer
 // uses — applied here so steering payment off-platform in chat can't
 // bypass the ad-side check. Phone numbers are NOT rejected: arranging
 // a meetup is legitimate marketplace use. URLs alone are also allowed;
@@ -224,7 +224,7 @@ export const conversationsService = {
       role?: 'buying' | 'selling';
     }
   ): Promise<PaginatedResult<ConversationListItem>> => {
-    // FIX CONV-ARCHIVE-FILTER-01: explicit pass-through instead of
+    // explicit pass-through instead of
     // forwarding the whole query object. The previous shape relied on
     // structural typing — extra fields in `query` compiled fine while
     // the repository silently ignored them. Now every accepted filter
@@ -272,7 +272,7 @@ export const conversationsService = {
     }
     if (body) assertMessageBodySafe(body);
 
-    // FIX N2-MSG-IDEMPOTENCY (atomic):
+    // (atomic):
     // Schema has no offlineOperationId on Message (unlike ads). We use a
     // short-lived Redis claim so concurrent replays of the same
     // X-Offline-Op-Id cannot both CREATE. Window = 24h (offline queue
@@ -309,7 +309,7 @@ export const conversationsService = {
           const sleep = (ms: number) =>
             new Promise<void>((r) => setTimeout(r, ms));
 
-          // FIX N2-WAIT-TUNED: was 12 attempts (up to ~2.35s block on
+          // was 12 attempts (up to ~2.35s block on
           // a slow peer). 4 attempts cap the worst case at ~500ms — enough
           // for any in-flight INSERT on Neon to complete. If the peer is
           // truly hung, failing fast beats a network timeout on the client.
@@ -331,7 +331,7 @@ export const conversationsService = {
               continue;
             }
             if (existingVal !== MSG_OP_PENDING) {
-              // FIX N2-SCOPE: constrain the replay to the same conversation
+              // constrain the replay to the same conversation
               // (findById is unconstrained by design elsewhere). Without
               // this, a stale opId from conversation X could return a
               // message belonging to conversation Y to the caller.
@@ -362,7 +362,7 @@ export const conversationsService = {
             // Peer still creating after ~1s, or Redis flaky: last look.
             const finalVal = await cacheRedis.get(cacheKey);
             if (finalVal && finalVal !== MSG_OP_PENDING) {
-              // FIX N2-SCOPE: same conversation constraint as above.
+              // same conversation constraint as above.
               const existing = await messagesRepository.findById(finalVal);
               if (existing && existing.conversationId === conversationId) return existing;
             }
@@ -387,7 +387,7 @@ export const conversationsService = {
       }
     }
 
-    // FIX MSG-CREATE-NONTRANSACTIONAL: previously Promise.all of
+    // previously Promise.all of
     // create + touchUpdatedAt. If the touch failed (transient Redis/
     // DB blip) while create succeeded, Promise.all rejects — but the
     // message row is already committed. The client sees a 500 for a

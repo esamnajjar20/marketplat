@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FIX INTEG-07: the "الإبلاغ عن هذا الإعلان" link in AdDetail.tsx had no
+ * the "الإبلاغ عن هذا الإعلان" link in AdDetail.tsx had no
  * onClick — api/reports.api.ts (reportsApi.reportAd) was fully implemented
  * and tested, but nothing in the UI ever called it.
  *

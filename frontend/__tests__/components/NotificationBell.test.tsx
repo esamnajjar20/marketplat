@@ -216,7 +216,7 @@ describe('NotificationBell', () => {
       expect(row.closest('a')).toBeNull();
     });
 
-    // PROMO-1 (Phase 14): always links to the promotions dashboard
+    // PROMO-1 (): always links to the promotions dashboard
     // regardless of which of the three lifecycle events (started/
     // expiring/expired) fired — see hrefFor's own comment on why no
     // per-event distinction is needed here.

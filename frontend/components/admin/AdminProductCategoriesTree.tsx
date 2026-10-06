@@ -6,10 +6,10 @@
  * Closes the audit report's finding: product-categories had full admin
  * CRUD on the backend (create/update/delete, all requireAdmin-protected)
  * with zero frontend UI, despite an exact precedent — the same gap was
- * already fixed for service-categories (see AdminServiceCategoriesTree,
+ * already for service-categories (see AdminServiceCategoriesTree,
  * "EPIC 1.2").
  *
- * FIX SEC-4.2: this used to be a ~165-line near-duplicate of
+ * this used to be a ~165-line near-duplicate of
  * AdminServiceCategoriesTree.tsx. Both are now thin wrappers around the
  * shared AdminEntityCategoriesTree, supplying only what's actually
  * product-specific: the data/mutation hooks, the Package icon, the

@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/adStatus.test.ts
  *
- * FIX UX-13: MyAdsList/AdminAdsTable/AdDetail each hand-rolled their
+ * MyAdsList/AdminAdsTable/AdDetail each hand-rolled their
  * own status→color mapping for the same AdStatus field and disagreed
  * with each other. This locks in the single shared mapping so any
  * future drift shows up here instead of as a silent inconsistency

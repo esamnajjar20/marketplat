@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FIX FEAT-EMAIL-VERIFY: landing page for the confirmation link in
+ * landing page for the confirmation link in
  * the signup email. The backend redirects nothing — the URL inside
  * the email points directly here (`/verify-email?token=...`), and
  * this page calls POST /auth/verify-email with that token. Three

@@ -263,7 +263,7 @@ export function getImageProps(
 
 
 /**
- * FIX CLOUDINARY-SAVER-CONSISTENCY: كان يقرأ localStorage مباشرة
+ * كان يقرأ localStorage مباشرة
  * (`window.localStorage.getItem('marketplat:data-saver') === '1'`) بدل
  * isDataSaverEnabled() — يفوت حالات saveData/effectiveType 2g التي
  * يغطيها dataSaver.ts. الآن يستخدم نفس المصدر كباقي الملف.

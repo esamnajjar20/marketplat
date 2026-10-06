@@ -3,7 +3,7 @@ import { AdStatus, AdCondition } from '@prisma/client';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 /**
- * FIX INTEG-05: createAd sends multipart/form-data (required for image
+ * createAd sends multipart/form-data (required for image
  * files), so multer puts isNegotiable into req.body as the string
  * "true"/"false" — plain z.boolean() rejected that outright with a 400.
  * z.coerce.boolean() is not a safe substitute: any non-empty string
@@ -52,9 +52,9 @@ export const createAdSchema = z.object({
 
 export const updateAdSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
-  // FIX FAV-02: no `images` field below, and this object isn't
+  // no `images` field below, and this object isn't
   // .passthrough()'d, so Zod strips any `images` key a client sends
-  // before it reaches adsRepository.update — a PATCH body can never
+  // before it reaches adsRepository.update — a can never
   // overwrite the images array this way. Images only mutate through
   // the dedicated addImages/removeImage endpoints. Recorded here so a
   // future pass doesn't re-flag it without re-checking.
@@ -77,7 +77,7 @@ export const updateAdSchema = z.object({
 // AD_SORT_COLUMN_SQL there) FROM this list instead of hand-copying it.
 // The ORM path picks up a new value automatically; the raw-SQL branch
 // needs an explicit case or it silently falls back to createdAt — the
-// same class of bug FIX H-1 below already fixed once for 'views'.
+// same class of bug below already once for 'views'.
 export const AD_SORT_FIELDS = ['createdAt', 'price', 'views'] as const;
 export type AdSortField = (typeof AD_SORT_FIELDS)[number];
 
@@ -92,14 +92,14 @@ const adsQueryBaseSchema = z.object({
   search: z.string().min(1).max(200).optional(),
   sortBy: z.enum(AD_SORT_FIELDS).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
-  // FIX FEAT-06: lets a caller ask for featured ads directly instead of
+  // lets a caller ask for featured ads directly instead of
   // over-fetching a page and filtering client-side (see FeaturedAds.tsx).
   // Query strings arrive as "true"/"false" strings, same shape as
   // isNegotiable above — reuses the same coercion helper.
   isFeatured: z.preprocess(preprocessFormBoolean, z.boolean()).optional(),
 });
 
-// FIX AD-STORE-02: ads.repository.ts's findMany already branches on
+// ads.repository.ts's findMany already branches on
 // storeId (both the raw-SQL search path and the plain where-clause
 // path), but no query schema declared the field — z.object() by
 // default strips unrecognized query keys, so GET /ads?storeId=...

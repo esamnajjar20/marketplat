@@ -7,7 +7,7 @@
  * the wrong hook entirely (useMyAds, which the component no longer
  * imports) and asserted on fields/behavior (status label, price, a
  * total>5 "show all" threshold) that don't exist on this component
- * anymore. Covers loading, UX-FIX P1-9's error-before-empty ordering
+ * anymore. Covers loading, 's error-before-empty ordering
  * (a failed fetch must not surface the "publish your first ad" prompt
  * meant for genuinely-new sellers), the true empty state with its
  * create-ad link, per-item rendering (title, description, relative

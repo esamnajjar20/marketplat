@@ -20,7 +20,7 @@ export const listingWithRelations = {
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;
 
-/** SLOW-NET phase5: public list omits long description. */
+/** SLOW-NET public list omits long description. */
 const serviceListingListSelect = {
   id: true,
   providerId: true,
@@ -132,7 +132,7 @@ export const serviceListingsRepository = {
   // array append via raw SQL (no SELECT + UPDATE race), existing images
   // always ordered first so overflow trims new uploads, never existing ones.
   addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<ServiceListing> => {
-    // FIX RAW-SQL-MAXIMAGES-GUARD-01: maxImages is interpolated
+    // maxImages is interpolated
     // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
     // be a bound parameter without restructuring the whole statement,
     // and a future caller passing an attacker-controlled number would
@@ -153,7 +153,7 @@ export const serviceListingsRepository = {
     // placeholders ($2, $3, ...), which is bounded by safeMaxImages
     // (validated 1..100 above). Every user-supplied value (the ids in
     // newImages, plus the row id) is passed as a bound parameter. Do
-    // NOT replace with a template literal by editing this into
+    // NOT replace with a literal by editing this into
     // $executeRaw — that form can't express a dynamic-length IN list.
     await prisma.$executeRawUnsafe(
       `UPDATE "service_listings"
@@ -306,7 +306,7 @@ export const serviceListingsRepository = {
       prisma.serviceListing.count({ where }),
     ]);
 
-    // SLOW-NET phase5: serviceListingListSelect omits description, but
+    // SLOW-NET serviceListingListSelect omits description, but
     // ServiceListingWithProvider is still the public type — cast is safe.
     return { listings: listings as unknown as ServiceListingWithProvider[], total };
   },

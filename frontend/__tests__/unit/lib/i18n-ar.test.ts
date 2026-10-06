@@ -1,5 +1,5 @@
 /**
- * i18n/ar barrel + error helpers — Phase 4 / P3.
+ * i18n/ar barrel + error helpers — / P3.
  * common.ts is intentionally empty (export {} only) and excluded from
  * coverage in vitest.config.ts.
  */

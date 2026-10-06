@@ -7,10 +7,10 @@ import {
 import { redis } from '../../src/config/redis';
 
 /**
- * FIX TEST-V4-03: adLock.ts had zero test coverage despite being the
- * fix for a real concurrency bug (two concurrent addImages calls
+ * adLock.ts had zero test coverage despite being the
+ * a real concurrency bug (two concurrent addImages calls
  * bypassing the 10-image cap and orphaning Cloudinary assets — see
- * ads.service.ts's FIX D-10 comments). The shared Redis mock's `set`
+ * ads.service.ts's comments). The shared Redis mock's `set`
  * previously ignored the NX flag entirely (see tests/setup.ts's FIX
  * TEST-V4-03), which made it impossible to even simulate "a lock is
  * already held" — every acquire attempt always silently succeeded.
@@ -42,7 +42,7 @@ describe('adLock / withAdImagesLock', () => {
 
     await firstCallStarted; // first call has now acquired the lock and is "in progress"
 
-    // FIX TEST-V4-03: this is the actual behavior the lock exists to
+    // this is the actual behavior the lock exists to
     // guarantee — a second concurrent request for the same ad must be
     // rejected, not silently allowed to race the first.
     await expect(withAdImagesLock('ad-2', async () => 'second'))
@@ -115,7 +115,7 @@ describe('adLock / withAdImagesLock', () => {
 });
 
 /**
- * AUDIT-FIX M-02: withUserAdCreationLock shares the same underlying
+ * withUserAdCreationLock shares the same underlying
  * SET-NX/Lua-release primitive as withAdImagesLock (see adLock.ts),
  * just keyed per-user instead of per-ad. These tests mirror the
  * withAdImagesLock suite above to confirm the shared primitive behaves

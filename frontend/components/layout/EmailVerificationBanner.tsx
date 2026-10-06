@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FIX FEAT-EMAIL-VERIFY: dismissible banner shown in the protected
+ * dismissible banner shown in the protected
  * layout to any user whose email is not yet verified. Three states
  * of the "resend" button are handled by the mutation's own isPending
  * flag (idle / sending / disable). Dismissal is per-session (state,

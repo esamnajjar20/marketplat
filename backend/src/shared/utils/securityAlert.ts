@@ -13,7 +13,7 @@ export interface SecurityAlertPayload {
 }
 
 /**
- * FIX SEC-ALERT-01: previously this only logged a warning — the account
+ * previously this only logged a warning — the account
  * owner was never actually notified of a lockout or detected token
  * reuse (a real security event they'd want to know about immediately,
  * e.g. to change a compromised password). Now sends a real email via
@@ -54,12 +54,12 @@ export const sendSecurityAlert = async (payload: SecurityAlertPayload): Promise<
     logger.error('Failed to send security alert email', { err, payload });
   }
 
-  // FIX SEC-ALERT-01: optional SIEM/ops webhook — same fire-and-forget,
+  // optional SIEM/ops webhook — same fire-and-forget,
   // never-throw pattern as logger.ts's error reporter. Unset by default;
   // no-op if SECURITY_ALERT_WEBHOOK_URL isn't configured.
   //
   // BUGFIX (found during a post-implementation code audit): this fetch()
-  // had no timeout at all — the exact same class of gap PROD-FIX-02
+  // had no timeout at all — the exact same class of gap 
   // closed for Cloudinary uploads and SMTP (see config/cloudinary.ts and
   // emailService.ts's own comments for the full reasoning). Left
   // unfixed here, it was arguably worse: this path fires on every

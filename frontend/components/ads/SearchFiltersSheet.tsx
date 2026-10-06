@@ -18,7 +18,7 @@ interface Props {
 
 /**
  * Mobile filter sheet for ads lists.
- * UX phase-7: shows live result count (from the same React Query cache
+ * UX shows live result count (from the same React Query cache
  * as SearchResults) so users see impact while adjusting filters.
  */
 export function SearchFiltersSheet({ categorySlug }: Props = {}) {
@@ -27,7 +27,7 @@ export function SearchFiltersSheet({ categorySlug }: Props = {}) {
   const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
   const q = sp.get('q') ?? '';
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const categoryId = sp.get('categoryId') ?? slugCategory?.id ?? undefined;

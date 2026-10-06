@@ -13,7 +13,7 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
 }>;
 
 /**
- * FIX UX-15: findManyForUser's own result type — ConversationWithRelations
+ * findManyForUser's own result type — ConversationWithRelations
  * plus a per-conversation unreadCount. Kept separate from
  * ConversationWithRelations itself (rather than adding _count there)
  * since findById/getConversationById (single-thread view) has no use
@@ -22,7 +22,7 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
  * anything.
  */
 /**
- * FIX UX-16: list rows carry the newest message for inbox preview.
+ * list rows carry the newest message for inbox preview.
  * Soft-deleted messages stay (body redacted in the service layer).
  */
 export type ConversationListItem = ConversationWithRelations & {
@@ -176,7 +176,7 @@ export const conversationsRepository = {
    * seller, most-recently-active first (updatedAt bumps on every new
    * message — see touchUpdatedAt).
    *
-   * FIX UX-15: now also returns unreadCount per conversation — was
+   * now also returns unreadCount per conversation — was
    * previously only available in aggregate across every conversation
    * via countUnreadConversationsForUser, with nothing telling the
    * frontend WHICH thread(s) in the list actually have unread
@@ -189,7 +189,7 @@ export const conversationsRepository = {
     query: {
       page?: number;
       limit?: number;
-      // FIX CONV-ARCHIVE-FILTER-01: the endpoint accepted these two flags
+      // the endpoint accepted these two flags
       // since setConversationFlags shipped (validation parsed them,
       // service forwarded them), but this function's signature narrowed
       // query to { page, limit } and the WHERE clause never touched
@@ -219,7 +219,7 @@ export const conversationsRepository = {
         where,
         include: {
           ...conversationWithRelations,
-          // FIX UX-15b: soft-deleted messages must not keep a badge alive
+          // soft-deleted messages must not keep a badge alive
           // after the sender retracted them before the recipient opened
           // the thread.
           _count: {
@@ -229,7 +229,7 @@ export const conversationsRepository = {
               },
             },
           },
-          // FIX UX-16: newest message for inbox preview (1 row, not N+1).
+          // newest message for inbox preview (1 row, not N+1).
           messages: {
             orderBy: { createdAt: 'desc' },
             take: 1,

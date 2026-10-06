@@ -26,7 +26,7 @@ export const mockResponse = (): Response => {
   res.cookie = jest.fn().mockReturnValue(res);
   res.clearCookie = jest.fn().mockReturnValue(res);
   res.send = jest.fn().mockReturnValue(res);
-  // FIX OAUTH-01: authController.googleCallback (and the /auth/google
+  // authController.googleCallback (and the /auth/google
   // routes generally) redirect the browser rather than returning JSON
   // — additive only, every existing test that never calls redirect()
   // is unaffected.

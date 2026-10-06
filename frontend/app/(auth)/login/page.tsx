@@ -6,7 +6,7 @@ import { buildMetadata } from '@/lib/seo';
 export const metadata: Metadata = buildMetadata({ title: 'تسجيل الدخول', noIndex: true });
 
 /*
- * AUDIT-FIX auth#2: previously wrapped its own content in another
+ * #2: previously wrapped its own content in another
  * min-h-screen + bg-muted/30 flex-center div, duplicating what
  * AuthLayout (app/(auth)/layout.tsx) already provides — now renders
  * only the actual content; height/centering/background is the

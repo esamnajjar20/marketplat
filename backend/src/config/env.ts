@@ -8,7 +8,7 @@ import { z } from 'zod';
 // run, this wipes it. Loading `.env.test` first when NODE_ENV=test
 // (falling back to `.env` if `.env.test` doesn't exist) ensures tests
 // only ever run against a database explicitly designated for testing —
-// see `.env.test.termux.example` for the Termux/proot template. dotenv
+// see `.env.test.termux.example` for the Termux/proot dotenv
 // never overrides a process.env value that's already set, so the
 // second dotenv.config() call below only fills in anything `.env.test`
 // didn't define — it can't silently override what `.env.test` set.
@@ -56,7 +56,7 @@ const envSchema = z.object({
   // Redis (which has no ACL user) still works — when unset, ioredis
   // falls back to the default `AUTH <password>` flow.
   REDIS_USERNAME: z.string().optional(),
-  // FIX LOCAL-DEV-01: previously `tls: {}` was hardcoded unconditionally
+  // previously `tls: {}` was hardcoded unconditionally
   // in config/redis.ts, correct only for managed providers that require
   // TLS on every plan (Upstash, etc. — see that file's own comment on
   // why TLS is needed there). A local/self-hosted Redis (docker-compose,
@@ -72,7 +72,7 @@ const envSchema = z.object({
     .string()
     .default('false')
     .transform(v => v === 'true'),
-  // FIX CACHE-REDIS-SPLIT-01: optional SECOND Redis used only for disposable
+  // optional SECOND Redis used only for disposable
   // public caches (SWR payloads, generation tokens, refresh locks, keep-warm
   // leader). Run it with an evicting policy (allkeys-lru) so a full cache can
   // never reject invalidations, while the primary instance keeps `noeviction`
@@ -89,7 +89,7 @@ const envSchema = z.object({
   // TRUST_PROXY must be a number (1 = trust one proxy hop, e.g. nginx/Cloudflare).
   // String "1" is NOT equivalent to number 1 in Express trust proxy logic.
   //
-  // FIX TRUST-PROXY-RANGE-01: previously the regex accepted any non-
+  // previously the regex accepted any non-
   // negative integer — including values that make req.ip *less* safe
   // than the default:
   //   - 0 in production collapses every user behind Render's internal
@@ -121,7 +121,7 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
-  // FIX OAUTH-01: Google OAuth credentials — optional, same
+  // Google OAuth credentials — optional, same
   // "opt-in, app works identically without it" pattern as
   // CLOUDINARY_*/SMTP_*/SENTRY_DSN below. google.strategy.ts only
   // registers the Passport GoogleStrategy when all three are present
@@ -132,7 +132,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().url().optional(),
-  // FIX EMAIL-01: SMTP config for the new email service. All optional,
+  // SMTP config for the new email service. All optional,
   // same pattern as Cloudinary above — the app must still start cleanly
   // in dev/test/CI without real credentials. emailService.ts checks
   // whether these are present and falls back to logging (the previous
@@ -148,7 +148,7 @@ const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
 
-  // FIX RENDER-SMTP-BLOCK-01: Render's Free tier blocks outbound
+  // Render's Free tier blocks outbound
   // connections on the standard SMTP ports (25/465/587), which makes
   // nodemailer time out with ETIMEDOUT regardless of how the SMTP
   // credentials are set. Resend is an HTTPS (port 443) email API --
@@ -157,14 +157,14 @@ const envSchema = z.object({
   // uses Resend over HTTPS; otherwise it falls through to the legacy
   // SMTP path (which still works on Render's paid tiers and in dev).
   RESEND_API_KEY: z.string().optional(),
-  // FIX GMAIL-OAUTH-EMAIL-01: Gmail REST API over HTTPS (port 443).
+  // Gmail REST API over HTTPS (port 443).
   // No domain required, accepts any recipient. Refresh token is
   // generated once via OAuth Playground / a local script, then stored
   // here as an env var.
   GMAIL_USER: z.string().email().optional(),
   GOOGLE_REFRESH_TOKEN: z.string().optional(),
 
-  // FIX FORGOT-PW-LIMIT-CONFIG-01: rate limit max for /auth/forgot-password.
+  // rate limit max for /auth/forgot-password.
   // Default 5/hour per IP -- up from the previous hardcoded 3, which was
   // too strict for two real cases: (a) a single user who mistypes their
   // email, re-reads it, retries, and then submits the correct address
@@ -180,7 +180,7 @@ const envSchema = z.object({
     v => (v == null ? undefined : String(v).trim()),
     z.string().regex(/^\d+$/, 'FORGOT_PASSWORD_RATE_LIMIT_MAX must be digits only').optional()
   ),
-  // FIX PWA-PUSH-01: Web Push (VAPID) keys — same optional,
+  // Web Push (VAPID) keys — same optional,
   // opt-in-only pattern as SMTP_*/CLOUDINARY_*/GOOGLE_CLIENT_* above.
   // Generated once per deployment via `npx web-push generate-vapid-
   // keys` (see pushService.ts's doc comment); the public half is also
@@ -191,7 +191,7 @@ const envSchema = z.object({
   // mismatched private key). VAPID_SUBJECT is a mailto: or https: URL
   // push services use to contact the sender if a deployment is
   // misbehaving (spec requirement, not this app's own contact info).
-  // ── Notifications pipeline (Phase 3) ─────────────────────────────────
+  // ── Notifications pipeline () ─────────────────────────────────
   // NOTIFICATION_QUEUE_ENABLED: push delivery, quiet-hours deferral and the
   // email fallback run through a BullMQ queue (retry with backoff, delayed
   // jobs). Default false = the previous inline fire-and-forget delivery, so
@@ -229,21 +229,21 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
-  // FIX SEC-ALERT-01: separate, optional webhook for security alerts
+  // separate, optional webhook for security alerts
   // (account lockouts, refresh-token reuse detection). Distinct from the
   // generic ERROR_REPORTER_WEBHOOK_URL in logger.ts — that one is for
   // application errors; this one is specifically for security events and
   // is intentionally kept separate so a team can route them to different
   // channels (e.g. ops alerting vs. a dedicated security channel).
   SECURITY_ALERT_WEBHOOK_URL: z.string().url().optional(),
-  // FIX AUDIT-V5-01: previously there was no cap on how many active ads
+  // previously there was no cap on how many active ads
   // a single user could have simultaneously. Combined with no per-user
   // listing quota, a single account (even unverified) could create an
   // unbounded number of ads, which is both a spam vector and a resource-
   // exhaustion risk (DB rows, Cloudinary storage, search index size).
   // Configurable via env so it can be tuned per deployment without a
   // code change; defaults to a generous but finite value.
-  // FIX APM-01: optional — Sentry is only initialized (in instrument.ts)
+  // optional — Sentry is only initialized (in instrument.ts)
   // if this is set, same "opt-in, app works identically without it"
   // pattern as CLOUDINARY_*/SMTP_* above. Read independently by
   // instrument.ts via its own process.env access (not by importing this
@@ -261,14 +261,14 @@ const envSchema = z.object({
     .regex(/^(0(\.\d+)?|1(\.0+)?)$/, 'SENTRY_TRACES_SAMPLE_RATE must be a number between 0 and 1')
     .default('0.1'),
   MAX_ADS_PER_USER: z.string().regex(/^\d+$/).default('50'),
-  // AUDIT-FIX 1.1: previously a hardcoded `30` inside adLock.ts. Made
+  // previously a hardcoded `30` inside adLock.ts. Made
   // configurable, same "opt-in tuning, sane default" pattern as
   // MAX_ADS_PER_USER above — deployments with slower Cloudinary
   // round-trips (more images per ad, slower network) can raise this
   // without a code change; default matches the prior hardcoded value
   // so existing behavior is unchanged unless the var is explicitly set.
   IMAGE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
-  // FIX M-009: sellerLock/storeLock/serviceProviderLock previously used
+  // sellerLock/storeLock/serviceProviderLock previously used
   // a hardcoded 15s TTL each, unlike IMAGE_LOCK_TTL_SECONDS above which
   // was already made configurable. If the locked operation (which can
   // include a Cloudinary upload for a profile photo/logo) takes longer
@@ -282,7 +282,7 @@ const envSchema = z.object({
   SELLER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
   STORE_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
   SERVICE_PROVIDER_LOCK_TTL_SECONDS: z.string().regex(/^\d+$/).default('30'),
-  // FIX M-029: healthCache's CACHE_DURATION was a hardcoded 30_000ms
+  // healthCache's CACHE_DURATION was a hardcoded 30_000ms
   // (30s), meaning /ready could keep reporting "healthy" from cache for
   // up to 30s after DB/Redis actually became unreachable — a
   // meaningful delay in a load balancer noticing an unhealthy instance
@@ -305,11 +305,11 @@ const envSchema = z.object({
   FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default('24'),
   // Ad riskScore (0-100) at or above this auto-sets flaggedForReview.
   FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default('60'),
-  // Report-driven moderation: unique user reports needed to temporarily
+  // Report-driven moderation: unique user reports needed to 
   // hide an ACTIVE ad. Kept configurable so a small marketplace can use 3
   // while a larger one can raise the threshold without a code change.
   AD_REPORT_AUTO_HIDE_THRESHOLD: z.string().regex(/^\d+$/).default('3'),
-  // AUDIT-FIX 1.3: analytics.repository.ts's trendByEvent/topCategories
+  // analytics.repository.ts's trendByEvent/topCategories
   // run raw, unindexed-aggregate-friendly but potentially expensive
   // GROUP BY queries (date_trunc bucketing, JSON metadata extraction)
   // over an admin-selectable date range with no upper bound enforced
@@ -322,7 +322,7 @@ const envSchema = z.object({
   // need more.
   ANALYTICS_QUERY_TIMEOUT_MS: z.string().regex(/^\d+$/).default('10000'),
   ANALYTICS_RETENTION_DAYS: z.string().regex(/^\d+$/).default('90'),
-  // PROD-FIX-03: /metrics was previously unauthenticated at the
+  // /metrics was previously unauthenticated at the
   // application level with only a code comment recommending a
   // reverse-proxy allowlist — no such reverse-proxy config exists
   // anywhere in this repo, so a deployment that doesn't add its own
@@ -353,7 +353,7 @@ const envSchema = z.object({
   // here means a typo'd value is caught at boot, .env.example can
   // list it, and other modules read env.email.verificationGating
   // rather than reaching into process.env. Default false matches the
-  // TEMP-DISABLED state documented in that middleware (Google OAuth
+  // state documented in that middleware (Google OAuth
   // consent still in Testing mode).
   EMAIL_VERIFICATION_GATING: z
     .string()
@@ -422,7 +422,7 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
     });
   }
 
-  // FIX PROD-AUDIT-01: CLOUDINARY_* was optional at every NODE_ENV, same
+  // CLOUDINARY_* was optional at every NODE_ENV, same
   // as SMTP_*/GOOGLE_CLIENT_* — correct for those (fully optional
   // features), but wrong here: .env.example's own comment on this block
   // says "Cloudinary (required for image uploads)" while nothing
@@ -447,7 +447,7 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
     });
   }
 
-  // FIX DISABLE-RATE-LIMIT-PROD-01: DISABLE_RATE_LIMIT is a dev/CI
+  // DISABLE_RATE_LIMIT is a dev/CI
   // convenience switch that bypasses globalRateLimit entirely
   // (rateLimit.middleware.ts's `bypassRateLimit` short-circuits every
   // /api request). If it were ever set to true in production — by a
@@ -477,7 +477,7 @@ if (!parsed.success) {
   // VITEST), throw instead of process.exit(1). process.exit kills the
   // entire test process — including every suite that hasn't run yet —
   // which is what used to abort the backend suite mid-run when a unit
-  // test temporarily set NODE_ENV=production (authCookies, etc.) and
+  // test set NODE_ENV=production (authCookies, etc.) and
   // re-imported this module without REDIS_PASSWORD. Throwing still
   // fails the offending test, but leaves the rest of the run intact.
   // Real server startups (no JEST_WORKER_ID / VITEST) keep the hard
@@ -496,7 +496,7 @@ if (!parsed.success) {
 
 const _env = parsed.data;
 
-// FIX BUG-06: parses JWT_EXPIRES_IN ("15m", "1h", "3600", …) into a
+// parses JWT_EXPIRES_IN ("15m", "1h", "3600", …) into a
 // plain integer of seconds. jsonwebtoken accepts this same string
 // format via the `ms` package internally, but `ms` is only a
 // transitive dependency here (pulled in by jsonwebtoken itself, not
@@ -543,7 +543,7 @@ export const env = {
     secret: _env.JWT_SECRET,
     refreshSecret: _env.JWT_REFRESH_SECRET,
     expiresIn: _env.JWT_EXPIRES_IN,
-    // FIX BUG-06: numeric seconds form of expiresIn, returned to the
+    // numeric seconds form of expiresIn, returned to the
     // client in login/register/refresh responses so the frontend can
     // derive its access-token cookie's maxAge from the backend's
     // actual configured TTL instead of a hardcoded constant — see
@@ -610,12 +610,12 @@ export const env = {
       _env.CLOUDINARY_CLOUD_NAME && _env.CLOUDINARY_API_KEY && _env.CLOUDINARY_API_SECRET
     ),
   },
-  // FIX OAUTH-01: same isConfigured pattern as email.isConfigured
+  // same isConfigured pattern as email.isConfigured
   // above — true only once all three vars are present. Consumed by
   // google.strategy.ts (whether to register the Passport strategy at
   // all) and auth.routes.ts / auth.controller.ts (whether to accept
   // requests to /auth/google at all, vs. returning a clear 503).
-  // FIX GOOGLE-OAUTH-TRIM-01: trim() all three values -- same class of
+  // trim() all three values -- same class of
   // bug cloudinary's own comment above documents (a trailing newline
   // or space picked up when pasting from a dashboard into an env UI).
   // Without this, the app still considers OAuth "configured" (the
@@ -634,10 +634,10 @@ export const env = {
       (_env.GOOGLE_CALLBACK_URL || '').trim()
     ),
   },
-  // CENTRALIZE-04 + FIX FORGOT-PW-LIMIT-CONFIG-01
+  // CENTRALIZE-04 + 
   rateLimit: {
     disabled: _env.DISABLE_RATE_LIMIT,
-    // FIX FORGOT-PW-LIMIT-CONFIG-01: configurable max for
+    // configurable max for
     // /auth/forgot-password. Default 5 (was hardcoded 3) -- too
     // strict for Gaza's carrier-grade NAT (many subscribers share
     // one public IP) and for the common "mistyped then corrected"
@@ -649,7 +649,7 @@ export const env = {
   },
 
   email: {
-    // FIX RESEND-TRIM-01: same trailing-whitespace/\n class of bug
+    // same trailing-whitespace/\n class of bug
     // cloudinary.apiKey and googleOAuth.clientId already trim() for
     // (their own comments document the production incident). A key
     // pasted from Resend's dashboard into Render's Variables UI
@@ -658,7 +658,7 @@ export const env = {
     // from Resend on every send, with no clue in the error that the
     // problem is whitespace. .trim() is a no-op on a clean key.
     resendApiKey: (_env.RESEND_API_KEY || '').trim(),
-    // FIX GMAIL-OAUTH-EMAIL-01: Gmail OAuth sender takes priority over
+    // Gmail OAuth sender takes priority over
     // Resend when both are set -- it accepts any recipient, whereas
     // Resend's sandbox only delivers to the account owner until a
     // custom domain is verified.
@@ -673,7 +673,7 @@ export const env = {
     smtpSecure: _env.SMTP_SECURE ?? false,
     smtpUser: (_env.SMTP_USER || '').trim(),
     smtpPassword: (_env.SMTP_PASSWORD || '').trim(),
-    // FIX EMAIL-FROM-DEFAULT-01: previously hardcoded to a placeholder
+    // previously hardcoded to a placeholder
     // ('no-reply@example.com') when SMTP_FROM_EMAIL was unset, even
     // when Gmail OAuth or Resend was the active sender. Every message
     // then went out with a From address no provider recognized.
@@ -698,8 +698,8 @@ export const env = {
     // Email sending is considered "configured" only once host+user+password
     // are all present — partial config (e.g. just a from-address) isn't
     // enough to attempt a real SMTP connection.
-    // FIX GMAIL-OAUTH-EMAIL-01: "configured" now means any of the
-    // three senders is usable: Gmail OAuth, Resend, or legacy SMTP.
+    // "configured" now means any of the
+    // three senders is usable: Gmail OAuth, Resend, or 
     isConfigured: Boolean(
       (_env.GMAIL_USER && _env.GOOGLE_REFRESH_TOKEN && _env.GOOGLE_CLIENT_ID && _env.GOOGLE_CLIENT_SECRET) ||
       (_env.RESEND_API_KEY && _env.SMTP_FROM_EMAIL) ||
@@ -708,7 +708,7 @@ export const env = {
     // T590 — see schema entry above for the full rationale.
     verificationGating: _env.EMAIL_VERIFICATION_GATING,
   },
-  // FIX PWA-PUSH-01: same isConfigured pattern as email above —
+  // same isConfigured pattern as email above —
   // pushService.ts checks this once at first use and falls back to
   // logging instead of throwing when any piece is missing, so the app
   // keeps starting and running normally without real VAPID keys.
@@ -747,13 +747,11 @@ export const env = {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),
     imageLockTtlSeconds: parseInt(_env.IMAGE_LOCK_TTL_SECONDS, 10),
   },
-  // FIX M-009
   locks: {
     sellerLockTtlSeconds: parseInt(_env.SELLER_LOCK_TTL_SECONDS, 10),
     storeLockTtlSeconds: parseInt(_env.STORE_LOCK_TTL_SECONDS, 10),
     serviceProviderLockTtlSeconds: parseInt(_env.SERVICE_PROVIDER_LOCK_TTL_SECONDS, 10),
   },
-  // FIX M-029
   health: {
     cacheDurationMs: parseInt(_env.HEALTH_CACHE_DURATION_MS, 10),
   },

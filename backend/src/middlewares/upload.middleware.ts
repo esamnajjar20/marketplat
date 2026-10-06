@@ -1,4 +1,4 @@
-// FIX UPLOAD-DRIFT-LIMIT-01: the hardcoded "10" in upload.array() and in
+// the hardcoded "10" in upload.array() and in
 // the two "Maximum 10 images allowed" strings is now derived from
 // MAX_IMAGES_PER_ENTITY -- the same constant multer.limits.files already
 // reads -- so raising the cap is a one-line change in config/limits.ts.
@@ -50,7 +50,7 @@ const verifyFileContent = (req: Request, res: Response, next: NextFunction): voi
 };
 
 /**
- * FIX UPLOAD-01: this used to call back with a bare `new Error(...)`,
+ * this used to call back with a bare `new Error(...)`,
  * which — once wrapped downstream as `new BadRequestError(uploadErr.message)`
  * with no explicit code — fell back to the generic VALIDATION_ERROR
  * dictionary entry ("البيانات المرسلة غير صحيحة") instead of the
@@ -84,7 +84,7 @@ const upload = multer({
 });
 
 /**
- * FIX LOAD-02: multer's `limits` option has no "total request size"
+ * multer's `limits` option has no "total request size"
  * knob — only per-file (`fileSize`), per-field (`fieldSize`), and
  * count limits (`files`/`fields`/`parts`). Those bound the *worst
  * case* (10 files × 5MB = up to 50MB) but nothing rejected a request
@@ -117,7 +117,7 @@ export const rejectOversizedContentLength = (
 ): void => {
   const contentLength = req.headers['content-length'];
   if (contentLength && Number(contentLength) > MAX_TOTAL_REQUEST_BYTES) {
-    // FIX UPLOAD-01: was a bare BadRequestError with no code, falling
+    // was a bare BadRequestError with no code, falling
     // back to the generic VALIDATION_ERROR message.
     next(new BadRequestError('Request too large', 'REQUEST_TOO_LARGE'));
     return;
@@ -133,10 +133,10 @@ export const uploadMiddleware = (req: Request, res: Response, next: NextFunction
       if (uploadErr instanceof multer.MulterError) {
         if (uploadErr.code === 'LIMIT_FILE_SIZE')
           return next(new BadRequestError('File size must be less than 5MB', 'FILE_TOO_LARGE'));
-        // FIX UPLOAD-01: was a bare BadRequestError with no code.
+        // was a bare BadRequestError with no code.
         if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
           return next(new BadRequestError('Unexpected file field', 'UNEXPECTED_FILE_FIELD'));
-        // FIX UPLOAD-SINGLE-FIELD-LIMIT-01: mirror uploadMultipleMiddleware
+        // mirror uploadMultipleMiddleware
         // — the single-file variant has no file-count check (single always
         // means one file), but a caller that sends >20 non-file fields in
         // the same multipart request was previously rejected with the
@@ -166,10 +166,10 @@ export const uploadMultipleMiddleware = (req: Request, res: Response, next: Next
       if (uploadErr instanceof multer.MulterError) {
         if (uploadErr.code === 'LIMIT_FILE_SIZE')
           return next(new BadRequestError('Each file must be less than 5MB', 'FILE_TOO_LARGE'));
-        // FIX UPLOAD-01: these three were bare BadRequestErrors with no
+        // these three were bare BadRequestErrors with no
         // code, all falling back to the generic VALIDATION_ERROR
         // message despite each being a distinct, nameable failure.
-        // FIX UPLOAD-ERR-STRING-01: these two used to pass a bare
+        // these two used to pass a bare
         // string to next(), which Express routes to its own "skip to
         // next handler" path — not the error middleware. The error
         // middleware only handles Error instances, so a string fell

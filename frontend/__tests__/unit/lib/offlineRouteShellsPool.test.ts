@@ -1,5 +1,5 @@
 /**
- * FIX WARM-CHUNK-POOL-01: chunk fetches for a route go through a bounded pool,
+ * chunk fetches for a route go through a bounded pool,
  * so their timeouts measure real latency instead of browser-queue dwell time.
  */
 import { describe, it, expect } from 'vitest';

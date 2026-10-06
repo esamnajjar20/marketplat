@@ -11,7 +11,7 @@ import { logger } from '../../shared/utils/logger';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
 
-// FIX CATEGORIES-CACHE-VERSION-01: versioned key — bump the suffix whenever
+// versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
 const PRODUCT_CATEGORIES_CACHE_KEY = 'product_categories:all:v1';
 const PRODUCT_CATEGORIES_TTL = 60 * 60; // 1 hour, same as service categories

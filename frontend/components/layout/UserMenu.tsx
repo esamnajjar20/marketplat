@@ -3,7 +3,7 @@
  * UserMenu — dropdown for authenticated users.
  * Shows avatar, name, quick links, and logout button.
  *
- * FIX FEAT-04: previously this rendered only the avatar button with a
+ * previously this rendered only the avatar button with a
  * `// TODO: replace with shadcn/ui DropdownMenu component` comment —
  * clicking it did nothing; the dropdown items were never implemented,
  * not just unstyled. This is the first working version: a real Radix

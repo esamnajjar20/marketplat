@@ -54,7 +54,7 @@ import { cn } from '@/lib/utils';
 
 function CopyBtn({ value, label }: { value: string; label: string }) {
   const [ok, setOk] = useState(false);
-  // SW-FIX-COPYBTN-CLEANUP: track the reset timeout so it can be cleared
+  // track the reset timeout so it can be cleared
   // on unmount — the old inline setTimeout kept a reference to setOk on
   // a potentially-unmounted component (harmless in React 18+, but a
   // leak). Same pattern as MessageInput's typingTimer.
@@ -104,7 +104,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
   const [ussdPayee, setUssdPayee] = useState<SavedPayee | null>(null);
   const [ussdAmount, setUssdAmount] = useState('');
   const [ussdRecipient, setUssdRecipient] = useState<'friend' | 'merchant'>('friend');
-  // SW-FIX-SPPC-CONFIRM: replaces two unconfirmed single-tap deletions.
+  // replaces two unconfirmed single-tap deletions.
   // Both removePayee and removeNetCard are irreversible and can lose a
   // number the user may not have any other record of.
   const [confirmDeletePayee, setConfirmDeletePayee] = useState<SavedPayee | null>(null);

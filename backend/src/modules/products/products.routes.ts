@@ -8,7 +8,7 @@ import {
   createProductRateLimit,
   addProductImagesRateLimit,
 } from '../../middlewares/rateLimit.middleware';
-// FIX PRODUCTS-MUTATION-LIMITS: PATCH/DELETE/reorder/stock-adjust had
+// PATCH/DELETE/reorder/stock-adjust had
 // no rate limit at all — an authenticated owner (or a compromised
 // session) could loop any of them arbitrarily (product churn,
 // Cloudinary reorder spam, stock-flip spam). Reusing createProductRateLimit
@@ -37,7 +37,7 @@ productsRouter.post(
   uploadMultipleMiddleware,
   productsController.createProduct
 );
-// FIX PRODUCTS-VERIFY-CONSISTENCY: PATCH/DELETE/stock/reorder did not
+// PATCH/DELETE/stock/reorder did not
 // require a verified email while POST / (create) and POST /:id/images
 // did — an unverified user could edit or delete existing products but
 // not create new ones, which reads as a broken UI rather than a

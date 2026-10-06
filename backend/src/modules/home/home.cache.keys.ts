@@ -11,8 +11,8 @@ import { HOME_CITIES } from './home.validation';
  * when an ad is taken down, and importing home.cache.ts from them would create
  * an import cycle.
  *
- * FIX HOME-CACHE-VERSION-01: prefix bumped v2 -> v3 (envelope shape).
- * FIX HOME-CACHE-GEN-01: v3 -> v4 — envelopes are now stamped with a
+ * prefix bumped v2 -> v3 (envelope shape).
+ * v3 -> v4 — envelopes are now stamped with a
  * generation token (see swrCache.ts) instead of being invalidated by DEL.
  */
 export const HOME_KEY_PREFIX = 'home:v4:';
@@ -47,7 +47,7 @@ export const onHomeInvalidated = (listener: InvalidationListener): (() => void) 
  * homepage assembly reads ads through the ads-list cache, so rebuilding before
  * that bump could re-cache the just-removed ad.
  *
- * FIX HOME-CACHE-RACE-01: this used to DEL the keys. A background refresh that
+ * this used to DEL the keys. A background refresh that
  * had started before the DEL could still SET its (pre-removal) result after
  * it, putting the removed ad back on the homepage for 30-40s. Now it overwrites
  * a generation token; envelopes stamped with the old token are ignored by

@@ -1,11 +1,11 @@
 import { logger } from './logger';
 
 /**
- * PROD-FIX-12: a minimal, dependency-free circuit breaker.
+ * a minimal, dependency-free circuit breaker.
  *
  * Why hand-rolled instead of a library (e.g. opossum): this repo has
  * no network access to install new npm packages in the environment
- * these fixes were written in, and a circuit breaker's core logic is
+ * these were written in, and a circuit breaker's core logic is
  * genuinely small — a state machine with three states and a handful of
  * counters. Pulling in a library for ~120 lines of well-understood
  * logic that the team can read and modify directly is a reasonable
@@ -25,7 +25,7 @@ import { logger } from './logger';
  *               failure re-opens it (and restarts the timeout).
  *
  * This does NOT replace the per-call timeouts already added in
- * config/cloudinary.ts and emailService.ts (PROD-FIX-02) — those bound
+ * config/cloudinary.ts and emailService.ts () — those bound
  * how long a SINGLE call can hang; this bounds how many FAILING calls
  * in a row get attempted at all before backing off, protecting against
  * a sustained outage burning through connections/threads on every

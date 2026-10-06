@@ -5,7 +5,7 @@ import { buildMetadata }      from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'استرداد كلمة المرور', noIndex: true });
 
-// AUDIT-FIX auth#2: same fix as LoginPage — see its comment.
+// #2: same LoginPage — see its comment.
 export default function ForgotPasswordPage() {
   return (
     <div className="space-y-8">

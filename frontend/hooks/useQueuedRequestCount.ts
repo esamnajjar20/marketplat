@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { getQueuedRequestCount } from '@/lib/offlineQueue';
 
 /**
- * FIX QUEUE-BADGE-01: عدّاد "طلبات بالانتظار" كان يُقرأ فقط داخل صفحة
+ * عدّاد "طلبات بالانتظار" كان يُقرأ فقط داخل صفحة
  * /offline نفسها (getQueuedRequestCount مستخدَمة هناك حصرًا) — لو المستخدم
  * نشر إعلانًا أوفلاين ثم تنقّل لصفحة أخرى، ما في أي إشارة دائمة تذكّره أن
  * هناك عملية معلَّقة، رغم أن sw.js يبعث أصلًا رسالة QUEUE_REPLAYED لكل
@@ -20,7 +20,7 @@ import { getQueuedRequestCount } from '@/lib/offlineQueue';
  *    نفسه (IndexedDB) يُدار بالكامل داخل sw.js ولا يبعث رسالة عند الإضافة.
  *  - حدث 'online' كـ fallback احترازي (مثلًا لو فاتت رسالة QUEUE_REPLAYED).
  *
- * FIX QUEUE-COUNT-01: getQueuedRequestCount (lib/offlineQueue.ts) أصبحت
+ * getQueuedRequestCount (lib/offlineQueue.ts) أصبحت
  * تُرجع عدد العناصر "المعلّقة فعلًا" فقط (تستبعد status:'failed' التي لن
  * تُعاد تلقائيًا أبدًا — انظر تعليق ذلك الملف للتفصيل الكامل)، فالرقم هنا
  * أصبح دقيقًا فعلًا لشارة "N بالانتظار" — سابقًا كان يشمل عناصر فاشلة

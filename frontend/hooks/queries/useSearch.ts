@@ -17,7 +17,7 @@ import type { SearchQuery } from '@/types/search.types';
  * — rank defaults to 0 with no q, ordering falls back to recency),
  * not an error state.
  *
- * PHASE-2 (بحث محلي بدون نت): لو فشل طلب الشبكة، نحاول فهرس محلي مبني من
+ * (بحث محلي بدون نت): لو فشل طلب الشبكة، نحاول فهرس محلي مبني من
  * حزمة المرحلة ١ (lib/offlineCoreBundle.ts) قبل الاستسلام. لو الفهرس نفسه
  * غير متوفر (لا حزمة أساسية بعد) نرمي خطأ الشبكة الأصلي — فيبقى isError/
  * زر "إعادة المحاولة" بـ SearchResults.tsx يعمل بشكل صحيح لأي خطأ حقيقي،

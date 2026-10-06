@@ -1,7 +1,7 @@
 /**
  * __tests__/components/StoresGrid.test.tsx
  *
- * Coverage gap: 0% prior coverage. Covers FIX UX-04's skeleton (not a
+ * Coverage gap: 0% prior coverage. Covers 's skeleton (not a
  * spinner) loading state, error+retry, the total-count summary line
  * with the quoted search-term suffix, the empty state's search-aware
  * vs generic description branch, grid rendering, and pagination.

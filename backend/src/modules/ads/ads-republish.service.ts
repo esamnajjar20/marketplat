@@ -1,5 +1,5 @@
 /**
- * TRACK-REPUBLISH (Phase 3)
+ * TRACK-REPUBLISH ()
  *
  * POST /ads/:id/republish — owner only.
  * Creates a fresh ACTIVE ad from a SOLD (or soft-DELETED) source ad
@@ -29,7 +29,7 @@ import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
 import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
-// FIX REPUBLISH-LIMITS-DOC: previous block had conflicting "soft cap"
+// previous block had conflicting "soft cap"
 // comments and an unexplained +3. Kept to a single named value for
 // both sides of the check below.
 const REPUBLISH_DAILY_CAP = 5;
@@ -60,7 +60,7 @@ export const adsRepublishService = {
       throw new BadRequestError('Source ad has no images to copy.', 'AD_NO_IMAGES');
     }
 
-    // FIX REPUBLISH-LIMITS-DOC: single clean set of checks — the
+    // single clean set of checks — the
     // previous version had three counters with conflicting comments
     // and an unexplained "+3" on the daily cap. Behaviourally this
     // keeps the same intent:
@@ -132,7 +132,7 @@ export const adsRepublishService = {
       }
 
       const created = await prisma.$transaction(async (tx) => {
-        // FIX REPUBLISH-CREATE-INCLUDE: `ad` is passed to
+        // `ad` is passed to
         // savedSearchEvents.onAdCreated() after the transaction commits
         // — that call site expects the AdWithAuthor shape (user +
         // category included), matching what createAd passes. Without
@@ -177,7 +177,7 @@ export const adsRepublishService = {
         return ad;
       });
 
-      // FIX REPUBLISH-POST-CREATE-PIPELINE: createAd runs four
+      // createAd runs four
       // post-commit side effects — cache invalidation, fraud scoring,
       // saved-search fan-out, and activity recording. Republish
       // creates an equally-live ad but ran none of them. Most

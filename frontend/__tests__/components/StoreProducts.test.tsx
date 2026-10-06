@@ -2,8 +2,8 @@
  * __tests__/components/StoreProducts.test.tsx
  *
  * Coverage gap: 0% prior coverage. Covers loading/error/empty states,
- * FIX BUG-09's namespaced `productsPage` param (must not collide with
- * StoreReviewsList's `reviewsPage` on the same store page), FIX BUG-08's
+ * 's namespaced `productsPage` param (must not collide with
+ * StoreReviewsList's `reviewsPage` on the same store page), 's
  * highlight-and-scroll behavior for a `?product=` deep link (ring
  * styling applied only to the matching card, scrollIntoView called),
  * and pagination visibility.

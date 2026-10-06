@@ -102,7 +102,7 @@ describe('promotionsRepository', () => {
     });
   });
 
-  // PROMO-1 (Phase 14): backs myPromotionsExpiring.ts's "about to
+  // PROMO-1 (): backs myPromotionsExpiring.ts's "about to
   // expire" warning.
   describe('findExpiringSoon', () => {
     it('queries ACTIVE, not-yet-warned promotions ending within the given window', async () => {

@@ -8,7 +8,7 @@ export const metadata: Metadata = buildMetadata({ title: 'الإعدادات', n
 // SETTINGS-HUB-01: one route for profile + security + sessions +
 // notifications + blocked-users. The active tab lives in ?tab=… and is
 // resolved on the client (useSearchParams) so the cached HTML shell is
-// identical for every tab. Legacy sub-paths redirect via next.config.
+// identical for every tab. redirect via next.config.
 export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6">

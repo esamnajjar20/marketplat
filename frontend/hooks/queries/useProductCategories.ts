@@ -13,7 +13,7 @@ import {
 
 /** All product categories. Long cache — admin-managed taxonomy, changes rarely.
  *
- * FIX CATEGORIES-OFFLINE-01: mirrors useCategories' offline snapshot
+ * mirrors useCategories' offline snapshot
  * handling. Previously this hook was live-only, so offline the
  * product-create form rendered an empty category <select>, and the
  * required-field validation blocked submit with no way to satisfy it

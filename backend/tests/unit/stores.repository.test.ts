@@ -165,7 +165,7 @@ describe('storesRepository', () => {
     // AUDIT-FIX (ads-feature review, extended to stores): the public
     // store directory previously had no suspended-seller filter at
     // all — a suspended seller's store kept showing up here, the same
-    // gap already fixed in ads.repository.ts and search.repository.ts.
+    // gap already in ads.repository.ts and search.repository.ts.
     it('excludes stores belonging to suspended sellers', async () => {
       (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.storeDetails.count as jest.Mock).mockResolvedValue(0);

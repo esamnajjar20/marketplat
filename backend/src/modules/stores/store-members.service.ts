@@ -177,7 +177,7 @@ export const storeMembersService = {
       );
     }
 
-    // FIX STORE-INVITE-RACE: the pre-insert check (findActiveOrPending)
+    // the pre-insert check (findActiveOrPending)
     // and the createWithUser are two separate reads/writes with no
     // unique constraint on (storeId, userId) to catch a concurrent
     // insert — two simultaneous invite calls for the same target email
@@ -454,7 +454,7 @@ export const requireStoreAccessForProducts = async (
   }
 
   // Staff path: active membership with the requested capability, oldest
-  // first (FIX H1: promotions/collections need their own capability —
+  // first (promotions/collections need their own capability —
   // EDITOR may manage products but not promotions/collections).
   const memberships = await storeMembersRepository.findActiveByUserId(userId);
   const productCapable = memberships

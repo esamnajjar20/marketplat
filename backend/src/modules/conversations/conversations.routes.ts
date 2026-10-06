@@ -47,7 +47,7 @@ conversationsRouter.get(
 conversationsRouter.post(
   '/:id/messages',
   authenticate,
-  // FIX MSG-VERIFY-CONSISTENCY: the image-send route below already
+  // the image-send route below already
   // required a verified email, but this text path did not — a user
   // with an unverified email could send text messages but not images,
   // which reads as "the image button is broken" rather than "your
@@ -89,7 +89,7 @@ conversationsRouter.delete('/:id/messages/:messageId/star', authenticate, sendMe
 conversationsRouter.delete(
   '/:id/messages/:messageId',
   authenticate,
-  // FIX CONV-MUTATION-LIMITS: neither deleteMessage nor setFlags below
+  // neither deleteMessage nor setFlags below
   // had any rate limit — an authenticated caller could loop either
   // endpoint arbitrarily. Reused sendMessageRateLimit as the closest
   // fitting bucket: same per-conversation mutation class, same
@@ -106,7 +106,7 @@ conversationsRouter.patch(
   sendMessageRateLimit,
   conversationsController.setFlags
 );
-// FIX TYPING-RATE-LIMIT-01: rate-limited now. See typingRateLimit's
+// rate-limited now. See typingRateLimit's
 // own comment for why it's a separate bucket from send_message and why
 // the budget is 600/15min rather than sendMessage's 60.
 conversationsRouter.post(

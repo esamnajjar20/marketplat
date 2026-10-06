@@ -27,9 +27,9 @@ import {
 const requireOwnProvider = async (userId: string) => {
   const sellerProfile = await sellersRepository.findByUserId(userId);
   if (!sellerProfile) throw new BadRequestError('You need a seller profile first.');
-  // FIX APPT-SUSPENDED-GUARD: this was the only requireOwnProvider
+  // this was the only requireOwnProvider
   // across the codebase missing the suspended-seller check —
-  // service-listings.service.ts's own version (the template this was
+  // service-listings.service.ts's own version (the this was
   // copied from) has it, as do the ads/sellers/store gates. Without
   // it an admin-suspended seller could still create, reschedule, or
   // cancel appointments. Same SELLER_SUSPENDED code as those gates.
@@ -88,10 +88,10 @@ export const appointmentsService = {
 
     }
 
-    // FIX APPT-WORKING-HOURS (audit H3): the slot must sit fully inside one
+    // (audit H3): the slot must sit fully inside one
     // of the provider's working windows, evaluated in market time
     // (Asia/Gaza) — not UTC, not the server's zone. Providers with no
-    // hours configured at all (legacy rows) are not blocked.
+    // hours configured at all () are not blocked.
     if (
       provider.workingHours &&
       typeof provider.workingHours === 'object' &&
@@ -228,7 +228,7 @@ export const appointmentsService = {
   ): Promise<{ date: string; available: boolean; freeRanges: { start: string; end: string }[] }> => {
     const provider = await serviceProvidersRepository.findById(providerId);
     if (!provider) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
-    // FIX APPT-AVAILABILITY-SUSPENDED: same SEC-FIX as every other
+    // same SEC-every other
     // public read path (getPublicServiceProvider, getPublicStore,
     // getProductById, getAdById). findById returns the bare row
     // without its sellerProfile, so load the owner once to check.
@@ -237,7 +237,7 @@ export const appointmentsService = {
       throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     }
 
-    // FIX APPT-TZ (audit H2): working hours are market-local wall-clock
+    // (audit H2): working hours are market-local wall-clock
     // times. They used to be glued to a literal `Z`, which shifted every
     // free slot by the market's UTC offset (2–3h) and picked the weekday in
     // UTC. The window is now built in Asia/Gaza and converted to UTC.

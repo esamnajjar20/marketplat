@@ -185,7 +185,7 @@ describe('LoginForm', () => {
     });
   });
 
-  // UX-FIX P0-2: client.ts's response interceptor appends
+  // client.ts's response interceptor appends
   // ?reason=session_expired when it force-redirects here after a failed
   // silent token refresh, so the user sees why they landed on the login
   // page instead of it looking like an ordinary, unexplained visit.

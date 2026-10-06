@@ -41,7 +41,7 @@ export const toggleActiveSchema = z.object({
   body: z.object({ isActive: z.boolean() }),
 });
 
-// FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): AuditEventType.
+// / Gap #20 (admin permission tiers): AuditEventType.
 // ROLE_CHANGED existed in the schema with no code ever triggering it,
 // and there was no way for an admin to promote/demote a user without
 // editing the database directly. Restricted to USER/MODERATOR/ADMIN —
@@ -56,7 +56,7 @@ export const changeRoleSchema = z.object({
   body: z.object({ role: assignableRoleSchema }),
 });
 
-// FIX ADMIN-VALIDATION-PARITY: the three catalog endpoints
+// the three catalog endpoints
 // (products / service-listings / open-requests) were parsing their
 // query strings by hand in the controller — `req.query.limit ? Number(...)`
 // with no upper bound, `req.query.status as ...` with a TypeScript
@@ -100,11 +100,11 @@ export const adminGetOpenRequestsSchema = z.object({
   }),
 });
 
-// FIX ADMIN-VALIDATION-PARITY: same reasoning applied to the two
+// same reasoning applied to the two
 // status-mutating endpoints. Both used a bare TypeScript cast on
 // req.body.status (`as 'ACTIVE' | 'PAUSED' | 'DELETED'`) which the
 // compiler accepted but enforced nothing at runtime — an admin client
-// (or a future script) could send `{ status: 'HACKED' }` and it would
+// (or a future script) could send `{ status: '' }` and it would
 // reach Prisma's update call. Zod native-enum rejects it with a clear
 // 400 instead of an opaque 500 from the DB driver. Also declares the
 // optional reason, same shape already used by adminCancelOpenRequest.
@@ -122,7 +122,7 @@ export const setServiceListingStatusSchema = z.object({
   }),
 });
 
-// FIX ADMIN-DELETE-REASON: admin ad deletion (single and bulk) is the
+// admin ad deletion (single and bulk) is the
 // one admin action whose audit trail benefits most from a reason —
 // a fraud takedown, a legal request, or a policy violation should all
 // be distinguishable in the audit log without cross-referencing other
@@ -164,7 +164,7 @@ export const bulkSetAdPinnedSchema = z.object({
 export const bulkDeleteAdsSchema = z.object({
   body: z.object({
     adIds: bulkIdsSchema,
-    // FIX ADMIN-DELETE-REASON: optional for now — see deleteAdSchema
+    // optional for now — see deleteAdSchema
     // above for the full reasoning. When the frontend starts
     // supplying a reason on the bulk bar, this is where it lands.
     reason: z.string().trim().min(3).max(500).optional(),

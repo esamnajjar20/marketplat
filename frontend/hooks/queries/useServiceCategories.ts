@@ -13,7 +13,7 @@ import {
 
 /** All service categories. Long cache — admin-managed taxonomy, changes rarely.
  *
- * FIX CATEGORIES-OFFLINE-01: same offline snapshot handling as
+ * same offline snapshot handling as
  * useProductCategories (and as useCategories already had). */
 export function useServiceCategories(options?: { enabled?: boolean }) {
   const cached = getOfflineList<unknown>(OFFLINE_LIST_KEYS.serviceCategories);

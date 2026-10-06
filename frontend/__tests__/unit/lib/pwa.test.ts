@@ -10,12 +10,12 @@
  *     silently produces garbage bytes, so the only way to catch it is
  *     asserting the actual decoded output.
  *
- *  2. subscribeToPush's compensating-unsubscribe (FIX PWA-CRITICAL-04):
+ *  2. subscribeToPush's compensating-unsubscribe ():
  *     if saving the subscription to the backend fails, the code must
  *     unsubscribe from the browser's PushManager immediately, or the
  *     browser ends up subscribed while the server doesn't know it and
  *     the UI shows "not enabled" — a real state-desync bug the header
- *     comment documents having fixed once already.
+ *     comment documents having once already.
  *
  *  3. registerServiceWorker: SSR guard, unsupported-browser guard, dev-mode
  *     skip (with the NEXT_PUBLIC_ENABLE_SW_DEV escape hatch), successful

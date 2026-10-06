@@ -19,7 +19,7 @@ export const homeController = {
       // linger in browser/CDN copies for up to 2 minutes.
       // A degraded page (some section failed → null) must not be pinned in
       // the CDN for 2 minutes; let it recover on the next request.
-      // HOME-VARY-FIX-01: overwrite the Vary header that the global CORS
+      // HOME-VARY-overwrite the Vary header that the global CORS
       // middleware sets (credentials:true forces `Vary: Origin`). Cloudflare
       // refuses to cache any response that Varies on Origin, so /home was
       // never cached at the edge despite the Cache-Control below. /home is

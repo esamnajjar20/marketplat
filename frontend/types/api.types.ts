@@ -9,7 +9,7 @@ export interface ApiResponse<T = unknown> {
   data?:      T;
   requestId?: string;
   /**
-   * AUDIT-FIX C-2: matches backend's api-response.types.ts exactly —
+   * matches backend's api-response.types.ts exactly —
    * successResponse() always sends `meta` alongside `data` for
    * paginated endpoints (e.g. { pagination: {...} }). This field was
    * previously missing here even though lib/apiPagination.ts and

@@ -36,7 +36,6 @@ describe('JWT Utils', () => {
     expect(pair.accessToken).not.toBe(pair.refreshToken);
   });
 
-  // FIX BUG-06
   it('signTokenPair includes expiresIn matching env.jwt.expiresInSeconds', () => {
     const pair = signTokenPair(userId);
     expect(pair.expiresIn).toBe(env.jwt.expiresInSeconds);
@@ -49,7 +48,6 @@ describe('JWT Utils', () => {
     expect(decoded.sessionId).toBe(sessionId);
   });
 
-  // FIX BUG-06
   it('rotateTokenPair also includes expiresIn', () => {
     const rotated = rotateTokenPair(userId, sessionId);
     expect(rotated.expiresIn).toBe(env.jwt.expiresInSeconds);

@@ -21,7 +21,7 @@ export const GUEST_OFFLINE_TABS: readonly OfflineTab[] = ['saved', 'warming'];
 export const DEFAULT_OFFLINE_TAB: OfflineTab = 'storage';
 
 /** Old URLs → tab. Used when the service worker serves the /offline fallback
- * for a request whose address bar still shows the legacy path. */
+ * for a request whose address bar still shows the */
 const LEGACY_PATH_TO_TAB: Record<string, OfflineTab> = {
   '/saved-ads': 'saved',
   '/downloads': 'saved',
@@ -36,7 +36,7 @@ export function isOfflineTab(value: unknown): value is OfflineTab {
   return typeof value === 'string' && (OFFLINE_TABS as readonly string[]).includes(value);
 }
 
-/** Tab explicitly requested by the URL (?tab=… or a legacy pathname), or null
+/** Tab explicitly requested by the URL (?tab=… or a ), or null
  * when the page was reached as a plain fallback / bare /offline. */
 export function resolveOfflineTab(search: string, pathname: string): OfflineTab | null {
   try {

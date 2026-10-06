@@ -9,7 +9,7 @@ interface Props {
 /**
  * UNIFIED-PROFILE: /sellers/[id] used to be a full standalone page
  * (SellerProfileHeader + ads + ad ratings + service reviews) — exactly
- * the duplicate-identity problem the profile unification fixed: a
+ * the duplicate-identity problem the profile unification a
  * seller is a *role* a person holds, not a separate page-worthy entity,
  * unlike a store (kept at /stores/[id] since it represents the store as
  * a commercial entity, not the person). /profile/[userId]'s own tabs
@@ -17,7 +17,7 @@ interface Props {
  * seller badge/rating in the header, ads/ratings/service-reviews tabs —
  * so this route stays live only so old bookmarks/shared links keep
  * working, immediately forwarding to the canonical page. Server-side
- * (not the client useEffect pattern LegacyEditAdRedirectPage uses)
+ * (not the client useEffect pattern uses)
  * since resolving the target userId requires an actual data fetch
  * first — :id here is the SellerProfile's own id, not the userId
  * /profile/[id] expects (see sellersApi.getById's doc comment).

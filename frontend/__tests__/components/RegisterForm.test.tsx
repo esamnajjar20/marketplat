@@ -199,7 +199,7 @@ describe('RegisterForm', () => {
 
       await user.type(screen.getByLabelText(/رقم الهاتف/), '+970591234567');
       // The city field is the same Radix Select used elsewhere in this
-      // app (see ReportAdButton/AdminAdsTable fixes) — selectOptions
+      // app (see ReportAdButton/AdminAdsTable ) — selectOptions
       // can't act on it since its options only mount once opened.
       await user.click(screen.getByLabelText(/المدينة/));
       await user.click(await screen.findByRole('option', { name: 'غزة' }));
@@ -212,7 +212,7 @@ describe('RegisterForm', () => {
     });
   });
 
-  // UX-FIX P-REG-2 / regression coverage: onError used to compare
+  // / regression coverage: onError used to compare
   // parsed.message.includes('البريد الإلكتروني'), which could never match
   // (auth.service.ts sent an English message, and errorParser.ts's
   // status-code fallback never produced that exact Arabic substring) — so

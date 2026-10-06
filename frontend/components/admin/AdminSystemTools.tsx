@@ -14,7 +14,7 @@ async function downloadBlob(blob: Blob, filename: string) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // SW-FIX-TOOLS-REVOKE: defer as in AdminExportButton / DownloadStoreCatalogButton.
+  // defer as in AdminExportButton / DownloadStoreCatalogButton.
   window.setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 

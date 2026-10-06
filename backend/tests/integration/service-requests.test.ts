@@ -1,5 +1,5 @@
 /**
- * Integration — service-requests HTTP surface (Phase 4 / P3).
+ * Integration — service-requests HTTP surface (/ P3).
  */
 import request from 'supertest';
 import { app } from '../../src/app';

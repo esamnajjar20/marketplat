@@ -23,8 +23,8 @@ export default function robots(): MetadataRoute.Robots {
           '/profile/',
         ],
         disallow: [
-          // ROUTE-FIX-01: every authenticated / account route. /my-ads,
-          // /my-requests and /my-reports are redirect-only legacy paths
+          // every authenticated / account route. /my-ads,
+          // /my-requests and /my-reports are redirect-only 
           // (-> /activity?tab=...) but stay listed for old crawled URLs.
           '/dashboard',
           '/activity',

@@ -1,7 +1,7 @@
 /**
  * __tests__/app/EditAdPage.test.tsx
  *
- * FIX UX-14: this page had no ownership check at all — a user could
+ * this page had no ownership check at all — a user could
  * open the edit URL for any ad by id and see the full edit form,
  * only discovering they lacked permission when the backend rejected
  * the save (ads.service.ts's updateAd already enforces this
@@ -14,7 +14,7 @@
  * page. /my-ads/[id] is now the canonical one (see that file's
  * comment); this test targets it directly. The old route's own
  * behavior — that it redirects here — is covered separately in
- * LegacyEditAdRedirectPage.test.tsx.
+ * 
  *
  * REORG-03: canonical page moved from /my-ads/[id]/page.tsx to
  * /my-ads/[id]/edit/page.tsx (naming-only, see that file's comment) —

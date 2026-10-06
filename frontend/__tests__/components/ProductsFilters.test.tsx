@@ -1,7 +1,7 @@
 /**
  * __tests__/components/ProductsFilters.test.tsx
  *
- * PROMO-1 (Phase 12, full scope): mirrors StoresFilters.test.tsx's
+ * PROMO-1 (, full scope): mirrors StoresFilters.test.tsx's
  * coverage for the shared search/city behavior, plus the new
  * hasPromotion checkbox — checked state pre-filled from the URL,
  * checking/unchecking sets/clears the param, and page is always

@@ -3,7 +3,7 @@ import { checkConnectionCapacity } from '../../src/shared/utils/capacityCheck';
 import { logger } from '../../src/shared/utils/logger';
 
 /**
- * FIX LOAD-01 coverage: checkConnectionCapacity is the only piece of
+ * coverage: checkConnectionCapacity is the only piece of
  * code in the repo that actually computes
  * (PM2 instances × Prisma connection_limit) against Postgres's default
  * max_connections, rather than leaving the relationship as a comment

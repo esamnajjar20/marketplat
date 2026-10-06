@@ -7,7 +7,7 @@
  * preferences via useMe() and saves each toggle immediately via
  * useUpdateNotificationPreferences(). Both halves are pinned down here.
  *
- * PROMO-1 (Phase 14): a fifth toggle (myPromotions, "عروضي") was added
+ * PROMO-1 (): a fifth toggle (myPromotions, "عروضي") was added
  * alongside the existing four — every notificationPreferences object
  * and the toggle-count assertion below were updated accordingly, and a
  * dedicated describe block covers the new key's happy path the same
@@ -120,7 +120,7 @@ describe('NotificationSettingsForm', () => {
     await user.click(adViewsSwitch);
 
     expect(adViewsSwitch).toHaveAttribute('aria-checked', 'true');
-    // UX-FIX P2-9: toggle() now also passes an onError rollback callback
+    // toggle() now also passes an onError rollback callback
     // alongside the payload, so a failed save reverts the switch instead
     // of leaving it visually "on" forever.
     expect(mockMutate).toHaveBeenCalledWith(
@@ -197,7 +197,7 @@ describe('NotificationSettingsForm', () => {
     expect(adViewsSwitch).toHaveAttribute('aria-checked', 'false');
   });
 
-  // PROMO-1 (Phase 14): the new myPromotions toggle follows the exact
+  // PROMO-1 (): the new myPromotions toggle follows the exact
   // same immediate-save/partial-update contract as every other switch
   // in this form — covered independently here rather than assumed from
   // the generic tests above.

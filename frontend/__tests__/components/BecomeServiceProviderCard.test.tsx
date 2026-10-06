@@ -6,7 +6,7 @@
  * provider sits on top of the seller profile). Mirrors
  * BecomeStoreOwnerCard/BecomeSellerCard's shape: seller-profile gate,
  * client-side validation before enabling submit, server field-error
- * mapping, and the ?from= redirect-back-on-success pattern (FIX P0-1).
+ * mapping, and the ?from= redirect-back-on-success pattern ().
  *
  * Coverage targets:
  *  - Loading state (seller profile still fetching) shows a spinner
@@ -20,7 +20,7 @@
  *    shows a day-specific inline error, without calling mutate
  *  - Server-side field errors (onError) are mapped into the matching
  *    FormField's error text
- *  - Redirect-back-on-success (FIX P0-1): with ?from= set, success
+ *  - Redirect-back-on-success (): with ?from= set, success
  *    pushes to that path; without it, no redirect happens
  *  - Submit button shows "جارٍ الإنشاء…" while the mutation is pending
  */

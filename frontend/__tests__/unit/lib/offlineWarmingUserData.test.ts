@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/offlineWarmingUserData.test.ts
  *
- * FIX WARM-USERDATA-TTL-01 — pure freshness selection.
+ * pure freshness selection.
  */
 import { describe, it, expect, vi } from 'vitest';
 

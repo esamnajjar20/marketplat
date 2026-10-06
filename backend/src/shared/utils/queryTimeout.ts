@@ -3,7 +3,7 @@ import { prisma } from '../../config/prisma';
 import { AppError } from '../errors/AppError';
 
 /**
- * AUDIT-FIX 1.3: analytics.repository.ts's raw aggregate queries
+ * analytics.repository.ts's raw aggregate queries
  * (trendByEvent, topCategories) had no timeout anywhere — the app-level
  * PrismaClient in prisma.ts sets none, and there is no other general
  * statement_timeout configured for this codebase (checked: no

@@ -12,7 +12,6 @@ import {
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { ListStoreMembersQuery } from '@/types/store-member.types';
 
-/** GET /stores/:storeId/members */
 export function useStoreMembers(storeId: string | undefined, params?: ListStoreMembersQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);

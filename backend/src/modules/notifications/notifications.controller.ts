@@ -70,7 +70,7 @@ export const notificationsController = {
     }
   },
 
-  /** FIX PWA-PUSH-01: POST /notifications/push-subscriptions — frontend's
+  /** POST /notifications/push-subscriptions — frontend's
    * lib/pwa.ts subscribeToPush() calls this immediately after
    * pushManager.subscribe() resolves, passing subscription.toJSON()
    * as the body verbatim. */
@@ -85,7 +85,7 @@ export const notificationsController = {
     }
   },
 
-  /** FIX PWA-PUSH-01: DELETE /notifications/push-subscriptions — frontend's
+  /** DELETE /notifications/push-subscriptions — frontend's
    * unsubscribeFromPush() calls this after unsubscribing locally,
    * best-effort (see its own .catch()), so this endpoint's job is just
    * to clean up the server-side row if it exists. */

@@ -78,7 +78,6 @@ export function formatRequestBudget(
   return `حتى ${fmt(max!)}`;
 }
 
-/** هل الطلب ينتهي خلال 48 ساعة؟ */
 export function isRequestExpiringSoon(expiresAt?: string | null, withinMs = 48 * 60 * 60 * 1000): boolean {
   if (!expiresAt) return false;
   const t = new Date(expiresAt).getTime();
@@ -87,7 +86,6 @@ export function isRequestExpiringSoon(expiresAt?: string | null, withinMs = 48 *
   return remaining > 0 && remaining <= withinMs;
 }
 
-/** نص عربي لعدد العروض */
 export function formatOffersCount(count: number): string {
   if (count === 0) return 'لا عروض بعد';
   if (count === 1) return 'عرض واحد';

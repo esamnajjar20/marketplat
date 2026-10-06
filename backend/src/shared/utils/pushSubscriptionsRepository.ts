@@ -2,13 +2,13 @@ import { prisma } from '../../config/prisma';
 import { Prisma, PushSubscription } from '@prisma/client';
 
 /**
- * AUDIT-FIX 2.6: pushService.ts (shared/utils) previously called
+ * pushService.ts (shared/utils) previously called
  * `prisma.pushSubscription.*` directly, bypassing
  * notifications.repository.ts even though that file already owns
  * upsertPushSubscription/deletePushSubscription for this exact model —
  * two independent code paths reading/writing the same table.
  *
- * The fix is NOT "make pushService import notifications.repository" —
+ * The NOT "make pushService import notifications.repository" —
  * every file under shared/utils/ in this codebase imports only from
  * shared/config/other shared/utils modules, never from modules/*
  * (checked: no exception anywhere else in shared/). Having
@@ -46,7 +46,7 @@ export const pushSubscriptionsRepository = {
   findByIdForUser: (id: string, userId: string): Promise<PushSubscription | null> =>
     prisma.pushSubscription.findFirst({ where: { id, userId } }),
 
-  // FIX PWA-PUSH-01 (moved from notifications.repository.ts, same
+  // (moved from notifications.repository.ts, same
   // upsert-on-endpoint rationale — endpoint is globally unique, see the
   // PushSubscription model's own doc comment in schema.prisma):
   // re-subscribing the same browser updates its existing row's keys

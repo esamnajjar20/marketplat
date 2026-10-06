@@ -20,7 +20,7 @@ interface Props {
 
 /**
  * حالة فارغة موحّدة — هادئة، مفهومة، مع مساحة تنفّس.
- * Phase 3: tone variants + consistent icon well.
+ * tone variants + consistent icon well.
  */
 export function EmptyState({
   icon,

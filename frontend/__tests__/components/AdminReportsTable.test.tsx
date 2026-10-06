@@ -1,7 +1,7 @@
 /**
  * __tests__/components/AdminReportsTable.test.tsx
  *
- * FIX TYPE-ERROR-01 regression coverage: this component previously read
+ * regression coverage: this component previously read
  * report.details and report.reporter, neither of which exist on the
  * Report type (real fields are report.notes and report.user) — both
  * silently rendered nothing at runtime with no compile error under
@@ -11,7 +11,7 @@
  * rather than a silent missing value.
  *
  * Also covers: resolve/dismiss actions go through a ConfirmDialog
- * (UX-FIX audit P2-05 — a misclick while triaging a report queue
+ * (P2-05 — a misclick while triaging a report queue
  * previously had no visible recovery), action buttons only show for
  * PENDING reports, and the status filter buttons reflect the current
  * filter via aria-pressed.
@@ -19,10 +19,10 @@
  * STALE-TEST-FIX (found while implementing item 17 / BULK-ADMIN): this
  * suite previously asserted resolve/dismiss fire their mutation
  * immediately with *no* confirmation dialog. That was true before
- * UX-FIX P2-05 added ConfirmDialog to this exact flow (see the
+ * added ConfirmDialog to this exact flow (see the
  * component's own comment above confirmTarget) — the test was never
  * updated after that change landed, so it was asserting behavior the
- * component no longer has. Fixed here to match current behavior:
+ * component no longer has. here to match current behavior:
  * click "حل"/"رفض" opens ConfirmDialog, and the mutation only fires on
  * confirming it.
  */

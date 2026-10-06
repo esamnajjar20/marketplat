@@ -1,7 +1,7 @@
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
- * FIX UX-04: mirrors AdListItem's exact shape (28×20 thumbnail, title,
+ * mirrors AdListItem's exact shape (28×20 thumbnail, title,
  * price, meta row) — the counterpart to AdCardSkeleton for the list
  * view of SearchResults. Without this, switching to list view during
  * a refetch had nothing but AdCardSkeleton's grid-shaped skeleton to

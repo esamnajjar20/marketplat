@@ -189,7 +189,6 @@ function scheduleAutoApply(reg: ServiceWorkerRegistration): void {
   );
 }
 
-/** يُسجَّل من AppProviders مرة واحدة عند إقلاع التطبيق. */
 export function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (registrationInFlight) return registrationInFlight;
   registrationInFlight = doRegisterServiceWorker();
@@ -312,7 +311,6 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
   }
 }
 
-/** يُستدعى من مكوّن UpdatePrompt ليُبلَّغ عند توفر نسخة جديدة. */
 export function onServiceWorkerUpdate(listener: SwUpdateListener): () => void {
   waitingUpdateListeners.push(listener);
   return () => {
@@ -388,7 +386,6 @@ function urlBase64ToUint8Array(base64String: string): BufferSource {
 }
 
 
-/** حالة إذن Notification API في المتصفح (منفصل عن وجود اشتراك Push). */
 export function getBrowserNotificationPermission():
   | 'granted'
   | 'denied'

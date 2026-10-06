@@ -29,7 +29,7 @@ describe('activityService', () => {
       activityService.record(input);
 
       expect(activityBuffer.push).toHaveBeenCalledWith(input);
-      // FIX OPS-1.1: record() no longer writes to the repository
+      // record() no longer writes to the repository
       // directly — activityBuffer.push() owns getting the row into
       // Postgres (batched), so the old direct-create call site is gone.
       expect(activityRepository.create).not.toHaveBeenCalled();

@@ -39,7 +39,7 @@ jest.mock('../../src/config/env', () => ({
 // deliberately does NOT await gets a chance to run before assertions.
 const flushMicrotasks = () => new Promise(process.nextTick);
 
-// FIX SEC-3.8: `price` is a Prisma Decimal at runtime, not a plain
+// `price` is a Prisma Decimal at runtime, not a plain
 // number — this used to be `100 as any` to paper over that mismatch.
 // Prisma.Decimal is a real, importable class, so we can construct an
 // actual instance instead of asserting past the type check. This is

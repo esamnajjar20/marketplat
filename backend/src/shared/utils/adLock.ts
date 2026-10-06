@@ -5,14 +5,14 @@ import { logger } from './logger';
 import crypto from 'crypto';
 
 /**
- * FIX D-10: addImages reads ad.images.length, does slow Cloudinary
+ * addImages reads ad.images.length, does slow Cloudinary
  * uploads, then writes the result. Two concurrent addImages calls for
  * the same ad both read the same stale count, both pass the <=10 check,
  * both upload, both write — bypassing the 10-image cap and leaving
  * whichever images get truncated by the DB-level LIMIT as orphaned
  * (already-uploaded, never cleaned up) Cloudinary assets.
  *
- * AUDIT-FIX M-02: the same count-then-write race existed in createAd's
+ * the same count-then-write race existed in createAd's
  * per-user active-ad cap check (countActiveByUserId, then create,
  * with no lock in between) — two concurrent createAd calls for the
  * same user could both read a count one under the cap and both
@@ -89,7 +89,7 @@ export async function withRedisLock<T>(key: string, ttlSeconds: number, fn: () =
 }
 
 const IMAGE_LOCK_PREFIX = 'ad_images_lock:';
-// AUDIT-FIX 1.1: was a hardcoded `30`. Now configurable via
+// was a hardcoded `30`. Now configurable via
 // IMAGE_LOCK_TTL_SECONDS (env.ts), defaulting to the same 30 so
 // existing deployments see no behavior change unless they opt in.
 const IMAGE_LOCK_TTL_SECONDS = env.ads.imageLockTtlSeconds;
@@ -155,7 +155,7 @@ export async function withUserAdCreationLock<T>(userId: string, fn: () => Promis
 // contend with an ad-image or listing-image lock.
 const PRODUCT_IMAGE_LOCK_PREFIX = 'product_images_lock:';
 const LISTING_IMAGE_LOCK_PREFIX = 'listing_images_lock:';
-// AUDIT-FIX 1.1: shares the same configurable TTL as IMAGE_LOCK_TTL_SECONDS above.
+// shares the same configurable TTL as IMAGE_LOCK_TTL_SECONDS above.
 const ENTITY_IMAGE_LOCK_TTL_SECONDS = IMAGE_LOCK_TTL_SECONDS;
 
 export class EntityImagesLockedError extends AppError {
@@ -188,7 +188,7 @@ export async function withServiceListingImagesLock<T>(listingId: string, fn: () 
   return result;
 }
 
-// FIX M-006: products.service.ts's createProduct checked
+// products.service.ts's createProduct checked
 // storesRepository.countActiveProducts against the free plan's
 // 20-product cap, then created the product inside a *separate*
 // prisma.$transaction afterwards — with nothing locking the two

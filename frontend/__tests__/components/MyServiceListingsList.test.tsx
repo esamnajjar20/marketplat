@@ -12,7 +12,7 @@
  *  - Error state shows a retry option that calls refetch
  *  - Empty state shown when there are no listings, with a "نشر خدمة" CTA
  *  - Renders each listing's title, status badge, and formatted price for
- *    all three pricingType variants (FIXED, STARTING_FROM, NEGOTIABLE/null)
+ *    all three pricingType variants (, STARTING_FROM, NEGOTIABLE/null)
  *  - Status filter tabs reflect the current ?status= param
  *  - Pause/resume toggle (EPIC 1.3 fix):
  *      * shown for ACTIVE and PAUSED listings

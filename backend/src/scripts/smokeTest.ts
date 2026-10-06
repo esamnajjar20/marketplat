@@ -1,5 +1,5 @@
 /**
- * PROD-FIX-17: previously there was no standalone smoke test — the
+ * previously there was no standalone smoke test — the
  * closest things were the full k6 load-test suite (load-tests/,
  * deliberately heavier and disruptive, not meant to run on every
  * deploy) and Playwright's E2E suite (marketplace-v10/e2e, needs a

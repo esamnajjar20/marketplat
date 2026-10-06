@@ -1,5 +1,5 @@
 /**
- * UI store — Phase 4 / P3.
+ * UI store — / P3.
  * Only isMobileNavOpen remains (DEAD-07 removed unused theme/loading fields).
  */
 import { describe, it, expect, beforeEach } from 'vitest';

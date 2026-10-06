@@ -65,7 +65,7 @@ export const ErrorCode = {
   // Uploads
   FILE_TOO_LARGE: 'FILE_TOO_LARGE',
   INVALID_FILE_TYPE: 'INVALID_FILE_TYPE',
-  // FIX UPLOAD-01: previously these upload-flow errors had no explicit
+  // previously these upload-flow errors had no explicit
   // code, so they fell back to the generic VALIDATION_ERROR message
   // ("البيانات المرسلة غير صحيحة") despite each being a distinct,
   // nameable failure with its own clearer Arabic message.
@@ -132,12 +132,12 @@ export const ErrorCode = {
   MESSAGE_CONTENT_BLOCKED: 'MESSAGE_CONTENT_BLOCKED',
 
   // Images (ads / products / service listings — shared image-management
-  // guard). FIX SEC-6.5/9.10: this code was already used at three call
+  // guard). this code was already used at three call
   // sites (ads.service.ts, products.service.ts,
   // service-listings.service.ts) but never declared here, so it existed
   // outside any type-safe check on the known-code set.
   MIN_IMAGES_REQUIRED: 'MIN_IMAGES_REQUIRED',
-  // FIX BUG-IMG-REQ-01: createAd's zero-image guard threw a bare
+  // createAd's zero-image guard threw a bare
   // BadRequestError with no code, so it fell through to the generic
   // 400 fallback code (VALIDATION_ERROR) in error.middleware.ts — the
   // user saw "البيانات المرسلة غير صحيحة" with zero indication the

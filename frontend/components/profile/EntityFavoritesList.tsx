@@ -64,7 +64,7 @@ const EMPTY_COPY: Record<FavoriteEntityKind, { title: string; description: strin
  */
 export function EntityFavoritesList({ type }: Props) {
   const sp = useSearchParams();
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const listId = sp.get('list') || undefined;
@@ -156,7 +156,7 @@ export function EntityFavoritesList({ type }: Props) {
     );
   }
 
-  // Same UX-FIX P1-8 ordering as FavoritesList.tsx: a real fetch
+  // Same ordering as FavoritesList.tsx: a real fetch
   // failure must never be misread as "genuinely no favorites".
   if (isError) {
     return (

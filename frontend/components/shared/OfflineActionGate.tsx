@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Shows a compact offline notice and optionally blocks pointer interaction.
- * UI-PHASE-E — for message/send/report actions that need the network.
+ * UI-for message/send/report actions that need the network.
  *
  * When disableWhenOffline is true we use pointer-events-none + opacity on a
  * wrapper (not native disabled on every child). Callers that need hard keyboard

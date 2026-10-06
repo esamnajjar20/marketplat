@@ -3,7 +3,7 @@ import { SEARCH_TYPES, SEARCH_SORT_OPTIONS } from './search.types';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Same "absent vs empty string" distinction as ads.validation.ts's
-// getAdsSchema.search field (FIX AUDIT-V3-08) — .min(1) rejects an
+// getAdsSchema.search field () — .min(1) rejects an
 // explicit q='' with a clear 400 instead of silently falling through
 // to an unfiltered browse.
 //
@@ -55,7 +55,7 @@ export const searchQuerySchema = z.object({
 export type SearchQuery = z.infer<typeof searchQueryObjectSchema>;
 
 // Autocomplete is a much tighter surface than the main search — short
-// prefix, no filters, small fixed result count. A separate schema
+// prefix, no filters, small result count. A separate schema
 // (not a subset of searchQuerySchema) because it has genuinely
 // different constraints: q is required here (an empty-prefix
 // autocomplete call is never useful) and there's no pagination/sort/type.

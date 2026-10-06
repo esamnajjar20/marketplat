@@ -33,7 +33,7 @@ const DEFAULT_GRID = 'grid-cols-2 lg:grid-cols-4 gap-3';
  * duplicated ones. Mirrors RecommendedAds.tsx/RelatedAds.tsx's own
  * pattern exactly (same self-contained "the whole section disappears,
  * heading included, when there's genuinely nothing to show" rule, and
- * the same FIX UX-AUDIT-02 posture: an error surfaces a small inline
+ * the same posture: an error surfaces a small inline
  * retry instead of silently collapsing to nothing the way a genuinely
  * empty result does) — generalized here so a fourth/fifth entity type
  * never needs a fourth/fifth copy of this logic.

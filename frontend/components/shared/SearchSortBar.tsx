@@ -7,7 +7,7 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 
 /**
- * FIX P2-08 (audit item #8): sort used to live only inside each page's
+ * (audit item #8): sort used to live only inside each page's
  * filters panel/sheet — on mobile that meant changing sort required
  * opening the same "تصفية" drawer as every other filter, with no
  * persistent, independent sort control. This bar is the single
@@ -46,7 +46,7 @@ interface Props {
    * Base path to push to. The ads category-page caller passes
    * usePathname() here (not a hardcoded '/search') so sort changes stay
    * on whichever page rendered this bar — same convention
-   * ads/SearchFilters.tsx's own update() already follows (FIX BUG-06).
+   * ads/SearchFilters.tsx's own update() already follows ().
    */
   basePath: string;
   className?: string;

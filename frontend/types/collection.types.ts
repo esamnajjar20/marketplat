@@ -39,14 +39,12 @@ export type StoreCollectionWithCount = StoreCollection & {
 
 // ── Payloads ─────────────────────────────────────────────────────
 
-/** POST /collections. */
 export interface CreateCollectionPayload {
   name: string;
   description?: string;
   imageUrl?: string;
 }
 
-/** PATCH /collections/:id. */
 export type UpdateCollectionPayload = Partial<{
   name: string;
   description: string | null;

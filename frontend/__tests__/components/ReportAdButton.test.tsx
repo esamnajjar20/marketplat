@@ -1,7 +1,7 @@
 /**
  * __tests__/components/ReportAdButton.test.tsx
  *
- * FIX INTEG-07: covers the report dialog that replaced AdDetail.tsx's
+ * covers the report dialog that replaced AdDetail.tsx's
  * previously inert "الإبلاغ عن هذا الإعلان" button. Real logic:
  *   - The trigger requires authentication (mirrors AdDetail's own
  *     handleFavorite auth gate) — unauthenticated clicks show a toast

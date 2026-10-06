@@ -80,7 +80,7 @@ export function normalizePaymentMethods(raw: unknown): StorePaymentMethod[] {
 /**
  * USSD لطريقة دفع متجر/ملف شخصي — يحتاج مبلغ ونوع المستلم.
  *
- * FIX PAY-RECIPIENT-01: كان النوع مثبّتًا دائمًا على 'merchant'، بافتراض
+ * كان النوع مثبّتًا دائمًا على 'merchant'، بافتراض
  * أن كل رقم محفوظ بمتجر أو ملف شخصي هو حساب تاجر مسجَّل. ليس هذا صحيحًا
  * دائمًا — كثير من المتاجر الصغيرة وأصحاب الملفات الشخصية (البائعين
  * الأفراد) يستخدمون رقم جوال بي/بال بي شخصيًا عاديًا، وكود USSD
@@ -108,7 +108,6 @@ export function dialStoreMethodUssd(
   window.location.href = ussdTelHref(code);
 }
 
-/** تحويل لطريقة الحفظ المحلي (جهات الدفع) */
 export function toLocalPayMethod(kind: StorePaymentKind): PayMethod {
   if (kind === 'palpay') return 'palpay';
   if (kind === 'bank') return 'bank';

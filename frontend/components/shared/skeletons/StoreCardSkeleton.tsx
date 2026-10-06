@@ -1,6 +1,5 @@
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
-/** هيكل بطاقة متجر / مقدّم خدمة — دائرة الشعار بنفس حجم StoreCard الفعلي. */
 export function StoreCardSkeleton() {
   return (
     <div className="flex h-full gap-3.5 overflow-hidden rounded-2xl border border-border/70 bg-card p-3.5 pe-11 shadow-xs">

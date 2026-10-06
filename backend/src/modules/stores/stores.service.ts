@@ -37,7 +37,7 @@ import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 
 // STORE-HOURS: derives a live open/closed flag from workingHours.
-// FIX STORE-TZ (audit H2): this used the *server's* local clock
+// (audit H2): this used the *server's* local clock
 // (getDay/getHours), so on a UTC host the badge was off by 2–3h, and
 // overnight windows (18:00–02:00) always read "closed". Evaluation now
 // happens in market time (Asia/Gaza) via shared/utils/marketTime.
@@ -272,7 +272,7 @@ export const storesService = {
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     }
     // SEC-FIX: same gap sellersService.getPublicSellerProfile closed
-    // (FIX SELLER-PUBLIC-SUSPENDED) for ads/products/service-listings/
+    // () for ads/products/service-listings/
     // users — this direct-by-id store lookup checked store.status above
     // but never the seller's own suspended flag. setSuspension only
     // touches SellerProfile.suspended, never StoreDetails.status, so a
@@ -293,7 +293,7 @@ export const storesService = {
     query: GetStoresQuery
   ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
     const { page = 1, limit = 20 } = query;
-    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    // Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('stores', query, async () => {
       const { stores, total } = await storesRepository.findMany(query);
       return { stores, meta: buildPaginationMeta(total, page, limit) };
@@ -360,11 +360,11 @@ export const storesService = {
     // AUDIT-FIX (issue #10 follow-up): this admin action wrote no audit
     // trail at all — same gap sellersService.setVerification/setSuspension
     // closed for ADMIN_SELLER_VERIFIED/SUSPENDED. adminUserId is required
-    // (FIX SEC-3.2) so a future caller can't silently forget to pass it
+    // () so a future caller can't silently forget to pass it
     // and lose the audit trail — the type system enforces what used to
     // only be true by convention.
     //
-    // AUDIT-FIX 2.2: the `.catch(() => {})` that used to sit on this call
+    // the `.catch(() => {})` that used to sit on this call
     // was dead code — auditLog() itself never rejects (it logs via
     // logger.info unconditionally first, then attempts the DB write with
     // its own internal .catch() that logs any DB failure via
@@ -382,7 +382,7 @@ export const storesService = {
     return updated;
   },
 
-  // FIX BUG-02: StorePlan.FEATURED had no code path that ever set it —
+  // StorePlan.FEATURED had no code path that ever set it —
   // no admin endpoint, no billing integration. This is the admin-only
   // manual toggle (billing can call the same repository method later
   // once it exists). Mirrors updateStoreStatus above: existence check,
@@ -412,7 +412,7 @@ export const storesService = {
       );
     }
 
-    // FIX STORE-TYPE-SWITCH-LENIENT: an admin changing a store's type must
+    // an admin changing a store's type must
     // not be blocked by the store's pre-existing attributes (written under
     // the old type) or by the new type's required fields (which the owner
     // has not yet filled in). Lenient mode drops unknown keys and does not
@@ -584,7 +584,7 @@ updateStorePlan: async (
     // SEC-FIX: was storesRepository.findById (no sellerProfile include,
     // no status/suspended check at all) — a suspended seller's or a
     // non-ACTIVE store's reviews stayed fully readable here even after
-    // getPublicStore above was fixed to 404 the store page itself.
+    // getPublicStore above was to 404 the store page itself.
     // Same gate as getPublicStore, applied here too since this is an
     // independent public entry point keyed only by storeId.
     const store = await storesRepository.findByIdWithSeller(storeId);

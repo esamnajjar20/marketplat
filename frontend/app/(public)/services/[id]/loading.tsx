@@ -1,5 +1,5 @@
 /**
- * SLOW-NET phase1 — detail shell while RSC streams.
+ * SLOW-NET detail shell while RSC streams.
  */
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 

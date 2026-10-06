@@ -1,7 +1,7 @@
 /**
  * ThemeToggle — light/dark/system switcher.
  *
- * FIX UX-03: the app already shipped a complete dark palette
+ * the app already shipped a complete dark palette
  * (globals.css's .dark block), Tailwind's darkMode: 'class' config,
  * and next-themes as an installed dependency with its own
  * ThemeProvider wrapper — but nothing ever mounted that provider or

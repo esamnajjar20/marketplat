@@ -27,7 +27,6 @@ type MyAppointmentsData = {
   meta: PaginationMeta;
 };
 
-/** GET /appointments/me — مع كاش أوفلاين محدود للصفحة الأولى. */
 export function useMyAppointments(params?: AppointmentsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);

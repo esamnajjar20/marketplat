@@ -13,7 +13,7 @@
  *     project's earlier "load testing" pass could only reason about from
  *     reading the code, not from real running numbers. This is what
  *     turns that from a guess into an observable, queryable metric.
- *   - redis_memory_used_bytes / redis_memory_max_bytes (PROD-FIX-11,
+ *   - redis_memory_used_bytes / redis_memory_max_bytes (,
  *     see shared/utils/redisMemoryMonitor.ts) — visibility into how
  *     close Redis is to docker-compose.yml's noeviction maxmemory
  *     ceiling, which otherwise silently rejects writes once hit.
@@ -28,7 +28,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { env } from '../../config/env';
 
-// AUDIT-FIX M-03: plain `!==` on secret tokens leaks timing
+// plain `!==` on secret tokens leaks timing
 // information proportional to the length of the matching prefix,
 // letting an attacker recover the token byte-by-byte over many
 // requests. crypto.timingSafeEqual is constant-time, but requires
@@ -130,7 +130,7 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
  * GET /metrics handler — returns the current registry snapshot in
  * Prometheus text exposition format.
  *
- * PROD-FIX-03: previously always unauthenticated, on the reasoning
+ * previously always unauthenticated, on the reasoning
  * that this mirrors /health and /ready (meant to be scraped by infra,
  * not end users). That's still true in principle, but no reverse-proxy
  * or network-policy allowlist exists anywhere in this repo to actually
@@ -145,7 +145,7 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
  * /metrics stays exactly as open as before — same "opt-in, does
  * nothing extra by default" pattern as SENTRY_DSN / SMTP_* / CLOUDINARY_*
  * elsewhere in this config. A reverse-proxy allowlist is still the
- * more robust fix for a real production deployment; this is a
+ * more robust a real production deployment; this is a
  * zero-infra baseline for anyone who hasn't set one up.
  */
 export const metricsHandler = async (req: Request, res: Response): Promise<void> => {

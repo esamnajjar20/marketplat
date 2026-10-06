@@ -84,7 +84,7 @@ export const options = {
 };
 
 /**
- * setup() logs in a small, fixed pool of already-registered users
+ * setup() logs in a small, pool of already-registered users
  * ONCE (not per-VU, not per-iteration) — reusing backend-v9's own
  * seed:e2e-created accounts is the simplest path if you're running
  * this against an environment that's already been seeded (see

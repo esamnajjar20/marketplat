@@ -1,7 +1,7 @@
 import { CircuitBreaker } from './circuitBreaker';
 
 /**
- * FIX REDIS-CACHE-TIMEOUT-01: bound how long a *cache* Redis call may take.
+ * bound how long a *cache* Redis call may take.
  *
  * Why this exists: config/redis.ts has no `commandTimeout`, and ioredis keeps
  * commands in its offline queue while the connection is down/reconnecting, so

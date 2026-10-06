@@ -21,7 +21,7 @@ const DEFAULT_RANGE_DAYS = 30;
 // beacon should never fail because of an auth edge case; worst case it
 // records the event as anonymous.
 //
-// AUDIT-FIX 2.3/3.1: the swallow itself is the right call (an analytics
+// the swallow itself is the right call (an analytics
 // beacon must not 401 on a stale token), but it previously logged
 // nothing at all, in any case — an expired token (routine, happens to
 // every logged-in visitor once per JWT_EXPIRES_IN window) and a

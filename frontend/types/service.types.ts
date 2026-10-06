@@ -182,7 +182,7 @@ export interface CreateServiceCategoryPayload {
 
 /** isActive is only ever settable via update — matches
  * service-categories.validation.ts's updateServiceCategorySchema, where
- * only PATCH accepts isActive (POST/create always defaults to active). */
+ * only isActive (POST/create always defaults to active). */
 export type UpdateServiceCategoryPayload = Partial<CreateServiceCategoryPayload> & {
   isActive?: boolean;
 };
@@ -306,13 +306,12 @@ export interface CreateServiceProviderPayload {
   longitude?: number;
 }
 
-/** PATCH /service-providers/me. */
 export type UpdateServiceProviderPayload = Partial<CreateServiceProviderPayload> & {
   availabilityStatus?: ServiceAvailability;
 };
 
 /**
- * Phase 3: GET /service-providers query params — public city/browse
+ * GET /service-providers query params — public city/browse
  * directory. Mirrors StoresQuery/AdSearchParams' city-optional shape;
  * omitted city means general/unfiltered, never an error.
  */
@@ -349,7 +348,7 @@ export interface CreateServiceListingPayload {
   title: string;
   description: string;
   pricingType: ServicePricingType;
-  /** Required when pricingType is FIXED or STARTING_FROM; omit for NEGOTIABLE. */
+  /** Required when pricingType is or STARTING_FROM; omit for NEGOTIABLE. */
   price?: number;
   durationEstimate?: string;
   attributes?: Record<string, unknown>;
@@ -415,14 +414,12 @@ export interface ServiceRequestsQuery {
   status?: ServiceRequestStatus;
 }
 
-/** POST /service-reviews. */
 export interface CreateServiceReviewPayload {
   requestId: string;
   score: 1 | 2 | 3 | 4 | 5;
   comment?: string;
 }
 
-/** POST /appointments. */
 export interface CreateAppointmentPayload {
   requestId?: string;
   /** ISO datetime — must be in the future. */

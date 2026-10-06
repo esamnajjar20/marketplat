@@ -4,7 +4,7 @@
  * Coverage for components/auth/ForgotPasswordForm.tsx. Despite the
  * "single field, hand-rolled state" feel, submission actually goes
  * through useForgotPassword() (a real useMutation hook wrapping
- * authApi.forgotPassword — see AUDIT-FIX auth#3 in the component),
+ * authApi.forgotPassword — see #3 in the component),
  * so tests still need a QueryClientProvider even though the mocked
  * boundary is authApi rather than the hook itself.
  */

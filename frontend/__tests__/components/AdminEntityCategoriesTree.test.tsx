@@ -2,7 +2,7 @@
  * __tests__/components/AdminEntityCategoriesTree.test.tsx
  *
  * AdminEntityCategoriesTree is a generic component (see file header —
- * FIX SEC-4.2) whose data/mutation hooks are injected as props, so it
+ * ) whose data/mutation hooks are injected as props, so it
  * can be tested directly without mocking any module. Real logic under
  * test: loading/error(-with-retry)/empty states, expand/collapse of a
  * root row's children, the visibility (Eye/EyeOff) toggle, per-row

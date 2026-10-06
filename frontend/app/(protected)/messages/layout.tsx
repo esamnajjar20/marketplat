@@ -12,7 +12,7 @@
  * hide it for — a leftover expectation of exactly this layout that
  * was never actually built.
  *
- * At >=md this renders ConversationList in a fixed left column
+ * At >=md this renders ConversationList in a left column
  * (this app is RTL — inline-start is the visual left in the LTR sense
  * flipped, i.e. still "first" in DOM/flex order) beside {children}
  * (either /messages' empty state or /messages/:id's ChatWindow) in a

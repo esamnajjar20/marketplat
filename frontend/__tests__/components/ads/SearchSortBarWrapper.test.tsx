@@ -3,9 +3,9 @@
  *
  * Covers components/ads/SearchSortBarWrapper.tsx — the URL-binding
  * layer around the shared SearchSortBar for the ads category page.
- * Moved out of ads/SearchFilters (audit item #8, FIX P2-08). The one
+ * Moved out of ads/SearchFilters (audit item #8, ). The one
  * thing specific to this wrapper (beyond what SearchSortBar's own
- * suite already covers) is FIX BUG-06's usePathname() convention: sort
+ * suite already covers) is 's usePathname() convention: sort
  * changes must stay on the current category page, not redirect to a
  * hardcoded /search.
  */

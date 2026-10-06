@@ -32,18 +32,18 @@ const safeUserSelect = {
   // the frontend know whether to route the user through
   // /complete-profile (see schema.prisma's comment on the column).
   needsProfileCompletion: true,
-  // FIX FEAT-02: needed so GET /users/me actually returns the user's
+  // needed so GET /users/me actually returns the user's
   // saved preferences — NotificationSettingsForm.tsx loads its initial
   // toggle state from here instead of always defaulting to hardcoded
   // values regardless of what was previously saved.
   notificationPreferences: true,
-  // FIX OAUTH-01: SafeUser (Omit<User, 'passwordHash'>) picked up these
+  // SafeUser (Omit<User, 'passwordHash'>) picked up these
   // two columns as soon as the Google OAuth migration added them to the
   // User model — select them here too, or every SafeUser-typed query
   // result is structurally missing them.
   provider: true,
   googleId: true,
-  // FIX FEAT-EMAIL-VERIFY: added to the User model by the
+  // added to the User model by the
   // 20260921120000_add_email_verification migration. SafeUser is
   // Omit<User, 'passwordHash'>, so every SafeUser-typed query result
   // must carry these two columns or TypeScript rejects the assignment
@@ -181,8 +181,8 @@ export const usersRepository = {
     prisma.user.update({ where: { id }, data, select: safeUserSelect }),
 
   /**
-   * FIX FEAT-02: merges the partial update into the existing JSON value
-   * rather than overwriting it — so PATCHing just `{ promotions: true }`
+   * merges the partial update into the existing JSON value
+   * rather than overwriting it — so just `{ promotions: true }`
    * doesn't wipe out the user's other saved preferences. Postgres's `||`
    * jsonb concatenation operator does this in one atomic statement
    * (right-hand operand's keys win on conflict), avoiding a
@@ -202,7 +202,7 @@ export const usersRepository = {
     return updated;
   },
 
-  // FIX USERS-DEAD-CODE-01: deleteById removed. Full-repo grep
+  // deleteById removed. Full-repo grep
   // confirmed zero callers — usersService.deleteMe does its own
   // transaction (anonymize + ad cascade), and authRepository has its
   // own deleteById for the register-orphan cleanup path. Leaving a

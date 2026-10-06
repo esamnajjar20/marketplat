@@ -19,7 +19,6 @@ import {
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 
-/** GET /activity — آخر النشاط مع كاش أوفلاين محدود. */
 export function useMyActivity(params?: ActivityQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);

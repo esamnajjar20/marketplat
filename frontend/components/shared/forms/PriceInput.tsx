@@ -8,7 +8,7 @@
  *   the prefix appeared on the wrong side. Now uses start-3/ps-12
  *   (logical properties) so it's always on the reading-start side.
  *
- * FIX DEAD-06: defaulted to 'USD', which never matched the app (every
+ * defaulted to 'USD', which never matched the app (every
  * other price display uses ₪ — e.g. AdForm.tsx's own "السعر (₪)"
  * label), and this component was never actually wired into AdForm in
  * the first place. Default corrected and wired into AdForm below.

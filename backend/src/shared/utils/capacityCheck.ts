@@ -2,7 +2,7 @@ import os from 'os';
 import { logger } from './logger';
 
 /**
- * FIX LOAD-01: PM2 cluster mode (ecosystem.config.js) runs N worker
+ * PM2 cluster mode (ecosystem.config.js) runs N worker
  * processes, each with its OWN independent Prisma connection pool
  * (see the connection_limit note in .env.example). Total connections
  * actually opened against Postgres = N × connection_limit — but
@@ -13,12 +13,12 @@ import { logger } from './logger';
  *
  * This runs once at boot (called from server.ts) and logs a loud
  * warning — not a hard failure, since a deliberately tuned deployment
- * (fixed PM2_INSTANCES, a right-sized Postgres, PgBouncer in front,
+ * (PM2_INSTANCES, a right-sized Postgres, PgBouncer in front,
  * etc.) may legitimately exceed this heuristic — if the estimated
  * total connection demand looks likely to exhaust Postgres's actual
  * max_connections.
  *
- * PROD-FIX-04: docker-compose.yml's postgres service now runs with
+ * docker-compose.yml's postgres service now runs with
  * `-c max_connections=200` (previously the stock default of 100,
  * which this exact heuristic had already flagged as too low for
  * instances: 'max' on anything above a 4-core host). The threshold
@@ -67,7 +67,7 @@ function estimateInstanceCount(): number {
   // re-import specifically to observe such changes) and expects this
   // function to see each new value on its very next call. Reading
   // process.env directly here — same live-per-call-read pattern as
-  // frontend/lib/pwa.ts's getVapidPublicKey (see its own FIX PWA-05
+  // frontend/lib/pwa.ts's getVapidPublicKey (see its own 
   // comment) — is what the existing test suite actually requires.
   // PM2_INSTANCES is still validated/documented in config/env.ts's
   // schema; this is the one deliberate call site that doesn't consume

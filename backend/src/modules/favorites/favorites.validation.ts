@@ -43,7 +43,7 @@ export type FavoriteEntityParams = z.infer<typeof favoriteEntitySchema>['params'
 
 export const getFavoritesSchema = z.object({
   query: z.object({
-    // FIX BUG-FAV-01: .optional() previously sat on the *string* schema,
+    // .optional() previously sat on the *string* schema,
     // before .transform(Number) — so when the query param was absent
     // (the common case: GET /favorites with no page, or GET /favorites
     // with only limit set), Zod still ran .transform(Number) on the

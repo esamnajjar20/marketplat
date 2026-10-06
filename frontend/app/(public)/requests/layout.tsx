@@ -17,7 +17,7 @@ export const metadata: Metadata = buildMetadata({
 });
 
 /**
- * FIX LAYOUT-NEEDS-DEFAULT-01: Next.js layout files must export a
+ * Next.js layout files must export a
  * default component. The previous version of this file only exported
  * `metadata`, which type-checked fine in isolation but failed
  * Next.js's own build-time layout validator:

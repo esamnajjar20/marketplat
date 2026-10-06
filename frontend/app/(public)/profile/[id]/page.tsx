@@ -13,13 +13,13 @@ import type { PublicUser }     from '@/types/user.types';
 interface Props { params: Promise<{ id: string }> }
 
 /**
- * FIX PERF-11: generateMetadata and the page component both called
+ * generateMetadata and the page component both called
  * usersApi.getById(id) independently — two real network requests per
  * page visit for the same data. React's cache() memoizes by argument
  * within a single render pass (request-scoped, not a global/shared
  * cache across users or requests), so the second call here resolves
  * from the first call's already-settled promise instead of firing
- * again. Same fix applied to ads/[id]/page.tsx's getCachedAd.
+ * again. Same to ads/[id]/page.tsx's getCachedAd.
  */
 const getCachedUser = cache((id: string) => usersApi.getById(id));
 

@@ -7,10 +7,10 @@
  * not the plain B-tree [status, city] index the list endpoint uses)
  * and this project's own audit history specifically flagged a GIN
  * search-index expression mismatch as a real bug that was found and
- * fixed — meaning search performance under load is not something to
+ * meaning search performance under load is not something to
  * assume is fine just because GET /ads is fine.
  *
- * Uses a fixed, varied set of search terms (not one repeated term)
+ * Uses a , varied set of search terms (not one repeated term)
  * because tsquery performance and plan selection can differ
  * meaningfully by term frequency/selectivity — a common word matching
  * thousands of rows behaves differently than a rare one matching a

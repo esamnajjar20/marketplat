@@ -40,7 +40,7 @@ export function DataSaverToggle({ className }: { className?: string }) {
         <span
           className={cn(
             'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-all',
-            // SW-FIX-DATASAVER-KNOB: `inset-inline-start-5` is not a valid
+            // `inset-inline-start-5` is not a valid
             // Tailwind 3.x class — the correct logical-property utility is
             // `start-5` (Tailwind maps `start-*` to inset-inline-start). The
             // previous strings matched no rule, so the knob sat at its

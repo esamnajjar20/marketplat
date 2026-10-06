@@ -103,7 +103,7 @@ export async function readReplayEvents(
   if (nowMs - last.ms > opts.ttlSeconds * 1000) return { events: [], gap: true };
 
   const key = replayKey(userId);
-  // FIX-NOTIF-GAP-01: xlen is gone — the gap decision must not use it.
+  // xlen is gone — the gap decision must not use it.
   const rows = await client.xrange(key, from, '+', 'COUNT', opts.maxEvents);
 
   const events: ReplayResult['events'] = [];
@@ -117,7 +117,7 @@ export async function readReplayEvents(
     }
   }
 
-  // FIX-NOTIF-GAP-01: XRANGE returned exactly COUNT entries → more entries
+  // XRANGE returned exactly COUNT entries → more entries
   // may exist past the window, so continuity cannot be proven. The old check
   // compared against xlen and missed exactly this case: a tail longer than
   // COUNT made rows.length (capped) < len, gap stayed false, and the client

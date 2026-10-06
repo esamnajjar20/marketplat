@@ -16,7 +16,7 @@ interface ErrorResponse {
   code: string;
   requestId?: string;
   errors?: Record<string, string[]>;
-  // FIX I18N-01: structured, per-field validation detail alongside the
+  // structured, per-field validation detail alongside the
   // English `errors` strings above. `errors` is kept exactly as before
   // (existing consumers, including the frontend test suite, depend on
   // its literal English text) — this is purely additive. Each entry
@@ -65,7 +65,7 @@ const CODE_BY_STATUS: Record<number, string> = {
   403: 'FORBIDDEN',
   404: 'RESOURCE_NOT_FOUND',
   409: 'CONFLICT',
-  // FIX SEC-3.4/5.9: the frontend's errorParser.ts already has a
+  // the frontend's errorParser.ts already has a
   // dedicated `case 422` branch expecting a `code`, but nothing here
   // populated CODE_BY_STATUS for it — any AppError thrown with
   // statusCode 422 and no explicit `.code` would silently fall through
@@ -87,7 +87,7 @@ export const errorMiddleware = (
 ): void => {
   const requestId = req.requestId;
 
-  // FIX BODYPARSER-400: express.json() throws SyntaxError with
+  // express.json() throws SyntaxError with
   // err.status=400 / err.type='entity.parse.failed' on malformed JSON.
   // Before this, the middleware fell through to the generic 500 path,
   // which polluted Sentry with "Unhandled error" alerts for what is
@@ -116,7 +116,7 @@ export const errorMiddleware = (
 
   if (err instanceof ZodError) {
     const errors: Record<string, string[]> = {};
-    // FIX I18N-01: errorMeta carries the same per-field issues as
+    // errorMeta carries the same per-field issues as
     // `errors` above, but as structured { code, params } instead of an
     // already-rendered English sentence — see the ErrorResponse
     // interface for why. Built in lockstep with `errors` (same field
@@ -172,7 +172,7 @@ export const errorMiddleware = (
     return;
   }
 
-  // FIX D-09: safety net for any Prisma error that reaches here unhandled
+  // safety net for any Prisma error that reaches here unhandled
   // by a service layer (e.g. a future endpoint that forgets to catch a
   // P2002/P2025 race the way favoritesService/reportsService already do).
   // Translating known Prisma error codes here means a missed catch in a

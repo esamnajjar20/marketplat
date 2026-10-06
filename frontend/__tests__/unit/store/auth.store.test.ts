@@ -6,9 +6,9 @@
  *  - setAuth: populates user, tokens, isAuthenticated
  *  - setAuth: normalises AuthResultUser to AuthUser shape (null avatarUrl/city)
  *  - setUser: replaces full user
- *  - patchUser: merges partial without clobbering role/id
- *  - patchUser: no-op when user is null
- *  - setAccessToken: updates token AND sets isAuthenticated=true (FIX C-06)
+ *  - merges partial without clobbering role/id
+ *  - no-op when user is null
+ *  - setAccessToken: updates token AND sets isAuthenticated=true ()
  *  - logout: resets all state
  *  - setHydrated: sets isHydrated flag
  *  - persist partialize: accessToken is excluded from persistence
@@ -16,7 +16,7 @@
  *               selectIsAdmin, selectIsHydrated,
  *               selectSetAuth, selectSetUser, selectPatchUser, selectLogout
  *
- * PROD-FIX-15: refreshToken removed from this store entirely — it now
+ * refreshToken removed from this store entirely — it now
  * lives exclusively in an httpOnly cookie the backend sets directly
  * (see backend-v9's shared/utils/authCookies.ts), never in Zustand/
  * localStorage. Every refreshToken-specific test below (selector,
@@ -40,7 +40,7 @@ import {
   selectLogout,
 } from '@/store/auth.store';
 
-// ── Test fixtures ─────────────────────────────────────────────────
+// ── Test ─────────────────────────────────────────────────
 
 const mockAuthResultUser: AuthResultUser = {
   id:    'user-123',
@@ -161,7 +161,7 @@ describe('setUser', () => {
   });
 });
 
-// ── patchUser ─────────────────────────────────────────────────────
+// ── ─────────────────────────────────────────────────────
 
 describe('patchUser', () => {
   it('merges partial update without clobbering existing fields', () => {
@@ -192,7 +192,7 @@ describe('patchUser', () => {
   });
 });
 
-// ── setAccessToken — FIX C-06 ─────────────────────────────────────
+// ── setAccessToken — ─────────────────────────────────────
 
 describe('setAccessToken (FIX C-06)', () => {
   it('updates the access token', () => {
@@ -204,7 +204,7 @@ describe('setAccessToken (FIX C-06)', () => {
   it('CRITICAL: sets isAuthenticated=true (FIX C-06 — was false after reload)', () => {
     // Simulate state after logout (isAuthenticated=false) followed by
     // AuthHydrationProvider calling setAccessToken after successful refresh.
-    // Before FIX C-06 this did NOT set isAuthenticated=true, causing infinite
+    // Before this did NOT set isAuthenticated=true, causing infinite
     // redirect loops in ProtectedLayout.
     useAuthStore.getState().logout();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
@@ -368,7 +368,7 @@ describe('persist partialize (security)', () => {
     expect(useAuthStore.getState().accessToken).toBe('access-token-abc');
   });
 
-  // PROD-FIX-15: the entire point of this fix — confirms refreshToken
+  // the entire point of this fix — confirms refreshToken
   // genuinely never touches localStorage at all, not even transiently.
   // Guards against a future regression re-introducing it into
   // partialize() without this test catching it.

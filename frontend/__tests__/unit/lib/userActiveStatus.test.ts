@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/userActiveStatus.test.ts
  *
- * FIX UX-13: locks in the shared user active/inactive status→color
+ * locks in the shared user active/inactive status→color
  * mapping that replaced an inline ternary in AdminUsersTable.
  */
 import { describe, it, expect } from 'vitest';

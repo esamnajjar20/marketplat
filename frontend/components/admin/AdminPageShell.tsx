@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Shared chrome for admin table/dashboard pages (UI-PHASE-F).
+ * Shared chrome for admin table/dashboard pages (UI-).
  * Dense desktop-first layout — not for the consumer mobile app.
  */
 export function AdminPageShell({

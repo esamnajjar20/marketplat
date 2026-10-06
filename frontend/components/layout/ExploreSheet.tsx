@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * BottomNav "استكشاف" sheet — discovery only (no account hubs).
- * Phase 2: denser list with chevrons + safe-area padding; prefetch off.
+ * denser list with chevrons + safe-area padding; prefetch off.
  */
 // Derived from BROWSE_LINKS (lib/navigation.ts) so the discovery list exists
 // in one place: same entries and order, minus "الرئيسية" (the bottom nav already

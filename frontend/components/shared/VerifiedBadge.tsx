@@ -2,7 +2,7 @@ import { BadgeCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Shared verified badge for avatars (UI-PHASE-E: a11y + size).
+ * Shared verified badge for avatars (UI-a11y + size).
  */
 export function VerifiedBadge({
   className,

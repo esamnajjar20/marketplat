@@ -83,7 +83,7 @@ export const homeFeedService = {
       ? userIdOverride
       : resolveOptionalUserId(authHeader);
 
-    // FIX HOME-CITY-EXPLICIT-ALL: three distinct states are possible now —
+    // three distinct states are possible now —
     //   query.city === undefined → no param sent (fall back to profile)
     //   query.city === '__ALL__'  → user explicitly chose "all cities"
     //   query.city === 'غزة'      → specific city

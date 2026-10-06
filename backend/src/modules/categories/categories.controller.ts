@@ -30,7 +30,7 @@ export const categoriesController = {
     }
   },
 
-  // FIX ADMIN-CATEGORIES-FRESH-01: GET /categories/admin/all
+  // GET /categories/admin/all
   getCategoriesForAdmin: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const categories = await categoriesService.getCategoriesForAdmin();

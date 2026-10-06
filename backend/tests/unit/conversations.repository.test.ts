@@ -212,10 +212,10 @@ describe('conversationsRepository', () => {
       );
     });
 
-    // FIX UX-15: findManyForUser now maps _count.messages onto a flat
+    // findManyForUser now maps _count.messages onto a flat
     // unreadCount field per conversation and drops _count from the
     // returned shape — this locks in that mapping.
-    // FIX UX-16: also maps the included `messages` (newest first, take 1)
+    // also maps the included `messages` (newest first, take 1)
     // onto a flat lastMessage field, falling back to null when absent.
     it('maps _count.messages onto a flat unreadCount and strips _count', async () => {
       const conversations = [

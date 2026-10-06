@@ -18,7 +18,7 @@ jest.mock('../../src/config/prisma', () => ({
   },
 }));
 
-// AUDIT-FIX 2.6: notificationsRepository.upsertPushSubscription/
+// notificationsRepository.upsertPushSubscription/
 // deletePushSubscription now delegate to
 // shared/utils/pushSubscriptionsRepository.ts instead of calling
 // prisma.pushSubscription directly (see that file's doc comment) — the

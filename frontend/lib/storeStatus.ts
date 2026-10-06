@@ -1,7 +1,7 @@
 import type { StoreStatus } from '@/types/store.types';
 
 /**
- * FIX UX-13: MyStoreCard and AdminStoresTable each defined their own
+ * MyStoreCard and AdminStoresTable each defined their own
  * local status→color map for the same StoreStatus field. They happened
  * to agree in value, but with no shared constant or test tying them
  * together, they were free to drift apart silently. Single source of

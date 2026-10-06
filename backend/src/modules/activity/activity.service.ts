@@ -55,7 +55,7 @@ export const activityService = {
    * (shared/utils/auditLog.ts): fire-and-forget, no `await`/`.catch`
    * required at any of the 36 call sites across every module.
    *
-   * FIX OPS-1.1: previously wrote straight to Postgres on every call
+   * previously wrote straight to Postgres on every call
    * (activityRepository.create per user action — ad view, page open,
    * button click). Under real traffic that's an unbounded per-action
    * INSERT rate competing with the app's own transactional writes for

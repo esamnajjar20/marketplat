@@ -21,7 +21,7 @@ describe('getClientIp', () => {
   });
 
   it('does not attempt to parse x-forwarded-for itself', () => {
-    // FIX SEC-09: this function intentionally does NOT read headers directly —
+    // this function intentionally does NOT read headers directly —
     // req.ip is already computed by Express's trust-proxy setting, which is
     // the single source of truth for how many proxy hops to trust. Confirm
     // that a request with a spoofable header but no req.ip still falls back

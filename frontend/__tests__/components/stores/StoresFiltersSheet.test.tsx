@@ -1,7 +1,7 @@
 /**
  * __tests__/components/stores/StoresFiltersSheet.test.tsx
  *
- * Covers components/stores/StoresFiltersSheet.tsx (FIX P2-09) — same
+ * Covers components/stores/StoresFiltersSheet.tsx () — same
  * shape as search/SearchFiltersSheet.test.tsx and
  * SearchFiltersSheet.test.tsx (ads): active-filter badge count
  * (search/city), closed-by-default, opens on trigger click, and wraps

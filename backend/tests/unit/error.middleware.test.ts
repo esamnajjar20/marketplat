@@ -48,7 +48,7 @@ describe('errorMiddleware', () => {
     );
   });
 
-  // PROD-FIX-12: ServiceUnavailableError (503) is a subclass of
+  // ServiceUnavailableError (503) is a subclass of
   // AppError, thrown when a circuit breaker (circuitBreaker.ts)
   // rejects a call because an external dependency is currently OPEN —
   // confirms it takes the same AppError branch (correct status code,

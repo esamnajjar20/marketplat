@@ -199,7 +199,6 @@ export interface StoreReview {
 
 // ── Payloads ─────────────────────────────────────────────────────
 
-/** POST /stores. */
 export interface CreateStorePayload {
   name: string;
   description: string;
@@ -215,7 +214,6 @@ export interface CreateStorePayload {
   attributes?: StoreAttributes;
 }
 
-/** PATCH /stores/me. */
 export type UpdateStorePayload = Partial<{
   name: string;
   description: string;
@@ -285,7 +283,6 @@ export interface StoreFollowerWithStore {
   store: StoreWithSeller;
 }
 
-/** POST /stores/:id/reviews. */
 export interface CreateStoreReviewPayload {
   score: 1 | 2 | 3 | 4 | 5;
   comment?: string;

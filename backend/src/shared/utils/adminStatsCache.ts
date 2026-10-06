@@ -26,7 +26,7 @@ export interface AdminStats {
 }
 
 /**
- * FIX PERF-02: GET /admin/stats previously ran 6 unconditional
+ * GET /admin/stats previously ran 6 unconditional
  * count()/aggregate() queries on every single request, with no
  * caching at all. Each query is individually cheap (indexed columns),
  * but the endpoint is exactly the kind that gets hit repeatedly —

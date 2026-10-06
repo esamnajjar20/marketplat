@@ -42,7 +42,7 @@ function discountLabel(promotion: Promotion): string {
  * PROMO-1: store-owner promotions tab — mirrors MyProductsList.tsx's
  * structure (skeleton/error/empty states, row actions), simplified
  * since this MVP has no pagination (a store's promotion count is
- * expected to stay small — see the original design doc's Phase 7)
+ * expected to stay small — see the original design doc's )
  * and no per-row edit (see PromotionForm.tsx's doc comment on why
  * cancel-and-recreate is the only mutation path after creation).
  */

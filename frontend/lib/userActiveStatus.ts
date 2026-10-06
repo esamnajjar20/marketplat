@@ -1,5 +1,5 @@
 /**
- * FIX UX-13: `user.isActive ? 'success' : 'destructive'` was written
+ * `user.isActive ? 'success' : 'destructive'` was written
  * inline in AdminUsersTable — a third one-off instance of the same
  * status→color duplication pattern found on ad/store status (see
  * adStatus.ts / storeStatus.ts). Named here so a future second

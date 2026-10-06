@@ -2,7 +2,7 @@
  * __tests__/unit/hooks/useFormDraft.test.tsx
  *
  * Previously uncovered despite being the autosave behind AdForm and
- * ProductForm (FIX P1-11) — losing an in-progress ad/product listing
+ * ProductForm () — losing an in-progress ad/product listing
  * (title, up to 5000-char description, images) to an accidental back
  * gesture or dropped connection is exactly the kind of loss this hook
  * exists to prevent, so a silent regression here is a real user-facing

@@ -11,7 +11,7 @@ import { cacheClient } from './swrCache';
 import { logger } from './logger';
 
 /**
- * FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01: keep the public, viewer-independent
+ * / CACHE-KEEPWARM-01: keep the public, viewer-independent
  * Redis caches warm — at boot AND continuously.
  *
  * Why boot warmup alone was not enough: the homepage entry lives 10 minutes
@@ -59,7 +59,7 @@ const homeTask = (city: string | undefined): WarmupTask => ({
 
 // Order matters: general first (most traffic), then the category trees (every
 // city homepage embeds them, so they are already cached when cities rebuild),
-// then default first-page public lists (FIX ADS-WARM-TTL-01 — hard TTL 600s
+// then default first-page public lists (hard TTL 600s
 // so the 240s keep-warm interval can hold them), then the ten city variants.
 export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   homeTask(undefined),

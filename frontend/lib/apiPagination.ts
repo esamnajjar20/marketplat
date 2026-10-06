@@ -1,5 +1,5 @@
 /**
- * FIX API-SHAPE-01: the backend's successResponse() (api-response.types.ts)
+ * the backend's successResponse() (api-response.types.ts)
  * puts a paginated list's items directly on the top-level `data` field —
  * NOT `data.items` — and puts pagination info under the top-level `meta`
  * field as `meta.pagination`, NOT `data.meta`:
@@ -13,7 +13,7 @@
  * assuming `data` itself was `{ items, meta }`. That shape never existed
  * on the wire — every query hook's `.then(r => r.data.data)` was
  * therefore handing components either a bare array (with an
- * ever-undefined `.meta`) or, before the `meta: object` type was fixed,
+ * ever-undefined `.meta`) or, before the `meta: object` type was ,
  * a TypeScript error masking that same bare-array reality. Every
  * `data.items` / `data.meta.totalPages` read across the app
  * (SearchResults, AdminUsersTable, MyAdsList, FavoritesList, etc.) was

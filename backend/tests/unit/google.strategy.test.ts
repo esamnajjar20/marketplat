@@ -1,5 +1,5 @@
 /**
- * FIX OAUTH-01 coverage.
+ * coverage.
  *
  * env.ts reads process.env once at module-load time (see
  * env.redisPassword.test.ts's own comment on this), so toggling

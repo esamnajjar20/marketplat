@@ -1,7 +1,7 @@
 /**
  * lib/offlineWarmingReport.ts
  *
- * PHASE-4c — rate-limited error reporting for warming failures.
+ * rate-limited error reporting for warming failures.
  *
  * Warming is designed to be silent; when it fails, the user never knows.
  * That is correct behaviour. But the team also needs visibility into

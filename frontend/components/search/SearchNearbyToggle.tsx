@@ -52,7 +52,7 @@ export function SearchNearbyToggle() {
         params.set('radius', String(RADIUS_KM));
         params.set('sort', 'distance');
         params.delete('page');
-        // SW-FIX-NEARBY-REPLACE: refinement within the same search view —
+        // refinement within the same search view —
         // same reasoning as SearchFilters' SW-FILTERS-REPLACE-01.
         router.replace(`${ROUTES.search}?${params.toString()}`);
       },

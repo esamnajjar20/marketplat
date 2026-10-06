@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PHASE-OFFLINE-AD-DETAIL + SAVE-ENTITY-01:
+ * + SAVE-ENTITY-01:
  * قائمة موحّدة لكل ما حُفظ يدوياً للعرض بدون اتصال:
  * إعلانات، منتجات، متاجر.
  *

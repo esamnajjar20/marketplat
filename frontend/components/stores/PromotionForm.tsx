@@ -56,10 +56,10 @@ const emptyValues: Values = {
 
 /**
  * PROMO-1: create-only dialog — there is no separate edit form in this
- * MVP pass (matches the original design doc's Phase 8 scope: create +
+ * MVP pass (matches the original design doc's scope: create +
  * preview; update/cancel are handled from MyPromotionsList's row
  * actions via useCancelPromotion, not a re-opened form). A promotion's
- * core terms (product/discount/window) are meant to be fixed once
+ * core terms (product/discount/window) are meant to be once
  * live — cancelling and creating a new one is the intended path for
  * "I want different terms", same reasoning as most coupon systems.
  */
@@ -151,8 +151,8 @@ export function PromotionForm({ open, onOpenChange, initialProductId }: Props) {
   }
 
   // Live preview of the discounted price — mirrors the original design
-  // doc's Phase 8 preview panel, computed client-side from the same
-  // percentage/fixed-amount rule as backend's promotions.service.ts
+  // doc's preview panel, computed client-side from the same
+  // percentage/rule as backend's promotions.service.ts
   // computeEffectivePrice, purely for the seller's benefit before
   // submitting (the actual price is always resolved server-side).
   const previewPrice = (() => {

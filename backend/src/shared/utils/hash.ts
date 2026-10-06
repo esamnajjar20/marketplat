@@ -1,4 +1,4 @@
-// TERMUX-FIX-01 (original constraint, still true): native bcrypt ships
+// TERMUX-(original constraint, still true): native bcrypt ships
 // a prebuilt binary per platform/Node ABI and falls back to compiling
 // from source via node-gyp when no matching binary exists; Termux's
 // environment (no glibc, different toolchain) makes that native build
@@ -9,7 +9,7 @@
 // no migration needed, and the two are interchangeable per-call (a
 // hash created by one verifies fine with the other).
 //
-// FIX M-020: bcryptjs's "async" calls still run the hashing work as
+// bcryptjs's "async" calls still run the hashing work as
 // synchronous JS in chunks (via setImmediate) rather than offloading
 // to libuv's worker thread pool the way native bcrypt does — it
 // blocks the event loop for the duration of each hash
@@ -61,9 +61,9 @@ export const comparePassword = async (password: string, hashed: string): Promise
   bcrypt.compare(password, hashed);
 
 /**
- * FIX LOGIN-TIMING-01: always run a bcrypt compare, even when `hashed`
+ * always run a bcrypt compare, even when `hashed`
  * is missing (nonexistent user, or a Google-only account with no local
- * password). On those paths, a fixed "dummy" hash of the same
+ * password). On those paths, a "dummy" hash of the same
  * SALT_ROUNDS cost is compared instead, and the boolean result is
  * discarded — what matters is that the same ~SALT_ROUNDS worth of CPU
  * time gets spent, identically to a real wrong-password attempt.

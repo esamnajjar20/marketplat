@@ -79,7 +79,7 @@ describe('ErrorBoundary', () => {
     function Wrapper() {
       // After reset, the boundary re-renders its children; switching
       // shouldThrow to false here simulates the underlying condition
-      // having been fixed (e.g. data finished loading).
+      // having been (e.g. data finished loading).
       return (
         <ErrorBoundary>
           <Bomb shouldThrow={false} />

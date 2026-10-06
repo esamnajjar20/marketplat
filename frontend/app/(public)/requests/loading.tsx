@@ -1,5 +1,5 @@
 /**
- * SLOW-NET phase1 — route-level loading with card skeleton, not a bare spinner.
+ * SLOW-NET route-level loading with card skeleton, not a bare spinner.
  */
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 

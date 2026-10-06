@@ -8,7 +8,7 @@ import { useRelatedAds }  from '@/hooks/queries/useAds';
 interface Props { adId: string; }
 
 /**
- * UX phase-3: on mobile, related ads use a horizontal snap scroll so
+ * UX on mobile, related ads use a horizontal snap scroll so
  * the section stays compact below the sticky contact bar; desktop keeps
  * the 4-column grid.
  */

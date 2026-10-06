@@ -30,7 +30,7 @@ export const createServiceProviderSchema = z.object({
     businessType: z.enum(['INDIVIDUAL', 'SMALL_BUSINESS']).default('INDIVIDUAL'),
     logoUrl: z.string().url('logoUrl must be a valid URL').optional(),
     description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
-    // FIX AREA-CITIES-DEDUP: previously a plain array with no
+    // previously a plain array with no
     // uniqueness constraint — a client could send the same city 30
     // times, storing a redundant array that the `has: city` filter
     // then queries against on every public discovery call. Normalized
@@ -75,7 +75,7 @@ export const serviceProviderIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Service provider ID is required') }),
 });
 
-// Home discovery plan (Phase 1): public city/browse list — deliberately
+// Home discovery plan (): public city/browse list — deliberately
 // separate from nearbyServiceProvidersSchema below. /nearby is a real
 // geographic radius search (lat/lng required); this is a plain
 // paginated directory, same shape as getStoresSchema/getProductsSchema
@@ -108,7 +108,7 @@ export const nearbyServiceProvidersSchema = z.object({
 
 export type NearbyServiceProvidersQuery = z.infer<typeof nearbyServiceProvidersSchema>['query'];
 
-// FIX SP-ANALYTICS-QUERY-ZOD: the period query param was hand-parsed
+// the period query param was hand-parsed
 // in the controller with an `as '7d' | '30d' | 'all'` cast — a
 // TypeScript lie with no runtime enforcement, and inconsistent with
 // every other query param in this module (which all go through Zod).

@@ -107,18 +107,18 @@ function appendParams(url: string, params?: Record<string, unknown>): string {
 function cloneRequest(req: Request, url: string): Request {
   const child = Object.create(req) as Request;
 
-  // FIX BATCH-METHOD: a child made with Object.create inherits req.method
+  // a child made with Object.create inherits req.method
   // from the parent (POST /batch). router.handle then matches routes by
   // method, so router.get('/users/me') never matched — every sub-request
   // returned 404, finish() returned null, and the envelope reported 500.
   // Set method explicitly to GET.
   //
-  // FIX BATCH-QUERY: Express's req.query getter reads req.url lazily, but
+  // Express's req.query getter reads req.url lazily, but
   // an Object.create child inherits the parent's already-parsed query
   // (empty for POST /batch). Re-parse from this child's URL so controllers
   // see this request's params, not the envelope's.
   //
-  // FIX BATCH-BODY: a GET has no body. Clear it so no controller accidentally
+  // a GET has no body. Clear it so no controller accidentally
   // reads { requests: [...] } from the batch envelope.
   const qIndex = url.indexOf('?');
   const query = qIndex >= 0
@@ -333,7 +333,7 @@ export function createReadBatchHandler(router: Router): RequestHandler {
           responses[id] = result.value;
           return;
         }
-        // FIX BATCH-PROPAGATE-STATUS: the child router's `next(err)` path
+        // the child router's `next(err)` path
         // rejects this Promise with the actual error. It is an AppError
         // (401/403/404/400) for client-side failures — forcing 500 hides
         // that from the client and, in particular, stops the client-side

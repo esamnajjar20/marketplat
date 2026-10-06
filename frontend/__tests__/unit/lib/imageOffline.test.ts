@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/imageOffline.test.ts
  *
- * FIX IMAGEOFFLINE-WIRE-01: هذا الملف كان بلا أي caller (كود ميت) ثم
+ * هذا الملف كان بلا أي caller (كود ميت) ثم
  * حُذف، ثم أُعيدت كتابته ووُصل فعليًا بـ useAdMutations.ts. اختبارات
  * shouldCacheImageResponse كاملة (دالة نقية). اختبارات
  * compressImageForOffline محدودة عمدًا: jsdom لا يوفّر Canvas 2D حقيقي

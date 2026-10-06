@@ -10,7 +10,7 @@
  *  - Button shows "جارٍ الرفع…" and is disabled while uploadAvatar is pending
  *  - Profile fields: name required validation, submit calls updateProfile.mutate
  *
- * FIX BUG-05: bio/phone now load from useMe() (GET /users/me) instead
+ * bio/phone now load from useMe() (GET /users/me) instead
  * of always starting blank — covered below alongside the pre-existing
  * name-only coverage.
  */

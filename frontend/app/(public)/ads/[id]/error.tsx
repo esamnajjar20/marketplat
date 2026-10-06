@@ -10,7 +10,7 @@ interface AdErrorProps {
 }
 
 /**
- * FIX AUDIT-V5-02: previously rendered raw `error.message` directly to
+ * previously rendered raw `error.message` directly to
  * the user, in English, on an otherwise fully Arabic/RTL site. This
  * contradicted the same SEC-06 policy already documented and applied in
  * app/error.tsx — error.message can carry stack traces, file paths, or

@@ -3,7 +3,7 @@ import { env } from '../../config/env';
 import { logger } from './logger';
 
 /**
- * FIX EMAIL-01: this is the missing piece flagged as the single
+ * this is the missing piece flagged as the single
  * production blocker — forgotPassword previously only logged the reset
  * token (`// TODO: send email with reset link containing token`), so
  * users had no way to actually receive their password reset link.
@@ -22,7 +22,7 @@ import { logger } from './logger';
 
 let transporter: Transporter | null = null;
 
-// PROD-FIX-02: previously nodemailer's transport had no timeout
+// previously nodemailer's transport had no timeout
 // configuration at all, and sendEmail() awaited t.sendMail() directly
 // with nothing bounding how long that could take. A hung/slow SMTP
 // connection (firewall dropping packets, provider outage that doesn't
@@ -63,7 +63,7 @@ interface SendEmailOptions {
   text: string;
 }
 
-// PROD-FIX-13: sendEmail is awaited synchronously inside the calling
+// sendEmail is awaited synchronously inside the calling
 // HTTP request (e.g. forgotPassword — see auth.service.ts), so a
 // single transient SMTP failure (a momentary provider blip, not a
 // sustained outage) previously meant a real user's password-reset
@@ -89,7 +89,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * FIX RENDER-SMTP-BLOCK-01: HTTPS-based send via Resend. See the
+ * HTTPS-based send via Resend. See the
  * RENDER-SMTP-BLOCK-01 marker inside sendEmail for the full rationale
  * (Render Free tier blocks SMTP ports; Resend uses port 443).
  *
@@ -171,7 +171,7 @@ async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
 // ── Gmail OAuth sender ───────────────────────────────────────────────
 
 /**
- * FIX GMAIL-OAUTH-EMAIL-01: Gmail REST API sender -- no SMTP, no
+ * Gmail REST API sender -- no SMTP, no
  * domain verification, no restricted OAuth scopes. Sends via HTTPS on
  * port 443 (allowed on Render Free; 25/465/587 are blocked). Unlike
  * Resend's onboarding@resend.dev sandbox, this accepts ANY recipient
@@ -338,7 +338,7 @@ async function sendViaGmailOAuth(options: SendEmailOptions): Promise<boolean> {
 }
 
 async function sendEmail(options: SendEmailOptions): Promise<boolean> {
-  // FIX GMAIL-OAUTH-EMAIL-01: Gmail OAuth is the primary path when
+  // Gmail OAuth is the primary path when
   // GMAIL_USER + GOOGLE_REFRESH_TOKEN are set. It accepts any recipient
   // (unlike Resend's sandbox) and needs no domain (unlike Resend
   // production). Resend stays as a fallback; SMTP remains the last
@@ -347,7 +347,7 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     return sendViaGmailOAuth(options);
   }
 
-  // FIX RENDER-SMTP-BLOCK-01: prefer Resend over HTTPS when
+  // prefer Resend over HTTPS when
   // RESEND_API_KEY is set. Render's Free tier blocks outbound
   // SMTP ports, so nodemailer times out with ETIMEDOUT before it
   // can even reach Gmail. Resend's HTTP API goes over port 443
@@ -368,7 +368,7 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   const t = getTransporter();
 
   if (!t) {
-    // FIX EMAIL-01: fallback behavior — previously this was the only
+    // fallback behavior — previously this was the only
     // thing that happened (logger.info with the token). Now it's
     // explicitly the *fallback* path, clearly labeled, so it's obvious
     // in logs that an email was supposed to go out but SMTP isn't set up.
@@ -424,7 +424,7 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   return false;
 }
 
-// ── Templates ────────────────────────────────────────────────────────
+// ── ────────────────────────────────────────────────────────
 
 function passwordResetEmail(resetUrl: string): { html: string; text: string } {
   return {
@@ -454,7 +454,7 @@ function passwordResetEmail(resetUrl: string): { html: string; text: string } {
   };
 }
 
-// FIX FEAT-EMAIL-VERIFY: template for the "confirm your email" link.
+// for the "confirm your email" link.
 // Mirrors passwordResetEmail's shape (text + RTL HTML, single CTA).
 function verificationEmail(verifyUrl: string): { html: string; text: string } {
   return {
@@ -489,12 +489,12 @@ function verificationEmail(verifyUrl: string): { html: string; text: string } {
 // could conceivably carry untrusted input. The only current caller
 // passes details.ip (from req.ip) and details.email (normalized, but
 // per RFC could theoretically carry < in a quoted local part). The
-// email templates below are static HTML built by string interpolation
+// email below are static HTML built by string interpolation
 // — one future caller adding ${details.<something>} without this
 // helper would open an HTML-injection path (phishing link injected
 // into a security-alert email is a high-value target). Applying it
 // once here means the protection doesn't depend on every future
-// template edit remembering to escape.
+// edit remembering to escape.
 function escapeHtml(value: unknown): string {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -535,7 +535,7 @@ function securityAlertEmail(event: string, details: Record<string, unknown>): { 
   };
 }
 
-// Phase 3: unread-notification digest (email fallback). Titles/bodies embed
+// unread-notification digest (email fallback). Titles/bodies embed
 // user-controlled text (names, listing titles) — escape every interpolation.
 function notificationDigestEmail(
   summary: { shown: { title: string; body: string }[]; more: number },
@@ -582,7 +582,7 @@ function notificationDigestEmail(
 
 export const emailService = {
   /**
-   * FIX EMAIL-01: called from auth.service.ts's forgotPassword. Builds
+   * called from auth.service.ts's forgotPassword. Builds
    * the same /reset-password?token=... link the frontend's
    * ResetPasswordForm already expects (see app/(auth)/reset-password).
    */
@@ -598,7 +598,7 @@ export const emailService = {
   },
 
   /**
-   * FIX FEAT-EMAIL-VERIFY: called from auth.service.ts's register()
+   * called from auth.service.ts's register()
    * and resendVerification(). The verify URL points at the frontend's
    * /verify-email page, which reads ?token= and POSTs back to
    * /auth/verify-email. 24h TTL enforced at the service layer.
@@ -615,7 +615,7 @@ export const emailService = {
   },
 
   /**
-   * FIX SEC-ALERT-01: called from securityAlert.ts. Requires the user's
+   * called from securityAlert.ts. Requires the user's
    * email to be looked up by the caller (securityAlert.ts only has a
    * userId), since this module intentionally has no DB access of its
    * own — keeping it a pure "given an address, send this" service.
@@ -634,7 +634,7 @@ export const emailService = {
     });
   },
   /**
-   * Phase 3 email fallback: ONE digest of the user's unread notifications.
+   * email fallback: ONE digest of the user's unread notifications.
    * Returns whether the provider accepted it (sendEmail already retried
    * transient failures), so the queue worker can release its rate-limit claim
    * and retry on false.

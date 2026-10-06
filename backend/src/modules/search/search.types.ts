@@ -29,7 +29,7 @@ export interface SearchResultSeller {
   name: string;
   verified: boolean;
   /**
-   * FIX M-023: `id` above resolves to a DIFFERENT kind of entity
+   * `id` above resolves to a DIFFERENT kind of entity
    * depending on the result's `type` — search.repository.ts's adBranch
    * uses coalesce(sellerProfile.id, user.id), while productBranch uses
    * store.id (a completely different entity). Frontend code that reads
@@ -102,7 +102,7 @@ export interface RawSearchRow {
   seller_id: string;
   seller_name: string;
   seller_verified: boolean;
-  // FIX M-023: see SearchResultSeller.type's own comment — carries
+  // see SearchResultSeller.type's own comment — carries
   // the actual entity kind seller_id refers to for this row, since it
   // differs by branch (ads vs. products/stores vs. services).
   seller_type: 'seller_profile' | 'user' | 'store' | 'service_provider';

@@ -159,27 +159,8 @@ const aggregateCategorySignals = (
 const VIEW_SIGNAL_LOOKBACK_DAYS = 30;
 const CATEGORY_SIGNAL_TAKE = 200;
 
-// PR5B: bounded trending composite score, shared by AD/PRODUCT/
-// SERVICE_LISTING findTrending below (each repository's own
-// findTrending calls rankTrendingCandidates — see that function's own
-// comment for the two-pool fetch shape).
-//
-// Problem this replaces: every findTrending previously ordered purely
-// by `views DESC` (then createdAt as a tiebreak). Lifetime `views` is
-// monotonically increasing and never decays, so a brand-new listing
-// with views = 0 sits behind every existing listing with even a
-// single view — starvation, not "less popular".
-//
-// Fix: compute a bounded composite of (a) a diminishing-returns
-// transform of views and (b) an age-based recency score, then re-sort
-// by that composite instead of raw views. Computed in JS over a small
-// already-fetched candidate pool rather than in SQL — this keeps
-// findTrending's own `where` clause (and therefore this file's
-// existing findTrending unit tests, which assert on that exact
-// `where` object) completely unchanged, which is the smallest safe
-// change that preserves current semantics per this task's own
-// instruction, and it stays directly unit-testable without needing a
-// live Postgres connection to exercise EXTRACT/NOW() SQL.
+// Trending uses bounded view and recency scores over a small candidate pool
+// so new listings are not starved by lifetime view counts.
 //
 // viewsScore = views / (views + K), K = TRENDING_VIEWS_NORMALIZATION_CONSTANT
 //   Bounded to [0, 1) with diminishing returns (at K views the score

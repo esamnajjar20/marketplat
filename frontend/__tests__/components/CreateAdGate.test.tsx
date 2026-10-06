@@ -20,7 +20,7 @@
  *    linking to settings/seller with ?from=/ads/create so
  *    BecomeSellerCard can send the user back
  *  - Profile present: renders CreateAdForm, not the CTA
- *  - FIX OFFLINE-GATE-404-01: a non-404 error (offline with no cached
+ *  - a non-404 error (offline with no cached
  *    profile yet, 5xx, etc.) shows a retry state instead of the
  *    "create a seller profile" CTA — previously any error was read as
  *    "no profile", wrongly telling an existing seller to create one

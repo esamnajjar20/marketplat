@@ -4,7 +4,7 @@ import { useAuthStore, selectIsHydrated, selectUser } from '@/store/auth.store';
 import { useEffect, useState } from 'react';
 
 /**
- * PLAN Phase 1 (خطة الرئيسية المُعدّلة، القسم 3): يستبدل نص HeroBanner
+ * PLAN (خطة الرئيسية المُعدّلة، القسم 3): يستبدل نص HeroBanner
  * الترحيبي بسطر مضغوط، فسحًا لمحتوى حقيقي (FeaturedCarousel) أعلى
  * الشاشة الأولى بدل بانر نصّي بلا صور.
  *

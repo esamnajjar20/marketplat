@@ -13,7 +13,7 @@ export const cacheControl =
     const directives = [`public`, `max-age=${maxAge}`];
     if (swr) directives.push(`stale-while-revalidate=${swr}`);
     res.setHeader('Cache-Control', directives.join(', '));
-    // FIX CACHE-VARY-01: every `public` response must key its cache on
+    // every `public` response must key its cache on
     // the Authorization header. Without this, a shared cache (browser
     // on a family/cafe device, a caching corporate proxy, or a
     // Cloudflare Cache Rule that overrides the default "don't cache
@@ -44,7 +44,7 @@ export const CACHE = {
   SHORT: cacheControl(90, 60),
   // Individual public resources (ad/product detail)
   MEDIUM: cacheControl(120, 60),
-  // FIX CACHE-HTTP-STALENESS-01: ad lists/details are invalidated in Redis
+  // ad lists/details are invalidated in Redis
   // immediately (bumpAdsCacheVersion), but a browser/CDN copy can't be
   // purged — with SHORT/MEDIUM an admin takedown or a "sold" flip stayed
   // visible for up to max-age + swr (~3 min). 30s + 30s bounds that to

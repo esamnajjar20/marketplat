@@ -5,7 +5,7 @@
  * same way every other request does), falls back to trending ads
  * otherwise. Same bare-array response shape as GET /ads/:id/related —
  * not paginated (see backend recommendations.validation.ts's own
- * comment on why this is a fixed-size shelf, not a list endpoint).
+ * comment on why this is a shelf, not a list endpoint).
  *
  * PR4C: the backend dispatches on a single `type` query param — see
  * recommendations.controller.ts — rather than exposing four separate

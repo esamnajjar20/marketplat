@@ -279,10 +279,6 @@ export const useAuthStore = create<AuthStore>()(
       // shape changes.
       version: 1,
       migrate: (persistedState, _fromVersion) => {
-        // No migrations yet — first version. Future code:
-        //   if (fromVersion < 2) {
-        //     // e.g. convert `user.city` from string to object
-        //   }
         return persistedState as never;
       },
       storage: createJSONStorage(() =>

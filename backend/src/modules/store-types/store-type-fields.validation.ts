@@ -35,7 +35,7 @@ export const createStoreTypeFieldSchema = z.object({
 export const updateStoreTypeFieldSchema = z.object({
   params: z.object({ storeTypeId: z.string().min(1), fieldId: z.string().min(1) }),
   body: z.object({
-    // FIX FIELD-SCOPE-IMMUTABLE-VALIDATION: scope is part of a field's
+    // scope is part of a field's
     // identity (see the @@unique([storeTypeId, scope, key]) index). Moving
     // a field between STORE and PRODUCT does not change its meaning — it
     // creates a different field — and can collide with an existing key in

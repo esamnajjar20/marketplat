@@ -1,7 +1,7 @@
 /**
  * Display formatting utilities.
  *
- * FIX T-04: formatPrice() accepts string | null (Prisma Decimal → JSON string).
+ * formatPrice() accepts string | null (Prisma Decimal → JSON string).
  *           Uses parseFloat() safely and returns '--' for null/NaN.
  */
 
@@ -24,7 +24,7 @@ export function formatNumber(value: number | null | undefined): string {
 // ── Price ─────────────────────────────────────────────────────────
 
 /**
- * FIX T-04: price comes from backend as string (Prisma Decimal serialised to JSON).
+ * price comes from backend as string (Prisma Decimal serialised to JSON).
  * Never assume it's a number — always parse first.
  *
  * @example formatPrice("45000.00") → "45,000 ₪"
@@ -202,7 +202,7 @@ export function formatPhone(phone: string): string {
 // ── File size ─────────────────────────────────────────────────────
 
 /**
- * SEC-FIX-01: This export was missing, causing a build error in ImageUpload.tsx.
+ * SEC-This export was missing, causing a build error in ImageUpload.tsx.
  *
  * Format a byte count as a human-readable string.
  * @example formatFileSize(1_234_567) → "1.2 MB"

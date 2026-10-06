@@ -1,7 +1,7 @@
 /**
  * e2e/helpers/ads.ts
  *
- * PROD-FIX-14: createAdViaUI previously lived only inside
+ * createAdViaUI previously lived only inside
  * ad-lifecycle.spec.ts (unexported), so the new favorites.spec.ts
  * would otherwise have had to duplicate the exact same
  * fill-form-and-submit sequence. Extracted here instead — same reason

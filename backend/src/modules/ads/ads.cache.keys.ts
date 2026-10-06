@@ -31,7 +31,7 @@ export async function bumpAdsCacheHard(): Promise<void> {
 }
 
 /**
- * FIX HOME-CACHE-INVALIDATE-01: the GET /home payload embeds ads too, so a
+ * the GET /home payload embeds ads too, so a
  * deleted / sold / admin-removed ad must also leave the homepage. Call this for
  * the mutations that must HIDE an ad. Order matters: ads first, then home — the
  * homepage rebuild reads ads through the list cache.

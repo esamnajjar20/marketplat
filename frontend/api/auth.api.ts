@@ -1,9 +1,9 @@
 /**
  * Auth API — maps to backend /api/v1/auth/* endpoints.
  *
- * FIX AUTH-04: refresh() now uses RefreshResponseData (tokens only — no user).
+ * refresh() now uses RefreshResponseData (tokens only — no user).
  *
- * FIX INTEG-02: the comment here used to say "removed forgotPassword /
+ * the comment here used to say "removed forgotPassword /
  * resetPassword — not in backend", but both are implemented below and
  * both exist in the backend (auth.routes.ts, added alongside the
  * password_reset_tokens migration) — that note was stale from an
@@ -36,14 +36,14 @@ export const authApi = {
     apiClient.post<ApiResponse<null>>('/auth/logout-all'),
 
   /**
-   * FIX AUTH-04: Backend returns { tokens, csrfToken } only — no user.
+   * Backend returns { tokens, csrfToken } only — no user.
    * Response: { success, message, data: { tokens: { accessToken }, csrfToken } }
    *
-   * FIX AUTH-05: accepts an optional AxiosRequestConfig so callers (e.g.
+   * accepts an optional AxiosRequestConfig so callers (e.g.
    * AuthHydrationProvider) can pass an AbortSignal that actually cancels
    * the request, instead of a dead timeout that never aborted anything.
    *
-   * PROD-FIX-15: no longer takes a refreshToken parameter — the backend
+   * no longer takes a refreshToken parameter — the backend
    * now reads it from an httpOnly cookie the browser sends automatically
    * (apiClient's withCredentials:true — see client.ts), not from the
    * request body. There is no longer any refreshToken value in frontend
@@ -67,20 +67,20 @@ export const authApi = {
     apiClient.post<ApiResponse<null>>('/auth/reset-password', payload),
 
   /**
-   * FIX FEAT-EMAIL-VERIFY: POST /auth/verify-email — public, no auth.
+   * POST /auth/verify-email — public, no auth.
    * The token in the URL is the proof of ownership; the visitor may
    * not be logged in (e.g. clicked from their phone's mail app).
    */
   verifyEmail: (payload: { token: string }) =>
     apiClient.post<ApiResponse<{ emailVerified: boolean }>>('/auth/verify-email', payload),
 
-  /** FIX FEAT-EMAIL-VERIFY: POST /auth/resend-verification — auth required. */
+  /** POST /auth/resend-verification — auth required. */
   resendVerification: () =>
     apiClient.post<ApiResponse<null>>('/auth/resend-verification'),
 
   /**
    * POST /users/me/password — changes the authenticated user's password.
-   * FIX INTEG-04: the actually-used definition — see useChangePassword
+   * the actually-used definition — see useChangePassword
    * in useAuthMutations.ts for why this lives here rather than being
    * called via usersApi.changePassword (users.api.ts), which is an
    * equivalent but unused duplicate of this same endpoint.

@@ -7,7 +7,7 @@ import { ScrollToTop } from '@/components/shared/ui/ScrollToTop';
 
 /**
  * (public) route group layout.
- * UX phase-5: ScrollToTop for long search/list pages on mobile.
+ * UX ScrollToTop for long search/list pages on mobile.
  */
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (

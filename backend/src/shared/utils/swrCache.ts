@@ -5,7 +5,7 @@ import { guardedCache, withCacheTimeout } from './cacheGuard';
 import { cacheMetrics } from './cacheMetrics';
 
 /**
- * FIX SWR-ENGINE-01: one stale-while-revalidate engine shared by every public
+ * one stale-while-revalidate engine shared by every public
  * Redis cache (home, /ads lists, stores/products/services/providers lists).
  *
  * It replaces three hand-rolled variants that each had a different gap:
@@ -60,7 +60,7 @@ export interface SwrOptions<T> {
 }
 
 interface Envelope<T> {
-  /** Epoch ms when the payload was written. Optional: envelopes written before FIX CACHE-KEEPWARM-AGE-01 lack it. */
+  /** Epoch ms when the payload was written. Optional: envelopes written before lack it. */
   writtenAt?: number;
   softExpiresAt: number; // epoch ms
   hard: string;
@@ -75,7 +75,7 @@ interface CacheState {
 }
 
 /**
- * FIX CACHE-REDIS-SPLIT-01: every SWR key (payloads, generation tokens, refresh
+ * every SWR key (payloads, generation tokens, refresh
  * locks, keep-warm leader) goes through the dedicated cache client when
  * REDIS_CACHE_HOST is configured, so an LRU-evicting cache instance can never
  * evict sessions / rate-limit counters (see config/redis.ts). Without it the
@@ -283,7 +283,7 @@ export async function swrGet<T>(o: SwrOptions<T>): Promise<T> {
 
 export interface EnsureFreshOptions {
   /**
-   * FIX CACHE-KEEPWARM-AGE-01: keep-warm exists to stop a key from falling off
+   * keep-warm exists to stop a key from falling off
    * its HARD TTL, not to chase the (much shorter) soft TTL — real traffic
    * already refreshes soft-stale entries in the background. With this set, an
    * entry that is only soft-expired is left alone while it is younger than

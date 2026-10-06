@@ -146,7 +146,7 @@ describe('ProductsGrid', () => {
     );
   });
 
-  // PROMO-1 (Phase 10): reads ?hasPromotion=true from the URL — the
+  // PROMO-1 (): reads ?hasPromotion=true from the URL — the
   // destination PromotedProductsSection's "عرض الكل" CTA links to.
   it('reads hasPromotion=true from the URL and passes it through as a boolean', () => {
     mockSearchParams = new URLSearchParams('hasPromotion=true');
@@ -166,7 +166,7 @@ describe('ProductsGrid', () => {
     );
   });
 
-  // PROMO-1 (Phase 12, full scope): closes the "combination with other
+  // PROMO-1 (, full scope): closes the "combination with other
   // filters untested" gap — hasPromotion must combine with city/search/
   // sort rather than override or get dropped alongside them.
   it('combines hasPromotion with city, search, and sort in the same query', () => {

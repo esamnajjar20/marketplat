@@ -74,7 +74,7 @@ async function assertCategoryForType(type: RequestType, categoryId: string): Pro
 /**
  * Who may submit an offer (no offererRole column — enforced here).
  * SERVICE → must have ServiceProviderDetails
- * PRODUCT / RENTAL → must have a SellerProfile (any verified or not in Phase 1)
+ * PRODUCT / RENTAL → must have a SellerProfile (any verified or not in )
  */
 async function assertCanSubmitOffer(type: RequestType, userId: string): Promise<void> {
   const seller = await sellersRepository.findByUserId(userId);
@@ -103,7 +103,6 @@ export const requestsService = {
     input: CreateRequestInput,
     offlineOperationId?: string | null,
   ): Promise<RequestRow> => {
-    // FIX OFFLINE-IDEMPOTENCY-01
     if (offlineOperationId) {
       const existing = await prisma.request.findUnique({ where: { offlineOperationId } });
       if (existing) {

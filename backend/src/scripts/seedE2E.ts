@@ -20,7 +20,7 @@
  *   npm run build && DATABASE_URL=postgresql://...@localhost:5432/classifieds_e2e node dist/scripts/seedE2E.js
  *
  * Idempotent: safe to run before every E2E suite run. Upserts by the
- * fixed, well-known identifiers below rather than inserting blindly,
+ * , well-known identifiers below rather than inserting blindly,
  * so re-running doesn't create duplicate categories/admin users or
  * fail on unique-constraint conflicts from a previous run.
  */
@@ -31,14 +31,14 @@ const prisma = new PrismaClient();
 
 const DB_NAME_SAFETY_PATTERN = /test|e2e/i;
 
-// Fixed, well-known credentials — E2E tests reference these directly
-// (see e2e/fixtures/seed-data.ts on the frontend side, which MUST be
+// , well-known credentials — E2E tests reference these directly
+// (see e2e/on the frontend side, which MUST be
 // kept in sync with the literals here). Never used outside a
 // throwaway E2E database, so there's no real secret to protect.
 export const E2E_ADMIN_EMAIL = 'e2e-admin@example.test';
 export const E2E_ADMIN_PASSWORD = 'E2eAdminPass123!';
 
-// A minimal, fixed category tree — enough for AdForm's category
+// A minimal, category tree — enough for AdForm's category
 // <select> (parent + one child, exercising the optgroup rendering) and
 // CategoryGrid's icon-matching rules (see CategoryGrid.test.tsx) without
 // seeding all 8+ real production categories.

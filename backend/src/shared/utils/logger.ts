@@ -57,7 +57,7 @@ export const logger = winston.createLogger({
 });
 
 /**
- * FIX D-22: previously every `logger.error(...)` call across the codebase
+ * previously every `logger.error(...)` call across the codebase
  * (the sitemap-equivalent silent failures, views-buffer flush errors,
  * the error middleware's catch-all, etc.) only ever reached
  * stdout/the rotating log files. Without a shipping/aggregation layer
@@ -65,12 +65,12 @@ export const logger = winston.createLogger({
  * reading container logs — several issues found in earlier audit
  * passes would have been invisible in production without one.
  *
- * Implemented as a Winston transport (not a monkey-patched method) so
+ * Implemented as a Winston transport (not a monkey-method) so
  * it hooks into every log call through Winston's own dispatch — the
  * idiomatic extension point — without reassigning logger.error or
  * fighting Winston's TypeScript types.
  *
- * FIX APM-02: a real @sentry/node integration now exists below this
+ * a real @sentry/node integration now exists below this
  * block (see SentryErrorReporterTransport) — this generic webhook
  * transport is KEPT alongside it, not replaced, as a vendor-agnostic
  * option for anyone who wants a different destination (a custom
@@ -117,7 +117,7 @@ if (errorReporterUrl) {
 }
 
 /**
- * FIX APM-02: real Sentry integration, as a Winston transport — same
+ * real Sentry integration, as a Winston transport — same
  * extension point as the webhook transport above, so every existing
  * `logger.error(...)` call site across the codebase (error.middleware.ts's
  * catch-all, server.ts's uncaughtException/unhandledRejection handlers,
@@ -142,7 +142,7 @@ if (env.observability.sentryDsn) {
     log(info: winston.LogEntry, callback: () => void) {
       const { level, message, stack, ...meta } = info;
 
-      // FIX APM-03 (updated): winston.createLogger() now applies
+      // (updated): winston.createLogger() now applies
       // errors({ stack: true }) as its own base-level `format` (see the
       // logger definition above) — BUGFIX: previously that base format
       // didn't exist and errors() was only applied per-transport, which
@@ -156,7 +156,7 @@ if (env.observability.sentryDsn) {
       // transport doesn't silently regress if the base format is ever
       // removed.
       //
-      // FIX APM-04: even with that format applied, Winston's errors()
+      // even with that format applied, Winston's errors()
       // formatter ONLY auto-detects an Error passed directly as an
       // argument (e.g. logger.error('msg', someError) — the pattern
       // server.ts, adminStatsCache.ts, and viewsBuffer.ts use) — it does

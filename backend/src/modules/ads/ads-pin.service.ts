@@ -34,7 +34,7 @@ export const adsPinService = {
       });
     }
 
-    // FIX PIN-RACE-SERIALIZABLE: two concurrent pin requests for
+    // two concurrent pin requests for
     // different ads owned by the same user could both pass the
     // "unpin everyone else" step (each saw the other's ad still
     // pinned-or-not in its own snapshot) and then both write

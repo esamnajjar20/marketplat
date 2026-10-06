@@ -46,7 +46,7 @@ const normalizeRow = (row: RawSearchRow): SearchResult => ({
     id: row.seller_id,
     name: row.seller_name,
     verified: row.seller_verified,
-    // FIX M-023: see SearchResultSeller.type's own comment in
+    // see SearchResultSeller.type's own comment in
     // search.types.ts — carries through the entity kind computed per
     // branch in search.repository.ts's SELECT list.
     type: row.seller_type,
@@ -60,7 +60,7 @@ const normalizeRow = (row: RawSearchRow): SearchResult => ({
 
 export const searchService = {
   search: async (query: SearchQuery): Promise<UnifiedSearchResponse> => {
-    // FIX SEARCH-PREFERRED-TYPES-SQL-01: analyze once, pass preferredTypes
+    // analyze once, pass preferredTypes
     // into the repository so the boost is applied in the SQL ORDER BY
     // CASE — before OFFSET/LIMIT. The previous version re-sorted the
     // already-paginated page in JS, which meant a preferred-type match
@@ -97,7 +97,7 @@ export const searchService = {
   suggest: async (query: SearchSuggestionsQuery): Promise<string[]> => {
     const cacheKey = suggestionsCacheKey(query.q);
 
-    // FIX SEARCH-L1-LRU-01: same LRU touch as userCache.ts / unread
+    // same LRU touch as userCache.ts / unread
     // NotificationsCache.ts. Without it, the eviction on `_suggestL1.size
     // > 500` below is FIFO — a hot prefix that was inserted early gets
     // evicted before a cold one inserted moments later. Under any

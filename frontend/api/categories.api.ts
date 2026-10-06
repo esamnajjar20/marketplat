@@ -1,7 +1,7 @@
 /**
  * Categories API — maps to backend /api/v1/categories/* endpoints.
  *
- * FIX C-07: getBySlug now calls '/categories/slug/:slug'
+ * getBySlug now calls '/categories/slug/:slug'
  *           (was incorrectly '/categories/:slug').
  *           Backend route: GET /categories/slug/:slug
  */
@@ -16,7 +16,7 @@ export const categoriesApi = {
 
   /**
    * GET /categories/slug/:slug
-   * FIX C-07: backend route is /categories/slug/:slug not /categories/:slug.
+   * backend route is /categories/slug/:slug not /categories/:slug.
    */
   getBySlug: (slug: string) =>
     apiClient.get<ApiResponse<Category>>(`/categories/slug/${slug}`),
@@ -34,7 +34,7 @@ export const categoriesApi = {
   // ── Admin operations ─────────────────────────────────────────────
 
   /**
-   * FIX ADMIN-CATEGORIES-FRESH-01: GET /categories/admin/all — the
+   * GET /categories/admin/all — the
    * live, uncached tree with _count.ads at both levels. Returns the
    * same Category[] shape as getAll() but with counts populated and
    * no server-side caching (CACHE.NONE + no Redis); used by

@@ -53,7 +53,6 @@ export function useMarkAllNotificationsRead() {
   });
 }
 
-/** DELETE /notifications/:id */
 export function useDeleteNotification() {
   const queryClient = useQueryClient();
 

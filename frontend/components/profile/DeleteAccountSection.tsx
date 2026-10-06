@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FIX INTEG-08: usersApi.deleteMe() / backend DELETE /users/me were both
+ * usersApi.deleteMe() / backend DELETE /users/me were both
  * fully implemented and tested (usersService.deleteMe: deactivates the
  * user, cascades their ACTIVE ads to DELETED, revokes every refresh
  * token) but had no UI anywhere — see useUpdateProfile.ts's
@@ -34,7 +34,7 @@ export function DeleteAccountSection() {
     deleteAccount.mutate();
   }
 
-  // UX-FIX P0-1: block Escape / overlay-click / cancel-button close while
+  // block Escape / overlay-click / cancel-button close while
   // the delete request is in flight. Previously the raw Dialog's
   // onOpenChange={setOpen} let the user close the dialog mid-request; the
   // request kept running in the background with no visible success/error

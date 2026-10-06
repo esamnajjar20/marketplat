@@ -28,7 +28,7 @@ describe('AUTH_COOKIE_MAX_AGE', () => {
   });
 });
 
-// ── cookieMaxAgeFromExpiresIn (FIX BUG-06) ────────────────────────
+// ── cookieMaxAgeFromExpiresIn () ────────────────────────
 
 describe('cookieMaxAgeFromExpiresIn', () => {
   it('falls back to AUTH_COOKIE_MAX_AGE when expiresIn is undefined', () => {

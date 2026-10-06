@@ -168,7 +168,7 @@ describe('offlineMessagesStore', () => {
     expect(got).toHaveLength(1);
     expect(got[0].id).toBe('c1');
 
-    // empty list must clear previous data (FIX OFFLINE-MSG-EMPTY-01)
+    // empty list must clear previous data ()
     await saveConversationsList([]);
     const empty = await getConversationsList();
     expect(empty).toHaveLength(0);

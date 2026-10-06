@@ -51,7 +51,7 @@ export const getUserByIdSchema = z.object({
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>['body'];
 
-// FIX USERS-PASSWORD-STRENGTH-01: reuse auth.validation.ts's
+// reuse auth.validation.ts's
 // passwordSchema (weak-password list + length bounds) instead of a
 // bare .min(8) here. This schema is the one users.controller.
 // changePassword actually parses — the changePasswordSchema exported
@@ -70,9 +70,9 @@ export const changePasswordSchema = z.object({
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];
 
-// FIX FEAT-02: keys must match NotificationSettingsForm.tsx's SETTINGS
+// keys must match NotificationSettingsForm.tsx's SETTINGS
 // array exactly (newMessage/adViews/favAdUpdated/promotions). All
-// optional so the frontend can PATCH a partial update (e.g. toggling
+// optional so the frontend can partial update (e.g. toggling
 // just one switch) without resending every key.
 export const updateNotificationPreferencesSchema = z.object({
   body: z.object({
@@ -80,7 +80,7 @@ export const updateNotificationPreferencesSchema = z.object({
     adViews: z.boolean().optional(),
     favAdUpdated: z.boolean().optional(),
     promotions: z.boolean().optional(),
-    // PROMO-1 (Phase 14): distinct from `promotions` above, which is
+    // PROMO-1 (): distinct from `promotions` above, which is
     // the admin-broadcast "عروض وتخفيضات" marketplace newsletter
     // (notifications.service.ts's broadcastPromotion, NotificationType
     // PROMOTION) — this one gates whether a store owner gets notified
@@ -99,7 +99,7 @@ export const updateNotificationPreferencesSchema = z.object({
     installmentAlerts: z.boolean().optional(),
     debtAlerts: z.boolean().optional(),
     weeklySalesReport: z.boolean().optional(),
-    // Phase 3 email fallback (opt-in, default off): one digest email when
+    // email fallback (opt-in, default off): one digest email when
     // direct notifications (messages, requests, quotes, appointments) stay
     // unread — see notificationEmailFallback.ts for the eligible types.
     emailFallback: z.boolean().optional(),

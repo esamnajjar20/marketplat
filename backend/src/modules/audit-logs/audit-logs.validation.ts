@@ -7,7 +7,7 @@ import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 // passed straight into a Prisma `orderBy: { [sortBy]: sortOrder }` without
 // risking an arbitrary/unindexed column being requested.
 //
-// AUDIT-FIX 1.4: `userId` was previously excluded here despite
+// `userId` was previously excluded here despite
 // schema.prisma carrying both `@@index([userId])` and a composite
 // `@@index([userId, createdAt])` on AuditLog — the stated rule above
 // ("only indexed columns") was already satisfied for it, it was just

@@ -6,7 +6,7 @@
  *  - Key uniqueness: different params → different keys (no accidental collisions)
  *  - Prefix invalidation: sharing a common prefix
  *  - Type safety: undefined params produce stable empty-param keys
- *  - admin keys are parameterised (FIX Q-04)
+ *  - admin keys are parameterised ()
  *  - All factories return arrays (not objects/primitives)
  */
 import { describe, it, expect } from 'vitest';
@@ -147,7 +147,7 @@ describe('queryKeys.favorites', () => {
   });
 });
 
-// ── Admin — FIX Q-04: parameterised keys ──────────────────────────
+// ── Admin — parameterised keys ──────────────────────────
 
 describe('queryKeys.admin (FIX Q-04)', () => {
   it('admin.ads() with no params returns stable key', () => {

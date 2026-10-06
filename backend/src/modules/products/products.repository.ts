@@ -16,7 +16,7 @@ export type ProductWithStore = Prisma.ProductGetPayload<{
 // can build a PRODUCT favorite's card using the exact same include
 // shape as every other cross-module Product read, instead of a
 // second, potentially-drifting definition.
-// FIX PRODUCTWITHRELATIONS-CONST: `as const` on the whole object makes
+// `as const` on the whole object makes
 // Prisma's orderBy tuple readonly (rejected by SortOrder typing). Narrow
 // only the literals Prisma needs ('PRODUCT', 'asc'/'desc').
 export const productWithRelations = {
@@ -25,7 +25,7 @@ export const productWithRelations = {
 };
 
 /**
- * FIX PRODUCT-LITE-01: same shape as productWithRelations but WITHOUT
+ * same shape as productWithRelations but WITHOUT
  * the storeType.fields array. Used by homepage recommendations and the
  * favourites list — neither surfaces product attributes, so shipping
  * the fields array per product was pure payload bloat on 3G (a product
@@ -47,7 +47,7 @@ export type ProductWithStoreLite = Prisma.ProductGetPayload<{
   };
 }>;
 
-/** SLOW-NET phase5: list payload omits long description (detail still full). */
+/** SLOW-NET list payload omits long description (detail still full). */
 const productListSelect = {
   id: true,
   storeId: true,
@@ -276,7 +276,7 @@ export const productsRepository = {
   // ordered first (source/position tagging) so overflow trims new
   // uploads rather than silently dropping existing ones.
   addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<Product> => {
-    // FIX RAW-SQL-MAXIMAGES-GUARD-01: maxImages is interpolated
+    // maxImages is interpolated
     // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
     // be a bound parameter without restructuring the whole statement,
     // and a future caller passing an attacker-controlled number would
@@ -407,7 +407,7 @@ export const productsRepository = {
       }),
       ...(ftsIds ? { id: { in: ftsIds } } : {}),
 
-      // PROMO-1 (Phase 10): relation filter on the Promotion model
+      // PROMO-1 (): relation filter on the Promotion model
       // added for the store-owner CRUD module — deliberately status-
       // based (SCHEDULED or ACTIVE row exists), not a startsAt/endsAt
       // window check, matching the same "status column, kept fresh by
@@ -430,7 +430,7 @@ export const productsRepository = {
       prisma.product.count({ where }),
     ]);
 
-    // SLOW-NET phase5: productListSelect omits description, but ProductWithStore
+    // SLOW-NET productListSelect omits description, but ProductWithStore
     // is still the public type — cast is safe (the wire shape is lighter).
     return { products: products as unknown as ProductWithStore[], total };
   },

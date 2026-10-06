@@ -456,7 +456,7 @@ export function DownloadStoreCatalogButton({
       document.body.appendChild(a);
       a.click();
       a.remove();
-      // SW-FIX-CATALOG-REVOKE: Safari iOS can abort the download if
+      // Safari iOS can abort the download if
       // the blob URL is revoked in the same tick as click(); defer.
       window.setTimeout(() => URL.revokeObjectURL(url), 5000);
       await recordCatalogDownload({
@@ -473,7 +473,7 @@ export function DownloadStoreCatalogButton({
         err instanceof Error ? err : new Error(String(err)),
         { tag: 'catalog-download', storeId },
       );
-      // SW-FIX-CATALOG-TOAST: alert() blocks the main thread and is
+      // alert() blocks the main thread and is
       // inconsistent with the rest of the app's toast-based feedback.
       toast.error('تعذّر تحميل الكتالوج. تأكد من الاتصال وحاول مرة أخرى.');
     } finally {

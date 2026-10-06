@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Shared chrome for protected account surfaces (messages, notifications,
- * favorites, my-ads, settings). UI-PHASE-C.
+ * favorites, my-ads, settings). UI-
  */
 export function AccountPageShell({
   title,

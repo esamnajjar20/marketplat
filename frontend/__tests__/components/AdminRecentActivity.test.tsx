@@ -2,7 +2,7 @@
  * __tests__/components/AdminRecentActivity.test.tsx
  *
  * Real logic under test: loading spinner, error state with retry
- * (must NOT collapse into the empty state — UX-FIX P1-9 admin
+ * (must NOT collapse into the empty state — admin
  * variant), empty state, list rendering with a fallback of '—' when
  * ad.user is missing, and the ad-detail link href.
  */

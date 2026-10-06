@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/apiPagination.test.ts
  *
- * FIX API-SHAPE-01: unwrapPaginated is the single point every paginated
+ * unwrapPaginated is the single point every paginated
  * list endpoint (ads, admin ads/users/reports, favorites, user ads) now
  * goes through to correct the mismatch between what the backend
  * actually sends — items directly on `data`, pagination under the

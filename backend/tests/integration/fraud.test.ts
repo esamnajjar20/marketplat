@@ -254,7 +254,7 @@ describe('Fraud Detection API', () => {
     });
   });
 
-  // FIX FRAUD-GAP-01: scoreAd() previously only ever ran from
+  // scoreAd() previously only ever ran from
   // ads.service.ts's createAd — an ad edited after a clean initial
   // post never got re-evaluated, so a seller could post something
   // innocuous, wait for it to clear scoring, then edit it into scam
@@ -286,7 +286,7 @@ describe('Fraud Detection API', () => {
         });
       expect(res.status).toBe(200);
 
-      // Fire-and-forget scoring — poll briefly rather than a single fixed sleep.
+      // Fire-and-forget scoring — poll briefly rather than a single sleep.
       let signals: { id: string }[] = [];
       let scored = await prisma.ad.findUniqueOrThrow({ where: { id: ad.id } });
       for (let i = 0; i < 20; i++) {

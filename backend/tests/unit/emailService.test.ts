@@ -1,5 +1,5 @@
 /**
- * FIX TEST-V4-02: emailService.ts had zero test coverage despite being
+ * emailService.ts had zero test coverage despite being
  * this session's single highest-stakes fix — it's what makes
  * forgotPassword actually deliver a usable reset link instead of only
  * logging the token. These tests cover:
@@ -112,7 +112,7 @@ describe('emailService', () => {
         port: 587,
         secure: false,
         auth: { user: 'user', pass: 'pass' },
-        // PROD-FIX-02: explicit timeouts added to prevent an
+        // explicit timeouts added to prevent an
         // indefinitely hanging SMTP connection from blocking the
         // calling request (see emailService.ts's own comment).
         connectionTimeout: 10_000,
@@ -128,7 +128,7 @@ describe('emailService', () => {
       expect(mockSendMail).toHaveBeenCalledTimes(1);
       const call = mockSendMail.mock.calls[0][0];
       expect(call.to).toBe('user@example.com');
-      // FIX-critical: app/(auth)/reset-password/page.tsx reads
+      // app/(auth)/reset-password/page.tsx reads
       // searchParams.token — the URL format here must match exactly,
       // or "an email was sent" while the link inside it is broken.
       expect(call.html).toContain('https://example.com/reset-password?token=reset-token-abc');
@@ -167,7 +167,7 @@ describe('emailService', () => {
       const { emailService } = require('../../src/shared/utils/emailService');
 
       const promise = emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc');
-      // PROD-FIX-13: sendEmail retries twice (500ms, then 1500ms
+      // sendEmail retries twice (500ms, then 1500ms
       // backoff) before giving up — advance fake timers past both
       // delays so the retry loop actually completes within this test
       // instead of hanging on a real 2s of wall-clock sleep().

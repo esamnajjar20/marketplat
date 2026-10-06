@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/recentSearches.test.ts
  *
- * Phase 2 / P1: recentSearches was ~77% covered only via SearchBox.
+ * / P1: recentSearches was ~77% covered only via SearchBox.
  * Direct unit coverage for storage edge cases (quota, short queries,
  * dedupe, max items, corrupt JSON).
  */

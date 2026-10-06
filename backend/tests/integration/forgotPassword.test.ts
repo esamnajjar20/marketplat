@@ -178,7 +178,7 @@ describe('Forgot / Reset Password', () => {
       // is never saved, so testing against it would pass even if
       // revocation were broken — a false positive).
       //
-      // PROD-FIX-15: refreshToken now lives in an httpOnly cookie —
+      // refreshToken now lives in an httpOnly cookie —
       // request.agent(app) carries it forward automatically between
       // the login and refresh calls below, replacing the old
       // send({ refreshToken }) approach.

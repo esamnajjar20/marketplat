@@ -8,7 +8,7 @@
  * Coverage targets:
  *  - Loading spinner / error-with-retry / empty state
  *  - Status tabs default to PENDING when ?status is absent/invalid
- *    (FIX SEC-3.9), and ALL is honored when explicitly set
+ *    (), and ALL is honored when explicitly set
  *  - Renders store name, seller display name, city, status badge
  *  - Approve (PENDING/BLOCKED → ACTIVE): single click, no confirm
  *  - Un-block (BLOCKED → PENDING): single click, no confirm

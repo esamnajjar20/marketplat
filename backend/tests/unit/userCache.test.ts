@@ -77,7 +77,7 @@ describe('userCache', () => {
     expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
   });
 
-  // FIX USERCACHE-RACE-01: invalidate() during an in-flight DB read must
+  // invalidate() during an in-flight DB read must
   // not let the pre-change snapshot be written back into the cache.
   it('does not re-cache a snapshot that was invalidated mid-fetch', async () => {
     let resolveFirst!: (value: unknown) => void;

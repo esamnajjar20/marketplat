@@ -4,7 +4,7 @@
  * Covers the shared rail every ProductRecommendations/
  * ServiceRecommendations/StoreRecommendations wrapper delegates to:
  * loading skeletons, the "vanish entirely, heading included" empty
- * behavior, the inline error+retry state (FIX UX-AUDIT-02 posture,
+ * behavior, the inline error+retry state (posture,
  * same as RecommendedAds/RelatedAds), and the success grid.
  */
 import { describe, it, expect, vi } from 'vitest';

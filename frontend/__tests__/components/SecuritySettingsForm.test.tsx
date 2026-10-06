@@ -3,7 +3,7 @@
  *
  * Coverage for components/profile/SecuritySettingsForm.tsx.
  *
- * FIX SEC-07: the component no longer calls authApi.changePassword
+ * the component no longer calls authApi.changePassword
  * directly — it now goes through useChangePassword(), which (on
  * success) clears the local session and redirects to /login, because
  * the backend blacklists the current access token as part of a

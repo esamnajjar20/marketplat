@@ -62,7 +62,7 @@ const mockStore = {
   plan: 'FREE',
   // SEC-FIX: getPublicStore/getStoreReviews now both read
   // store.sellerProfile.suspended off the fetched store — included here
-  // so every existing test using this shared fixture keeps working
+  // so every existing test using this shared keeps working
   // without each one having to add it individually.
   sellerProfile: mockSellerProfile,
 } as any;
@@ -345,7 +345,7 @@ describe('storesService', () => {
       expect(result).toEqual({ ...publicStore, isOpen: null });
     });
 
-    // SEC-FIX regression: see stores.service.ts's getPublicStore comment
+    // SEC-see stores.service.ts's getPublicStore comment
     // — findPublicById has no status filter of its own, so the service
     // must reject non-ACTIVE stores itself instead of trusting the
     // repository query, same as findMany/toggleFollow/createReview do.
@@ -363,7 +363,7 @@ describe('storesService', () => {
       await expect(storesService.getPublicStore(storeId)).rejects.toThrow(NotFoundError);
     });
 
-    // SEC-FIX regression: a suspended seller's store must 404 even
+    // SEC-a suspended seller's store must 404 even
     // though the store's own status is still ACTIVE — setSuspension
     // never touches StoreDetails.status, only SellerProfile.suspended.
     it('throws NotFoundError when the seller is suspended', async () => {
@@ -670,7 +670,7 @@ describe('storesService', () => {
       await expect(storesService.getStoreReviews(storeId, {})).rejects.toThrow(NotFoundError);
     });
 
-    // SEC-FIX regression: same gap as getPublicStore — a suspended
+    // SEC-same gap as getPublicStore — a suspended
     // seller's reviews must not stay readable via this independent
     // endpoint just because the store's own status is still ACTIVE.
     it('throws NotFoundError when the seller is suspended', async () => {

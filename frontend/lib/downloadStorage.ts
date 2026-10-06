@@ -40,7 +40,7 @@ function readList(): CatalogDownloadRecord[] {
 }
 
 /**
- * FIX CATALOG-EVICT-CLEANUP: قبل، `slice(0, 50)` كان يحذف من localStorage
+ * قبل، `slice(0, 50)` كان يحذف من localStorage
  * فقط — IndexedDB (catalogIdb) يبقى بـ HTML الكامل للأبد. الآن نحذف
  * الأجسام المُقصاة أيضاً (نفس نمط SAVED-ADS-LEAK-01).
  */

@@ -1,7 +1,7 @@
 /**
- * e2e/fixtures/authenticated.ts
+ * e2e/
  *
- * Extends Playwright's base `test` with an `authedPage` fixture: a page
+ * Extends Playwright's base `test` with an `authedPage` a page
  * that has already registered a fresh, unique user through the real UI
  * and is sitting on the home page, logged in. Every spec that needs
  * "some logged-in user" (ad creation, my-ads, favorites, settings)

@@ -11,7 +11,7 @@ import { useRevokeSession, useLogoutAll } from '@/hooks/mutations/useAuthMutatio
 import { formatDate }        from '@/lib/formatters';
 
 /**
- * FIX SEC-GAP-01: this used to render `IP: {s.ip}` in full — a
+ * this used to render `IP: {s.ip}` in full — a
  * security screen leaking the exact network address of every
  * logged-in device to anyone who sees the tab, a screenshot, or a
  * screen-share. The backend only sends a raw `ip: string` (no
@@ -36,7 +36,7 @@ function maskIp(ip: string): string {
 
 export function ActiveSessionsList() {
   const { data: sessions, isLoading, isError, refetch } = useAuthSessions();
-  // UX-FIX P1-6: useRevokeSession's own isPending is shared across every
+  // useRevokeSession's own isPending is shared across every
   // row (it's one mutation instance), so previously `disabled={revoking}`
   // disabled ALL rows' "إنهاء" buttons the instant any single one was
   // clicked. Track which specific session is in flight instead, so only
@@ -53,7 +53,7 @@ export function ActiveSessionsList() {
 
   if (isLoading) return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
 
-  // UX-FIX P1-10: this is a security-relevant screen — telling a user
+  // this is a security-relevant screen — telling a user
   // "لا توجد جلسات نشطة" (no active sessions) when the fetch actually
   // failed is worse than showing nothing, since it could read as
   // reassurance that no other device is logged in when the truth is

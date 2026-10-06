@@ -4,7 +4,7 @@ import { logger } from './logger';
 import crypto from 'crypto';
 import type { CreateActivityInput } from '../../modules/activity/activity.repository';
 
-// FIX OPS-1.1: activityService.record() used to call
+// activityService.record() used to call
 // activityRepository.create() directly — one INSERT per user action
 // (ad view, page open, button click) across 36 call sites spread over
 // 11 modules. Under real traffic that's an unbounded number of tiny

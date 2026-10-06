@@ -8,7 +8,7 @@ import { ROUTES } from '@/lib/constants';
 import { reportClientError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 
 /**
- * FIX PRODUCT-ERR-LOG-01: this was the only route-level error.tsx in the
+ * this was the only route-level error.tsx in the
  * app that didn't call reportClientError (didn't even destructure `error`)
  * — every sibling boundary (ads/[id]/error.tsx, root error.tsx,
  * (admin)/error.tsx, (protected)/error.tsx) does. Any real render crash

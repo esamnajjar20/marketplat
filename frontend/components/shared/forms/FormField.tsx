@@ -9,7 +9,7 @@
  * UX-11 FIX: Required star uses ms-1 (logical margin) instead of ml-1
  *   so it appears correctly in both LTR and RTL layouts.
  *
- * UX-FIX P2-11: the render-prop form above was never actually used by any
+ * the render-prop form above was never actually used by any
  * of FormField's ~10 consumers — every call site passed a plain static
  * child instead (e.g. `<FormField ...><Input .../></FormField>`), so
  * errorId/hintId never reached a real DOM element and no input anywhere

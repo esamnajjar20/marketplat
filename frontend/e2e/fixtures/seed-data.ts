@@ -1,5 +1,5 @@
 /**
- * e2e/fixtures/seed-data.ts
+ * e2e/
  *
  * MUST stay in sync with backend-v9/src/scripts/seedE2E.ts — these are
  * not independent test data, they're the frontend-side mirror of what

@@ -8,7 +8,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ROUTES } from '@/lib/constants';
 
 /**
- * FIX NEXT15-SEARCHPARAMS-SUSPENSE: Next.js 15 requires any client
+ * Next.js 15 requires any client
  * component that calls `useSearchParams()` to be wrapped in a <Suspense>
  * boundary — otherwise Next's static-prerender pass for the route throws
  * ("useSearchParams() should be wrapped in a suspense boundary"), which

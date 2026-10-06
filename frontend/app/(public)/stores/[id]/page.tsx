@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const data = store.data.data;
     const name = data?.name;
     if (!name) return { title: 'متجر' };
-    // PHASE1-STOREFRONT: richer SEO — description + OG image from
+    // richer SEO — description + OG image from
     // cover (fallback logo) so WhatsApp/Facebook previews show the
     // store identity instead of the generic platform card.
     const description =
@@ -86,7 +86,7 @@ export default async function StorePage({ params }: Props) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    // PHASE1-STOREFRONT: widen from max-w-3xl → max-w-5xl so the
+    // widen from max-w-3xl → max-w-5xl so the
     // product grid and tabs breathe on tablet/desktop without losing
     // the centered mobile-first feel.
     <div className="container mx-auto w-full max-w-7xl space-y-8 px-3 py-6 sm:px-4 lg:py-8">

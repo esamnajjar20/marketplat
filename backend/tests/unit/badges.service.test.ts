@@ -1,5 +1,5 @@
 /**
- * badges.service unit coverage (Phase 3 / P2).
+ * badges.service unit coverage (/ P2).
  */
 import { badgesService } from '../../src/modules/badges/badges.service';
 import { storesRepository } from '../../src/modules/stores/stores.repository';

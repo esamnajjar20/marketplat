@@ -1,11 +1,11 @@
 /**
- * BullMQ glue for the `notifications` queue (Phase 3).
+ * BullMQ glue for the `notifications` queue ().
  *
  * Producers (`enqueuePush`, `deferPush`, `scheduleEmailFallback`) are called
  * from the request path through a lazy `import()` in pushService /
  * emailFallbackScheduler, only when NOTIFICATION_QUEUE_ENABLED=true. Every
  * producer is time-boxed and throws on failure; callers fall back to the
- * pre-Phase-3 inline behaviour, so a Redis hiccup never loses a push.
+ * pre-inline behaviour, so a Redis hiccup never loses a push.
  *
  * The consumer (`startNotificationWorker`) runs in-process by default (PM2
  * cluster: each worker consumes, BullMQ's locks keep jobs single-delivery).
@@ -97,7 +97,7 @@ export async function deferPush(
 
   await withTimeout(
     (async () => {
-      // FIX-NOTIF-DEFER-01: BullMQ ignores add() while ANY job with this id
+      // BullMQ ignores add() while ANY job with this id
       // exists. Clear the removable states; for 'active' (cannot remove) derive
       // a fresh id — the NEWEST copy must win. A stale 'waiting' job used to
       // silently swallow the user's most recent (and only) banner.

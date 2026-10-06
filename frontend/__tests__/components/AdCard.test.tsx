@@ -1,7 +1,7 @@
 /**
  * __tests__/components/AdCard.test.tsx
  *
- * FIX E2E-GAP-01 (coverage gap identified in the audit): AdCard.tsx
+ * (coverage gap identified in the audit): AdCard.tsx
  * had zero test coverage despite rendering in every ad grid across the
  * app (home page FeaturedAds/RecentAds, search results, category
  * pages). Covers: the sold/featured/condition badge combination logic
@@ -9,7 +9,7 @@
  * not show "مميز"), placeholder fallback when an ad has no images,
  * and the priority/lazy-loading prop wiring.
  *
- * FIX P1-1: AdCard now renders a favorite (heart) button, which pulls
+ * AdCard now renders a favorite (heart) button, which pulls
  * in useIsFavorited/useToggleFavorite (both call useQueryClient) and
  * useAuthStore. Mocked the same way AdDetail.test.tsx mocks its own
  * favorite wiring, rather than wrapping every render in a

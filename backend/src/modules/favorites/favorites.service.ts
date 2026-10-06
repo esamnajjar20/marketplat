@@ -42,7 +42,7 @@ const toWireRecord = (row: FavoriteListRow): FavoriteWireRecord | null => {
 };
 
 // FEAT-FAVORITE-POLYMORPHIC PR2: the generic shape used by GET
-// /favorites?type=product|store|service — no legacy precedent to
+// /favorites?type=product|store|service — no to
 // preserve here (these entity types were never favoritable before
 // PR2), so this is just FavoriteListRow with a guaranteed non-null
 // `entity` (rows with no resolved entity are already dropped by the
@@ -130,7 +130,7 @@ const NOT_FOUND_BY_TYPE: Record<FavoriteEntityType, { message: string; code: str
 // Shared core for toggleFavorite (AD, via the legacy /favorites/:adId
 // route) and toggleFavoriteEntity (PR2's generic route) — same
 // create/delete/concurrency-race handling either way, only the
-// reference validation and activity-template entity type differ.
+// reference validation and activity-entity type differ.
 const performToggle = async (
   userId: string,
   entityType: FavoriteEntityType,
@@ -179,7 +179,7 @@ const performToggle = async (
 };
 
 export const favoritesService = {
-  // Legacy AD-only entry point — /favorites/:adId routes, unchanged
+  // entry point — /favorites/:adId routes, unchanged
   // behavior/signature from PR1, now implemented via the shared
   // performToggle core.
   toggleFavorite: async (userId: string, adId: string): Promise<{ action: 'added' | 'removed' }> =>
@@ -188,7 +188,7 @@ export const favoritesService = {
   // FEAT-FAVORITE-POLYMORPHIC PR2: generic entry point for the new
   // /favorites/:entityType/:entityId routes (products/stores/services
   // — see favorites.validation.ts's URL param mapping; AD isn't
-  // reachable through this path, only through the legacy route above).
+  // reachable through this path, only through the above).
   toggleFavoriteEntity: async (
     userId: string,
     entityType: FavoriteEntityType,
@@ -203,7 +203,7 @@ export const favoritesService = {
     const limit = query.limit || 20;
     const { favorites, total } = await favoritesRepository.findManyByUserId(userId, query);
 
-    // No ?type= param: legacy AD-only path, exact pre-PR1 wire shape.
+    // No ?type= param: path, exact pre-PR1 wire shape.
     // ?type= given: PR2's generic wire shape for that single type. See
     // favorites.validation.ts's getFavoritesSchema comment for why
     // there's no combined/mixed-type response.

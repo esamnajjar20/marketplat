@@ -68,7 +68,7 @@ describe('searchRepository', () => {
       }
     );
 
-    // FIX SEARCH-AR-01 regression test: guards against a future edit
+    // regression test: guards against a future edit
     // reintroducing a bare to_tsvector(coalesce(...)) column expression
     // (still *correct* — arabic_normalize only normalizes, it doesn't
     // change results for already-normalized input — but it would
@@ -80,7 +80,7 @@ describe('searchRepository', () => {
     // Reads the real Prisma.Sql object's public `.sql` property (every
     // Prisma.Sql instance exposes this — the flattened, parameterized
     // SQL text with $1/$2/... placeholders) rather than trying to
-    // introspect the mocked $queryRaw call's tagged-template arguments.
+    // introspect the mocked $queryRaw call's tagged-arguments.
     // @prisma/client itself is NOT mocked in this file (only the
     // `prisma` client singleton is — see the jest.mock at the top), so
     // Prisma.sql/Prisma.join run as real, unmocked code here; `.sql` is
@@ -91,7 +91,7 @@ describe('searchRepository', () => {
       (prisma.$queryRaw as jest.Mock).mockImplementationOnce((strings: TemplateStringsArray, ...values: unknown[]) => {
         // `unioned` (the UNION ALL of all branches) and `orderBySql`
         // are BOTH interpolated Prisma.Sql objects into this same
-        // template — matching on `'UNION ALL'` in the flattened text
+        // matching on `'UNION ALL'` in the flattened text
         // (rather than just taking the first Prisma.Sql-shaped value)
         // makes this robust to that call's own argument order ever
         // changing, since `unioned` is specifically what carries every

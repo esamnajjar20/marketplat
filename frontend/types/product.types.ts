@@ -164,7 +164,7 @@ export interface ProductsQuery {
   /** Used by my-products (GET /products/me); ignored by the public browse endpoint. */
   status?: ProductStatus;
   /**
-   * PROMO-1 (Phase 10): true restricts results to products carrying a
+   * PROMO-1 (): true restricts results to products carrying a
    * live (SCHEDULED or ACTIVE) Promotion — see backend's
    * products.validation.ts getProductsSchema for the exact semantics
    * and its known lazy-status staleness window.

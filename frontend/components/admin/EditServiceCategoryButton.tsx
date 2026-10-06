@@ -3,7 +3,7 @@
 /**
  * EditServiceCategoryButton.
  *
- * FIX SEC-4.3: thin wrapper around the shared EditEntityCategoryDialog
+ * thin wrapper around the shared EditEntityCategoryDialog
  * (was previously a full ~115-line near-duplicate of
  * EditProductCategoryButton.tsx).
  */

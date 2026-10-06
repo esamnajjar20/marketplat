@@ -8,7 +8,7 @@ import { isDataSaverEnabled } from '@/lib/dataSaver';
 /**
  * SafeImage — next/image with a real runtime error fallback.
  *
- * FIX UX-12: getImageProps/getThumbnailUrl/PLACEHOLDER_SVG only cover
+ * getImageProps/getThumbnailUrl/PLACEHOLDER_SVG only cover
  * the "no URL provided" case (falls back before render). None of the
  * 28 files using next/image had an `onError` handler, so a URL that
  * *exists* but fails to actually load at runtime (a Cloudinary asset

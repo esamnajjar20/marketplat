@@ -210,7 +210,7 @@ describe('upload.middleware', () => {
     });
   });
 
-  // FIX LOAD-02: rejects a request whose Content-Length alone already
+  // rejects a request whose Content-Length alone already
   // exceeds the worst-case multipart size (10 files × 5MB + overhead),
   // before multer.memoryStorage() buffers a single byte of it. Tested
   // as a plain function against minimal req/res/next doubles rather

@@ -2,7 +2,7 @@
  * __tests__/components/FavoritesList.test.tsx
  *
  * Coverage gap: 0% prior coverage. Covers the loading skeleton, the
- * UX-FIX P1-8 error-before-empty ordering (a failed fetch must never
+ * error-before-empty ordering (a failed fetch must never
  * render as "no favorites"), the empty state with its CTA link,
  * pagination visibility, and EPIC 1.4's DeletedFavoriteCard branch
  * (a favorited ad whose owner deleted it renders a disabled

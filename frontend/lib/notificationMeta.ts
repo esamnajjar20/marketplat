@@ -2,7 +2,7 @@
  * مصدر واحد لأيقونات/تسميات/روابط/فئات الإشعارات —
  * تستهلكه NotificationBell و NotificationsPage.
  *
- * PHASE-A: مزامنة كاملة مع prisma NotificationType.
+ * مزامنة كاملة مع prisma NotificationType.
  */
 import {
   Bell,
@@ -214,7 +214,7 @@ export function hrefFor(notification: HrefSource): string | null {
     notification.type === 'WEEKLY_STORE_VIEWS_REPORT' ||
     notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT'
   ) {
-    // ROUTE-FIX-01: mirror the push `url` the backend cron scripts send
+    // mirror the push `url` the backend cron scripts send
     // (weeklyAdViewsReport → /dashboard, weeklyStoreViewsReport →
     // /my-store?tab=analytics, weeklyServiceViewsReport →
     // /my-services?tab=analytics) so in-app and push taps land the same place.
@@ -233,7 +233,6 @@ export function hrefFor(notification: HrefSource): string | null {
   return null;
 }
 
-/** تجميع حسب اليوم للعرض في مركز الإشعارات */
 export function dayBucketLabel(iso: string, now = new Date()): string {
   const d = new Date(iso);
   const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());

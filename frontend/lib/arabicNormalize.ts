@@ -1,5 +1,5 @@
 /**
- * FIX ARABIC-NORMALIZE-CLIENT-01: client-side counterpart of the
+ * client-side counterpart of the
  * backend's arabic_normalize() Postgres function
  * (backend/prisma/migrations/20260805212538_arabic_search_normalization)
  * and of searchTextMatch.ts's normalizeSearchText on the server.

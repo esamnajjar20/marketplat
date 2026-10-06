@@ -3,7 +3,7 @@ import { appointmentsController } from './appointments.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
-// FIX RATE-LIMIT-APPOINTMENTS-01: every mutation here used to rely
+// every mutation here used to rely
 // only on the global 600/15min cap. The public availability read was
 // scrapable and the two mutations could be scripted to fill a
 // provider's calendar.
@@ -25,7 +25,7 @@ appointmentsRouter.get(
 
 // Provider-only from here down (ownership enforced in the service layer).
 appointmentsRouter.get('/me', authenticate, CACHE.NONE, appointmentsController.getMyAppointments);
-// FIX APPT-VERIFY-CONSISTENCY: the two mutations had a rate limit but
+// the two mutations had a rate limit but
 // no requireVerifiedEmail, while every parallel mutation on the
 // sibling modules has both.
 appointmentsRouter.post(

@@ -1,5 +1,5 @@
 /**
- * FIX CACHE-METRICS-01: in-process counters for the SWR caches.
+ * in-process counters for the SWR caches.
  *
  * Why: until now nobody could answer "is the cache actually working?" —
  * hit ratio, how often a visitor pays a synchronous rebuild, how often Redis

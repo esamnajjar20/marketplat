@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { env } from '../../config/env';
 
 /**
- * PROD-FIX-15: refreshToken previously came back in the JSON response
+ * refreshToken previously came back in the JSON response
  * body (auth.controller.ts) and the frontend stored it in
  * localStorage (store/auth.store.ts) — readable by any JavaScript
  * running on the page, including an attacker's, if this app ever had
@@ -13,7 +13,7 @@ import { env } from '../../config/env';
  * JS — can no longer read it at all; only the browser can send it back
  * to this exact origin automatically.
  *
- * That fixes one problem (XSS-driven token theft) but introduces
+ * That one problem (XSS-driven token theft) but introduces
  * another: any cookie the browser sends automatically to matching
  * requests is also sent on cross-site requests a malicious page could
  * trigger (classic CSRF) — a bearer-token-in-header scheme never had
@@ -26,7 +26,7 @@ import { env } from '../../config/env';
  *   - httpOnly: true — the entire point; inaccessible to JS.
  *   - secure: true, always (required by sameSite:'none' below —
  *     browsers reject that combination without Secure).
- *   - sameSite: 'none' — DEPLOY-FIX-01: this app is deployed with the
+ *   - sameSite: 'none' — DEPLOY-this app is deployed with the
  *     frontend and backend on two different *.up.railway.app
  *     subdomains. `up.railway.app` is itself on the Public Suffix
  *     List, so those two hostnames are different *sites* to the
@@ -185,13 +185,13 @@ export function getCsrfCookieName(): string {
 }
 
 /**
- * AUDIT-FIX C-1 — session hint cookie.
+ * session hint cookie.
  *
  * Problem this closes: middleware.ts (Next.js Edge Runtime) decides
  * whether a visitor is "logged in" by reading the `app_access_token`
  * cookie — but that cookie is set ONLY by client-side JS (on
  * login/register, and again on every silent refresh — see
- * client.ts's FIX AUTH-03), with a short ~14min max-age matching the
+ * client.ts's ), with a short ~14min max-age matching the
  * access token's own lifetime. On a brand-new page load (new tab,
  * reopened browser, or simply after that cookie's max-age lapses) the
  * httpOnly `refreshToken` cookie set below can still be fully valid
@@ -217,7 +217,7 @@ export function getCsrfCookieName(): string {
 const SESSION_HINT_COOKIE_NAME = 'app_has_session';
 
 export function setSessionHintCookie(res: Response): void {
-  // FIX SESSION-HINT-HTTPONLY-01: httpOnly:true — only Edge middleware
+  // httpOnly:true — only Edge middleware
   // reads this; client JS never needs it.
   res.cookie(
     SESSION_HINT_COOKIE_NAME,
@@ -242,7 +242,7 @@ export function getSessionHintCookieName(): string {
 }
 
 /**
- * FIX M-004 — OAuth `state` CSRF protection.
+ * OAuth `state` CSRF protection.
  *
  * Previously /auth/google and /auth/google/callback used no `state`
  * parameter at all, running fully stateless (session: false, no
@@ -255,9 +255,9 @@ export function getSessionHintCookieName(): string {
  * same browser" from "an attacker is replaying/injecting a
  * dance they started" — the practical impact ranges from account
  * linking a victim's session to the attacker's Google identity, up to
- * session fixation, depending on exactly how the result is used.
+ * session , depending on exactly how the result is used.
  *
- * Fix follows the standard mitigation: generate a random, unguessable
+ * the standard mitigation: generate a random, unguessable
  * `state` value when the flow starts, store it server-side-of-the-
  * browser in a short-lived httpOnly cookie (never exposed to the
  * redirect URL's query string as the only copy — Google echoes it

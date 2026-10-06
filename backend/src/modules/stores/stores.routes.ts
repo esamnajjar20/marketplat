@@ -11,7 +11,7 @@ import {
   storeFollowRateLimit,
   storeReviewRateLimit,
   storeImagesRateLimit,
-  // FIX STORE-MEMBERS-RATELIMIT: reuse the store-images limiter (30/hr)
+  // reuse the store-images limiter (30/hr)
   // as a bound on member invite/update/remove — same "small number of
   // legitimate changes while the owner dials in their store" shape as
   // logos/covers, and no new limiter definition needed for two small
@@ -82,7 +82,7 @@ storesRouter.get(
 storesRouter.post(
   '/:id/members',
   authenticate,
-  // FIX STORE-MEMBERS-RATELIMIT: these three mutations had no rate
+  // these three mutations had no rate
   // limit at all — an owner or manager could loop any of them
   // arbitrarily (email spam via invite, role-flip spam, remove-then-
   // re-add churn). Reused the store-images limiter as the closest

@@ -32,7 +32,7 @@ export function getCachedHomeFeedWithStatus(
     lockTtlMs: HOME_FEED_LOCK_TTL_MS,
     build: () => homeFeedService.getHomeFeed(query, authHeader, userId),
     /**
-     * FIX HOME-FEED-CACHE-POISON-01: settle() turns a thrown section into
+     * settle() turns a thrown section into
      * null (vs an empty [] / {} for a successful-but-empty query). Writing
      * a degraded payload would pin that failure for HOME_FEED_HARD_TTL_SECONDS
      * (300s) — an entire rail silently empty for every visitor until the

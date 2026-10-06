@@ -110,7 +110,7 @@ function tokenize(query: string): string[] {
  * different one) is still exactly the kind of listing the user saved
  * the search to be notified about.
  *
- * Deliberately conservative: this is a fixed heuristic list, not NLP/
+ * Deliberately conservative: this is a heuristic list, not NLP/
  * POS-tagging, so it only ever includes words that are unambiguously
  * descriptive modifiers in classifieds listings — no brand names, no
  * product nouns, nothing that could itself be the whole point of a

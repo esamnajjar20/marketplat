@@ -207,20 +207,13 @@ const bootstrap = async (): Promise<void> => {
 
       server.close(async () => {
         clearTimeout(forceTimer);
-        // FIX D-12: previously the views buffer's flush timer was never
-        // stopped on shutdown, so up to 60s of buffered view-count
-        // increments sat in Redis until the *next* process's timer
-        // happened to pick them up. stopFlushTimer() performs a final
-        // flush, so a clean deploy/restart doesn't leave a window where
-        // Redis and Postgres views are out of sync longer than necessary.
+        // Flush buffered views during shutdown so Redis/Postgres do not diverge
+        // until the next process starts.
         await viewsBuffer.stopFlushTimer();
-        // FIX OPS-1.1: same reasoning as viewsBuffer above — without
-        // this, up to 5s of buffered activity rows (or more, under a
-        // burst — see MAX_BATCH_PER_FLUSH) sit in Redis until the next
-        // process's timer happens to drain them.
+        // Flush buffered activity during shutdown to avoid losing the pending
+        // batch between process restarts.
         await activityBuffer.stopFlushTimer();
-        // Phase 3: finish in-flight notification jobs while Prisma/Redis are still up.
-        // FIX-NOTIF-SHUTDOWN-01: await the import first (see notificationQueueStartup).
+        // Finish in-flight notification jobs while Prisma/Redis are still available.
         await notificationQueueStartup?.catch(() => undefined);
         await stopNotificationQueue?.();
         redisMemoryMonitor.stop();

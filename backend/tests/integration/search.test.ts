@@ -1,5 +1,5 @@
 /**
- * Integration coverage for GET /api/v1/search and /suggestions (Phase 2 / P1).
+ * Integration coverage for GET /api/v1/search and /suggestions (/ P1).
  *
  * Unit tests already cover searchService normalization + Redis cache
  * branches; this file pins the real HTTP surface, validation, and that

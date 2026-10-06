@@ -3,8 +3,8 @@ import { ConflictError } from '../errors/ConflictError';
 import { env } from '../../config/env';
 
 const STORE_LOCK_PREFIX = 'store_creation_lock:';
-// FIX M-009: was a hardcoded 15s — see env.ts's STORE_LOCK_TTL_SECONDS
-// comment / sellerLock.ts's identical fix for the full rationale. Now
+// was a hardcoded 15s — see env.ts's STORE_LOCK_TTL_SECONDS
+// comment / sellerLock.ts's identical the full rationale. Now
 // configurable, defaulting to 30s.
 const STORE_LOCK_TTL_SECONDS = env.locks.storeLockTtlSeconds;
 

@@ -1,5 +1,5 @@
 /**
- * FIX SW-READY-HANG-01: navigator.serviceWorker.ready never resolves (and
+ * navigator.serviceWorker.ready never resolves (and
  * never rejects) when no Service Worker is registered at all — a documented
  * quirk of the spec: the promise waits for an activation that will never
  * come. This is fine in production where sw.js registers unconditionally,

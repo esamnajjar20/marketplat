@@ -1,5 +1,5 @@
 /**
- * PHASE-4: surface server conflicts (409/412) from the offline queue.
+ * surface server conflicts (409/412) from the offline queue.
  * Strategy: last-write-wins is already what a successful retry does;
  * when the server rejects, we notify the user to review or discard.
  */

@@ -5,7 +5,7 @@
  * create/createMany publish a small JSON event to that user's sockets
  * and over Redis so other app instances deliver too.
  *
- * Phase 3 — resumable stream:
+ * resumable stream:
  *  - Persistable events (notification, message:*) are appended to a short-lived
  *    per-user Redis Stream (replayBuffer.ts); the entry id is sent as the SSE
  *    `id:`. A client that reconnects with `Last-Event-ID` gets what it missed
@@ -97,7 +97,7 @@ type Client = {
   /** Highest id written to this client — drops duplicates between replay and live. */
   lastSentId?: string;
   /**
-   * FIX-REPLAY-ORDER-01: true only while replayThenGoLive writes replayed
+   * true only while replayThenGoLive writes replayed
    * entries. The "already sent" id check in sendToClient runs ONLY then —
    * live delivery must never drop a message just because a concurrent
    * publish of a different event finished its XADD first (id order is not
@@ -112,7 +112,7 @@ let subscriber: Redis | null = null;
 let redisReady: Promise<void> | null = null;
 
 function replayOptions(): ReplayOptions {
-  // Optional chaining: some unit-test mocks of `env` predate Phase 3.
+  // Optional chaining: some unit-test mocks of `env` predate 
   return {
     maxEvents: env.sseReplay?.maxEvents ?? 100,
     ttlSeconds: env.sseReplay?.ttlSeconds ?? 3600,
@@ -146,7 +146,7 @@ function writeSse(res: Response, event: string, data: unknown, id?: string): voi
 
 /** Writes one event to one client, skipping anything it has already been sent. */
 function sendToClient(client: Client, payload: LiveStreamEvent, id?: string): void {
-  // FIX-REPLAY-ORDER-01: dedup only during replay; live order is not guaranteed.
+  // dedup only during replay; live order is not guaranteed.
   if (client.duringReplay && id && client.lastSentId && compareEventIds(id, client.lastSentId) <= 0) return;
   try {
     writeSse(client.res, eventNameFor(payload), payload, id);
@@ -241,7 +241,7 @@ async function replayThenGoLive(userId: string, client: Client, lastEventId?: st
       // tail first would only apply some events twice.
       if (!gap) {
         for (const { id, event } of result.events) {
-          // FIX-BULK-GAP-01: a >BULK_NO_BUFFER_THRESHOLD fan-out left only
+          // a >BULK_NO_BUFFER_THRESHOLD fan-out left only
           // this tiny marker (its real events were never buffered), so the
           // tail is not a complete record. Treat it as a gap → resync.
           if ((event as { __bulkGap?: boolean } | null | undefined)?.__bulkGap === true) {
@@ -260,9 +260,9 @@ async function replayThenGoLive(userId: string, client: Client, lastEventId?: st
     }
   }
 
-  // FIX N5-REPLAY-DEDUP: keep duringReplay=true while flushing `pending`
+  // keep duringReplay=true while flushing `pending`
   // so sendToClient still drops ids already written during Redis replay.
-  // Supersedes FIX-REPLAY-ORDER-01 — that earlier fix cleared duringReplay
+  // Supersedes that earlier duringReplay
   // before the flush and is now moved below it.
   // Previously duringReplay was cleared first, so an event published
   // mid-replay (buffered in pending AND present in the replay tail)
@@ -337,7 +337,7 @@ export async function publishNotificationEvent(
 }
 
 /**
- * FIX-BULK-GAP-01: best-effort marker appended to a user's replay stream when
+ * best-effort marker appended to a user's replay stream when
  * a fan-out is too large to buffer. Seeing it on reconnect, replayThenGoLive
  * emits `resync` (client refetches from Postgres) instead of trusting an
  * empty tail. Cost is one XADD per recipient, independent of fan-out size.
@@ -368,7 +368,7 @@ export async function publishNotificationEventToMany(
   const unique = Array.from(new Set(userIds));
   const buffer = unique.length <= BULK_NO_BUFFER_THRESHOLD;
   if (!buffer) {
-    // FIX-BULK-GAP-01: no per-user replay entry for the real event; drop a
+    // no per-user replay entry for the real event; drop a
     // marker so a reconnecting client knows its replay tail is not complete.
     await Promise.all(unique.map((id) => appendBulkGapMarker(id)));
   }

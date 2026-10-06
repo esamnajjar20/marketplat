@@ -5,7 +5,7 @@
  * Before this file each of lib/{myStore,myServices,activity,settings}HubTabs.ts
  * carried its own byte-for-byte copy of isTab / resolveTab / tabHref /
  * searchForTabSwitch. Those modules now only declare their data (tab list,
- * default tab, legacy path map) and re-export the functions built here under
+ * default tab, map) and re-export the functions built here under
  * their historical names, so no caller or test had to change.
  *
  * Pure module (no React, no browser globals) so it is unit-testable.
@@ -31,7 +31,7 @@ export function createHubTabs<T extends string>(config: HubTabsConfig<T>) {
     return typeof value === 'string' && (tabs as readonly string[]).includes(value);
   }
 
-  /** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
+  /** Tab requested by `?tab=…`, or by a Null when absent/unknown. */
   function resolveTab(search: string, pathname: string = hubPath): T | null {
     try {
       const fromQuery = new URLSearchParams(search).get('tab');

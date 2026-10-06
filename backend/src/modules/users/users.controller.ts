@@ -94,7 +94,7 @@ export const usersController = {
   },
 
   /**
-   * FIX FEAT-02: PATCH /users/me/notifications — previously the
+   * PATCH /users/me/notifications — previously the
    * frontend's save button had no corresponding endpoint to call.
    */
   updateNotificationPreferences: async (
@@ -115,9 +115,9 @@ export const usersController = {
     try {
       const user = requireUser(req);
       const { body } = changePasswordSchema.parse({ body: req.body });
-      // FIX SEC-07: pass the current access token so changePassword can
+      // pass the current access token so changePassword can
       // blacklist it — same extraction pattern as authController.logoutAll.
-      // FIX BEARER-TOKEN-HELPER-01: unified with auth.controller.
+      // unified with auth.controller.
       const accessToken = getBearerToken(req);
       await usersService.changePassword(user.userId, body.currentPassword, body.newPassword, accessToken);
       res.status(200).json(successResponse('Password changed successfully'));

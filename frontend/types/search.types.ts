@@ -27,7 +27,7 @@ export interface SearchResultSeller {
   name: string;
   verified: boolean;
   /**
-   * COMPAT-AUDIT fix: backend's search.service.ts (FIX M-023) always
+   * COMPAT-AUDIT fix: backend's search.service.ts () always
    * sends this — `id` above resolves to a different kind of entity
    * depending on the result's `type` (adBranch uses the ad's
    * SellerProfile/User id, productBranch/storeBranch use the store's

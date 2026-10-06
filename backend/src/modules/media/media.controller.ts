@@ -29,7 +29,7 @@ export const mediaController = {
       // the caller's job to decide what to do with a partial batch
       // when it gets a 500), and the alternative — sequential with
       // per-file error handling — reintroduces the latency problem
-      // this fixes. Same trade-off as every other multi-image upload
+      // this Same trade-off as every other multi-image upload
       // path in this codebase.
       const uploaded = await Promise.all(
         files.map(async (file) => {

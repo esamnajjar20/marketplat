@@ -14,7 +14,6 @@ export function useMyPromotions() {
   });
 }
 
-/** GET /promotions/:id */
 export function usePromotion(id: string) {
   return useQuery({
     queryKey: queryKeys.promotions.detail(id),

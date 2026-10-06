@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * FIX PASSWORD-STRENGTH-01: 8-char minimum alone lets anything from
+ * 8-char minimum alone lets anything from
  * "12345678" to "password" through — a real problem on a marketplace
  * whose users sign up in bulk and have every incentive to pick the
  * shortest, easiest string possible. A full password-strength library
@@ -27,7 +27,7 @@ const COMMON_WEAK_PASSWORDS = new Set([
   'palestine', 'gaza', 'غزة', 'فلسطين', 'محمد', 'احمد',
 ]);
 
-// FIX USERS-PASSWORD-STRENGTH-01: exported so users.validation's
+// exported so users.validation's
 // changePasswordSchema can reuse the exact same weak-password
 // rejection — otherwise POST /users/me/password would accept
 // "12345678" even though register and reset-password reject it.
@@ -61,9 +61,9 @@ export const loginSchema = z.object({
 });
 
 /**
- * FIX DEAD-08: refreshSchema (and its derived RefreshInput type) removed.
+ * refreshSchema (and its derived RefreshInput type) removed.
  * Both were dead code left over from before the httpOnly-cookie refresh
- * flow (PROD-FIX-15) — refreshToken is now read from the cookie via
+ * flow () — refreshToken is now read from the cookie via
  * getRefreshTokenFromCookie(req) in auth.controller.ts, never from a
  * request body, so a schema validating a `body.refreshToken` field no
  * longer matches how refresh is actually handled and could mislead a
@@ -78,7 +78,7 @@ export const forgotPasswordSchema = z.object({
   }),
 });
 
-// FIX FEAT-EMAIL-VERIFY: consumed by POST /auth/verify-email. Token
+// consumed by POST /auth/verify-email. Token
 // is the 64-char hex string generated in auth.service.ts's register()
 // and resendVerification(); min(1) is defensive — the service checks
 // existence in DB anyway.
@@ -88,7 +88,7 @@ export const verifyEmailSchema = z.object({
   }),
 });
 
-// FIX FEAT-EMAIL-VERIFY: POST /auth/resend-verification takes no body
+// POST /auth/resend-verification takes no body
 // — the user is identified by their auth token. Empty schema for
 // symmetry with the middleware chain.
 export const resendVerificationSchema = z.object({

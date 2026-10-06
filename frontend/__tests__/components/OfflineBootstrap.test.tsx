@@ -1,7 +1,7 @@
 /**
  * __tests__/components/OfflineBootstrap.test.tsx
  *
- * الكود المصدر يمرّر التسخين عبر offlineWarmingScheduler (FIX WARM-SCHEDULE-01)
+ * الكود المصدر يمرّر التسخين عبر offlineWarmingScheduler ()
  * والـ pipeline — وهذا الاختبار كان ما زال يفترض استدعاء warmCoreBundle/
  * warmRouteShells مباشرة وبشكل متزامن عند الـ mount (لم يعد صحيحًا منذ
  * WARM-PIPELINE-01). أُعيدت كتابته ليختبر عقد المكوّن الفعلي: أي محفّز

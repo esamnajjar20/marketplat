@@ -1,7 +1,7 @@
 /**
  * __tests__/app/StorePage.recommendations.test.tsx
  *
- * PR4C + Phase 3: public store page mounts StoreRecommendations with
+ * PR4C + public store page mounts StoreRecommendations with
  * excludeStoreId, StoreHeader, and StoreStorefront (tabs).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';

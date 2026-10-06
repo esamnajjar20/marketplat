@@ -1,7 +1,7 @@
 /**
  * e2e/tests/favorites.spec.ts
  *
- * PROD-FIX-14: favorites was explicitly listed in e2e/README.md's
+ * favorites was explicitly listed in e2e/README.md's
  * "What's still NOT covered" section — "no spec file yet." This covers
  * the real user-facing flow: favoriting an ad from its detail page,
  * seeing it appear in /favorites, and un-favoriting it from there,
@@ -58,7 +58,7 @@ test.describe('Favorites', () => {
   });
 
   test('shows the empty state when a user has no favorites', async ({ page }) => {
-    // authedPage fixture registers a brand-new user with no favorites
+    // authedPage registers a brand-new user with no favorites
     // yet — no setup needed beyond visiting the page directly.
     await page.goto('/favorites');
 
@@ -74,7 +74,7 @@ test.describe('Favorites', () => {
     await page.reload();
 
     // FavoritesList/AdDetail derive favorited state from the server
-    // (see api/favorites.api.ts's FIX H-05 note: no client-only
+    // (see api/favorites.api.ts's note: no client-only
     // favorited flag, state is always re-derived from the favorites
     // list) — a reload must still show the ad as favorited, not reset
     // to un-favorited, which would indicate favorite state is only
@@ -87,10 +87,10 @@ test.describe('Favorites', () => {
 
   test('an unauthenticated visitor is prompted to log in instead of favoriting', async ({ browser }) => {
     // Deliberately a fresh, unauthenticated context rather than the
-    // authedPage fixture — this test is specifically about the
+    // authedPage this test is specifically about the
     // logged-out path (AdDetail.tsx's handleFavorite: `if (!isAuth) {
     // toast.error(...); return; }`), so it must not inherit a logged-in
-    // session from the fixture.
+    // session from the 
     const context = await browser.newContext();
     const guestPage = await context.newPage();
 

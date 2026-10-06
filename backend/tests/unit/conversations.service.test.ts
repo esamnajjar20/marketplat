@@ -298,7 +298,7 @@ describe('conversationsService', () => {
   });
 
   describe('getMyConversations', () => {
-    // FIX UX-15: separate from the shared mockConversation above —
+    // separate from the shared mockConversation above —
     // only findManyForUser's result shape (ConversationListItem) has
     // unreadCount; other mockConversation consumers in this file use
     // the plain ConversationWithRelations shape and shouldn't need to

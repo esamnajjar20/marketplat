@@ -1,7 +1,7 @@
 import type { AuditLogDetails } from './auditLog';
 
-// FIX OPS-3.2: `details` is a flat object of primitives (see
-// auditLog.ts's own FIX SEC-3.3 comment on AuditLogDetails), and every
+// `details` is a flat object of primitives (see
+// auditLog.ts's own comment on AuditLogDetails), and every
 // current call site across modules/ only ever passes safe identifiers
 // and state (storeId, newRole, reason, ...). Nothing today puts a
 // password/token/card number in there — but nothing before this
@@ -10,7 +10,7 @@ import type { AuditLogDetails } from './auditLog';
 // admins investigating an incident (see audit-logs.repository.ts),
 // which is exactly the wrong place for a secret to leak into.
 //
-// This is a defense-in-depth net, not a fix for a live exploit: it
+// This is a defense-in-depth net, not a a live exploit: it
 // redacts by key name so a mistake at a future call site degrades to
 // "[REDACTED]" in the stored row instead of the actual secret value,
 // without requiring every call site to remember to scrub its own

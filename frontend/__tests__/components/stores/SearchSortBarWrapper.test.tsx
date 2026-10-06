@@ -3,7 +3,7 @@
  *
  * Covers components/stores/SearchSortBarWrapper.tsx — the URL-binding
  * layer around the shared SearchSortBar for /stores. Moved out of
- * StoresFilters (audit item #8, FIX P2-08); replaces that component's
+ * StoresFilters (audit item #8, ); replaces that component's
  * former "renders all sort options and applies sortBy/sortOrder
  * together" test.
  */

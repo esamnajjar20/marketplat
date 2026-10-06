@@ -53,7 +53,7 @@ export function isMyStoreTab(value: unknown): value is MyStoreTab {
   return hub.isTab(value);
 }
 
-/** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
+/** Tab requested by `?tab=…`, or by a Null when absent/unknown. */
 export const resolveMyStoreTab = hub.resolveTab;
 
 /** `/my-store?tab=products` (+ optional extra params, e.g. productId). The

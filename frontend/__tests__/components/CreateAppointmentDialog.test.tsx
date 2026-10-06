@@ -3,7 +3,7 @@
  *
  * Previously uncovered. Shared between two entry points (standalone
  * booking and per-row action on an accepted service request) — the
- * component's own comment (UX-FIX P1-2) flags a real fixed bug: closing
+ * component's own comment () flags a real bug: closing
  * and reopening this dialog mid-request used to let a user submit a
  * second booking before the first resolved, because close only reset
  * local state with no pending guard at all. That guard (blocking

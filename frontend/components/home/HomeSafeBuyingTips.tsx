@@ -23,7 +23,7 @@ const STEPS = [
 ] as const;
 
 /**
- * Phase C: short collapsible “buy safely” guide near the bottom of home.
+ * short collapsible “buy safely” guide near the bottom of home.
  * Closed by default so it does not compete with discovery sections.
  */
 export function HomeSafeBuyingTips() {

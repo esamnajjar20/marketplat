@@ -19,7 +19,7 @@ export const adsController = {
       const user = requireUser(req);
       const { body } = createAdSchema.parse({ body: req.body });
       const files = (req.files as Express.Multer.File[]) || [];
-      // FIX LOAD-TEST-01: the frontend's AdForm.validate() enforces "at
+      // the frontend's AdForm.validate() enforces "at
       // least one image" as a UI-only rule (see AdForm.tsx's
       // e.images = 'أضف صورة واحدة على الأقل' check) — nothing on the
       // backend actually enforced it. addImages (below) already checks
@@ -29,7 +29,7 @@ export const adsController = {
       // client) could publish an ad with zero images, bypassing what
       // every real user going through the UI is required to provide.
       //
-      // TRACK-IMG-HOSTING: re-enabled under FIX PROD-AUDIT-01 now that
+      // TRACK-IMG-HOSTING: re-enabled under now that
       // config/env.ts's superRefine fails startup in production when
       // Cloudinary isn't configured — a working upload service is
       // therefore guaranteed by the time this line runs in production.
@@ -38,7 +38,7 @@ export const adsController = {
       // cases un-skipped in ads.controller.test.ts (search that file
       // for TRACK-IMG-HOSTING).
       //
-      // FIX BUG-IMG-REQ-01: this threw with no explicit code, so it
+      // this threw with no explicit code, so it
       // fell through to error.middleware.ts's generic 400 fallback
       // (VALIDATION_ERROR) — the user saw "البيانات المرسلة غير
       // صحيحة" with no indication the actual problem was a missing
@@ -46,7 +46,7 @@ export const adsController = {
       // ar/errors.ts's IMAGE_REQUIRED entry) can show a message that
       // actually names the problem.
       if (files.length === 0) throw new BadRequestError('At least one image is required', 'IMAGE_REQUIRED');
-      // FIX OFFLINE-IDEMPOTENCY-01: forward client offline op id for dedup
+      // forward client offline op id for dedup
       const offlineOpId =
         (req.headers['x-offline-op-id'] as string | undefined) ||
         (req.headers['X-Offline-Op-Id'] as string | undefined) ||
@@ -62,7 +62,7 @@ export const adsController = {
     try {
       const { query } = getAdsSchema.parse({ query: req.query });
       const result = await adsService.getAds(query);
-      // FIX CACHE-HTTP-STALENESS-02: no Cache-Control override here. The
+      // no Cache-Control override here. The
       // route already applies CACHE.LIVE (30s + 30s swr, Vary: Authorization);
       // this handler used to overwrite it with 30s + 90s swr, silently
       // undoing CACHE-HTTP-STALENESS-01 for the ads list.
@@ -88,7 +88,7 @@ export const adsController = {
   getMyAds: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      // FIX D-24: was getAdsSchema (no status field) — now getMyAdsSchema,
+      // was getAdsSchema (no status field) — now getMyAdsSchema,
       // which accepts a user-supplied status scoped to ACTIVE/SOLD only.
       const { query } = getMyAdsSchema.parse({ query: req.query });
       const result = await adsService.getMyAds(user.userId, query);
@@ -100,7 +100,7 @@ export const adsController = {
     }
   },
 
-  // FIX BUG-06/BUG-07: dedicated aggregate-stats endpoint for
+  // dedicated aggregate-stats endpoint for
   // DashboardStats.tsx — see ads.service.ts's getMyStats for why this
   // replaces the previous fetch-a-page-and-reduce-client-side approach.
   getMyStats: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

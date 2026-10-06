@@ -17,7 +17,7 @@
  *  - routes map tracks per-route progress so a warming run that gets
  *    interrupted can resume. A route is 'complete' only when ALL its
  *    chunks have been verified present in STATIC_CACHE — never on
- *    partial success. This is the fix for the old
+ *    partial success. This is the the old
  *    WARM-FALSE-SUCCESS-01 bug where a single stored file marked the
  *    whole run as successful.
  *  - lastSweepAt gates orphan sweep frequency — no reason to sweep
@@ -143,7 +143,7 @@ export async function readSnapshot(): Promise<WarmingSnapshot | null> {
  * currently-active cache version. A mismatch (deploy bumped
  * CACHE_VERSION) means the snapshot's "complete" routes refer to chunks
  * that no longer exist — we wipe it and return null so the caller
- * treats every route as fresh and re-warms. This is the fix for the
+ * treats every route as fresh and re-warms. This is the the
  * "warming thinks everything is done, cache is empty" failure mode.
  */
 export async function readSnapshotForCacheVersion(
@@ -167,7 +167,7 @@ export async function readSnapshotForCacheVersion(
         //   marketplat:personal-shells:last-warmed:<version>
         //   marketplat:drip-last-pass:<version>
         //   marketplat:core-bundle:last-warmed:<version>  (offlineCoreBundle)
-        // CORE-KEY-TYPO-FIX-01: was 'marketplat:core-last-warmed' —
+        // CORE-KEY-TYPO-was 'marketplat:core-last-warmed' —
         // the actual constant in offlineCoreBundle.ts is
         // 'marketplat:core-bundle:last-warmed'. The prefix never
         // matched, so core's stale marker was never cleaned up.
@@ -215,7 +215,7 @@ export async function writeSnapshot(snap: WarmingSnapshot): Promise<void> {
  * reason to break the calling flow.
  */
 // SW-WARM-CACHE-VERSION-WRITE-01: set by callers (offlineRouteShells)
-// so every patchRouteStatus call records which cache version the
+// so every call records which cache version the
 // snapshot describes. Module-scoped to avoid threading it through
 // every call site.
 let __activeCacheVersion = '';

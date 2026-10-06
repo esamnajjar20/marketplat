@@ -100,7 +100,7 @@ export function useUploadStoreCover() {
  * the shape of `_count`, so this simply invalidates on settle — the
  * detail page refetches with the accurate count from the server.
  *
- * FIX BUG-03 (cont.): also update queryKeys.stores.followedIds()
+ * (cont.): also update queryKeys.stores.followedIds()
  * directly and synchronously here — this is the Set useIsFollowingStore
  * reads to decide the button's label. Without this, the button only
  * flipped after the invalidated followed-list query finished refetching

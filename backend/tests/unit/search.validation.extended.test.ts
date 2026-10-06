@@ -77,7 +77,7 @@ describe('search.validation', () => {
       expect(() => searchQuerySchema.parse({ query: { city: 'x'.repeat(101) } })).toThrow();
     });
 
-    // TRACK-NEARBY-SEARCH / Phase 2: geo params
+    // TRACK-NEARBY-SEARCH / geo params
     it('rejects lat without lng (must be provided together)', () => {
       expect(() => searchQuerySchema.parse({ query: { lat: 31.5 } })).toThrow();
     });

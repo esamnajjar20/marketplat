@@ -43,12 +43,10 @@ function l1Del(userId: string): void {
   L1.delete(userId);
 }
 
-// ---------------------------------------------------------------------
 // Cross-worker L1 invalidation (see userCache.ts for the full block).
 // Same redis.duplicate() + subscribe + l1Del-on-message pattern. Eager
 // init from server.ts bootstrap on every worker so no invalidation is
 // missed while a worker is still warming up.
-// ---------------------------------------------------------------------
 
 let subscriber: Redis | null = null;
 let subscriberReady: Promise<void> | null = null;

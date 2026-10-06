@@ -229,7 +229,7 @@ describe('adsRepository', () => {
       expect(prisma.ad.count).not.toHaveBeenCalled();
     });
 
-    // FIX SEARCH-AR-01 regression test: guards against a future edit
+    // regression test: guards against a future edit
     // reintroducing a bare to_tsvector(coalesce(...)) column expression
     // or an un-normalized plainto_tsquery(...) search term — either
     // would still return *correct* results for already-normalized
@@ -396,7 +396,7 @@ describe('adsRepository', () => {
       expect(result).toEqual({ activeAds: 0, soldAds: 0, totalViews: 0 });
     });
 
-    // FIX BUG-06/BUG-07 regression guard: the entire point of this method
+    // regression guard: the entire point of this method
     // is that it's a real aggregate with no page-size ceiling — a seller
     // with hundreds of ads must produce an accurate count exactly like a
     // seller with a handful, since groupBy/aggregate never LIMIT/OFFSET.

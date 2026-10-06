@@ -27,50 +27,15 @@ import { logger } from '../../shared/utils/logger';
 import { GoogleProfileData } from './google.strategy';
 
 const MAX_EMAIL_ATTEMPTS = 5;
-// FIX IP-NAT-SMART-COUNTER: was 50. On Gaza's carrier-grade NAT a
-// single cell tower puts hundreds of subscribers behind one public
-// IPv4, so a 50-attempts-per-hour budget is effectively a per-tower
-// budget — the first 50 mistyped passwords from anyone on the tower
-// locked out everybody on it, which was reported in production as
-// "everyone in my neighborhood got 'Too many requests from this
-// network' for an hour". Raised to 500 (~10x) so a busy tower's
-// ordinary user churn never reaches the ceiling, and paired with
-// MAX_IP_DISTINCT_EMAILS below, which is what actually distinguishes
-// a spray from a legitimately busy tower.
+// 500 attempts/hour avoids false lockouts on carrier-grade NAT while
+// MAX_IP_DISTINCT_EMAILS remains the stronger credential-spray signal.
 const MAX_IP_ATTEMPTS = 500;
-// FIX IP-NAT-SMART-COUNTER: lockout signal #2. A single attacker
-// spraying credentials against many victims' emails grows the
-// distinct-email Set very fast; a busy tower's legitimate failures
-// spread across a much smaller set of addresses (most users just
-// mistype their own email once and give up, and the tower's real
-// ceiling is the number of subscribers, not the number of attempts).
-// 300 was chosen to sit well above the realistic worst case for a
-// 1000-subscriber tower in one hour while still catching a spray
-// within seconds. See tokenStore.ts's FAILED_IP_EMAILS_PREFIX for
-// the counter this threshold is checked against.
+// Distinct failed emails detect credential spraying without treating
+// ordinary carrier-grade NAT password mistakes as a single attacker.
 const MAX_IP_DISTINCT_EMAILS = 300;
 const LOCKOUT_DURATION = 30 * 60;
 
-/**
- * FIX FORGOT-PASSWORD-TIMING-01: the minimum wall-clock time a
- * forgotPassword() response may take, regardless of whether the
- * requested email actually exists. Without this floor, an
- * unauthenticated caller could distinguish registered emails from
- * unknown ones by response latency alone: the "user not found" branch
- * returns in a few milliseconds while a real request pays for a DB
- * write and a full SMTP round trip (~250-1000ms). The rate limit
- * (3/hour per IP) slows the attack but does not close it — a patient
- * attacker with a few residential proxies can still enumerate a
- * meaningful fraction of the user base per day. This is the same
- * CWE-208 class we already closed in login() via
- * comparePasswordOrDummy; here a fixed time-floor is the appropriate
- * tool because the two branches do genuinely different work and we
- * don't want to run the full pipeline for nonexistent users.
- *
- * 700ms is chosen above the realistic minimum cost of a database
- * write + local SMTP handshake on the production deployment, so the
- * floor is what actually dominates the response in both branches.
- */
+/** Keep forgot-password responses from revealing account existence by timing. */
 const FORGOT_PASSWORD_MIN_MS = 700;
 
 function sleep(ms: number): Promise<void> {

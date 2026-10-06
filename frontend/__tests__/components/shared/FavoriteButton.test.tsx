@@ -4,7 +4,7 @@
  * FEAT-FAVORITE-POLYMORPHIC PR3: FavoriteButton is the shared,
  * entity-agnostic heart button used by ProductCard/StoreCard/
  * StoreHeader/ServiceListingCard/ServiceListingDetail. Same coverage
- * shape as AdCard.test.tsx's "favorite button (FIX P1-1)" block (the
+ * shape as AdCard.test.tsx's "favorite button ()" block (the
  * inline heart button this component was factored out of), plus the
  * one thing genuinely new here: the `warm` prop's effect on whether
  * useFavoriteEntityCheck's network call fires — mocked rather than

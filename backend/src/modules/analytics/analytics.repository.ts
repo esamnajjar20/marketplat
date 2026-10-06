@@ -4,7 +4,7 @@ import { TrackEventInput } from './analytics.validation';
 import { env } from '../../config/env';
 import { runWithQueryTimeout } from '../../shared/utils/queryTimeout';
 
-// FIX ANALYTICS-FUNNEL-COUNT-01: the two funnel-count queries now use
+// the two funnel-count queries now use
 // COUNT(DISTINCT sessionId) + runWithQueryTimeout (was findMany +
 // distinct + .length, unbounded and timeout-unprotected).
 
@@ -61,7 +61,7 @@ export const analyticsRepository = {
   // because Prisma's groupBy can't bucket a DateTime column; date_trunc
   // is the standard Postgres way to do this without pulling every row
   // back and bucketing in application code.
-  // AUDIT-FIX 1.3: wrapped in runWithQueryTimeout — see that helper's
+  // wrapped in runWithQueryTimeout — see that helper's
   // doc comment. A wide admin-selected [from, to) range times out
   // cleanly (AnalyticsQueryTimeoutError -> 503) instead of holding a
   // connection indefinitely.
@@ -106,7 +106,7 @@ export const analyticsRepository = {
     return rows.map(r => ({ categoryId: r.categoryId, count: Number(r.count) }));
   },
 
-  // FIX ANALYTICS-FUNNEL-COUNT-01: was findMany + distinct + .length for
+  // was findMany + distinct + .length for
   // each half — Prisma's distinct ran at the DB, then N distinct
   // sessionIds were materialized into memory and shipped over the wire
   // just to call .length on them. On a wide admin range (year-long), that
@@ -147,7 +147,7 @@ export const analyticsRepository = {
     };
   },
 
-  // FIX ANALYTICS-FUNNEL-COUNT-01 (part 2): same shape/rationale as
+  // (part 2): same shape/rationale as
   // searchToContactSessions above -- COUNT(DISTINCT sessionId) + timeout
   // instead of materializing N distinct sessionIds to call .length on
   // them.

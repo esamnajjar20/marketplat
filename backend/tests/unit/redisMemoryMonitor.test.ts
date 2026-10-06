@@ -2,7 +2,7 @@ import type { redis as RedisModule } from '../../src/config/redis';
 import type { logger as LoggerModule } from '../../src/shared/utils/logger';
 
 /**
- * PROD-FIX-11 coverage: redisMemoryMonitor.ts is the piece that turns
+ * coverage: redisMemoryMonitor.ts is the piece that turns
  * docker-compose.yml's `maxmemory-policy noeviction` from an
  * unmonitored tradeoff into an observable one. Covers: INFO memory
  * parsing, the Prometheus gauges being set correctly, the 80%

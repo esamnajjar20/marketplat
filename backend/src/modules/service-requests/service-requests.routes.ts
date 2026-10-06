@@ -32,7 +32,7 @@ serviceRequestsRouter.post(
   createServiceRequestRateLimit,
   serviceRequestsController.createRequest
 );
-// FIX SR-RESPOND-LIMITS: respond was the only mutating route in this
+// respond was the only mutating route in this
 // router without requireVerifiedEmail or a rate limit, while POST /
 // (creation) had both. The transition is the more sensitive of the two
 // — it moves quoted/agreed prices and flips the provider's lifetime

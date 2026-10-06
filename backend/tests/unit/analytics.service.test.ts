@@ -1,5 +1,5 @@
 /**
- * analytics.service unit coverage (Phase 3 / P2) — previously 0 unit tests.
+ * analytics.service unit coverage (/ P2) — previously 0 unit tests.
  */
 import { analyticsService } from '../../src/modules/analytics/analytics.service';
 import { analyticsRepository } from '../../src/modules/analytics/analytics.repository';

@@ -2,7 +2,7 @@
  * AuthDivider — the "──── أو ────" separator between the primary submit
  * button and GoogleAuthButton.
  *
- * AUDIT-FIX auth-duplication: LoginForm and RegisterForm each inlined
+ * LoginForm and RegisterForm each inlined
  * the exact same six lines (divider line + centered "أو" span) with
  * zero differences between them. Extracted once so any future visual
  * change to the separator doesn't need to be made in two places again.

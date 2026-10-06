@@ -1,7 +1,7 @@
 /**
  * Logo — the brand mark.
  *
- * FIX UX-01: previously just plain text with no visual identity — a
+ * previously just plain text with no visual identity — a
  * <span> in the default font weight, indistinguishable from any other
  * heading on the page. The mark now pairs a small glyph with the
  * wordmark: a rounded square carrying a stylised "س" (the first letter

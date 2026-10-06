@@ -17,7 +17,7 @@ const config: Config = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'text-summary', 'lcov', 'html'],
-  // FIX AUDIT-V5-01: no threshold existed at all — coverage was tracked
+  // no threshold existed at all — coverage was tracked
   // (reports generated) but never enforced, so nothing actually failed
   // CI if a large new module shipped with zero tests. Every existing
   // module (see src/modules/*) already has both a *.service.test.ts

@@ -227,7 +227,7 @@ describe('serviceProvidersService', () => {
       expect(result).toEqual({ ...withSeller, listings: activeListings });
     });
 
-    // SEC-FIX regression: see getPublicServiceProvider's comment — a
+    // SEC-see getPublicServiceProvider's comment — a
     // suspended seller's provider must 404 here even though
     // findPublicById itself has no way to filter for it.
     it('throws NotFoundError when the seller is suspended', async () => {

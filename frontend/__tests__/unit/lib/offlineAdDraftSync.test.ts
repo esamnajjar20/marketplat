@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/offlineAdDraftSync.test.ts
  *
- * FIX AD-DRAFT-QUEUE-LINK-01: before this, a QUEUE_ITEM_SENT/FAILED
+ * before this, a QUEUE_ITEM_SENT/FAILED
  * message from the SW and the ad draft it corresponds to were two
  * completely unlinked systems (see audit — permanently-stuck "awaiting
  * upload" drafts even after the underlying ad had actually published).

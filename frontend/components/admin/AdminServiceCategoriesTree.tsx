@@ -7,7 +7,7 @@
  * backend (create/update/delete, all requireAdmin-protected) with zero
  * frontend UI.
  *
- * FIX SEC-4.2: this used to be a ~165-line near-duplicate of
+ * this used to be a ~165-line near-duplicate of
  * AdminProductCategoriesTree.tsx. Both are now thin wrappers around the
  * shared AdminEntityCategoriesTree, supplying only what's actually
  * service-specific: the data/mutation hooks, the Wrench icon, the

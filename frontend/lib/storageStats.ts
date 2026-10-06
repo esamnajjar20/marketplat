@@ -75,7 +75,7 @@ async function measureCache(name: string): Promise<{ entries: number; bytes: num
 }
 
 /**
- * FIX STORAGE-STATS-USER-SCOPE: كان listAdDrafts() يُستدعى بلا userId،
+ * كان listAdDrafts() يُستدعى بلا userId،
  * فتُحتسب مسودات كل المستخدمين على نفس الجهاز في إحصائيات المستخدم
  * الحالي. المظهر: مستخدم B يسجّل دخول على جهاز مشترك → يرى عدد مسودات A
  * في "التخزين والبيانات" رغم أنه لا يملكها. الآن يُمرَّر userId (نفس
@@ -106,7 +106,7 @@ async function collectExtras(userId?: string | null): Promise<LocalDataExtras> {
 }
 
 /**
- * FIX STORAGE-STATS-USER-SCOPE: يقبل userId اختياريًا لتصفية مسودات
+ * يقبل userId اختياريًا لتصفية مسودات
  * المستخدم الحالي (نفس سبب collectExtras أعلاه). مرّر userId دومًا من
  * أي واجهة تعرضها لمستخدم مسجّل.
  */

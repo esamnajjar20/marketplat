@@ -7,7 +7,7 @@
  * Coverage targets:
  *  - Links to /services/:id
  *  - Renders title, provider businessName
- *  - Price formatting per pricingType: FIXED (plain), STARTING_FROM
+ *  - Price formatting per pricingType: (plain), STARTING_FROM
  *    ("يبدأ من ..."), NEGOTIABLE / null price ("حسب الاتفاق")
  *  - Availability dot + label for all three ServiceAvailability states
  *  - Verified badge shown only when sellerProfile.verified is true

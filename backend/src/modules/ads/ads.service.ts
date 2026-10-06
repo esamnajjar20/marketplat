@@ -150,34 +150,10 @@ export const adsService = {
       }
     }
 
-    // AUDIT-FIX M-02: countActiveByUserId() then create() with nothing
-    // in between was a TOCTOU race — two concurrent createAd calls for
-    // the same user could both read a count one under env.ads.maxPerUser
-    // and both pass the check before either had committed its insert,
-    // letting a user exceed the cap by up to N-1 ads for N concurrent
-    // requests. This is the exact same class of bug FIX D-10 already
-    // fixed for addImages (see adLock.ts) — same fix here, applied to
-    // ad *creation* instead of ad *images*, via a lock scoped to the
-    // user rather than to a single ad (there's no ad yet to lock).
-    //
-    // FIX AUDIT-V5-01's original intent — don't burn Cloudinary uploads
-    // on a request that's going to be rejected anyway — is preserved by
-    // doing an unlocked pre-check here (cheap, no lock contention with
-    // other requests) before the slow uploads. This pre-check can still
-    // race and pass when the cap is actually full; that's fine, because
-    // the authoritative check happens again below, inside the lock,
-    // immediately before the insert — that second check is the one
-    // that actually closes the race, and it's what a client relying on
-    // correctness (rather than just the fast-fail optimization) should
-    // expect to be enforced.
-    // Ad creation is seller-only: ensureSellerProfileForAdCreation throws
-    // a BadRequestError if the user has no SellerProfile yet, and a
-    // ForbiddenError if their SellerProfile is suspended — both before
-    // any Cloudinary upload happens, so a request that's going to be
-    // rejected anyway doesn't burn upload cost. sellerProfile is always
-    // defined past this point, so the later tx.ad.create's
-    // sellerProfileId: sellerProfile.id is never null for a newly
-    // created ad.
+    // The pre-check avoids unnecessary uploads; the locked check below is
+    // authoritative and prevents concurrent requests from exceeding the cap.
+    // Seller validation runs before any Cloudinary upload; sellerProfile
+    // is therefore guaranteed for the transaction below.
     const sellerProfile = await sellersService.ensureSellerProfileForAdCreation(userId);
 
     const preCheckCount = await adsRepository.countActiveByUserId(userId);

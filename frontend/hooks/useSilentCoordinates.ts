@@ -12,7 +12,7 @@ import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
  * useNearbyServiceProvidersIfGranted.ts, kept as its own small hook
  * here rather than importing that one directly: that hook is coupled
  * to NearbyServiceProvidersParams/useNearbyServiceProviders and a
- * fixed radius/limit, none of which apply to a store-recommendations
+ * radius/limit, none of which apply to a store-recommendations
  * rail. This intentionally returns bare coordinates (or null) and
  * nothing else — no permission-state plumbing the caller has to
  * thread through, since "not available" and "still checking" both

@@ -9,7 +9,7 @@
  * nothing currently catches it.
  *
  * Unauthorized in particular builds the `?from=<pathname>` login link —
- * the same redirect mechanism fixed in AUTH-06/LoginForm. This pins
+ * the same redirect mechanism in AUTH-06/LoginForm. This pins
  * that link-building behavior down independently of the form itself.
  */
 import { describe, it, expect, vi } from 'vitest';

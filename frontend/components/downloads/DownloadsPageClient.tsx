@@ -18,7 +18,7 @@ import {
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 
-// SW-FIX-DLPC-DEAD-CATCH: toLocaleString never throws — an invalid
+// toLocaleString never throws — an invalid
 // date produces the string "Invalid Date", not an exception. The old
 // try/catch was dead code; the `iso` fallback never ran.
 function formatDate(iso: string) {
@@ -32,7 +32,7 @@ export function DownloadsPageClient() {
   const [items, setItems] = useState<CatalogDownloadRecord[]>([]);
   const [online, setOnline] = useState(true);
   const [query, setQuery] = useState('');
-  // SW-FIX-DLPC-CONFIRM: replace window.confirm with shared ConfirmDialog.
+  // replace window.confirm with shared ConfirmDialog.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const refresh = useCallback(() => {

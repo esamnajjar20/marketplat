@@ -16,7 +16,7 @@ export interface CreateNotificationInput {
   data?: Prisma.InputJsonValue;
 }
 
-// FIX PWA-PUSH-01: the { endpoint, keys: { p256dh, auth } } shape is
+// the { endpoint, keys: { p256dh, auth } } shape is
 // exactly what PushSubscription.toJSON() produces in the browser (see
 // frontend/lib/pwa.ts's subscribeToPush) — kept as a nested `keys`
 // object here rather than flattened, so the controller can pass the
@@ -33,7 +33,7 @@ export interface RegisterFcmTokenInput {
   platform: string;
 }
 
-// FIX NOTIF-COUNT-SINGLEFLIGHT-01: per-user in-flight map for the
+// per-user in-flight map for the
 // countUnreadForUser single-flight above. Kept as a module-level Map
 // rather than a WeakMap keyed on userId because userIds are strings,
 // not objects. Bounded implicitly by concurrent requests (a user can
@@ -71,7 +71,7 @@ export const notificationsRepository = {
    * immediately after a broadcast). */
   createMany: async (inputs: CreateNotificationInput[]): Promise<Prisma.BatchPayload> => {
     const result = await prisma.notification.createMany({ data: inputs });
-    // AUDIT-FIX 1.10/1.12: invalidate every distinct recipient's cached
+    // invalidate every distinct recipient's cached
     // count, not just re-fetch — Set de-dupes since a broadcast/fan-out
     // list is not guaranteed unique-per-user (see onSavedSearchMatched's
     // own comment: one user can appear twice for two different matches).
@@ -80,7 +80,7 @@ export const notificationsRepository = {
     // or fail the others.
     const recipientIds = Array.from(new Set(inputs.map(i => i.userId)));
 
-    // FIX NOTIF-CREATEMANY-INVALIDATE-CHUNK-01: bound concurrent
+    // bound concurrent
     // invalidation. Each invalidate is now a Redis DEL + PUBLISH (see
     // the unreadNotificationsCache Pub/Sub fix), so an unbounded
     // Promise.all over recipientIds meant an admin broadcast to 100K
@@ -99,7 +99,7 @@ export const notificationsRepository = {
       );
     }
 
-    // FIX NOTIF-CREATEMANY-SSE-CONTENT-01: fan-out over SSE must
+    // fan-out over SSE must
     // respect per-recipient content. The previous implementation
     // always published inputs[0]'s { type, title, body } to every
     // recipient — correct today, because every existing call site
@@ -180,7 +180,7 @@ export const notificationsRepository = {
     return { notifications, total };
   },
 
-  // FIX NOTIF-COUNT-SINGLEFLIGHT-01: mirror userCache's inflightMap
+  // mirror userCache's inflightMap
   // pattern (see shared/utils/userCache.ts) to collapse concurrent
   // misses on the same user into one count() query. Without this, a
   // page with multiple useUnreadCount() consumers mounting at the
@@ -221,7 +221,7 @@ export const notificationsRepository = {
       where: { id, userId, readAt: null },
       data: { readAt: new Date() },
     });
-    // AUDIT-FIX 1.10/1.12: invalidate even when count is 0 (id didn't
+    // invalidate even when count is 0 (id didn't
     // match/wasn't unread) — an unconditional invalidate is cheap and
     // never wrong, whereas skipping it on the 0-count path risks a rare
     // but real race (count read stale-cached as unread between this
@@ -362,7 +362,7 @@ export const notificationsRepository = {
     return result;
   },
 
-  // FIX PWA-PUSH-01: upsert on `endpoint` (globally unique — see the
+  // upsert on `endpoint` (globally unique — see the
   // PushSubscription model's own doc comment) so re-subscribing the
   // same browser after clearing/re-granting permission updates the
   // existing row's keys instead of erroring on the unique constraint
@@ -373,7 +373,7 @@ export const notificationsRepository = {
   // would only occur if the same physical browser subscription was
   // replayed while logged in as a different account, which the update
   // branch intentionally leaves alone rather than resolving implicitly).
-  // AUDIT-FIX 2.6: previously called prisma.pushSubscription.upsert
+  // previously called prisma.pushSubscription.upsert
   // directly, duplicating the exact same upsert logic pushService.ts
   // (shared/utils) also needed and had independently implemented —
   // two call sites writing the same table with no shared source of
@@ -403,7 +403,7 @@ export const notificationsRepository = {
   // already unsubscribed locally regardless of whether the server-side
   // row existed, and calls this best-effort (see its own .catch()).
   //
-  // AUDIT-FIX 2.6: delegates to the same shared repository as
+  // delegates to the same shared repository as
   // upsertPushSubscription above, for the same one-source-of-truth reason.
   deletePushSubscription: (userId: string, endpoint: string): Promise<Prisma.BatchPayload> =>
     pushSubscriptionsRepository.deleteForUser(userId, endpoint),

@@ -2,7 +2,7 @@
  * Coverage targets, across useAuth.ts / useUsers.ts / useCategories.ts /
  * useAdmin.ts:
  *
- *  Response-envelope unwrapping (FIX Q-01 / PERF-10 regression guard):
+ *  Response-envelope unwrapping (/ PERF-10 regression guard):
  *   every queryFn here must resolve to r.data.data (the actual payload),
  *   not r.data (the { success, message, data } envelope itself) — this
  *   silently broke before with no error, just empty-looking UI, which

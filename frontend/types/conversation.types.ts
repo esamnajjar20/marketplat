@@ -3,7 +3,7 @@
  * actual Prisma models and conversations.repository.ts's includes,
  * verified directly against the real backend module (not against the
  * pre-Epic-5 "لا يوجد Prisma Models" note in messages/page.tsx's own
- * FIX AUDIT-V4-03 comment, which is now stale).
+ * comment, which is now stale).
  */
 
 export interface ConversationContext {
@@ -65,7 +65,7 @@ export interface Conversation {
 }
 
 /**
- * FIX UX-15: GET /conversations (the list) returns this shape — plain
+ * GET /conversations (the list) returns this shape — plain
  * Conversation plus a per-thread unreadCount, mirroring the backend's
  * ConversationListItem. Kept separate from Conversation itself since
  * GET /conversations/:id (a single thread) has no unreadCount — that

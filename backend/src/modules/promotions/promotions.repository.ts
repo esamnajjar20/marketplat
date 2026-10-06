@@ -54,7 +54,7 @@ export const promotionsRepository = {
     prisma.promotion.update({ where: { id }, data: { status: 'CANCELLED' } }),
 
   findByStoreId: (storeId: string): Promise<Promotion[]> =>
-    // FIX DB-DEFENSIVE-TAKE-01: bound the store-promotions query.
+    // bound the store-promotions query.
     // No real store approaches 500 promotions, but an unbounded
     // findMany on a table with an ever-growing history is one
     // accidental admin script away from loading tens of thousands
@@ -85,7 +85,7 @@ export const promotionsRepository = {
     }),
 
   // Used by the status-transition sweep (previously unscheduled — now
-  // run by myPromotionsExpiring.ts, PROMO-1 Phase 14): promotions whose
+  // run by myPromotionsExpiring.ts, PROMO-1 ): promotions whose
   // window start/end has passed but whose stored status hasn't caught
   // up yet.
   findDueForActivation: (now: Date): Promise<Promotion[]> =>
@@ -94,7 +94,7 @@ export const promotionsRepository = {
   findDueForExpiry: (now: Date): Promise<Promotion[]> =>
     prisma.promotion.findMany({ where: { status: 'ACTIVE', endsAt: { lte: now } } }),
 
-  // PROMO-1 (Phase 14): promotions whose window ends within the next
+  // PROMO-1 (): promotions whose window ends within the next
   // `windowHours` and haven't already been warned about it
   // (expiryWarnedAt IS NULL) — see that column's schema.prisma doc
   // comment for the idempotency reasoning. Deliberately excludes rows

@@ -62,7 +62,7 @@ export const fcmDeviceTokensRepository = {
   // Used by fcmPushService.ts to prune tokens FCM has permanently
   // rejected (uninstall, app data cleared, token expired) — same
   // pattern as pushSubscriptionsRepository.deleteByEndpoints.
-  // FIX PUSH-REPO-EMPTY-ARRAY-GUARD-01: an empty `in` array is a
+  // an empty `in` array is a
   // full-table delete in some ORMs and a no-op in others — Prisma
   // happens to treat it as "match nothing", but that's implicit
   // behavior that shouldn't be relied on. Callers already guard with

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FIX INTEG-10: AdDetail.tsx accepts an `isFavorited` prop (defaulting
+ * AdDetail.tsx accepts an `isFavorited` prop (defaulting
  * to false) and useIsFavorited() was fully implemented and covered by
  * its own 5-case test suite, but this — the only real caller of
  * AdDetail — never called the hook or passed the prop through. Every
@@ -68,7 +68,7 @@ export function AdDetailSection({ id }: { id: string }) {
     );
   }
 
-  // UX-FIX P0-1: this used to be `if (!ad) return null;`, which fired
+  // this used to be `if (!ad) return null;`, which fired
   // on *any* fetch failure — network blip, 500, or a genuinely deleted
   // ad — and rendered a completely blank page with no message and no
   // way to recover. Splitting on statusCode lets a real 404 (ad doesn't

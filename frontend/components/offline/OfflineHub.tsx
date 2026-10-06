@@ -10,7 +10,7 @@
  *  - Tab switching is client state + history.replaceState, NOT router.push.
  *  - Signed-out visitors only get GUEST_OFFLINE_TABS.
  *
- * UX phase 1+2:
+ * UX +2:
  *  - حالة الاتصال والطابور تظهر فقط داخل تبويب المزامنة
  *  - Badges على التبويبات
  *  - تسميات أوضح للمستخدم

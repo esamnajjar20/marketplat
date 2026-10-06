@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FIX SEC-4.3: EditProductCategoryButton.tsx and
+ * EditProductCategoryButton.tsx and
  * EditServiceCategoryButton.tsx were identical apart from which
  * mutation hook they called, three strings (dialog title, slugify
  * fallback prefix, placeholders), and the category type. This generic
@@ -108,7 +108,7 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
     });
   }
 
-  // UX-FIX P1-1: block Escape / overlay-click / cancel-button close while
+  // block Escape / overlay-click / cancel-button close while
   // updateCategory is in flight — same rationale as EditCategoryButton.
   function handleOpenChange(next: boolean) {
     if (updateCategory.isPending) return;

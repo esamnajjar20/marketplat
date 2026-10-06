@@ -1,5 +1,5 @@
 /**
- * PHASE-1 UX: connection quality from request timings + Network Information API.
+ * UX: connection quality from request timings + Network Information API.
  * Not a substitute for navigator.onLine — complements it for "slow vs offline".
  */
 
@@ -46,7 +46,7 @@ function notify() {
 }
 
 /** Record a finished request duration (ms). Call from axios interceptors.
- * FIX CONN-QUALITY-SW-01: drop near-instant samples (SW/Cache API hits) so
+ * drop near-instant samples (SW/Cache API hits) so
  * they do not pull the average into 'fast' while the real network is slow. */
 export function recordRequestTiming(durationMs: number) {
   if (!Number.isFinite(durationMs) || durationMs < 0) return;
@@ -65,7 +65,7 @@ export function subscribeConnectionQuality(listener: () => void): () => void {
   };
 }
 
-// SW-FIX-DRIP-EXPORT-AVGMS: exported for the warming planner, which
+// exported for the warming planner, which
 // uses measured request timings to decide drip budget/cadence (see
 // estimateKbps in offlineRouteShells). Not exported previously because
 // only the internal getConnectionQuality used it.

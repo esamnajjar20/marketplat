@@ -3,7 +3,7 @@
  *
  * Sentry MUST be initialized before any other module in this app is
  * imported — the Node SDK's auto-instrumentation (Express, Prisma,
- * Redis, HTTP) patches those libraries at import time, and any module
+ * Redis, HTTP) those libraries at import time, and any module
  * that's already been imported before Sentry.init() runs won't be
  * correctly instrumented. This is why this file exists standalone
  * rather than folding Sentry.init() into config/env.ts or app.ts: it
@@ -49,7 +49,7 @@ if (dsn) {
     dsn,
     environment: process.env.NODE_ENV || 'development',
     tracesSampleRate,
-    // FIX APM-02: PII scrubbing. This app's own JWT payloads, auth
+    // PII scrubbing. This app's own JWT payloads, auth
     // cookies, and password fields must never leave this process even
     // in an error report — sendDefaultPii defaults to false in current
     // SDK versions, but stated explicitly here so a future SDK default
@@ -57,7 +57,7 @@ if (dsn) {
     // this line visibly needing to change too.
     sendDefaultPii: false,
     beforeSend(event, hint) {
-      // ── 1. 4xx noise filter (FIX SENTRY-NOISE) ──
+      // ── 1. 4xx noise filter () ──
       // ZodError (validation), JWT errors (auth guard), body-parser
       // SyntaxError (malformed JSON), and any event explicitly tagged
       // with a 4xx status are all client errors — dropping them keeps
@@ -71,7 +71,7 @@ if (dsn) {
       const statusTag = (event.tags as Record<string, string> | undefined)?.statusCode;
       if (statusTag && /^4\d\d$/.test(statusTag)) return null;
 
-      // ── 2. PII scrubbing (FIX APM-02) ──
+      // ── 2. PII scrubbing () ──
       // Extra belt-and-suspenders scrub on top of sendDefaultPii:false —
       // strips Authorization headers and any cookie header from the
       // request context Sentry attaches to an error event, in case a

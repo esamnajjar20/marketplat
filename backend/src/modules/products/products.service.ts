@@ -28,7 +28,7 @@ import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../..
 
 const MAX_PRODUCT_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images / service-listings.images — see config/limits.ts
 
-// FIX SEC-4.1: addImages/removeImage used to be ~75 lines of
+// addImages/removeImage used to be ~75 lines of
 // hand-rolled logic here, near-identical to service-listings.service.ts's
 // copy of the same thing. Now built from the shared factory — see
 // entityImageOperations.ts's doc comment for why ads.service.ts is not
@@ -74,7 +74,6 @@ export const productsService = {
     files: Express.Multer.File[],
     offlineOperationId?: string | null,
   ): Promise<Product> => {
-    // FIX OFFLINE-IDEMPOTENCY-01
     if (offlineOperationId) {
       const existing = await prisma.product.findUnique({
         where: { offlineOperationId },
@@ -127,7 +126,7 @@ export const productsService = {
       );
     }
 
-    // FIX M-006: fast-path check, before doing any Cloudinary uploads —
+    // fast-path check, before doing any Cloudinary uploads —
     // this alone does NOT close the race (see the lock-guarded re-check
     // below, which is what actually prevents two concurrent requests
     // from both slipping past the cap).
@@ -150,7 +149,7 @@ export const productsService = {
 
     let product: Product;
     try {
-      // FIX M-006: the count check above and the insert below are now
+      // the count check above and the insert below are now
       // serialized per-store via withStoreProductCreationLock (same
       // check-then-act race closed for ad creation by
       // withUserAdCreationLock — see adLock.ts). The count is
@@ -202,7 +201,7 @@ export const productsService = {
         });
       });
     } catch (error: unknown) {
-      // FIX OFFLINE-IDEMPOTENCY-01: concurrent same offline op id
+      // concurrent same offline op id
       if (
         offlineOperationId &&
         typeof error === 'object' &&
@@ -281,7 +280,7 @@ export const productsService = {
   getProducts: async (
     query: GetProductsQuery
   ): Promise<PaginatedResult<ProductWithEffectivePrice<ProductWithStore>>> => {
-    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    // Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('products', query, async () => {
       const { products, total } = await productsRepository.findMany(query);
       // PROMO-1: one batched query for the whole page's live promotions
@@ -383,7 +382,7 @@ export const productsService = {
       );
     }
 
-    // Validate the final persisted pricing state, not just the PATCH fields.
+    // Validate the final persisted pricing state, not just the 
     // A partial update can otherwise make an existing discount >= price or
     // leave only one half of the wholesale pair populated.
     const finalPrice = input.price ?? Number(product.price);
@@ -444,7 +443,7 @@ export const productsService = {
     // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fires once, on the
     // OUT_OF_STOCK -> (IN_STOCK | LIMITED) edge only — checked against
     // `product` (the pre-update row), not just "input.availability was
-    // provided", so a PATCH that touches other fields on an already
+    // provided", so a touches other fields on an already
     // in-stock product never re-fires this. Fire-and-forget, same
     // convention as onStoreNewProduct above.
     if (product.availability === 'OUT_OF_STOCK' && updated.availability !== 'OUT_OF_STOCK') {
@@ -537,8 +536,8 @@ export const productsService = {
   },
 
   // Gap #3 fix: closes the report's finding — products had no way to
-  // add/replace photos after creation (PATCH is JSON-only, no images
-  // field). Delegates to the shared factory (FIX SEC-4.1) — ownership
+  // add/replace photos after creation (JSON-only, no images
+  // field). Delegates to the shared factory () — ownership
   // check, 10-image cap, lock-guarded re-check, parallel uploads,
   // cleanup on failure are all implemented once in
   // entityImageOperations.ts rather than duplicated here.
@@ -554,7 +553,7 @@ export const productsService = {
   // Gap #3 fix: mirrors ads.service.ts's removeImage, including the
   // "can't remove the last image" guard (EPIC 1.5's rationale applies
   // identically here — a product must always keep at least one image).
-  // Delegates to the shared factory (FIX SEC-4.1).
+  // Delegates to the shared factory ().
   removeImage: async (
     productId: string,
     userId: string,

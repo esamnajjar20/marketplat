@@ -4,7 +4,7 @@ import { createTestUser } from '../helpers/auth.helper';
 import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 import { createTestServiceProvider } from '../helpers/serviceProvider.helper';
 
-// Home discovery plan (Phase 1): GET /service-providers — public
+// Home discovery plan (): GET /service-providers — public
 // city/browse directory. Same convention as stores.test.ts's
 // "GET /api/v1/stores" block (public access check, city filter,
 // pagination) plus the availability exclusion this endpoint shares
@@ -134,7 +134,7 @@ describe('Service Providers API', () => {
       expect(res.body.data[0]).not.toHaveProperty('distanceKm');
     });
 
-    // SEC-FIX regression: findMany previously had no join/filter on
+    // SEC-findMany previously had no join/filter on
     // sellerProfile.suspended, so a suspended seller's provider stayed
     // listed in the general directory. See service-providers.repository.ts.
     it('excludes providers whose seller is suspended', async () => {
@@ -170,7 +170,7 @@ describe('Service Providers API', () => {
       expect(res.status).toBe(404);
     });
 
-    // SEC-FIX regression: getPublicServiceProvider previously never
+    // SEC-getPublicServiceProvider previously never
     // checked sellerProfile.suspended, so a suspended seller's provider
     // page stayed fully viewable at its direct URL. See
     // service-providers.service.ts's getPublicServiceProvider.
@@ -186,7 +186,7 @@ describe('Service Providers API', () => {
   });
 
   describe('GET /api/v1/service-providers/nearby', () => {
-    // SEC-FIX regression: findNearby's raw query previously had no join
+    // SEC-findNearby's raw query previously had no join
     // to seller_profiles at all, so a suspended seller's provider stayed
     // findable by nearby search. See service-providers.repository.ts.
     it('excludes a provider whose seller is suspended', async () => {

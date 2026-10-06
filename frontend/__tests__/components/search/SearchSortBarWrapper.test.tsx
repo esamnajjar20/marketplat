@@ -3,7 +3,7 @@
  *
  * Covers components/search/SearchSortBarWrapper.tsx — the URL-binding
  * layer around the shared SearchSortBar for the unified search page.
- * Moved out of SearchFilters (audit item #8, FIX P2-08); this covers
+ * Moved out of SearchFilters (audit item #8, ); this covers
  * exactly what that component's own sort tests used to cover:
  *   - the four base sort options are offered, defaulting to relevance.
  *   - selecting a sort option sets ?sort and drops ?page, on

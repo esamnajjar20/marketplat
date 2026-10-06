@@ -13,7 +13,7 @@ export interface TokenPair {
   accessToken: string;
   refreshToken: string;
   sessionId: string;
-  // FIX BUG-06: seconds until accessToken expires — lets the frontend
+  // seconds until accessToken expires — lets the frontend
   // derive its access-token cookie's maxAge from the backend's actual
   // configured TTL (env.jwt.expiresInSeconds) instead of a hardcoded
   // constant. Always equal to env.jwt.expiresInSeconds at the moment
@@ -66,7 +66,7 @@ export const rotateTokenPair = (
   expiresIn: env.jwt.expiresInSeconds,
 });
 
-// FIX JWT-ALG-PIN-01: pass an explicit algorithms allow-list on every
+// pass an explicit algorithms allow-list on every
 // verify. jsonwebtoken already refuses `alg: none` unconditionally,
 // but without a pinned algorithm it will accept whichever HMAC variant
 // the token header advertises (HS256/384/512). That's not exploitable

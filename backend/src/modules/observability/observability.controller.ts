@@ -5,7 +5,7 @@ import { getClientIp } from '../../shared/utils/getClientIp';
 import { successResponse } from '../../shared/types/api-response.types';
 
 /**
- * FIX OBSERVABILITY-CLIENT-ERROR-01: receives error reports from the
+ * receives error reports from the
  * frontend (see frontend/lib/errorReporter.ts) and forwards them to
  * the same logger pipeline the backend already uses for its own
  * errors — which means they reach Sentry via the existing

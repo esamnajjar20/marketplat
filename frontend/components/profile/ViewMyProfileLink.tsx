@@ -7,7 +7,7 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 
 /**
- * FIX UX-PROFILE-01: the only way to reach /profile/[id] (the real,
+ * the only way to reach /profile/[id] (the real,
  * working public-profile page) was to already know your own user id
  * and type the URL by hand — every in-app link to that route pointed
  * at someone else's id (report targets, ad sellers). Mirrors

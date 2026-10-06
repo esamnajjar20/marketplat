@@ -53,7 +53,7 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
   const isOwnAd = currentUser?.id === seller.id;
 
   function handleMessage() {
-    // SW-FIX-SELLERCARD-LOGIN: same pattern — send to login with the
+    // same pattern — send to login with the
     // current ad as the return target. Was a bare toast.
     if (!isAuth) {
       toast.error('سجّل الدخول لمراسلة البائع');

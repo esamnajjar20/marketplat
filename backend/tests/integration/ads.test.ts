@@ -5,7 +5,7 @@ import { createTestUser, createTestAdmin } from '../helpers/auth.helper';
 import { createTestAd } from '../helpers/ad.helper';
 import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 
-// FIX LOAD-TEST-01 regression setup: POST /ads now requires at least
+// regression setup: POST /ads now requires at least
 // one image (see ads.controller.ts's createAd — previously only
 // addImages checked files.length === 0). Every "creates an ad..." test
 // below now attaches a real in-memory image via .attach() so it
@@ -25,10 +25,10 @@ jest.mock('../../src/config/cloudinary', () => ({
 
 // Minimal valid PNG bytes (matches the same magic-byte signature
 // fileSignature.ts's real content check requires) — see
-// e2e/fixtures/test-image.png in marketplace-v10 for the frontend-side
+// e2e/in marketplace-v10 for the frontend-side
 // equivalent used by Playwright; kept independent here since these are
 // different test suites in different repos with no reason to share a
-// binary fixture across them.
+// binary across them.
 const TEST_IMAGE_BUFFER = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
   0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk start
@@ -66,9 +66,9 @@ describe('Ads API', () => {
       expect(res.body.data.every((a: any) => a.city.includes('جدة'))).toBe(true);
     });
 
-    // FIX PERF-01: city filtering switched from `contains` (ILIKE
+    // city filtering switched from `contains` (ILIKE
     // '%value%', which can't use the [status, city] index) to an exact
-    // match, since the frontend only ever sends one of a fixed list of
+    // match, since the frontend only ever sends one of a list of
     // city names. This pins down that a *partial* city string no
     // longer matches — e.g. searching "جد" must not incorrectly return
     // ads in "جدة" the way a substring match would have.
@@ -128,7 +128,7 @@ describe('Ads API', () => {
       expect(res.body.data.images.length).toBeGreaterThanOrEqual(1);
     });
 
-    // FIX INTEG-05 — critical regression coverage. The test above uses
+    // critical regression coverage. The test above uses
     // supertest's .send() (plain JSON body), which is NOT what the real
     // frontend sends: adsApi.create (ads.api.ts) always builds a
     // multipart/form-data FormData (required for the image files), and
@@ -211,13 +211,13 @@ describe('Ads API', () => {
       expect(res.status).toBe(400);
     });
 
-    // FIX LOAD-TEST-01 regression coverage: this was a real gap found
+    // regression coverage: this was a real gap found
     // while building load-test scripts that hit this endpoint directly
     // (bypassing AdForm.tsx's client-side "at least one image" check
     // entirely, the way any non-browser API client — a load test, a
     // script, or a malicious actor — naturally would).
-    // FIX LOAD-TEST-01: ads.controller.ts's zero-image check is
-    // deliberately commented out right now ("TEMPORARY... until image
+    // ads.controller.ts's zero-image check is
+    // deliberately commented out right now ("until image
     // hosting, e.g. Cloudinary, is configured") — createAd currently
     // allows zero images by design, so this test's premise doesn't
     // hold under current intended behavior. Skipped rather than

@@ -1,7 +1,7 @@
 /**
  * __tests__/components/search/SearchFiltersSheet.test.tsx
  *
- * Covers components/search/SearchFiltersSheet.tsx (FIX P1-2):
+ * Covers components/search/SearchFiltersSheet.tsx ():
  *   - active-filter badge count (city/categoryId/lat+lng counted as one).
  *   - sheet is closed by default and opens on trigger click.
  *   - the wrapped SearchFilters renders inside the sheet once opened.

@@ -96,7 +96,7 @@ function renderWithClient(ui: ReactElement) {
 beforeEach(() => {
   // Default: user has a seller profile, a service-provider profile,
   // and an ACTIVE store, so SERVICES_GROUP/STORE_GROUP disclosure
-  // groups render (AUDIT-FIX dynamic sidebar: no CTA fallback anymore —
+  // groups render (sidebar: no CTA fallback anymore —
   // sections are either fully present or fully absent).
   (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
     data: { id: 'seller-1' },
@@ -212,7 +212,7 @@ describe('ProtectedSidebar', () => {
     // out) + 1 "إعلاناتي" (isSeller) + 1 "عرض ملفي" + 1
     // TRAILING_NAV_ITEMS ("بلاغاتي") = 8 flat-link icons; 3 disclosure
     // groups (خدماتي/متجري/الإعدادات) × (1 group icon + 1 chevron) = 6;
-    // + 1 "عرض متجري" icon (AUDIT-FIX dynamic sidebar) = 13 total (ACTIVITY_GROUP replaced four flat items).
+    // + 1 "عرض متجري" icon (sidebar) = 13 total (ACTIVITY_GROUP replaced four flat items).
     expect(iconSpans.length).toBe(13);
   });
 
@@ -288,7 +288,7 @@ describe('ProtectedSidebar', () => {
 
   // ── AUDIT-FIX (dynamic sidebar): "خدماتي"/"متجري" fully absent for
   // non-seller/non-provider users, no CTA fallback. Previously
-  // (FIX UX-ROLES-01) an absent role showed "أصبح بائعاً"/"أصبح مقدّم
+  // () an absent role showed "أصبح بائعاً"/"أصبح مقدّم
   // خدمة"/"افتح متجرك" as a top-level link instead — those rows are
   // gone. /settings/seller and /settings/service-provider are
   // unchanged and still reachable through "الإعدادات" below.

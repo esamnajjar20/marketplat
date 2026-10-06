@@ -3,7 +3,7 @@ import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { Request, Response, NextFunction } from 'express';
 
 /**
- * PROD-FIX-15 coverage: csrfProtection is new, security-critical logic
+ * coverage: csrfProtection is new, security-critical logic
  * (double-submit cookie CSRF check — see the middleware's own header
  * comment for the full threat model). This confirms:
  *   - safe methods (GET/HEAD/OPTIONS) always pass, regardless of cookie/header state

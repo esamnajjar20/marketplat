@@ -17,7 +17,7 @@
  * place instead of being copy-pasted three times with the risk of
  * drifting apart.
  *
- * FIX DESKTOP-WIDTH-02: previously edit mode intentionally skipped
+ * previously edit mode intentionally skipped
  * this (see git history) since there was "already a real saved item
  * to look at". In practice that just meant leaving the page to check.
  * All three forms (AdForm/ProductForm/ServiceListingForm) now use this

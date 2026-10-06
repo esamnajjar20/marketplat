@@ -10,7 +10,7 @@
  *  useMyFollowedStores:
  *   - auth-gated
  *   - merges each page's storeId into the shared followedIds() Set
- *     after the query settles (not just page 1 — FIX BUG-03)
+ *     after the query settles (not just page 1 — )
  *  getFollowedStoreIdsSnapshot: reads the cached Set, defaults to empty.
  *  useIsFollowingStore:
  *   - returns false before any data has loaded

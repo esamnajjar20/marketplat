@@ -86,8 +86,8 @@ export const getServiceListingsSchema = z.object({
       /** Owner-only filter for GET /service-listings/me */
       status: z.nativeEnum(ServiceListingStatus).optional(),
     })
-    // FIX M-024: see ads.validation.ts's getAdsSchema refine for the
-    // same fix and rationale — same silent-empty-result bug here.
+    // see ads.validation.ts's getAdsSchema refine for the
+    // same rationale — same silent-empty-result bug here.
     .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
       message: 'minPrice must not exceed maxPrice',
       path: ['minPrice'],
@@ -100,13 +100,13 @@ export const serviceListingIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Service listing ID is required') }),
 });
 
-// FIX SL-INLINE-ZOD: two Zod schemas were defined inline in
+// two Zod schemas were defined inline in
 // service-listings.controller.ts (mirroring the products/ads
 // controllers' own inline shape). Both now live here with every other
 // schema in this module, and the reorder schema has an explicit
 // max(20) cap — previously unbounded, so a client could send an
 // arbitrarily long images array as a small DoS surface that no unit
-// test of the validation module could catch. Same fix products got.
+// test of the validation module could catch. Same got.
 export const removeServiceListingImageSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({

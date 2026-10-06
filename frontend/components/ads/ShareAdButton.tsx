@@ -75,7 +75,7 @@ export function ShareAdButton({ title, url, variant = 'icon', className, qrPaylo
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       toast.success('تم نسخ الرابط');
-      // SW-FIX-SHARE-COPY-CLEANUP: track + clear on unmount.
+      // track + clear on unmount.
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
       resetTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {

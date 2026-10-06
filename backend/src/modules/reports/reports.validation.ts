@@ -58,7 +58,7 @@ export const updateReportStatusSchema = z.object({
 
 export const getReportsSchema = z.object({
   query: z.object({
-    // FIX BUG-FAV-01 (same bug, same fix, as favorites.validation.ts):
+    // (same bug, same fix, as favorites.validation.ts):
     // .optional() must come after .pipe(), not on the inner string
     // schema — otherwise an absent page/limit transforms `undefined`
     // into NaN via Number(undefined), which then fails the piped

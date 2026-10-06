@@ -13,7 +13,7 @@ import { RawSearchRow, SearchType } from './search.types';
  * ORM-level way to interleave/rank/paginate them as one result set.
  * A UNION ALL in raw SQL is the standard approach here, same rationale
  * ads.repository.ts already uses for its own full-text search branch
- * (see its FIX PERF-01 / to_tsvector comments) — this module extends
+ * (see its / to_tsvector comments) — this module extends
  * that exact pattern across three more tables instead of introducing a
  * different technique.
  *
@@ -35,7 +35,7 @@ import { RawSearchRow, SearchType } from './search.types';
  *                  for products, via providerId→sellerProfileId for
  *                  services) whose averageRating is the real source.
  *                  Ad.sellerProfileId is nullable at the schema level
- *                  (legacy safety net — ads.service.ts always sets it
+ *                  (net — ads.service.ts always sets it
  *                  on create today) so that one join is LEFT, not INNER,
  *                  with rating/verified coalesced to 0/false rather than
  *                  dropping the row.
@@ -129,7 +129,7 @@ function boundingBoxSql(
 // this file at compile time if search.types.ts's SEARCH_SORT_OPTIONS
 // ever gains a value with no matching ORDER BY clause here — the same
 // "forgot to update the raw-SQL path" class of bug that file's own
-// comment documents fixing once already for ads.
+// comment documents once already for ads.
 //
 // `rank` is ts_rank() when q is present, 0 otherwise (see each
 // branch's SELECT) — ORDER BY rank falls back to recency when there's
@@ -154,7 +154,7 @@ const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
   distance: Prisma.sql`distance_km ASC NULLS LAST, rank DESC, created_at DESC`,
 };
 
-// FIX SEARCH-PREFERRED-TYPES-SQL-01: soft boost for entity types implied
+// soft boost for entity types implied
 // by the query (e.g. "محل …" → stores first) has to live in the SQL
 // ORDER BY, not in a JS re-sort after the repository has already applied
 // OFFSET/LIMIT. The previous JS re-sort in search.service.ts only
@@ -186,7 +186,7 @@ function buildOrderBySql(
   return Prisma.sql`(CASE WHEN type IN (${preferredList}) THEN 0 ELSE 1 END), ${baseOrder}`;
 }
 
-// FIX M-022: previously each branch (adBranch/productBranch/...) ran
+// previously each branch (adBranch/productBranch/...) ran
 // with no LIMIT of its own — every matching row from all four tables
 // was materialized, UNION ALL'd together, and only THEN sorted/offset/
 // limited for the page actually being returned. With a broad query
@@ -212,7 +212,7 @@ function perBranchLimit(skip: number, take: number): number {
   return Math.min((skip + take) * PER_BRANCH_LIMIT_SAFETY_FACTOR, PER_BRANCH_LIMIT_CEILING);
 }
 
-// FIX SEARCH-AR-01: arabic_normalize() on both sides (index + query).
+// arabic_normalize() on both sides (index + query).
 // SEARCH-INTEL-01: plainto_tsquery was AND-of-literal-tokens only —
 // no synonyms, no ة/ه variants, no dialect (موبايل vs جوال). We now
 // analyze the raw query into OR-groups per concept and AND across
@@ -264,9 +264,9 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
   // seller_profiles (for rating/name/verified display below) but never
   // filtered on it — a suspended seller's ads were still fully
   // returned by the unified smart-search endpoint, the same gap
-  // ads.repository.ts's own SEC-FIX addresses for the plain /ads
+  // ads.repository.ts's own SEC-for the plain /ads
   // listing. IN (SELECT id ... WHERE suspended = false), not a join
-  // condition, so a NULL sellerProfileId (legacy ads with no linked
+  // condition, so a NULL sellerProfileId (with no linked
   // seller profile) is excluded too — same semantics as the ORM's
   // `sellerProfile: { suspended: false }` filter elsewhere.
   const conditions: Prisma.Sql[] = [
@@ -428,7 +428,7 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => 
   // be true. Same short-circuit for city, applied below.
   if (categoryId || filters.minPrice !== undefined || filters.maxPrice !== undefined || filters.condition) return null;
 
-  // AUDIT-FIX (ads-feature review): same gap/fix as productBranch above —
+  // AUDIT-FIX (ads-feature review): same gap/productBranch above —
   // store_details.sellerProfileId is required, so the already-LEFT-JOINed
   // sp alias always resolves; a direct filter is enough.
   const conditions: Prisma.Sql[] = [
@@ -488,7 +488,7 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => 
 };
 
 const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
-  // AUDIT-FIX (ads-feature review): same gap/fix as productBranch/
+  // AUDIT-FIX (ads-feature review): same gap/productBranch/
   // storeBranch above — service_provider_details.sellerProfileId is
   // required, so the already-LEFT-JOINed sp alias always resolves.
   const conditions: Prisma.Sql[] = [
@@ -609,7 +609,7 @@ export const searchRepository = {
 
     const orderBySql = buildOrderBySql(sort, preferredTypes);
 
-    // FIX M-022: cap what each branch can contribute to the *result
+    // cap what each branch can contribute to the *result
     // rows* before the UNION ALL — see perBranchLimit's own comment
     // above for why `skip + take` (with a safety factor and hard
     // ceiling) is enough to keep the returned page identical to the
@@ -620,7 +620,7 @@ export const searchRepository = {
     // but would make `total` wrong the moment any branch has more
     // matches than the per-branch cap. COUNT(*) never materializes
     // full rows regardless of table size, so leaving it unlimited
-    // doesn't reintroduce the memory-blowup problem this fix is for —
+    // doesn't reintroduce the memory-blowup problem this for —
     // only the row-fetching side needed the limit.
     const branchLimit = perBranchLimit(skip, take);
     const limitedBranches = branches.map(
@@ -675,7 +675,7 @@ export const searchRepository = {
     // vanishingly unlikely to appear in a product/store/category name
     // (unlike '\', which some data could legitimately contain).
     const escapedPrefix = prefix.replace(/[!%_]/g, char => `!${char}`);
-    // FIX SEARCH-AR-01: normalizes the prefix the same way the main
+    // normalizes the prefix the same way the main
     // search() path now does — otherwise suggestions and the results
     // they lead to would disagree on which letter-shape variants count
     // as a match (e.g. autocomplete matching أحمد but the resulting
@@ -687,10 +687,10 @@ export const searchRepository = {
     // this and search() call, so the two paths can never silently
     // drift apart from each other.
     //
-    // AUDIT-FIX 1.2: this used to be a plain ILIKE with no supporting
+    // this used to be a plain ILIKE with no supporting
     // index — arabic_normalize(column) was evaluated fresh on every row
     // of every call (a full scan of products/store_details/*_categories
-    // per keystroke). Two changes together fix that, matched exactly to
+    // per keystroke). Two changes together , matched exactly to
     // the add_autocomplete_prefix_indexes migration's index definitions:
     //   - ILIKE -> explicit lower(...) LIKE lower(...): the planner only
     //     matches a text_pattern_ops btree index against the plain LIKE

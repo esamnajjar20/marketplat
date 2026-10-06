@@ -40,7 +40,7 @@ export function isMyServicesTab(value: unknown): value is MyServicesTab {
   return hub.isTab(value);
 }
 
-/** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
+/** Tab requested by `?tab=…`, or by a Null when absent/unknown. */
 export const resolveMyServicesTab = hub.resolveTab;
 
 /** `/my-services?tab=requests` (+ optional extra params, e.g. status). The

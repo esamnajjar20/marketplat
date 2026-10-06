@@ -7,7 +7,7 @@ import { ErrorCode } from '../errors/errorCodes';
 import { logger } from './logger';
 
 /**
- * FIX SEC-4.1: products.service.ts and service-listings.service.ts each
+ * products.service.ts and service-listings.service.ts each
  * hand-rolled their own addImages/removeImage — ownership check, 10-image
  * cap, lock-guarded re-check, parallel uploads, cleanup-on-failure,
  * "can't remove the last image" guard — with the code close to
@@ -127,7 +127,7 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
       }
 
       return withLock(entityId, async () => {
-        // FIX MIN-IMG-RACE-FACTORY: re-read the entity inside the lock
+        // re-read the entity inside the lock
         // and re-apply the "must keep at least one image" guard, plus
         // the "image present" check. Without this, the pre-lock guard
         // above is a TOCTOU: two concurrent removeImage calls on the
@@ -136,9 +136,9 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
         // serialize through the lock and remove both images, leaving a
         // live entity with zero photos and breaking the
         // MIN_IMAGES_REQUIRED rule addImages/updateProduct/reorderImages
-        // all separately enforce. Same class of bug already fixed on
+        // all separately enforce. Same class of bug already on
         // the ads path (see ads.service.ts's removeImage); the shared
-        // factory carried a copy of the pre-fix logic, so both
+        // factory carried a copy of the pre-, so both
         // consumers (products and service-listings) were affected.
         const fresh = await findActiveOrThrow(entityId);
         if (!fresh.images.includes(imageUrl)) {
@@ -155,7 +155,7 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
           const publicId = extractCloudinaryPublicId(imageUrl);
           if (publicId) await deleteImage(publicId);
         } catch (err) {
-          // AUDIT-FIX 2.4: continuing on a failed Cloudinary delete is
+          // continuing on a failed Cloudinary delete is
           // the right call (removing the image from the entity record
           // must not fail just because storage cleanup failed), but this
           // used to log nothing — a failed delete here means an orphaned
@@ -163,12 +163,12 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
           // Logged at warn (not error): expected to happen occasionally
           // (transient Cloudinary errors), doesn't block the user-facing
           // action, but should be visible/searchable for periodic manual
-          // or scripted cleanup. Fixed once here for ads/products/
+          // or scripted cleanup. once here for ads/products/
           // service-listings alike, since all three now go through this
           // shared factory (products/service-listings directly; ads.service.ts
           // has its own separate removeImage — see this file's own doc
           // comment on why ads was left out of the addImages/removeImage
-          // extraction — but got the same logging fix applied there).
+          // extraction — but got the same logging there).
           logger.warn(`Failed to delete ${entityLabel} image from Cloudinary — orphaned asset`, {
             entityId,
             imageUrl,

@@ -149,7 +149,7 @@ export const usersService = {
   },
 
   /**
-   * FIX FEAT-02: previously NotificationSettingsForm.tsx's save button
+   * previously NotificationSettingsForm.tsx's save button
    * had nothing to call — this is the first time these preferences are
    * actually persisted anywhere.
    */
@@ -165,12 +165,12 @@ export const usersService = {
   },
 
   // D-01: cascade ACTIVE ads to DELETED + S-04: revoke all tokens
-  // FIX GDPR-ANON + FIX GDPR-CLOUDINARY-CLEANUP: see below for both.
+  // + see below for both.
   deleteMe: async (userId: string): Promise<void> => {
     const user = await usersRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
-    // FIX GDPR-CLOUDINARY-CLEANUP: collect every Cloudinary publicId
+    // collect every Cloudinary publicId
     // this user owns — avatar + every image of every ad they have ever
     // posted (not just ACTIVE ones; a SOLD ad's images also belong to
     // them). Before this, account deletion only flipped isActive=false
@@ -196,7 +196,7 @@ export const usersService = {
       }
     }
 
-    // FIX GDPR-ANON: anonymize the account so the email/phone/name
+    // anonymize the account so the email/phone/name
     // are gone from the database (kept: id, role, isActive, timestamps
     // — the row stays for foreign-key integrity and aggregate counts,
     // but nothing identifying survives). email and phone are the two
@@ -238,7 +238,7 @@ export const usersService = {
     // S-04: invalidate all active sessions + cache
     await Promise.all([userCache.invalidate(userId), tokenStore.deleteAllRefreshTokens(userId)]);
 
-    // FIX ACCOUNT-DELETE-CACHE-01: the transaction above flips this user's
+    // the transaction above flips this user's
     // ACTIVE ads to DELETED, but nothing invalidated the ads-list / homepage
     // caches, so a deleted account's ads kept showing for up to ~40s.
     await bumpAdsCacheVersionAndHome();
@@ -258,7 +258,7 @@ export const usersService = {
 
 
   /**
-   * FIX SEC-07: previously changePassword only updated passwordHash and
+   * previously changePassword only updated passwordHash and
    * did nothing else — every other active session (refresh tokens on
    * other devices, and the current access token for its remaining
    * ~15min lifetime) stayed fully valid after the change. This is the
@@ -280,7 +280,7 @@ export const usersService = {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, passwordHash: true } });
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
-    // FIX OAUTH-01: passwordHash is null for OAuth-only accounts (no
+    // passwordHash is null for OAuth-only accounts (no
     // local password was ever set), so there's nothing for
     // currentPassword to be compared against.
     if (!user.passwordHash) {

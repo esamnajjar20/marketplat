@@ -71,7 +71,6 @@ export function saveNotificationsItemsCache(items: Notification[]): void {
   } satisfies NotificationsCacheData);
 }
 
-/** حفظ/تحديث عدد الإشعارات غير المقروءة. */
 export function saveUnreadCountCache(count: number): void {
   const prev = readCache();
   localSet(KEY, {
@@ -82,7 +81,6 @@ export function saveUnreadCountCache(count: number): void {
   } satisfies NotificationsCacheData);
 }
 
-/** قراءة آخر نسخة محفوظة محليًا — null إن لم يسبق حفظ أي شيء. */
 export function getNotificationsCache(): NotificationsCacheData | null {
   const cache = readCache();
   return cache.savedAt ? cache : null;

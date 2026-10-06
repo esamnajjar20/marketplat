@@ -13,7 +13,7 @@ interface Props {
 }
 
 /**
- * FIX AUDIT-4: shared header for the app's three "edit my X" pages
+ * shared header for the app's three "edit my X" pages
  * (my-ads/[id]/edit, my-services/[id]/edit, my-store/products/[id]/edit).
  * Each previously rendered a bare <h1> with no way back except the
  * browser's own back button — no link, no breadcrumb — despite being

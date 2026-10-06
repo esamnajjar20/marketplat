@@ -46,7 +46,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockPush }),
   // AdminFilterBar (rendered by this table) reads usePathname() to
   // build its filter links — real value here is unused by the
-  // assertions below, so a fixed string is enough.
+  // assertions below, so a string is enough.
   usePathname: () => '/admin/sellers',
 }));
 

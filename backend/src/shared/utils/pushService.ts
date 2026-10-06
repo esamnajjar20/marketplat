@@ -17,7 +17,7 @@ import {
 } from './quietHours';
 
 /**
- * FIX PWA-PUSH-01: this is the missing backend half of the frontend's
+ * this is the missing backend half of the frontend's
  * push-subscription plumbing (frontend/lib/pwa.ts's subscribeToPush()
  * and frontend/public/sw.js's 'push' event listener were both already
  * built and waiting for this — see that file's own doc comment).
@@ -109,7 +109,7 @@ export const resolveQuietTimeZone = resolveQuietTimeZoneImpl;
 /**
  * Quiet hours live on User.notificationPreferences (see quietHours.ts for the
  * keys). Only suppresses/defers external push — in-app rows are still created
- * by callers. Phase 3: the decision carries `resumeInMs` so the queue can
+ * by callers. the decision carries `resumeInMs` so the queue can
  * defer the push to the end of the window instead of dropping it.
  * Fails open (a lookup error must never swallow a push).
  */
@@ -129,7 +129,7 @@ async function loadQuietHoursDecision(
   }
 }
 
-/** Phase 3 switch. Optional chaining: older test mocks of `env` have no such key. */
+/** switch. Optional chaining: older test mocks of `env` have no such key. */
 const queueEnabled = (): boolean => env.notificationQueue?.enabled === true;
 
 /**
@@ -166,7 +166,7 @@ function buildPushBody(payload: PushPayload): string {
 /**
  * TTL / urgency / topic for one push — shared by the inline and queued paths.
  *
- * FIX PUSH-TTL-AND-URGENCY-01: web-push's default TTL is 0, which tells the
+ * web-push's default TTL is 0, which tells the
  * push service to *discard* the message if the device can't take it right now.
  * On Gaza's mobile networks the phone is often offline, asleep or behind a NAT,
  * so with TTL 0 every notification arriving in any of those states is lost.
@@ -174,7 +174,7 @@ function buildPushBody(payload: PushPayload): string {
  * 3h for urgent ones (a 24h-old "new message" is worse than none). Urgency maps
  * to RFC 8030's `Urgency` hint (wake the radio now vs. batch with other traffic).
  *
- * FIX PUSH-TOPIC-COLLAPSE-01 / PUSH-TOPIC-HASH-01: `tag` becomes the RFC 8030
+ * / PUSH-TOPIC-HASH-01: `tag` becomes the RFC 8030
  * `Topic` so repeats of the same kind collapse into one banner on the device;
  * it is hashed (buildPushTopic) because Topic is limited to 32 URL-safe chars.
  */
@@ -192,7 +192,7 @@ function pushOptions(payload: PushPayload): {
 }
 
 /**
- * FIX PUSH-RETRY-01: one-shot retry around webpush.sendNotification.
+ * one-shot retry around webpush.sendNotification.
  * Returns:
  *   'sent'   — delivered to the push service (not to the device — that
  *              part depends on TTL/urgency, see below)
@@ -259,7 +259,7 @@ export const pushService = {
     if (!payload.bypassQuietHours) quiet = await loadQuietHoursDecision(userId, payload.urgent);
 
     if (quiet.blocked) {
-      // Phase 3: with the queue on, hold the push until the window ends
+      // with the queue on, hold the push until the window ends
       // (collapsed per tag) instead of dropping it. Queue off/unavailable →
       // the previous behaviour: skip.
       if (queueEnabled()) {
@@ -284,7 +284,7 @@ export const pushService = {
     loadQuietHoursDecision(userId, urgent),
 
   /**
-   * The pre-Phase-3 delivery path (FCM + every Web Push subscription of the
+   * The pre-delivery path (FCM + every Web Push subscription of the
    * user, inline, one retry per device). Used when the queue is disabled or
    * unavailable. Never throws.
    */
@@ -295,7 +295,7 @@ export const pushService = {
     // whole function's own contract with ITS callers.
     void fcmPushService.notifyUser(userId, payload).catch(() => undefined);
 
-    // AUDIT-FIX 2.1: wraps the whole body (not just the per-subscription
+    // wraps the whole body (not just the per-subscription
     // sendNotification below, which already had its own try/catch) so
     // an unexpected failure anywhere in this function — most notably
     // prisma.pushSubscription.findMany() below, which previously had no
@@ -305,7 +305,7 @@ export const pushService = {
     // a push failing must never fail the underlying action), which means
     // ANY rejection this function produces was previously silent and
     // untracked at the process level. Catching here, at the single
-    // shared entry point, fixes all three call sites
+    // shared entry point, all three call sites
     // (onNewMessage/onFavoritedAdPriceChanged/onSavedSearchMatched) at
     // once instead of requiring each `void` call site to remember its
     // own `.catch()`.
@@ -377,10 +377,10 @@ export const pushService = {
   },
 
   /**
-   * Phase 3: ONE attempt to ONE Web Push subscription — no sleeping, no
+   * ONE attempt to ONE Web Push subscription — no sleeping, no
    * internal retry (the queue's backoff owns that). 'gone' means the push
    * service discarded the endpoint and the row has been pruned; 'transient'
-   * (5xx / 429 / network) should be retried; 'failed' cannot be fixed by
+   * (5xx / 429 / network) should be retried; 'failed' cannot be by
    * retrying (bad key, payload too large, VAPID mismatch — never auto-pruned,
    * see PUSH-STATS-01).
    */
@@ -417,7 +417,7 @@ export const pushService = {
    * since each recipient's subscriptions and payload are independent. */
   notifyUsers: async (userIds: string[], payload: PushPayload): Promise<void> => {
     if (userIds.length === 0) return;
-    // FIX PUSH-FANOUT-CONCURRENCY-01: bound the parallel fan-out. A
+    // bound the parallel fan-out. A
     // broadcast to every user (e.g. an admin announcement) can pass
     // thousands of ids; the previous Promise.all spawned all of them
     // at once — thousands of concurrent DB reads plus thousands of

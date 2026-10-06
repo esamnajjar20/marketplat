@@ -1,5 +1,5 @@
 /**
- * SLOW-NET phase2: on hover/focus, warm the next page without blocking paint.
+ * SLOW-NET on hover/focus, warm the next page without blocking paint.
  * Deduped per key; work runs in requestIdleCallback (or short timeout).
  *
  * GHOST-PREFETCH-01: onPointerEnter (the trigger every caller of

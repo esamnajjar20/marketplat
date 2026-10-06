@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Shared chrome for public browse pages (/ads, /products, /services, /stores, …).
- * UI-PHASE-A: one header + toolbar + optional desktop sidebar + main column.
+ * UI-one header + toolbar + optional desktop sidebar + main column.
  */
 export interface ListPageShellProps {
   icon: ReactNode;
@@ -27,7 +27,6 @@ export const LIST_CARD_GRID_CLASS =
 export const LIST_STORE_GRID_CLASS =
   'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';
 
-/** Service listing cards. */
 export const LIST_SERVICE_GRID_CLASS =
   'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';
 

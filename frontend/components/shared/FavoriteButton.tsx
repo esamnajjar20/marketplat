@@ -60,8 +60,8 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    // SW-FIX-FAVBUTTON-LOGIN: matches AdCard's own heart-button fix
-    // (SW-FIX-ADCARD-LOGIN) — a bare toast left the user on the same
+    // matches AdCard's own heart-button fix
+    // () — a bare toast left the user on the same
     // page with no path to sign in. Redirect to /login with the current
     // page as `from` so they land back here after signing in.
     if (!isAuth) {

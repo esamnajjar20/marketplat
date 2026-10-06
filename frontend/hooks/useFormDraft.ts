@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 /**
  * Debounced localStorage draft for long forms (ads, products).
- * PHASE-3: keeps last 5 payload snapshots for restore.
+ * keeps last 5 payload snapshots for restore.
  */
 
 const MAX_VERSIONS = 5;

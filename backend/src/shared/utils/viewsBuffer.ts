@@ -5,7 +5,7 @@ import { env } from '../../config/env';
 
 const VIEWS_PREFIX = 'views_buffer:';
 const FLUSH_INTERVAL = 60_000; // flush to DB every 60 seconds
-// FIX D-11: safety-net TTL on the buffer counter key. Without this, if
+// safety-net TTL on the buffer counter key. Without this, if
 // flush() throws before reaching its GETDEL step (e.g. a transient Redis
 // error), the key has no expiry and persists indefinitely — silently
 // growing the keyspace and delaying those views from ever reaching
@@ -40,7 +40,7 @@ export const viewsBuffer = {
         // Mark as seen for 1 hour
         await redis.setex(dedupKey, 3600, '1');
       }
-      // Accumulate in buffer key. FIX D-11: pipeline INCR + EXPIRE together
+      // Accumulate in buffer key. pipeline INCR + EXPIRE together
       // so the key's TTL is refreshed on every increment — it never sits
       // without an expiry, and active counters don't expire mid-accumulation
       // since each new view pushes the TTL back out.

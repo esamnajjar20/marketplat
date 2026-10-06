@@ -39,7 +39,7 @@ type StatItem = {
 };
 
 export function DashboardStats() {
-  // SW-DASHBOARD-STATS-FIXES-01: switched from useMyConversations +
+  // SW-DASHBOARD-STATS-switched from useMyConversations +
   // items.filter(unreadCount > 0) to useUnreadConversationCount(). Two
   // reasons:
   //
@@ -69,7 +69,7 @@ export function DashboardStats() {
     );
   }
 
-  // SW-FIX-STATS-OFFLINE: distinguish offline (statusCode 0 / navigator
+  // distinguish offline (statusCode 0 / navigator
   // reports offline) from a real server error. Previously any failure
   // showed "حدث خطأ أثناء تحميل الإحصائيات" — confusing when the user
   // is simply offline on a Gaza voucher card and hasn't warmed stats yet.

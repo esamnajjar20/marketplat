@@ -1,5 +1,5 @@
 /**
- * Integration — appointments HTTP surface (Phase 4 / P3).
+ * Integration — appointments HTTP surface (/ P3).
  * Unit tests already cover service logic; this pins auth + public availability.
  */
 import request from 'supertest';

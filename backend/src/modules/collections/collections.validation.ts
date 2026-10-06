@@ -28,8 +28,8 @@ export const collectionIdSchema = z.object({
 
 // Store-scoped reorder — the full set of the owner's collection ids in
 // their new display order, same shape products-reorder-style endpoints
-// elsewhere in this codebase expect (one PATCH with the whole ordered
-// list, not N individual sortOrder PATCHes).
+// elsewhere in this codebase expect (one the whole ordered
+// list, not N individual sortOrder ).
 export const reorderCollectionsSchema = z.object({
   body: z.object({
     orderedIds: z.array(z.string().min(1)).min(1, 'orderedIds must not be empty'),

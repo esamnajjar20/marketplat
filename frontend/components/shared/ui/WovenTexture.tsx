@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   /** Matches each call site's previous inline opacity — 0.07 everywhere
-   *  except /search, which used 0.06. Kept as a prop instead of a fixed
+   *  except /search, which used 0.06. Kept as a prop instead of a 
    *  value so that difference stays visible and intentional at each
    *  call site, not silently unified into one number. */
   opacity: 0.06 | 0.07;

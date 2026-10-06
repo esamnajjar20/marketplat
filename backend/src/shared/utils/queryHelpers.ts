@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-// FIX BUG-07: this exact preprocessor (undefined passthrough, otherwise
+// this exact preprocessor (undefined passthrough, otherwise
 // Number(value)) was independently copy-pasted into 16 different
 // *.validation.ts files across the codebase — every module with a
 // paginated/filterable list endpoint had its own private copy. Small
-// enough that no single copy caused a bug, but any future fix to the
+// enough that no single copy caused a bug, but any future the
 // coercion logic (e.g. rejecting NaN, rejecting negative page numbers)
 // would need to be hand-applied to all 16 to actually take effect
 // everywhere. Centralized here instead; call sites now import this.

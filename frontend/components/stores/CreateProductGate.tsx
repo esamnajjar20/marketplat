@@ -13,7 +13,7 @@ import { ROUTES } from '@/lib/constants';
  * Gates product creation behind store ownership — mirrors CreateAdGate's
  * seller-profile check.
  *
- * FIX STORE-GATE-STATUS-01: `RequireProfileGate` only distinguished
+ * `RequireProfileGate` only distinguished
  * "no store" (404) from "network error / real data" — it did NOT look
  * at the returned store's own status. A user whose store is PENDING
  * (awaiting admin approval) or BLOCKED passed the gate, filled out the

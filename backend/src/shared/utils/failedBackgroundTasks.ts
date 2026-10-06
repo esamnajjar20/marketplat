@@ -3,7 +3,7 @@ import { logger } from './logger';
 import { Prisma } from '@prisma/client';
 
 /**
- * FIX M-011 / M-012 — silent-failure safety net for fire-and-forget
+ * / M-012 — silent-failure safety net for fire-and-forget
  * background work (notification fan-out, fraud scoring, ...).
  *
  * This app has no message queue (BullMQ or similar) to retry failed

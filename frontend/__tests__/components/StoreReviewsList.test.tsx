@@ -2,7 +2,7 @@
  * __tests__/components/StoreReviewsList.test.tsx
  *
  * Coverage gap: 0% prior coverage. Covers loading/error/empty states,
- * star-fill rendering by score, optional comment, and FIX BUG-09's
+ * star-fill rendering by score, optional comment, and 's
  * namespaced `reviewsPage` param (must not collide with StoreProducts'
  * `productsPage` on the same store page).
  */

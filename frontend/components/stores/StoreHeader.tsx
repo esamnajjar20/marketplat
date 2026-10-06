@@ -41,7 +41,7 @@ const STORE_HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
 interface Props {
   store: StoreWithSellerAndCounts;
   /**
-   * FIX BUG-03: this used to be required-in-spirit-but-never-passed —
+   * this used to be required-in-spirit-but-never-passed —
    * the public store endpoint doesn't include per-viewer follow state,
    * and no caller ever supplied it, so the button always rendered as
    * if logged out of any follow relationship. Now optional: if omitted,
@@ -68,9 +68,9 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const toggleFollow = useToggleStoreFollow();
   const derivedIsFollowing = useIsFollowingStore(store.id);
   const isFollowing = isFollowingProp ?? derivedIsFollowing;
-  // SW-FIX-STOREHEADER-SP: sellerProfile is typed non-optional but can
+  // sellerProfile is typed non-optional but can
   // be null for stores whose owner never finished seller onboarding
-  // (see ProductDetail.tsx's BUGFIX note) — every access is guarded.
+  // (see ProductDetail.tsx's ) — every access is guarded.
   const isOwnStore = currentUser?.id === store.sellerProfile?.userId;
   const shareUrl = `${APP_URL}${ROUTES.storeDetail(store.id)}`;
   const waDigits = store.phone.replace(/\D/g, '');

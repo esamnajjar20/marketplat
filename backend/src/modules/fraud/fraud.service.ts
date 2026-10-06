@@ -11,7 +11,7 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { GetFlaggedAdsQuery, GetFraudSignalsQuery } from './fraud.validation';
 
-// FIX FRAUD-DUPLICATE-ENTITY-01: the DUPLICATE_LISTING heuristic now
+// the DUPLICATE_LISTING heuristic now
 // explicitly skips product/service listings -- the underlying query is
 // ad-table-only, and every product/service create was paying for a
 // lookup that could never match. Ads are unchanged.
@@ -129,7 +129,7 @@ async function computeSignals(
   }
 
   // --- DUPLICATE_LISTING --------------------------------------------
-  // FIX FRAUD-DUPLICATE-ENTITY-01: findPotentialDuplicates queries the
+  // findPotentialDuplicates queries the
   // Ad table only (schema has no cross-entity duplicate check), and
   // scoreListing passes city: '' because products/services have no city
   // in the ScoreAdInput shape. Both facts together meant the old code

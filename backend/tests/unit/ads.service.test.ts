@@ -142,7 +142,7 @@ describe('AdsService', () => {
       expect(deleteImage).toHaveBeenCalledWith('classifieds/ads/img');
     });
 
-    // FIX AUDIT-V5-01 coverage
+    // coverage
     it('rejects with BadRequestError when the user is at the active-ad cap', async () => {
       (adsRepository.countActiveByUserId as jest.Mock).mockResolvedValue(50);
 
@@ -191,7 +191,7 @@ describe('AdsService', () => {
       expect(result.userId).toBe(userId);
     });
 
-    // AUDIT-FIX M-02 coverage: proves the count-check-then-create
+    // coverage: proves the count-check-then-create
     // sequence is now actually serialized per-user via a Redis lock
     // (withUserAdCreationLock), not just correct when called
     // sequentially (which the tests above already covered but
@@ -268,7 +268,7 @@ describe('AdsService', () => {
       await adsService.getAds(query);
       await adsService.getAds(query);
 
-      // FIX AUDIT-V4-06's entire point: a second identical query within
+      // 's entire point: a second identical query within
       // the TTL must not re-hit Postgres.
       expect(adsRepository.findMany).toHaveBeenCalledTimes(1);
     });

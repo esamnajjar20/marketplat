@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/offlineWarmingScheduler.test.ts
  *
- * FIX WARM-SCHEDULE-01 — "when to warm" rules: coalescing, deferral,
+ * "when to warm" rules: coalescing, deferral,
  * visible-only, rate limiting, slow-link delay, cancel.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

@@ -1,7 +1,7 @@
 /**
  * useReportAd — reports an ad for review by an admin.
  *
- * FIX INTEG-07: api/reports.api.ts (reportsApi.reportAd) and the backend
+ * api/reports.api.ts (reportsApi.reportAd) and the backend
  * POST /reports/ads/:adId endpoint were both fully implemented and
  * covered by thin-wrappers.test.ts, but no mutation hook ever called it
  * — the "الإبلاغ عن هذا الإعلان" button in AdDetail.tsx had no onClick
@@ -27,7 +27,7 @@ export function useReportAd(adId: string) {
 
 // FEAT-REPORT-USER-STORE: same pattern as useReportAd — the "الإبلاغ عن
 // هذا المستخدم" button on a profile page had no mutation to call before
-// this, same gap FIX INTEG-07 closed for ads.
+// this, same gap closed for ads.
 export function useReportUser(userId: string) {
   return useMutation({
     mutationFn: (payload: CreateReportPayload) =>

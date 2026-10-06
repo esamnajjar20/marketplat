@@ -8,19 +8,19 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/share
 import { StoresFilters } from './StoresFilters';
 
 // Keys StoresFilters itself writes via update() — search/city (sort no
-// longer lives here, FIX P2-08). Mirrors search/SearchFiltersSheet.tsx
+// longer lives here, ). Mirrors search/SearchFiltersSheet.tsx
 // and ads/SearchFiltersSheet.tsx's identical FILTER_KEYS convention.
 const FILTER_KEYS = ['search', 'city', 'type'] as const;
 
 /**
- * FIX P2-09: /stores previously rendered StoresFilters inline above the
+ * /stores previously rendered StoresFilters inline above the
  * results on every breakpoint (no `hidden lg:block` on its <aside>,
  * unlike /search and the ads category page) — on mobile a user had to
  * scroll past the full filter panel before seeing a single store. This
  * wraps the exact same StoresFilters component (unmodified — already
  * URL-driven via useSearchParams/router.push, so it works identically
  * inside a sheet) behind a "تصفية" trigger, shown only below `lg`,
- * mirroring FIX P1-2's identical fix for /search and the ads category
+ * mirroring 's identical /search and the ads category
  * page.
  */
 export function StoresFiltersSheet() {

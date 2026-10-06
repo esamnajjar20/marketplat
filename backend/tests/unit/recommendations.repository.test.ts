@@ -444,7 +444,7 @@ describe('productRecommendationsRepository.recentlyViewedCategoryIds', () => {
     const result = await productRecommendationsRepository.recentlyViewedCategoryIds('user-1');
 
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
-    // Tagged-template call: [stringsArray, ...interpolatedValues] — the
+    // Tagged-call: [stringsArray, ...interpolatedValues] — the
     // interpolated values include userId and AnalyticsEventType.PRODUCT_VIEW,
     // confirming this reads the new event type and not AD_VIEW's.
     const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
@@ -975,7 +975,7 @@ describe('storeRecommendationsRepository', () => {
         limit: 8,
       });
 
-      // $queryRaw tagged-template nests values inside Prisma.Sql fragments
+      // $queryRaw tagged-nests values inside Prisma.Sql fragments
       const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0];
       const serialized = JSON.stringify(callArgs);
       expect(serialized).toContain('31.5');
@@ -1053,9 +1053,9 @@ describe('storeRecommendationsRepository', () => {
 
       // Same serialization approach the pre-existing lat/lng and
       // excludeIds tests above already use to inspect the tagged-
-      // template call — not just the interpolated values but the
-      // literal template-string segments too, which is where
-      // `sd."id" ASC` (written directly in the query template, not
+      // call — not just the interpolated values but the
+      // literal segments too, which is where
+      // `sd."id" ASC` (written directly in the query , not
       // interpolated) actually lives.
       const serialized = JSON.stringify((prisma.$queryRaw as jest.Mock).mock.calls[0]);
       expect(serialized).toContain('id\\" ASC');

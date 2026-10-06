@@ -98,7 +98,7 @@ describe('AuthService — extended', () => {
     });
 
     /**
-     * BUGFIX regression tests — found during a post-implementation code
+     * tests — found during a post-implementation code
      * audit. authService.refresh() previously never checked
      * user.isActive anywhere in its path: a deactivated account (via
      * usersService.deleteMe, or an admin's adminService.toggleUserActive)

@@ -2,7 +2,7 @@ import { makeSendCommand } from '../../src/middlewares/rateLimit.middleware';
 import { redis } from '../../src/config/redis';
 
 /**
- * FIX TEST-V4-05: rateLimit.middleware.ts had zero test coverage
+ * rateLimit.middleware.ts had zero test coverage
  * despite controlling a genuinely security-relevant decision: what
  * happens to rate limiting when Redis itself is unavailable.
  *
@@ -12,7 +12,7 @@ import { redis } from '../../src/config/redis';
  * all traffic on an infrastructure outage unrelated to abuse.
  *
  * Sensitive auth-adjacent routes (authRateLimit, refreshRateLimit,
- * forgotPasswordRateLimit, changePasswordRateLimit — FIX SEC-09) are
+ * forgotPasswordRateLimit, changePasswordRateLimit — ) are
  * intentionally fail-CLOSED — exactly the moment Redis is unavailable
  * is also a moment brute-force/credential-stuffing attempts become
  * both more likely and harder to detect by other means, so these must
@@ -44,7 +44,7 @@ describe('rateLimit.middleware — makeSendCommand fail-open/fail-closed', () =>
 
       const result = await sendCommand('EVALSHA', 'sha', '1', 'key');
 
-      // FIX TEST-V4-05: this is the actual fail-open contract — a
+      // this is the actual fail-open contract — a
       // Redis outage must not throw up through express-rate-limit and
       // 500 every request; it must look like "no hits recorded yet".
       expect(result).toBe(0);
@@ -65,7 +65,7 @@ describe('rateLimit.middleware — makeSendCommand fail-open/fail-closed', () =>
       (redis.call as jest.Mock).mockRejectedValueOnce(new Error('ECONNREFUSED'));
       const sendCommand = makeSendCommand(false);
 
-      // FIX TEST-V4-05: this is the actual fail-closed contract — a
+      // this is the actual fail-closed contract — a
       // Redis outage on a sensitive endpoint must surface as an error
       // (which express-rate-limit/error middleware then turns into a
       // 5xx), not silently disable the rate limit protecting it.
@@ -73,7 +73,7 @@ describe('rateLimit.middleware — makeSendCommand fail-open/fail-closed', () =>
     });
   });
 
-  // FIX SEC-09 coverage: POST /users/me/password previously relied only
+  // coverage: POST /users/me/password previously relied only
   // on the loose, fail-open usersRateLimit (60/15min) for an endpoint
   // that verifies a caller-supplied password — effectively an
   // unthrottled guessing oracle for anyone holding a stolen access

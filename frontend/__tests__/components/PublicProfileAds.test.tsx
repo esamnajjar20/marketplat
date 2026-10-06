@@ -2,7 +2,7 @@
  * __tests__/components/PublicProfileAds.test.tsx
  *
  * Coverage gap: 0% prior coverage. Covers loading skeleton,
- * UX-FIX P1-9's error-before-empty ordering (must not tell a visitor
+ * 's error-before-empty ordering (must not tell a visitor
  * "no ads" on a failed fetch), empty state, ad list rendering, and
  * pagination visibility/baseUrl.
  */

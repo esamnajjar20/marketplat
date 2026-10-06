@@ -16,7 +16,7 @@ interface Props {
 }
 
 /**
- * FIX INTEG-06: useUpdateCategory (useCategoryMutations.ts) and the
+ * useUpdateCategory (useCategoryMutations.ts) and the
  * backend's PATCH /categories/:id were both fully implemented and
  * tested, but nothing in the admin UI ever called it — AdminCategoriesTree
  * was read-only. This wires the existing mutation to a real dialog,
@@ -59,7 +59,7 @@ export function EditCategoryButton({ category }: Props) {
     });
   }
 
-  // UX-FIX P1-1: block Escape / overlay-click / cancel-button close while
+  // block Escape / overlay-click / cancel-button close while
   // updateCategory is in flight — same rationale as CreateCategoryButton.
   function handleOpenChange(next: boolean) {
     if (updateCategory.isPending) return;

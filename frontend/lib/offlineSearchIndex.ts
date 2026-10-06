@@ -137,7 +137,6 @@ function normalizeService(s: Record<string, unknown>): SearchResult | null {
   };
 }
 
-/** يحوّل صف Store خام (من استجابة GET /stores المخزّنة) إلى SearchResult. */
 function normalizeStore(s: Record<string, unknown>): SearchResult | null {
   if (typeof s.id !== 'string' || typeof s.name !== 'string') return null;
   const sellerProfile = (s.sellerProfile ?? {}) as Record<string, unknown>;
@@ -342,7 +341,6 @@ export async function searchOffline(
 }
 
 
-/** نتائج بحث محلية مع تلميح «من البيانات المحفوظة». */
 export async function searchOfflineWithMeta(query: SearchQuery): Promise<{
   items: SearchResult[];
   meta: PaginationMeta;

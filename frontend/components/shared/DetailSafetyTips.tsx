@@ -11,7 +11,7 @@ const TIPS = [
 ] as const;
 
 /**
- * Shared safe-buying tips for detail pages (UI-PHASE-B).
+ * Shared safe-buying tips for detail pages (UI-).
  * Open by default so safety tips are visible near the contact moment.
  */
 export function DetailSafetyTips({

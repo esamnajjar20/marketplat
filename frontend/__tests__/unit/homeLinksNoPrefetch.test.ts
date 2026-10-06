@@ -1,5 +1,5 @@
 /**
- * FIX RSC-PREFETCH-STORM-02 regression guard.
+ * regression guard.
  *
  * Every <Link> on the always-mounted homepage path must opt out of Next's
  * default viewport prefetch: each one costs an RSC request (a Worker

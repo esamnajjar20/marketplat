@@ -72,7 +72,7 @@ const SCALE = parseFloat(__ENV.STRESS_SCALE || '1');
 const scaled = (n) => Math.max(1, Math.round(n * SCALE));
 
 // Seconds to ramp INTO each step and seconds to HOLD once there.
-// Fixed rather than scaled with STRESS_SCALE — a shrunk smoke run
+// rather than scaled with STRESS_SCALE — a shrunk smoke run
 // should still exercise the same timing shape, just at lower
 // concurrency, not finish in a few seconds.
 const RAMP_S = parseInt(__ENV.STRESS_RAMP_SECONDS || '20', 10);

@@ -34,7 +34,7 @@ describe('users.validation', () => {
     });
   });
 
-  // PROMO-1 (Phase 14): myPromotions is a new preference key, distinct
+  // PROMO-1 (): myPromotions is a new preference key, distinct
   // from the existing `promotions` (admin-broadcast newsletter) — see
   // schema.prisma's PROMOTION_STATUS_CHANGE doc comment for why.
   describe('updateNotificationPreferencesSchema', () => {

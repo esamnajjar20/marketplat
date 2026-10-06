@@ -12,7 +12,7 @@ interface ErrorPageProps {
 /**
  * Global error boundary — Next.js App Router special filename.
  *
- * FIX AUDIT-V5-02: this file was previously named `app/error.tsx`, which
+ * this file was previously named `app/error.tsx`, which
  * made it a REGULAR route-level error boundary. Next.js renders a regular
  * `error.tsx` *inside* its nearest parent layout — it does not replace
  * that layout's own <html>/<body>. Since `app/layout.tsx` already renders

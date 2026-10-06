@@ -143,7 +143,7 @@ describe('UsersService', () => {
       ).rejects.toThrow(NotFoundError);
     });
 
-    // FIX SEC-07 coverage: password change must invalidate every other
+    // coverage: password change must invalidate every other
     // session, not just update the hash.
     it('invalidates all refresh tokens and the user cache after a successful change', async () => {
       const currentHash = await hashPassword('correct-current-password');

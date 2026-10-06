@@ -71,7 +71,7 @@ describe('getCachedHomepage', () => {
     const envelope = stored('home:v4:غزة')!;
     expect(envelope.payload).toEqual(full);
     expect(envelope.hard).toBe(fake.__store.get(HOME_GEN_KEY)!.value);
-    // FIX HOME-CACHE-JITTER-01: soft TTL = base + 0..jitter seconds.
+    // soft TTL = base + 0..jitter seconds.
     expect(envelope.softExpiresAt).toBeGreaterThanOrEqual(before + HOME_CACHE_TTL_SECONDS * 1000);
     expect(envelope.softExpiresAt).toBeLessThanOrEqual(
       Date.now() + (HOME_CACHE_TTL_SECONDS + HOME_CACHE_TTL_JITTER_SECONDS) * 1000,

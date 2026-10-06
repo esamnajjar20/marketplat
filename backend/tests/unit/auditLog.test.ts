@@ -102,7 +102,6 @@ describe('auditLog', () => {
     });
   });
 
-  // FIX OPS-3.2
   describe('sanitization of sensitive detail keys', () => {
     it('redacts a sensitive key (e.g. password) before writing to the DB', async () => {
       const createSpy = jest.spyOn(prisma.auditLog, 'create').mockResolvedValue({} as any);

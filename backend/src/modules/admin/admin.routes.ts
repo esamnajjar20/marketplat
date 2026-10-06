@@ -55,16 +55,8 @@ adminRouter.get('/stats', requireMinRole(ROLES.ADMIN), adminController.getStats)
 // in the MODERATOR tier, same as reports/fraud).
 adminRouter.get('/ads', requireMinRole(ROLES.MODERATOR), adminController.getAllAds);
 
-// BULK-ADMIN (item 17): ROUTE-ORDER FIX — registered before the
-// /ads/:id/... routes below. The original comment here claimed
-// /ads/bulk/... "simply don't collide with the :id-based routes...
-// regardless of registration order" — that was wrong. Express matches
-// routes in registration order, not by specificity, and /ads/:id/featured
-// matches PATCH /ads/bulk/featured with :id="bulk" just as readily as
-// /sellers/:id/verify matched PATCH /sellers/bulk/verify (the bug that
-// actually surfaced as "البائع غير موجود" on the sellers bulk-action
-// bar). Same class of bug, same fix: bulk routes must be registered
-// first.
+// Bulk routes must precede /ads/:id/... because Express matches routes
+// in registration order and would otherwise treat "bulk" as :id.
 adminRouter.patch('/ads/bulk/featured', requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdFeatured);
 adminRouter.patch('/ads/bulk/pinned', requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdPinned);
 adminRouter.delete('/ads/bulk', requireMinRole(ROLES.MODERATOR), adminController.bulkDeleteAds);

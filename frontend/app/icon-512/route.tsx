@@ -5,7 +5,7 @@ import { ImageResponse } from 'next/og';
 export const dynamic = 'force-static';
 
 /**
- * FIX PROD-02: see app/icon-192/route.tsx for the full reasoning — same
+ * see app/icon-192/route.tsx for the full reasoning — same
  * mark, larger canvas (512x512 is the other size PWA install prompts
  * and app stores commonly request, alongside 192x192).
  */

@@ -5,7 +5,7 @@ import { buildMetadata }  from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({ title: 'إنشاء حساب', noIndex: true });
 
-// AUDIT-FIX auth#2: same fix as LoginPage — see its comment for the
+// #2: same LoginPage — see its comment for the
 // full reasoning. RegisterForm is the tallest of the four (5 fields),
 // so this was also the page where the inner min-h-screen most risked
 // pushing the heading above the first-viewport fold on short mobile

@@ -6,7 +6,7 @@
  * creation flows: CreateAdGate (seller profile), CreateProductGate
  * (store), CreateServiceListingGate (service-provider profile). A
  * regression here silently reopens the exact bug its own header comment
- * describes having fixed once already: a user without the right profile
+ * describes having once already: a user without the right profile
  * either gets stranded with no way forward, or slips past the gate and
  * only discovers the block on a backend 4xx after filling a whole form.
  *
@@ -18,7 +18,7 @@
  *  - Data present renders children, not the CTA
  *  - The CTA link carries `from` as an encoded ?from= query param onto
  *    setupHref, so the setup page can send the user back afterward
- *  - FIX OFFLINE-GATE-404-01: a non-404 error (network/offline failure,
+ *  - a non-404 error (network/offline failure,
  *    5xx, etc.) shows a distinct retry state instead of the "create it"
  *    CTA — previously any error at all was read as "no profile yet",
  *    which wrongly told an existing store/seller/provider owner to

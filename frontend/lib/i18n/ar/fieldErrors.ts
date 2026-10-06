@@ -1,5 +1,5 @@
 /**
- * FIX I18N-01: Arabic translation for backend (Zod) field-level
+ * Arabic translation for backend (Zod) field-level
  * validation messages.
  *
  * Until this fix, `errorParser.ts`'s `parseFieldErrors` passed Zod's
@@ -22,7 +22,7 @@
  * working the next time someone rewords a message in a *.validation.ts
  * file — the previous approach's exact failure mode for `city`.
  *
- * A fixed literal-string table is kept as a fallback for the (rare)
+ * A literal-string table is kept as a fallback for the (rare)
  * case where `errorMeta` is absent for some reason — e.g. an older
  * cached response shape — so a field error still renders in Arabic
  * rather than falling through to raw English.

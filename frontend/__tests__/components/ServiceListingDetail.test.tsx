@@ -7,7 +7,7 @@
  *
  * Coverage targets:
  *  - Renders title, description, price (same pricingType logic as
- *    ServiceListingCard — FIXED/STARTING_FROM/NEGOTIABLE/null)
+ *    ServiceListingCard — )
  *  - Location label for all three ServiceLocationType values
  *  - durationEstimate shown only when present
  *  - views count and relative time render

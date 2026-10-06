@@ -9,12 +9,12 @@ import { Checkbox } from '@/components/shared/ui/Checkbox';
 import { CITIES, ROUTES } from '@/lib/constants';
 
 /**
- * PROMO-1 (Phase 12, full scope): mirrors StoresFilters.tsx's
+ * PROMO-1 (, full scope): mirrors StoresFilters.tsx's
  * URL-driven shape/behavior exactly (same update() pattern, same
  * select styling) — ProductsGrid already reads and applies
  * search/city/hasPromotion from the URL in full (see its own doc
  * comment), this was only ever missing a visible filter UI, same gap
- * StoresFilters originally closed for /stores (FIX BUG-02).
+ * StoresFilters originally closed for /stores ().
  *
  * hasPromotion is a plain Checkbox (native <input type="checkbox">,
  * see that component's own doc for why no Radix here) rather than a

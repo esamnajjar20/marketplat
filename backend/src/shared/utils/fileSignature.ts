@@ -17,7 +17,7 @@
  * Deliberately dependency-free rather than pulling in the `file-type`
  * package: recent major versions of `file-type` are ESM-only, and this
  * project's tsconfig is CommonJS (`module: "commonjs"`) — forcing that
- * interop for four fixed, well-documented signatures is not worth the
+ * interop for four , well-documented signatures is not worth the
  * added build complexity. If the allow-list grows to cover many more
  * formats (video, documents, etc.), revisit this tradeoff.
  */

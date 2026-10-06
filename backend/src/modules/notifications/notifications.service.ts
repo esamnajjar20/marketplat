@@ -213,32 +213,13 @@ export const notificationsService = {
   broadcastPromotion: async (userIds: string[], title: string, body: string): Promise<number> => {
     if (userIds.length === 0) return 0;
 
-    // FIX NOTIF-BROADCAST-CHUNK-01: process in bounded slices instead
-    // of holding one giant recipients array and one giant INSERT. The
-    // caller (admin controller) resolves "all active users" into a
-    // concrete id list — realistic Gaza-market scale is thousands
-    // today, but the previous implementation would break at 100K:
-    //   - filterUserIdsByPref issued a single WHERE id IN (100K) query
-    //   - createMany inserted all 100K rows in one transaction (a
-    //     single failure rolled back the whole broadcast, and the
-    //     insert itself can exhaust the DB connection timeout on
-    //     Neon/Render Free)
-    //   - pushService.notifyUsers enqueued 100K/10 = 10K chunks back
-    //     to back
-    // 500 per slice keeps each query and insert small enough to finish
-    // inside the request timeout, keeps memory bounded (only one
-    // slice's worth of user rows resident at a time), and lets a
-    // failing slice surface in the returned count without losing the
-    // slices that already succeeded.
+    // Process broadcasts in 500-user slices to bound query size, memory use,
+// and transaction duration while allowing completed slices to remain.
     const BROADCAST_CHUNK_SIZE = 500;
     const unique = Array.from(new Set(userIds));
     let totalCreated = 0;
-    // NOTIF-BROADCAST-PUSH-SERIAL-01: each slice used to fire its own
-    // un-awaited pushService.notifyUsers, so N slices ran N fan-outs in
-    // parallel (each already chunked by 10) — 10K users meant ~20
-    // concurrent fan-outs against the pool and the push services. Chain
-    // them so only one slice's push is in flight at a time; the HTTP
-    // request still returns after the in-app rows are written.
+    // Serialize push fan-out per slice to avoid multiplying concurrent
+    // outbound work for large broadcasts.
     let pushChain: Promise<void> = Promise.resolve();
 
     for (let i = 0; i < unique.length; i += BROADCAST_CHUNK_SIZE) {

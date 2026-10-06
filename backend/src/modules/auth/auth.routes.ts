@@ -23,7 +23,7 @@ type GoogleProfileDataOrFalse = GoogleProfileData | false;
 export const authRouter = Router();
 
 /**
- * FIX OAUTH-01: guards both /auth/google endpoints when Google OAuth
+ * guards both /auth/google endpoints when Google OAuth
  * credentials aren't configured (env.googleOAuth.isConfigured is
  * false — see env.ts / google.strategy.ts's configureGoogleStrategy).
  * Without this, calling passport.authenticate('google', ...) for a
@@ -96,7 +96,7 @@ authRouter.post('/login', authRateLimit, authController.login);
  *     tags: [Auth]
  *     summary: Refresh access token
  *     description: >
- *       PROD-FIX-15: refreshToken is now read from an httpOnly cookie
+ *       refreshToken is now read from an httpOnly cookie
  *       (set by /auth/login, /auth/register, or a prior call to this
  *       same endpoint) rather than the request body. No request body
  *       is required or read; the cookie must be present (the browser
@@ -175,7 +175,7 @@ authRouter.post('/forgot-password', forgotPasswordRateLimit, authController.forg
  */
 authRouter.post('/reset-password', authRateLimit, authController.resetPassword);
 
-// FIX FEAT-EMAIL-VERIFY: /verify-email is public (the token is the
+// /verify-email is public (the token is the
 // proof of ownership; a user clicking the link from their phone may
 // not be logged in). /resend-verification requires auth so the
 // endpoint knows which user's email to re-send to.
@@ -194,7 +194,7 @@ authRouter.post(
  *     tags: [Auth]
  *     summary: Start Google OAuth sign-in
  *     description: >
- *       FIX OAUTH-01: redirects the browser to Google's consent
+ *       redirects the browser to Google's consent
  *       screen. Not usable via XHR/fetch — this must be a top-level
  *       browser navigation (e.g. the frontend's "Continue with
  *       Google" button sets window.location.href to this URL, it
@@ -211,7 +211,7 @@ authRouter.get(
   '/google',
   authRateLimit,
   requireGoogleOAuthConfigured,
-  // FIX M-004: generate a random `state` value, store it in a
+  // generate a random `state` value, store it in a
   // short-lived httpOnly cookie scoped to this browser, and pass the
   // same value to Google via passport's `state` option so it comes
   // back unchanged in the callback's query string. See
@@ -229,7 +229,7 @@ authRouter.get(
     if (purpose === 'verify' || purpose === 'reset' || purpose === 'link') {
       setOAuthPurpose(res, purpose);
     } else {
-      // FIX OAUTH-PURPOSE-LEAK: explicitly clear any purpose cookie
+      // explicitly clear any purpose cookie
       // left over from an abandoned verify/reset flow. Without this,
       // a user who started "reset via Google" and closed the tab
       // before consent — so the cookie was never cleared by the
@@ -256,7 +256,7 @@ authRouter.get(
  *     tags: [Auth]
  *     summary: Google OAuth callback
  *     description: >
- *       FIX OAUTH-01: Google redirects the browser here after the user
+ *       Google redirects the browser here after the user
  *       approves (or denies) consent. On success, passport.authenticate
  *       populates req.googleProfile with the profile data
  *       google.strategy.ts's verify callback extracted, then
@@ -286,7 +286,7 @@ authRouter.get(
 authRouter.get(
   '/google/callback',
   requireGoogleOAuthConfigured,
-  // FIX M-004: verify the `state` Google echoed back in the query
+  // verify the `state` Google echoed back in the query
   // string matches the value we stored in the httpOnly cookie when
   // this flow started at GET /auth/google, before ever calling
   // passport.authenticate. A mismatch (or a missing cookie — e.g. the
@@ -309,7 +309,7 @@ authRouter.get(
     next();
   },
   (req, res, next) => {
-    // FIX OAUTH-01: passing a custom callback as passport.authenticate's
+    // passing a custom callback as passport.authenticate's
     // third argument means Passport hands control back here instead of
     // auto-populating req.user / auto-redirecting on failure — so
     // `failureRedirect` in the options object would be silently
@@ -333,7 +333,7 @@ authRouter.get(
 );
 
 /**
- * FIX OAUTH-01: the failureRedirect target above. A plain redirect
+ * the failureRedirect target above. A plain redirect
  * back to the frontend's login page with an explanatory query param —
  * matches googleCallback's own catch-block failure handling so both
  * "Passport-level failure" (wrong/expired code, user denied consent)

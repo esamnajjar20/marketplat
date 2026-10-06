@@ -26,7 +26,7 @@
  *    queued and is armed again on the next `visible` trigger.
  *  - Rate-limit the cheap triggers (online / visible / tick): at most one
  *    pipeline start per MIN_GAP_MS, unless a login just made the run richer.
- *  - Cheap tick: TICK_MS while visible. Safe because every phase has its own
+ *  - Cheap tick: TICK_MS while visible. Safe because every its own
  *    freshness gate (shells 6h/24h, core by network tier, user-data 10min/2h).
  */
 'use client';

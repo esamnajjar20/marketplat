@@ -26,7 +26,7 @@ describe('favoritesRepository', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('findManyByUserId', () => {
-    // FIX FAV-01 regression coverage, re-targeted at PR1's shape: a
+    // regression coverage, re-targeted at PR1's shape: a
     // favorited ad that's since been soft-deleted (status: DELETED)
     // must never appear in, or count toward the total of, "المفضلة".
     // The exclusion now happens via a second prisma.ad.findMany call
@@ -128,7 +128,7 @@ describe('favoritesRepository', () => {
       expect(result).toBe(2);
     });
 
-    // FIX BUG-07 regression guard: the whole point of this method is
+    // regression guard: the whole point of this method is
     // that it has no page to outgrow — no skip/take on either query,
     // so it stays accurate however many favorites the user has.
     it('is not affected by favorite counts far beyond the old 100-item stats page-size cap', async () => {

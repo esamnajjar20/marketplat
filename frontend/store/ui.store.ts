@@ -4,7 +4,7 @@
  * Manages transient UI state that doesn't belong in component state:
  *  - Mobile navigation open/closed
  *
- * FIX DEAD-07: isGlobalLoading, searchQuery, and theme were all defined
+ * isGlobalLoading, searchQuery, and theme were all defined
  * with full actions/selectors but never read or set anywhere in the
  * app — theme in particular duplicated next-themes (see
  * providers/ThemeProvider.tsx), which is the app's actual theme

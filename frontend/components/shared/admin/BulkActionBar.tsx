@@ -13,7 +13,7 @@ interface BulkActionBarProps {
 }
 
 /**
- * Sticky bulk toolbar for admin tables (UI-PHASE-F).
+ * Sticky bulk toolbar for admin tables (UI-).
  */
 export function BulkActionBar({
   selectedCount,

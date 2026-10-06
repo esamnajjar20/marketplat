@@ -7,7 +7,7 @@ export const metadata: Metadata = buildMetadata({ title: 'نشاطي', noIndex: 
 
 // ACTIVITY-HUB-01: one route for timeline + my-ads + my-requests + my-reports.
 // The active tab lives in ?tab=… and is resolved on the client so the cached
-// HTML shell is identical for every tab. Legacy paths redirect via next.config.
+// HTML shell is identical for every tab. redirect via next.config.
 export default function ActivityPage() {
   return (
     <div className="space-y-5">

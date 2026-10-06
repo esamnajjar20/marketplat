@@ -10,7 +10,7 @@ import type { Express } from 'express';
  *   2. GET /auth/google/callback?state=<that value> — with the cookie
  *      from step 1 attached, via a persistent agent.
  *
- * The callback route's FIX M-004 guard (auth.routes.ts) rejects the
+ * The callback route's guard (auth.routes.ts) rejects the
  * callback outright — redirecting to /google/failure before Passport
  * or the stubbed strategy ever runs — unless the `state` query param
  * matches the `oauth_state` cookie set in step 1. Calling the callback
@@ -40,7 +40,7 @@ async function performGoogleOAuthCallback(app: Express) {
 }
 
 /**
- * FIX OAUTH-01 integration coverage.
+ * integration coverage.
  *
  * Two separate scenarios, each needing a different app instance:
  *
@@ -61,7 +61,7 @@ async function performGoogleOAuthCallback(app: Express) {
  *      network round-trip to Google is out of scope for CI (no way to
  *      complete an actual OAuth consent screen headlessly) — instead,
  *      passport-google-oauth20's Strategy.prototype.authenticate is
- *      stubbed to synchronously call its own success() with a fixed
+ *      stubbed to synchronously call its own success() with a 
  *      profile, which is exactly the shape Passport would hand back
  *      after a real, successful Google round-trip. Everything
  *      downstream of that point (authController.googleCallback,
@@ -133,7 +133,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
 
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    // FIX OAUTH-01: jest.doMock's registration (unlike jest.mock)
+    // jest.doMock's registration (unlike jest.mock)
     // persists across jest.resetModules() calls within the same test
     // file — without an explicit unmock here, a later test in this
     // file that expects the REAL GoogleStrategy (or a differently-
@@ -274,7 +274,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     const res = await request(app).get('/api/v1/auth/google/callback').redirects(0);
 
     expect(res.status).toBe(302);
-    // FIX OAUTH-01: a Passport-level failure (extractGoogleProfile
+    // a Passport-level failure (extractGoogleProfile
     // throwing on no usable email → done(error, undefined)) hits the
     // callback route's `if (err || !profile)` branch, which redirects
     // to the internal /auth/google/failure route first — that route

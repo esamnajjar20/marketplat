@@ -160,7 +160,7 @@ test.describe('Access control — non-admin users are actually denied', () => {
   });
 });
 
-// Separate describe block using the REGULAR-user fixture (not the admin
+// Separate describe block using the REGULAR-user (not the admin
 // one this file otherwise uses) — kept in its own block so it's clear
 // these tests authenticate as a different, non-admin account.
 userTest.describe('Access control — regular authenticated user', () => {

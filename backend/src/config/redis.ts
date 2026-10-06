@@ -7,7 +7,7 @@ export const redis = new Redis({
   port: env.redis.port,
   username: env.redis.username || undefined,
   password: env.redis.password || undefined,
-  // FIX REDIS-LATENCY-01: family=4 forces IPv4, avoiding the ~100ms
+  // family=4 forces IPv4, avoiding the ~100ms
   // IPv6-then-fallback-to-IPv4 delay Node.js incurs when the host
   // has an AAAA record but the network path for IPv6 is unavailable
   // (Aiven publishes both A and AAAA; Render's egress path is IPv4-only
@@ -24,7 +24,7 @@ export const redis = new Redis({
   // PING path this removes one additional round-trip per connection.
   enableReadyCheck: false,
   lazyConnect: true,
-  // FIX DEPLOY-01: previously no connectTimeout was set, so an
+  // previously no connectTimeout was set, so an
   // unreachable host (e.g. REDIS_HOST misconfigured/pointing at a
   // service that doesn't exist on the network) left the underlying TCP
   // connect() attempt hanging indefinitely — ioredis only starts its
@@ -40,7 +40,7 @@ export const redis = new Redis({
   // single connection attempt so a real failure surfaces quickly and
   // predictably instead of hanging.
   connectTimeout: 10_000,
-  // FIX DEPLOY-03 + FIX LOCAL-DEV-01: TLS is now conditional on
+  // + TLS is now conditional on
   // REDIS_TLS (env.ts, default false) instead of hardcoded on. Upstash
   // (and most managed Redis providers) require TLS on every plan — the
   // `rediss://` scheme / "TLS/SSL: Enabled" in Upstash's dashboard is
@@ -74,9 +74,9 @@ redis.on('connect', () => logger.info('✅ Redis connected'));
 redis.on('error', err => logger.error('Redis error', { err: err.message }));
 
 /**
- * FIX CACHE-REDIS-SPLIT-01: client for the disposable public caches.
+ * client for the disposable public caches.
  *
- * The primary instance runs `noeviction` on purpose (FIX D-15: sessions and
+ * The primary instance runs `noeviction` on purpose (sessions and
  * rate-limit counters must never be silently evicted). The price is that once
  * it is full EVERY write fails — including the generation-token overwrite that
  * makes a takedown ("hard" invalidation) effective. Pointing the SWR caches at
@@ -110,7 +110,7 @@ if (cacheRedis !== redis) {
 }
 
 /**
- * Phase 3: dedicated connection factory for BullMQ.
+ * dedicated connection factory for BullMQ.
  *
  * BullMQ must not share the app's `redis` client:
  *  - Workers use blocking commands and require `maxRetriesPerRequest: null`,

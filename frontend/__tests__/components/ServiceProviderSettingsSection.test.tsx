@@ -12,7 +12,7 @@
  *    renders BecomeServiceProviderCard, not an error message
  *  - Any other error (network/5xx, or a missing statusCode) shows a
  *    retry message distinct from the 404 case, with a retry button
- *    that calls refetch (UX-FIX P1-5)
+ *    that calls refetch ()
  *  - No error but no provider data either -> also falls back to
  *    BecomeServiceProviderCard
  *  - Success with provider data -> renders MyServiceProviderCard with

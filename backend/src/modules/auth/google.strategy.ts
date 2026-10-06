@@ -4,7 +4,7 @@ import { env } from '../../config/env';
 import { logger } from '../../shared/utils/logger';
 
 /**
- * FIX OAUTH-01 — Google OAuth Passport strategy.
+ * Google OAuth Passport strategy.
  *
  * Registered in stateless mode (no express-session anywhere in this
  * app — see auth.routes.ts's `session: false` on both /auth/google
@@ -44,7 +44,7 @@ export interface GoogleProfileData {
  * key (see auth.service.ts's loginWithGoogle()).
  */
 export function extractGoogleProfile(profile: Profile): GoogleProfileData {
-  // FIX GOOGLE-EMAIL-VERIFIED-01: require that Google itself has marked
+  // require that Google itself has marked
   // the email as verified. The previous logic (`e.verified !== false`)
   // accepted both `verified: true` and `verified: undefined`, and fell
   // back to `profile.emails?.[0]?.value` when nothing matched — so an
@@ -128,7 +128,7 @@ export function configureGoogleStrategy(): void {
       (_accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback) => {
         try {
           const data = extractGoogleProfile(profile);
-          // FIX OAUTH-01: passed through Passport's done() as-is —
+          // passed through Passport's done() as-is —
           // auth.routes.ts's custom passport.authenticate callback
           // receives this exact GoogleProfileData object (not a full
           // User row) and assigns it to req.googleProfile, which
@@ -136,7 +136,7 @@ export function configureGoogleStrategy(): void {
           // authService.loginWithGoogle() to do the actual
           // find-or-create/link.
           //
-          // FIX TYPES-01: VerifyCallback's second parameter is typed
+          // VerifyCallback's second parameter is typed
           // as `Express.User | false | undefined` by @types/passport,
           // not `any` — that only appeared to be `any` before because
           // Express.User was an empty `{}` (which accepts any object).

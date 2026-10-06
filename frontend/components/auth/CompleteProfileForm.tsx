@@ -62,13 +62,13 @@ export function CompleteProfileForm() {
   // resolves, the seed still overwrites — that's the correct tradeoff:
   // the user cannot have typed a meaningful name in the 100-500ms
   // before /auth/refresh returns, and the alternative (losing the
-  // pre-fill) is the bug we're fixing.
+  // pre-fill) is the bug we're 
   const didSeedNameRef = useRef(Boolean(user?.name));
   useEffect(() => {
     if (didSeedNameRef.current) return;
     if (!user?.name) return;
     didSeedNameRef.current = true;
-    // SW-FIX-CPF-SEED-NO-OVERWRITE: previously setName(user.name)
+    // previously setName(user.name)
     // unconditionally. The file's own comment assumed refresh resolves
     // in 100-500ms, but on a 3G Gaza connection it can take 5-10s —
     // enough for the user to start typing. If they already typed

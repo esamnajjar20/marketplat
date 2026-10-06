@@ -3,7 +3,7 @@ import { GoogleProfileData } from '../../modules/auth/google.strategy';
 
 declare global {
   namespace Express {
-    // FIX TYPES-01: @types/passport (pulled in transitively via
+    // @types/passport (pulled in transitively via
     // google.strategy.ts's `import passport from 'passport'`) declares
     // its own ambient `namespace Express { interface User {}; interface
     // Request { user?: User; ... } }`. Re-declaring `Request.user` here
@@ -36,7 +36,7 @@ declare global {
 
     interface Request {
       requestId?: string;
-      // FIX OAUTH-01: set transiently by Passport during GET
+      // set transiently by Passport during GET
       // /auth/google/callback only (see auth.routes.ts's
       // passport.authenticate custom callback + google.strategy.ts's
       // verify callback), read once by authController.googleCallback.

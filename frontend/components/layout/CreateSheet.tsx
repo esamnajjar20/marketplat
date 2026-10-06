@@ -14,7 +14,7 @@ import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 /**
- * CREATE-SHEET — single publish entry from BottomNav "+" (UI-PHASE-D).
+ * CREATE-SHEET — single publish entry from BottomNav "+" (UI-).
  * Policy: one primary create surface; guest floating bar only reinforces
  * the same CreateSheet — no third competing destination.
  */

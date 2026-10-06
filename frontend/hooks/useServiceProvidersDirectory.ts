@@ -14,7 +14,7 @@ export type ServiceProvidersDirectorySource = 'gps' | 'city' | 'general';
 type ResolverBucket = 'gps' | 'city' | 'general';
 
 /**
- * FIX BUG-04 / ARCH-FIX (audit: "/service-providers صفحة مختلفة جذريًا
+ * / ARCH-FIX (audit: "/service-providers صفحة مختلفة جذريًا
  * عن الرئيسية"): the standalone /service-providers page used to be
  * fully GPS-gated (useNearbyServiceProviders only, no fallback) —
  * denying location, or a browser with no geolocation support, was a
@@ -25,7 +25,7 @@ type ResolverBucket = 'gps' | 'city' | 'general';
  * was already wired up everywhere else.
  *
  * This hook applies the same cascade to the standalone directory page,
- * with real pagination layered on top (Home's version is a fixed
+ * with real pagination layered on top (Home's version is a 
  * 6-item teaser with no pager). The cascade decision is made ONCE per
  * resolved location source, from that source's page-1 result only —
  * not re-evaluated on every page change. Without that, paging forward
@@ -38,7 +38,7 @@ type ResolverBucket = 'gps' | 'city' | 'general';
  *
  * Decision resets to a fresh probe (and page resets to 1) whenever the
  * resolver itself reports a different location source — e.g. a GPS
- * fix arriving after the page settled on the city or general result.
+ * after the page settled on the city or general result.
  */
 export function useServiceProvidersDirectory() {
   const location = useLocationResolver();

@@ -4,7 +4,7 @@
  * Coverage targets:
  *  - loading skeleton, error state with retry, empty state
  *  - renders each promotion's title, status badge, and discount label
- *    (percentage vs fixed-amount)
+ *    (percentage vs )
  *  - cancel action is only offered for ACTIVE/SCHEDULED promotions,
  *    not EXPIRED/CANCELLED/DRAFT
  *  - confirming cancel calls useCancelPromotion.mutate with the right id

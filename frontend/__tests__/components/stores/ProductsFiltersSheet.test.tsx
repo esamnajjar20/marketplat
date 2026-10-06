@@ -1,7 +1,7 @@
 /**
  * __tests__/components/stores/ProductsFiltersSheet.test.tsx
  *
- * PROMO-1 (Phase 12, full scope): mirrors StoresFiltersSheet.test.tsx
+ * PROMO-1 (, full scope): mirrors StoresFiltersSheet.test.tsx
  * exactly — active-filter badge count (search/city/hasPromotion),
  * closed-by-default, opens on trigger click, wraps the real
  * ProductsFilters once opened.

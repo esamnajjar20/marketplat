@@ -83,7 +83,6 @@ function l1Del(userId: string): void {
   L1.delete(userId);
 }
 
-// ---------------------------------------------------------------------
 // Cross-worker L1 invalidation
 //
 // Under PM2 cluster mode (ecosystem.config.js: exec_mode='cluster',
@@ -106,7 +105,6 @@ function l1Del(userId: string): void {
 // invalidation published while the admin's request went to another
 // worker. Subscribing at boot on every worker closes that window
 // unconditionally.
-// ---------------------------------------------------------------------
 
 let subscriber: Redis | null = null;
 let subscriberReady: Promise<void> | null = null;

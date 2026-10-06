@@ -3,7 +3,7 @@ import { redis } from '../../src/config/redis';
 import { logger } from '../../src/shared/utils/logger';
 
 /**
- * FIX E2E-GAP-01 (test coverage gap identified in the audit): this
+ * (test coverage gap identified in the audit): this
  * module was only ever exercised indirectly through
  * admin.service.test.ts's getStats tests — which cover cache-hit and
  * cache-miss, but never the failure paths this file's own try/catch
@@ -52,7 +52,7 @@ describe('adminStatsCache', () => {
       expect(getSpy).toHaveBeenCalledWith('admin_stats_cache');
     });
 
-    // The gap this fix closes: redis.get() throwing was never tested.
+    // The gap this redis.get() throwing was never tested.
     it('returns null (not a rejected promise) when Redis rejects, and logs the error', async () => {
       jest.spyOn(redis, 'get').mockRejectedValue(new Error('ECONNREFUSED'));
       const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => logger);
@@ -83,7 +83,7 @@ describe('adminStatsCache', () => {
       expect(setexSpy).toHaveBeenCalledWith('admin_stats_cache', 30, JSON.stringify(sampleStats));
     });
 
-    // The gap this fix closes: a write failure must not propagate —
+    // The gap this a write failure must not propagate —
     // the caller (adminService.getStats) already has fresh data to
     // return regardless of whether caching it succeeds.
     it('does not throw when Redis rejects the write, and logs the error', async () => {

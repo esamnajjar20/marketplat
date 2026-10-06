@@ -28,7 +28,7 @@ describe('config/env — REDIS_PASSWORD production requirement', () => {
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db';
     process.env.JWT_SECRET = 'a'.repeat(32);
     process.env.JWT_REFRESH_SECRET = 'b'.repeat(32);
-    // FIX PROD-AUDIT-01 added a second production-only requirement
+    // added a second production-only requirement
     // (CLOUDINARY_*) to the same superRefine block. Keep these present
     // here too so the REDIS_PASSWORD-only cases below aren't broken by
     // an unrelated Cloudinary failure — the dedicated Cloudinary
@@ -98,7 +98,7 @@ describe('config/env — REDIS_PASSWORD production requirement', () => {
 });
 
 /**
- * FIX PROD-AUDIT-01 coverage: config/env.ts left CLOUDINARY_* optional
+ * coverage: config/env.ts left CLOUDINARY_* optional
  * at every NODE_ENV, same as the SMTP_* and GOOGLE_CLIENT_* settings (all genuinely
  * optional integrations) — but .env.example's own comment on this
  * block says "Cloudinary (required for image uploads)" while nothing

@@ -42,7 +42,7 @@ export function isActivityTab(value: unknown): value is ActivityTab {
   return hub.isTab(value);
 }
 
-/** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
+/** Tab requested by `?tab=…`, or by a Null when absent/unknown. */
 export const resolveActivityTab = hub.resolveTab;
 
 /**

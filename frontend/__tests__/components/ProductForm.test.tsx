@@ -17,7 +17,7 @@
  *  - discountPrice must be less than price
  *  - wholesalePrice and wholesaleMinQty must be given together or not at all
  *  - edit mode builds a payload WITHOUT `images` (image changes go
- *    through addImages/removeImage, not the PATCH body)
+ *    through addImages/removeImage, not the )
  *  - removeImage is only called for URLs actually removed, in the
  *    zero-image "add-before-remove" order when removal would otherwise
  *    momentarily drop the product to zero images
@@ -272,7 +272,7 @@ describe('ProductForm', () => {
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
-    // Unlike AdForm, this rule is NOT temporarily disabled here.
+    // Unlike AdForm, this rule is NOT disabled here.
     it.skip('requires at least one image in create mode (TEMPORARY: image gate disabled in ProductForm.validate until hosting is configured)', async () => {
       const user = setupUser();
       const { container } = render(<ProductForm mode="create" />);

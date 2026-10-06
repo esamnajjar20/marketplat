@@ -7,7 +7,7 @@
  *   focusable or navigated by keyboard/screen reader. Fix: render a <span>
  *   with aria-disabled when on the first/last page instead of a <Link>.
  *
- * FIX P2-6: Prev/Next + a bare "N / total" counter gave no way to jump
+ * Prev/Next + a bare "N / total" counter gave no way to jump
  *   more than one page at a time — costly on admin tables with dozens
  *   of pages. getPageNumbers() below builds a truncated run (first,
  *   last, current ±1, with "…" gaps) same as most table UIs. The
@@ -27,7 +27,7 @@ interface PaginationProps {
   baseUrl:      string;
   searchParams?: Record<string, string | undefined>;
   /**
-   * FIX BUG-09: defaults to 'page', unchanged for every existing caller.
+   * defaults to 'page', unchanged for every existing caller.
    * StoreProducts and StoreReviewsList render side-by-side on the same
    * store page and previously both read/wrote the same bare `page`
    * param through this component — paginating one section silently
@@ -44,7 +44,7 @@ interface PaginationProps {
  * Builds a truncated page list: always shows first, last, current page
  * and its immediate neighbors; collapses any gap into a single 'gap'
  * marker (never more than one marker in a row) so a 200-page admin
- * table still renders a short, fixed-width strip.
+ * table still renders a short, strip.
  */
 function getPageNumbers(current: number, total: number): (number | 'gap')[] {
   const pages = new Set<number>([1, total, current]);

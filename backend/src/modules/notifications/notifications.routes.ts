@@ -27,7 +27,7 @@ notificationsRouter.patch('/:id/read', authenticate, notificationsController.mar
 notificationsRouter.patch('/:id/unread', authenticate, notificationsController.markUnread);
 notificationsRouter.delete('/:id', authenticate, notificationsController.deleteNotification);
 
-// FIX PWA-PUSH-01: matches the frontend's existing calls in lib/pwa.ts
+// matches the frontend's existing calls in lib/pwa.ts
 // (POST on subscribe, DELETE with { endpoint } in the body on
 // unsubscribe) — see notifications.controller.ts for both handlers.
 notificationsRouter.post(
@@ -56,7 +56,7 @@ notificationsRouter.delete(
   notificationsController.unregisterFcmToken
 );
 
-// Device list (Phase 2 UX) — the caller's own browser + native registrations.
+// Device list (UX) — the caller's own browser + native registrations.
 // Three path segments for the id routes, so they cannot shadow '/:id/read'.
 notificationsRouter.get('/devices', authenticate, CACHE.NONE, notificationsController.listDevices);
 notificationsRouter.patch('/devices/:kind/:id', authenticate, notificationsController.renameDevice);

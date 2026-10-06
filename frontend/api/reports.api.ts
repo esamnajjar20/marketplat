@@ -1,7 +1,7 @@
 /**
  * Reports API — maps to backend /api/v1/reports/* endpoints.
  *
- * FIX T-03: ReportReason uses backend values: SCAM | FAKE | OFFENSIVE | SPAM.
+ * ReportReason uses backend values: SCAM | FAKE | OFFENSIVE | SPAM.
  * FEAT-REPORT-USER-STORE: added reportUser/reportStore (POST
  * /reports/users/:id, /reports/stores/:id — previously only ads could be
  * reported at all) and getMyReports (GET /reports/me, so a reporter can
@@ -14,7 +14,7 @@ import type { ApiResponse, PaginationParams } from '@/types/api.types';
 import { unwrapPaginated } from '@/lib/apiPagination';
 
 export interface CreateReportPayload {
-  /** FIX T-03: must be one of SCAM | FAKE | OFFENSIVE | SPAM */
+  /** must be one of SCAM | FAKE | OFFENSIVE | SPAM */
   reason: ReportReason;
   notes?: string;
 }

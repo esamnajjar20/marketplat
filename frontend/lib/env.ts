@@ -21,7 +21,7 @@
  *
  * Exported as functions, not frozen top-level consts, for the same
  * reason lib/pwa.ts's getVapidPublicKey already is one (see its own
- * FIX PWA-05 comment): NEXT_PUBLIC_* values are inlined by Next.js at
+ * comment): NEXT_PUBLIC_* values are inlined by Next.js at
  * build time either way, but a `export const X = process.env.Y` here
  * would freeze the value at first import — which breaks tests (see
  * __tests__/unit/lib/pwa.test.ts) that set the env var per test case

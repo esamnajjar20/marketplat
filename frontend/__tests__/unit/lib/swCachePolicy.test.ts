@@ -1,5 +1,5 @@
 /**
- * Source-level guards for the cache/warming fixes (sw.js is a classic
+ * Source-level guards for the cache/warming (sw.js is a classic
  * script and cannot be imported under vitest — same approach as
  * cacheVersionSync.test.ts).
  */

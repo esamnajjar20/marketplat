@@ -1,7 +1,7 @@
 /**
  * __tests__/components/NearbyServiceProviders.test.tsx
  *
- * ARCH-FIX rewrite: this used to be a GPS-only "near me" trigger
+ * ARCH-this used to be a GPS-only "near me" trigger
  * (own useState location machine + useNearbyServiceProviders directly).
  * It's now the full /service-providers directory, reading
  * useServiceProvidersDirectory's gps → city → general cascade —

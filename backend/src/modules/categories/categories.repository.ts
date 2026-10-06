@@ -15,7 +15,7 @@ export const categoriesRepository = {
     }),
 
   /**
-   * FIX ADMIN-CATEGORIES-FRESH-01: admin-only full tree with per-category
+   * admin-only full tree with per-category
    * ad counts. Mirrors service-categories.repository.ts's findManyForAdmin
    * and product-categories.repository.ts's counterpart exactly — same
    * include shape (children + _count at both levels), same rationale.
@@ -52,7 +52,7 @@ export const categoriesRepository = {
   findById: async (id: string): Promise<Category | null> =>
     prisma.category.findUnique({ where: { id }, include: { children: true } }),
 
-  // BUGFIX (circular category reference) — same fix as
+  // BUGFIX (circular category reference) — same 
   // productCategoriesRepository.findParentChain, applied here for
   // consistency: walks up from a proposed parentId toward the root,
   // collecting every ancestor's id. updateCategory uses this to reject
@@ -94,7 +94,7 @@ export const categoriesRepository = {
   countAds: async (id: string): Promise<number> =>
     prisma.ad.count({ where: { categoryId: id, status: 'ACTIVE' } }),
 
-  // BUGFIX (FK violation on delete) — same fix as
+  // BUGFIX (FK violation on delete) — same 
   // productCategoriesRepository.countChildren: a category with
   // subcategories hits Prisma's P2003 if deleted directly, and only
   // countAds guarded the delete path before this.

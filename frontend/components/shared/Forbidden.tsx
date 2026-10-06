@@ -17,7 +17,7 @@ import { ROUTES }  from '@/lib/constants';
 interface ForbiddenProps {
   title?:       string;
   description?: string;
-  /** Show a "Go back" button instead of a fixed link. */
+  /** Show a "Go back" button instead of a link. */
   showBack?: boolean;
 }
 

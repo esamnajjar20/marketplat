@@ -40,7 +40,7 @@ export function AdminSystemHealth() {
     );
   }
 
-  // SW-FIX-ASH-APIERROR: shared ApiError for 401/403/404/500+
+  // shared ApiError for 401/403/404/500+
   // differentiation, consistent with every other admin surface. Note
   // the `|| !data` clause is preserved — an empty successful response
   // (both services down) is still a valid empty state, and ApiError

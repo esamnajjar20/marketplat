@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// FIX BUG-07: was a local mirror of admin.validation.ts's copy (EPIC
+// was a local mirror of admin.validation.ts's copy (EPIC
 // 1.1's comment said as much); now both import the same helper instead
 // of keeping two hand-synced copies.
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';

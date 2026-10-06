@@ -26,7 +26,7 @@ import { homeCacheKeyForCity, HOME_GEN_KEY, onHomeInvalidated } from './home.cac
  *   an in-flight refresh that started before it can never resurrect the data.
  */
 export const HOME_CACHE_TTL_SECONDS = 30; // soft TTL: after this the entry is "stale"
-// FIX HOME-CACHE-JITTER-01: spread the ≤11 keys so their assemblies don't all
+// spread the ≤11 keys so their assemblies don't all
 // re-run at the same instant each window.
 export const HOME_CACHE_TTL_JITTER_SECONDS = 10;
 /** How long a stale entry may still be served while a refresh is pending/failing. */
@@ -36,7 +36,7 @@ export const HOME_REFRESH_LOCK_TTL_MS = 15_000;
 /** After an invalidation, wait briefly (coalescing bursts) then re-warm the general homepage. */
 export const HOME_REWARM_DELAY_MS = 1_500;
 /**
- * FIX HOME-REWARM-CITIES-01: after the general key, the allow-listed city keys
+ * after the general key, the allow-listed city keys
  * are re-warmed too (they were left cold until the next keep-warm cycle, so the
  * first visitor of every city paid the full assembly after each takedown).
  * Sequential with a pause so it never fans out, and at most once per gap so a
@@ -45,7 +45,7 @@ export const HOME_REWARM_DELAY_MS = 1_500;
 export const HOME_REWARM_CITY_PAUSE_MS = 150;
 export const HOME_REWARM_CITIES_MIN_GAP_MS = 30_000;
 /**
- * FIX CACHE-KEEPWARM-AGE-01: keep-warm only rebuilds an entry once it is this
+ * keep-warm only rebuilds an entry once it is this
  * old (or missing/invalidated). Must stay below HARD_TTL − keep-warm interval
  * (600s − 240s = 360s) so a key cannot expire between two cycles.
  */

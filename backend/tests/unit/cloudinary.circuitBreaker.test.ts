@@ -1,7 +1,7 @@
 /**
  * tests/unit/cloudinary.circuitBreaker.test.ts
  *
- * PROD-FIX-12 coverage: every other test file in this repo mocks the
+ * coverage: every other test file in this repo mocks the
  * WHOLE `../../src/config/cloudinary` module (see
  * cloudinaryHelpers.test.ts, ads.service.test.ts, etc.) — reasonable
  * for testing callers, but that approach can never actually exercise

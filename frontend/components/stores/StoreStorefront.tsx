@@ -39,7 +39,7 @@ interface Props {
   storeId: string;
   storeName: string;
   ownerUserId: string;
-  /** PHASE1-STOREFRONT: full store payload for the "عن المتجر" tab. */
+  /** full store payload for the "عن المتجر" tab. */
   store?: StoreWithSellerAndCounts;
 }
 

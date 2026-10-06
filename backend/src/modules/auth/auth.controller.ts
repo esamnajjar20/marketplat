@@ -33,7 +33,7 @@ import { logger } from '../../shared/utils/logger';
 const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unknown';
 
 /**
- * PROD-FIX-15: register/login/refresh previously returned
+ * register/login/refresh previously returned
  * refreshToken as part of the JSON response body, and the frontend
  * stored it in localStorage. Now: refreshToken is set as an httpOnly
  * cookie (never appears in the JSON body at all — see
@@ -52,7 +52,7 @@ const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unk
  * function actually needs to inspect/rewrite.
  */
 /**
- * FIX OAUTH-01: extracted the cookie-setting from respondWithSession's
+ * extracted the cookie-setting from respondWithSession's
  * body so googleCallback (a top-level browser redirect, not a JSON XHR
  * response — see its own comment below) can set the exact same three
  * cookies (refreshToken, csrfToken, app_has_session) without
@@ -64,7 +64,7 @@ const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unk
 function setSessionCookies(res: Response, refreshToken: string): string {
   setRefreshTokenCookie(res, refreshToken);
   const csrfToken = setCsrfCookie(res);
-  // AUDIT-FIX C-1: see authCookies.ts's own doc comment on this
+  // see authCookies.ts's own doc comment on this
   // function — lets middleware.ts distinguish "no session at all" from
   // "session exists, just needs a silent refresh" on a fresh page load.
   setSessionHintCookie(res);
@@ -120,7 +120,7 @@ export const authController = {
 
   refresh: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // PROD-FIX-15: refreshToken now comes from the httpOnly cookie,
+      // refreshToken now comes from the httpOnly cookie,
       // never from the request body — there's no longer any client-
       // readable JavaScript value to send back on this endpoint at
       // all, which is the entire point of moving it into an httpOnly
@@ -133,7 +133,7 @@ export const authController = {
       const tokens = await authService.refresh(refreshToken);
       respondWithSession(res, 200, 'Token refreshed', { tokens });
     } catch (error) {
-      // FIX REFRESH-COOKIE-CLEANUP: on any refresh failure (expired,
+      // on any refresh failure (expired,
       // revoked, reused token, or a DB error), clear the three session
       // cookies. Without this, a device whose refresh token had
       // already become invalid kept sending it on every page load —
@@ -154,7 +154,7 @@ export const authController = {
   logout: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      // FIX BEARER-TOKEN-HELPER-01: getBearerToken returns undefined
+      // getBearerToken returns undefined
       // for a missing/malformed header instead of throwing.
       const accessToken = getBearerToken(req);
       if (!accessToken) throw new UnauthorizedError('No token provided');
@@ -171,7 +171,7 @@ export const authController = {
   logoutAll: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      // FIX BEARER-TOKEN-HELPER-01: see logout above.
+      // see logout above.
       const accessToken = getBearerToken(req);
       if (!accessToken) throw new UnauthorizedError('No token provided');
       await authService.logoutAll(user.userId, accessToken, getClientIp(req));
@@ -237,7 +237,7 @@ export const authController = {
   },
 
   /**
-   * FIX OAUTH-01 — GET /auth/google/callback.
+   * GET /auth/google/callback.
    *
    * Unlike every other handler in this file, this one is reached after
    * a top-level browser redirect (Google -> this endpoint), not an XHR
@@ -264,7 +264,7 @@ export const authController = {
     const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}`;
     const loginRedirect = `${base}login`;
 
-    // FIX OAUTH-ERROR-CONTEXT: read purpose before the try block so
+    // read purpose before the try block so
     // the failure path can return the user to the page they started
     // from. Previously a failed verify — e.g. the Google account's
     // email does not match any marketplace account, or a transient DB
@@ -363,7 +363,7 @@ export const authController = {
       logger.error('Google OAuth callback failed', {
         error: error instanceof Error ? error.message : error,
       });
-      // FIX OAUTH-ERROR-CODE-PROPAGATION: pass the specific AppError.code
+      // pass the specific AppError.code
       // through so the login page can show a targeted message. The key
       // case is OAUTH_EMAIL_ALREADY_REGISTERED: without this, a user who
       // tries Google first sees only "google_auth_failed" and has no
@@ -376,7 +376,7 @@ export const authController = {
     }
   },
   /**
-   * FIX FEAT-EMAIL-VERIFY: POST /auth/verify-email — public, no auth
+   * POST /auth/verify-email — public, no auth
    * required. The token itself IS the proof of ownership; the user
    * might not be logged in (e.g. clicked the link from a phone).
    */
@@ -391,7 +391,7 @@ export const authController = {
   },
 
   /**
-   * FIX FEAT-EMAIL-VERIFY: POST /auth/resend-verification — requires
+   * POST /auth/resend-verification — requires
    * auth. Rate-limited at the route layer. The service rejects with
    * EMAIL_ALREADY_VERIFIED if the user is already verified.
    */

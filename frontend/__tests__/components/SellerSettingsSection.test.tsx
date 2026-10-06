@@ -1,7 +1,7 @@
 /**
  * __tests__/components/SellerSettingsSection.test.tsx
  *
- * Coverage gap: 0% prior coverage. Covers UX-FIX P1-5's core branch:
+ * Coverage gap: 0% prior coverage. Covers 's core branch:
  * a 404 (no seller profile yet) must render BecomeSellerCard, while
  * any OTHER error status must render a distinct "failed to load,
  * retry" message rather than misleadingly suggesting the account

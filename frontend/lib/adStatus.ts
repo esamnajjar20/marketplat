@@ -1,7 +1,7 @@
 import type { AdStatus } from '@/types/ad.types';
 
 /**
- * FIX UX-13: MyAdsList, AdminAdsTable, and AdDetail each hand-rolled
+ * MyAdsList, AdminAdsTable, and AdDetail each hand-rolled
  * their own status→color mapping locally, and disagreed — the same
  * ad.status rendered a different badge color on each page (e.g.
  * ACTIVE was 'default' on MyAdsList but 'success' on AdminAdsTable).

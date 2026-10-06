@@ -52,7 +52,7 @@ const submitReport = async (
     throw new BadRequestError(`You have already reported this ${TARGET_LABEL[targetType]}`);
   }
 
-  // FIX D-08: the findByUserAndTarget check above has a TOCTOU race
+  // the findByUserAndTarget check above has a TOCTOU race
   // window — two concurrent report submissions (double-click, or a
   // client retry after a flaky network) can both pass the check before
   // either insert commits. The @@unique([targetType, targetId, userId])
@@ -63,7 +63,7 @@ const submitReport = async (
     const report = await reportsRepository.create(userId, targetType, targetId, input.reason, input.notes);
 
     // Only ADs have an existing public visibility flag. Three distinct reporters
-    // temporarily hide an active ad while leaving the report queue and audit trail
+    // hide an active ad while leaving the report queue and audit trail
     // intact; moderators can clear the flag after review.
     let autoHidden = false;
     if (targetType === 'AD') {
@@ -133,7 +133,7 @@ export const reportsService = {
     }
 
     // SERVICE_LISTING
-    // FIX SL-OWNER-RESOLUTION: previously tried to pluck `provider.userId`
+    // previously tried to pluck `provider.userId`
     // off a return value that never carried a `provider` relation at all
     // (findServiceListingForReference returned the bare listing row), so
     // this branch always fell through to NotFoundError — the "report a

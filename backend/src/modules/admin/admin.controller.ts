@@ -33,7 +33,7 @@ const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unk
 
 export const adminController = {
   /**
-   * FIX FEAT-05: GET /admin/stats — replaces the frontend's previous
+   * GET /admin/stats — replaces the frontend's previous
    * three-separate-requests workaround in useAdminStats().
    */
   getStats: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -374,7 +374,7 @@ export const adminController = {
     }
   },
 
-  /** FIX AUDIT-V3-05: PATCH /admin/users/:id/role */
+  /** PATCH /admin/users/:id/role */
   changeRole: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const admin = requireUser(req);

@@ -8,7 +8,7 @@
  * lib/myServicesHubTabs.ts.
  *
  * Seller + service-provider settings stay under the profile tab as internal
- * sections (UnifiedProfileSettings). Legacy paths /settings/seller and
+ * sections (UnifiedProfileSettings). /settings/seller and
  * /settings/service-provider redirect to /settings?tab=profile&section=….
  *
  * Deliberately NOT tabs (already moved to /offline hub): drafts, sync,
@@ -68,10 +68,10 @@ export function isProfileSection(value: unknown): value is ProfileSection {
   return typeof value === 'string' && (PROFILE_SECTIONS as readonly string[]).includes(value);
 }
 
-/** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
+/** Tab requested by `?tab=…`, or by a Null when absent/unknown. */
 export const resolveSettingsTab = hub.resolveTab;
 
-/** Profile section from `?section=…` or legacy path. */
+/** Profile section from `?section=…` or */
 export function resolveProfileSection(
   search: string,
   pathname = SETTINGS_HUB_PATH,

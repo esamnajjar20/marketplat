@@ -122,7 +122,7 @@ describe('healthCache', () => {
   });
 
   /**
-   * BUGFIX regression test — found during a post-implementation code
+   * test — found during a post-implementation code
    * audit. `checkOk()` wraps each individual check in try/catch, so a
    * check that throws synchronously (e.g. a client library throwing
    * before it ever returns a promise) resolves to `false` the same way

@@ -19,7 +19,7 @@ function normalizeSearchText(input: string | null | undefined): string {
   return input
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
-  // FIX SEARCH-TA-MARBUTA-01: removed the ة -> ه fold. SQL's
+  // removed the ة -> ه fold. SQL's
   // arabic_normalize (see migrations/20260805212538_arabic_search_
   // normalization) deliberately does NOT fold ta marbuta -> ha —
   // the two Arabic letters change gender and meaning often enough
@@ -249,7 +249,7 @@ function morphologicalVariants(token: string): string[] {
   // and vice versa — without the SQL function having to give up its
   // meaning-preserving precision. If you find yourself wanting to fold
   // ة→ه in normalizeSearchText to "simplify" this, don't: that's the
-  // exact bug SEARCH-TA-MARBUTA-01 fixed, and it broke autocomplete's
+  // exact bug SEARCH-TA-MARBUTA-01 , and it broke autocomplete's
   // prefix matching in a way FTS's bidirectional expansion couldn't
   // paper over.
   if (token.endsWith('ة')) out.add(token.slice(0, -1) + 'ه');
@@ -371,7 +371,7 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
     concepts.push(variants);
   }
 
-  // FIX SEARCH-STOPWORDS-ONLY-01: when every token was a stop word
+  // when every token was a stop word
   // (e.g. q="جديد" or q="بدي جديد"), concepts is empty. The previous
   // behavior was to return tsQueryString: null — which the repository
   // treats as "no full-text filter at all", silently turning a
@@ -405,7 +405,7 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
   };
 }
 
-// FIX SEARCH-DEAD-CODE-01: removed buildIntelligentTsQuerySql — a
+// removed buildIntelligentTsQuerySql — a
 // public export that was never called anywhere in src/ or tests/
 // (verified: only the definition site matched). search.repository.ts
 // already calls analyzeSearchQuery directly and builds its own
@@ -413,7 +413,7 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
 // risked silently diverging from the real one if either was edited.
 // A public surface that nothing uses is worse than no surface at all:
 // it invites a future caller to adopt it, at which point two tsquery
-// construction sites exist and any fix to one misses the other.
+// construction sites exist and any one misses the other.
 
 /**
  * توسيع للاستدعاء من matchesSearchQuery — بدون لاحقات :*

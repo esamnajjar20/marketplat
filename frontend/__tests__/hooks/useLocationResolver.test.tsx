@@ -1,7 +1,7 @@
 /**
  * __tests__/hooks/useLocationResolver.test.tsx
  *
- * Phase 2 coverage — location priority chain: gps-current → gps-saved →
+ * coverage — location priority chain: gps-current → gps-saved →
  * city → fallback. Mirrors the permission-checking conventions of
  * useNearbyServiceProvidersIfGranted.test.tsx (Object.defineProperty for
  * navigator, renderHook/waitFor, no real timers/network).
@@ -337,14 +337,14 @@ describe('useLocationResolver', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  // 21. COMPAT-AUDIT fix: a GPS fix persisted by one useLocationResolver()
+  // 21. COMPAT-AUDIT fix: a GPS by one useLocationResolver()
   // instance must reach a second, independently-mounted instance in the
   // same tab without a remount — Home mounts four separate instances
   // (HomeAboveFold, RecentProductsSection, FeaturedStoresSection,
   // NearbyProvidersSection) and localStorage's native 'storage' event
   // never fires for same-tab writes, so without the same-tab pub-sub
   // fix, sibling sections stayed stuck on their stale source until a
-  // full page reload even after a fresh GPS fix was already saved.
+  // full page reload even after a fresh GPS already saved.
   it('a GPS fix persisted by one resolver instance reaches a second, already-mounted sibling instance', async () => {
     setPermissionsApi('prompt');
     const getCurrentPosition = vi.fn((success: PositionCallback) => {

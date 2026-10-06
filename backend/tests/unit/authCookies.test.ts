@@ -1,12 +1,12 @@
 /**
- * PROD-FIX-15 / DEPLOY-FIX-01 coverage: authCookies.ts is what
+ * / DEPLOY-coverage: authCookies.ts is what
  * actually sets the cookie attributes the entire security model
  * depends on (httpOnly, secure, sameSite, path scoping — see that
  * file's own header comment for the full reasoning behind each).
  * Confirms the res.cookie()/res.clearCookie() calls carry the right
  * options.
  *
- * DEPLOY-FIX-01: refreshToken/csrfToken/app_has_session now always
+ * DEPLOY-refreshToken/csrfToken/app_has_session now always
  * set secure:true + sameSite:'none' (required to cross the
  * *.up.railway.app subdomain boundary between frontend and backend —
  * see authCookies.ts's own comment on setRefreshTokenCookie). This is
@@ -40,9 +40,9 @@ describe('authCookies', () => {
 
   /**
    * env.ts requires REDIS_PASSWORD and CLOUDINARY_* when
-   * NODE_ENV=production (FIX PROD-AUDIT-01 added the Cloudinary half —
+   * NODE_ENV=production (added the Cloudinary half —
    * previously only REDIS_PASSWORD was enforced here). Several cases
-   * below temporarily flip NODE_ENV to 'production' and call
+   * below flip NODE_ENV to 'production' and call
    * jest.resetModules() so authCookies re-reads env.nodeEnv — that
    * re-import re-runs env.ts's schema parse. Without these set, the
    * parse fails. We plant dummy values only for those cases and always
@@ -246,7 +246,7 @@ describe('authCookies', () => {
     });
   });
 
-  // AUDIT-FIX C-1 coverage
+  // coverage
   describe('setSessionHintCookie', () => {
     it('sets a NON-httpOnly, sameSite=none, secure cookie scoped to "/" with a 7-day maxAge matching refreshToken', async () => {
       process.env.NODE_ENV = 'test';

@@ -1,14 +1,14 @@
 /**
  * __tests__/components/AdDetail.test.tsx
  *
- * FIX E2E-GAP-01 (coverage gap identified in the audit): AdDetail.tsx
+ * (coverage gap identified in the audit): AdDetail.tsx
  * had zero test coverage despite being one of the two most important
  * components in the product (ad listing page + this detail page).
  * Covers: image gallery navigation, the favorite toggle's optimistic
  * update + rollback, the auth-gated favorite action, and status/
  * condition/featured badge rendering.
  *
- * FIX INTEG-07: the report button is now the real ReportAdButton
+ * the report button is now the real ReportAdButton
  * component (its own dialog + useReportAd mutation, covered by
  * ReportAdButton.test.tsx). Here we only assert that AdDetail renders
  * it and hands it the right ad id — the button's own click/dialog/
@@ -245,7 +245,7 @@ describe('AdDetail', () => {
 
       // aria-label is dynamic (favorited ? 'إزالة من المفضلة' :
       // 'إضافة إلى المفضلة'), not the static 'حفظ' — mirrors AdCard's
-      // equivalent button (see the FIX BUG-XX comment in AdDetail.tsx).
+      // equivalent button (see the comment in AdDetail.tsx).
       await user.click(screen.getByLabelText('إضافة إلى المفضلة'));
 
       expect(toast.error).toHaveBeenCalledWith('يرجى تسجيل الدخول أولاً');

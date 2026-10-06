@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/storeStatus.test.ts
  *
- * FIX UX-13: MyStoreCard and AdminStoresTable each defined a local
+ * MyStoreCard and AdminStoresTable each defined a local
  * status→color map for the same StoreStatus field, coincidentally
  * identical in value but with nothing tying them together. This locks
  * in the single shared mapping.

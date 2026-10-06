@@ -5,7 +5,7 @@ import { sanitizeAuditDetails } from './sanitizeAuditDetails';
 
 export { AuditEventType as AuditEvent };
 
-// FIX SEC-3.3: `details` was a fully free-form Prisma.InputJsonValue with
+// `details` was a fully free-form Prisma.InputJsonValue with
 // no documented shape — any call site could store anything, including
 // deeply nested structures that don't match how every existing call
 // site actually uses it. In practice every one of the ~20 call sites
@@ -26,7 +26,7 @@ interface AuditLogEntry {
 }
 
 export const auditLog = async (entry: AuditLogEntry): Promise<void> => {
-  // FIX OPS-3.2: redact any key that looks like a secret (password,
+  // redact any key that looks like a secret (password,
   // token, card number, ...) before this entry reaches either sink —
   // the Winston log line below AND the DB row. See
   // sanitizeAuditDetails.ts's own doc comment for why this exists even

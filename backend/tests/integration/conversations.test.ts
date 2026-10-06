@@ -1,5 +1,5 @@
 /**
- * Integration coverage for /api/v1/conversations (Phase 2 / P1).
+ * Integration coverage for /api/v1/conversations (/ P1).
  *
  * Unit tests cover service-level Forbidden/NotFound branches; this file
  * exercises the authenticated HTTP path: start from ad, list, send,

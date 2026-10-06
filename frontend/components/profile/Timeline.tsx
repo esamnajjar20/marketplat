@@ -57,7 +57,7 @@ function iconFor(type: UserActivity['type']) {
 }
 
 /** The one place a row's entityId is turned into a link — kept in
- * sync with activity.templates.ts's entityType tags. Returns null for
+ * sync with activity.'s entityType tags. Returns null for
  * types with no link (account-related rows, or a MESSAGE_SENT row
  * whose conversation may have since been deleted). */
 function linkFor(activity: UserActivity): string | null {

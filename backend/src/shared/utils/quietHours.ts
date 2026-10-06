@@ -9,7 +9,7 @@
  *   quietHoursAllowUrgent?: boolean (default true)
  *   quietHoursTimeZone?: IANA zone (default Asia/Gaza)
  *
- * Phase 3: the result now says WHEN the window ends, so a blocked push can be
+ * the result now says WHEN the window ends, so a blocked push can be
  * deferred to that moment (delayed queue job) instead of being dropped.
  */
 
@@ -83,7 +83,7 @@ export function evaluateQuietHours(
   const startMin = start.h * 60 + start.m;
   const endMin = end.h * 60 + end.m;
 
-  // start === end means "no window" (same as the pre-Phase-3 behaviour).
+  // start === end means "no window" (same as the pre-behaviour).
   if (startMin === endMin) return { blocked: false };
   const inside =
     startMin < endMin ? nowMin >= startMin && nowMin < endMin : nowMin >= startMin || nowMin < endMin;

@@ -2,7 +2,7 @@ import { CircuitBreaker, CircuitBreakerOpenError } from '../../src/shared/utils/
 import { logger } from '../../src/shared/utils/logger';
 
 /**
- * PROD-FIX-12 coverage: CircuitBreaker is new, hand-rolled logic (see
+ * coverage: CircuitBreaker is new, hand-rolled logic (see
  * its own header comment for why no external library was used) — this
  * is the only thing verifying its CLOSED -> OPEN -> HALF_OPEN state
  * machine actually behaves correctly, since config/cloudinary.ts's own
@@ -103,7 +103,7 @@ describe('CircuitBreaker', () => {
   });
 
   /**
-   * BUGFIX regression test — found during a post-implementation code
+   * test — found during a post-implementation code
    * audit. Simulates two genuinely concurrent callers arriving in the
    * same JS tick right after resetTimeoutMs elapses, by calling
    * execute() twice back-to-back with NO await between the two calls

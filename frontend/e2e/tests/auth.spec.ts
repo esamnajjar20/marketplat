@@ -5,7 +5,7 @@
  * UI, real backend, real Postgres — the flow every other authenticated
  * spec in this suite depends on working correctly. Also covers the two
  * concrete regressions called out in this codebase's own audit notes:
- * FIX AUTH-06 (login respects the ?from= redirect target instead of
+ * (login respects the ?from= redirect target instead of
  * always going to /dashboard) and the general cookie-based session
  * surviving a full page reload (the historical "cookie desync on
  * silent token refresh" risk area).

@@ -9,7 +9,7 @@ export const favoritesRouter = Router();
 // Named lists — MUST register before /:adId so "lists" is not an adId
 favoritesRouter.get('/lists', authenticate, favoriteListsController.list);
 favoritesRouter.post('/lists', authenticate, favoriteListsController.create);
-// FIX FAV-LISTS-RATELIMIT: rename/remove/moveFavorite had no rate
+// rename/remove/moveFavorite had no rate
 // limit while toggleFavorite below did. An authenticated user could
 // loop any of the three arbitrarily — rename-flip spam, list churn,
 // move-between-lists spam. Reused favoritesRateLimit (200/15min) as

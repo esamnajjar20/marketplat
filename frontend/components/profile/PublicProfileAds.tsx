@@ -12,7 +12,7 @@ interface Props { userId: string; }
 
 export function PublicProfileAds({ userId }: Props) {
   const sp   = useSearchParams();
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const { data, isLoading, isError, refetch } = useUserAds(userId, { page });
@@ -28,7 +28,7 @@ export function PublicProfileAds({ userId }: Props) {
     );
   }
 
-  // UX-FIX P1-9 (public-profile variant): don't tell a visitor "this
+  // (public-profile variant): don't tell a visitor "this
   // user hasn't posted any ads" when the real cause is a failed fetch.
   if (isError) {
     return (

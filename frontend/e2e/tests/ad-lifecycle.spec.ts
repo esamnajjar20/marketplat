@@ -11,7 +11,7 @@
  * only breaks once serialized, stored, and re-fetched) would only be
  * caught by a test like this one, not by any mocked unit test.
  *
- * Each test creates its own user via the authedPage fixture, so ad
+ * Each test creates its own user via the authedPage , so ad
  * ownership/visibility assertions ("this ad appears in MY my-ads list")
  * are unambiguous even when other tests' ads exist in the same shared
  * E2E database.

@@ -135,7 +135,7 @@ export const activityTemplates = {
 
   // FEAT-FAVORITE-POLYMORPHIC PR2: generalized from (adId, title) to
   // (entityType, entityId, title) — UserActivityType.FAVORITE_ADDED/
-  // REMOVED were already entity-generic, only these two template
+  // REMOVED were already entity-generic, only these two 
   // functions were hardcoded to AD. Both call sites live in
   // favorites.service.ts and are updated in the same change.
   favoriteAdded: (
@@ -180,7 +180,7 @@ export const activityTemplates = {
 
   // MESSAGE_SENT deliberately carries no entity title beyond "someone"
   // — unlike an ad/product, the recipient's name is contextual to the
-  // sender, not a fixed label worth persisting into `description`. The
+  // sender, not a label worth persisting into `description`. The
   // conversation link (entityId) is what makes this row useful; the
   // recipient's name is passed straight into description as-is by the
   // caller, so it stays accurate even if the recipient later renames

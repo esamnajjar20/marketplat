@@ -257,17 +257,8 @@ export const conversationsController = {
         );
         res.status(201).json(successResponse('Message sent', message));
       } catch (err) {
-        // FIX CHAT-IMG-ORPHAN: previously, if sendMessage threw (the
-        // caller is not a participant in the conversation, the
-        // conversation was soft-deleted for them, a rate limit tripped
-        // between upload and send, ...), the freshly-uploaded image
-        // was left behind on Cloudinary with no DB row referencing
-        // it. Every failed attempt — whether an honest retry or a
-        // scripted probe against other users' conversation ids — grew
-        // the operator's Cloudinary bill without leaving a trace in
-        // the application. Same cleanup pattern ads/products/
-        // service-listings already use after their own upload step
-        // succeeds but the DB write fails. Best-effort: the original
+        // Best-effort cleanup prevents an uploaded image from becoming an
+// orphaned Cloudinary asset when message creation fails.
         // error is what the client should see, so a cleanup failure
         // is logged rather than propagated.
         const publicId = extractCloudinaryPublicId(uploaded.url);

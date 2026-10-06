@@ -22,7 +22,7 @@ interface ConfirmDialogProps {
   destructive?: boolean;
   onConfirm: () => void;
   /**
-   * UX-FIX P1-3: pass the caller's mutation.isPending here. When provided,
+   * pass the caller's mutation.isPending here. When provided,
    * the confirm button shows a loading label and is disabled while the
    * mutation is in flight, and the dialog does NOT auto-close on click —
    * previously it closed immediately regardless of the mutation's outcome,
@@ -60,7 +60,7 @@ interface ConfirmDialogProps {
  *     onConfirm={() => target && deleteAd.mutate(target)}
  *   />
  *
- * UX-FIX P1-3 — with pending feedback, close the dialog yourself from
+ * with pending feedback, close the dialog yourself from
  * onSuccess instead of relying on auto-close:
  *   const deleteAd = useDeleteAd({ onSuccess: () => setOpen(false) });
  *   <ConfirmDialog
@@ -89,7 +89,7 @@ export function ConfirmDialog({
   useEffect(() => {
     if (!open) setReason('');
   }, [open]);
-  // UX-FIX P1-3: `isPending` being provided at all (not just its value)
+  // `isPending` being provided at all (not just its value)
   // is the signal that the caller has opted into pending-aware behavior.
   // Callers that pass isPending are expected to close the dialog
   // themselves (via onOpenChange) once their mutation's onSuccess fires,

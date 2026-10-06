@@ -86,7 +86,7 @@ function matchesProductFilters(product: Product, filters: SavedSearchFilters): b
 
 /**
  * PLATFORM-WIDE-01: ServiceListing equivalent. `price` is nullable
- * (NEGOTIABLE pricing type has no fixed price) — a listing with no
+ * (NEGOTIABLE pricing type has no price) — a listing with no
  * price never satisfies a minPrice/maxPrice filter, same null-handling
  * as matchesAdFilters' own price check. `q` matches via
  * matchesSearchQuery (searchTextMatch.ts) — same note as
@@ -152,7 +152,7 @@ export const savedSearchesService = {
  * a new, low-volume feature; MAX_SAVED_SEARCHES_PER_USER bounds rows
  * per user) and it keeps matchesFilters as one readable, testable
  * function instead of hand-built dynamic SQL. If saved-search volume
- * grows large enough for this to matter, the fix is a scheduled/batched
+ * grows large enough for this to matter, the a scheduled/batched
  * matcher (or a proper search index) — not a change to this function's
  * logic, just to when/how often it runs.
  *

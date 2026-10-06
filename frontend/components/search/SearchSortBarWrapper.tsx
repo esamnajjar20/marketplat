@@ -18,7 +18,7 @@ const SORT_LABELS: Record<string, string> = {
 // searchQuerySchema's .refine() on the backend), so it's appended to
 // the option list conditionally below instead of always being present
 // like the other four. Moved here unchanged from SearchFilters.tsx
-// (FIX P2-08) — same values, same condition, just relocated.
+// () — same values, same condition, just relocated.
 const DISTANCE_SORT_LABEL = 'الأقرب';
 
 /**

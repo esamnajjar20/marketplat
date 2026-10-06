@@ -15,14 +15,14 @@ import { parseApiError } from '@/lib/errorParser';
 
 export function ForgotPasswordForm() {
   const searchParams = useSearchParams();
-  // AUDIT-FIX auth#1 (propagation): keeps `from` alive on the
+  // #1 (propagation): keeps `from` alive on the
   // "العودة لتسجيل الدخول" links below in case a visitor detoured
   // through here from /login?from=X — same reasoning as LoginForm's
   // own registerHref.
   const from = searchParams.get('from');
   const loginHref = from ? `${ROUTES.login}?from=${encodeURIComponent(from)}` : ROUTES.login;
 
-  // AUDIT-FIX auth#3: was a hand-rolled useState/try-catch calling
+  // #3: was a hand-rolled useState/try-catch calling
   // authApi.forgotPassword directly — the one form in this group of 4
   // not using React Query like useLogin/useRegister already do.
   const { mutate: forgotPassword, isPending } = useForgotPassword();
@@ -45,7 +45,7 @@ export function ForgotPasswordForm() {
       { email: email.trim() },
       {
         onSuccess: () => setSent(true),
-        // AUDIT-FIX auth#4: previously toast-only — unlike LoginForm/
+        // #4: previously toast-only — unlike LoginForm/
         // RegisterForm/ResetPasswordForm, which all also set a
         // persistent on-page error. A toast disappears after a few
         // seconds; this form is a single field with nothing else to

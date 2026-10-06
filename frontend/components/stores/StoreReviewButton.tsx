@@ -28,7 +28,7 @@ export function StoreReviewButton({ storeId, storeName, ownerUserId }: Props) {
 
   function handleOpen() {
     if (!isAuthenticated) {
-      // SW-FIX-LOGIN-PARAM: see StickyContactBar's identical fix —
+      // see StickyContactBar's identical fix —
       // LoginForm reads `?from=`, not `?next=`.
       router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.storeDetail(storeId))}`);
       return;

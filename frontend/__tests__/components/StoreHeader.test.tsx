@@ -1,9 +1,9 @@
 /**
  * __tests__/components/StoreHeader.test.tsx
  *
- * Coverage gap: 0% prior coverage. Covers FIX BUG-03's derived-vs-
+ * Coverage gap: 0% prior coverage. Covers 's derived-vs-
  * override follow-state logic, the verified badge, FEATURED plan
- * badge (FIX P1-4), the rating line's totalRatings>0 gate, stats
+ * badge (), the rating line's totalRatings>0 gate, stats
  * card, the follow/unfollow button's own-store and unauthenticated
  * guards, and FEAT-REPORT-USER-STORE's report-button guard (same
  * own-store/unauthenticated condition as follow).

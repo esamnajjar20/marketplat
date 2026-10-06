@@ -7,7 +7,7 @@ const optionalQueryBoolean = z.preprocess(
 );
 
 /** أنواع Prisma NotificationType — تُبقى متوافقة مع الـ enum في schema. */
-// FIX NOTIF-TYPE-ENUM-SYNC-01: this enum was out of sync with
+// this enum was out of sync with
 // schema.prisma's NotificationType and with the types actually
 // produced by notifications.service.ts. Four were missing:
 //   - NEW_REQUEST_OFFER / REQUEST_OFFER_ACCEPTED — created by the
@@ -60,7 +60,7 @@ export const NOTIFICATION_CATEGORY_TYPES = {
     'PROMOTION_STATUS_CHANGE',
     'STORE_MEMBER_INVITED',
   ],
-  // FIX NOTIF-TYPE-ENUM-SYNC-01: requests-marketplace events belong
+  // requests-marketplace events belong
   // under the 'services' UI category — a customer filtering their
   // notifications by 'services' should see an offer on their open
   // request. (T780 — service-broadcast quote types removed with the
@@ -164,7 +164,7 @@ export const registerFcmTokenSchema = z.object({
   }),
 });
 
-// FIX NOTIF-VALIDATION-DEDUP-01: unregisterFcmTokenSchema was a
+// unregisterFcmTokenSchema was a
 // byte-for-byte duplicate of deleteFcmTokenSchema (which is the one
 // notifications.controller.ts actually imports). Removed.
 

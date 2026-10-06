@@ -3,7 +3,7 @@
  *
  * SellerCard's real logic: links to the seller's profile (the seller
  * page when sellerProfileId is present, falling back to the plain user
- * profile for legacy ads with none), conditionally shows the city and
+ * profile for with none), conditionally shows the city and
  * verified badge, and starts a real conversation with the seller via
  * useStartConversation (messaging has shipped — see useConversationMutations.ts).
  * The messaging button is hidden entirely for the ad's own owner
@@ -95,7 +95,7 @@ describe('SellerCard', () => {
     // UNIFIED-PROFILE: SellerCard.tsx no longer branches to
     // ROUTES.sellerProfile — that page is now just a redirect back to
     // /profile/[userId], so the card links straight there in both the
-    // sellerProfileId-present and legacy-ad (null) cases.
+    // sellerProfileId-present and (null) cases.
     renderWithClient(
       <SellerCard seller={baseSeller} adId="ad-1" sellerProfileId="sp-1" />
     );

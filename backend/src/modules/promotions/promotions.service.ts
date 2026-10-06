@@ -13,7 +13,7 @@ import { ConflictError } from '../../shared/errors/ConflictError';
 // ACTIVE once that time passes, with no separate write required for
 // every promotion on every clock tick. resolveStatus is called on
 // every read/write path (so an individual product's price is always
-// correct even between sweeps), and — as of Phase 14 —
+// correct even between sweeps), and — as of 
 // myPromotionsExpiring.ts also runs promotionsRepository's
 // findDueForActivation/findDueForExpiry as a scheduled sweep (same
 // invocation model as weeklyAdViewsReport.ts) so the stored `status`
@@ -169,7 +169,7 @@ export const promotionsService = {
     const existing = await requireOwnPromotion(userId, id);
 
     // T384 — cross-field consistency: validation only sees the request
-    // body, so a caller flipping discountType alone (FIXED→PERCENTAGE)
+    // body, so a caller flipping discountType alone (→PERCENTAGE)
     // would keep a stale discountValue (e.g. 500) that violates the
     // PERCENTAGE<=100 rule. Resolve the would-be final values and
     // enforce the constraint here, where both old and new are visible.

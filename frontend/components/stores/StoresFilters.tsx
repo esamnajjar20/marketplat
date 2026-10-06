@@ -9,7 +9,7 @@ import { CITIES, ROUTES } from '@/lib/constants';
 import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
 
 /**
- * FIX BUG-02: StoresGrid (components/stores/StoresGrid.tsx) already
+ * StoresGrid (components/stores/StoresGrid.tsx) already
  * reads and applies search/city/sortBy/sortOrder from the URL in
  * full — the data layer was always complete. Only a visible filter UI
  * was missing from the /stores page, leaving those params reachable
@@ -17,7 +17,7 @@ import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
  * ads/SearchFilters' shape/behavior for consistency with the rest of
  * the app (same update() pattern, same select styling).
  *
- * FIX P2-08 (audit item #8): sort used to have its own combined
+ * (audit item #8): sort used to have its own combined
  * sortBy_sortOrder Select right in this panel. It's now SearchSortBar,
  * rendered independently above the results (see
  * app/(public)/stores/page.tsx) instead of nested here.

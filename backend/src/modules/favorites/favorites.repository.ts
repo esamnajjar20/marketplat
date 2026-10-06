@@ -48,7 +48,7 @@ const adSelect = {
   userId: true,
   categoryId: true,
   sellerProfileId: true,
-  // FIX OFFLINE-IDEMPOTENCY-01: keep in sync with adListSelect scalars
+  // keep in sync with adListSelect scalars
   offlineOperationId: true,
   user: { select: { id: true, name: true, city: true, avatarUrl: true } },
   category: { select: { id: true, name: true, nameAr: true } },
@@ -124,7 +124,7 @@ const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
   fetchActive: (ids) =>
     prisma.product.findMany({
       where: { id: { in: ids }, status: { not: 'DELETED' } },
-      // FIX PRODUCT-LITE-01: the favourites list renders ProductCard,
+      // the favourites list renders ProductCard,
       // which never reads store.storeType.fields. Use the lite variant.
       include: productWithRelationsLite,
     }),
@@ -195,7 +195,7 @@ export const favoritesRepository = {
     });
   },
 
-  // FIX FAV-01, preserved from the pre-PR1 version: excludes ads whose
+  // , preserved from the pre-PR1 version: excludes ads whose
   // status is DELETED so a dead ad doesn't sit in "المفضلة" forever.
   // AD-only and left as its own named method (not folded into
   // countByUserIdAndType's generic signature) because ads.service.ts's
@@ -230,7 +230,7 @@ export const favoritesRepository = {
     const type: FavoriteEntityType = query.type ? FAVORITE_QUERY_TYPE_MAP[query.type] : 'AD';
     const config = ENTITY_CONFIG[type];
 
-    // FIX FAV-TOTAL-CONSISTENT + FAV-PAGINATION-SHORT-PAGE: replaces
+    // + FAV-PAGINATION-SHORT-PAGE: replaces
     // the KNOWN LIMITATION block that shipped with the polymorphic
     // migration. Three problems bundled here.
     //
@@ -256,7 +256,7 @@ export const favoritesRepository = {
     // then slice/limit over that active-only ordered list. `total` is
     // the active list's length, `skip + take` slices it, and the full
     // entity rows are only fetched for the current page's ids (in
-    // parallel). Cost is a fixed 3 queries per call regardless of page
+    // parallel). Cost is a 3 queries per call regardless of page
     // number — same order of magnitude as before, with the
     // correctness bugs gone. A page is never short.
     const listFilter = query.listId ? { listId: query.listId } : {};

@@ -1,16 +1,16 @@
 /**
- * FIX TEST-V4-11: every API file in this project is a thin wrapper
+ * every API file in this project is a thin wrapper
  * around apiClient with effectively no branching logic, but their own
  * code comments document REAL historical bugs of exactly the class
  * this file guards against:
  *
- *   - getMyAds called '/ads/my' instead of '/ads/me' (FIX C-06)
+ *   - getMyAds called '/ads/my' instead of '/ads/me' ()
  *   - getBySlug called '/categories/:slug' instead of
- *     '/categories/slug/:slug' (FIX C-07)
+ *     '/categories/slug/:slug' ()
  *   - updateReportStatus called PATCH /admin/reports/:id instead of
- *     PATCH /reports/:id/status (FIX C-08)
+ *     PATCH /reports/:id/status ()
  *   - ReportStatus used 'REVIEWED' instead of the real enum 'RESOLVED'
- *     (FIX T-03)
+ *     ()
  *
  * None of these would be caught by a type checker (string literals and
  * URL paths are both just strings) — only a test that asserts the

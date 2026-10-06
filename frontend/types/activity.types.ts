@@ -60,7 +60,7 @@ export type ActivityEntityType =
   | 'APPOINTMENT';
 
 /** Only SERVICE_REQUEST_STATUS_CHANGED populates this today — see
- * activity.templates.ts's serviceRequestStatusChanged builder. */
+ * activity.'s serviceRequestStatusChanged builder. */
 export interface ActivityMetadata {
   fromStatus?: string;
   toStatus?: string;

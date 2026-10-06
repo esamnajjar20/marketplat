@@ -1,7 +1,7 @@
 /**
  * __tests__/components/DeleteAccountSection.test.tsx
  *
- * FIX INTEG-08: covers the account-deletion UI that finally calls the
+ * covers the account-deletion UI that finally calls the
  * previously-unreachable useDeleteAccount mutation. Real logic:
  *   - Delete is disabled until the user types the exact confirmation
  *     word — this is the whole safety mechanism for an irreversible

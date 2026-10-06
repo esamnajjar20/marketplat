@@ -1,7 +1,7 @@
 /**
  * __tests__/components/AdDetailSection.test.tsx
  *
- * FIX INTEG-10: AdDetailSection is the only real caller of AdDetail's
+ * AdDetailSection is the only real caller of AdDetail's
  * isFavorited prop. Its one piece of real logic is wiring
  * useIsFavorited(id) through to that prop — this pins that down so it
  * can't silently regress back to the always-false default.
@@ -62,7 +62,7 @@ describe('AdDetailSection', () => {
     expect(screen.queryByText(/AdDetail/)).not.toBeInTheDocument();
   });
 
-  // UX-FIX P0-1: a missing ad (no data, no explicit error) now renders
+  // a missing ad (no data, no explicit error) now renders
   // a "not found" EmptyState instead of a blank page — see the
   // component's own comment on the isError || !ad branch.
   it('shows a "not found" state once loaded if there is no ad', () => {

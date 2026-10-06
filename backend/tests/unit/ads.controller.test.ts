@@ -40,8 +40,8 @@ describe('adsController', () => {
       expect(adsService.createAd).toHaveBeenCalledWith('user-1', expect.any(Object), [mockFile]);
     });
 
-    // FIX LOAD-TEST-01 / TRACK-IMG-HOSTING: re-enabled under
-    // FIX PROD-AUDIT-01 alongside uncommenting the throw in
+    // / TRACK-IMG-HOSTING: re-enabled under
+    // alongside uncommenting the throw in
     // ads.controller.ts, now that config/env.ts guarantees Cloudinary
     // is configured whenever NODE_ENV=production.
     it('calls next(error) with BadRequestError when no files are attached', async () => {
@@ -52,7 +52,7 @@ describe('adsController', () => {
       await adsController.createAd(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
-      // REGRESSION (FIX BUG-IMG-REQ-01): this error must carry an
+      // REGRESSION (): this error must carry an
       // explicit code — without one it falls through to
       // error.middleware.ts's generic VALIDATION_ERROR fallback and
       // the user sees "البيانات المرسلة غير صحيحة" with no indication

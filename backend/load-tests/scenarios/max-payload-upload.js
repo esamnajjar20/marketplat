@@ -1,7 +1,7 @@
 /**
  * load-tests/scenarios/max-payload-upload.js
  *
- * PROD-FIX-19: ad-creation.js (the existing upload scenario)
+ * ad-creation.js (the existing upload scenario)
  * deliberately uses a 1x1 pixel PNG — the right choice for measuring
  * the write path's baseline latency without paying real upload cost on
  * every iteration, but it doesn't exercise the actual worst case this
@@ -11,7 +11,7 @@
  * targets THAT worst case, concurrently, across several simulated
  * users — the scenario a production audit flagged as untested: "what
  * happens under concurrent max-size uploads" for both memory (multer's
- * buffer handling, PROD-FIX-02's Cloudinary timeout under real payload
+ * buffer handling, 's Cloudinary timeout under real payload
  * size) and CPU (image processing before the Cloudinary handoff).
  *
  * Honest framing, same as ad-creation.js: addAdImagesRateLimit caps
@@ -43,7 +43,7 @@ import { API } from '../scripts/config.js';
 
 const uploadDuration = new Trend('max_payload_upload_duration', true);
 
-// PROD-FIX-19: 5MB is upload.middleware.ts's per-file fileSize limit
+// 5MB is upload.middleware.ts's per-file fileSize limit
 // exactly — this is deliberately AT the limit, not comfortably under
 // it, since the whole point is exercising the worst case a real
 // (adversarial or just a user with large photos) request could send.

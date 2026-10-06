@@ -186,7 +186,7 @@ describe('products.validation', () => {
       expect(result.query.maxPrice).toBe(200);
     });
 
-    // PROMO-1 (Phase 10): hasPromotion arrives as the query-string
+    // PROMO-1 (): hasPromotion arrives as the query-string
     // literal "true"/"false", same coercion approach as the other
     // optionalQueryNumber fields in this schema.
     it('coerces the string "true" into boolean true', () => {

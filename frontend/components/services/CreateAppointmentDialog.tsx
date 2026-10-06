@@ -40,7 +40,7 @@ export function CreateAppointmentDialog({
   const [notes, setNotes] = useState('');
   const createAppointment = useCreateAppointment();
 
-  // UX-FIX P1-2: block Escape / overlay-click / cancel-button close while
+  // block Escape / overlay-click / cancel-button close while
   // createAppointment is in flight. Previously this only reset local form
   // state on close with no pending check at all, so closing and reopening
   // mid-request (this dialog is reused across two entry points) could

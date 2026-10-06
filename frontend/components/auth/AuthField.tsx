@@ -30,7 +30,7 @@ interface AuthFieldProps {
   hint?: ReactNode;
   required?: boolean;
   /**
-   * PasswordInput's show/hide toggle is fixed at the field's physical
+   * PasswordInput's show/hide toggle is at the field's physical
    * right edge (it's dir="ltr" like all password fields in this app —
    * see PasswordInput.tsx's own comment), which would collide with
    * this component's icon there. Pass this for any PasswordInput

@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/offlineQueue.test.ts
  *
- * FIX QUEUE-COUNT-01: getQueuedRequestCount switched from a raw store.count()
+ * getQueuedRequestCount switched from a raw store.count()
  * to getAll()+filter so it can exclude status:'failed' rows (see lib/offlineQueue.ts
  * for why raw count() was actively misleading). Tests below mock getAll()
  * instead of count() accordingly, and cover the new pending/failed split and
@@ -115,7 +115,7 @@ describe('offlineQueue', () => {
       mockIndexedDbWithRows([
         { id: 1, url: 'https://api.example.com/ads', method: 'POST', queuedAt: 1, status: 'pending' },
         { id: 2, url: 'https://api.example.com/ads/2', method: 'PATCH', queuedAt: 2, status: 'failed' },
-        // no status field at all (legacy row) — must still count as pending.
+        // no status field at all () — must still count as pending.
         { id: 3, url: 'https://api.example.com/ads/3', method: 'DELETE', queuedAt: 3 },
       ]);
 

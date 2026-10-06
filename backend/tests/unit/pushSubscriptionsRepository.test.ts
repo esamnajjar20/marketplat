@@ -1,5 +1,5 @@
 /**
- * AUDIT-FIX 2.6: shared/utils/pushSubscriptionsRepository.ts centralizes
+ * shared/utils/pushSubscriptionsRepository.ts centralizes
  * PushSubscription data access (previously duplicated between
  * pushService.ts and notifications.repository.ts, each calling
  * prisma.pushSubscription directly). These tests cover the ownership

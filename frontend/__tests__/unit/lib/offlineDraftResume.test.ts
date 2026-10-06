@@ -1,7 +1,7 @@
 /**
  * __tests__/unit/lib/offlineDraftResume.test.ts
  *
- * تغطية دوال الاستئناف النقية + دورة حياة active id (FIX RESUME-LEAK-01).
+ * تغطية دوال الاستئناف النقية + دورة حياة active id ().
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {

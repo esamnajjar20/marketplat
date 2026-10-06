@@ -222,7 +222,7 @@ describe('ServiceListingForm', () => {
     it('does not require a price when pricingType is NEGOTIABLE (default)', async () => {
       // Edit mode with existing images lets us reach past the image
       // gate without stubbing file uploads; existingListing defaults
-      // to FIXED, so switch to NEGOTIABLE explicitly.
+      // to , so switch to NEGOTIABLE explicitly.
       const negotiableListing = { ...existingListing, pricingType: 'NEGOTIABLE' as const, price: null };
       render(<ServiceListingForm mode="edit" listing={negotiableListing} />);
 

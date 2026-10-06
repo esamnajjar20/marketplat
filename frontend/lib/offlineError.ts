@@ -1,7 +1,7 @@
 import type { ParsedError } from './errorParser';
 
 /**
- * FIX OFFLINE-FAST-FAIL: standardized shape for "no network, don't even
+ * standardized shape for "no network, don't even
  * try" rejections. Shape chosen to match parseApiError's already-parsed
  * short-circuit (message:string + statusCode:number, not an Error
  * instance) and isNetworkLikeFailure (code:'NETWORK_ERROR' OR

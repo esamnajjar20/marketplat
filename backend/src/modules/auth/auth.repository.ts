@@ -3,7 +3,7 @@ import { User } from '@prisma/client';
 import { handlePrismaError } from '../../shared/utils/prismaErrors';
 
 /**
- * FIX EMAIL-NORMALIZE-01: every email that enters or leaves this
+ * every email that enters or leaves this
  * repository is lowercased and trimmed once, here, so that
  * register("User@Example.com") and login("user@example.com") agree on
  * what "the same email" means. Before this, the only normalization
@@ -29,7 +29,7 @@ import { handlePrismaError } from '../../shared/utils/prismaErrors';
  * accidentally bypass it. This does not migrate existing rows — the
  * handful of already-mis-cased accounts in production keep working
  * exactly as before (their stored string still matches what they
- * typed); the fix is forward-looking. If a data migration is ever
+ * typed); the forward-looking. If a data migration is ever
  * needed, it would be a separate, reviewable step.
  */
 function normalizeEmail(email: string): string {
@@ -43,7 +43,7 @@ export const authRepository = {
   findByPhone: async (phone: string): Promise<User | null> =>
     prisma.user.findUnique({ where: { phone } }),
 
-  // FIX OAUTH-01: looks up a user by their linked Google account id.
+  // looks up a user by their linked Google account id.
   // Distinct from findByEmail — a user can exist with an email but no
   // googleId yet (a local account that hasn't linked Google), so
   // these answer different questions; authService.loginWithGoogle()
@@ -69,13 +69,13 @@ export const authRepository = {
     }
   },
 
-  // FIX OAUTH-01: creates a brand-new user from a Google profile —
+  // creates a brand-new user from a Google profile —
   // only used when neither findByGoogleId nor findByEmail found an
   // existing account (see authService.loginWithGoogle()). No
   // passwordHash: this account has no local password until/unless a
   // future "add a password" flow sets one (out of scope here) —
   // passwordHash is nullable specifically to support this (see
-  // schema.prisma's FIX OAUTH-01 comment). Deliberately does NOT
+  // schema.prisma's comment). Deliberately does NOT
   // create a SellerProfile — that stays an explicit, separate opt-in
   // via POST /sellers regardless of which auth provider created the
   // account, unchanged from existing local-registration behavior.
@@ -99,7 +99,7 @@ export const authRepository = {
           // the column) — cleared once they submit it via the
           // existing PATCH /users/me.
           needsProfileCompletion: true,
-          // FIX FEAT-EMAIL-VERIFY: Google already verified this
+          // Google already verified this
           // address before the OAuth flow completed
           // (google.strategy.ts's extractGoogleProfile requires
           // email_verified === true), so we never send a second
@@ -114,7 +114,7 @@ export const authRepository = {
     }
   },
 
-  // FIX OAUTH-01: links a Google identity onto an existing local
+  // links a Google identity onto an existing local
   // account matched by email (see authService.loginWithGoogle()'s
   // link-by-email path). Deliberately does NOT touch passwordHash —
   // the existing local user keeps their password working exactly as
@@ -133,7 +133,7 @@ export const authRepository = {
     }
   },
 
-  // FIX M-001: compensating delete used by register() when issueSession
+  // compensating delete used by register() when issueSession
   // (Redis: refresh token save + user cache warm) fails after the
   // PostgreSQL user row was already created. Without this, a Redis
   // failure mid-registration leaves an orphaned user with no valid

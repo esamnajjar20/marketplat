@@ -3,12 +3,12 @@ import { prisma } from '../../config/prisma';
 import { logger } from '../../shared/utils/logger';
 import type { SavedSearchFilters } from './saved-searches.validation';
 
-// AUDIT-FIX 1.8: findAllForMatching had no cap at all — with
+// findAllForMatching had no cap at all — with
 // MAX_SAVED_SEARCHES_PER_USER (saved-searches.service.ts) bounding rows
 // per user but no bound across users, this grows unbounded with the
 // user base. A full scheduled/batched matcher redesign (per the scale
 // note on savedSearchEvents.onAdCreated) is out of scope for a targeted
-// fix and risks the current real-time notification behavior. This is a
+// risks the current real-time notification behavior. This is a
 // deliberately blunt safety net, not a redesign: a hard application-level
 // ceiling so a single onAdCreated call can never pull an unbounded
 // result set, with a log warning when it's actually hit so growth past
@@ -47,7 +47,7 @@ export const savedSearchesRepository = {
    * why in-Node filtering (vs. pushing the match into SQL) is the right
    * tradeoff at current scale.
    *
-   * AUDIT-FIX 1.8: capped at HARD_MATCHING_CEILING as a safety net, not
+   * capped at HARD_MATCHING_CEILING as a safety net, not
    * a design decision — see that constant's comment. Ordered by
    * createdAt so, if the ceiling is ever actually hit, older saved
    * searches (statistically the most likely to still be relevant/active)

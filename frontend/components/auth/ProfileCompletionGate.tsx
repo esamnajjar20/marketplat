@@ -23,7 +23,7 @@
  * has client-side (via the Zustand store) — mirroring it into a
  * middleware-readable cookie for this one edge case wasn't worth the
  * added cookie/trust-model surface next to app_user_role's existing
- * one. No API call bypass either way: every real POST/PATCH still
+ * one. No API call bypass either way: every real POST/
  * goes through the backend regardless of what page is showing.
  */
 'use client';

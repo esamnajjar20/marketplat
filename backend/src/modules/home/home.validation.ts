@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Cities the homepage accepts for its `city` filter. Mirrors the fixed
+ * Cities the homepage accepts for its `city` filter. Mirrors the 
  * 10-city list the frontend sends (frontend/lib/constants.ts → CITIES).
  *
  * Why an allow-list: /home is served with a public Cache-Control, so the
@@ -40,7 +40,7 @@ export const getHomepageSchema = z.object({
       .max(100)
       .optional()
       .transform((value) => {
-        // FIX HOME-CITY-EXPLICIT-ALL: __ALL__ is a client sentinel meaning
+        // __ALL__ is a client sentinel meaning
         // "user explicitly chose all cities". It must survive the transform
         // so the service can distinguish it from "no param sent" (which
         // triggers the profile-city fallback). Everything else unknown still

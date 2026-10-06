@@ -88,7 +88,7 @@ export const storesController = {
     try {
       const { query } = getStoresSchema.parse({ query: req.query });
       const { stores, meta } = await storesService.getStores(query);
-      // FIX CACHE-HTTP-STALENESS-02: 30s + 30s swr, same as CACHE.LIVE — a
+      // 30s + 30s swr, same as CACHE.LIVE — a
       // removed listing may not linger at the browser/CDN for ~2 minutes.
       res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=30');
       res.setHeader('Vary', 'Authorization');
@@ -141,7 +141,7 @@ export const storesController = {
     }
   },
 
-  // FIX BUG-02: admin-only endpoint that finally makes StorePlan.FEATURED
+  // admin-only endpoint that finally makes StorePlan.FEATURED
   // reachable — see stores.service.ts's updateStorePlan doc comment.
   
   requestFeature: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -176,7 +176,7 @@ updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promis
     try {
       const admin = requireUser(req);
       const { body } = bulkUpdateStoreStatusSchema.parse({ body: req.body });
-      // FIX BULK-STORE-REASON-DROP: previously passed only
+      // previously passed only
       // `{ status: body.status }` to the service, silently dropping
       // body.reason. The single-store PATCH /:id/status path already
       // passes the full body — this bulk path diverged, so an admin

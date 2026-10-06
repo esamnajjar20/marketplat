@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * SLOW-NET phase3: non-critical font weights after first paint / idle.
+ * SLOW-NET non-critical font weights after first paint / idle.
  * Critical path keeps Cairo 400+600 and IBM Plex Sans 400 only.
  */
 import { useEffect } from 'react';

@@ -86,7 +86,7 @@ export const getProductsSchema = z.object({
       search: z.string().min(1).max(200).optional(),
       sortBy: z.enum(PRODUCT_SORT_FIELDS).optional(),
       sortOrder: z.enum(['asc', 'desc']).optional(),
-      // PROMO-1 (Phase 10 scope only — minimal, not the full Phase 12
+      // PROMO-1 (scope only — minimal, not the full 
       // filter design): true returns only products carrying a live
       // (SCHEDULED or ACTIVE) Promotion row, so the Home "عروض مميزة"
       // section can query directly instead of over-fetching and
@@ -96,8 +96,8 @@ export const getProductsSchema = z.object({
       hasPromotion: z
         .preprocess(value => (value === undefined ? undefined : value === 'true'), z.boolean().optional()),
     })
-    // FIX M-024: see ads.validation.ts's getAdsSchema refine for the
-    // same fix and rationale — same silent-empty-result bug here.
+    // see ads.validation.ts's getAdsSchema refine for the
+    // same rationale — same silent-empty-result bug here.
     .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
       message: 'minPrice must not exceed maxPrice',
       path: ['minPrice'],
@@ -123,7 +123,7 @@ export const productIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Product ID is required') }),
 });
 
-// FIX PRODUCTS-INLINE-ZOD: two Zod schemas were defined inline in
+// two Zod schemas were defined inline in
 // products.controller.ts (mirroring ads.controller.ts's own inline
 // shape) instead of living here with every other schema in this
 // module. Beyond consistency, the inline versions had no upper bound

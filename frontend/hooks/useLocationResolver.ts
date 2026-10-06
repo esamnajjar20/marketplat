@@ -42,7 +42,7 @@ interface SavedGps {
 }
 
 /**
- * Phase 2 — hooks/useLocationResolver.ts
+ * hooks/useLocationResolver.ts
  *
  * Single abstraction responsible for *resolving* a best-effort location
  * for Home, in priority order:
@@ -54,7 +54,7 @@ interface SavedGps {
  *   4. fallback    — nothing usable; callers show general/varied content.
  *
  * Deliberately not wired to Products/Stores/Ads/ServiceProviders here —
- * that's Phase 4. This hook only resolves + persists a location and
+ * that's This hook only resolves + persists a location and
  * exposes it; nothing here talks to any of the section components or
  * their query hooks.
  *

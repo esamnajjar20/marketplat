@@ -20,7 +20,7 @@ export interface PaginationMeta {
 // silent type-contract violation rather than an observed bug, but any future
 // caller trusting the declared type would get `undefined` instead of a real
 // boolean. Computed here, once, so all ~14 call sites across every module get
-// the fix automatically.
+// the 
 export const buildPaginationMeta = (
   total: number,
   page: number,
@@ -69,7 +69,7 @@ export const getPaginationParams = (
 
 // A-03: reusable Zod schema for pagination query params
 export const paginationQuerySchema = z.object({
-  // FIX PAGINATION-01: .transform(Number) previously ran unconditionally,
+  // .transform(Number) previously ran unconditionally,
   // even when the field was absent — Number(undefined) is NaN, and piping
   // NaN into z.number() fails validation despite that inner schema being
   // .optional() (NaN is a number, not undefined, so .optional() never

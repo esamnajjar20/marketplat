@@ -2,7 +2,7 @@
 
 /**
  * FEAT-REPORT-USER-STORE: extracted from ReportAdButton.tsx's dialog +
- * mutation pattern (itself from FIX INTEG-07) so ReportUserButton and
+ * mutation pattern (itself from ) so ReportUserButton and
  * ReportStoreButton don't duplicate the same Select/textarea/submit
  * markup a third and fourth time. ReportAdButton now wraps this with
  * useReportAd bound in; behavior for ads is unchanged.

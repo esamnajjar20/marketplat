@@ -26,9 +26,9 @@ interface Props {
 }
 
 export function AdFormPreview({ values, className }: Props) {
-  // SW-ADFORMPREVIEW-OBJECT-URL-FIX: same leak as the one fixed in
+  // SW-ADFORMPREVIEW-OBJECT-URL-FIX: same leak as the one in
   // ProductFormPreview (SW-OBJECT-URL-LEAK-PRODUCT) and
-  // ServiceListingFormPreview (FIX OBJECT-URL-LEAK). This component is
+  // ServiceListingFormPreview (). This component is
   // mounted for the whole time the ad form is open — on desktop it
   // lives in CreateFormLayout's sticky sidebar across all three wizard
   // steps. Every keystroke in the title/description/price fields

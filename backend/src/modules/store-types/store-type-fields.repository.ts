@@ -81,7 +81,7 @@ export const storeTypeFieldsRepository = {
   update: (id: string, input: UpdateStoreTypeFieldInput) => prisma.storeTypeField.update({
     where: { id },
     data: {
-      // FIX FIELD-SCOPE-IMMUTABLE-REPO: scope is never updated (see
+      // scope is never updated (see
       // store-type-fields.service.update — it rejects any attempt).
       ...(input.labelAr !== undefined ? { labelAr: input.labelAr } : {}),
       ...(input.cardLabelAr !== undefined ? { cardLabelAr: input.cardLabelAr } : {}),

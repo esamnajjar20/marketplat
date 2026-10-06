@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event';
  * AdForm) multiply this across many fields and many `it()` blocks,
  * which is what pushed individual tests to the observed 5000-5700ms
  * that forced testTimeout/hookTimeout up to 20s in the first place —
- * a timeout increase that masked the slowness rather than fixing it.
+ * a timeout increase that masked the slowness rather than it.
  *
  * `{ delay: null }` is user-event's own documented option for this:
  * it keeps the exact same realistic event sequence (keydown → keypress

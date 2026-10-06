@@ -137,7 +137,7 @@ export const updateStoreStatusSchema = z.object({
 
 export type UpdateStoreStatusInput = z.infer<typeof updateStoreStatusSchema>['body'];
 
-// FIX BUG-02: StorePlan.FEATURED existed in the schema and was rendered
+// StorePlan.FEATURED existed in the schema and was rendered
 // across StoreHeader/StoreCard/MyStoreCard/FeaturedStoresSection, but no
 // code path anywhere ever set a store's plan to FEATURED — no admin
 // endpoint, no billing. This closes that gap: same admin-transition

@@ -32,7 +32,7 @@ import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../..
 
 const MAX_LISTING_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images — see config/limits.ts
 
-// FIX SEC-4.1: addImages/removeImage used to be ~75 lines of
+// addImages/removeImage used to be ~75 lines of
 // hand-rolled logic here, near-identical to products.service.ts's copy
 // of the same thing. Now built from the shared factory — see
 // entityImageOperations.ts's doc comment for why ads.service.ts is not
@@ -76,7 +76,6 @@ export const serviceListingsService = {
     files: Express.Multer.File[],
     offlineOperationId?: string | null,
   ): Promise<ServiceListing> => {
-    // FIX OFFLINE-IDEMPOTENCY-01
     if (offlineOperationId) {
       const existing = await prisma.serviceListing.findUnique({
         where: { offlineOperationId },
@@ -182,7 +181,7 @@ export const serviceListingsService = {
         return createdListing;
       });
     } catch (error: unknown) {
-      // FIX OFFLINE-IDEMPOTENCY-01: concurrent same offline op id
+      // concurrent same offline op id
       if (
         offlineOperationId &&
         typeof error === 'object' &&
@@ -297,7 +296,7 @@ export const serviceListingsService = {
       }
     }
 
-    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    // Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('service-listings', query, async () => {
       const { listings, total } = await serviceListingsRepository.findMany(query);
       const page = query.page ?? 1;
@@ -313,7 +312,7 @@ export const serviceListingsService = {
   // listing without side effects so favoritesService can validate a
   // SERVICE_LISTING favorite target exists without importing
   // serviceListingsRepository directly.
-  // FIX SL-REFERENCE-INCLUDE-PROVIDER: previously returned the bare
+  // previously returned the bare
   // ServiceListing row (no provider relation), which
   // reportsService.createTargetReport needs to resolve the listing's
   // owning user for its self-report guard. Without the provider chain
@@ -465,7 +464,7 @@ export const serviceListingsService = {
 
     // Best-effort Cloudinary cleanup — same "don't fail the request over
     // a storage cleanup miss" convention as cleanupUploadedImages itself.
-    // AUDIT-FIX 2.4: .catch(() => undefined) previously discarded the
+    // .catch(() => undefined) previously discarded the
     // error with no trace — logging each failure (per-image, since this
     // fans out over the whole listing.images array) so orphaned assets
     // from a failed batch delete are findable later, same rationale as
@@ -487,8 +486,8 @@ export const serviceListingsService = {
   },
 
   // Gap #3 fix: closes the report's finding — service listings had no
-  // way to add/replace photos after creation (PATCH is JSON-only, no
-  // images field). Delegates to the shared factory (FIX SEC-4.1).
+  // way to add/replace photos after creation (JSON-only, no
+  // images field). Delegates to the shared factory ().
   addImages: async (
     listingId: string,
     userId: string,
@@ -500,7 +499,7 @@ export const serviceListingsService = {
 
   // Gap #3 fix: mirrors ads.service.ts's removeImage, including the
   // "can't remove the last image" guard (EPIC 1.5's rationale applies
-  // identically here). Delegates to the shared factory (FIX SEC-4.1).
+  // identically here). Delegates to the shared factory ().
   removeImage: async (
     listingId: string,
     userId: string,

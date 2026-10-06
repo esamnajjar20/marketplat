@@ -24,7 +24,6 @@ import {
 import { offlineMeta } from '@/lib/apiPagination';
 import { saveConversationMedia, getConversationMedia, cacheConversationMediaBlobs } from '@/lib/conversationMediaStore';
 
-/** GET /conversations — مع تخزين IndexedDB للقراءة دون اتصال. */
 export function useMyConversations(params?: ConversationsQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);

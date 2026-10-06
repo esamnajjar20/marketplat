@@ -31,7 +31,7 @@ const ALLOWED_TRANSITIONS: Record<ServiceRequestStatus, ServiceRequestStatus[]> 
   COMPLETED: [],
   REJECTED: [],
   CANCELLED: [],
-  // FIX SR-EXPIRY-TRANSITIONS (audit H4): EXPIRED is system-only — no path
+  // (audit H4): EXPIRED is system-only — no path
   // leads into or out of it via the API. Listed so the Record stays exhaustive.
   EXPIRED: [],
 };
@@ -56,7 +56,7 @@ const TRANSITION_ACTOR: Record<string, Actor> = {
 // can only ever reach one of these once (ALLOWED_TRANSITIONS has no
 // outgoing edges from any of the three), so this recompute fires at
 // most once per request.
-// FIX SR-EXPIRY-TERMINAL (audit H4): EXPIRED is terminal like the rest.
+// (audit H4): EXPIRED is terminal like the rest.
 const TERMINAL_STATUSES: ServiceRequestStatus[] = ['COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'];
 
 // FIX (dead-stats): completedRequestsCount/fulfillmentRate
@@ -86,7 +86,7 @@ const recomputeProviderStats = async (
   });
 };
 
-// FIX SR-EXPIRY (audit H4): a PENDING request nobody answers within this
+// (audit H4): a PENDING request nobody answers within this
 // window is closed automatically (see expireStalePending). 7 days: long
 // enough for a part-time provider to see it over a weekend/holiday, short
 // enough that their inbox doesn't fill with dead requests.
@@ -100,7 +100,6 @@ export const serviceRequestsService = {
     input: CreateServiceRequestInput,
     offlineOperationId?: string | null,
   ): Promise<ServiceRequest> => {
-    // FIX OFFLINE-IDEMPOTENCY-01
     if (offlineOperationId) {
       const existing = await prisma.serviceRequest.findUnique({ where: { offlineOperationId } });
       if (existing) {
@@ -132,7 +131,7 @@ export const serviceRequestsService = {
     // which only checks request.customerId === raterId — inflating
     // SellerProfile.averageRating/trustScore/totalSales from a fake
     // transaction. sellersService.createRating already guards the
-    // equivalent case on the legacy ad-seller rating path
+    // equivalent case on the rating path
     // (`profile.userId === raterId`); this closes the same gap for the
     // services system, at the earliest point (request creation) so it
     // also blocks fake completedRequestsCount/responseRate inflation,
@@ -158,7 +157,7 @@ export const serviceRequestsService = {
       throw new ForbiddenError('You cannot request this service.', 'USER_BLOCKED');
     }
 
-    // FIX SR-DUPLICATE (audit H4): the only protection against repeat
+    // (audit H4): the only protection against repeat
     // requests was a 20/hr rate limit. One open request per (customer,
     // listing) — finished/rejected/cancelled ones don't count, so the
     // customer can ask again later. (Not DB-enforced: a partial unique
@@ -295,7 +294,7 @@ export const serviceRequestsService = {
       );
     }
 
-    // FIX SR-PRICE-REQUIRED: ACCEPTED without a quotedPrice left the
+    // ACCEPTED without a quotedPrice left the
     // customer with "accepted" but no price to agree to, and COMPLETED
     // without an agreedPrice produced a request whose agreedPrice stayed
     // null — which sumRevenueByProviderId silently skips (it sums
@@ -402,7 +401,7 @@ export const serviceRequestsService = {
     return updatedRequest;
   },
 
-  // FIX SR-EXPIRY (audit H4). Run from cron (scripts/expireStaleServiceRequests.ts).
+  // (audit H4). Run from cron (scripts/expireStaleServiceRequests.ts).
   // Moves PENDING requests older than the TTL to CANCELLED with
   // respondedAt left NULL (the "system closed it" marker — no schema
   // change needed) and tells the customer. Safe to re-run and to overlap
@@ -424,7 +423,7 @@ export const serviceRequestsService = {
         if (count === 0) continue; // answered in the meantime
         progressed += 1;
         expired += 1;
-        // FIX SR-EXPIRY-TTL-PARAM (audit H4): pass ttlDays so the body
+        // (audit H4): pass ttlDays so the body
         // cannot lie if the TTL constant changes.
         notificationEvents
           .onServiceRequestExpired(row.customerId, row.id, row.listing.title, ttlDays)

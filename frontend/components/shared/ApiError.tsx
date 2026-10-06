@@ -6,7 +6,7 @@
  *   404 → not-found
  *   500+ → server error
  *
- * Phase 3: visual alignment with EmptyState (icon well + hierarchy).
+ * visual alignment with EmptyState (icon well + hierarchy).
  */
 'use client';
 

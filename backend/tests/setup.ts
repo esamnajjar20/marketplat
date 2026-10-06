@@ -83,7 +83,7 @@ jest.mock('../src/config/redis', () => {
     incr,
     incrby,
     set: jest.fn(async (key: string, value: string, ...flags: unknown[]) => {
-      // FIX TEST-V4-03: previously ignored all flags and unconditionally
+      // previously ignored all flags and unconditionally
       // overwrote the key — adLock.ts's withAdImagesLock relies on NX
       // (set-if-not-exists) to detect "another request already holds
       // this lock" and reject accordingly. Without honoring NX here,
@@ -110,7 +110,7 @@ jest.mock('../src/config/redis', () => {
     zrange,
     zcard: jest.fn(async (key: string) => zsets.get(key)?.size ?? 0),
     eval: jest.fn(async (script: string, keyCount: number, ...args: string[]) => {
-      // FIX TEST-V4-01: previously discriminated which Lua script was
+      // previously discriminated which Lua script was
       // running purely by `keyCount`/`args.length` shape — but
       // ROTATE_SCRIPT (refreshLock.ts) and DELETE_ALL_SESSIONS_SCRIPT
       // (tokenStore.ts) both call eval with keyCount=1 and 4 trailing
@@ -216,7 +216,7 @@ jest.mock('../src/config/redis', () => {
         // rate-limit-redis v4's increment script is invoked as:
         //   EVALSHA <sha> 1 <key> <windowMs>
         // and must return [totalHits, resetInMs] — a real ATOMIC
-        // increment against a per-key counter, not a fixed value.
+        // increment against a per-key counter, not a value.
         // A hardcoded [1, ttl] here (the previous behavior) made
         // every single request look like the very first one ever
         // seen for that key, so express-rate-limit's configured max
@@ -254,7 +254,7 @@ jest.mock('../src/config/redis', () => {
     }),
     scan: jest.fn(async () => ['0', []] as [string, string[]]),
     ping: jest.fn().mockResolvedValue('PONG'),
-    // PROD-FIX-11: redisMemoryMonitor.ts calls redis.info('memory') to
+    // redisMemoryMonitor.ts calls redis.info('memory') to
     // read used_memory/maxmemory. Mocked here (rather than left
     // unmocked and letting individual test files spy on it, the way
     // healthCache.test.ts does for `ping`) because redisMemoryMonitor
@@ -299,7 +299,7 @@ afterAll(async () => { if (!skipDb) await prisma.$disconnect(); });
 afterEach(async () => {
   const { redis } = await import('../src/config/redis');
   (redis as any).__clear?.();
-  // FIX REDIS-CACHE-TIMEOUT-01: the cache circuit breaker is module state —
+  // the cache circuit breaker is module state —
   // close it so one test's simulated Redis failures never bleed into the next.
   const { resetCacheGuard } = await import('../src/shared/utils/cacheGuard');
   resetCacheGuard();

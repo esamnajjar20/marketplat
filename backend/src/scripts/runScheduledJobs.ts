@@ -1,8 +1,6 @@
 import { spawn } from 'node:child_process';
 
 const TIME_ZONE = 'Asia/Gaza';
-// WINDOW_MINUTES removed — GitHub Actions runs hourly at :00, matching on hour only.
-// const WINDOW_MINUTES = 15;
 
 type Job = {
   name: string;

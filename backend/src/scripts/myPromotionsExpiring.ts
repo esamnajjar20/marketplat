@@ -1,5 +1,5 @@
 /**
- * Promotion lifecycle notifications — PROMO-1 (Phase 14 of the
+ * Promotion lifecycle notifications — PROMO-1 (of the
  * promotions design doc, deferred at MVP time: "هذه ليست ضرورية في
  * MVP"). Closes two things in one run:
  *

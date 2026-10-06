@@ -1,8 +1,8 @@
 /**
  * __tests__/components/PriceInput.test.tsx
  *
- * FIX DEAD-06: PriceInput was fully built (with documented RTL and a11y
- * fixes — UX-04, UX-10) but never wired into AdForm, and had no test of
+ * PriceInput was fully built (with documented RTL and a11y
+ * UX-04, UX-10) but never wired into AdForm, and had no test of
  * its own. Now wired in with the currency default corrected from the
  * wrong 'USD' to '₪'. Real logic covered:
  *   - the currency symbol shown matches the `currency` prop (defaulting

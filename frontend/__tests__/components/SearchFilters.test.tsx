@@ -2,7 +2,7 @@
  * __tests__/components/SearchFilters.test.tsx
  *
  * Real logic under test:
- *  - FIX BUG-06: filter changes and the reset button stay on the
+ *  - filter changes and the reset button stay on the
  *    current pathname (not hardcoded to /search), so this component
  *    works correctly both on /search and on a category page
  *  - selecting a category from the dropdown navigates to that
@@ -11,7 +11,7 @@
  *  - selecting "كل الفئات" clears the category (goes to /search from a
  *    category page, or the bare pathname otherwise)
  *  - city/condition updates set the param, clear ?page
- *  - FIX P2-5: price inputs debounce (500ms) before pushing, so
+ *  - price inputs debounce (500ms) before pushing, so
  *    rapid typing in both fields doesn't fire once per keystroke/blur
  *
  * Sort moved out to the shared SearchSortBar (audit item #8, FIX
@@ -45,8 +45,8 @@ const mockUseCategoryBySlug = vi.mocked(useCategoryBySlug);
 
 // The three <Select>s (category, city, condition) sit under plain
 // <label>s with no htmlFor, so getByLabelText can't reach them —
-// select by their fixed document order instead. Sort no longer lives
-// here (moved to SearchSortBar, FIX P2-08).
+// select by their document order instead. Sort no longer lives
+// here (moved to SearchSortBar, ).
 const COMBOBOX_ORDER = { category: 0, city: 1, condition: 2 } as const;
 function getCombobox(which: keyof typeof COMBOBOX_ORDER) {
   return screen.getAllByRole('combobox')[COMBOBOX_ORDER[which]];

@@ -100,7 +100,7 @@ export const serviceProvidersController = {
     }
   },
 
-  // Home discovery plan (Phase 1): public city/browse directory —
+  // Home discovery plan (): public city/browse directory —
   // mirrors storesController.getStores/productsController.getProducts.
   getServiceProviders: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

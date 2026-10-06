@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Shows the active browse city on list/search results so filters feel grounded.
- * UI-PHASE-B.
+ * UI-
  */
 export function BrowseCityHint({ className }: { className?: string }) {
   const { city, isReady, source } = useBrowseCity();

@@ -5,7 +5,7 @@
  * either the browser API is unavailable OR the VAPID key env var is
  * missing (still-incomplete backend wiring — see file header), the
  * subscribe/unsubscribe toggle flow with success/failure toasts, and
- * FIX PWA-CRITICAL-05: the initial 'loading' state must render a
+ * the initial 'loading' state must render a
  * neutral "جارٍ التحقق…" — not flash as "غير مفعّلة" — while the real
  * subscription state is still being resolved.
  */

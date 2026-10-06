@@ -1,5 +1,5 @@
 /**
- * Pure badge computation (Phase 3 / P2).
+ * Pure badge computation (/ P2).
  * No I/O — thresholds from badges.constants.ts.
  */
 import { BADGE_THRESHOLDS } from '../../src/modules/badges/badges.constants';

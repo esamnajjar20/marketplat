@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { getCsrfCookieName } from '../shared/utils/authCookies';
 import { ForbiddenError } from '../shared/errors/ForbiddenError';
 
-// AUDIT-FIX M-03 (defense-in-depth alongside metrics.ts): plain
+// (defense-in-depth alongside metrics.ts): plain
 // `!==` string comparison is not constant-time. Real-world risk here
 // is low (CSRF tokens are single-use-per-session, not long-lived
 // secrets like the metrics bearer token), but hardening is a one-line
@@ -16,7 +16,7 @@ function safeTokenEquals(a: string, b: string): boolean {
 }
 
 /**
- * PROD-FIX-15: CSRF protection, made necessary by moving refreshToken
+ * CSRF protection, made necessary by moving refreshToken
  * into an httpOnly cookie (see shared/utils/authCookies.ts's header
  * comment for the full reasoning — a cookie the browser sends
  * automatically closes an XSS-token-theft gap but opens a CSRF gap
@@ -104,7 +104,7 @@ const CSRF_EXEMPT_PATHS = new Set([
   '/auth/register',
   // CROSS-ORIGIN-CSRF-FIX: see this const's own header comment above.
   '/auth/refresh',
-  // FIX CSRF-FORGOT-PASSWORD-01: forgot-password + reset-password are
+  // forgot-password + reset-password are
   // anonymous-by-design endpoints -- a user who has lost access to
   // their account has no session and therefore no csrfToken cookie to
   // send, so CSRF cannot protect anything here and can only reject the
@@ -131,7 +131,7 @@ const CSRF_EXEMPT_PATHS = new Set([
   // this exemption every analytics event from an authenticated
   // session is silently 403'd.
   '/analytics/events',
-  // FIX OBSERVABILITY-CLIENT-ERROR-01: same class as /analytics/events
+  // same class as /analytics/events
   // — a public write endpoint that the frontend calls via a bare
   // fetch (not apiClient), so the CSRF header is never attached.
   // Without this exemption every client-error report from an

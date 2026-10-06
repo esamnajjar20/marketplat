@@ -1,5 +1,5 @@
 /**
- * FIX AUDIT-V4-02: previously the Dockerfile ran a single
+ * previously the Dockerfile ran a single
  * `node dist/server.js` process. Node.js is single-threaded per process,
  * so any CPU-bound work — specifically bcrypt hashing (SALT_ROUNDS=12)
  * during login/register — blocks the event loop for that process,
@@ -24,7 +24,7 @@ module.exports = {
     {
       name: 'classifieds-backend',
       script: './dist/server.js',
-      // 'max' uses all available CPU cores. Override with a fixed number
+      // 'max' uses all available CPU cores. Override with a number
       // (e.g. 2) via the instances field if you want to reserve cores
       // for other processes sharing the same host/container.
       // NOTE: 'max' reads the HOST's physical core count, not the

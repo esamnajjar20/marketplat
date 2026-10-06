@@ -1,7 +1,7 @@
 /**
  * load-tests/scenarios/soak.js
  *
- * FIX M-028 — closes the gap this suite's own README explicitly
+ * closes the gap this suite's own README explicitly
  * flagged under "What's NOT covered here": sustained/soak testing.
  * Every other scenario in this directory runs for a few minutes at
  * most, which is enough to catch connection-pool exhaustion or a

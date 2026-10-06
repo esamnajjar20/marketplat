@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
-// SW-FIX-NAVPROG-DELAY: overlay only on truly slow navigations.
+// overlay only on truly slow navigations.
 // 280ms fired on every tap on 3G — the thin bar already covers
 // fast cases; overlay should feel like a fallback, not the default.
 const OVERLAY_DELAY_MS = 2000;

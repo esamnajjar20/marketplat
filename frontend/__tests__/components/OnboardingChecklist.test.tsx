@@ -1,7 +1,7 @@
 /**
  * __tests__/components/OnboardingChecklist.test.tsx
  *
- * Coverage gap: 0% prior coverage (FIX P2-8). Covers the null-while-
+ * Coverage gap: 0% prior coverage (). Covers the null-while-
  * loading guard, the "collapses to nothing once all steps are done"
  * behavior, per-step done/undone rendering (avatar, seller profile,
  * first ad), the seller-profile-required link for the "first ad"

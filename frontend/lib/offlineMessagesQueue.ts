@@ -202,7 +202,6 @@ export async function retryQueuedMessage(queueId: number): Promise<void> {
   registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id: queueId });
 }
 
-/** يلغي الإرسال مع إبقاء الحمولة محليًا كرسالة ملغاة قابلة لإعادة المحاولة لاحقًا. */
 export async function cancelQueuedMessage(queueId: number): Promise<void> {
   if (!Number.isInteger(queueId) || queueId <= 0) return;
   if (!('serviceWorker' in navigator)) return;
@@ -210,7 +209,6 @@ export async function cancelQueuedMessage(queueId: number): Promise<void> {
   registration?.active?.postMessage({ type: 'CANCEL_QUEUE_ITEM', id: queueId });
 }
 
-/** يحذف عنصرًا فاشلاً نهائيًا من الطابور دون إعادة محاولة (زر "حذف"). */
 export async function discardQueuedMessage(queueId: number): Promise<void> {
   // FIX MSG-QUEUE-ID-VALIDATION
   if (!Number.isInteger(queueId) || queueId <= 0) {

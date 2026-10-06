@@ -1,7 +1,7 @@
 import { createAdSchema, updateAdSchema, getAdsSchema } from '../../src/modules/ads/ads.validation';
 
 /**
- * FIX INTEG-05 — the core bug: isNegotiable used plain z.boolean(),
+ * the core bug: isNegotiable used plain z.boolean(),
  * which rejects the string "true"/"false" that multer puts in req.body
  * for every multipart/form-data field (required for createAd's image
  * uploads). Every real ad-creation request from the frontend
@@ -28,9 +28,9 @@ describe('createAdSchema — isNegotiable (FIX INTEG-05)', () => {
   it('accepts the string "false" and parses it as boolean false — NOT true', () => {
     const result = createAdSchema.safeParse({ body: { ...baseBody, isNegotiable: 'false' } });
     expect(result.success).toBe(true);
-    // The exact regression a naive z.coerce.boolean() fix would
+    // The exact regression a naive z.coerce.boolean() 
     // reintroduce: any non-empty string (including "false") is
-    // JS-truthy, so a coerce-based fix would silently flip this to true.
+    // JS-truthy, so a coerce-based silently flip this to true.
     if (result.success) expect(result.data.body.isNegotiable).toBe(false);
   });
 
@@ -87,7 +87,7 @@ describe('updateAdSchema — isNegotiable (FIX INTEG-05 defensive coverage)', ()
 });
 
 /**
- * FIX H-1 (integration-audit finding): the frontend's AD_SORT_OPTIONS
+ * (integration-audit finding): the frontend's AD_SORT_OPTIONS
  * ("الأكثر مشاهدة" / Most Viewed) has always sent sortBy=views on
  * GET /ads and GET /ads/search, but this enum previously only accepted
  * createdAt/price — every selection of that fully-built, user-visible

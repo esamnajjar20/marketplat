@@ -41,7 +41,6 @@ function writeMeta(meta: Meta) {
  */
 let schemaEnsured = false;
 
-/** تشغيل ترحيل بسيط عند تحديث المخطط */
 export function ensureLocalSchema(): void {
   if (typeof window === 'undefined') return;
   if (schemaEnsured) return;
@@ -118,7 +117,6 @@ export function localRemove(key: string): void {
   }
 }
 
-/** تقديري لحجم بيانات marketplat في localStorage (بايت) */
 export function estimateLocalUsageBytes(): number {
   if (typeof window === 'undefined') return 0;
   let total = 0;

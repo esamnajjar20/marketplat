@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * FIX OBSERVABILITY-CLIENT-ERROR-01: schema for reports coming from
+ * schema for reports coming from
  * the frontend's lib/errorReporter.ts. That function already guards
  * its own callers from throwing, but this schema is the trust boundary
  * between an unauthenticated HTTP request and our logging pipeline —

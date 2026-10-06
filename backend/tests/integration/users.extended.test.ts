@@ -77,13 +77,13 @@ describe('Users API — extended coverage', () => {
     });
   });
 
-  // FIX SEC-07: changePassword now invalidates every other session, not
+  // changePassword now invalidates every other session, not
   // just the password hash. These use a real /auth/register flow (not
   // createTestUser, which signs tokens directly without going through
   // tokenStore.saveRefreshToken) so the refresh token is actually
   // persisted in Redis and its invalidation is genuinely observable.
   //
-  // PROD-FIX-15: refreshToken now lives in an httpOnly cookie, not the
+  // refreshToken now lives in an httpOnly cookie, not the
   // response body — registerRealUser returns a supertest agent (which
   // carries that cookie forward automatically on subsequent requests
   // made through the same agent) instead of a raw refreshToken string.
@@ -187,7 +187,7 @@ describe('Users API — extended coverage', () => {
       expect(res.status).toBe(401);
     });
 
-    // FIX SEC-09: verifies the actual configured budget (max=10/15min)
+    // verifies the actual configured budget (max=10/15min)
     // via real HTTP requests, since express-rate-limit doesn't expose
     // its config through a stable API for direct unit assertion.
     it('rate-limits repeated password-change attempts to 10 per 15 minutes', async () => {

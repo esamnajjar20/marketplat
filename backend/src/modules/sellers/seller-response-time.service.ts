@@ -1,5 +1,5 @@
 /**
- * TRACK-RESPONSE-TIME (Phase 2)
+ * TRACK-RESPONSE-TIME ()
  *
  * Updates SellerProfile.responseTimeMinutes + responseRate when a seller
  * sends their *first* reply in a conversation.

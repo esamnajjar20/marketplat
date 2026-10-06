@@ -121,7 +121,7 @@ describe('metrics', () => {
   });
 
   /**
-   * PROD-FIX-03: coverage for the new optional METRICS_TOKEN gate.
+   * coverage for the new optional METRICS_TOKEN gate.
    * env.ts reads process.env once at module-load time, so each test
    * here sets METRICS_TOKEN *before* resetting modules and re-importing
    * both config/env and shared/utils/metrics fresh — the only way to

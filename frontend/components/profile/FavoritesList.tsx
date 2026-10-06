@@ -19,7 +19,7 @@ import { cn }            from '@/lib/utils';
 
 export function FavoritesList() {
   const sp   = useSearchParams();
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
   const listId = sp.get('list') || undefined;
@@ -110,7 +110,7 @@ export function FavoritesList() {
     );
   }
 
-  // UX-FIX P1-8: `items = data?.items ?? []` meant a failed fetch fell
+  // `items = data?.items ?? []` meant a failed fetch fell
   // straight into the items.length === 0 branch below and showed "لا
   // توجد إعلانات محفوظة" (no favorites) — misleading for a user who
   // genuinely has saved ads but hit a network/server error. isError is

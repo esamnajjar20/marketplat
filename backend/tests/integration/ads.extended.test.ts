@@ -6,7 +6,7 @@ import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
 import { createTestCategory } from '../helpers/category.helper';
 import { env } from '../../src/config/env';
 
-// FIX LOAD-TEST-01 regression setup: POST /ads now requires at least
+// regression setup: POST /ads now requires at least
 // one image (ads.controller.ts's createAd) — that check runs BEFORE
 // the active-ad-cap check in ads.service.ts, so without attaching a
 // real file below, "rejects ad creation with 400 once at the cap"
@@ -48,7 +48,7 @@ describe('Ads API — extended coverage', () => {
       expect(res.status).toBe(400);
     });
 
-    // FIX PERF-01: the raw-SQL search branch (ads.repository.ts
+    // the raw-SQL search branch (ads.repository.ts
     // findMany, search !== undefined) switched its city clause from
     // `city ILIKE '%value%'` to an exact `city = value` for the same
     // indexing reason as the non-search branch. Verify the combined
@@ -69,7 +69,7 @@ describe('Ads API — extended coverage', () => {
     });
 
     /**
-     * FIX H-1 (search-branch instance): ads.repository.ts's search
+     * (search-branch instance): ads.repository.ts's search
      * branch builds its ORDER BY as raw SQL and previously only
      * special-cased 'price', silently falling back to "createdAt" for
      * any other sortBy — including 'views' — with no error at all.
@@ -145,7 +145,7 @@ describe('Ads API — extended coverage', () => {
     });
 
     /**
-     * FIX H-1: the frontend's "الأكثر مشاهدة" (Most Viewed) sort option
+     * the frontend's "الأكثر مشاهدة" (Most Viewed) sort option
      * has always sent sortBy=views. getAdsSchema previously only
      * accepted createdAt/price, so this request failed with a 400 —
      * caught here on the non-search list path (Prisma's dynamic
@@ -191,7 +191,7 @@ describe('Ads API — extended coverage', () => {
     });
   });
 
-  // FIX AUDIT-V5-01: previously there was no cap on active ads per user.
+  // previously there was no cap on active ads per user.
   // This exercises the real HTTP → controller → service → repository
   // path end-to-end (countActiveByUserId against the real DB), unlike
   // the mocked unit test in ads.service.test.ts.

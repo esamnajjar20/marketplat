@@ -42,7 +42,7 @@ import { createReadBatchHandler } from './shared/utils/readBatchRouter';
 
 export const router = Router();
 
-// PROD-FIX-15: registered here (on this router, mounted at /api/v1 in
+// registered here (on this router, mounted at /api/v1 in
 // app.ts) rather than directly on `app` — req.path inside this
 // middleware is then relative to THIS router's mount point (e.g.
 // '/auth/login', not '/api/v1/auth/login'), which is what
@@ -95,7 +95,7 @@ router.use('/admin/audit-logs', auditLogsRouter);
 // repository-backed module, not raw Prisma calls in admin.service.ts.
 router.use('/analytics', analyticsRouter);
 router.use('/admin/analytics', analyticsAdminRouter);
-// FIX OBSERVABILITY-CLIENT-ERROR-01: receive side of the frontend's
+// receive side of the frontend's
 // reportClientError() pipeline. Public (no authenticate) and CSRF-
 // exempt — see observability.routes.ts's own comment for why. Sits
 // here next to /analytics because it is another public-write

@@ -7,7 +7,7 @@ import {
   createServiceListingRateLimit,
   addServiceListingImagesRateLimit,
 } from '../../middlewares/rateLimit.middleware';
-// FIX SL-MUTATION-LIMITS: PATCH/DELETE/reorder had no rate limit at all
+// PATCH/DELETE/reorder had no rate limit at all
 // — same finding products got (see products.routes.ts's
 // productMutationRateLimit). Reused createServiceListingRateLimit as
 // the closest fitting bucket (30/hr).
@@ -36,7 +36,7 @@ serviceListingsRouter.post(
   uploadMultipleMiddleware,
   serviceListingsController.createServiceListing
 );
-// FIX SL-VERIFY-CONSISTENCY: PATCH/DELETE/reorder did not require a
+// PATCH/DELETE/reorder did not require a
 // verified email while POST / and POST /:id/images did — same finding
 // products got. All mutating routes now gate on the same rule.
 serviceListingsRouter.patch(

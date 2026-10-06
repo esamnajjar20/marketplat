@@ -42,7 +42,7 @@ export const productCategoriesRepository = {
     prisma.productCategory.findUnique({ where: { id }, include: { children: true } }),
 
   // T511 — public read path (getProductCategoryById). Mirrors T510's
-  // fix for service-categories.
+  // service-categories.
   findPublicById: async (id: string): Promise<ProductCategory | null> =>
     prisma.productCategory.findUnique({
       where: { id, isActive: true },

@@ -5,7 +5,7 @@ import { prisma } from '../../src/config/prisma';
 import { AdStatus } from '@prisma/client';
 
 /**
- * FIX TEST-V4-07: ads.repository.ts's status-filter scoping had no
+ * ads.repository.ts's status-filter scoping had no
  * dedicated test coverage. Two distinct guarantees matter here:
  *
  * 1. findMany (the PUBLIC /ads listing) must never show DELETED or SOLD
@@ -14,7 +14,7 @@ import { AdStatus } from '@prisma/client';
  *
  * 2. findManyByUserId (GET /ads/me) accepts an optional status filter
  *    that DOES include DELETED — this was a deliberate decision (see
- *    ads.validation.ts's FIX D-24 comments): since this query is always
+ *    ads.validation.ts's comments): since this query is always
  *    scoped to the authenticated user's own ads, seeing your own deleted
  *    ads isn't a cross-user leak. The thing that must never happen is
  *    that scoping breaking down — userId must always be the actual

@@ -25,7 +25,6 @@ import {
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 
-/** GET /saved-searches — مع كاش أوفلاين (حدّ الخادم 20 أصلًا). */
 export function useSavedSearches() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);

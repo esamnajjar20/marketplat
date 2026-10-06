@@ -50,7 +50,7 @@ export function useCategories(options?: { enabled?: boolean }) {
 }
 
 /**
- * FIX ADMIN-CATEGORIES-FRESH-01: admin tree — live, uncached, with
+ * admin tree — live, uncached, with
  * _count.ads. staleTime:0 matches the sibling admin hooks
  * (useServiceCategoriesForAdmin, useProductCategoriesForAdmin) so
  * every mount and focus refetches; the backend already guarantees
@@ -70,7 +70,6 @@ export function useCategoriesForAdmin() {
   });
 }
 
-/** Single category by slug. */
 export function useCategoryBySlug(slug: string) {
   return useQuery({
     queryKey: queryKeys.categories.slug(slug),

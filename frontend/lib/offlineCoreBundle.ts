@@ -265,7 +265,6 @@ export function collectThumbnailUrls(
   return Array.from(out);
 }
 
-/** حوض عمّال بسيط: يحترم concurrency الخطة (كان كل شيء يُطلق بالتوازي). */
 async function runPool<T>(
   items: readonly T[],
   concurrency: number,

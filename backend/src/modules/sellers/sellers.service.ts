@@ -180,7 +180,7 @@ export const sellersService = {
   getPublicSellerProfile: async (sellerProfileId: string): Promise<SellerProfileWithAds> => {
     const profile = await sellersRepository.findPublicProfile(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
-    // FIX SELLER-PUBLIC-SUSPENDED: previously returned the profile for
+    // previously returned the profile for
     // any existing sellerProfileId, suspended or not — a suspended
     // seller's storefront stayed fully live at its direct URL even
     // though ads.service.ts's getAdById / products.service.ts's
@@ -227,7 +227,7 @@ export const sellersService = {
 
     // SECURITY FIX (blocked-user coverage gap): same gap closed on
     // stores.service.ts's createReview / service-reviews.service.ts's
-    // createReview — this is the legacy ad-seller rating path and had
+    // createReview — this is the rating path and had
     // the identical hole.
     if (await blockedUsersService.isBlockedEitherDirection(raterId, profile.userId)) {
       throw new ForbiddenError('You cannot rate this seller.', 'USER_BLOCKED');
@@ -265,7 +265,7 @@ export const sellersService = {
   ): Promise<PaginatedResult<SellerRatingWithRater>> => {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
-    // SEC-FIX: same gap FIX SELLER-PUBLIC-SUSPENDED closed on
+    // SEC-FIX: same gap closed on
     // getPublicSellerProfile just above — this sibling ratings-list
     // endpoint checked existence but never `suspended`, so a suspended
     // seller's ratings stayed publicly readable even after their own
@@ -349,7 +349,7 @@ export const sellersService = {
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
     const updated = await sellersRepository.setSuspension(sellerProfileId, suspended);
 
-    // FIX SUSPENSION-CACHE-01: a suspended seller's ads, products, stores,
+    // a suspended seller's ads, products, stores,
     // listings and provider profile are filtered out of every public list
     // (and un-suspending brings them back). None of the caches knew about it,
     // so a suspended seller stayed visible on lists and the homepage until

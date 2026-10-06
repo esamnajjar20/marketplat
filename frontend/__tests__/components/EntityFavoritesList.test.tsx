@@ -3,10 +3,10 @@
  *
  * FEAT-FAVORITE-POLYMORPHIC PR3: generic counterpart of
  * FavoritesList.test.tsx for PRODUCT/STORE/SERVICE_LISTING — same
- * coverage shape (loading skeleton, UX-FIX P1-8 error-before-empty
+ * coverage shape (loading skeleton, error-before-empty
  * ordering, empty state with a type-specific CTA, pagination
  * visibility/page-from-URL, the correct card component per type), but
- * with three entity kinds sharing one component instead of one fixed
+ * with three entity kinds sharing one component instead of one 
  * AD shape. ProductCard/StoreCard/ServiceListingCard/skeletons/
  * Pagination are mocked to isolate EntityFavoritesList's own branching
  * — each one's own rendering is covered by its own test file.

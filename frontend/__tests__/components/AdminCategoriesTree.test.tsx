@@ -1,7 +1,7 @@
 /**
  * __tests__/components/AdminCategoriesTree.test.tsx
  *
- * Coverage for FIX INTEG-06: AdminCategoriesTree was read-only despite
+ * Coverage for AdminCategoriesTree was read-only despite
  * useUpdateCategory/useDeleteCategory and their backend endpoints being
  * fully implemented and tested. This covers the newly wired edit
  * dialog and delete confirmation flow.
@@ -132,7 +132,7 @@ describe('AdminCategoriesTree', () => {
       // aria-label, so no ambiguity between the two.
       await user.click(screen.getByRole('button', { name: 'حذف' }));
 
-      // UX-FIX P1-3: ConfirmDialog now waits for the mutation to resolve
+      // ConfirmDialog now waits for the mutation to resolve
       // before closing, so the caller passes an onSuccess callback
       // alongside the id.
       expect(mockDeleteMutate).toHaveBeenCalledWith('cat-1', expect.objectContaining({

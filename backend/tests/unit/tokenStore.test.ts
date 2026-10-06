@@ -192,11 +192,9 @@ describe('tokenStore utilities', () => {
   });
 });
 
-// ────────────────────────────────────────────────────────────
 // Cross-worker blacklist invalidation (added for the PM2-cluster
 // L1-staleness fix). Tests use unique tokens per `it` so the
 // module-level BL_L1 Map doesn't leak state across cases.
-// ────────────────────────────────────────────────────────────
 describe('blacklistAccessToken — cross-worker invalidation', () => {
   afterEach(() => {
     jest.clearAllMocks();

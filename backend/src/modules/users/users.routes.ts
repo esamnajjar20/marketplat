@@ -15,7 +15,7 @@ usersRouter.get('/me/bootstrap', authenticate, usersController.getBootstrap);
 usersRouter.get('/me', authenticate, usersController.getMe);
 usersRouter.patch('/me', authenticate, usersController.updateMe);
 usersRouter.delete('/me', authenticate, usersController.deleteMe);
-// FIX SEC-09: stricter, fail-closed rate limit on top of the general
+// stricter, fail-closed rate limit on top of the general
 // usersRateLimit — see changePasswordRateLimit's definition for why.
 usersRouter.post('/me/password', authenticate, changePasswordRateLimit, usersController.changePassword);
 usersRouter.post('/me/avatar', authenticate, requireVerifiedEmail, uploadMiddleware, usersController.uploadAvatar);

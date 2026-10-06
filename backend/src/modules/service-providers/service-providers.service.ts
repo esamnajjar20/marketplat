@@ -290,7 +290,7 @@ export const serviceProvidersService = {
     // path, but this direct-by-id lookup didn't, so admin-suspending a
     // seller (the only moderation lever this feature has) left their
     // provider page fully live at its direct URL. Treated as 404, same
-    // as the other two fixes.
+    // as the other two 
     if (details.sellerProfile.suspended) {
       throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     }
@@ -301,12 +301,12 @@ export const serviceProvidersService = {
     return { ...details, listings };
   },
 
-  // Home discovery plan (Phase 1): public city/browse list — thin
+  // Home discovery plan (): public city/browse list — thin
   // wrapper mirroring storesService.getStores/productsService.getProducts.
   getServiceProviders: async (
     query: GetServiceProvidersQuery
   ): Promise<{ providers: ServiceProviderDetails[]; meta: PaginationMeta }> => {
-    // FIX PUBLIC-LIST-CACHE-01: Redis SWR cache; see publicListCache.ts.
+    // Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('service-providers', query, async () => {
       const { page, limit, skip, take } = getPaginationParams(query.page, query.limit);
       const { rows, total } = await serviceProvidersRepository.findMany(query, skip, take);

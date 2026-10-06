@@ -187,7 +187,6 @@ export function buildAdJsonLd(ad: Ad) {
 
 // ── Product / Store / Service (added alongside the Ad builder) ───
 
-/** ProductAvailability → schema.org availability. */
 function productAvailabilityToSchema(a: string): string {
   switch (a) {
     case 'IN_STOCK':

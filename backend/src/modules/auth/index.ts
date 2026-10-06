@@ -1,6 +1,6 @@
 import { configureGoogleStrategy } from './google.strategy';
 
-// FIX OAUTH-01: registers (or, if unconfigured, warns and skips — see
+// registers (or, if unconfigured, warns and skips — see
 // the function's own comment) the Passport Google strategy exactly
 // once, at module load time — before auth.routes.ts's
 // passport.authenticate('google', ...) calls can ever run, since this

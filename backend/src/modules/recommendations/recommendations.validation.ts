@@ -3,7 +3,7 @@ import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Gap #9 ("قد يعجبك أيضًا" / Recommendations): GET /recommendations is a
 // single flat "how many" request, not a paginated list — a recommendation
-// rail is a fixed-size shelf on a page (home feed, ad detail sidebar),
+// rail is a shelf on a page (home feed, ad detail sidebar),
 // never something a user pages through. Same reasoning as
 // ads.validation.ts's adIdSchema.params being minimal: keep the surface
 // area exactly as small as the one real caller shape needs.

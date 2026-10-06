@@ -1,7 +1,7 @@
 /**
  * lib/warmingBroadcast.ts
  *
- * PHASE-4e — mirror warming progress across tabs.
+ * mirror warming progress across tabs.
  *
  * Without this, only the tab that holds the Web Lock shows warming
  * progress in its indicator; the other tabs are silent, which looks

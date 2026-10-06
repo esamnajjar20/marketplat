@@ -59,7 +59,7 @@ export const storeTypeFieldsService = {
   update: async (storeTypeId: string, fieldId: string, input: UpdateStoreTypeFieldInput) => {
     const field = await storeTypeFieldsRepository.findById(fieldId);
     if (!field || field.storeTypeId !== storeTypeId) throw new NotFoundError('Store type field not found', 'STORE_TYPE_FIELD_NOT_FOUND');
-    // FIX FIELD-SCOPE-IMMUTABLE-SERVICE: scope is part of the field's unique
+    // scope is part of the field's unique
     // identity; treat any change attempt as a client error rather than
     // letting the DB throw P2002 (which would surface as 500).
     if ((input as { scope?: unknown }).scope !== undefined) {
@@ -149,7 +149,7 @@ export const storeTypeFieldsService = {
     for (const key of keys) {
       const field = byKey.get(key);
       if (!field) {
-        // FIX STORE-TYPE-SWITCH-LENIENT: when an admin changes a store's
+        // when an admin changes a store's
         // type, the store's existing attributes (written against the OLD
         // type) become unknown. Rather than reject the admin change with
         // STORE_ATTRIBUTE_UNKNOWN, drop those keys silently — they belonged

@@ -98,7 +98,7 @@ export const serviceProvidersRepository = {
     tx.serviceProviderDetails.update({ where: { id }, data }),
 
   // SEC-FIX: same gap products.repository.ts's findMany already closed
-  // for suspended sellers (see its own SEC-FIX comment) — an admin
+  // for suspended sellers (see its own SEC-) — an admin
   // suspending a seller (SellerProfile.suspended) is the only
   // moderation lever this feature has (ServiceProviderDetails has no
   // status field of its own), so every public read path here must

@@ -5,7 +5,7 @@ const OAUTH_LOCK_PREFIX = 'oauth_account_resolution_lock:';
 const OAUTH_LOCK_TTL_SECONDS = 15;
 
 /**
- * FIX OAUTH-01: serializes authService.loginWithGoogle()'s
+ * serializes authService.loginWithGoogle()'s
  * check-then-create/link sequence per email, so two concurrent Google
  * callbacks for the same email (e.g. a double-click on "Continue with
  * Google", or two tabs) can't both pass the "no existing account"

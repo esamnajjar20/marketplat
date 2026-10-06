@@ -11,13 +11,13 @@ import { addRecentSearch, suggestRecentSearches } from '@/lib/recentSearches';
 /**
  * SearchBar — controlled input that pushes query params to /search.
  * Saves successful queries to recent search history (localStorage).
- * PHASE-3: prefix suggestions from ranked local history.
+ * prefix suggestions from ranked local history.
  */
 export function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  // SW-FIX-SEARCHBAR-TIMER-TYPE: use window.setTimeout's return type
+  // use window.setTimeout's return type
   // (number) — global setTimeout's return type differs across lib configs.
   const blurTimerRef = useRef<number | null>(null);
   useEffect(() => () => {
@@ -51,7 +51,7 @@ export function SearchBar({ className }: { className?: string }) {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => {
-          // SW-FIX-SEARCHBAR-BLUR-CLEANUP: was an un-tracked setTimeout —
+          // was an un-tracked setTimeout —
           // if the component unmounted during the 150ms delay, setOpen
           // fired on an unmounted component (harmless in React 18+ but
           // a leak). Track and clear it.

@@ -165,7 +165,7 @@ describe('Stores API', () => {
       expect(res.status).toBe(404);
     });
 
-    // SEC-FIX regression: findPublicById used to be a direct-by-id
+    // SEC-findPublicById used to be a direct-by-id
     // lookup with no status filter, so a PENDING (not yet approved) or
     // BLOCKED store's public page stayed fully viewable via its direct
     // URL even though it never appears in GET /stores. See

@@ -23,7 +23,7 @@ describe('AdminService', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  // FIX PERF-02: getStats previously had zero test coverage despite
+  // getStats previously had zero test coverage despite
   // aggregating across 5 tables — and now also caches via Redis, which
   // is exactly the kind of behavior (stale-read window, cache miss vs
   // hit) that needs its own explicit coverage.
@@ -128,7 +128,7 @@ describe('AdminService', () => {
       // NOTE: monthStart is NOT guaranteed <= weekStart near a month
       // boundary — e.g. if the 1st falls on a Saturday, "this week"
       // (Sunday-start) reaches back into the previous month, so
-      // weekStart can be earlier than monthStart. Asserting a fixed
+      // weekStart can be earlier than monthStart. Asserting a 
       // ordering here would be wrong, not just untested.
       expect(monthStart.getDate()).toBe(1);
       expect(monthStart.getHours()).toBe(0);
@@ -145,7 +145,7 @@ describe('AdminService', () => {
       expect(result.meta.total).toBeGreaterThanOrEqual(1);
     });
 
-    // FIX INTEG-01: the frontend's AdCategory type (types/ad.types.ts)
+    // the frontend's AdCategory type (types/ad.types.ts)
     // requires { id, name, nameAr } on every ad's category — this used
     // to select only { id, name }, silently leaving category.nameAr
     // undefined at runtime despite TypeScript treating it as a
@@ -192,7 +192,7 @@ describe('AdminService', () => {
       expect((found as any)._count).toEqual({ reports: 0 });
     });
 
-    // BUGFIX coverage: `q` was silently stripped by admin.validation.ts
+    // `q` was silently stripped by admin.validation.ts
     // before ever reaching here (see that file's fix) — the search box
     // in AdminAdsTable looked functional but filtered nothing.
     it('filters by q against the ad title, case-insensitively', async () => {
@@ -234,7 +234,7 @@ describe('AdminService', () => {
     });
 
     /**
-     * BUGFIX regression test — found during a post-implementation code
+     * test — found during a post-implementation code
      * audit. Previously setAdFeatured/setAdPinned/forceDeleteAd never
      * invalidated the GET /ads list cache (ads.service.ts's
      * ADS_CACHE_VERSION_KEY) at all — an admin toggling a featured/
@@ -287,7 +287,7 @@ describe('AdminService', () => {
     });
 
     /**
-     * BUGFIX regression test — the most important of the three: an
+     * test — the most important of the three: an
      * admin force-deleting an ad for an urgent reason (fraud, a policy
      * violation, a legal takedown) is exactly the case where "still
      * visible to other users for up to 30 more seconds" matters most.
@@ -339,7 +339,7 @@ describe('AdminService', () => {
       expect(result.items.some((u: any) => u.id === inactiveUser.id)).toBe(false);
     });
 
-    // BUGFIX coverage: `q` was silently stripped by admin.validation.ts
+    // `q` was silently stripped by admin.validation.ts
     // before ever reaching here (see that file's fix) — the search box
     // in AdminUsersTable looked functional but filtered nothing.
     it('filters by q against name, case-insensitively', async () => {
@@ -375,7 +375,7 @@ describe('AdminService', () => {
 
   describe('toggleUserActive', () => {
     beforeEach(() => {
-      // FIX SEC-08: toggleUserActive now wraps its read+guard+write in
+      // toggleUserActive now wraps its read+guard+write in
       // prisma.$transaction(async (tx) => {...}) instead of separate
       // top-level prisma.* calls. Since tx.user.* and prisma.user.* are
       // the same jest.spyOn-mocked methods, executing the callback with
@@ -429,7 +429,7 @@ describe('AdminService', () => {
       await expect(adminService.toggleUserActive('missing', false, 'admin-1')).rejects.toThrow(NotFoundError);
     });
 
-    // FIX SEC-08 coverage: a Postgres serialization conflict (two
+    // coverage: a Postgres serialization conflict (two
     // concurrent admin-status changes racing each other) must surface
     // as a clear, retryable client error — not a generic 500.
     it('translates a P2034 transaction conflict into a friendly retry message', async () => {
@@ -526,7 +526,7 @@ describe('AdminService', () => {
     });
   });
 
-  // FIX SEC-08 / gap: changeRole previously had zero unit test coverage
+  // / gap: changeRole previously had zero unit test coverage
   // despite the same last-admin/self-demotion guards as toggleUserActive.
   describe('changeRole', () => {
     beforeEach(() => {

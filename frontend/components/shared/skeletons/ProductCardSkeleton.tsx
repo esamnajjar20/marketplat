@@ -1,7 +1,6 @@
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
-/** هيكل بطاقة منتج — نفس نسبة الصورة والحشوة لـProductCard. */
 export function ProductCardSkeleton({ density = 'default', mixedList = false }: { density?: 'default' | 'compact'; mixedList?: boolean }) {
   const compact = density === 'compact';
   return (

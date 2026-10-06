@@ -14,7 +14,7 @@ const TABS = [
 export type CategoryTypeTab = (typeof TABS)[number]['id'];
 
 /**
- * FIX P2-9: ads / products / services categories each have their own tree and
+ * ads / products / services categories each have their own tree and
  * create-flow; this strip switches between them in one click instead of a
  * sidebar round-trip. Follows the same custom role="tablist" pattern
  * SearchTabs.tsx established (no shadcn Tabs primitive is installed).

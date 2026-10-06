@@ -22,7 +22,7 @@ export function CategoryHero({ slug }: Props) {
     return <div className="h-16 rounded-lg bg-muted animate-pulse" />;
   }
 
-  // UX-FIX P0-2: previously `isLoading || !category` fell through to the
+  // previously `isLoading || !category` fell through to the
   // same pulsing skeleton on fetch failure too — indistinguishable from
   // "still loading", so it just sat there forever with no indication
   // anything went wrong. This is a page header, not the main content

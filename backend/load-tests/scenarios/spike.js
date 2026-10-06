@@ -1,7 +1,7 @@
 /**
  * load-tests/scenarios/spike.js
  *
- * FIX M-028 — the other half of the gap this suite's README flagged
+ * the other half of the gap this suite's README flagged
  * under "What's NOT covered here": browsing.js ramps gradually (30s →
  * 1m → hold), which is realistic for organic traffic growth but never
  * tests what happens when load jumps suddenly — a link going viral, a
@@ -45,7 +45,7 @@ const spikeErrors = new Counter('spike_errors');
 // this file (see browsing.js's comment for the mechanism). Baseline
 // stays at 2% of peak, matching the original 10-of-500 ratio — the
 // point of a spike test is the sudden jump FROM a low baseline, so
-// baseline should stay small relative to peak rather than fixed.
+// baseline should stay small relative to peak rather than 
 const VUS = parseInt(__ENV.LOAD_TEST_VUS || '500', 10);
 const BASELINE_VUS = Math.max(1, Math.round(VUS * 0.02));
 

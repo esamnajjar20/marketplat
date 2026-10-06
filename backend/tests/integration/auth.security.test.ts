@@ -17,7 +17,7 @@ function cookiePairsFrom(res: { headers: { [key: string]: unknown } }, names?: s
 describe('Auth Security', () => {
 
   /**
-   * PROD-FIX-15: refreshToken now lives exclusively in an httpOnly
+   * refreshToken now lives exclusively in an httpOnly
    * cookie — request(app) alone does not persist cookies between
    * separate calls, so every test in this describe uses
    * request.agent(app) instead (behaves like a real browser session,
@@ -196,7 +196,7 @@ describe('Role-based Authorization', () => {
 });
 
 /**
- * PROD-FIX-15 regression guard, complementing auth.test.ts's
+ * regression guard, complementing auth.test.ts's
  * "/auth/login stays CSRF-exempt" test — that test proves the
  * EXEMPTION path resolves req.path correctly; this proves the
  * OPPOSITE direction: a real, non-exempt, state-changing route

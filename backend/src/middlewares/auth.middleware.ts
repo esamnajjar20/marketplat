@@ -60,7 +60,7 @@ export const authenticate = async (
       // tokenStore.isBlacklisted() directly, which does its own
       // standalone redis.get().
       pipeline.get(getBlacklistKey(token));
-      // AUDIT-FIX M-01: derives the user-cache key from userCache.ts's
+      // derives the user-cache key from userCache.ts's
       // single exported getUserCacheKey() — same rationale as
       // getBlacklistKey() above: one source of truth for the key
       // format instead of two independently-editable copies.
@@ -150,7 +150,7 @@ export const optionalAuthenticate = async (
       next();
       return;
     }
-    // FIX OPTIONAL-AUTH-BLACKLIST-01: this path previously read only
+    // this path previously read only
     // the L1 cache and never consulted Redis, unlike `authenticate`
     // above. Between a logout (which writes the blacklist key to Redis
     // and broadcasts the L1 invalidation to every worker) and the
@@ -189,7 +189,7 @@ export const optionalAuthenticate = async (
 };
 
 /**
- * FIX BEARER-TOKEN-HELPER-01: single, safe extractor for the bearer
+ * single, safe extractor for the bearer
  * token from an incoming request. Replaces the pattern
  * `req.headers.authorization!.split(' ')[1]` that lived inline in
  * auth.controller.ts (logout, logoutAll) and users.controller.ts

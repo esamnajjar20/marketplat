@@ -39,7 +39,7 @@ async function ensureConfigured(): Promise<boolean> {
       credential: cert({
         projectId: env.fcm.projectId,
         clientEmail: env.fcm.clientEmail,
-        // FIX FCM-PRIVATE-KEY-NEWLINES: Firebase Console provides the
+        // Firebase Console provides the
         // private key with literal "\n" sequences (PEM format expects
         // real newlines). When pasted into Render's env UI — which
         // doesn't unescape backslash sequences — the raw string arrives
@@ -82,7 +82,7 @@ export type FcmSendOutcome = 'sent' | 'gone' | 'transient' | 'failed' | 'unconfi
 
 export const fcmPushService = {
   /**
-   * Phase 3: ONE attempt to ONE token, no internal retry and no sleeping —
+   * ONE attempt to ONE token, no internal retry and no sleeping —
    * the queue owns retries (backoff, attempts) so a transient FCM error is
    * re-run per device instead of re-sending to every device of the user.
    * 'gone' = token permanently dead (row already pruned here);
@@ -155,7 +155,7 @@ export const fcmPushService = {
               return;
             }
 
-            // FIX PUSH-FCM-RETRY-01: one retry on FCM's own documented
+            // one retry on FCM's own documented
             // transient failure codes. Before this, a single 503 from
             // FCM's edge silently dropped the notification — the most
             // common failure mode on Gaza's flaky mobile networks, where

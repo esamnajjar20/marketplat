@@ -1,7 +1,7 @@
 /**
  * __tests__/components/BecomeSellerCard.test.tsx
  *
- * FIX P0-1: previously, completing this form left the user stranded on
+ * previously, completing this form left the user stranded on
  * /settings/seller with no way back to whatever they originally came
  * here to do (most commonly: publish an ad, blocked by CreateAdGate).
  * This covers the new ?from= redirect — read via useSearchParams,

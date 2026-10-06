@@ -11,7 +11,7 @@ export const recommendationsController = {
   // same optional-auth posture as POST /analytics/events; falls back to
   // trending ads for anonymous visitors and any user with no signal
   // history yet. Never paginated — see recommendations.validation.ts's
-  // own comment on why this is a fixed-size shelf, not a list endpoint.
+  // own comment on why this is a shelf, not a list endpoint.
   //
   // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3, extended by PR4B):
   // `type` dispatches to one of four entity-specific service functions.

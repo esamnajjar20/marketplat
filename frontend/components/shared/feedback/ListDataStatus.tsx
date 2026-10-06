@@ -2,7 +2,7 @@
 
 /**
  * SLOW-NET — visible feedback when list UI is from cache or refreshing.
- * Phase 3: design tokens instead of hardcoded amber classes.
+ * design tokens instead of hardcoded amber classes.
  */
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';

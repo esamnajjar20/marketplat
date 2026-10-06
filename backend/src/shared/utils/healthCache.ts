@@ -10,7 +10,7 @@ interface HealthStatus {
 
 let cachedStatus: HealthStatus | null = null;
 let lastCheckTime = 0;
-// FIX M-029: was a hardcoded 30_000 (30s) — see env.ts's
+// was a hardcoded 30_000 (30s) — see env.ts's
 // HEALTH_CACHE_DURATION_MS comment for the full rationale. Now
 // configurable, defaulting to 8s.
 const CACHE_DURATION = env.health.cacheDurationMs;

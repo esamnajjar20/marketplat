@@ -87,7 +87,7 @@ const adListSelect = {
   categoryId: true,
   sellerProfileId: true,
   storeId: true,
-  // FIX OFFLINE-IDEMPOTENCY-01: keep adListSelect a superset of Ad scalars
+  // keep adListSelect a superset of Ad scalars
   // (same rule as viewsAtLastReport / riskScore). Internal field; list UI
   // does not display it.
   offlineOperationId: true,
@@ -151,7 +151,7 @@ export const adsRepository = {
       include: adWithRelations,
     }),
 
-  // FIX AUDIT-V5-01: used to enforce MAX_ADS_PER_USER before creating a
+  // used to enforce MAX_ADS_PER_USER before creating a
   // new ad. Counts ACTIVE only — SOLD/DELETED ads don't count against
   // the cap, so a user can always free up a slot by marking an old ad
   // sold or deleting it rather than being permanently stuck at the limit.
@@ -185,7 +185,7 @@ export const adsRepository = {
       const whereParts: Prisma.Sql[] = [
         Prisma.sql`"status" = ${AdStatus.ACTIVE}::"AdStatus"`,
         Prisma.sql`"flaggedForReview" = false`,
-        // AUDIT-FIX (ads-feature review): the SEC-FIX below (see the
+        // AUDIT-FIX (ads-feature review): the SEC-(see the
         // plain where-clause branch further down) hides ads from
         // suspended sellers via `sellerProfile: { suspended: false }` —
         // but that's an ORM relation filter, which this branch (raw SQL,
@@ -193,7 +193,7 @@ export const adsRepository = {
         // through, so a suspended seller's ads were still fully
         // searchable even after suspension. Same fix, raw-SQL form:
         // IN (SELECT id ...) excludes both suspended sellers' ads AND
-        // (matching the ORM's null-relation behavior) legacy ads with no
+        // (matching the ORM's null-relation behavior) with no
         // linked seller profile at all, keeping this branch's semantics
         // identical to the non-search branch rather than introducing a
         // second, slightly different definition of "hidden".
@@ -206,7 +206,7 @@ export const adsRepository = {
           "storeId" IS NULL
           OR "storeId" IN (SELECT "id" FROM "store_details" WHERE "status" = 'ACTIVE')
         )`,
-        // FIX SEARCH-AR-01 + SEARCH-INTEL-01: arabic_normalize on both
+        // + SEARCH-INTEL-01: arabic_normalize on both
         // sides; to_tsquery carries synonym OR-groups from analyzeSearchQuery.
         Prisma.sql`(
           setweight(to_tsvector('simple', arabic_normalize(coalesce("title", ''))), 'A') ||
@@ -214,11 +214,11 @@ export const adsRepository = {
         ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))`,
       ];
 
-      // FIX PERF-01: city ILIKE '%value%' can never use the existing
+      // city ILIKE '%value%' can never use the existing
       // [status, city] B-tree index — a leading wildcard forces a full
       // scan of every ACTIVE row regardless of how many rows match
       // status alone. The frontend only ever sends city as an exact
-      // value from a fixed 10-city <select> (lib/constants.ts CITIES),
+      // value from a 10-city <select> (lib/constants.ts CITIES),
       // never free text, so there's no free-text-search reason to pay
       // that cost — an exact match hits the index directly.
       if (city) whereParts.push(Prisma.sql`"city" = ${city}`);
@@ -227,13 +227,13 @@ export const adsRepository = {
       if (condition) whereParts.push(Prisma.sql`"condition" = ${condition}::"AdCondition"`);
       if (minPrice !== undefined) whereParts.push(Prisma.sql`"price" >= ${minPrice}`);
       if (maxPrice !== undefined) whereParts.push(Prisma.sql`"price" <= ${maxPrice}`);
-      // FIX FEAT-06: same param, search-branch side — see the plain
+      // same param, search-branch side — see the plain
       // where-clause branch below for the full rationale.
       if (isFeatured !== undefined) whereParts.push(Prisma.sql`"isFeatured" = ${isFeatured}`);
 
       const whereSql = Prisma.sql`WHERE ${Prisma.join(whereParts, ' AND ')}`;
-      // FIX H-1 (previously): 'views' became a valid sortBy value in
-      // ads.validation.ts, fixing the silent createdAt fallback for it.
+      // (previously): 'views' became a valid sortBy value in
+      // ads.validation.ts, the silent createdAt fallback for it.
       // L-3 (audit fix, this pass): sortColumn now comes from
       // AD_SORT_COLUMN_SQL, a Record<AdSortField, Sql> defined above from
       // the same AD_SORT_FIELDS enum ads.validation.ts uses for sortBy —
@@ -303,15 +303,15 @@ export const adsRepository = {
           ],
         },
       ],
-      // FIX PERF-01: exact match, not contains — see the identical fix
-      // in the search-branch above for why this is safe (fixed city
+      // exact match, not contains — see the identical fix
+      // in the search-branch above for why this is safe (city
       // list from the frontend) and why contains defeats the
       // [status, city] index.
       ...(city && { city }),
       ...(categoryId && { categoryId }),
       ...(condition && { condition }),
-      // FIX FEAT-06: previously there was no server-side way to ask for
-      // only featured ads — FeaturedAds.tsx (frontend) fetched a fixed
+      // previously there was no server-side way to ask for
+      // only featured ads — FeaturedAds.tsx (frontend) fetched a 
       // page of the default-sorted list (which already sorts isPinned
       // DESC, isFeatured DESC — see orderBy below) and filtered
       // isFeatured client-side. That broke once fewer than the page
@@ -322,7 +322,7 @@ export const adsRepository = {
       // count returned is always accurate regardless of how large the
       // marketplace grows.
       ...(isFeatured !== undefined && { isFeatured }),
-      // AUDIT-FIX L-01: the `search` branch above already returns
+      // the `search` branch above already returns
       // early via $queryRaw + to_tsvector full-text search, so this
       // where-clause (used only for the non-search list/filter path)
       // can never be reached with `search` truthy — removed the dead
@@ -353,7 +353,7 @@ export const adsRepository = {
   findById: async (id: string): Promise<AdWithAuthor | null> =>
     prisma.ad.findUnique({ where: { id }, include: adWithRelations }),
 
-  // FIX BUG-06/BUG-07 (dashboard stats, superseded): DashboardStats.tsx
+  // (dashboard stats, superseded): DashboardStats.tsx
   // previously computed activeAds/soldAds/totalViews by fetching up to
   // 100 of the user's ads (getAdsSchema's own max page size) and
   // reducing them client-side — a seller with more than 100 ads still
@@ -428,7 +428,7 @@ export const adsRepository = {
     const where: Prisma.AdWhereInput = {
       id: { not: adId },
       status: AdStatus.ACTIVE,
-      // AUDIT-FIX (ads-feature review): same SEC-FIX as findMany's plain
+      // AUDIT-FIX (ads-feature review): same SEC-findMany's plain
       // where-clause branch — a suspended seller's ads were still being
       // recommended in every other ad's "related ads" section, one of
       // the two gaps (alongside the search branch above) the SEC-FIX
@@ -468,7 +468,7 @@ export const adsRepository = {
   // then re-aggregates with an explicit row number so the final array order
   // is deterministic rather than relying on unspecified aggregate behavior.
   addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<AdWithAuthor> => {
-    // FIX RAW-SQL-MAXIMAGES-GUARD-01: maxImages is interpolated
+    // maxImages is interpolated
     // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
     // be a bound parameter without restructuring the whole statement,
     // and a future caller passing an attacker-controlled number would

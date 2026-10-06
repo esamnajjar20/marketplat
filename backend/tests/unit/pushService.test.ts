@@ -1,5 +1,5 @@
 /**
- * FIX PWA-PUSH-01: pushService.ts is the missing backend half of the
+ * pushService.ts is the missing backend half of the
  * frontend's already-built push-subscription plumbing (see
  * frontend/lib/pwa.ts and frontend/public/sw.js). These tests mirror
  * emailService.test.ts's structure for the same reasons:
@@ -30,7 +30,7 @@ jest.mock('../../src/shared/utils/logger', () => ({
 const mockFindManyByUserId = jest.fn();
 const mockDeleteByEndpoints = jest.fn();
 
-// AUDIT-FIX 2.6: pushService.ts now goes through
+// pushService.ts now goes through
 // shared/utils/pushSubscriptionsRepository.ts instead of calling
 // prisma.pushSubscription directly (see that file's doc comment for
 // why) — the mock boundary moves to match. mockFindManyByUserId takes

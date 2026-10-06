@@ -8,7 +8,7 @@ import {
   createServiceProviderRateLimit,
   serviceProviderImagesRateLimit,
 } from '../../middlewares/rateLimit.middleware';
-// FIX SP-MUTATION-LIMITS: update had no rate limit at all. Reused
+// update had no rate limit at all. Reused
 // createServiceProviderRateLimit (10/hr) — same mutation class.
 const serviceProviderMutationRateLimit = createServiceProviderRateLimit;
 
@@ -22,10 +22,10 @@ serviceProvidersRouter.get(
   CACHE.NONE,
   serviceProvidersController.getMyServiceProvider
 );
-// FIX SP-VERIFY-CONSISTENCY: create/update/logo did not require a
+// create/update/logo did not require a
 // verified email, while stores.createStore, ads.createAd, and
 // service-listings.createServiceListing all do. Same "broken UI, not
-// a verification prompt" symptom already fixed on those three
+// a verification prompt" symptom already on those three
 // modules. All mutating routes here now gate on the same rule.
 serviceProvidersRouter.post(
   '/me',
@@ -77,7 +77,7 @@ serviceProvidersRouter.post(
   serviceProvidersController.uploadLogo
 );
 
-// Public — city/browse directory (Home discovery plan, Phase 1).
+// Public — city/browse directory (Home discovery plan, ).
 // Mirrors GET /stores and GET /products: plain paginated list, city
 // optional. Registered here (bare path) so it can never collide with
 // /nearby or /:id regardless of ordering.

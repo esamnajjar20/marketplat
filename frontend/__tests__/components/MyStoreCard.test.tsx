@@ -2,10 +2,10 @@
  * __tests__/components/MyStoreCard.test.tsx
  *
  * Coverage gap: 0% prior coverage. Covers status badge/variant per
- * StoreStatus, the FEATURED plan badge (FIX P1-4), the
+ * StoreStatus, the FEATURED plan badge (), the
  * PENDING/BLOCKED status notices, client-side validation (all four
  * required-field rules), the read-only isFormIncomplete mirror
- * disabling submit before any submit attempt (UX-FIX paired with
+ * disabling submit before any submit attempt (with
  * BecomeStoreOwnerCard), successful submit payload shape (trimmed
  * fields, empty address -> null), server-side field error surfacing
  * on failure, and the conditional "view public page" link that only

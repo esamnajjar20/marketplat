@@ -24,7 +24,6 @@ export interface StockMovement {
   product: { name: string };
 }
 
-/** PATCH /products/:id/stock */
 export const adjustProductStock = (
   id: string,
   stockQuantity: number | null,

@@ -97,7 +97,7 @@ export function isAdminTab(value: unknown): value is AdminTab {
   return hub.isTab(value);
 }
 
-/** Tab requested by `?tab=…`, or by a legacy pathname. Null when absent/unknown. */
+/** Tab requested by `?tab=…`, or by a Null when absent/unknown. */
 export const resolveAdminTab = hub.resolveTab;
 
 /** `/admin?tab=ads` (+ optional extra params). The dashboard tab is the bare `/admin`. */

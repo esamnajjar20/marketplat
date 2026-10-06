@@ -35,13 +35,13 @@ export function ProductsGrid() {
   const sp = useSearchParams();
 
   const search = sp.get('search') ?? undefined;
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  // clamp URL page param to positive integer.
   const city = sp.get('city') ?? undefined;
   const sortBy = (sp.get('sortBy') as ProductSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
-  // PROMO-1 (Phase 10): reads the same ?hasPromotion=true query param
+  // PROMO-1 (): reads the same ?hasPromotion=true query param
   // PromotedProductsSection's "عرض الكل" CTA links to — no filter
-  // toggle UI here yet (that's the fuller Phase 12 scope), just making
+  // toggle UI here yet (that's the fuller scope), just making
   // the URL param this page already receives actually take effect.
   const hasPromotion = sp.get('hasPromotion') === 'true' ? true : undefined;
   const view = sp.get('view') === 'list' ? 'list' : 'grid';

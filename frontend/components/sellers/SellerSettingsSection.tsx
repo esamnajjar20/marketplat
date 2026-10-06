@@ -17,7 +17,7 @@ export function SellerSettingsSection() {
     );
   }
 
-  // UX-FIX P1-5: a 404 genuinely means "no seller profile yet" — that's
+  // a 404 genuinely means "no seller profile yet" — that's
   // the expected, common case and should show BecomeSellerCard. But any
   // OTHER error (network failure, 500, etc.) was previously treated
   // identically, so an existing seller whose profile fetch failed for an

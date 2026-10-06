@@ -157,7 +157,7 @@ describe('productsRepository', () => {
       expect(call.where.availability).toBe('LIMITED');
     });
 
-    // PROMO-1 (Phase 10): relation filter powering the Home "عروض
+    // PROMO-1 (): relation filter powering the Home "عروض
     // مميزة" section and /products?hasPromotion=true — see this
     // model's own doc comment in the repository for the status-based
     // (not window-checked) staleness tradeoff.
@@ -179,11 +179,11 @@ describe('productsRepository', () => {
       expect(call.where.promotions).toBeUndefined();
     });
 
-    // PROMO-1 (Phase 12, full scope): the `promotions` key is a
+    // PROMO-1 (, full scope): the `promotions` key is a
     // separate top-level filter from `store`/`categoryId`/`OR`, so it
     // must combine cleanly with them rather than one silently
     // replacing another — this test closes the "combination with other
-    // filters untested" gap flagged for the minimal Phase 10 version.
+    // filters untested" gap flagged for the minimal version.
     it('combines hasPromotion with city, categoryId, and search without any filter overriding another', async () => {
       await productsRepository.findMany({
         hasPromotion: true,

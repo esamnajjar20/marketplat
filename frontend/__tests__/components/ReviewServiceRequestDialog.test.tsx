@@ -3,7 +3,7 @@
  *
  * Previously uncovered. Modeled directly on RateSellerDialog (same
  * star-picker + optional-comment shape) but adds its own real type
- * guard (isReviewScore, FIX SEC-3.7) — score can only ever reach 1-5
+ * guard (isReviewScore, ) — score can only ever reach 1-5
  * from the star buttons today, but the guard is what actually enforces
  * that at the submit boundary rather than a bare `as` cast, so it's
  * worth covering on its own rather than assuming it behaves like

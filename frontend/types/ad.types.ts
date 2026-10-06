@@ -2,20 +2,20 @@
  * Ad / listing types.
  * Aligned with backend Prisma schema and API response shapes.
  *
- * FIX T-02: Removed 'PENDING' from AdStatus — not in backend schema.
- * FIX T-04: price is string | null (Prisma Decimal serialises to string in JSON).
- * FIX T-05: sort → sortBy, order → sortOrder to match backend getAdsSchema.
+ * Removed 'PENDING' from AdStatus — not in backend schema.
+ * price is string | null (Prisma Decimal serialises to string in JSON).
+ * sort → sortBy, order → sortOrder to match backend getAdsSchema.
  */
 
 // ── Enums (must match backend Prisma enums exactly) ───────────────
 
-/** FIX T-02: backend schema has only ACTIVE | SOLD | DELETED */
+/** backend schema has only ACTIVE | SOLD | DELETED */
 export type AdStatus    = 'ACTIVE' | 'SOLD' | 'DELETED' | 'EXPIRED';
 export type AdCondition = 'NEW' | 'USED' | 'REFURBISHED';
 
 /**
- * FIX T-05: matches backend sortBy enum.
- * FIX H-1: 'views' added — backend's getAdsSchema now accepts it (see
+ * matches backend sortBy enum.
+ * 'views' added — backend's getAdsSchema now accepts it (see
  * ads.validation.ts). AD_SORT_OPTIONS in lib/constants.ts already sent
  * sortBy=views for its "الأكثر مشاهدة" option before this field existed
  * in the type, as an untyped string literal — this closes that gap so
@@ -32,7 +32,7 @@ export interface Ad {
   title:        string;
   description:  string;
   /**
-   * FIX T-04: Prisma Decimal(10,2) serialises to string in JSON.
+   * Prisma Decimal(10,2) serialises to string in JSON.
    * Always parse with parseFloat() or use formatPrice() before display.
    * Never treat as number directly.
    */
@@ -118,7 +118,7 @@ export interface CreateAdPayload {
   categoryId?:   string;
   images?:       File[];
   /**
-   * FIX OFFLINE-STORE-AD-01: عند النشر باسم المتجر يُرسل storeId.
+   * عند النشر باسم المتجر يُرسل storeId.
    * بدونه يُنشأ الإعلان كإعلان شخصي للبائع حتى لو اختار المستخدم «متجر».
    */
   storeId?:      string;
@@ -136,7 +136,7 @@ export type UpdateAdPayload = Partial<Omit<CreateAdPayload, 'images'>> & {
 // ── Query / search params ─────────────────────────────────────────
 
 /**
- * FIX T-05: field names now match backend getAdsSchema exactly.
+ * field names now match backend getAdsSchema exactly.
  * Backend uses sortBy (not sort) and sortOrder (not order).
  * search (not q) for GET /ads — q is only for GET /ads/search.
  */
@@ -157,7 +157,7 @@ export interface AdSearchParams {
   isFeatured?: boolean;   // FIX FEAT-06: server-side featured filter
 }
 
-/** FIX T-05: search uses 'q' as the required query term */
+/** search uses 'q' as the required query term */
 export interface AdSearchQuery extends Omit<AdSearchParams, 'search'> {
   q: string;    // required — maps to backend searchAdsSchema.q
 }

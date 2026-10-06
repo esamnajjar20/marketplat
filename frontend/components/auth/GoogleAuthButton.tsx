@@ -4,7 +4,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { API_BASE_URL } from '@/lib/constants';
 
 /**
- * FIX OAUTH-01 — "Continue with Google" button.
+ * "Continue with Google" button.
  *
  * Deliberately a plain <a>-style full-page navigation
  * (window.location.href), NOT an onClick handler calling axios/fetch:

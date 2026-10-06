@@ -83,7 +83,6 @@ export function rememberBlacklistL1(token: string, blacklisted: boolean): void {
   }
 }
 
-// ---------------------------------------------------------------------
 // Cross-worker blacklist L1 invalidation
 //
 // Same PM2-cluster reasoning as userCache.ts's "Cross-worker L1
@@ -104,7 +103,6 @@ export function rememberBlacklistL1(token: string, blacklisted: boolean): void {
 // userCache: a worker that has already cached the negative answer
 // must be subscribed BEFORE any invalidation is published, or it
 // misses it silently.
-// ---------------------------------------------------------------------
 
 let subscriber: Redis | null = null;
 let subscriberReady: Promise<void> | null = null;

@@ -7,7 +7,7 @@
  * empty-thread state, the block/unblock flow — unblock is a single
  * click while block opens a ConfirmDialog first (mirrors
  * AdminStoresTable/AdminSellersTable's asymmetric-confirm pattern) —
- * and FIX UX-GAP-03's load-older-messages flow (button visibility
+ * and 's load-older-messages flow (button visibility
  * driven by meta.hasNextPage, page-2 fetch merged above the live
  * page, dedup by message id at the page boundary).
  * MessageInput is mocked out since it owns its own mutation hook
@@ -141,7 +141,7 @@ describe('ChatWindow', () => {
     // thumbnail, so this checks the strip's copy of it instead (there
     // are two occurrences pre-fix: this bare title also appears inside
     // the strip, and getAllByText covers a thread where it might also
-    // repeat in a message body coincidentally, though not in this fixture).
+    // repeat in a message body coincidentally, though not in this ).
     expect(screen.getAllByText('دراجة للبيع').length).toBeGreaterThan(0);
   });
 

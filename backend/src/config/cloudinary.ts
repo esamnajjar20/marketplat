@@ -16,7 +16,7 @@ export interface UploadResult {
 }
 
 /**
- * PROD-FIX-02: previously uploadImage/uploadAvatar/deleteImage had no
+ * previously uploadImage/uploadAvatar/deleteImage had no
  * timeout at all — a slow or hung Cloudinary connection kept the
  * underlying HTTP request open indefinitely, tying up the Express
  * request handler (and, for createAd/addImages, the withAdImagesLock
@@ -63,7 +63,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: strin
 }
 
 /**
- * PROD-FIX-12: two independent circuit breakers — one for uploads, one
+ * two independent circuit breakers — one for uploads, one
  * for deletes. Kept separate deliberately: a Cloudinary account issue
  * that specifically breaks destroy() (e.g. a permissions problem)
  * shouldn't also block new ad creation, and vice versa. Both trip
@@ -111,7 +111,7 @@ const TRANSFORM_COVER: object[] = [
 ];
 
 // ── Generic upload helper ─────────────────────────────────────────
-// FIX T66: previously each of the five upload helpers (image, avatar,
+// previously each of the five upload helpers (image, avatar,
 // store logo, store cover, service-provider logo) repeated ~60 lines
 // of identical boilerplate — the same upload_stream callback, the same
 // CloudinaryTimeoutError catch-and-log, the same CircuitBreakerOpenError

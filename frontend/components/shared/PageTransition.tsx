@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 /**
  * PageTransition — a light CSS-only fade between route changes.
  *
- * FIX UX-20: navigation was Next.js's default instant swap with no
+ * navigation was Next.js's default instant swap with no
  * transition at all, unlike the doc's "page transition خفيف"
  * recommendation. Deliberately not framer-motion or any animation
  * library — matches the rest of the app's minimal-animation posture

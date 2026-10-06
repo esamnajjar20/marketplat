@@ -127,7 +127,6 @@ export function removePayee(id: string) {
   );
 }
 
-/** تحديث جهة دفع محفوظة بالـ id */
 export function updatePayee(
   id: string,
   patch: Partial<Omit<SavedPayee, 'id' | 'savedAt'>>,
@@ -193,7 +192,6 @@ export function removeNetCard(id: string) {
   );
 }
 
-/** تحديث بطاقة نت محفوظة بالـ id */
 export function updateNetCard(
   id: string,
   patch: Partial<Omit<SavedNetCard, 'id' | 'savedAt'>>,
