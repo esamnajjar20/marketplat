@@ -1,3 +1,5 @@
+import { recordConnectionSnapshot, recordRequestCompleted, recordRequestStarted, type RequestFailureType } from './networkObservability';
+
 /**
  * UX: connection quality from request timings + Network Information API.
  * Not a substitute for navigator.onLine — complements it for "slow vs offline".
@@ -16,8 +18,13 @@ let consecutiveFailures = 0;
 const listeners = new Set<() => void>();
 
 /** Call when an API request fails or hits a soft timeout (not SW cache hits). */
-export function recordRequestFailure(): void {
-  consecutiveFailures += 1;
+export function recordRequestStartedSample(): void {
+  recordRequestStarted();
+}
+
+export function recordRequestFailure(durationMs?: number, failureType: RequestFailureType = 'network'): void {
+  if (failureType === 'network') consecutiveFailures += 1;
+  recordRequestCompleted(durationMs ?? 0, false, failureType);
   notify();
 }
 
@@ -50,6 +57,12 @@ function notify() {
  * they do not pull the average into 'fast' while the real network is slow. */
 export function recordRequestTiming(durationMs: number) {
   if (!Number.isFinite(durationMs) || durationMs < 0) return;
+
+  // Every successful response counts toward request observability. Very fast
+  // responses are still excluded from RTT samples because they are commonly
+  // served by the Service Worker/Cache API rather than the network.
+  recordRequestCompleted(durationMs, true);
+
   if (durationMs < MIN_NETWORK_SAMPLE_MS) return;
   samples.push(durationMs);
   while (samples.length > MAX_SAMPLES) samples.shift();
@@ -99,18 +112,26 @@ function fromEffectiveType(): ConnectionQuality | null {
  * 4) unknown
  */
 export function getConnectionQuality(): ConnectionQuality {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return 'offline';
-  }
-
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const conn = typeof navigator !== 'undefined'
+    ? (navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean } }).connection
+    : undefined;
   const avg = averageMs();
-  if (avg != null) {
-    if (avg < FAST_MS) return 'fast';
-    // avg >= FAST_MS → slow for UX purposes.
-    return 'slow';
-  }
+  const quality: ConnectionQuality = offline
+    ? 'offline'
+    : avg != null
+      ? (avg < FAST_MS ? 'fast' : 'slow')
+      : (fromEffectiveType() ?? 'unknown');
 
-  return fromEffectiveType() ?? 'unknown';
+  recordConnectionSnapshot({
+    tier: quality === 'offline' ? 'offline' : quality === 'slow' ? 'slow' : quality === 'fast' ? 'fast' : 'unknown',
+    effectiveType: conn?.effectiveType ?? null,
+    downlinkMbps: typeof conn?.downlink === 'number' ? conn.downlink : null,
+    rttMs: typeof conn?.rtt === 'number' ? conn.rtt : avg,
+    saveData: Boolean(conn?.saveData),
+    consecutiveFailures,
+  });
+  return quality;
 }
 
 export function connectionQualityLabel(q: ConnectionQuality): string {
@@ -142,3 +163,5 @@ export function formatSyncEta(pendingCount: number): string {
   const min = Math.round(sec / 60);
   return `~${min} دقيقة`;
 }
+
+export { getNetworkObservabilitySnapshot, subscribeNetworkObservability } from './networkObservability';

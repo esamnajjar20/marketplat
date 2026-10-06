@@ -46,6 +46,8 @@ import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { makeOfflineError } from '@/lib/offlineError';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
+import { recordRequestRetry, recordRequestStarted } from '@/lib/networkObservability';
+import { isNetworkFailure } from '@/lib/networkErrors';
 
 export type BatchGetRequest = {
   url: string;
@@ -69,7 +71,7 @@ function isNetworkRetryableAxiosError(error: AxiosError): boolean {
   if (axios.isCancel(error)) return false;
   const status = error.response?.status;
   if (status === 408 || status === 429 || status === 502 || status === 503 || status === 504) return true;
-  return !error.response && Boolean(error.request || error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.code === 'ERR_NETWORK');
+  return isNetworkFailure(error);
 }
 
 function getRetryAfterMs(error: AxiosError): number | undefined {
@@ -154,6 +156,7 @@ apiClient.get = ((url: string, config?: AxiosRequestConfig) => {
 
 // ── Request interceptor — attach access token + CSRF token ────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  recordRequestStarted();
   const method = (config.method ?? 'get').toLowerCase();
 
   // FIX OFFLINE-FAST-FAIL: when navigator.onLine is definitively
@@ -518,8 +521,11 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    if (isNetworkRetryableAxiosError(error)) {
-      recordRequestFailure();
+    if ((error as { code?: string } | undefined)?.code !== 'OFFLINE_QUEUED') {
+      const start = (error.config as { metadata?: { start?: number } } | undefined)?.metadata?.start;
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const duration = typeof start === 'number' ? Math.max(0, now - start) : undefined;
+      recordRequestFailure(duration, isNetworkFailure(error) ? 'network' : 'http');
     }
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; [NETWORK_RETRY_MARKER]?: number }) | undefined;
 
@@ -533,6 +539,7 @@ apiClient.interceptors.response.use(
       const attempt = Number(original[NETWORK_RETRY_MARKER] ?? 0);
       if (attempt < maxRetries && !axios.isCancel(error)) {
         original[NETWORK_RETRY_MARKER] = attempt + 1;
+        recordRequestRetry();
         await new Promise<void>((resolve) => setTimeout(resolve, getRetryDelayMs(attempt + 1, getRetryAfterMs(error))));
         if (original.signal?.aborted) return Promise.reject(parseApiError(error));
         return apiClient(original);
