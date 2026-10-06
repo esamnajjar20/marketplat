@@ -298,6 +298,34 @@ describe('offlineAdDrafts', () => {
     expect(lib.draftKindLabel(null)).toBe('إعلان');
   });
 
+  it('MAX_DRAFTS housekeeping never evicts pending_sync or failed drafts', async () => {
+    const pending = await lib.saveAdDraft({
+      mode: 'create',
+      payload: { title: 'pending', description: '' },
+      userId: 'u1',
+      status: 'pending_sync',
+    });
+    const failed = await lib.saveAdDraft({
+      mode: 'create',
+      payload: { title: 'failed', description: '' },
+      userId: 'u1',
+      status: 'failed',
+    });
+
+    for (let i = 0; i < 25; i++) {
+      await lib.saveAdDraft({
+        mode: 'create',
+        payload: { title: `draft-${i}`, description: '' },
+        userId: 'u1',
+        status: 'draft',
+      });
+    }
+
+    const ids = (await lib.listAdDrafts('u1')).map((d) => d.id);
+    expect(ids).toContain(pending.id);
+    expect(ids).toContain(failed.id);
+  });
+
   it('MAX_DRAFTS cap is shared across kinds for the same user (not 20 per kind)', async () => {
     // 8 ads + 8 products + 8 services = 24 > 20 → oldest excess pruned overall
     for (let i = 0; i < 8; i++) {

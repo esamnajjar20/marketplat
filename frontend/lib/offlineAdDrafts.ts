@@ -479,8 +479,13 @@ export async function saveAdDraft(
   // علاقة بينهما.
   const ownDrafts = await listAdDrafts(draft.userId);
   if (ownDrafts.length > MAX_DRAFTS) {
-    const excess = ownDrafts.slice(MAX_DRAFTS);
-    for (const d of excess) {
+    // Never evict an operation that has been attempted. pending_sync/failed
+    // may still represent a real server mutation and must survive quota
+    // housekeeping. Only plain, never-submitted drafts are auto-evictable.
+    const evictable = ownDrafts
+      .filter((d) => d.status === 'draft')
+      .slice(MAX_DRAFTS);
+    for (const d of evictable) {
       await deleteAdDraft(d.id);
     }
   }
