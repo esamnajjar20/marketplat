@@ -87,6 +87,33 @@ export const errorMiddleware = (
 ): void => {
   const requestId = req.requestId;
 
+  // FIX BODYPARSER-400: express.json() throws SyntaxError with
+  // err.status=400 / err.type='entity.parse.failed' on malformed JSON.
+  // Before this, the middleware fell through to the generic 500 path,
+  // which polluted Sentry with "Unhandled error" alerts for what is
+  // actually a 400 client error. Respect err.status / err.statusCode
+  // when present (this also covers any other middleware that assigns
+  // a status to its thrown error).
+  const rawStatus =
+    typeof (err as unknown as { status?: unknown }).status === 'number'
+      ? (err as unknown as { status: number }).status
+      : typeof (err as unknown as { statusCode?: unknown }).statusCode === 'number'
+        ? (err as unknown as { statusCode: number }).statusCode
+        : undefined;
+  if (rawStatus && rawStatus >= 400 && rawStatus < 600) {
+    const code =
+      CODE_BY_STATUS[rawStatus] ??
+      (rawStatus === 400 ? 'BAD_REQUEST' : 'ERROR');
+    res.status(rawStatus).json({
+      success: false,
+      message: err.message || 'Request could not be processed.',
+      statusCode: rawStatus,
+      code,
+      requestId,
+    });
+    return;
+  }
+
   if (err instanceof ZodError) {
     const errors: Record<string, string[]> = {};
     // FIX I18N-01: errorMeta carries the same per-field issues as
