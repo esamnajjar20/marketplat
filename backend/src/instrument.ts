@@ -56,7 +56,22 @@ if (dsn) {
     // change can't silently start sending more than intended without
     // this line visibly needing to change too.
     sendDefaultPii: false,
-    beforeSend(event) {
+    beforeSend(event, hint) {
+      // ── 1. 4xx noise filter (FIX SENTRY-NOISE) ──
+      // ZodError (validation), JWT errors (auth guard), body-parser
+      // SyntaxError (malformed JSON), and any event explicitly tagged
+      // with a 4xx status are all client errors — dropping them keeps
+      // genuine 5xx failures visible instead of drowned out.
+      const err = hint?.originalException as (Error & { status?: number }) | undefined;
+      if (err) {
+        if (err.name === 'ZodError') return null;
+        if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') return null;
+        if (err.name === 'SyntaxError' && err.status === 400) return null;
+      }
+      const statusTag = (event.tags as Record<string, string> | undefined)?.statusCode;
+      if (statusTag && /^4\d\d$/.test(statusTag)) return null;
+
+      // ── 2. PII scrubbing (FIX APM-02) ──
       // Extra belt-and-suspenders scrub on top of sendDefaultPii:false —
       // strips Authorization headers and any cookie header from the
       // request context Sentry attaches to an error event, in case a
