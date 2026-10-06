@@ -19,11 +19,13 @@ import { queryKeys }     from '@/lib/queryKeys';
 import { ROUTES, CACHE_TTL } from '@/lib/constants';
 import { track }         from '@/lib/analytics';
 import { clearSensitiveLocalData, clearServiceWorkerApiCache, unbindPushBindings } from '@/lib/authCleanup';
+import { publishSessionEnded } from '@/lib/authSessionBroadcast';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { resumeSession } from '@/api/client';
-import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
+import { setCookie, clearAuthCookies, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
+export { clearAuthCookies };
 import { parseApiError } from '@/lib/errorParser';
 import { unwrapData }    from '@/lib/apiPagination';
 import { toast }         from 'sonner';
@@ -53,18 +55,6 @@ function setAuthCookies(user: AuthResultUser, tokens: AuthTokens) {
   setCookie('app_access_token', tokens.accessToken, maxAge);
   setCookie('app_user_role',    user.role,          maxAge);
   setCookie('app_has_session',  '1',                SESSION_HINT_COOKIE_MAX_AGE);
-}
-
-/**
- * Clears the auth cookies. Used by logout, logout-all, and
- * useDeleteAccount (useUpdateProfile.ts) — exported (was module-private)
- * so account deletion doesn't need to hand-duplicate the same
- * deleteCookie calls with the cookie names spelled out again.
- */
-export function clearAuthCookies() {
-  deleteCookie('app_access_token');
-  deleteCookie('app_user_role');
-  deleteCookie('app_has_session'); // AUDIT-FIX C-1
 }
 
 /**
@@ -291,7 +281,9 @@ function useClearLocalSession() {
   const queryClient  = useQueryClient();
 
   return async (options?: { destination?: string; toastMessage?: string }) => {
+    const endingUserId = useAuthStore.getState().user?.id ?? null;
     logout();
+    publishSessionEnded(endingUserId);
     clearAuthCookies();
     // FIX AUTH-CLEANUP-CENTRALIZE-01 + FIX QUEUE-AWAIT-ON-LOGOUT-01:
     // await IndexedDB queue wipe before navigating away.

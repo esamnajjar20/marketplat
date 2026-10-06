@@ -180,8 +180,8 @@ export function DownloadsPageClient() {
         description="سيتم حذف كل الكتالوجات المحفوظة على هذا الجهاز. لا يمكن التراجع."
         confirmLabel="مسح الكل"
         destructive
-        onConfirm={() => {
-          clearCatalogDownloads();
+        onConfirm={async () => {
+          await clearCatalogDownloads();
           refresh();
           setConfirmClearOpen(false);
         }}

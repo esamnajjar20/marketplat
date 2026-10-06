@@ -94,3 +94,8 @@ export async function updateSalesDraft(operationId: string, patch: Partial<Sales
 export async function deleteSalesDraft(operationId: string): Promise<void> {
   await transaction('readwrite', store => store.delete(operationId));
 }
+
+/** Clear every local sales draft on an explicit session boundary. */
+export async function clearAllSalesDrafts(): Promise<void> {
+  await transaction('readwrite', store => store.clear());
+}

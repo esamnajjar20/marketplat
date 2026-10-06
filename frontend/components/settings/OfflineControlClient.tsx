@@ -31,6 +31,7 @@ import {
 import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadge';
 import {
   getWarmingMode, setWarmingMode,
@@ -68,6 +69,7 @@ function formatAge(ts: number): string {
 }
 
 export function OfflineControlClient() {
+  const user = useAuthStore(selectUser);
   const [mode, setMode] = useState<WarmingMode>('fast');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -168,7 +170,7 @@ export function OfflineControlClient() {
   async function runWarmingPipelineLocal(): Promise<boolean> {
     resetWarmingCancel();
     const { ran } = await runWarmingPipeline({
-      authenticated: true,
+      authenticated: user != null,
       force: true,
     });
     return ran;

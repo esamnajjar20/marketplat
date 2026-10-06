@@ -110,10 +110,10 @@ export async function removeCatalogDownload(id: string): Promise<void> {
   }
 }
 
-export function clearCatalogDownloads(): void {
+export async function clearCatalogDownloads(): Promise<void> {
   const ids = readList().map((r) => r.id);
   writeList([]);
-  void Promise.all(ids.map((id) => idbDeleteCatalog(id).catch(() => undefined)));
+  await Promise.all(ids.map((id) => idbDeleteCatalog(id).catch(() => undefined)));
 }
 
 export { openCatalogOffline };

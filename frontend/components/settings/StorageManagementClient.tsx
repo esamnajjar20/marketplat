@@ -371,7 +371,7 @@ export function StorageManagementClient() {
               action: () => runAction(
                 'catalogs',
                 async () => {
-                  clearCatalogDownloads();
+                  await clearCatalogDownloads();
                 },
                 'تم حذف التنزيلات المحلية',
               ),

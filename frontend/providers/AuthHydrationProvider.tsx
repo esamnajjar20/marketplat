@@ -60,13 +60,14 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
 import { usersApi }   from '@/api/users.api';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
-import { CACHE_TTL }    from '@/lib/constants';
-import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn } from '@/lib/cookies';
+import { CACHE_TTL, ROUTES }    from '@/lib/constants';
+import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, clearAuthCookies } from '@/lib/cookies';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 // T735 — see the check just after the refresh await below.
 import {
@@ -74,6 +75,8 @@ import {
   refreshSessionShared,
 } from '@/api/client';
 import { parseApiError } from '@/lib/errorParser';
+import { clearSensitiveLocalData } from '@/lib/authCleanup';
+import { subscribeToSessionEnded } from '@/lib/authSessionBroadcast';
 
 /**
  * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
@@ -107,6 +110,25 @@ interface AuthHydrationProviderProps {
 }
 
 export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) {
+  const router = useRouter();
+  const sessionEventHandlingRef = useRef(false);
+
+  useEffect(() => {
+    return subscribeToSessionEnded(() => {
+      if (sessionEventHandlingRef.current) return;
+      sessionEventHandlingRef.current = true;
+
+      // The initiating tab already invalidated the server session. A sibling
+      // tab must not call the logout API again; it only needs to terminate its
+      // local state and purge user-scoped data before navigating away.
+      useAuthStore.getState().logout();
+      clearAuthCookies();
+      void clearSensitiveLocalData().finally(() => {
+        router.replace(ROUTES.login);
+      });
+    });
+  }, [router]);
+
   const isHydrated = useAuthStore(selectIsHydrated);
   const { setAccessToken, setCsrfToken, setUser, logout, setAuthResolved } = useAuthStore.getState();
   const queryClient = useQueryClient();

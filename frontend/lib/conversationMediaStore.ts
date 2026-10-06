@@ -151,8 +151,10 @@ export async function clearConversationMediaStore(): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch {
-    // Best-effort cleanup on logout.
+  } catch (error) {
+    // Propagate cleanup failure so logout can wait for or report it instead
+    // of silently leaving private media behind on disk.
+    throw error;
   }
 }
 

@@ -79,6 +79,13 @@ export function deleteCookie(name: string): void {
   document.cookie = parts.join('; ');
 }
 
+/** Clear all client-readable auth hint cookies on a local session boundary. */
+export function clearAuthCookies(): void {
+  deleteCookie('app_access_token');
+  deleteCookie('app_user_role');
+  deleteCookie('app_has_session');
+}
+
 // ── Safe post-login redirect ───────────────────────────────────────
 //
 // SEC-04: The ?from= param written by middleware uses window.location.pathname

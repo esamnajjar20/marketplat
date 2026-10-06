@@ -73,7 +73,7 @@ describe('downloadStorage', () => {
       productCount: 1,
       fileName: 'x.html',
     });
-    clearCatalogDownloads();
+    await clearCatalogDownloads();
     expect(listCatalogDownloads()).toEqual([]);
   });
 });

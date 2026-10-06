@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/lib/constants';
 import { emitTypingEvent } from '@/lib/typingStore';
-import { useAuthStore, selectIsAuthenticated, selectAccessToken } from '@/store/auth.store';
+import { useAuthStore, selectIsAuthenticated, selectAccessToken, selectUser } from '@/store/auth.store';
 import { queryKeys } from '@/lib/queryKeys';
 import type { Message } from '@/types/conversation.types';
 import type { NotificationData } from '@/types/notification.types';
@@ -142,6 +142,7 @@ const RECONNECT_MAX_MS = 30_000;
 export function useNotificationStream(options?: Options) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const accessToken = useAuthStore(selectAccessToken);
+  const userId = useAuthStore(selectUser)?.id ?? null;
   // FIX N4: boolean presence only — avoids SSE restart on every refresh rotation.
   const hasAccessToken = Boolean(accessToken);
   const queryClient = useQueryClient();
@@ -176,6 +177,7 @@ export function useNotificationStream(options?: Options) {
       return;
     }
 
+    const sessionUserId = userId;
     const ac = new AbortController();
     let closed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -249,6 +251,9 @@ export function useNotificationStream(options?: Options) {
               else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
             }
             if (eventName === 'resync') {
+              if (useAuthStore.getState().user?.id !== sessionUserId) {
+                continue;
+              }
               // FIX-F3-RESYNC-01: clear lastEventId; otherwise every reconnect
               // re-sends the same stale id and the server re-emits resync+refetch.
               lastEventId = undefined;
@@ -260,6 +265,12 @@ export function useNotificationStream(options?: Options) {
             if (eventName !== 'notification' && eventName !== 'message') continue;
 
             try {
+              // A tab can switch accounts without briefly becoming
+              // unauthenticated. Never apply an event from the old SSE
+              // connection to the new account's React Query cache.
+              if (useAuthStore.getState().user?.id !== sessionUserId) {
+                continue;
+              }
               const payload = JSON.parse(dataLines.join('\n')) as LiveStreamPayload;
 
               if (payload.type === 'message:new') {
@@ -336,7 +347,7 @@ export function useNotificationStream(options?: Options) {
     // SW-SSE-TOKEN-REF-01 + FIX N4-SSE-OFFLINE-BOOT:
     // hasAccessToken (boolean) re-runs the effect when token appears
     // after offline boot, without restarting on every token rotation.
-  }, [isAuthenticated, queryClient, hasAccessToken]);
+  }, [isAuthenticated, queryClient, hasAccessToken, userId]);
 
   return { connected };
 }

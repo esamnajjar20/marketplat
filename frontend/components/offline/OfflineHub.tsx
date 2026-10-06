@@ -410,7 +410,16 @@ function SyncTabBody({
         retrying={retrying}
       />
       <ActivityPanel items={activity} onClear={onClearActivity} />
-      <SyncCenterClient />
+      {isSignedIn ? (
+        <SyncCenterClient />
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-center" role="status">
+          <p className="text-sm font-medium">المزامنة متاحة بعد تسجيل الدخول</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            لن نعرض أو نقرأ طابور الإرسال أو المسودات الخاصة بأي حساب من جلسة ضيف.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

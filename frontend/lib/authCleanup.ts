@@ -25,6 +25,7 @@ import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
 import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
 import { clearOfflineQueue } from '@/lib/offlineQueue';
 import { clearCatalogDownloads } from '@/lib/downloadStorage';
+import { clearAllSalesDrafts } from '@/lib/sales-offline/salesDraftStore';
 import { clearSavedPaymentMethods } from '@/lib/paymentStorage';
 import { getQueryClient } from '@/lib/queryClient';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
@@ -235,7 +236,11 @@ export async function clearSensitiveLocalData(): Promise<void> {
   }
   clearAppBadge();
   clearAllOfflineLists();
-  void clearDraftOnlyAdDrafts();
+  try {
+    await clearDraftOnlyAdDrafts();
+  } catch (err) {
+    console.warn('[auth-cleanup] draft cleanup failed:', err);
+  }
   clearAllOfflineJson();
   // FIX QUEUE-CLEAR-ON-LOGOUT + FIX QUEUE-AWAIT-ON-LOGOUT-01:
   // طابور الـ SW كان يخزّن عناصر User A (وربما Authorization قبل
@@ -245,14 +250,26 @@ export async function clearSensitiveLocalData(): Promise<void> {
   } catch (err) {
     console.warn('[auth-cleanup] clearOfflineQueue failed:', err);
   }
+  // Sales drafts contain buyer/contact/cost/internal-note data. Clear them
+  // only after the shared mutation queue is stopped so logout cannot race a
+  // queue replay that is still resolving the same operation.
+  try {
+    await clearAllSalesDrafts();
+  } catch (err) {
+    console.warn('[auth-cleanup] sales draft cleanup failed:', err);
+  }
   // FIX CATALOG-CLEAR-ON-LOGOUT: سجل تنزيلات كتالوجات المتاجر + أجسامها
   // في IndexedDB كانت تبقى عبر logout — User B يرى ما نزّله User A.
-  clearCatalogDownloads();
+  await clearCatalogDownloads();
   // FIX PAYMENT-CLEAR-ON-LOGOUT: جهات دفع + بطاقات نت (بكلمات مرور
   // plaintext) كانت تبقى — User B يرى بيانات User A المالية.
   clearSavedPaymentMethods();
   void clearOfflineMessagesStore();
-  void clearConversationMediaStore();
+  try {
+    await clearConversationMediaStore();
+  } catch (err) {
+    console.warn('[auth-cleanup] conversation media wipe failed:', err);
+  }
   // FIX SW-CLEAR-PERSONAL-WARMING-01: without this, the IndexedDB
   // warming snapshot would still say every personal route was complete
   // on the next login, so warming would skip them all and the personal
