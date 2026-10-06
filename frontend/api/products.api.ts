@@ -63,6 +63,7 @@ export const productsApi = {
     form.append('price', String(payload.price));
     if (payload.discountPrice !== undefined) form.append('discountPrice', String(payload.discountPrice));
     if (payload.wholesalePrice !== undefined) form.append('wholesalePrice', String(payload.wholesalePrice));
+    if (payload.costPrice !== undefined) form.append('costPrice', String(payload.costPrice));
     if (payload.wholesaleMinQty !== undefined) form.append('wholesaleMinQty', String(payload.wholesaleMinQty));
     if (payload.availability) form.append('availability', payload.availability);
     if (payload.stockQuantity !== undefined) form.append('stockQuantity', String(payload.stockQuantity));

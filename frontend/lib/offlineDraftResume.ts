@@ -109,6 +109,7 @@ export function productFieldsFromDraftPayload(payload: AdDraft['payload']): {
   price: string;
   discountPrice: string;
   wholesalePrice: string;
+  costPrice: string;
   wholesaleMinQty: string;
   availability: string;
   stockQuantity: string;
@@ -129,6 +130,10 @@ export function productFieldsFromDraftPayload(payload: AdDraft['payload']): {
     wholesalePrice:
       payload.wholesalePrice != null && payload.wholesalePrice !== ''
         ? String(payload.wholesalePrice)
+        : '',
+    costPrice:
+      payload.costPrice != null && payload.costPrice !== ''
+        ? String(payload.costPrice)
         : '',
     wholesaleMinQty:
       payload.wholesaleMinQty != null && payload.wholesaleMinQty !== ''

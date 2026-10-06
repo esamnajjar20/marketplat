@@ -178,6 +178,7 @@ export const productsService = {
             price: input.price,
             discountPrice: input.discountPrice,
             wholesalePrice: input.wholesalePrice,
+            costPrice: input.costPrice ?? null,
             wholesaleMinQty: input.wholesaleMinQty,
             availability: deriveAvailabilityFromStock(input.stockQuantity, input.availability),
             stockQuantity: input.stockQuantity ?? null,

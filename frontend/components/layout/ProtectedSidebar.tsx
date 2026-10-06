@@ -258,10 +258,10 @@ export function ProtectedSidebar() {
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {
-          if (item.key === 'store' || item.key === 'services' || item.key === 'requests') {
+          if (item.key === 'store' || item.key === 'services' || item.key === 'requests' || item.key === 'sales') {
             const group = item.key === 'store' ? STORE_GROUP
               : item.key === 'services' ? SERVICES_GROUP
-              : requestsGroupFor(true);
+              : item.key === 'sales' ? SALES_GROUP : requestsGroupFor(true);
             return (
               <Suspense key={item.key} fallback={<DisclosureGroup group={group} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={group} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>

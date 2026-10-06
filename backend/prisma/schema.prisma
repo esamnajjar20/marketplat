@@ -1030,6 +1030,7 @@ model Product {
   images          String[]
   price           Decimal                  @db.Decimal(10, 2)
   wholesalePrice  Decimal?                 @db.Decimal(10, 2)
+  costPrice       Decimal?                 @db.Decimal(10, 2)
   wholesaleMinQty Int?
   discountPrice   Decimal?                 @db.Decimal(10, 2)
   availability    ProductAvailability      @default(IN_STOCK)

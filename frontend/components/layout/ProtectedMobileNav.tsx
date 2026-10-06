@@ -55,13 +55,13 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WithSearch } from '@/components/layout/WithSearch';
-import { ChevronDown, ChevronLeft, User, ExternalLink, Store, WalletCards } from 'lucide-react';
+import { ChevronDown, ChevronLeft, User, ExternalLink, Store } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdminTier, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
+import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, SALES_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -83,7 +83,7 @@ const TOGGLE_ID = 'protected-mobile-nav-toggle';
 function DrawerDisclosureGroup({
   group, pathname, onNavigate, search = '',
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup; // + requests/settings via NavDisclosureGroup
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | typeof SALES_GROUP | NavDisclosureGroup; // + requests/settings via NavDisclosureGroup
   pathname: string;
   onNavigate: () => void;
   search?: string;
@@ -442,19 +442,11 @@ export function ProtectedMobileNav() {
           )}
           {(isSeller || isProvider) && (
             <li>
-              <Link
-                href={ROUTES.sales}
-                prefetch={false}
-                onClick={() => { recordNavigation(ROUTES.sales); close(); }}
-                aria-current={pathname.startsWith(ROUTES.sales) ? 'page' : undefined}
-                className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
-                  pathname.startsWith(ROUTES.sales) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-                )}
-              >
-                <WalletCards className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                مبيعاتي
-              </Link>
+              <Suspense fallback={<DrawerDisclosureGroup group={SALES_GROUP} pathname={pathname} onNavigate={close} />}>
+                <WithSearch>
+                  {(search) => <DrawerDisclosureGroup group={SALES_GROUP} pathname={pathname} onNavigate={close} search={search} />}
+                </WithSearch>
+              </Suspense>
             </li>
           )}
           {!showProviderSkeleton && isProvider && (

@@ -48,7 +48,12 @@ export const SALES_GROUP = {
   label: 'مبيعاتي',
   href: ROUTES.sales,
   icon: WalletCards,
-  children: [],
+  children: [
+    { label: 'سجل المبيعات', href: ROUTES.sales },
+    { label: 'العملاء', href: ROUTES.customers },
+    { label: 'الديون', href: ROUTES.salesDebts },
+    { label: 'الأقساط', href: ROUTES.salesInstallments },
+  ],
 } as const;
 
 export const ACTIVITY_GROUP = {

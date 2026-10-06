@@ -25,11 +25,11 @@ const ensureEntityOwnership = async (userId: string, input: CreateSaleInput) => 
   if (!input.entityId) throw new BadRequestError('entityId is required for this sale type.', 'SALE_ENTITY_ID_REQUIRED');
 
   if (input.entityType === 'PRODUCT') {
-    const product = await prisma.product.findUnique({ where: { id: input.entityId }, select: { id: true, name: true, images: true, price: true, wholesalePrice: true, storeId: true, status: true } });
+    const product = await prisma.product.findUnique({ where: { id: input.entityId }, select: { id: true, name: true, images: true, price: true, wholesalePrice: true, costPrice: true, storeId: true, status: true } });
     if (!product || product.status === 'DELETED') throw new NotFoundError('Product not found.', 'PRODUCT_NOT_FOUND');
     const access = await requireStoreAccess(userId, product.storeId, 'manageProducts');
     if (input.storeId && input.storeId !== product.storeId) throw new BadRequestError('storeId does not match the selected product.', 'STORE_PRODUCT_MISMATCH');
-    return { storeId: access.store.id, costPrice: input.costPrice ?? null, imageUrl: input.entityImageUrl ?? product.images[0] ?? null };
+    return { storeId: access.store.id, costPrice: input.costPrice ?? (product.costPrice == null ? null : Number(product.costPrice)), imageUrl: input.entityImageUrl ?? product.images[0] ?? null };
   }
 
   if (input.entityType === 'AD') {
