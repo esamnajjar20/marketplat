@@ -14,8 +14,6 @@
  */
 import type { NextRequest } from 'next/server';
 
-export const runtime = 'edge';
-
 const API_WORKER = 'https://marketplat-api.esamnajjar6.workers.dev';
 const RENDER = 'https://marketplat.onrender.com';
 
