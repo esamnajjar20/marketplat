@@ -25,11 +25,11 @@ export function SearchFiltersSheet() {
   const [open, setOpen] = useState(false);
   const sp = useSearchParams();
 
-  const activeCount =
-    (sp.get('city') ? 1 : 0) +
-    (sp.get('categoryId') ? 1 : 0) +
-    (sp.get('lat') && sp.get('lng') ? 1 : 0) +
-    (IS_SORT_ACTIVE(sp.get('sort')) ? 1 : 0);
+  const activeCount = [
+    'city', 'categoryId', 'minPrice', 'maxPrice', 'condition',
+  ].filter((key) => Boolean(sp.get(key))).length
+    + (sp.get('lat') || sp.get('lng') ? 1 : 0)
+    + (IS_SORT_ACTIVE(sp.get('sort')) ? 1 : 0);
 
   return (
     <div className="lg:hidden">

@@ -1,4 +1,5 @@
 'use client';
+import { useLongPress } from '@/hooks/ui/useLongPress';
 
 import Link from 'next/link';
 import { AdCard } from '@/components/ads/AdCard';
@@ -9,8 +10,8 @@ import { useFavorites }  from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { Heart, AlertTriangle, Check, CheckSquare, Loader2, X } from 'lucide-react';
-import { MoveToListMenu } from '@/components/favorites/MoveToListMenu';
+import { Heart, HeartOff, AlertTriangle, Check, CheckSquare, Loader2, X } from 'lucide-react';
+import { MoveSelectedToListMenu } from '@/components/favorites/MoveSelectedToListMenu';
 import { Button }        from '@/components/shared/ui/Button';
 import { ROUTES }        from '@/lib/constants';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -27,6 +28,7 @@ export function FavoritesList() {
 
   const items      = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
+  const totalItems = data?.meta?.total ?? items.length;
 
   // BULK-FAVORITES-REMOVE-01: multi-select for bulk remove. Items are
   // grid cards, not rows, so the checkbox is an overlay button that
@@ -36,13 +38,12 @@ export function FavoritesList() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
   const [confirmBulkRemove, setConfirmBulkRemove] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
 
   useEffect(() => {
     setSelected(new Set());
     setSelectionMode(false);
   }, [page, listId]);
+
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -63,26 +64,17 @@ export function FavoritesList() {
     setSelectionMode(false);
   }
 
+  const longPressTargetIdRef = useRef<string | null>(null);
+  const longPressHandlers = useLongPress(() => {
+    const id = longPressTargetIdRef.current;
+    if (id) enterSelectionWith(id);
+  }, { enabled: !selectionMode });
+
   function selectAllVisible() {
     // Deleted-ads still get a checkbox — they're the ones most likely
     // to need cleanup in bulk.
     setSelected(new Set(items.map((f) => f.ad.id)));
     setSelectionMode(true);
-  }
-
-  function onCardTouchStart(id: string) {
-    longPressFired.current = false;
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      enterSelectionWith(id);
-    }, 500);
-  }
-  function onCardTouchEnd() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
   }
 
   async function performBulkRemove() {
@@ -112,7 +104,7 @@ export function FavoritesList() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
         {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
       </div>
     );
@@ -143,7 +135,7 @@ export function FavoritesList() {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<Heart className="h-10 w-10" />}
+        icon={<HeartOff className="h-10 w-10" />}
         title="لا توجد إعلانات محفوظة"
         description="اضغط ♡ على أي إعلان أثناء التصفح ليظهر هنا لاحقاً — مفيد لمقارنة الخيارات قبل التواصل."
         action={
@@ -167,9 +159,9 @@ export function FavoritesList() {
   return (
     <div className="space-y-4">
       {/* BULK-FAVORITES-REMOVE-01: header row + selection entry. */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">
-          {items.length} عنصر في هذه الصفحة
+          {totalItems} عنصر محفوظ
         </span>
         <Button
           type="button"
@@ -184,7 +176,7 @@ export function FavoritesList() {
       </div>
 
       {selectionMode && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/40 p-2.5 text-sm" role="toolbar" aria-label="أدوات تحديد المفضلة">
           <span className="font-medium">{selected.size} محدد</span>
           <Button
             type="button"
@@ -195,7 +187,12 @@ export function FavoritesList() {
           >
             تحديد الكل ({items.length})
           </Button>
-          <div className="ms-auto flex gap-2">
+          <div className="ms-auto flex flex-wrap gap-2">
+            <MoveSelectedToListMenu
+              favoriteIds={items.filter((fav) => selected.has(fav.ad.id)).map((fav) => fav.id)}
+              currentListId={listId}
+              disabled={bulkBusy !== null || selected.size === 0}
+            />
             <Button
               type="button"
               size="sm"
@@ -218,13 +215,13 @@ export function FavoritesList() {
               onClick={clearSelection}
               disabled={bulkBusy !== null}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in">
         {items.map((fav) => {
           const key = fav.ad.id;
           const isSelected = selected.has(key);
@@ -239,12 +236,12 @@ export function FavoritesList() {
             <div
               key={fav.id ?? fav.ad.id}
               className="relative"
-              onTouchStart={() => onCardTouchStart(key)}
-              onTouchEnd={onCardTouchEnd}
-              onTouchCancel={onCardTouchEnd}
-              onMouseDown={(e) => { if (e.button === 0) onCardTouchStart(key); }}
-              onMouseUp={onCardTouchEnd}
-              onMouseLeave={onCardTouchEnd}
+              onPointerDown={(event) => { longPressTargetIdRef.current = key; longPressHandlers.onPointerDown(event); }}
+              onPointerMove={longPressHandlers.onPointerMove}
+              onPointerUp={longPressHandlers.onPointerUp}
+              onPointerCancel={longPressHandlers.onPointerCancel}
+              onClickCapture={longPressHandlers.onClickCapture}
+              onContextMenu={longPressHandlers.onContextMenu}
             >
               <div className={cn('flex flex-col gap-2', selectionMode && 'pointer-events-none')}>
                 {fav.ad.status === 'DELETED' ? (
@@ -252,13 +249,6 @@ export function FavoritesList() {
                 ) : (
                   <>
                     <AdCard ad={fav.ad} context="favorites" />
-                    {!selectionMode && (
-                      <MoveToListMenu
-                        favoriteId={fav.id}
-                        currentListId={(fav as { listId?: string | null }).listId ?? null}
-                        className="self-stretch"
-                      />
-                    )}
                   </>
                 )}
               </div>
@@ -268,7 +258,7 @@ export function FavoritesList() {
                   type="button"
                   onClick={() => toggleSelect(key)}
                   aria-label={isSelected ? 'إلغاء التحديد' : 'تحديد'}
-                  aria-pressed={isSelected}
+                  role="checkbox" aria-checked={isSelected}
                   className={cn(
                     'absolute inset-0 z-10 flex items-start justify-end rounded-xl p-2 transition-colors',
                     isSelected && 'bg-primary/15 ring-2 ring-primary ring-inset',

@@ -7,7 +7,7 @@
  */
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   MapPin, Eye, Package, ChevronRight, ChevronLeft, Phone, Store as StoreIcon, X,
@@ -28,6 +28,7 @@ import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloud
 import { formatPrice, formatPhone, formatRelativeTime } from '@/lib/formatters';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { ProductWithFullStore, ProductAvailability } from '@/types/product.types';
 import type { ProductWithStore } from '@/types/product.types';
 
@@ -47,25 +48,6 @@ export function ProductDetail({ product, related = [] }: Props) {
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
-
-  // SW-FIX-PD-LIGHTBOX-SCROLL: AdDetail.tsx already locks body scroll
-  // while its lightbox is open; this one didn't, so the page behind
-  // scrolled under the modal on touch.
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [lightboxOpen]);
-
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setLightboxOpen(false);
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxOpen]);
 
   const images = product.images && product.images.length > 0 ? product.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
@@ -265,16 +247,14 @@ export function ProductDetail({ product, related = [] }: Props) {
       )}
 
       {/* Lightbox */}
-      {lightboxOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="معاينة الصورة"
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent
+          className="flex h-[100dvh] w-screen max-w-none items-center justify-center rounded-none border-0 bg-black/90 p-4 text-white shadow-none [&>button]:hidden"
         >
+          <DialogTitle className="sr-only">معاينة صورة المنتج</DialogTitle>
           <button
             type="button"
-            className="absolute top-4 end-4 rounded-full bg-white/10 p-2 text-white"
+            className="absolute top-4 end-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 p-2 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={() => setLightboxOpen(false)}
             aria-label="إغلاق"
           >
@@ -285,8 +265,8 @@ export function ProductDetail({ product, related = [] }: Props) {
             alt={product.name}
             className="max-h-[90vh] max-w-full object-contain"
           />
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

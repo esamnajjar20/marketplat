@@ -9,7 +9,7 @@ export default function FavoritesPage() {
   return (
     <AccountPageShell
       title="المفضلة"
-      description="العناصر التي حفظتها للمقارنة لاحقاً — تصفّح إن كانت القائمة فارغة."
+      description="احتفظ بالإعلانات والمنتجات والمتاجر والخدمات التي تريد الرجوع إليها أو مقارنتها لاحقًا."
     >
       <FavoritesPageLayout />
     </AccountPageShell>

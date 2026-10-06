@@ -29,11 +29,11 @@ vi.mock('@/hooks/mutations/useFavoriteListMutations', () => ({
 }));
 
 let mockSearchParams = new URLSearchParams();
-const mockPush = vi.fn();
+const mockReplace = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush, replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: mockReplace, prefetch: vi.fn(), back: vi.fn() }),
   usePathname: () => ROUTES.favorites,
 }));
 
@@ -91,7 +91,7 @@ function mockSidebar({
 describe('FavoriteListsSidebar', () => {
   beforeEach(() => {
     mockSearchParams = new URLSearchParams();
-    mockPush.mockReset();
+    mockReplace.mockReset();
     mockCreateMutate.mockReset();
     mockRenameMutate.mockReset();
     mockDeleteMutate.mockReset();
@@ -132,20 +132,20 @@ describe('FavoriteListsSidebar', () => {
 
     await user.click(screen.getByText('الكل'));
 
-    expect(mockPush).toHaveBeenCalledWith(ROUTES.favorites);
+    expect(mockReplace).toHaveBeenCalledWith(ROUTES.favorites);
   });
 
-  it('selecting a list pushes ?list=id and clears page', async () => {
+  it('selecting a list replaces ?list=id and clears page', async () => {
     const user = setupUser();
     mockSearchParams = new URLSearchParams('page=2');
     render(<FavoriteListsSidebar />);
 
     await user.click(screen.getByText('سيارات'));
 
-    expect(mockPush).toHaveBeenCalledWith(
+    expect(mockReplace).toHaveBeenCalledWith(
       expect.stringContaining(`${ROUTES.favorites}?`),
     );
-    const url = mockPush.mock.calls[0][0] as string;
+    const url = mockReplace.mock.calls[0][0] as string;
     expect(url).toContain('list=list-1');
     expect(url).not.toContain('page=');
   });
@@ -225,6 +225,6 @@ describe('FavoriteListsSidebar', () => {
     const onSuccess = mockDeleteMutate.mock.calls[0][1].onSuccess as () => void;
     onSuccess();
 
-    expect(mockPush).toHaveBeenCalledWith(ROUTES.favorites);
+    expect(mockReplace).toHaveBeenCalledWith(ROUTES.favorites);
   });
 });

@@ -200,7 +200,7 @@ export function ProtectedMobileNav() {
       <button
         id={TOGGLE_ID}
         onClick={toggle}
-        className="rounded p-2 hover:bg-muted md:hidden"
+        className="rounded p-2 hover:bg-muted lg:hidden"
         aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
         aria-expanded={isOpen}
         aria-controls={NAV_ID}
@@ -214,7 +214,7 @@ export function ProtectedMobileNav() {
         <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-[90] bg-black/50 md:hidden"
+          className="fixed inset-0 z-[90] bg-black/50 lg:hidden"
           onClick={close}
           aria-hidden="true"
         />
@@ -245,7 +245,7 @@ export function ProtectedMobileNav() {
           // padding isn't enough to clear the OS status bar in standalone/
           // TWA mode, since there's no browser chrome to push fixed
           // inset-y-0 content below it.
-          'fixed inset-y-0 right-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 pt-[max(1.5rem,env(safe-area-inset-top))] shadow-xl transition-transform duration-200 md:hidden',
+          'fixed inset-y-0 right-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 pt-[max(1.5rem,env(safe-area-inset-top))] shadow-xl transition-transform duration-200 lg:hidden',
           // start-0 (inset-inline-start) in this RTL app (dir="rtl") maps
           // to right:0 — MDN: "with direction rtl, inset-inline-start
           // moves the element from the left side to the right side".

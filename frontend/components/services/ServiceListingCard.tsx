@@ -69,15 +69,15 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
             </div>
           ) : null}
           {cardFields.length > 0 && (
-            <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+            <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
               {cardFields.map((field) => (
-                <span key={field.id} className="truncate">{field.cardLabelAr || field.labelAr}: {fieldValue(field, listing.attributes?.[field.key])}</span>
+                <span key={field.id} className="min-w-0 truncate">{field.cardLabelAr || field.labelAr}: {fieldValue(field, listing.attributes?.[field.key])}</span>
               ))}
             </div>
           )}
           <div className="mt-auto flex min-h-5 items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
-            {showLocation && (SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]) && <span className="truncate">{SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]}</span>}
-            {showProvider && <span className="truncate">{listing.provider.businessName}</span>}
+            {showLocation && (SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]) && <span className="min-w-0 truncate">{SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]}</span>}
+            {showProvider && <span className="min-w-0 truncate">{listing.provider.businessName}</span>}
             {showTime && now !== null && <span className={cn('ms-auto shrink-0 whitespace-nowrap tabular-nums', timeColorClass)}>{formatRelativeTime(listing.createdAt, now)}</span>}
             {showTime && now === null && <span className="ms-auto shrink-0">{TIME_PLACEHOLDER}</span>}
           </div>

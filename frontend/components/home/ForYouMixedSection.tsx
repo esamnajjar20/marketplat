@@ -22,7 +22,7 @@ export function ForYouMixedSection() {
   if (feed.isPending) {
     return (
       <section className="container mx-auto max-w-7xl space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3">
-        <SectionHeader tone="featured" eyebrow={isAuth ? 'لك' : 'رائج'} title="مخصص لك" icon={<Sparkles className="h-3.5 w-3.5" />} />
+        <SectionHeader tone="featured" eyebrow={isAuth ? 'لك' : 'رائج'} title={isAuth ? 'مخصص لك' : 'رائج الآن'} icon={<Sparkles className="h-3.5 w-3.5" />} />
         <HomeScrollRail>
           {Array.from({ length: 4 }).map((_, i) => (
             <HomeScrollRailItem key={i} size="wide"><AdCardSkeleton density="compact" /></HomeScrollRailItem>
@@ -35,7 +35,7 @@ export function ForYouMixedSection() {
   if (feed.isError) {
     return (
       <section className="container mx-auto max-w-7xl space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3">
-        <SectionHeader tone="featured" eyebrow={isAuth ? 'لك' : 'رائج'} title="مخصص لك" icon={<Sparkles className="h-3.5 w-3.5" />} />
+        <SectionHeader tone="featured" eyebrow={isAuth ? 'لك' : 'رائج'} title={isAuth ? 'مخصص لك' : 'رائج الآن'} icon={<Sparkles className="h-3.5 w-3.5" />} />
         <div className="flex flex-col items-center gap-2 py-6 text-sm">
           <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden />
           <p className="text-destructive">تعذّر تحميل الاقتراحات</p>
@@ -52,7 +52,7 @@ export function ForYouMixedSection() {
       <SectionHeader
         tone="featured"
         eyebrow={isAuth ? 'لك' : 'رائج'}
-        title="مخصص لك"
+        title={isAuth ? 'مخصص لك' : 'رائج الآن'}
         icon={<Sparkles className="h-3.5 w-3.5" />}
         cta={{ href: ROUTES.forYou, label: 'عرض الكل ←' }}
       />

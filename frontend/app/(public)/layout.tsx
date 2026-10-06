@@ -18,7 +18,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <PageTransition><ScrollRestore />
         {children}</PageTransition>
       </main>
-      <PublicFooter />
+      <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+        <PublicFooter />
+      </div>
       <BottomNav />
       <ScrollToTop />
     </div>

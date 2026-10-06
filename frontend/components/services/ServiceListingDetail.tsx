@@ -18,6 +18,7 @@ import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';
 
 interface Props {
@@ -62,36 +63,6 @@ export function ServiceListingDetail({ listing, action }: Props) {
     () => setImgIdx((i) => Math.min(images.length - 1, i + 1)),
     [images.length],
   );
-
-  // FIX LIGHTBOX-A11Y: the lightbox only had an explicit close
-  // button before. Three small gaps, all closed by one effect:
-  //
-  //   1. Escape did nothing — a keyboard user could open the
-  //      viewer but not dismiss it without a mouse (WAI-ARIA's
-  //      dialog pattern requires Escape).
-  //   2. The page behind the overlay kept scrolling on touch,
-  //      which both looked wrong and made the page position after
-  //      closing unpredictable on a phone.
-  //   3. Backdrop clicks did nothing (handled on the wrapper's
-  //      own onClick below).
-  //
-  // prevOverflow is captured/restored rather than set to '' —
-  // another library or a parent effect could legitimately own
-  // that style at unmount time, and clobbering it here would
-  // leave the page scroll-locked permanently.
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightbox(false);
-    };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [lightbox]);
 
   const providerUserId = listing.provider.sellerProfile?.userId;
 
@@ -323,23 +294,14 @@ export function ServiceListingDetail({ listing, action }: Props) {
         </div>
       )}
 
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          role="dialog"
-          aria-modal
-          // FIX LIGHTBOX-A11Y: e.target !== e.currentTarget keeps
-          // clicks on the image or the close button from bubbling
-          // up and dismissing the lightbox unexpectedly — the
-          // pattern matches every other dismiss-on-backdrop modal
-          // in the app.
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setLightbox(false);
-          }}
+      <Dialog open={lightbox} onOpenChange={setLightbox}>
+        <DialogContent
+          className="flex h-[100dvh] w-screen max-w-none items-center justify-center rounded-none border-0 bg-black/90 p-4 text-white shadow-none [&>button]:hidden"
         >
+          <DialogTitle className="sr-only">معاينة صور الخدمة</DialogTitle>
           <button
             type="button"
-            className="absolute top-4 end-4 rounded-full bg-white/10 p-2 text-white"
+            className="absolute top-4 end-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 p-2 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={() => setLightbox(false)}
             aria-label="إغلاق"
           >
@@ -350,8 +312,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
             alt={listing.title}
             className="max-h-[90vh] max-w-full object-contain"
           />
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

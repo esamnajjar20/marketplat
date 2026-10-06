@@ -82,14 +82,14 @@ export function FavoriteListsSidebar() {
   const items = lists ?? [];
 
   return (
-    <aside className="space-y-3">
+    <aside className="rounded-xl border bg-surface-1 p-3 sm:p-4 lg:sticky lg:top-24" aria-label="قوائم المفضلة">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">قوائمي</h2>
         <Button
           type="button"
           size="sm"
           variant="ghost"
-          className="h-8 gap-1 px-2"
+          className="min-h-10 gap-1 px-2.5"
           onClick={() => setShowCreate((v) => !v)}
         >
           <FolderPlus className="h-3.5 w-3.5" />
@@ -180,7 +180,7 @@ export function FavoriteListsSidebar() {
                 <div className="flex shrink-0 items-center gap-0.5 pe-1">
                   <button
                     type="button"
-                    className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
+                    className="min-h-10 min-w-10 rounded-md p-2 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={`إعادة تسمية ${list.name}`}
                     title="إعادة تسمية"
                     onClick={() => {
@@ -192,7 +192,7 @@ export function FavoriteListsSidebar() {
                   </button>
                   <button
                     type="button"
-                    className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-destructive"
+                    className="min-h-10 min-w-10 rounded-md p-2 text-muted-foreground hover:bg-background hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={`حذف ${list.name}`}
                     title="حذف القائمة"
                     onClick={() => setDeleteTarget({ id: list.id, name: list.name })}

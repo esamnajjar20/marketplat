@@ -45,6 +45,38 @@ export function useDeleteFavoriteList() {
   });
 }
 
+export function useMoveFavoritesToList() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ favoriteIds, listId }: { favoriteIds: string[]; listId: string | null }) => {
+      const CONCURRENCY = 4;
+      let ok = 0;
+      let fail = 0;
+      for (let i = 0; i < favoriteIds.length; i += CONCURRENCY) {
+        const batch = favoriteIds.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((favoriteId) => favoriteListsApi.moveFavorite(favoriteId, { listId })),
+        );
+        for (const result of results) {
+          if (result.status === 'fulfilled') ok += 1;
+          else fail += 1;
+        }
+      }
+      return { ok, fail, total: favoriteIds.length };
+    },
+    onSuccess: ({ ok, fail, total }) => {
+      qc.invalidateQueries({ queryKey: favoriteListsQueryKey });
+      qc.invalidateQueries({ queryKey: queryKeys.favorites.all() });
+      if (fail === total && total > 0) {
+        toast.error('تعذر نقل العناصر المحددة');
+      } else {
+        toast.success(fail > 0 ? `نُقل ${ok} عنصر · فشل ${fail}` : `نُقل ${ok} عنصر`);
+      }
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
 export function useMoveFavoriteToList() {
   const qc = useQueryClient();
   return useMutation({

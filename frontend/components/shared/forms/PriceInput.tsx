@@ -44,7 +44,7 @@ export function PriceInput({
     <div className={cn('space-y-2', className)}>
       <div className="flex gap-2">
         <div className="relative flex-1">
-          {/* UX-10 FIX: start-3/ps-12 are logical (RTL-safe) instead of left-3/pl-12 */}
+          {/* UX-10 FIX: start-3/pe-12 keep the currency prefix and numeric text from overlapping in RTL */}
           <span
             className="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
             aria-hidden="true"
@@ -63,7 +63,7 @@ export function PriceInput({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="0.00"
-            className="ps-12"
+            className="pe-12"
             aria-label={`السعر بـ ${currency}`}
           />
         </div>

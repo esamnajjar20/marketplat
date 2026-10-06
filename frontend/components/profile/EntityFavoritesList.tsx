@@ -11,6 +11,7 @@ import { useFavoritesByType } from '@/hooks/queries/useFavorites';
 import { useToggleFavoriteEntity } from '@/hooks/mutations/useFavoriteMutations';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
+import { useLongPress } from '@/hooks/ui/useLongPress';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Heart, AlertTriangle, Check, CheckSquare, Loader2, X } from 'lucide-react';
@@ -75,6 +76,7 @@ export function EntityFavoritesList({ type }: Props) {
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
+  const totalItems = data?.meta?.total ?? items.length;
   const copy = EMPTY_COPY[type];
 
   // BULK-ENTITY-FAVORITES-REMOVE-01: same pattern as FavoritesList.tsx.
@@ -84,13 +86,12 @@ export function EntityFavoritesList({ type }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
   const [confirmBulkRemove, setConfirmBulkRemove] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
 
   useEffect(() => {
     setSelected(new Set());
     setSelectionMode(false);
   }, [page, listId, type]);
+
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -111,24 +112,15 @@ export function EntityFavoritesList({ type }: Props) {
     setSelectionMode(false);
   }
 
+  const longPressTargetIdRef = useRef<string | null>(null);
+  const longPressHandlers = useLongPress(() => {
+    const id = longPressTargetIdRef.current;
+    if (id) enterSelectionWith(id);
+  }, { enabled: !selectionMode });
+
   function selectAllVisible() {
     setSelected(new Set(items.map((f) => f.entityId)));
     setSelectionMode(true);
-  }
-
-  function onCardTouchStart(id: string) {
-    longPressFired.current = false;
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      enterSelectionWith(id);
-    }, 500);
-  }
-  function onCardTouchEnd() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
   }
 
   async function performBulkRemove() {
@@ -158,7 +150,7 @@ export function EntityFavoritesList({ type }: Props) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 gap-3">
         {Array.from({ length: 6 }).map((_, i) => <EntityCardSkeleton key={i} type={type} />)}
       </div>
     );
@@ -198,7 +190,7 @@ export function EntityFavoritesList({ type }: Props) {
       {/* BULK-ENTITY-FAVORITES-REMOVE-01: header + entry button. */}
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">
-          {items.length} عنصر في هذه الصفحة
+          {totalItems} عنصر محفوظ
         </span>
         <Button
           type="button"
@@ -213,7 +205,7 @@ export function EntityFavoritesList({ type }: Props) {
       </div>
 
       {selectionMode && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/40 p-2.5 text-sm" role="toolbar" aria-label="أدوات تحديد المفضلة">
           <span className="font-medium">{selected.size} محدد</span>
           <Button
             type="button"
@@ -257,7 +249,7 @@ export function EntityFavoritesList({ type }: Props) {
         className={
           type === 'STORE'
             ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in' /* FIX ENTLIST-GRID: Rule 11 */
-            : 'grid grid-cols-2 lg:grid-cols-3 gap-3 stagger-fade-in'
+            : 'grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 gap-3 stagger-fade-in'
         }
       >
         {items.map((fav) => {
@@ -267,12 +259,12 @@ export function EntityFavoritesList({ type }: Props) {
             <div
               key={key}
               className="relative"
-              onTouchStart={() => onCardTouchStart(key)}
-              onTouchEnd={onCardTouchEnd}
-              onTouchCancel={onCardTouchEnd}
-              onMouseDown={(e) => { if (e.button === 0) onCardTouchStart(key); }}
-              onMouseUp={onCardTouchEnd}
-              onMouseLeave={onCardTouchEnd}
+              onPointerDown={(event) => { longPressTargetIdRef.current = key; longPressHandlers.onPointerDown(event); }}
+              onPointerMove={longPressHandlers.onPointerMove}
+              onPointerUp={longPressHandlers.onPointerUp}
+              onPointerCancel={longPressHandlers.onPointerCancel}
+              onClickCapture={longPressHandlers.onClickCapture}
+              onContextMenu={longPressHandlers.onContextMenu}
             >
               <div className={cn(selectionMode && 'pointer-events-none')}>
                 <EntityCard type={type} entity={fav.entity} />
@@ -283,7 +275,7 @@ export function EntityFavoritesList({ type }: Props) {
                   type="button"
                   onClick={() => toggleSelect(key)}
                   aria-label={isSelected ? 'إلغاء التحديد' : 'تحديد'}
-                  aria-pressed={isSelected}
+                  role="checkbox" aria-checked={isSelected}
                   className={cn(
                     'absolute inset-0 z-10 flex items-start justify-end rounded-xl p-2 transition-colors',
                     isSelected && 'bg-primary/15 ring-2 ring-primary ring-inset',

@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 /**
  * FIX BUG-05: ROUTES.category() builds a /categories/:slug URL, but the
@@ -97,13 +98,10 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     setImgIdx((i) => Math.min(imageCount - 1, i + 1));
   }, [imageCount]);
 
-  // Keyboard: Escape always closes lightbox; arrows only when open and >1 image (RTL: Left = next, Right = previous)
+  // Keyboard arrows remain available while the Dialog is open; Radix Dialog
+  // owns Escape handling, focus trapping, and body scroll locking.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setLightboxOpen(false);
-        return;
-      }
       if (!lightboxOpen || imageCount <= 1) return;
       if (e.key === 'ArrowLeft') goNext();
       if (e.key === 'ArrowRight') goPrev();
@@ -111,23 +109,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [imageCount, goPrev, goNext, lightboxOpen]);
-
-  // SW-LIGHTBOX-SCROLL-LOCK-01: prevent the page behind the fullscreen
-  // lightbox from scrolling. Without this, a swipe/scroll gesture on a
-  // phone moved both the lightbox image AND the listing behind it —
-  // when the user closed the lightbox, the page had jumped to a
-  // different scroll position. Restoring the previous overflow value
-  // (rather than unconditionally setting 'visible') keeps this correct
-  // if another component is already holding a scroll lock when the
-  // lightbox opens.
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [lightboxOpen]);
 
   // FIX SAVED-ADS-USER-SCOPE: userId لتصفية محفوظات المستخدم.
   const userId = useAuthStore((s) => s.user?.id ?? null);
@@ -475,13 +456,11 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
       )}
 
       {/* Fullscreen lightbox */}
-      {lightboxOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="معرض الصور"
-          className="fixed inset-0 z-[100] flex flex-col bg-black/95"
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent
+          className="flex h-[100dvh] w-screen max-w-none flex-col rounded-none border-0 bg-black/95 p-0 text-white shadow-none [&>button]:hidden"
         >
+          <DialogTitle className="sr-only">معرض الصور</DialogTitle>
           <div className="flex items-center justify-between p-3 text-white">
             <span className="text-sm tabular-nums">
               {imgIdx + 1} / {images.length}
@@ -489,14 +468,14 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             <button
               type="button"
               onClick={() => setLightboxOpen(false)}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               aria-label="إغلاق"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
           <div
-            className="relative flex flex-1 items-center justify-center px-4"
+            className="relative flex min-h-0 flex-1 items-center justify-center px-4"
             onTouchStart={(e) => {
               touchStartX.current = e.changedTouches[0]?.clientX ?? null;
             }}
@@ -524,7 +503,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                   onClick={goPrev}
                   disabled={imgIdx === 0}
                   aria-label="الصورة السابقة"
-                  className="absolute start-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30"
+                  className="absolute start-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   <ChevronRight className="h-6 w-6" />
                 </button>
@@ -533,15 +512,15 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                   onClick={goNext}
                   disabled={imgIdx === images.length - 1}
                   aria-label="الصورة التالية"
-                  className="absolute end-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30"
+                  className="absolute end-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </button>
               </>
             )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
     </>
   );

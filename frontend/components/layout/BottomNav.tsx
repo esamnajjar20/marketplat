@@ -140,6 +140,8 @@ export function BottomNav() {
     <nav
       aria-label="التنقل الرئيسي"
       data-hidden={navHidden ? 'true' : 'false'}
+      aria-hidden={navHidden ? true : undefined}
+      inert={navHidden ? true : undefined}
       className={cn(
         'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t border-border/80',
         'bg-background/95 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)]',

@@ -60,7 +60,7 @@ export function SearchSortBar({ config, basePath, className }: Props) {
     const params = new URLSearchParams(sp.toString());
     mutate(params);
     params.delete('page');
-    router.push(`${basePath}?${params.toString()}`);
+    router.replace(`${basePath}?${params.toString()}`);
   }
 
   if (config.mode === 'single') {

@@ -29,7 +29,8 @@ const TABS: { value: FavoritesTabValue; label: string }[] = [
 export function FavoritesTabs() {
   const router = useRouter();
   const sp = useSearchParams();
-  const type = (sp.get('type') as FavoritesTabValue) ?? 'ad';
+  const rawType = sp.get('type');
+  const type: FavoritesTabValue = rawType === 'product' || rawType === 'store' || rawType === 'service' ? rawType : 'ad';
 
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -54,18 +55,19 @@ export function FavoritesTabs() {
     else params.set('type', next);
     params.delete('page');
     const qs = params.toString();
-    router.push(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites);
+    router.replace(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites);
   }
 
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="نوع المفضلة" className="flex gap-1 overflow-x-auto border-b">
+      <div role="tablist" aria-label="نوع المفضلة" className="flex gap-1 overflow-x-auto border-b scrollbar-none">
         {TABS.map((tab, index) => (
           <button
             key={tab.value}
             type="button"
             role="tab"
             aria-selected={type === tab.value}
+            aria-controls={`favorites-panel-${tab.value}`}
             tabIndex={type === tab.value ? 0 : -1}
             ref={(el) => { refs.current[index] = el; }}
             onKeyDown={(event) => handleKeyDown(event, index)}
@@ -82,10 +84,12 @@ export function FavoritesTabs() {
         ))}
       </div>
 
-      {type === 'ad' && <FavoritesList />}
-      {type === 'product' && <EntityFavoritesList type="PRODUCT" />}
-      {type === 'store' && <EntityFavoritesList type="STORE" />}
-      {type === 'service' && <EntityFavoritesList type="SERVICE_LISTING" />}
+      <div id={`favorites-panel-${type}`} role="tabpanel" tabIndex={-1} aria-label={TABS.find((tab) => tab.value === type)?.label}>
+        {type === 'ad' && <FavoritesList />}
+        {type === 'product' && <EntityFavoritesList type="PRODUCT" />}
+        {type === 'store' && <EntityFavoritesList type="STORE" />}
+        {type === 'service' && <EntityFavoritesList type="SERVICE_LISTING" />}
+      </div>
     </div>
   );
 }

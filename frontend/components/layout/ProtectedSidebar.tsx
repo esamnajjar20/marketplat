@@ -242,7 +242,7 @@ export function ProtectedSidebar() {
   });
 
   return (
-    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-60">
+    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 lg:block lg:w-60">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1.5 p-3 lg:p-4">
         {NAV_ITEMS.map((item) => (
           <NavLink

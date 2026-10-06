@@ -18,7 +18,7 @@ describe('FavoritesPageLayout', () => {
     render(<FavoritesPageLayout />);
 
     expect(screen.getByRole('heading', { name: 'المفضلة' })).toBeInTheDocument();
-    expect(screen.getByText(/اضغط ♡ على أي إعلان/)).toBeInTheDocument();
+    expect(screen.getByText(/كل ما حفظته في مكان واحد/)).toBeInTheDocument();
   });
 
   it('renders sidebar and tabs', () => {

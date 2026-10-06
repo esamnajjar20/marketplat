@@ -78,17 +78,17 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
           </div>
 
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-primary">{storeTypeLabel}</p>
+            <p className="text-xs font-semibold text-primary">{storeTypeLabel}</p>
             <h3 className="mt-0.5 truncate text-base font-bold text-foreground">{store.name}</h3>
             {presentation.card.subtitle ? <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{presentation.card.subtitle}</p> : null}
-            {store.description?.trim() ? <p className="mt-1 line-clamp-1 text-xs leading-5 text-muted-foreground">{store.description}</p> : null}
+            {store.description?.trim() ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{store.description}</p> : null}
           </div>
 
           <div className="mt-3">
             <StoreDynamicFieldChips fields={fields} attributes={store.attributes} />
           </div>
 
-          <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-3 text-[11px] text-muted-foreground">
+          <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-3 text-xs text-muted-foreground">
             {store.city ? (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />

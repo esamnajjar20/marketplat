@@ -152,7 +152,17 @@ function MemberRow({
     <>
       <div
         onClick={selectionMode && selectable ? () => onToggle(member.id) : undefined}
-        className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${selectionMode && selectable ? 'cursor-pointer' : ''} ${selected ? 'border-primary/40 bg-primary/10' : ''}`}
+        onKeyDown={(event) => {
+          if (!selectionMode || !selectable) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onToggle(member.id);
+          }
+        }}
+        role={selectionMode && selectable ? 'checkbox' : undefined}
+        aria-checked={selectionMode && selectable ? selected : undefined}
+        tabIndex={selectionMode && selectable ? 0 : undefined}
+        className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${selectionMode && selectable ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' : ''} ${selected ? 'border-primary/40 bg-primary/10' : ''}`}
       >
         {selectionMode && selectable && (
           <button

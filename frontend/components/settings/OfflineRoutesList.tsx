@@ -8,8 +8,8 @@
  * for bulk download / bulk delete.
  *
  * Selection UX:
- *   - Long-press (>500ms) any row enters selection mode on mobile;
- *     long-press (mouse down >500ms) works the same on desktop.
+ *   - Long-press (~900ms) any row enters selection mode on touch/pen.
+ *     Mouse interaction keeps its normal behavior.
  *   - In selection mode, tapping the row toggles the checkbox. Tap
  *     outside selection mode keeps the previous behavior (the row's
  *     explicit "open" icon opens the route in a new tab).
@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
+import { useLongPress } from '@/hooks/ui/useLongPress';
 import {
   getKnownRoutes,
   retrySinglePublicRoute,
@@ -92,8 +93,14 @@ export function OfflineRoutesList() {
   // BULK-SELECT-01
   const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
+  const longPressTargetRef = useRef<string | null>(null);
+  const longPressHandlers = useLongPress(() => {
+    const key = longPressTargetRef.current;
+    if (key) {
+      setSelectionMode(true);
+      setSelected((prev) => new Set(prev).add(key));
+    }
+  }, { enabled: !selectionMode });
 
   const [confirmDelete, setConfirmDelete] = useState<Row | null>(null);
   const [confirmBulkClear, setConfirmBulkClear] = useState(false);
@@ -262,10 +269,6 @@ export function OfflineRoutesList() {
     });
   }
 
-  function enterSelectionWith(key: string) {
-    setSelectionMode(true);
-    setSelected((prev) => new Set(prev).add(key));
-  }
 
   function clearSelection() {
     setSelected(new Set());
@@ -278,22 +281,6 @@ export function OfflineRoutesList() {
   }
 
   useEffect(() => { clearSelection(); }, [filter]);
-
-  function onRowTouchStart(r: Row) {
-    longPressFired.current = false;
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      enterSelectionWith(rowKey(r));
-    }, 500);
-  }
-  function onRowTouchEnd() {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-  }
-  function onRowClick(r: Row) {
-    if (longPressFired.current) { longPressFired.current = false; return; }
-    if (selectionMode) toggleSelect(rowKey(r));
-  }
 
   async function withBusy(key: string, fn: () => Promise<void>) {
     setBusy((s) => new Set(s).add(key));
@@ -445,7 +432,7 @@ export function OfflineRoutesList() {
       <div className="border-b px-4 py-2.5">
         <h2 className="text-sm font-semibold">تفاصيل المسارات</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          اضغط مطوّلاً على أي صف لتحديد مجموعة، ثم حمّلها أو احذفها مرة واحدة.
+          اضغط «تحديد» أولاً، ثم اختر الصفوف المطلوبة لتحميلها أو حذفها مرة واحدة.
         </p>
         {sizesComputing ? (
           <p className="mt-1 text-xs text-muted-foreground">حساب الأحجام…</p>
@@ -563,13 +550,13 @@ export function OfflineRoutesList() {
               return (
                 <li
                   key={key}
-                  onTouchStart={() => onRowTouchStart(row)}
-                  onTouchEnd={onRowTouchEnd}
-                  onTouchCancel={onRowTouchEnd}
-                  onMouseDown={(e) => { if (e.button === 0) onRowTouchStart(row); }}
-                  onMouseUp={onRowTouchEnd}
-                  onMouseLeave={onRowTouchEnd}
-                  onClick={() => onRowClick(row)}
+                  onPointerDown={(event) => { longPressTargetRef.current = key; longPressHandlers.onPointerDown(event); }}
+                  onPointerMove={longPressHandlers.onPointerMove}
+                  onPointerUp={longPressHandlers.onPointerUp}
+                  onPointerCancel={longPressHandlers.onPointerCancel}
+                  onClickCapture={longPressHandlers.onClickCapture}
+                  onContextMenu={longPressHandlers.onContextMenu}
+                  onClick={() => { if (selectionMode) toggleSelect(key); }}
                   className={cn(
                     'flex flex-wrap items-center gap-2 px-3 py-2 transition-colors',
                     isSelected ? 'bg-primary/10' : 'hover:bg-muted/40',

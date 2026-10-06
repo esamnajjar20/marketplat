@@ -20,6 +20,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { useLongPress } from '@/hooks/ui/useLongPress';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -78,15 +79,13 @@ export function MyAdsList() {
 
   const markAsSold = useMarkAsSold();
 
-  // BULK-ADS-01-STATE: multi-select mode for the ads list. Long-press
-  // (>500ms) any row enters selection mode; tap toggles. Sticky bar
+  // BULK-ADS-01-STATE: explicit multi-select mode for the ads list.
+  // Users enter it with the visible "تحديد" action; tapping a row toggles it. Sticky bar
   // at the bottom runs bulk mark-as-sold / bulk delete.
   const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -102,32 +101,18 @@ export function MyAdsList() {
     setSelected((prev) => new Set(prev).add(id));
   }
 
+  const longPressTargetIdRef = useRef<string | null>(null);
+  const longPressHandlers = useLongPress(() => {
+    const id = longPressTargetIdRef.current;
+    if (id) enterSelectionWith(id);
+  }, { enabled: !selectionMode });
+
   function clearSelection() {
     setSelected(new Set());
     setSelectionMode(false);
   }
 
-  function onRowTouchStart(id: string) {
-    longPressFired.current = false;
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      enterSelectionWith(id);
-    }, 500);
-  }
-
-  function onRowTouchEnd() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }
-
-  function onRowClick(id: string) {
-    if (longPressFired.current) { longPressFired.current = false; return; }
-    if (selectionMode) toggleSelect(id);
-  }
-
+  // Tracks which ad
   // Tracks which ad the delete-confirmation dialog applies to (null = closed).
   // UX-FIX: "تعليم كمباع" changes the ad's status platform-wide (removed
   // from active search/listings) with no easy undo path, same class of
@@ -311,13 +296,18 @@ export function MyAdsList() {
             return (
               <div
                 key={ad.id}
-                onTouchStart={() => onRowTouchStart(ad.id)}
-                onTouchEnd={onRowTouchEnd}
-                onTouchCancel={onRowTouchEnd}
-                onMouseDown={(e) => { if (e.button === 0) onRowTouchStart(ad.id); }}
-                onMouseUp={onRowTouchEnd}
-                onMouseLeave={onRowTouchEnd}
-                onClick={() => onRowClick(ad.id)}
+                onPointerDown={(event) => { longPressTargetIdRef.current = ad.id; longPressHandlers.onPointerDown(event); }}
+                onPointerMove={longPressHandlers.onPointerMove}
+                onPointerUp={longPressHandlers.onPointerUp}
+                onPointerCancel={longPressHandlers.onPointerCancel}
+                onClickCapture={longPressHandlers.onClickCapture}
+                onContextMenu={longPressHandlers.onContextMenu}
+                onClick={(event) => {
+                  if (selectionMode) {
+                    event.preventDefault();
+                    toggleSelect(ad.id);
+                  }
+                }}
                 className={cn(
                   'flex gap-3 rounded-xl border border-border bg-card p-3 shadow-xs transition-colors',
                   selected.has(ad.id) ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/20',
