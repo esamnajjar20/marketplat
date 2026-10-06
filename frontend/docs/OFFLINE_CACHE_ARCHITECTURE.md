@@ -196,3 +196,8 @@ if (conflict.isTerminal) { /* discard / edit */ } else { /* retry */ }
 - **WARM-CHUNK-POOL-01**: chunks المسار الواحد كانت تُطلق دفعة واحدة (40–60 طلبًا) خلف حد المتصفح (6 اتصالات/origin)، والمؤقّت يبدأ عند استدعاء `fetch` فيحترق أثناء الانتظار في الطابور، فيفشل ذيل الطابور على الشبكة البطيئة رغم أنها تعمل، ويزاحم طلبات الصفحة نفسها. صار الجلب عبر `settlePool` بحد 4 متزامنة (نفس دلالات `allSettled`).
 - **WARM-DEADCODE-01**: حُذفت من `getWarmingPlan` الفروع التي لا تُنفَّذ أبدًا (مقاسة/`effectiveType`/`downlink`/auto) لأن `getWarmingMode()` يعيد `off|fast|full` فقط وكلها تُعالَج قبلها. الخطة تتبع اختيار المستخدم فقط (مع `saveData` وoffline)، وهذا هو السلوك الفعلي من قبل. `critical` بقيت في النوع `WarmingTier` لأن مستهلكين واختبارات تتفرع عليها؛ إن أردت تكيّفًا مع الشبكة أضف وضع `auto` صريحًا.
 - **توثيق**: تعليق `warmingPreferences` عن "كل 6 ساعات" استُبدل بوصف الـ scheduler الفعلي (tick كل 10 دقائق ببوابات طزاجة لكل مرحلة).
+
+
+### Phase 2 — User-data cache partitioning
+
+User-scoped API warming caches are partitioned by authenticated user subject (`market-user-data-<version>-<encoded-user-id>`). This prevents a force-closed session from leaving User A's authenticated response under the same cache key that User B would later read. Opaque/non-JWT Authorization requests do not use the user-data cache. Each user-data cache is bounded to 40 entries / 8 MB.

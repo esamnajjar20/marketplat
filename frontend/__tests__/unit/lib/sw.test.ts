@@ -255,7 +255,8 @@ function loadServiceWorker() {
   // same execution, since sw.js itself is read-only source we don't
   // want to modify just for testability.
   vm.runInContext(
-    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__USER_DATA_CACHE = USER_DATA_CACHE;\nself.__NAVIGATE_TIMEOUT_MS = NAVIGATE_TIMEOUT_MS;\nself.__NAVIGATE_TIMEOUT_CACHED_MS = NAVIGATE_TIMEOUT_CACHED_MS;\nself.__withNetworkTimeout = withNetworkTimeout;`,
+    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__USER_DATA_CACHE_PREFIX = USER_DATA_CACHE_PREFIX;
+self.__USER_DATA_CACHE_NAME = userDataCacheName;\nself.__NAVIGATE_TIMEOUT_MS = NAVIGATE_TIMEOUT_MS;\nself.__NAVIGATE_TIMEOUT_CACHED_MS = NAVIGATE_TIMEOUT_CACHED_MS;\nself.__withNetworkTimeout = withNetworkTimeout;`,
     sandbox,
     { filename: 'sw.js' },
   );
@@ -435,7 +436,7 @@ describe('sw.js — service worker logic', () => {
 
       const apiCacheName = ctx.sandbox.self.__API_CACHE;
       const shellCacheName = ctx.sandbox.self.__PERSONAL_SHELL_CACHE;
-      const userDataCacheName = ctx.sandbox.self.__USER_DATA_CACHE;
+      const userDataCacheName = ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a');
       expect(apiCacheName).toMatch(/market-api-/);
       expect(shellCacheName).toMatch(/market-personal-shell-/);
       expect(userDataCacheName).toMatch(/market-user-data-/);
@@ -588,7 +589,7 @@ describe('sw.js — service worker logic', () => {
       const event = makeEvent();
       const request = makeFakeRequest({
         url: 'https://example.com/api/v1/ads?page=1',
-        headers: { authorization: 'Bearer tok' },
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
       });
       const url = new URL(request.url);
 
@@ -596,7 +597,7 @@ describe('sw.js — service worker logic', () => {
       await Promise.all(event._waits);
 
       const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
-      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE);
+      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
       expect(await apiCache.match(request)).toBeUndefined();
       expect(await userDataCache.match(request)).toBeDefined();
     });
@@ -611,7 +612,7 @@ describe('sw.js — service worker logic', () => {
       const event = makeEvent();
       const request = makeFakeRequest({
         url: 'https://example.com/api/v1/ads/me',
-        headers: { authorization: 'Bearer tok' },
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
       });
       const url = new URL(request.url);
 
@@ -619,7 +620,7 @@ describe('sw.js — service worker logic', () => {
       await Promise.all(event._waits);
 
       const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
-      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE);
+      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
       expect(await apiCache.match(request)).toBeUndefined();
       expect(await userDataCache.match(request)).toBeUndefined();
     });
@@ -634,7 +635,7 @@ describe('sw.js — service worker logic', () => {
       const event1 = makeEvent();
       const req1 = makeFakeRequest({
         url: 'https://example.com/api/v1/ads?page=1&sortBy=createdAt',
-        headers: { authorization: 'Bearer tok' },
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
       });
       await ctx.sandbox.networkFirstApi(event1, req1, new URL(req1.url));
       await Promise.all(event1._waits);
@@ -648,18 +649,48 @@ describe('sw.js — service worker logic', () => {
       const event2 = makeEvent();
       const req2 = makeFakeRequest({
         url: 'https://example.com/api/v1/ads?page=1&sortBy=price',
-        headers: { authorization: 'Bearer tok' },
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
       });
       await ctx.sandbox.networkFirstApi(event2, req2, new URL(req2.url));
       await Promise.all(event2._waits);
 
-      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE);
+      const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
       const c1 = await userDataCache.match(req1);
       const c2 = await userDataCache.match(req2);
       expect(c1).toBeDefined();
       expect(c2).toBeDefined();
       expect(await c1!.json()).toEqual({ items: [{ id: 'a' }] });
       expect(await c2!.json()).toEqual({ items: [{ id: 'b' }] });
+    });
+
+    it('partitions authenticated public-list responses by JWT subject', async () => {
+      ctx.setFetch(async () =>
+        new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const eventA = makeEvent();
+      const reqA = makeFakeRequest({
+        url: 'https://example.com/api/v1/ads?page=1',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      await ctx.sandbox.networkFirstApi(eventA, reqA, new URL(reqA.url));
+      await Promise.all(eventA._waits);
+
+      const eventB = makeEvent();
+      const reqB = makeFakeRequest({
+        url: 'https://example.com/api/v1/ads?page=1',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWIifQ.signature' },
+      });
+      await ctx.sandbox.networkFirstApi(eventB, reqB, new URL(reqB.url));
+      await Promise.all(eventB._waits);
+
+      expect(await ctx.fakeCaches.keys()).toContain(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      expect(await ctx.fakeCaches.keys()).toContain(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-b'));
+      expect(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a')).not.toBe(
+        ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-b'),
+      );
     });
 
     it('still stores anonymous public list GETs in API_CACHE', async () => {

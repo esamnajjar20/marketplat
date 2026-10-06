@@ -107,7 +107,7 @@
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v44';
+const CACHE_VERSION = 'v45';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -126,7 +126,39 @@ const API_CACHE = `market-api-${CACHE_VERSION}`;
 //   - The login-as-different-user path (T682/T710) clears API_CACHE
 //     but would leave this cache behind if it shared the name.
 //   - Never trimmed by LRU — a fixed ~14 endpoints, ~55 KB.
-const USER_DATA_CACHE = `market-user-data-${CACHE_VERSION}`;
+const USER_DATA_CACHE_PREFIX = `market-user-data-${CACHE_VERSION}-`;
+// User data is partitioned by the authenticated subject. The SW only uses the
+// decoded JWT subject as a cache partition key; the server remains the source
+// of truth for authentication/authorization. If the token is opaque, no
+// user-scoped cache is used.
+const MAX_USER_DATA_ENTRIES = 40;
+const MAX_USER_DATA_BYTES = 8 * 1024 * 1024;
+
+function userDataCacheName(userId) {
+  return `${USER_DATA_CACHE_PREFIX}${encodeURIComponent(userId)}`;
+}
+
+function userIdFromAuthorization(request) {
+  try {
+    const header = request.headers.get('authorization') || '';
+    const match = header.match(/^Bearer\s+([^\s]+)$/i);
+    if (!match) return null;
+    const parts = match[1].split('.');
+    if (parts.length !== 3) return null;
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const json = atob(padded);
+    const payload = JSON.parse(json);
+    return typeof payload.sub === 'string' && payload.sub ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+function userDataCacheForRequest(request) {
+  const userId = userIdFromAuthorization(request);
+  return userId ? userDataCacheName(userId) : null;
+}
 // FEAT-OFFLINE-MSG (وسِّع لاحقًا ليشمل /notifications، انظر
 // isPersonalShellRoute أدناه): كاش شكل الصفحة (page shell) لمسارات محمية
 // "شخصية لكن بلا محتوى مُخصَّص فعليًا بالـ HTML/RSC" تحديدًا — بقية الصفحات
@@ -1365,8 +1397,11 @@ async function networkFirstApi(event, request, url) {
     }
     // Logged-in public lists → USER_DATA_CACHE only (cleared on logout).
     if (publicListOk) {
-      const userDataCache = await caches.open(USER_DATA_CACHE);
+      const cacheName = userDataCacheForRequest(request);
+      if (!cacheName) return;
+      const userDataCache = await caches.open(cacheName);
       await putTimestamped(userDataCache, request, response.clone());
+      await trimCache(cacheName, MAX_USER_DATA_ENTRIES, MAX_USER_DATA_BYTES);
     }
   };
 
@@ -1391,9 +1426,12 @@ async function networkFirstApi(event, request, url) {
 
     // PHASE-5 + SW-AUTH-PUBLIC-LIST-01: user-warmed data and auth'd public
     // lists. Ordered after API_CACHE and before CORE_CACHE.
-    const userDataCache = await caches.open(USER_DATA_CACHE);
-    const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
-    if (cachedUserData) return cachedUserData;
+    const userDataCacheNameForRequest = userDataCacheForRequest(request);
+    if (userDataCacheNameForRequest) {
+      const userDataCache = await caches.open(userDataCacheNameForRequest);
+      const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
+      if (cachedUserData) return cachedUserData;
+    }
 
     const coreCache = await caches.open(CORE_CACHE);
     const cachedCore = await coreCache.match(request.url);
@@ -2478,7 +2516,6 @@ self.addEventListener('activate', (event) => {
     STATIC_CACHE,
     IMAGE_CACHE,
     API_CACHE,
-    USER_DATA_CACHE,
     CORE_CACHE,
     SAVED_ADS_CACHE,
     PERSONAL_SHELL_CACHE,
@@ -2492,7 +2529,11 @@ self.addEventListener('activate', (event) => {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('market-') && !currentCaches.includes(name))
+          .filter((name) =>
+            name.startsWith('market-') &&
+            !currentCaches.includes(name) &&
+            !name.startsWith(USER_DATA_CACHE_PREFIX),
+          )
           .map((name) => caches.delete(name)),
       );
 
@@ -2547,7 +2588,9 @@ self.addEventListener('message', (event) => {
     event.waitUntil(Promise.all([
       caches.delete(API_CACHE),
       caches.delete(PERSONAL_SHELL_CACHE),
-      caches.delete(USER_DATA_CACHE),
+      caches.keys().then((names) =>
+        Promise.all(names.filter((name) => name.startsWith(USER_DATA_CACHE_PREFIX)).map((name) => caches.delete(name))),
+      ),
     ]));
     return;
   }

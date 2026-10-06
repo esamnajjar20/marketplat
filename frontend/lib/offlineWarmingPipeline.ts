@@ -20,6 +20,7 @@
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRouteShells';
 import { warmUserData } from '@/lib/offlineWarmingUserData';
+import { shouldPauseBackgroundWarming } from '@/lib/offlineStoragePressure';
 
 let pipelineInFlight = false;
 // WARM-PIPELINE-QUEUE-01: when a warm pass starts before auth has
@@ -113,7 +114,14 @@ export async function runWarmingPipeline(
     const queueIdle = await waitForQueueReplayIdle();
     if (!queueIdle) return { ran: false };
 
-    // Count a run only after the queue gate has opened. This prevents a
+    // Storage quota is shared by Cache Storage + IndexedDB. Never let a
+    // background warming pass compete with drafts or queued mutations when
+    // the origin is already critically full.
+    if (!options.force && (await shouldPauseBackgroundWarming())) {
+      return { ran: false };
+    }
+
+    // Count a run only after the queue and storage gates have opened. This prevents a
     // timed-out queue wait from consuming the scheduler's rate-limit window.
     lastPipelineStartedAt = Date.now();
     if (options.authenticated) lastPipelineAuthenticated = true;

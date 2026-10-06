@@ -99,7 +99,7 @@ export const SW_CACHE_LIMITS = {
   apiEntries: 60,
   imageEntries: 80,
   savedAdsEntries: 700,  // FIX CACHE-SAVED-ADS-CAP
-  staticEntries: 250,
+  staticEntries: 500,
   personalShellEntries: 300,  // FIX CACHE-PERSONAL-SHELL
   // CORE_CACHE مقصود بلا حد (يُحدَّث يدوياً عبر warmCoreBundle).
   // autoReadEntries يُدار عبر الفهرس (MAX_AUTO=15) — لا trimCache رسمي.

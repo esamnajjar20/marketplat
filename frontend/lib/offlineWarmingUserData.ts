@@ -37,12 +37,16 @@ import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
 import { isWarmingCancelled } from './offlineRouteShells';
 import { useAuthStore } from '@/store/auth.store';
-import { USER_DATA_CACHE_NAME } from '@/lib/cacheVersion';
+import { SW_CACHE_VERSION, userDataCacheName } from '@/lib/cacheVersion';
 
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
 /** Must match sw.js's USER_DATA_CACHE template literally. */
-export const USER_DATA_CACHE = USER_DATA_CACHE_NAME;
+export const USER_DATA_CACHE_PREFIX = `market-user-data-${SW_CACHE_VERSION}-`;
+
+export function getUserDataCacheName(userId: string): string {
+  return userDataCacheName(userId);
+}
 
 /**
  * FIX WARM-USERDATA-TTL-01: كل مسار له نافذة طزاجة خاصة به. قبل ذلك لم
@@ -94,7 +98,7 @@ interface FreshEntry {
 }
 type FreshMap = Record<string, FreshEntry>;
 
-const CACHE_VERSION_SUFFIX = USER_DATA_CACHE.split('-').pop() ?? 'unknown';
+const CACHE_VERSION_SUFFIX = SW_CACHE_VERSION;
 
 // Keyed by user id: a different account on the same device must never
 // inherit "fresh" markers (its cache entries belong to the previous user).
@@ -270,7 +274,7 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
   const critical = plan.tier === 'critical';
 
   await runUnderWarmingLock(async () => {
-    const cache = await caches.open(USER_DATA_CACHE);
+    const cache = await caches.open(getUserDataCacheName(userId));
     const map = readFreshMap(userId);
 
     // Pre-compute which cached bodies really exist (logout wipes the

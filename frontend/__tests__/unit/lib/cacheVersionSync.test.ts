@@ -54,13 +54,13 @@ describe('sw.js hand-copied constants stay in sync with their sources', () => {
     expect(coreBundle).toMatch(/export const CORE_CACHE = CORE_CACHE_NAME/);
     expect(routeShells).toMatch(/STATIC_CACHE_NAME/);
     expect(routeShells).toMatch(/PERSONAL_SHELL_CACHE_NAME/);
-    expect(userData).toMatch(/USER_DATA_CACHE_NAME/);
-    expect(userData).toMatch(/export const USER_DATA_CACHE = USER_DATA_CACHE_NAME/);
+    expect(userData).toMatch(/userDataCacheName/);
+    expect(userData).toMatch(/USER_DATA_CACHE_PREFIX/);
 
     // cacheVersion name helpers embed the same version.
     expect(cacheVersion).toContain(`market-core-${libVersion}`);
     expect(cacheVersion).toContain(`market-static-${libVersion}`);
-    expect(cacheVersion).toContain(`market-user-data-${libVersion}`);
+    expect(cacheVersion).toContain(`market-user-data-${libVersion}-`);
     expect(cacheVersion).toContain(`market-personal-shell-${libVersion}`);
   });
 

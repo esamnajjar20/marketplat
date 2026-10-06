@@ -4,6 +4,10 @@
 
 import { listCatalogDownloads } from '@/lib/downloadStorage';
 import { listAdDrafts } from '@/lib/offlineAdDrafts';
+import {
+  getStorageEstimate,
+  type StoragePressure,
+} from '@/lib/offlineStoragePressure';
 
 export interface CacheBucketStat {
   name: string;
@@ -26,6 +30,7 @@ export interface StorageStats {
   totalEntries: number;
   quotaBytes: number | null;
   usageBytes: number | null;
+  pressure: StoragePressure;
   supported: boolean;
   extras: LocalDataExtras;
 }
@@ -127,6 +132,7 @@ export async function collectStorageStats(
       totalEntries: 0,
       quotaBytes: null,
       usageBytes: null,
+      pressure: 'unknown',
       supported: false,
       extras: emptyExtras,
     };
@@ -148,17 +154,9 @@ export async function collectStorageStats(
 
   cachesStats.sort((a, b) => b.bytes - a.bytes);
 
-  let quotaBytes: number | null = null;
-  let usageBytes: number | null = null;
-  try {
-    if (navigator.storage?.estimate) {
-      const est = await navigator.storage.estimate();
-      quotaBytes = est.quota ?? null;
-      usageBytes = est.usage ?? null;
-    }
-  } catch {
-    /* ignore */
-  }
+  const storageEstimate = await getStorageEstimate();
+  const quotaBytes = storageEstimate.quotaBytes;
+  const usageBytes = storageEstimate.usageBytes;
 
   const extras = await collectExtras(userId);
   const totalBytes =
@@ -174,6 +172,7 @@ export async function collectStorageStats(
     totalEntries,
     quotaBytes,
     usageBytes,
+    pressure: storageEstimate.pressure,
     supported: true,
     extras,
   };
