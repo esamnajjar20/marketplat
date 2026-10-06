@@ -58,7 +58,7 @@ import { WithSearch } from '@/components/layout/WithSearch';
 import { ChevronDown, ChevronLeft, User, ExternalLink, Store } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
-import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectIsAdminTier, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
 import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
@@ -141,23 +141,48 @@ export function ProtectedMobileNav() {
   const close = useUIStore(selectCloseMobileNav);
   const pathname = usePathname();
   const user = useAuthStore(selectUser);
-  const isAdmin = useAuthStore(selectIsAdmin);
+  const isAdminTier = useAuthStore(selectIsAdminTier);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
   const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
   const { data: myStore } = useMyStore({ enabled: isSeller });
   const { recordNavigation, isUsed } = useNavigationUsage();
-  const [showMore, setShowMore] = useState(false);
   const [showBrowse, setShowBrowse] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') {
+        close();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const root = drawerRef.current;
+      if (!root) return;
+      const focusable = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute('aria-hidden'));
+      if (!focusable.length) return;
+
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
+
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isOpen, close]);
@@ -259,6 +284,7 @@ export function ProtectedMobileNav() {
           // areas.
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
+        ref={drawerRef}
         aria-label="القائمة الشخصية"
         // SW-FIX-DRAWER-INERT: was `aria-hidden={!isOpen}` on an
         // off-canvas <nav> kept in the DOM (translate-x-full) — links
@@ -352,10 +378,10 @@ export function ProtectedMobileNav() {
                 href={ROUTES.myAds}
                 prefetch={false}
                 onClick={close}
-                aria-current={pathname === ROUTES.activity ? 'page' : undefined}
+                aria-current={pathname === ROUTES.myAds || pathname.startsWith(`${ROUTES.myAds}/`) ? 'page' : undefined}
                 className={cn(
                   'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-                  pathname === ROUTES.activity ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                  pathname === ROUTES.myAds || pathname.startsWith(`${ROUTES.myAds}/`) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
                 )}
               >
                 إعلاناتي
@@ -423,9 +449,7 @@ export function ProtectedMobileNav() {
               </WithSearch>
             </Suspense>
           )}
-          {(pathname.startsWith(ROUTES.myOpenRequests) || isUsed(ROUTES.myOpenRequests) || isUsed(ROUTES.myOpenRequestOffers)) && (
-            <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.myOpenRequests); close(); }} />
-          )}
+          <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.myOpenRequests); close(); }} />
           {user && (
             <li>
               <Link
@@ -455,32 +479,27 @@ export function ProtectedMobileNav() {
             </Suspense>
           )}
 
-          <button
-            type="button"
-            onClick={() => setShowMore((value) => !value)}
-            aria-expanded={showMore}
-            className="mt-2 flex w-full items-center gap-2 rounded-md border-t px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-muted"
-          >
-            <span className="flex-1 text-start">{showMore ? 'إخفاء المزيد' : 'المزيد'}</span>
-            {showMore ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />}
-          </button>
-          {showMore && (
-            <Suspense fallback={<DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />}>
-              <WithSearch>
-                {(search) => (
-                  <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.settings.root); close(); }} search={search} />
-                )}
-              </WithSearch>
-            </Suspense>
-          )}
+          <Suspense fallback={<DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={close} />}>
+            <WithSearch>
+              {(search) => (
+                <DrawerDisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.settings.root); close(); }} search={search} />
+              )}
+            </WithSearch>
+          </Suspense>
 
-          {isAdmin && (
+          {isAdminTier && (
             <li>
               <Link
                 href={ROUTES.admin.dashboard}
                 prefetch={false}
                 onClick={close}
-                className="block rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+                aria-current={pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`) ? 'page' : undefined}
+                className={cn(
+                  'block rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted',
+                )}
               >
                 لوحة الإدارة
               </Link>

@@ -4,7 +4,8 @@
 // during loading) saw all of them.
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
@@ -14,7 +15,6 @@ import { canOpenAdminTab, isAdminTabActive, type AdminTab } from '@/lib/adminHub
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectUser } from '@/store/auth.store';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 // ADMIN-HUB-01: every link is a TAB of /admin (lib/adminHubTabs.ts). Which
 // tabs a MODERATOR may see is decided there (canOpenAdminTab) — one list
@@ -136,7 +136,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 /** Desktop sidebar — fixed, always visible on lg+ screens. */
 function DesktopSidebar() {
   return (
-    <aside className="sticky top-0 z-20 hidden h-screen w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 md:block lg:w-60">
+    <aside className="sticky top-0 z-20 hidden h-screen w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 lg:block lg:w-60">
       <NavLinks />
     </aside>
   );
@@ -145,37 +145,85 @@ function DesktopSidebar() {
 /** Mobile drawer — slide-in sheet triggered by a hamburger button. */
 function MobileDrawer() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const root = panelRef.current;
+      if (!root) return;
+      const focusable = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute('aria-hidden'));
+      if (!focusable.length) return;
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
 
   return (
     <>
       <button
-        type="button"
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-3 start-3 z-[70] p-2 rounded-md bg-card border shadow-sm min-h-11 min-w-11"
+        className="lg:hidden fixed top-3 start-3 z-[70] p-2 rounded-md bg-card border shadow-sm min-h-11 min-w-11"
         aria-label="فتح القائمة"
-        aria-haspopup="dialog"
       >
-        <Menu className="h-5 w-5" aria-hidden="true" />
+        <Menu className="h-5 w-5" />
       </button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          className="md:hidden fixed inset-y-0 start-0 end-auto left-auto right-0 top-0 flex h-dvh w-64 max-w-[85vw] translate-x-0 translate-y-0 flex-col rounded-none border-e border-border bg-card p-0 shadow-xl sm:max-w-[85vw] [&>button]:hidden"
-        >
-          <DialogTitle className="sr-only">قائمة الإدارة</DialogTitle>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="absolute top-3 end-3 z-10 flex h-11 w-11 items-center justify-center rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="إغلاق القائمة"
+      {mounted &&
+        open &&
+        createPortal(
+          <div
+            className="lg:hidden fixed inset-0 z-[100]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="قائمة الإدارة"
           >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-          <div className="min-h-0 flex-1 overflow-y-auto pt-10">
-            <NavLinks onNavigate={() => setOpen(false)} />
-          </div>
-        </DialogContent>
-      </Dialog>
+            <div
+              className="absolute inset-0 bg-foreground/50 backdrop-blur-[2px]"
+              onClick={() => setOpen(false)}
+            />
+            <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-64 max-w-[85vw] overflow-y-auto border-e border-border bg-card shadow-xl">
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute top-3 end-3 z-[102] p-1 rounded-md hover:bg-muted"
+                aria-label="إغلاق القائمة"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="pt-10">
+                <NavLinks onNavigate={() => setOpen(false)} />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

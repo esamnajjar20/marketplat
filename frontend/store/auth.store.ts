@@ -177,6 +177,10 @@ export const useAuthStore = create<AuthStore>()(
       // ── Actions ───────────────────────────────────────────────────
       setAuth: (authResultUser, tokens, csrfToken) => {
         set({
+          // A fresh login may belong to a different account. Never let the
+          // previous session's seller/provider hint control the sidebar while
+          // the new account's role/profile queries are still resolving.
+          lastKnownRoles: null,
           user: {
             id:        authResultUser.id,
             name:      authResultUser.name,

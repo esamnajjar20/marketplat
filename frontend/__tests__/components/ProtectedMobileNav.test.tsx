@@ -15,7 +15,7 @@
  *    when it doesn't (gated on isSuccess && data, same as ProtectedSidebar)
  *  - disclosure groups expand by default when pathname is inside them
  *  - active link gets aria-current="page"
- *  - admin link only renders for admins
+ *  - admin-tier link visibility + active state
  *  - logout button calls logout + close
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -69,7 +69,7 @@ let isAdmin = false;
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: (selector: (s: { isAdmin: boolean; user: { id: string; name: string; role: string } | null }) => unknown) =>
     selector({ isAdmin, user: { id: 'user-1', name: 'مستخدم', role: isAdmin ? 'ADMIN' : 'USER' } }),
-  selectIsAdmin: (s: { isAdmin: boolean }) => s.isAdmin,
+  selectIsAdminTier: (s: { isAdmin: boolean }) => s.isAdmin,
   selectUser: (s: { user: unknown }) => s.user,
 }));
 
@@ -445,13 +445,14 @@ describe('ProtectedMobileNav', () => {
       expect(screen.queryByText('لوحة الإدارة')).not.toBeInTheDocument();
     });
 
-    it('renders the admin link for admins', () => {
+    it('renders the admin link for admin-tier roles and marks it active on nested admin routes', () => {
       isMobileNavOpen = true;
       isAdmin = true;
+      mockUsePathname.mockReturnValue('/admin/users');
       render(<ProtectedMobileNav />);
-      expect(screen.getByText('لوحة الإدارة').closest('a')?.getAttribute('href')).toBe(
-        '/admin',
-      );
+      const link = screen.getByText('لوحة الإدارة').closest('a');
+      expect(link?.getAttribute('href')).toBe('/admin');
+      expect(link?.getAttribute('aria-current')).toBe('page');
     });
   });
 

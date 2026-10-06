@@ -139,11 +139,16 @@ export function requestsGroupFor(includeMarketLink: boolean): NavDisclosureGroup
   };
 }
 
-export function settingsGroupFor(isSeller: boolean): NavDisclosureGroup {
-  if (!isSeller) return SETTINGS_GROUP as NavDisclosureGroup;
+export function settingsGroupFor(_isSeller: boolean): NavDisclosureGroup {
+  // /my-store is a seller workspace, not a generic account setting.
+  // Keep it only when the dedicated STORE_GROUP is present; non-sellers
+  // get the explicit seller CTA elsewhere instead of a dead/unauthorized
+  // "إدارة المتجر" link inside الإعدادات.
   return {
     ...SETTINGS_GROUP,
-    children: SETTINGS_GROUP.children.filter((child) => child.href !== ROUTES.myStore),
+    children: SETTINGS_GROUP.children.filter((child) =>
+      child.href !== ROUTES.myStore,
+    ),
   };
 }
 

@@ -76,15 +76,13 @@ import {
   User,
   ExternalLink,
   Store,
-  MoreHorizontal,
-  X,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
 import { useNavigationUsage } from '@/hooks/useNavigationUsage';
 import { ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
-import { useAuthStore, selectIsAdmin, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectIsAdminTier, selectUser } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -205,14 +203,12 @@ export function ProtectedSidebar() {
   const pathname = usePathname();
   const { data: unreadMessages = 0 } = useUnreadConversationCount();
   const user = useAuthStore(selectUser);
-  const isAdmin = useAuthStore(selectIsAdmin);
+  const isAdminTier = useAuthStore(selectIsAdminTier);
   const { isSeller, showRoleSkeleton } = useIsSeller();
   const { isProvider } = useIsProvider();
   const needsStorePublicLink = pathname.startsWith('/stores/');
   const { data: myStore } = useMyStore({ enabled: isSeller && needsStorePublicLink });
   const { recordNavigation, isUsed, sortSmart } = useNavigationUsage();
-  const [showMore, setShowMore] = useState(false);
-
   const current = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const hasCurrentInGroup = (group: NavDisclosureGroup) => group.children.some((child) => navChildIsActive(pathname, child));
   const activityVisible = hasCurrentInGroup(ACTIVITY_GROUP) || isUsed(ROUTES.activity) || isUsed(ROUTES.favorites) || isUsed(ROUTES.savedSearches);
@@ -260,8 +256,10 @@ export function ProtectedSidebar() {
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {
-          if (item.key === 'store' || item.key === 'services') {
-            const group = item.key === 'store' ? STORE_GROUP : SERVICES_GROUP;
+          if (item.key === 'store' || item.key === 'services' || item.key === 'requests') {
+            const group = item.key === 'store' ? STORE_GROUP
+              : item.key === 'services' ? SERVICES_GROUP
+              : requestsGroupFor(true);
             return (
               <Suspense key={item.key} fallback={<DisclosureGroup group={group} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={group} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
@@ -271,19 +269,7 @@ export function ProtectedSidebar() {
           return <NavLink key={item.key} label={item.label} href={item.href} icon={item.icon} isActive={item.active} onNavigate={() => navigate(item.href)} />;
         })}
 
-        <button
-          type="button"
-          onClick={() => setShowMore((value) => !value)}
-          aria-expanded={showMore}
-          className="mt-1 flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          {showMore ? <X className="h-4 w-4" aria-hidden="true" /> : <MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
-          <span className="flex-1 text-start">{showMore ? 'إخفاء المزيد' : 'المزيد'}</span>
-        </button>
-
-        {showMore && (
-          <div className="flex flex-col gap-1 rounded-lg border border-border/70 bg-background/60 p-1">
-            {!requestsVisible && <DisclosureGroup group={requestsGroupFor(true)} pathname={pathname} onNavigate={navigate} />}
+        <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border/70 bg-background/60 p-1">
             {!activityVisible && (
               <Suspense fallback={<DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
@@ -292,11 +278,10 @@ export function ProtectedSidebar() {
             <Suspense fallback={<DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} />}>
               <WithSearch>{(search) => <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
             </Suspense>
-            {isAdmin && (
-              <NavLink label="لوحة الإدارة" href={ROUTES.admin.dashboard} icon={LayoutDashboard} isActive={current(ROUTES.admin.dashboard)} onNavigate={() => navigate(ROUTES.admin.dashboard)} />
+            {isAdminTier && (
+              <NavLink label="لوحة الإدارة" href={ROUTES.admin.dashboard} icon={LayoutDashboard} isActive={pathname === ROUTES.admin.root} onNavigate={() => navigate(ROUTES.admin.dashboard)} />
             )}
-          </div>
-        )}
+        </div>
       </nav>
     </aside>
   );

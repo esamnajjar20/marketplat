@@ -27,6 +27,7 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { adminApi }      from '@/api/admin.api';
 import { queryKeys }     from '@/lib/queryKeys';
+import { useAuthStore, selectUser, selectSetUser } from '@/store/auth.store';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import type { ReportStatus, AssignableRole, AdminAd, AdminUser, AdminSeller, AdminStore, ManualFraudFlagPayload } from '@/types/admin.types';
@@ -351,6 +352,8 @@ const ROLE_LABELS_AR: Record<AssignableRole, string> = {
  */
 export function useAdminChangeRole() {
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore(selectUser);
+  const setUser = useAuthStore(selectSetUser);
   return useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: AssignableRole }) =>
       adminApi.changeRole(userId, role).then((r) => r.data.data),
@@ -369,8 +372,16 @@ export function useAdminChangeRole() {
       );
       return { snapshots };
     },
-    onSuccess: (_data, { role }) =>
-      toast.success(`تم تغيير الدور إلى ${ROLE_LABELS_AR[role]}`),
+    onSuccess: (updatedUser, { userId, role }) => {
+      // If an administrator changes their own role, update the live auth
+      // identity immediately. Otherwise the sidebar would keep showing the
+      // old ADMIN/MODERATOR links until a full reload/refetch.
+      if (currentUser?.id === userId && updatedUser) {
+        setUser({ ...currentUser, role: updatedUser.role });
+        queryClient.setQueryData(queryKeys.auth.me(), updatedUser);
+      }
+      toast.success(`تم تغيير الدور إلى ${ROLE_LABELS_AR[role]}`);
+    },
     onError: (err, _vars, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);

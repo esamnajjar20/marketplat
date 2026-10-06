@@ -67,6 +67,7 @@ vi.mock('@/store/auth.store', () => ({
   useAuthStore: (selector: (s: { isAuthenticated: boolean; user: { id: string; name: string; role: string } | null }) => unknown) =>
     selector({ isAuthenticated: true, user: { id: 'user-1', name: 'مستخدم', role: 'USER' } }),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
+  selectIsAdminTier: (s: { user: { role: string } | null }) => s.user?.role === 'MODERATOR' || s.user?.role === 'ADMIN' || s.user?.role === 'SUPER_ADMIN',
   selectUser: (s: { user: unknown }) => s.user,
 }));
 
@@ -147,6 +148,16 @@ describe('ProtectedSidebar', () => {
     renderWithClient(<ProtectedSidebar />);
     const activeLink = screen.getByText('لوحة التحكم').closest('a');
     expect(activeLink?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('shows the admin entry for MODERATOR and marks it active across admin routes', () => {
+    // The protected shell and AdminSidebar both treat MODERATOR as an
+    // admin-tier role; keep their visibility rules aligned.
+    mockUsePathname.mockReturnValue('/admin/users');
+    renderWithClient(<ProtectedSidebar />);
+    const link = screen.getByText('لوحة الإدارة').closest('a');
+    expect(link).toBeDefined();
+    expect(link?.getAttribute('aria-current')).toBe('page');
   });
 
   it('does NOT set aria-current on inactive links when on /dashboard', () => {
@@ -424,20 +435,15 @@ describe('ProtectedSidebar', () => {
       expect(screen.queryByText('إدارة المتجر')).not.toBeInTheDocument();
     });
 
-    // A user with no SellerProfile yet has no STORE_GROUP at all (it's
-    // gated on isSeller), so "الإعدادات" → "متجري" is their only path
-    // to /my-store's become-a-store-owner CTA — must stay present.
-    it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', () => {
+    it('does not expose seller-only store management inside settings for a non-seller', () => {
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({ data: null, isSuccess: false });
       mockUsePathname.mockReturnValue('/dashboard');
       (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
       renderWithClient(<ProtectedSidebar />);
 
-      // No STORE_GROUP toggle for a non-seller.
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
-
       fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
-      expect(screen.getByText('إدارة المتجر').closest('a')?.getAttribute('href')).toBe('/my-store');
+      expect(screen.queryByText('إدارة المتجر')).not.toBeInTheDocument();
     });
 
     it('is expanded by default when pathname is inside the group (e.g. /settings/security)', () => {

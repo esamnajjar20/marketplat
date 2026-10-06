@@ -100,6 +100,12 @@ describe('initial state', () => {
 // ── setAuth ───────────────────────────────────────────────────────
 
 describe('setAuth', () => {
+  it('clears stale seller/provider role hints from a previous session', () => {
+    useAuthStore.getState().setLastKnownRoles({ isSeller: true, isProvider: true, hasActiveStore: true });
+    useAuthStore.getState().setAuth(mockAuthResultUser, mockTokens);
+    expect(useAuthStore.getState().lastKnownRoles).toBeNull();
+  });
+
   it('sets isAuthenticated to true', () => {
     useAuthStore.getState().setAuth(mockAuthResultUser, mockTokens);
     expect(useAuthStore.getState().isAuthenticated).toBe(true);

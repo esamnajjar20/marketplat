@@ -135,16 +135,13 @@ describe('MobileNav', () => {
       expect(screen.queryByRole('link', { name: 'إدارة المتجر' })).not.toBeInTheDocument();
     });
 
-    // A user with no SellerProfile yet has no STORE_GROUP at all, so
-    // "الإعدادات" → "متجري" is their only path to /my-store's
-    // become-a-store-owner CTA — must stay present for them.
-    it('keeps "متجري" inside "الإعدادات" for a non-seller (their only path to /my-store)', async () => {
+    it('does not expose seller-only store management inside settings for a non-seller', async () => {
       vi.mocked(useMySellerProfile).mockReturnValue({ data: undefined, isSuccess: true } as never);
       vi.mocked(useIsSeller).mockReturnValue({ isSeller: false, isLoaded: true } as never);
       const user = setupUser();
       render(<MobileNav />);
       await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
-      expect(screen.getByRole('link', { name: 'إدارة المتجر' }).getAttribute('href')).toBe('/my-store');
+      expect(screen.queryByRole('link', { name: 'إدارة المتجر' })).not.toBeInTheDocument();
     });
 
     it('does not show the admin dashboard link for a regular user', () => {
