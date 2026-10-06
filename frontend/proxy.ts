@@ -263,8 +263,6 @@ function buildCsp(nonce: string, isDev: boolean): string {
 // exported function name change — the automatic codemod
 // (npx @next/codemod middleware-to-proxy) does exactly this.
 // Nothing about the function body changes; this is a rename.
-const API_WORKER_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
-
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
