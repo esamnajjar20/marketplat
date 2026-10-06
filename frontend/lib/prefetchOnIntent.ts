@@ -1,30 +1,39 @@
 /**
- * SLOW-NET on hover/focus, warm the next page without blocking paint.
- * Deduped per key; work runs in requestIdleCallback (or short timeout).
+ * Intent-driven prefetching with a strict network budget.
  *
- * GHOST-PREFETCH-01: onPointerEnter (the trigger every caller of
- * onIntentPrefetch uses — AdCard/ProductCard/ServiceListingCard) fires as
- * a synthetic event during touch-scroll on devices with no real "hover"
- * concept: the finger sweeping across a card grid registers pointerenter
- * on every card it passes over, not just the one the user actually taps.
- * That was firing router.prefetch()/prefetchQuery() for dozens of cards
- * per scroll — near-simultaneous RSC/query fetches, most aborted before
- * they finished (status 0, unknown type in DevTools' Network panel) —
- * pure waste on the slow/metered mobile connections this app targets.
- * (hover: hover) is false on touch-only devices and true wherever a
- * pointerenter genuinely reflects deliberate intent (mouse/trackpad), so
- * gating on it removes the touch-scroll flood while leaving desktop/
- * trackpad hover-prefetch untouched. Paired with the same saveData/
- * effectiveType guard already used for the favorites idle-prefetch in
- * AuthHydrationProvider, so a hover-capable device on a constrained
- * connection (e.g. a laptop tethered to a slow mobile hotspot) also skips.
+ * Prefetch is an optimization, never a critical path. It is disabled on
+ * constrained links, touch-only pointer traversal, Data Saver, and when the
+ * current policy does not permit it. Work is also re-checked at execution
+ * time because the connection can change while an idle callback is waiting.
  */
 'use client';
 
 import { getQueryClient } from '@/lib/queryClient';
 import { getNetworkPolicy } from '@/lib/networkPolicy';
 
-const scheduled = new Set<string>();
+const PREFETCH_DEDUPE_MS = 2 * 60 * 1000;
+const scheduled = new Map<string, number>();
+let activePrefetches = 0;
+
+function hasIntentCapablePointer(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+
+  return (
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches ||
+    window.matchMedia('(pointer: fine)').matches
+  );
+}
+
+function canPrefetch(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!navigator.onLine) return false;
+  if (!hasIntentCapablePointer()) return false;
+
+  const policy = getNetworkPolicy();
+  return policy.allowPrefetch && policy.maxPrefetchConcurrency > 0;
+}
 
 function runWhenIdle(fn: () => void) {
   if (typeof window === 'undefined') return;
@@ -38,22 +47,41 @@ function runWhenIdle(fn: () => void) {
   }
 }
 
-/** GHOST-PREFETCH-01: true only on a real-hover-capable device with a
- * non-constrained connection — see this file's header comment. */
-function canPrefetch(): boolean {
-  if (typeof window === 'undefined') return false;
-  return getNetworkPolicy().allowPrefetch;
+function cleanupExpired(now = Date.now()): void {
+  for (const [key, timestamp] of scheduled) {
+    if (now - timestamp >= PREFETCH_DEDUPE_MS) scheduled.delete(key);
+  }
 }
 
-/** Fire once per key when the user shows intent (hover / keyboard focus). */
+/** Fire once per key per short cooldown when the user shows real intent. */
 export function onIntentPrefetch(key: string, work: () => void | Promise<void>) {
-  if (typeof window === 'undefined' || scheduled.has(key)) return;
-  if (!canPrefetch()) return;
-  scheduled.add(key);
+  if (typeof window === 'undefined') return;
+
+  const now = Date.now();
+  cleanupExpired(now);
+  if (scheduled.has(key) || !canPrefetch()) return;
+
+  const policy = getNetworkPolicy();
+  if (activePrefetches >= policy.maxPrefetchConcurrency) return;
+
+  scheduled.set(key, now);
   runWhenIdle(() => {
-    void Promise.resolve(work()).catch(() => {
-      /* prefetch is best-effort */
-    });
+    // Re-check all network gates after the idle delay. A user can move from
+    // Wi-Fi to a metered/slow mobile connection while this callback waits.
+    if (!canPrefetch()) return;
+
+    const currentPolicy = getNetworkPolicy();
+    if (activePrefetches >= currentPolicy.maxPrefetchConcurrency) return;
+
+    activePrefetches += 1;
+    void Promise.resolve(work())
+      .catch(() => {
+        // Prefetch is best-effort. Allow the same intent to be retried after
+        // the cooldown rather than permanently poisoning the key.
+      })
+      .finally(() => {
+        activePrefetches = Math.max(0, activePrefetches - 1);
+      });
   });
 }
 

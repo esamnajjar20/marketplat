@@ -14,7 +14,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { requestQueueReplay } from '@/lib/offlineQueue';
+import { requestQueueReplay, syncQueueNetworkHint } from '@/lib/offlineQueue';
+import { getNetworkPolicy, subscribeNetworkPolicy } from '@/lib/networkPolicy';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
@@ -34,6 +35,7 @@ import { WarmupIndicator } from './WarmupIndicator';
 import { initSwTokenSync } from '@/lib/swTokenSync';
 import { initSalesOfflineSync, syncPendingSales } from '@/lib/sales-offline/salesSync';
 import { invalidateOfflineCachesForMutation } from '@/lib/offlineCacheInvalidation';
+import { recordQueueDrainCompleted, recordQueueDrainStarted } from '@/lib/networkObservability';
 
 let __offlineBootstrapInitialized = false;
 
@@ -103,8 +105,17 @@ export function OfflineBootstrap() {
   useEffect(() => {
     const stopSalesSyncListener = initSalesOfflineSync();
     const onQueueMessage = (event: MessageEvent) => {
-      const data = event.data as { type?: string; url?: string; method?: string } | null;
-      if (data?.type === 'QUEUE_ITEM_SENT' && data.url && data.method) {
+      const data = event.data as { type?: string; url?: string; method?: string; durationMs?: number; sent?: number; failed?: number; stillOffline?: boolean } | null;
+      if (data?.type === 'QUEUE_DRAIN_STARTED') {
+        recordQueueDrainStarted();
+      } else if (data?.type === 'QUEUE_DRAIN_FINISHED') {
+        recordQueueDrainCompleted({
+          durationMs: typeof data.durationMs === 'number' ? data.durationMs : undefined,
+          sent: typeof data.sent === 'number' ? data.sent : undefined,
+          failed: typeof data.failed === 'number' ? data.failed : undefined,
+          stillOffline: data.stillOffline === true,
+        });
+      } else if (data?.type === 'QUEUE_ITEM_SENT' && data.url && data.method) {
         // SW replay bypasses Axios, so the normal response interceptor cannot
         // invalidate local/API caches. Mirror the same post-commit invalidation
         // here, but only after the SW confirms the server accepted the mutation.
@@ -120,6 +131,11 @@ export function OfflineBootstrap() {
 
     // Queue first (immediately — user's pending ad/message must not wait);
     // warming is scheduled, not fired: see offlineWarmingScheduler.
+    safeFire('sync network hint', syncQueueNetworkHint(getNetworkPolicy()));
+    const stopNetworkHint = subscribeNetworkPolicy(() => {
+      safeFire('sync network hint', syncQueueNetworkHint(getNetworkPolicy()));
+    });
+
     replayThenPublishDrafts();
     scheduleWarming('mount', { authenticated: isAuthenticated });
 
@@ -175,6 +191,7 @@ export function OfflineBootstrap() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
       cancelScheduledWarming();
+      stopNetworkHint();
       stopSalesSyncListener();
       navigator.serviceWorker?.removeEventListener('message', onQueueMessage);
     };

@@ -17,6 +17,9 @@ vi.mock('@/lib/offlineWarmingPipeline', () => ({
 vi.mock('@/lib/offlineWarmingPlanner', () => ({
   getWarmingPlan: () => ({ tier }),
 }));
+vi.mock('@/lib/networkPolicy', () => ({
+  getNetworkPolicy: () => ({ tier: tier === 'critical' ? 'very-slow' : 'fast', allowBackgroundWarming: true }),
+}));
 
 import {
   scheduleWarming,

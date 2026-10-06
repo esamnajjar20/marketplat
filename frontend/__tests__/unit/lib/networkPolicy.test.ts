@@ -34,6 +34,20 @@ describe('networkPolicy', () => {
     expect(policy.allowPrefetch).toBe(false);
     expect(policy.queueConcurrency).toBe(1);
     expect(policy.maxPrefetchDistancePx).toBe(100);
+    expect(policy.maxPrefetchConcurrency).toBe(0);
+  });
+
+  it('reduces upload pressure on very-slow networks', () => {
+    Object.defineProperty(navigator, 'connection', {
+      configurable: true,
+      value: { effectiveType: '2g', downlink: 0.1, saveData: false },
+    });
+
+    const policy = getNetworkPolicy();
+
+    expect(policy.uploadConcurrency).toBe(1);
+    expect(policy.uploadTimeoutMs).toBe(45_000);
+    expect(policy.uploadRetryDelaysMs).toEqual([2500]);
   });
 
   it('treats 3g as slow and keeps background work constrained', () => {
@@ -61,6 +75,7 @@ describe('networkPolicy', () => {
     expect(policy.tier).toBe('fast');
     expect(policy.allowPrefetch).toBe(true);
     expect(policy.allowOriginalImages).toBe(true);
+    expect(policy.maxPrefetchConcurrency).toBe(3);
   });
 
   it('respects saveData even on a fast connection', () => {
@@ -76,6 +91,7 @@ describe('networkPolicy', () => {
     expect(policy.allowPrefetch).toBe(false);
     expect(policy.allowBackgroundWarming).toBe(false);
     expect(policy.allowOriginalImages).toBe(false);
+    expect(policy.maxPrefetchConcurrency).toBe(0);
   });
 
   it('stops network work when offline', () => {
@@ -106,6 +122,20 @@ describe('networkPolicy', () => {
     mocks.getConnectionQuality.mockReturnValue('fast');
 
     expect(getAdaptivePageSize(12, getNetworkPolicy())).toBe(12);
+  });
+
+  it('falls back to very-slow policy after repeated flaky failures', () => {
+    mocks.getConnectionQuality.mockReturnValue('slow');
+    mocks.getAverageRequestMs.mockReturnValue(4200);
+    mocks.getConsecutiveFailures.mockReturnValue(4);
+
+    const policy = getNetworkPolicy();
+
+    expect(policy.tier).toBe('very-slow');
+    expect(policy.allowPrefetch).toBe(false);
+    expect(policy.allowBackgroundWarming).toBe(false);
+    expect(policy.uploadConcurrency).toBe(1);
+    expect(policy.requestTimeoutMs).toBe(25_000);
   });
 
   it('uses measured RTT when Network Information API is unavailable', () => {

@@ -30,7 +30,11 @@ export interface NetworkPolicy {
   allowOriginalImages: boolean;
   pageSizeMultiplier: number;
   maxPrefetchDistancePx: number;
+  maxPrefetchConcurrency: number;
   queueConcurrency: number;
+  uploadConcurrency: number;
+  uploadTimeoutMs: number;
+  uploadRetryDelaysMs: number[];
   requestTimeoutMs: number;
 }
 
@@ -111,7 +115,11 @@ export function getNetworkPolicy(): NetworkPolicy {
       allowOriginalImages: false,
       pageSizeMultiplier: 0,
       maxPrefetchDistancePx: 0,
+      maxPrefetchConcurrency: 0,
       queueConcurrency: 0,
+      uploadConcurrency: 0,
+      uploadTimeoutMs: 0,
+      uploadRetryDelaysMs: [],
       requestTimeoutMs: 0,
     };
   }
@@ -131,7 +139,11 @@ export function getNetworkPolicy(): NetworkPolicy {
       allowOriginalImages: false,
       pageSizeMultiplier: 0.4,
       maxPrefetchDistancePx: 100,
+      maxPrefetchConcurrency: 0,
       queueConcurrency: 1,
+      uploadConcurrency: 1,
+      uploadTimeoutMs: 45_000,
+      uploadRetryDelaysMs: [2500],
       requestTimeoutMs: 25_000,
     };
   }
@@ -151,7 +163,11 @@ export function getNetworkPolicy(): NetworkPolicy {
       allowOriginalImages: false,
       pageSizeMultiplier: 0.65,
       maxPrefetchDistancePx: 300,
+      maxPrefetchConcurrency: 0,
       queueConcurrency: 1,
+      uploadConcurrency: 1,
+      uploadTimeoutMs: 40_000,
+      uploadRetryDelaysMs: [2000],
       requestTimeoutMs: 20_000,
     };
   }
@@ -171,7 +187,11 @@ export function getNetworkPolicy(): NetworkPolicy {
       allowOriginalImages: !saveData,
       pageSizeMultiplier: 1,
       maxPrefetchDistancePx: 900,
-      queueConcurrency: 4,
+      maxPrefetchConcurrency: saveData ? 0 : 3,
+      queueConcurrency: 3,
+      uploadConcurrency: 2,
+      uploadTimeoutMs: 30_000,
+      uploadRetryDelaysMs: [1200, 3000],
       requestTimeoutMs: 12_000,
     };
   }
@@ -190,7 +210,11 @@ export function getNetworkPolicy(): NetworkPolicy {
     allowOriginalImages: false,
     pageSizeMultiplier: 0.8,
     maxPrefetchDistancePx: 500,
-    queueConcurrency: 2,
+    maxPrefetchConcurrency: saveData ? 0 : 1,
+    queueConcurrency: 1,
+    uploadConcurrency: 1,
+    uploadTimeoutMs: 35_000,
+    uploadRetryDelaysMs: [2000],
     requestTimeoutMs: 18_000,
   };
 }

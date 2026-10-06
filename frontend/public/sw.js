@@ -267,6 +267,10 @@ const MAX_QUEUE_SERVER_RETRIES = 3
 
 /** Minimum gap between replay attempts on the same entry (ms). Backoff base. */
 const QUEUE_RETRY_MIN_GAP_MS = 30_000;
+// Updated by the page when it has a better connection-quality signal.
+// Keep 30s as the conservative default for SW/background-only runs.
+let queueRetryMinGapMs = QUEUE_RETRY_MIN_GAP_MS;
+let queueConcurrencyHint = 1;
 
 /** FIX OFFLINE-QUEUE-RELIABILITY-01: سقف جسم الطلب في طابور IndexedDB.
  * فوق هذا الحد نرفض الطابور ونُرجع خطأ واضحًا لتأخذ المسودة (publishFiles)
@@ -2089,8 +2093,19 @@ const activeReplayControllers = new Set();
 async function replayQueue() {
   if (queueClearInFlight || replayQueueInFlight) return;
   replayQueueInFlight = true;
+  const startedAt = Date.now();
+  await notifyClients({ type: 'QUEUE_DRAIN_STARTED', startedAt });
   try {
-    await replayQueueImpl();
+    const result = await replayQueueImpl();
+    await notifyClients({
+      type: 'QUEUE_DRAIN_FINISHED',
+      startedAt,
+      durationMs: Date.now() - startedAt,
+      processed: result?.processed ?? 0,
+      sent: result?.sent ?? 0,
+      failed: result?.failed ?? 0,
+      stillOffline: Boolean(result?.stillOffline),
+    });
   } finally {
     replayQueueInFlight = false;
   }
@@ -2115,6 +2130,7 @@ async function pruneFailedEntries(maxFailed = 50) {
 }
 
 async function replayQueueImpl() {
+  const metrics = { processed: 0, sent: 0, failed: 0, stillOffline: false };
   // FIX SW-PRUNE-FAILED: نظّف العناصر الفاشلة القديمة قبل المعالجة.
   await pruneFailedEntries(50);
 
@@ -2122,7 +2138,7 @@ async function replayQueueImpl() {
   try {
     entries = await getAllQueuedEntries();
   } catch {
-    return;
+    return metrics;
   }
 
   // FIX QUEUE-CSRF-STALE-01: if ANY live entry was queued with a CSRF
@@ -2169,7 +2185,14 @@ async function replayQueueImpl() {
     return (a.queuedAt || 0) - (b.queuedAt || 0);
   });
 
+  // Bound each drain so a fast connection can catch up without allowing a
+  // huge queue to monopolize the radio, while slow links get a deliberately
+  // small batch. A later online/sync tick continues from where this pass stops.
+  const maxDrainEntries = Math.max(4, Math.min(12, queueConcurrencyHint * 4));
+  let processedEntries = 0;
+
   for (const entry of entries) {
+    if (processedEntries >= maxDrainEntries) break;
     if (entry.status === 'failed' || entry.status === 'cancelled') continue;
 
     const now = Date.now();
@@ -2177,7 +2200,7 @@ async function replayQueueImpl() {
       typeof entry.lastAttemptAt === 'number' ? entry.lastAttemptAt : 0;
     const retries = typeof entry.retryCount === 'number' ? entry.retryCount : 0;
     const minGap = Math.min(
-      QUEUE_RETRY_MIN_GAP_MS * Math.pow(2, Math.max(0, retries - 1)),
+      queueRetryMinGapMs * Math.pow(2, Math.max(0, retries - 1)),
       5 * 60_000,
     );
     const tooSoon = lastAttemptAt > 0 && now - lastAttemptAt < minGap;
@@ -2188,9 +2211,13 @@ async function replayQueueImpl() {
       continue; // try later items that may be eligible
     }
 
+    processedEntries += 1;
+    metrics.processed += 1;
     const result = await replayOne(entry, false, freshCreds, refreshReason);
 
     if (result === 'sent' || result === 'failed') {
+      if (result === 'sent') metrics.sent += 1;
+      else metrics.failed += 1;
       continue;
     }
 
@@ -2213,7 +2240,7 @@ async function replayQueueImpl() {
         lastSoftError: result,
         processing: false,
       });
-      if (trulyOffline) break;
+      if (trulyOffline) { metrics.stillOffline = true; break; }
       if (orderSensitive) break;
       continue;
     }
@@ -2223,6 +2250,7 @@ async function replayQueueImpl() {
     const limit = isServer ? MAX_QUEUE_SERVER_RETRIES : MAX_QUEUE_RETRIES;
 
     if (nextRetries >= limit) {
+      metrics.failed += 1;
       await markQueuedEntry(entry.id, {
         status: 'failed',
         retryCount: nextRetries,
@@ -2258,6 +2286,7 @@ async function replayQueueImpl() {
     // the previous second clause (typeof navigator... onLine===false)
     // duplicated it exactly.
     if (trulyOffline) {
+      metrics.stillOffline = true;
       break;
     }
     // Chat/messages: preserve order.
@@ -2269,6 +2298,7 @@ async function replayQueueImpl() {
   }
 
   await notifyClients({ type: 'QUEUE_REPLAYED' });
+  return metrics;
 }
 
 
@@ -2611,6 +2641,27 @@ self.addEventListener('message', (event) => {
         Promise.all(names.filter((name) => name.startsWith(USER_DATA_CACHE_PREFIX)).map((name) => caches.delete(name))),
       ),
     ]));
+    return;
+  }
+
+  if (type === 'NETWORK_POLICY_UPDATE') {
+    const tier = String(event.data?.tier || 'unknown');
+    const allowed = new Set(['offline', 'very-slow', 'slow', 'normal', 'fast', 'unknown']);
+    if (allowed.has(tier)) {
+      const gaps = {
+        offline: 60_000,
+        'very-slow': 60_000,
+        slow: 45_000,
+        normal: 30_000,
+        fast: 15_000,
+        unknown: 30_000,
+      };
+      queueRetryMinGapMs = gaps[tier] || QUEUE_RETRY_MIN_GAP_MS;
+      const requestedConcurrency = Number(event.data?.queueConcurrency);
+      queueConcurrencyHint = Number.isFinite(requestedConcurrency)
+        ? Math.max(1, Math.min(3, Math.floor(requestedConcurrency)))
+        : 1;
+    }
     return;
   }
 

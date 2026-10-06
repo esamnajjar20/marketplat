@@ -33,6 +33,7 @@
 
 import { getLastPipelineRun, runWarmingPipeline } from './offlineWarmingPipeline';
 import { getWarmingPlan } from './offlineWarmingPlanner';
+import { getNetworkPolicy } from './networkPolicy';
 
 export type WarmTrigger = 'mount' | 'auth' | 'online' | 'visible' | 'tick';
 
@@ -110,6 +111,9 @@ export function scheduleWarming(
   opts: { authenticated: boolean },
 ): void {
   if (typeof window === 'undefined') return;
+
+  const policy = getNetworkPolicy();
+  if (policy.tier === 'offline' || !policy.allowBackgroundWarming) return;
 
   const last = getLastPipelineRun();
   const upgradesToAuthenticated = opts.authenticated && !last.authenticated;

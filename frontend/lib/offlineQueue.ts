@@ -368,6 +368,23 @@ export async function clearOfflineQueue(): Promise<void> {
   }
 }
 
+
+export type ServiceWorkerNetworkHint = {
+  tier: 'offline' | 'very-slow' | 'slow' | 'normal' | 'fast' | 'unknown';
+  queueConcurrency: number;
+};
+
+/** Send the current bandwidth budget to the SW without making the SW depend on React/browser Network Information APIs. */
+export async function syncQueueNetworkHint(hint: ServiceWorkerNetworkHint): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const registration = await getActiveSW();
+    registration?.active?.postMessage({ type: 'NETWORK_POLICY_UPDATE', ...hint });
+  } catch {
+    // Best effort: the SW keeps its conservative default.
+  }
+}
+
 export async function requestQueueReplay(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   const now = Date.now();
