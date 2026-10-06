@@ -47,7 +47,8 @@ export interface SavedNetCard {
   userId?: string | null;
   label?: string;
   username: string;
-  password: string;
+  /** Passwords are intentionally never persisted to local storage. */
+  password?: never;
   savedAt: string;
 }
 
@@ -82,7 +83,14 @@ function allPayees(): SavedPayee[] {
   return migrateLegacy<SavedPayee>(LEGACY_PAYEES, PAYEES_KEY);
 }
 function allNetCards(): SavedNetCard[] {
-  return migrateLegacy<SavedNetCard>(LEGACY_CARDS, CARDS_KEY);
+  const rows = migrateLegacy<SavedNetCard & { password?: string }>(LEGACY_CARDS, CARDS_KEY);
+  let hadLegacyPasswords = false;
+  const sanitized: SavedNetCard[] = rows.map((row) => {
+    if ('password' in row) hadLegacyPasswords = true;
+    return { id: row.id, userId: row.userId, label: row.label, username: row.username, savedAt: row.savedAt };
+  });
+  if (hadLegacyPasswords) localSet(CARDS_KEY, sanitized);
+  return sanitized;
 }
 
 export function listSavedPayees(): SavedPayee[] {
@@ -166,7 +174,6 @@ export function saveNetCard(
   if (existingIdx >= 0) {
     const existing = all[existingIdx];
     if (existing) {
-      existing.password = card.password;
       existing.label = card.label;
       existing.savedAt = new Date().toISOString();
       localSet(CARDS_KEY, all);
@@ -174,7 +181,8 @@ export function saveNetCard(
     }
   }
   const entry: SavedNetCard = {
-    ...card,
+    label: card.label,
+    username: card.username,
     userId: uid,
     id: crypto.randomUUID(),
     savedAt: new Date().toISOString(),
@@ -204,7 +212,7 @@ export function updateNetCard(
   if (!existing) return null;
   const updated: SavedNetCard = {
     ...existing,
-    ...patch,
+    label: patch.label ?? existing.label,
     username: patch.username ?? existing.username,
     id: existing.id,
     savedAt: new Date().toISOString(),

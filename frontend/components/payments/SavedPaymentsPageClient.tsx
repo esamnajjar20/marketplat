@@ -206,9 +206,8 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
     saveNetCard({
       label: cLabel.trim() || undefined,
       username: cUser.trim(),
-      password: cPass,
     });
-    toast.success('تم حفظ البطاقة');
+    toast.success('تم حفظ البطاقة — لن تُخزّن كلمة المرور محليًا');
     resetCardForm();
     setAddCardOpen(false);
     refresh();
@@ -223,9 +222,8 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
     updateNetCard(editCard.id, {
       label: cLabel.trim() || undefined,
       username: cUser.trim(),
-      password: cPass,
     });
-    toast.success('تم تحديث البطاقة');
+    toast.success('تم تحديث البطاقة — لن تُخزّن كلمة المرور محليًا');
     setEditCard(null);
     resetCardForm();
     refresh();
@@ -241,7 +239,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
   function openEditCard(c: SavedNetCard) {
     setCLabel(c.label ?? '');
     setCUser(c.username);
-    setCPass(c.password);
+    setCPass('');
     setEditCard(c);
   }
 
@@ -511,7 +509,6 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <CopyBtn value={c.username} label="نسخ المستخدم" />
-                    {c.password ? <CopyBtn value={c.password} label="نسخ كلمة السر" /> : null}
                   </div>
                 </li>
               ))}

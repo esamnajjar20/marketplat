@@ -58,7 +58,7 @@ describe('paymentStorage', () => {
   });
 
   it('saves and removes net cards', () => {
-    const c = saveNetCard({ username: 'u1', password: 'p1', label: 'بطاقة' });
+    const c = saveNetCard({ username: 'u1', label: 'بطاقة' });
     expect(listSavedNetCards()).toHaveLength(1);
     removeNetCard(c.id);
     expect(listSavedNetCards()).toHaveLength(0);
