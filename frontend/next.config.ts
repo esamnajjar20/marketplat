@@ -110,7 +110,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: 'https://marketplat.onrender.com/api/v1/:path*',
+        destination: 'https://marketplat-api.esamnajjar6.workers.dev/api/v1/:path*',
       },
     ];
   },
