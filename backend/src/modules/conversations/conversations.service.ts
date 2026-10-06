@@ -12,6 +12,7 @@ import { activityService, activityTemplates } from '../activity';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { ServiceUnavailableError } from '../../shared/errors/ServiceUnavailableError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { logger } from '../../shared/utils/logger';
@@ -366,13 +367,20 @@ export const conversationsService = {
               const existing = await messagesRepository.findById(finalVal);
               if (existing && existing.conversationId === conversationId) return existing;
             }
-            // Fall through without claim only if we still cannot see a
-            // result — rare; prefer risking a rare duplicate over
-            // failing the send hard when Redis is partitioned.
-            logger.warn('message offline-op peer still pending — proceeding without claim', {
+            // Never create without the claim while another request still
+            // owns this operation id. Doing so would defeat idempotency in
+            // the exact slow-DB/concurrent-replay case the Redis claim is
+            // meant to protect. A 503 lets the offline queue retry; the
+            // next attempt will either observe the created message or
+            // reclaim the key if the peer released it after a failed create.
+            logger.warn('message offline-op peer still pending — deferring send', {
               userId,
               opId,
             });
+            throw new ServiceUnavailableError(
+              'Message operation is still being processed. Please retry shortly.',
+              'OFFLINE_OPERATION_IN_FLIGHT',
+            );
           }
         } else {
           claimedOpKey = cacheKey;
