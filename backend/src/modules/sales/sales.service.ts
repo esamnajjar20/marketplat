@@ -97,7 +97,11 @@ const refreshSalesStatsCache = async (sellerId: string, storeId: string | null) 
 };
 
 export const salesService = {
-  create: async (userId: string, input: CreateSaleInput) => {
+  create: async (userId: string, input: CreateSaleInput, offlineOperationId?: string) => {
+    if (offlineOperationId) {
+      const existing = await prisma.saleRecord.findFirst({ where: { sellerId: userId, offlineOperationId } });
+      if (existing) return salesRepository.findById(existing.id);
+    }
     const entity = await ensureEntityOwnership(userId, input);
     const total = roundMoney(input.unitPrice * input.quantity);
     const initialPaid = roundMoney(input.payment?.amount ?? input.paidAmount ?? 0);
@@ -133,6 +137,7 @@ export const salesService = {
         note: input.note,
         internalNote: input.internalNote,
         soldAt: input.soldAt ?? new Date(),
+        offlineOperationId: offlineOperationId ?? null,
       });
 
       if (input.payments?.length) {
@@ -169,6 +174,12 @@ export const salesService = {
     }).then(async created => {
       await refreshSalesStatsCache(userId, entity.storeId);
       return created;
+    }).catch(async error => {
+      if (offlineOperationId && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const existing = await prisma.saleRecord.findFirst({ where: { sellerId: userId, offlineOperationId } });
+        if (existing) return salesRepository.findById(existing.id);
+      }
+      throw error;
     });
   },
 

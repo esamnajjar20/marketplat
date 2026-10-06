@@ -2015,6 +2015,7 @@ model SaleRecord {
   dueDate         DateTime?
   note            String?
   internalNote    String?
+  offlineOperationId String?       @unique
   soldAt          DateTime         @default(now())
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -2036,6 +2037,7 @@ model SaleRecord {
   @@index([sellerId, paymentStatus])
   @@index([customerId, soldAt])
   @@index([sellerId, invoiceNumber])
+  @@unique([sellerId, offlineOperationId])
   @@map("sale_records")
 }
 

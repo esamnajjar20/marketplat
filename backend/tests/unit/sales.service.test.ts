@@ -8,7 +8,7 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 jest.mock('../../src/modules/sales/sales.repository');
 jest.mock('../../src/modules/sales/invoices.service');
 jest.mock('../../src/modules/stores/store-members.service');
-jest.mock('../../src/config/prisma', () => ({ prisma: { product: { findUnique: jest.fn() }, ad: { findUnique: jest.fn() }, serviceListing: { findUnique: jest.fn() }, $transaction: jest.fn() } }));
+jest.mock('../../src/config/prisma', () => ({ prisma: { saleRecord: { findFirst: jest.fn() }, product: { findUnique: jest.fn() }, ad: { findUnique: jest.fn() }, serviceListing: { findUnique: jest.fn() }, $transaction: jest.fn() } }));
 
 const tx = {
   customer: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
@@ -37,6 +37,14 @@ describe('salesService', () => {
     (salesRepository.create as jest.Mock).mockResolvedValue({ id: 'sale-1', ...base, sellerId: 'user-1', totalPrice: 50, dueAmount: 0, returns: [], customerId: null });
     (salesRepository.findByIdTx as jest.Mock).mockResolvedValue({ id: 'sale-1' });
     (tx.saleRecord.findMany as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('returns the existing sale for the same offline operation idempotency key', async () => {
+    (prisma.saleRecord.findFirst as jest.Mock).mockResolvedValue({ id: 'sale-existing', sellerId: 'user-1', offlineOperationId: 'op-1' });
+    (salesRepository.findById as jest.Mock).mockResolvedValue({ id: 'sale-existing' });
+    const result = await salesService.create('user-1', base, 'op-1');
+    expect(result).toEqual({ id: 'sale-existing' });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('creates a paid free-form sale with a server-generated invoice number', async () => {
