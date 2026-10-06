@@ -21,6 +21,8 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
+import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
+import { getAdaptivePageSize } from '@/lib/networkPolicy';
 
 interface Props {
   /**
@@ -90,14 +92,17 @@ export function SearchResults({ categorySlug }: Props = {}) {
   // trimmed characters falls back to the unfiltered browse query
   // instead of firing a dedicated search request.
   const isSearch = q.trim().length >= 2;
+  const networkPolicy = useNetworkPolicy();
+  const pageSize = getAdaptivePageSize(12, networkPolicy);
+
   const infiniteQuery = useInfiniteQuery({
-    queryKey: ['ads', 'infinite', isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }],
+    queryKey: ['ads', 'infinite', isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, pageSize }],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => {
       if (isSearch) {
-        return adsApi.searchAds({ q, page: pageParam, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }).then((r) => r.data.data);
+        return adsApi.searchAds({ q, page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }).then((r) => r.data.data);
       }
-      return adsApi.getAll({ page: pageParam, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder })
+      return adsApi.getAll({ page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder })
         .then((r) => r.data.data);
     },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,

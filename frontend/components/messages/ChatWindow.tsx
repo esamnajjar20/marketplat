@@ -763,7 +763,7 @@ export function ChatWindow({ conversationId }: Props) {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <SafeImg
-                            src={message.imageUrl}
+                            src={getThumbnailUrl(message.imageUrl, 480, 360)}
                             alt="صورة مرفقة"
                             className="max-h-56 max-w-full object-cover"
                           />

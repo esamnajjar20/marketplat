@@ -10,6 +10,8 @@ import { productsApi } from '@/api/products.api';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
+import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
+import { getAdaptivePageSize } from '@/lib/networkPolicy';
 
 const PAGE_SIZE = 16;
 
@@ -18,15 +20,18 @@ const PAGE_SIZE = 16;
  * GET /products?hasPromotion=true مع ترقيم صفحات.
  */
 export function PromotedPageClient() {
+  const networkPolicy = useNetworkPolicy();
+  const pageSize = getAdaptivePageSize(PAGE_SIZE, networkPolicy);
+
   const query = useInfiniteQuery({
-    queryKey: ['products', 'promoted', 'infinite'],
+    queryKey: ['products', 'promoted', 'infinite', pageSize],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => productsApi.getAll({
       hasPromotion: true,
       sortBy: 'createdAt',
       sortOrder: 'desc',
       page: pageParam,
-      limit: PAGE_SIZE,
+      limit: pageSize,
     }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });

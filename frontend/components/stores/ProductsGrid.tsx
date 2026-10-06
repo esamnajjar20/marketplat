@@ -16,6 +16,8 @@ import { Button } from '@/components/shared/ui/Button';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
+import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
+import { getAdaptivePageSize } from '@/lib/networkPolicy';
 import type { ProductSortField } from '@/types/product.types';
 
 /**
@@ -46,11 +48,14 @@ export function ProductsGrid() {
   const hasPromotion = sp.get('hasPromotion') === 'true' ? true : undefined;
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
+  const networkPolicy = useNetworkPolicy();
+  const pageSize = getAdaptivePageSize(12, networkPolicy);
+
   const query = useInfiniteQuery({
-    queryKey: ['products', 'infinite', { search, city, sortBy, sortOrder, hasPromotion }],
+    queryKey: ['products', 'infinite', { search, city, sortBy, sortOrder, hasPromotion, pageSize }],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => productsApi.getAll({
-      search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: 12,
+      search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,
     }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });

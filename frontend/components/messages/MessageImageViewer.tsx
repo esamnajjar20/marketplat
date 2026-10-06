@@ -5,6 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { ChevronLeft, ChevronRight, Download, Minus, Plus, RotateCcw, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { getFullscreenImageUrl, getGalleryThumbnailUrl } from '@/lib/cloudinary';
 
 type ImageItem = { id: string; imageUrl: string; alt?: string };
 
@@ -126,7 +127,7 @@ export function MessageImageViewer({ images, initialIndex, open, onOpenChange }:
           >
             <img
               key={current.id}
-              src={current.imageUrl}
+              src={getFullscreenImageUrl(current.imageUrl)}
               alt={current.alt ?? 'صورة من المحادثة'}
               draggable={false}
               className="max-h-full max-w-full object-contain transition-transform duration-150 will-change-transform"
@@ -139,7 +140,7 @@ export function MessageImageViewer({ images, initialIndex, open, onOpenChange }:
               <div className="mx-auto flex w-max gap-2">
                 {images.map((image, thumbnailIndex) => (
                   <button key={image.id} type="button" onClick={() => goTo(thumbnailIndex)} className={cn('h-14 w-14 overflow-hidden rounded-lg border-2 opacity-60 transition hover:opacity-100', thumbnailIndex === index && 'border-white opacity-100')} aria-label={`الصورة ${thumbnailIndex + 1}`}>
-                    <img src={image.imageUrl} alt="" className="h-full w-full object-cover" draggable={false} />
+                    <img src={getGalleryThumbnailUrl(image.imageUrl, 120)} alt="" className="h-full w-full object-cover" draggable={false} />
                   </button>
                 ))}
               </div>

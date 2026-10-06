@@ -18,6 +18,8 @@ import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import type { ServiceListingSortField } from '@/types/service.types';
+import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
+import { getAdaptivePageSize } from '@/lib/networkPolicy';
 
 export function ServiceListingsGrid() {
   const sp = useSearchParams();
@@ -35,12 +37,16 @@ export function ServiceListingsGrid() {
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
+  const networkPolicy = useNetworkPolicy();
+  const pageSize = getAdaptivePageSize(12, networkPolicy);
+
   const query = useInfiniteQuery({
-    queryKey: ['service-listings', 'infinite', { search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder }],
+    queryKey: ['service-listings', 'infinite', { search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder, pageSize }],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => serviceListingsApi.getAll({
       search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
       page: pageParam,
+      limit: pageSize,
     }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });

@@ -23,6 +23,8 @@ import {
   getThumbnailUrl,
   getPlaceholderUrl,
   getDetailImageUrl,
+  getFullscreenImageUrl,
+  getGalleryThumbnailUrl,
   getAvatarUrl,
   getOgImageUrl,
   getImageProps,
@@ -231,6 +233,28 @@ describe('getDetailImageUrl', () => {
   it('respects custom maxWidth', () => {
     const result = getDetailImageUrl(CLD_URL, 800);
     expect(result).toContain('w_800');
+  });
+});
+
+// ── fullscreen/gallery delivery ───────────────────────────────────
+
+describe('fullscreen and gallery image delivery', () => {
+  it('keeps non-Cloudinary fullscreen URLs unchanged', () => {
+    expect(getFullscreenImageUrl(PLAIN_URL)).toBe(PLAIN_URL);
+  });
+
+  it('uses an adaptive Cloudinary transformation for fullscreen delivery', () => {
+    const result = getFullscreenImageUrl(CLD_URL, 1600);
+    expect(result).toContain('w_');
+    expect(result).toContain('c_scale');
+    expect(result).toContain('f_auto');
+  });
+
+  it('uses a small square transformation for gallery thumbnails', () => {
+    const result = getGalleryThumbnailUrl(CLD_URL, 120);
+    expect(result).toContain('w_120');
+    expect(result).toContain('h_120');
+    expect(result).toContain('c_fill');
   });
 });
 

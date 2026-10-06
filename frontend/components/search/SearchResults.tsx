@@ -29,6 +29,8 @@ import type { SearchSort, SearchType } from '@/types/search.types';
 import { SearchViewToggle, type SearchViewMode } from '@/components/search/SearchViewToggle';
 import { SearchResultsMap } from '@/components/map/SearchResultsMap';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
+import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
+import { getAdaptivePageSize } from '@/lib/networkPolicy';
 
 /**
  * Unified results grid — reads q/city/type/categoryId/sort/page
@@ -104,14 +106,17 @@ export function SearchResults() {
   // previous expression missed.
   const hasActiveFilters = Boolean(city || categoryId || minPrice !== undefined || maxPrice !== undefined || condition || (sort && sort !== 'relevance') || lat !== undefined || lng !== undefined);
 
+  const networkPolicy = useNetworkPolicy();
+  const pageSize = getAdaptivePageSize(12, networkPolicy);
+
   const infiniteQuery = useInfiniteQuery({
-    queryKey: ['search', 'infinite', { q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort, lat, lng, radius: effectiveRadius }],
+    queryKey: ['search', 'infinite', { q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort, lat, lng, radius: effectiveRadius, pageSize }],
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const params = {
         q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort,
         page: pageParam,
-        limit: 12,
+        limit: pageSize,
         lat, lng, radius: effectiveRadius,
       };
       try {

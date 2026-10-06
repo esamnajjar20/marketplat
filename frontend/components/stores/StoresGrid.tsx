@@ -16,6 +16,8 @@ import { storesApi } from '@/api/stores.api';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import type { StoreSortField } from '@/types/store.types';
+import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
+import { getAdaptivePageSize } from '@/lib/networkPolicy';
 
 /** GET /stores directory grid. Mirrors ServiceListingsGrid's layout/behaviour. */
 export function StoresGrid() {
@@ -29,10 +31,13 @@ export function StoresGrid() {
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
+  const networkPolicy = useNetworkPolicy();
+  const pageSize = getAdaptivePageSize(12, networkPolicy);
+
   const query = useInfiniteQuery({
-    queryKey: ['stores', 'infinite', { search, city, sortBy, sortOrder }],
+    queryKey: ['stores', 'infinite', { search, city, sortBy, sortOrder, pageSize }],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam }).then((r) => r.data.data),
+    queryFn: ({ pageParam }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
