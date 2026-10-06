@@ -125,6 +125,13 @@ const nextConfig: NextConfig = {
     // MY-SERVICES-HUB-01: same for the three provider-workspace pages.
     // Only these exact paths — /my-services/new and /my-services/:id/edit stay routes.
     const serviceTabs = ['requests', 'appointments', 'analytics'];
+    // SALES-HUB-01: sales, customers, debts and installments are one account hub.
+    // Receipt/detail routes remain deep flows and are intentionally not tabs.
+    const salesRedirects = [
+      { source: '/account/customers', destination: '/account/sales?tab=customers' },
+      { source: '/account/sales/debts', destination: '/account/sales?tab=debts' },
+      { source: '/account/sales/installments', destination: '/account/sales?tab=installments' },
+    ];
     // SETTINGS-HUB-01 (SETTINGS-HUB-RESTORE-01): five account-settings pages
     // + two profile sub-sections redirect into /settings?tab=…
     const settingsTabs = [
@@ -173,6 +180,10 @@ const nextConfig: NextConfig = {
       ...serviceTabs.map((tab) => ({
         source: `/my-services/${tab}`,
         destination: `/my-services?tab=${tab}`,
+        permanent: false,
+      })),
+      ...salesRedirects.map((redirect) => ({
+        ...redirect,
         permanent: false,
       })),
       ...settingsTabs.map(({ source, destination }) => ({

@@ -1,3 +1,22 @@
-'use client';
-import { useState } from 'react'; import { Plus,RefreshCw,WalletCards } from 'lucide-react'; import { Button } from '@/components/ui/button'; import { Input } from '@/components/ui/input'; import { SalesSummary } from '@/components/sales/SalesSummary'; import { SaleCard } from '@/components/sales/SaleCard'; import { AddSaleDialog } from '@/components/sales/AddSaleDialog'; import { useSales,useSalesSummary } from '@/hooks/queries/useSales';
-export default function SalesPage(){const [open,setOpen]=useState(false);const [page,setPage]=useState(1);const [search,setSearch]=useState('');const {data,isLoading,isError,refetch}=useSales({page,limit:12});const {data:summary}=useSalesSummary('month');const items=data?.items??[];const filtered=search.trim()?items.filter(s=>`${s.entityTitle} ${s.buyerName} ${s.buyerPhone??''} ${s.invoiceNumber??''}`.toLowerCase().includes(search.trim().toLowerCase())):items;return <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6" dir="rtl"><header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><WalletCards className="h-6 w-6 text-primary"/><h1 className="text-2xl font-bold">مبيعاتي</h1></div><p className="mt-1 text-sm text-muted-foreground">المبيعات، المدفوعات، الديون والفواتير.</p></div><div className="flex gap-2"><Button variant="outline" onClick={()=>window.location.assign('/account/sales/debts')}>الديون</Button><Button variant="outline" onClick={()=>window.location.assign('/account/sales/installments')}>الأقساط</Button><Button onClick={()=>setOpen(true)}><Plus className="ms-2 h-4 w-4"/>بيع جديد</Button></div></header><SalesSummary summary={summary}/><section className="rounded-xl border bg-card p-4"><div className="flex gap-3"><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث باسم المنتج أو العميل أو رقم الفاتورة…"/><Button variant="outline" onClick={()=>void refetch()}><RefreshCw className="ms-2 h-4 w-4"/>تحديث</Button></div></section>{isLoading?<div className="grid gap-3 md:grid-cols-2">{Array.from({length:6}).map((_,i)=><div key={i} className="h-36 animate-pulse rounded-xl border bg-muted/40"/>)}</div>:isError?<div className="rounded-xl border p-8 text-center text-destructive">تعذر تحميل المبيعات.</div>:filtered.length?<div className="grid gap-3 md:grid-cols-2">{filtered.map(s=><SaleCard key={s.id} sale={s}/>)}</div>:<div className="rounded-xl border border-dashed p-12 text-center"><WalletCards className="mx-auto h-10 w-10 text-muted-foreground"/><h2 className="mt-3 font-semibold">لا توجد مبيعات بعد</h2><Button className="mt-4" onClick={()=>setOpen(true)}>تسجيل أول بيع</Button></div>}{data?.meta?.totalPages&&data.meta.totalPages>1?<div className="flex justify-center gap-2"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>السابق</Button><span className="py-2 text-sm">{page} / {data.meta.totalPages}</span><Button variant="outline" disabled={!data.meta.hasNextPage} onClick={()=>setPage(p=>p+1)}>التالي</Button></div>:null}<AddSaleDialog open={open} onOpenChange={setOpen}/></main>}
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { SalesTabsHub } from '@/components/sales/SalesTabsHub';
+import { buildMetadata } from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({ title: 'مبيعاتي', noIndex: true });
+
+export default function SalesPage() {
+  return (
+    <div className="space-y-5">
+      <header className="desktop-page-header">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">لوحة المبيعات</h1>
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">أدر المبيعات والعملاء والديون والأقساط والإحصائيات من مكان واحد.</p>
+        </div>
+      </header>
+      <Suspense>
+        <SalesTabsHub />
+      </Suspense>
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ import { DEFAULT_MY_STORE_TAB, resolveMyStoreTab } from '@/lib/myStoreHubTabs';
 import { DEFAULT_MY_SERVICES_TAB, resolveMyServicesTab } from '@/lib/myServicesHubTabs';
 import { DEFAULT_ACTIVITY_TAB, resolveActivityTab } from '@/lib/activityHubTabs';
 import { DEFAULT_SETTINGS_TAB, resolveSettingsTab } from '@/lib/settingsHubTabs'; // SETTINGS-HUB-RESTORE-01
+import { DEFAULT_SALES_HUB_TAB, resolveSalesHubTab } from '@/lib/salesHubTabs';
 import {
   Home,
   Search,
@@ -49,10 +50,12 @@ export const SALES_GROUP = {
   href: ROUTES.sales,
   icon: WalletCards,
   children: [
-    { label: 'سجل المبيعات', href: ROUTES.sales },
-    { label: 'العملاء', href: ROUTES.customers },
+    { label: 'لوحة المبيعات', href: ROUTES.sales },
+    { label: 'سجل المبيعات', href: ROUTES.salesSales },
+    { label: 'العملاء', href: ROUTES.salesCustomers },
     { label: 'الديون', href: ROUTES.salesDebts },
     { label: 'الأقساط', href: ROUTES.salesInstallments },
+    { label: 'الإحصائيات', href: ROUTES.salesAnalytics },
   ],
 } as const;
 
@@ -191,6 +194,14 @@ export function navChildIsActive(
     return want === have;
   }
 
+
+  // SALES-HUB-01: all sales workspace children share /account/sales.
+  if (childPath === ROUTES.sales) {
+    if (pathname !== ROUTES.sales) return false;
+    const want = resolveSalesHubTab(childQuery ? `?${childQuery}` : '') ?? DEFAULT_SALES_HUB_TAB;
+    const have = resolveSalesHubTab(search) ?? DEFAULT_SALES_HUB_TAB;
+    return want === have;
+  }
 
   // SETTINGS-HUB-01: all settings children share pathname /settings.
   // SETTINGS-HUB-RESTORE-01: restored after activity-hub-01.zip overwrote it.
