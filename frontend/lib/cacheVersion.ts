@@ -9,7 +9,7 @@
  * Bump BOTH this value and sw.js's CACHE_VERSION together whenever cache
  * strategy, shell routes, or fetch handlers change.
  */
-export const SW_CACHE_VERSION = 'v45' as const;
+export const SW_CACHE_VERSION = 'v46' as const;
 
 export const STATIC_CACHE_NAME = `market-static-${SW_CACHE_VERSION}`;
 export const CORE_CACHE_NAME = `market-core-${SW_CACHE_VERSION}`;

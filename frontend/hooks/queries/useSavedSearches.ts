@@ -46,7 +46,7 @@ export function useSavedSearches() {
         return data;
       } catch (err) {
         const local = getOfflineList<SavedSearch>(OFFLINE_LIST_KEYS.savedSearches, userId);
-        if (local?.items.length) return local.items;
+        if (local) return local.items;
         throw err;
       }
     },

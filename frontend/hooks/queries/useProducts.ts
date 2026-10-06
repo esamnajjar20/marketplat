@@ -71,7 +71,7 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
     queryFn: async (): Promise<ProductsPage> => {
       try {
         const data = (await productsApi.getAll(params).then((r) => r.data.data)) as ProductsPage;
-        if (isBaseBrowse && data?.items?.length) {
+        if (isBaseBrowse && Array.isArray(data?.items)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.productsBrowse,
             data.items,
@@ -82,7 +82,7 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
       } catch (err) {
         if (isBaseBrowse) {
           const local = getOfflineList<ProductWithStore>(OFFLINE_LIST_KEYS.productsBrowse);
-          if (local?.items?.length) return offlinePage(local.items);
+          if (local) return offlinePage(local.items);
         }
         throw err;
       }

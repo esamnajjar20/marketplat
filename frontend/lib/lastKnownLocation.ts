@@ -1,3 +1,4 @@
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 /**
  * آخر موقع معروف — يُحفظ عند نجاح تحديد الموقع أونلاين،
  * ويُستخدم أوفلاين لحساب المسافات التقريبية (Nearby).
@@ -17,14 +18,16 @@ export interface LastKnownLocation {
 
 export function saveLastKnownLocation(loc: LastKnownLocation): void {
   if (!Number.isFinite(loc.lat) || !Number.isFinite(loc.lng)) return;
-  saveOfflineJson(OFFLINE_JSON_KEYS.lastKnownLocation, loc);
+  const userId = getCurrentOfflineUserId();
+  if (!userId) return;
+  saveOfflineJson(OFFLINE_JSON_KEYS.lastKnownLocation, loc, userId);
 }
 
 export function getLastKnownLocation(): {
   location: LastKnownLocation;
   savedAt: string;
 } | null {
-  const env = getOfflineJson<LastKnownLocation>(OFFLINE_JSON_KEYS.lastKnownLocation);
+  const env = getOfflineJson<LastKnownLocation>(OFFLINE_JSON_KEYS.lastKnownLocation, getCurrentOfflineUserId());
   if (!env?.data) return null;
   return { location: env.data, savedAt: env.savedAt };
 }

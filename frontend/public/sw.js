@@ -220,7 +220,7 @@ const READ_BATCH_PATH = '/api/v1/batch';
 
 // يجب مطابقة lib/offlineQueue.ts حرفيًا — الصفحة تقرأ من نفس القاعدة/المخزن.
 const QUEUE_DB_NAME = 'market-offline-queue';
-const QUEUE_DB_VERSION = 1;
+const QUEUE_DB_VERSION = 2;
 const QUEUE_STORE_NAME = 'requests';
 
 const SYNC_TAG = 'replay-offline-queue';
@@ -1779,6 +1779,25 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     const queuedOwner =
       entry.ownerUserId || decodeAccessTokenUserId(entry.headers?.authorization);
     const currentOwner = freshCreds ? decodeAccessTokenUserId(freshCreds.accessToken) : null;
+    if (entry.needsAuth && !queuedOwner) {
+      await markQueuedEntry(entry.id, {
+        status: 'failed',
+        needsRecovery: true,
+        lastError: {
+          status: 409,
+          message: 'عملية أوفلاين قديمة لا يمكن التحقق من الحساب الذي أنشأها. أعد تنفيذها من جديد.',
+        },
+      });
+      await notifyClients({
+        type: 'QUEUE_ITEM_FAILED',
+        id: entry.id,
+        url: entry.url,
+        status: 409,
+        message: 'عملية أوفلاين قديمة لا يمكن التحقق من الحساب الذي أنشأها. أعد تنفيذها من جديد.',
+        operationId: entry.operationId || null,
+      });
+      return 'failed';
+    }
     if (queuedOwner && currentOwner && queuedOwner !== currentOwner) {
       await markQueuedEntry(entry.id, {
         status: 'failed',
@@ -2639,6 +2658,7 @@ self.addEventListener('message', (event) => {
       (async () => {
         const entry = await getQueuedEntry(event.data.id);
         if (!entry) return;
+        if (!entry.ownerUserId || event.data.ownerUserId !== entry.ownerUserId) return;
         // FIX SW-PROCESSING-01: تجاوز إذا كانت replayQueue تعالج نفس العنصر
         if (entry.processing) return;
 
@@ -2695,7 +2715,7 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       (async () => {
         const entry = await getQueuedEntry(event.data.id);
-        if (!entry) return;
+        if (!entry || !entry.ownerUserId || event.data.ownerUserId !== entry.ownerUserId) return;
         await markQueuedEntry(event.data.id, { status: 'cancelled' });
         await notifyClients({
           type: 'QUEUE_ITEM_CANCELLED',
@@ -2710,7 +2730,8 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       (async () => {
         const all = await getAllQueuedEntries();
-        const matches = all.filter((entry) => entry.operationId === event.data.operationId);
+        const ownerUserId = typeof event.data.ownerUserId === 'string' ? event.data.ownerUserId : null;
+        const matches = all.filter((entry) => entry.operationId === event.data.operationId && entry.ownerUserId && ownerUserId === entry.ownerUserId);
         for (const entry of matches) {
           await markQueuedEntry(entry.id, { status: 'pending', lastError: undefined });
         }
@@ -2727,7 +2748,8 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       (async () => {
         const all = await getAllQueuedEntries();
-        const matches = all.filter((entry) => entry.operationId === event.data.operationId);
+        const ownerUserId = typeof event.data.ownerUserId === 'string' ? event.data.ownerUserId : null;
+        const matches = all.filter((entry) => entry.operationId === event.data.operationId && entry.ownerUserId && ownerUserId === entry.ownerUserId);
         for (const entry of matches) {
           await markQueuedEntry(entry.id, { status: 'cancelled' });
           await notifyClients({ type: 'QUEUE_ITEM_CANCELLED', id: entry.id, operationId: entry.operationId || null });
@@ -2745,6 +2767,7 @@ self.addEventListener('message', (event) => {
         // FIX AD-DRAFT-QUEUE-LINK-01: اقرأ operationId قبل الحذف — بعده
         // العنصر لم يعد موجودًا لنقرأه منه.
         const entry = await getQueuedEntry(event.data.id);
+        if (!entry || !entry.ownerUserId || event.data.ownerUserId !== entry.ownerUserId) return;
         await deleteQueuedEntry(event.data.id);
         await notifyClients({
           type: 'QUEUE_ITEM_DISCARDED',
@@ -2769,8 +2792,10 @@ self.addEventListener('message', (event) => {
       (async () => {
         try {
           const opId = event.data.operationId;
+          const ownerUserId = typeof event.data.ownerUserId === 'string' ? event.data.ownerUserId : null;
+          if (!ownerUserId) return;
           const all = await getAllQueuedEntries();
-          const matches = all.filter((e) => e.operationId === opId);
+          const matches = all.filter((e) => e.operationId === opId && e.ownerUserId === ownerUserId);
           for (const m of matches) {
             await deleteQueuedEntry(m.id);
             await notifyClients({

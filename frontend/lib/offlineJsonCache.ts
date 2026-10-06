@@ -4,6 +4,7 @@
  */
 
 import { localGet, localSet, localRemove } from '@/lib/localStore';
+import { isOfflineHardExpired } from '@/lib/offlineFreshness';
 
 export interface OfflineJsonEnvelope<T> {
   data: T;
@@ -48,7 +49,7 @@ export function getOfflineJson<T>(
     data: null as T,
     savedAt: '',
   });
-  if (!env.savedAt) return null;
+  if (!env.savedAt || isOfflineHardExpired(env.savedAt)) return null;
   // T770 — refuse to serve another user's entry. Only enforced when
   // the caller supplies a userId; callers that pass nothing keep the
   // pre-T770 behavior (read whatever's there), which is correct for

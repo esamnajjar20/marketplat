@@ -6,6 +6,7 @@ const STORE = 'media';
 const STORE_BLOBS = 'blobs';
 const MAX_CACHED_BLOB_BYTES = 12 * 1024 * 1024;
 const MAX_CONVERSATION_CACHE_BYTES = 50 * 1024 * 1024;
+const MEDIA_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MEDIA_PROXY_BASE = '/api/v1/conversations';
 
 type MediaRecord = { key: string; userId: string; conversationId: string; items: Message[]; savedAt: number };
@@ -75,6 +76,38 @@ async function fetchMediaBlobWithFallback(
 }
 
 /** Cache binary media separately from message metadata so reload/offline can still preview/download it. */
+async function putConversationMediaBlob(
+  userId: string,
+  conversationId: string,
+  record: BlobRecord,
+): Promise<boolean> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_BLOBS, 'readwrite');
+    const store = tx.objectStore(STORE_BLOBS);
+    const allReq = store.getAll();
+    allReq.onsuccess = () => {
+      const rows = (allReq.result as BlobRecord[]).filter(
+        (row) => row.userId === userId && row.conversationId === conversationId && row.key !== record.key,
+      );
+      let total = rows.reduce((sum, row) => sum + (row.blob?.size ?? 0), 0);
+      if (record.blob.size > MAX_CACHED_BLOB_BYTES) return resolve(false);
+      rows.sort((a, b) => a.savedAt - b.savedAt);
+      while (total + record.blob.size > MAX_CONVERSATION_CACHE_BYTES && rows.length) {
+        const oldest = rows.shift();
+        if (!oldest) break;
+        total -= oldest.blob?.size ?? 0;
+        store.delete(oldest.key);
+      }
+      if (total + record.blob.size > MAX_CONVERSATION_CACHE_BYTES) return resolve(false);
+      store.put(record);
+    };
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('Media cache transaction aborted'));
+  });
+}
+
 export async function cacheConversationMediaBlobs(
   userId: string,
   conversationId: string,
@@ -88,38 +121,38 @@ export async function cacheConversationMediaBlobs(
     if (item.fileUrl) out.push({ messageId: item.id, kind: 'file', url: item.fileUrl });
     return out;
   });
-  // Avoid turning every gallery refresh into an unbounded background download.
-  // Cache newest-first until a conservative per-conversation budget is reached.
-  let budget = MAX_CONVERSATION_CACHE_BYTES;
   for (const candidate of candidates) {
-    if (!candidate.url || budget <= 0) continue;
+    if (!candidate.url) continue;
     try {
       const existing = await getConversationMediaBlob(userId, conversationId, candidate.messageId, candidate.kind);
       if (existing) continue;
-      const blob = await fetchMediaBlobWithFallback(
+      const blob = await fetchMediaBlobWithFallback(conversationId, candidate.messageId, candidate.kind, candidate.url);
+      if (!blob || !blob.size || blob.size > MAX_CACHED_BLOB_BYTES) continue;
+      await putConversationMediaBlob(userId, conversationId, {
+        key: blobKey(userId, conversationId, candidate.messageId, candidate.kind),
+        userId,
         conversationId,
-        candidate.messageId,
-        candidate.kind,
-        candidate.url,
-      );
-      if (!blob) continue;
-      if (!blob.size || blob.size > MAX_CACHED_BLOB_BYTES || blob.size > budget) continue;
-      const db = await openDb();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_BLOBS, 'readwrite');
-        tx.objectStore(STORE_BLOBS).put({
-          key: blobKey(userId, conversationId, candidate.messageId, candidate.kind),
-          userId, conversationId, messageId: candidate.messageId, kind: candidate.kind,
-          blob, savedAt: Date.now(),
-        } satisfies BlobRecord);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+        messageId: candidate.messageId,
+        kind: candidate.kind,
+        blob,
+        savedAt: Date.now(),
       });
-      budget -= blob.size;
     } catch {
-      // CORS/offline/expired URL: metadata remains usable online and the next successful fetch retries the cache.
+      // CORS/offline/expired URL: metadata remains usable and the next successful fetch retries the cache.
     }
   }
+}
+
+async function deleteExpiredMediaBlob(keyValue: string): Promise<void> {
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_BLOBS, 'readwrite');
+      tx.objectStore(STORE_BLOBS).delete(keyValue);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* best effort */ }
 }
 
 export async function getConversationMediaBlob(
@@ -133,7 +166,15 @@ export async function getConversationMediaBlob(
     const db = await openDb();
     return await new Promise((resolve, reject) => {
       const req = db.transaction(STORE_BLOBS, 'readonly').objectStore(STORE_BLOBS).get(blobKey(userId, conversationId, messageId, kind));
-      req.onsuccess = () => resolve((req.result as BlobRecord | undefined)?.blob ?? null);
+      req.onsuccess = () => {
+        const row = req.result as BlobRecord | undefined;
+        if (!row) return resolve(null);
+        if (!Number.isFinite(row.savedAt) || Date.now() - row.savedAt > MEDIA_TTL_MS) {
+          void deleteExpiredMediaBlob(row.key);
+          return resolve(null);
+        }
+        resolve(row.blob ?? null);
+      };
       req.onerror = () => reject(req.error);
     });
   } catch {
@@ -177,15 +218,9 @@ export async function getOrCacheConversationMediaBlob(
   const blob = await fetchMediaBlobWithFallback(conversationId, messageId, kind, remoteUrl);
   if (!blob || blob.size > MAX_CACHED_BLOB_BYTES) return null;
   try {
-    const db = await openDb();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_BLOBS, 'readwrite');
-      tx.objectStore(STORE_BLOBS).put({
-        key: blobKey(userId, conversationId, messageId, kind),
-        userId, conversationId, messageId, kind, blob, savedAt: Date.now(),
-      } satisfies BlobRecord);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+    await putConversationMediaBlob(userId, conversationId, {
+      key: blobKey(userId, conversationId, messageId, kind),
+      userId, conversationId, messageId, kind, blob, savedAt: Date.now(),
     });
     return blob;
   } catch {

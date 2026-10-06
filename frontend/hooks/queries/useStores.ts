@@ -61,7 +61,7 @@ export function useStores(
     queryFn: async () => {
       try {
         const data = await storesApi.getAll(params).then((r) => r.data.data);
-        if (isBaseBrowse && data?.items?.length) {
+        if (isBaseBrowse && Array.isArray(data?.items)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.storesBrowse,
             data.items as StoreWithSeller[],
@@ -72,7 +72,7 @@ export function useStores(
       } catch (err) {
         if (isBaseBrowse) {
           const local = getOfflineList<StoreWithSeller>(OFFLINE_LIST_KEYS.storesBrowse);
-          if (local?.items?.length) {
+          if (local) {
             return {
               items: local.items,
               meta: {

@@ -44,6 +44,7 @@ import { toast } from 'sonner';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { makeOfflineError } from '@/lib/offlineError';
+import { invalidateOfflineCachesForMutation } from '@/lib/offlineCacheInvalidation';
 
 export type BatchGetRequest = {
   url: string;
@@ -417,6 +418,16 @@ apiClient.interceptors.response.use(
         code:       'OFFLINE_QUEUED',
         queued:     true,
       });
+    }
+
+    // A mutation is cache-invalidating only after a real 2xx server response.
+    // A queued 202 was handled above and must NOT invalidate anything because
+    // the server has not changed yet.
+    if (!SAFE_METHODS.has((response.config.method ?? 'get').toLowerCase())) {
+      invalidateOfflineCachesForMutation(
+        response.config.url ?? '',
+        response.config.method ?? 'get',
+      );
     }
     return response;
   },

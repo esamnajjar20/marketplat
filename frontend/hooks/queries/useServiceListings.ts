@@ -70,7 +70,7 @@ export function useServiceListings(
         const data = (await serviceListingsApi
           .getAll(params)
           .then((r) => r.data.data)) as ServicesPage;
-        if (isBaseBrowse && data?.items?.length) {
+        if (isBaseBrowse && Array.isArray(data?.items)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.servicesBrowse,
             data.items,
@@ -83,7 +83,7 @@ export function useServiceListings(
           const local = getOfflineList<ServiceListingWithProvider>(
             OFFLINE_LIST_KEYS.servicesBrowse,
           );
-          if (local?.items?.length) return offlinePage(local.items);
+          if (local) return offlinePage(local.items);
         }
         throw err;
       }

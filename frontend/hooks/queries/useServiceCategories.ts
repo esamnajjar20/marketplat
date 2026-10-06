@@ -23,7 +23,7 @@ export function useServiceCategories(options?: { enabled?: boolean }) {
     queryFn: async () => {
       try {
         const data = await serviceCategoriesApi.getAll().then((r) => r.data.data);
-        if (Array.isArray(data) && data.length) {
+        if (Array.isArray(data)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.serviceCategories,
             data as unknown[],
@@ -33,7 +33,7 @@ export function useServiceCategories(options?: { enabled?: boolean }) {
         return data;
       } catch (err) {
         const local = getOfflineList<unknown>(OFFLINE_LIST_KEYS.serviceCategories);
-        if (local?.items?.length) return local.items as never;
+        if (local) return local.items as never;
         throw err;
       }
     },

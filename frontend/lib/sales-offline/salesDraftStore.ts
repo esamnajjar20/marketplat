@@ -70,28 +70,35 @@ export async function createSalesDraft(userId: string, operationId: string, payl
   return draft;
 }
 
-export async function getSalesDraft(operationId: string): Promise<SalesOfflineDraft | null> {
+export async function getSalesDraft(operationId: string, userId: string): Promise<SalesOfflineDraft | null> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const request = tx.objectStore(STORE_NAME).get(operationId);
-    request.onsuccess = () => { db.close(); resolve((request.result as SalesOfflineDraft | undefined) ?? null); };
+    request.onsuccess = () => {
+      const draft = request.result as SalesOfflineDraft | undefined;
+      db.close();
+      resolve(draft && draft.userId === userId ? draft : null);
+    };
     request.onerror = () => { db.close(); reject(request.error); };
   });
 }
 
-export async function listSalesDrafts(userId: string | null): Promise<SalesOfflineDraft[]> {
+export async function listSalesDrafts(userId: string): Promise<SalesOfflineDraft[]> {
+  if (!userId) return [];
   const rows = await readAll();
-  return rows.filter(row => !userId || row.userId === userId).sort((a, b) => b.updatedAt - a.updatedAt);
+  return rows.filter(row => row.userId === userId).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export async function updateSalesDraft(operationId: string, patch: Partial<SalesOfflineDraft>): Promise<void> {
-  const current = await getSalesDraft(operationId);
+export async function updateSalesDraft(operationId: string, userId: string, patch: Partial<SalesOfflineDraft>): Promise<void> {
+  const current = await getSalesDraft(operationId, userId);
   if (!current) return;
   await saveSalesDraft({ ...current, ...patch, updatedAt: Date.now() });
 }
 
-export async function deleteSalesDraft(operationId: string): Promise<void> {
+export async function deleteSalesDraft(operationId: string, userId: string): Promise<void> {
+  const current = await getSalesDraft(operationId, userId);
+  if (!current) return;
   await transaction('readwrite', store => store.delete(operationId));
 }
 

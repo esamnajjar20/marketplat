@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getQueuedRequestCount } from '@/lib/offlineQueue';
+import { useAuthStore } from '@/store/auth.store';
 
 /**
  * عدّاد "طلبات بالانتظار" كان يُقرأ فقط داخل صفحة
@@ -32,6 +33,7 @@ export const QUEUE_UPDATED_EVENT = 'offline-queue:queued';
 
 export function useQueuedRequestCount(): number {
   const [count, setCount] = useState(0);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +62,7 @@ export function useQueuedRequestCount(): number {
       window.removeEventListener(QUEUE_UPDATED_EVENT, refresh);
       window.removeEventListener('online', refresh);
     };
-  }, []);
+  }, [userId]);
 
   return count;
 }

@@ -1,3 +1,4 @@
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 /**
  * سجل نشاط بسيط لمركز الأوفلاين — محلي (localStorage)، آخر N حدث.
  */
@@ -18,6 +19,7 @@ export type OfflineActivityEntry = {
 };
 
 const KEY = 'offline-hub:activity-log-v1';
+function storageKey(): string { return `${KEY}:${getCurrentOfflineUserId() ?? 'guest'}`; }
 const MAX = 30;
 
 const KIND_LABEL: Record<OfflineActivityKind, string> = {
@@ -35,7 +37,7 @@ export function getActivityKindLabel(kind: OfflineActivityKind): string {
 
 function readAll(): OfflineActivityEntry[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as OfflineActivityEntry[];
     return Array.isArray(parsed) ? parsed : [];
@@ -46,7 +48,7 @@ function readAll(): OfflineActivityEntry[] {
 
 function writeAll(items: OfflineActivityEntry[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(items.slice(0, MAX)));
+    localStorage.setItem(storageKey(), JSON.stringify(items.slice(0, MAX)));
     window.dispatchEvent(new CustomEvent('offline-hub:activity'));
   } catch {
     /* ignore */
@@ -72,7 +74,8 @@ export function logOfflineActivity(
 }
 
 export function clearOfflineActivity(): void {
-  writeAll([]);
+  if (typeof window === 'undefined') return;
+  try { localStorage.removeItem(storageKey()); window.dispatchEvent(new CustomEvent('offline-hub:activity')); } catch {}
 }
 
 export function formatActivityTime(at: number): string {

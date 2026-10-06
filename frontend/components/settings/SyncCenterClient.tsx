@@ -68,7 +68,7 @@ export function SyncCenterClient() {
         // FIX AD-DRAFT-USER-SCOPE-01: مسودات صاحب الحساب الحالي فقط —
         // بدونها، مسودة حساب سابق على نفس الجهاز تظهر لحساب جديد.
         listAdDrafts(userId).catch(() => [] as AdDraft[]),
-        listSalesDrafts(userId).catch(() => [] as SalesOfflineDraft[]),
+        listSalesDrafts(userId ?? '').catch(() => [] as SalesOfflineDraft[]),
       ]);
       setPending(counts.pending);
       setFailed(counts.failed);

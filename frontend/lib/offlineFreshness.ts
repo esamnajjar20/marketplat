@@ -39,6 +39,18 @@ export function isOfflineStale(
   }
 }
 
+
+/** Hard expiry: beyond this age an offline snapshot is never used as data. */
+export function isOfflineHardExpired(savedAt: string | null | undefined): boolean {
+  if (!savedAt) return true;
+  try {
+    const age = Date.now() - new Date(savedAt).getTime();
+    return !Number.isFinite(age) || age < 0 || age > OFFLINE_STALE_AFTER_MS.hard;
+  } catch {
+    return true;
+  }
+}
+
 /** Arabic relative "آخر تحديث: …" label for UI badges. */
 export function formatOfflineSavedAt(savedAt: string | null | undefined): string {
   if (!savedAt) return '';

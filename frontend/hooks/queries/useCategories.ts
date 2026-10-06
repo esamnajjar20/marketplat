@@ -24,7 +24,7 @@ export function useCategories(options?: { enabled?: boolean }) {
     queryFn: async (): Promise<Category[]> => {
       try {
         const data = await categoriesApi.getAll().then((r) => r.data.data);
-        if (Array.isArray(data) && data.length) {
+        if (Array.isArray(data)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.categories,
             data as Category[],
@@ -34,7 +34,7 @@ export function useCategories(options?: { enabled?: boolean }) {
         return data as Category[];
       } catch (err) {
         const local = getOfflineList<Category>(OFFLINE_LIST_KEYS.categories);
-        if (local?.items?.length) return local.items;
+        if (local) return local.items;
         throw err;
       }
     },

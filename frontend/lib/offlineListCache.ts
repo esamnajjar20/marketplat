@@ -6,6 +6,7 @@
  */
 
 import { localGet, localSet, localRemove } from '@/lib/localStore';
+import { isOfflineHardExpired } from '@/lib/offlineFreshness';
 import { OFFLINE_DATA_LIMITS } from '@/lib/offlineCachePolicy';
 
 export interface OfflineListEnvelope<T> {
@@ -44,7 +45,7 @@ export function getOfflineList<T>(
     items: [],
     savedAt: '',
   });
-  if (!data.savedAt) return null;
+  if (!data.savedAt || isOfflineHardExpired(data.savedAt)) return null;
   // T770 — same refusal logic as getOfflineJson above.
   if (userId !== undefined && (data.userId ?? null) !== (userId ?? null)) {
     return null;

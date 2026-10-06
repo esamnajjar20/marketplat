@@ -1,3 +1,4 @@
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 /**
  * Recent + ranked search queries (localStorage).
  * PHASE-3: frequency-aware ranking so repeated queries surface first.
@@ -22,10 +23,14 @@ function canUseStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
+function storageKey(): string {
+  return `${STORAGE_KEY}:${getCurrentOfflineUserId() ?? 'guest'}`;
+}
+
 function readEntries(): RecentSearchEntry[] {
   if (!canUseStorage()) return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey());
     if (raw) {
       const parsed = JSON.parse(raw) as unknown;
       if (Array.isArray(parsed)) {
@@ -45,7 +50,7 @@ function readEntries(): RecentSearchEntry[] {
       }
     }
     // migrate legacy string[] once
-    const legacy = window.localStorage.getItem(LEGACY_KEY);
+    const legacy = getCurrentOfflineUserId() === null ? window.localStorage.getItem(LEGACY_KEY) : null;
     if (legacy) {
       const arr = JSON.parse(legacy) as unknown;
       if (Array.isArray(arr)) {
@@ -69,7 +74,7 @@ function readEntries(): RecentSearchEntry[] {
 function writeEntries(entries: RecentSearchEntry[]): void {
   if (!canUseStorage()) return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ITEMS)));
+    window.localStorage.setItem(storageKey(), JSON.stringify(entries.slice(0, MAX_ITEMS)));
   } catch {
     /* quota */
   }
@@ -151,7 +156,7 @@ export function addRecentSearch(query: string): void {
 export function clearRecentSearches(): void {
   if (!canUseStorage()) return;
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(storageKey());
     window.localStorage.removeItem(LEGACY_KEY);
   } catch {
     /* ignore */

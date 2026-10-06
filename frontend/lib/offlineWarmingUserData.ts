@@ -31,6 +31,8 @@
  */
 'use client';
 
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
+
 import { API_BASE_URL } from './constants';
 import { reportProgress } from './warmingProgress';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
@@ -258,6 +260,8 @@ async function warmOneEndpoint(
  * `force` (manual "warm now" button) ignores the freshness windows.
  */
 export async function warmUserData(options: { force?: boolean } = {}): Promise<void> {
+  const warmUserId = getCurrentOfflineUserId();
+  if (!warmUserId) return;
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
   if (!navigator.onLine) return;
@@ -298,6 +302,7 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
       try {
         const { getQueryClient } = await import('@/lib/queryClient');
         const { warmSelfDataForOffline } = await import('@/lib/offlineSelfWarm');
+        if (getCurrentOfflineUserId() !== userId) return;
         await warmSelfDataForOffline(getQueryClient(), userId);
       } catch (err) {
         console.warn('[user-data] self-warm failed:', err);

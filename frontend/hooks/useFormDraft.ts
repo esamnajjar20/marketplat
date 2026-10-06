@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 
 /**
  * Debounced localStorage draft for long forms (ads, products).
@@ -14,8 +15,12 @@ export interface FormDraftVersion<T> {
   values: T;
 }
 
+function scopedKey(key: string): string {
+  return `draft:${getCurrentOfflineUserId() ?? 'guest'}:${key}`;
+}
+
 function historyKey(key: string) {
-  return `draft:${key}:history`;
+  return `${scopedKey(key)}:history`;
 }
 
 function readHistory<T>(key: string): FormDraftVersion<T>[] {
@@ -47,7 +52,7 @@ export function useFormDraft<T extends object>(
   options: { enabled?: boolean; debounceMs?: number } = {},
 ) {
   const { enabled = true, debounceMs = 800 } = options;
-  const storageKey = `draft:${key}`;
+  const storageKey = scopedKey(key);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRun = useRef(true);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -134,7 +139,7 @@ export function useFormDraft<T extends object>(
 export function readFormDraft<T>(key: string): T | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(`draft:${key}`);
+    const raw = window.localStorage.getItem(scopedKey(key));
     if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {

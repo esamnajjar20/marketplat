@@ -1,3 +1,4 @@
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 import { getActiveSW } from '@/lib/swReady';
 /**
  * FEAT-OFFLINE-MSG: واجهة الصفحة لرسائل المحادثة "المُصفّفة" (queued) في
@@ -16,7 +17,7 @@ import { getActiveSW } from '@/lib/swReady';
  */
 
 const DB_NAME = 'market-offline-queue';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'requests';
 
 export type QueuedMessageStatus = 'pending' | 'failed' | 'cancelled';
@@ -34,6 +35,7 @@ export interface QueuedMessageEntry {
   queuedAt: number;
   status: QueuedMessageStatus;
   lastError?: { status: number; message?: string };
+  ownerUserId?: string | null;
 }
 
 interface RawQueueEntry {
@@ -45,6 +47,7 @@ interface RawQueueEntry {
   queuedAt: number;
   status?: QueuedMessageStatus;
   lastError?: { status: number; message?: string };
+  ownerUserId?: string | null;
 }
 
 function openQueueDb(): Promise<IDBDatabase> {
@@ -130,8 +133,10 @@ export async function listQueuedMessages(conversationId: string): Promise<Queued
   let raw: RawQueueEntry[];
   try { raw = await getAllRawEntries(); } catch { return []; }
 
+  const currentUserId = getCurrentOfflineUserId();
+  if (!currentUserId) return [];
   const relevant = raw.filter(
-    (entry) => entry.method?.toUpperCase() === 'POST' && isSendMessageUrl(entry.url, conversationId),
+    (entry) => entry.method?.toUpperCase() === 'POST' && isSendMessageUrl(entry.url, conversationId) && entry.ownerUserId === currentUserId,
   );
 
   const parsed = await Promise.all(relevant.map(async (entry): Promise<QueuedMessageEntry | null> => {
@@ -199,14 +204,14 @@ export async function retryQueuedMessage(queueId: number): Promise<void> {
   }
   if (!('serviceWorker' in navigator)) return;
   const registration = await getActiveSW();
-  registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id: queueId });
+  registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id: queueId, ownerUserId: getCurrentOfflineUserId() });
 }
 
 export async function cancelQueuedMessage(queueId: number): Promise<void> {
   if (!Number.isInteger(queueId) || queueId <= 0) return;
   if (!('serviceWorker' in navigator)) return;
   const registration = await getActiveSW();
-  registration?.active?.postMessage({ type: 'CANCEL_QUEUE_ITEM', id: queueId });
+  registration?.active?.postMessage({ type: 'CANCEL_QUEUE_ITEM', id: queueId, ownerUserId: getCurrentOfflineUserId() });
 }
 
 export async function discardQueuedMessage(queueId: number): Promise<void> {
@@ -217,7 +222,7 @@ export async function discardQueuedMessage(queueId: number): Promise<void> {
   }
   if (!('serviceWorker' in navigator)) return;
   const registration = await getActiveSW();
-  registration?.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id: queueId });
+  registration?.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id: queueId, ownerUserId: getCurrentOfflineUserId() });
 }
 
 /** أنواع رسائل الـ SW التي تعني "أعد قراءة طابور هذه المحادثة" —

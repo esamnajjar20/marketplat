@@ -37,6 +37,7 @@ import { storesApi } from '@/api/stores.api';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { saveOfflineJson, OFFLINE_JSON_KEYS } from '@/lib/offlineJsonCache';
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 import { productCategoriesApi } from '@/api/product-categories.api';
 import { serviceCategoriesApi } from '@/api/service-categories.api';
 import {
@@ -52,19 +53,19 @@ export async function warmSelfDataForOffline(
   await Promise.allSettled([
     (async () => {
       const data = await sellersApi.getMyProfile().then((r) => r.data.data);
-      if (!data) return;
+      if (!data || getCurrentOfflineUserId() !== userId) return;
       saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data, userId);
       queryClient.setQueryData(queryKeys.sellers.me(), data);
     })(),
     (async () => {
       const data = await storesApi.getMyStore().then((r) => r.data.data);
-      if (!data) return;
+      if (!data || getCurrentOfflineUserId() !== userId) return;
       saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data, userId);
       queryClient.setQueryData(queryKeys.stores.me(), data);
     })(),
     (async () => {
       const data = await serviceProvidersApi.getMyProvider().then((r) => r.data.data);
-      if (!data) return;
+      if (!data || getCurrentOfflineUserId() !== userId) return;
       saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data, userId);
       queryClient.setQueryData(queryKeys.serviceProviders.me(), data);
     })(),
@@ -76,7 +77,7 @@ export async function warmSelfDataForOffline(
     // above — a failure here just falls back to live fetch later.
     (async () => {
       const data = await productCategoriesApi.getAll().then((r) => r.data.data);
-      if (!Array.isArray(data) || data.length === 0) return;
+      if (!Array.isArray(data) || data.length === 0 || getCurrentOfflineUserId() !== userId) return;
       saveOfflineList(
         OFFLINE_LIST_KEYS.productCategories,
         data as unknown[],
@@ -86,7 +87,7 @@ export async function warmSelfDataForOffline(
     })(),
     (async () => {
       const data = await serviceCategoriesApi.getAll().then((r) => r.data.data);
-      if (!Array.isArray(data) || data.length === 0) return;
+      if (!Array.isArray(data) || data.length === 0 || getCurrentOfflineUserId() !== userId) return;
       saveOfflineList(
         OFFLINE_LIST_KEYS.serviceCategories,
         data as unknown[],

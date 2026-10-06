@@ -12,7 +12,7 @@
  * fire those events on a later macrotask (setTimeout) — not microtask —
  * or the handlers are still null when the event runs.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   getQueuedRequestCount,
   getQueuedRequestCounts,
@@ -87,6 +87,10 @@ describe('offlineQueue', () => {
   const originalIndexedDB = globalThis.indexedDB;
   const originalNavigator = globalThis.navigator;
 
+  beforeEach(() => {
+    window.localStorage.setItem('marketplace-auth', JSON.stringify({ state: { user: { id: 'user-a' } } }));
+  });
+
   afterEach(() => {
     Object.defineProperty(globalThis, 'indexedDB', {
       value: originalIndexedDB,
@@ -98,6 +102,7 @@ describe('offlineQueue', () => {
       configurable: true,
       writable: true,
     });
+    window.localStorage.removeItem('marketplace-auth');
   });
 
   describe('getQueuedRequestCount', () => {
@@ -113,10 +118,10 @@ describe('offlineQueue', () => {
 
     it('counts only pending rows, excluding status:failed', async () => {
       mockIndexedDbWithRows([
-        { id: 1, url: 'https://api.example.com/ads', method: 'POST', queuedAt: 1, status: 'pending' },
-        { id: 2, url: 'https://api.example.com/ads/2', method: 'PATCH', queuedAt: 2, status: 'failed' },
+        { ownerUserId: 'user-a', id: 1, url: 'https://api.example.com/ads', method: 'POST', queuedAt: 1, status: 'pending' },
+        { ownerUserId: 'user-a', id: 2, url: 'https://api.example.com/ads/2', method: 'PATCH', queuedAt: 2, status: 'failed' },
         // no status field at all () — must still count as pending.
-        { id: 3, url: 'https://api.example.com/ads/3', method: 'DELETE', queuedAt: 3 },
+        { ownerUserId: 'user-a', id: 3, url: 'https://api.example.com/ads/3', method: 'DELETE', queuedAt: 3 },
       ]);
 
       await expect(getQueuedRequestCount()).resolves.toBe(2);
@@ -236,9 +241,9 @@ describe('offlineQueue', () => {
   describe('getQueuedRequestCounts', () => {
     it('splits pending vs failed', async () => {
       mockIndexedDbWithRows([
-        { id: 1, url: 'https://api.example.com/ads', method: 'POST', queuedAt: 1, status: 'pending' },
-        { id: 2, url: 'https://api.example.com/ads/2', method: 'PATCH', queuedAt: 2, status: 'failed' },
-        { id: 3, url: 'https://api.example.com/ads/3', method: 'PATCH', queuedAt: 3, status: 'failed' },
+        { ownerUserId: 'user-a', id: 1, url: 'https://api.example.com/ads', method: 'POST', queuedAt: 1, status: 'pending' },
+        { ownerUserId: 'user-a', id: 2, url: 'https://api.example.com/ads/2', method: 'PATCH', queuedAt: 2, status: 'failed' },
+        { ownerUserId: 'user-a', id: 3, url: 'https://api.example.com/ads/3', method: 'PATCH', queuedAt: 3, status: 'failed' },
       ]);
 
       await expect(getQueuedRequestCounts()).resolves.toEqual({ pending: 1, failed: 2 });
@@ -259,6 +264,7 @@ describe('offlineQueue', () => {
     it('returns failed non-message rows only, oldest first', async () => {
       mockIndexedDbWithRows([
         {
+          ownerUserId: 'user-a',
           id: 5,
           url: 'https://api.example.com/api/v1/ads/5',
           method: 'PATCH',
@@ -268,6 +274,7 @@ describe('offlineQueue', () => {
         },
         {
           // رسالة محادثة فاشلة — يجب استبعادها (لها واجهتها الخاصة بالفقاعة).
+          ownerUserId: 'user-a',
           id: 6,
           url: 'https://api.example.com/api/v1/conversations/conv-1/messages',
           method: 'POST',
@@ -275,6 +282,7 @@ describe('offlineQueue', () => {
           status: 'failed',
         },
         {
+          ownerUserId: 'user-a',
           id: 4,
           url: 'https://api.example.com/api/v1/products/4',
           method: 'DELETE',
@@ -282,6 +290,7 @@ describe('offlineQueue', () => {
           status: 'failed',
         },
         {
+          ownerUserId: 'user-a',
           id: 7,
           url: 'https://api.example.com/api/v1/ads/7',
           method: 'POST',
@@ -316,7 +325,7 @@ describe('offlineQueue', () => {
       });
 
       await retryFailedRequest(9);
-      expect(postMessage).toHaveBeenCalledWith({ type: 'RETRY_QUEUE_ITEM', id: 9 });
+      expect(postMessage).toHaveBeenCalledWith({ type: 'RETRY_QUEUE_ITEM', id: 9, ownerUserId: 'user-a' });
     });
 
     it('discardFailedRequest posts DISCARD_QUEUE_ITEM with the given id', async () => {
@@ -328,7 +337,7 @@ describe('offlineQueue', () => {
       });
 
       await discardFailedRequest(9);
-      expect(postMessage).toHaveBeenCalledWith({ type: 'DISCARD_QUEUE_ITEM', id: 9 });
+      expect(postMessage).toHaveBeenCalledWith({ type: 'DISCARD_QUEUE_ITEM', id: 9, ownerUserId: 'user-a' });
     });
 
     it('both no-op when serviceWorker is not supported', async () => {

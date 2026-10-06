@@ -1,3 +1,4 @@
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 /**
  * مسودات الأوفلاين — IndexedDB.
  *
@@ -303,16 +304,22 @@ export async function listAdDrafts(userId?: string | null): Promise<AdDraft[]> {
 /** يبحث عن مسودة بمعرّف عملية معيّن (X-Offline-Op-Id) — يُستخدم من
  * lib/offlineAdDraftSync.ts لربط نتيجة الطابور الفعلية بالمسودة. */
 export async function findAdDraftByOperationId(operationId: string): Promise<AdDraft | null> {
-  const all = await listAdDrafts(undefined);
+  const userId = getCurrentOfflineUserId();
+  if (!userId) return null;
+  const all = await listAdDrafts(userId);
   return all.find((d) => d.operationId === operationId) ?? null;
 }
 
-export async function getAdDraft(id: string): Promise<AdDraft | null> {
+export async function getAdDraft(id: string, userId = getCurrentOfflineUserId()): Promise<AdDraft | null> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).get(id);
-    req.onsuccess = () => resolve((req.result as AdDraft) ?? null);
+    req.onsuccess = () => {
+      const draft = req.result as AdDraft | undefined;
+      if (!draft || (draft.userId ?? null) !== (userId ?? null)) { resolve(null); return; }
+      resolve(draft);
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -516,11 +523,15 @@ export async function cancelAdDraftSync(id: string): Promise<AdDraft | null> {
   });
 }
 
-export async function deleteAdDraft(id: string): Promise<void> {
+export async function deleteAdDraft(id: string, userId = getCurrentOfflineUserId()): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).delete(id);
+    const req = tx.objectStore(STORE).get(id);
+    req.onsuccess = () => {
+      const draft = req.result as AdDraft | undefined;
+      if (draft && (draft.userId ?? null) === (userId ?? null)) tx.objectStore(STORE).delete(id);
+    };
     tx.oncomplete = () => { dispatchDraftsUpdated(); resolve(); };
     tx.onerror = () => {
       // FIX AD-DRAFT-LOGGING: تسجيل فشل الحذف للتشخيص.
@@ -554,7 +565,7 @@ export async function clearAllAdDrafts(): Promise<void> {
  * صاحبها فلا تظهر لحساب آخر يدخل بعده على نفس الجهاز.
  */
 export async function clearDraftOnlyAdDrafts(): Promise<void> {
-  const all = await listAdDrafts(undefined);
+  const all = await listAdDrafts(getCurrentOfflineUserId());
   const toDelete = all.filter((d) => d.status === 'draft');
   for (const d of toDelete) {
     await deleteAdDraft(d.id);

@@ -12,7 +12,7 @@ import {
   clearRecentSearches,
 } from '@/lib/recentSearches';
 
-const STORAGE_KEY = 'marketplat:recent-searches';
+const STORAGE_KEY = 'marketplat:recent-searches-v2:guest';
 
 describe('recentSearches', () => {
   beforeEach(() => {

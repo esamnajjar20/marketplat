@@ -226,7 +226,7 @@ export async function clearSensitiveLocalData(): Promise<void> {
     // history the moment a search returned zero results. Fire-and-forget
     // because the Cache Storage half is async and logout UX shouldn't
     // block on it.
-    void clearAutoReadCache();
+    await clearAutoReadCache();
   try {
     // Index for the 'market-saved-ads' bucket wiped above (must match
     // SAVED_INDEX_KEY in offlineSavedAds.ts / offlineSavedEntities.ts).
@@ -264,7 +264,7 @@ export async function clearSensitiveLocalData(): Promise<void> {
   // FIX PAYMENT-CLEAR-ON-LOGOUT: جهات دفع + بطاقات نت (بكلمات مرور
   // plaintext) كانت تبقى — User B يرى بيانات User A المالية.
   clearSavedPaymentMethods();
-  void clearOfflineMessagesStore();
+  await clearOfflineMessagesStore();
   try {
     await clearConversationMediaStore();
   } catch (err) {

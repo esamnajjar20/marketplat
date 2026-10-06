@@ -33,6 +33,7 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
 import { initSwTokenSync } from '@/lib/swTokenSync';
 import { initSalesOfflineSync, syncPendingSales } from '@/lib/sales-offline/salesSync';
+import { invalidateOfflineCachesForMutation } from '@/lib/offlineCacheInvalidation';
 
 let __offlineBootstrapInitialized = false;
 
@@ -101,6 +102,16 @@ export function OfflineBootstrap() {
 
   useEffect(() => {
     const stopSalesSyncListener = initSalesOfflineSync();
+    const onQueueMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; url?: string; method?: string } | null;
+      if (data?.type === 'QUEUE_ITEM_SENT' && data.url && data.method) {
+        // SW replay bypasses Axios, so the normal response interceptor cannot
+        // invalidate local/API caches. Mirror the same post-commit invalidation
+        // here, but only after the SW confirms the server accepted the mutation.
+        invalidateOfflineCachesForMutation(data.url, data.method);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', onQueueMessage);
     if (!__offlineBootstrapInitialized) {
       __offlineBootstrapInitialized = true;
       initAdDraftSync();
@@ -165,6 +176,7 @@ export function OfflineBootstrap() {
       window.removeEventListener('pageshow', handlePageShow);
       cancelScheduledWarming();
       stopSalesSyncListener();
+      navigator.serviceWorker?.removeEventListener('message', onQueueMessage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap
   }, []);

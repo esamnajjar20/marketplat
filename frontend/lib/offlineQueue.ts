@@ -1,4 +1,5 @@
 import { getActiveSW } from '@/lib/swReady';
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 /**
  * واجهة الصفحة (لا الـ Service Worker) لطابور الطلبات غير المرسلة.
  *
@@ -34,7 +35,7 @@ import { getActiveSW } from '@/lib/swReady';
  */
 
 const DB_NAME = 'market-offline-queue';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'requests';
 
 export type QueuedRequestStatus = 'pending' | 'failed' | 'cancelled';
@@ -48,6 +49,7 @@ export interface QueuedRequestSummary {
   lastError?: { status: number; message?: string };
   /** FIX AD-DRAFT-QUEUE-LINK-01 — موجود فقط لو الطلب حمل X-Offline-Op-Id. */
   operationId?: string | null;
+  ownerUserId?: string | null;
   /** PHASE-4 */
   priority?: 'critical' | 'normal' | 'low';
 }
@@ -60,6 +62,7 @@ interface RawQueueEntry {
   status?: QueuedRequestStatus;
   lastError?: { status: number; message?: string };
   operationId?: string | null;
+  ownerUserId?: string | null;
 }
 
 function openQueueDb(): Promise<IDBDatabase> {
@@ -118,7 +121,9 @@ export async function getQueuedRequestCount(): Promise<number> {
  * صراحة (صفحة /offline) بدل رقم واحد مضلِّل. */
 export async function getQueuedRequestCounts(): Promise<{ pending: number; failed: number }> {
   try {
-    const entries = await getAllEntries();
+    const userId = getCurrentOfflineUserId();
+    if (!userId) return { pending: 0, failed: 0 };
+    const entries = (await getAllEntries()).filter((entry) => entry.ownerUserId === userId);
     let pending = 0;
     let failed = 0;
     for (const entry of entries) {
@@ -155,7 +160,9 @@ function isMessageSendUrl(url: string): boolean {
 export async function listFailedRequests(): Promise<QueuedRequestSummary[]> {
   let entries: RawQueueEntry[];
   try {
-    entries = await getAllEntries();
+    const userId = getCurrentOfflineUserId();
+    if (!userId) return [];
+    entries = (await getAllEntries()).filter((entry) => entry.ownerUserId === userId);
   } catch {
     return [];
   }
@@ -169,6 +176,7 @@ export async function listFailedRequests(): Promise<QueuedRequestSummary[]> {
       status: 'failed' as const,
       lastError: e.lastError,
       operationId: e.operationId ?? null,
+      ownerUserId: e.ownerUserId ?? null,
     }))
     .sort((a, b) => a.queuedAt - b.queuedAt)
     // FIX QUEUE-UI-LIMIT: cap the list displayed in /offline at 20 —
@@ -190,7 +198,7 @@ export async function retryFailedRequest(id: number): Promise<void> {
   }
   if (!('serviceWorker' in navigator)) return;
   const registration = await getActiveSW();
-  registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id });
+  registration?.active?.postMessage({ type: 'RETRY_QUEUE_ITEM', id, ownerUserId: getCurrentOfflineUserId() });
 }
 
 /** يحذف عنصرًا فاشلاً نهائيًا دون إعادة محاولة. */
@@ -207,7 +215,7 @@ export async function retryQueuedOperation(operationId: string): Promise<boolean
       window.clearTimeout(timer);
       resolve(Boolean(event.data?.found));
     };
-    worker.postMessage({ type: 'RETRY_QUEUE_OPERATION', operationId }, [channel.port2]);
+    worker.postMessage({ type: 'RETRY_QUEUE_OPERATION', operationId, ownerUserId: getCurrentOfflineUserId() }, [channel.port2]);
   });
 }
 
@@ -215,7 +223,7 @@ export async function retryQueuedOperation(operationId: string): Promise<boolean
 export async function cancelQueuedOperation(operationId: string): Promise<void> {
   if (!operationId || !('serviceWorker' in navigator)) return;
   const registration = await getActiveSW();
-  registration?.active?.postMessage({ type: 'CANCEL_QUEUE_OPERATION', operationId });
+  registration?.active?.postMessage({ type: 'CANCEL_QUEUE_OPERATION', operationId, ownerUserId: getCurrentOfflineUserId() });
 }
 
 export async function discardFailedRequest(id: number): Promise<void> {
@@ -226,7 +234,7 @@ export async function discardFailedRequest(id: number): Promise<void> {
   }
   if (!('serviceWorker' in navigator)) return;
   const registration = await getActiveSW();
-  registration?.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id });
+  registration?.active?.postMessage({ type: 'DISCARD_QUEUE_ITEM', id, ownerUserId: getCurrentOfflineUserId() });
 }
 
 /** أنواع رسائل الـ SW التي تعني "أعد قراءة الطابور" — نفس القائمة

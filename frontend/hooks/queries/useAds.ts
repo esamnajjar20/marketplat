@@ -140,7 +140,7 @@ export function useAds(
       } catch (err) {
         if (isBaseBrowse) {
           const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse);
-          if (local?.items.length) {
+          if (local) {
             return { items: local.items, meta: offlineMeta(local.items.length) };
           }
         }
@@ -234,7 +234,7 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
       } catch (err) {
         if (isBase) {
           const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds, userId);
-          if (local?.items.length) {
+          if (local) {
             return { items: local.items, meta: offlineMeta(local.items.length) };
           }
         }

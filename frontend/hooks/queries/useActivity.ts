@@ -88,7 +88,7 @@ export function useMyActivity(params?: ActivityQuery) {
       } catch (err) {
         if (isBase) {
           const local = getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity, userId);
-          if (local?.items.length) {
+          if (local) {
             return {
               items: local.items,
               meta: offlineMeta(local.items.length),
