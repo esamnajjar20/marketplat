@@ -32,6 +32,7 @@ import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities'
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
 import { initSwTokenSync } from '@/lib/swTokenSync';
+import { initSalesOfflineSync, syncPendingSales } from '@/lib/sales-offline/salesSync';
 
 let __offlineBootstrapInitialized = false;
 
@@ -87,7 +88,9 @@ function replayThenPublishDrafts(): void {
             console.warn('[offline] syncPendingOfflineDrafts failed:', err);
           })
           .finally(() => {
-            setQueueReplayInFlight(false);
+            void syncPendingSales(useAuthStore.getState().user?.id ?? null)
+              .catch((err) => console.warn('[offline] sales sync failed:', err))
+              .finally(() => setQueueReplayInFlight(false));
           });
       }, 1500);
     });
@@ -97,6 +100,7 @@ export function OfflineBootstrap() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   useEffect(() => {
+    const stopSalesSyncListener = initSalesOfflineSync();
     if (!__offlineBootstrapInitialized) {
       __offlineBootstrapInitialized = true;
       initAdDraftSync();
@@ -160,6 +164,7 @@ export function OfflineBootstrap() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
       cancelScheduledWarming();
+      stopSalesSyncListener();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap
   }, []);

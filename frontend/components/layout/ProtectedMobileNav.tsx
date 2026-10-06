@@ -61,7 +61,7 @@ import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useAuthStore, selectIsAdminTier, selectUser } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
+import { BROWSE_LINKS, ACTIVITY_GROUP, SERVICES_GROUP, STORE_GROUP, SALES_GROUP, settingsGroupFor, requestsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { useMyStore } from '@/hooks/queries/useStores';
@@ -83,7 +83,7 @@ const TOGGLE_ID = 'protected-mobile-nav-toggle';
 function DrawerDisclosureGroup({
   group, pathname, onNavigate, search = '',
 }: {
-  group: typeof SERVICES_GROUP | typeof STORE_GROUP | NavDisclosureGroup; // + requests/settings via NavDisclosureGroup
+  group: typeof SERVICES_GROUP | typeof STORE_GROUP | typeof SALES_GROUP | NavDisclosureGroup; // + requests/settings via NavDisclosureGroup
   pathname: string;
   onNavigate: () => void;
   search?: string;
@@ -438,6 +438,15 @@ export function ProtectedMobileNav() {
           {showProviderSkeleton && (
             <li aria-hidden className="px-3 py-2">
               <div className="h-9 animate-pulse rounded-md bg-muted/60" />
+            </li>
+          )}
+          {(isSeller || isProvider) && (
+            <li>
+              <Suspense fallback={<DrawerDisclosureGroup group={SALES_GROUP} pathname={pathname} onNavigate={close} />}>
+                <WithSearch>
+                  {(search) => <DrawerDisclosureGroup group={SALES_GROUP} pathname={pathname} onNavigate={close} search={search} />}
+                </WithSearch>
+              </Suspense>
             </li>
           )}
           {!showProviderSkeleton && isProvider && (

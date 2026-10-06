@@ -40,6 +40,7 @@ export interface Product {
   /** Prisma Decimal(10,2) — string in JSON, same convention as Ad.price. */
   price: string;
   wholesalePrice: string | null;
+  costPrice: string | null;
   wholesaleMinQty: number | null;
   discountPrice: string | null;
   availability: ProductAvailability;
@@ -117,6 +118,7 @@ export interface CreateProductPayload {
   price: number;
   discountPrice?: number;
   wholesalePrice?: number;
+  costPrice?: number;
   wholesaleMinQty?: number;
   availability?: ProductAvailability;
   stockQuantity?: number;
@@ -137,6 +139,7 @@ export interface UpdateProductPayload {
   price?: number;
   discountPrice?: number | null;
   wholesalePrice?: number | null;
+  costPrice?: number | null;
   wholesaleMinQty?: number | null;
   availability?: ProductAvailability;
   stockQuantity?: number | null;
@@ -195,6 +198,7 @@ export interface ProductFormValues {
   price: string;
   discountPrice: string;
   wholesalePrice: string;
+  costPrice: string;
   wholesaleMinQty: string;
   availability: ProductAvailability;
   stockQuantity: string;

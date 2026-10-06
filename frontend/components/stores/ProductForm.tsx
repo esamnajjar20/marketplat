@@ -47,6 +47,7 @@ interface Errors {
   price?: string;
   discountPrice?: string;
   wholesalePrice?: string;
+  costPrice?: string;
   images?: string;
   attributes?: string;
 }
@@ -156,6 +157,7 @@ export function ProductForm({ mode, product }: Props) {
         price: product.price,
         discountPrice: product.discountPrice ?? '',
         wholesalePrice: product.wholesalePrice ?? '',
+        costPrice: product.costPrice ?? '',
         wholesaleMinQty: product.wholesaleMinQty ? String(product.wholesaleMinQty) : '',
         availability: product.availability,
         stockQuantity: product.stockQuantity != null ? String(product.stockQuantity) : '',
@@ -171,6 +173,7 @@ export function ProductForm({ mode, product }: Props) {
       price: '',
       discountPrice: '',
       wholesalePrice: '',
+      costPrice: '',
       wholesaleMinQty: '',
       availability: 'IN_STOCK' as ProductAvailability,
       stockQuantity: '',
@@ -237,6 +240,7 @@ export function ProductForm({ mode, product }: Props) {
       price: values.price,
       discountPrice: values.discountPrice,
       wholesalePrice: values.wholesalePrice,
+      costPrice: values.costPrice,
       wholesaleMinQty: values.wholesaleMinQty,
       availability: values.availability,
       stockQuantity: values.stockQuantity,
@@ -320,6 +324,7 @@ export function ProductForm({ mode, product }: Props) {
     values.price !== initialValues.price ||
     values.discountPrice !== initialValues.discountPrice ||
     values.wholesalePrice !== initialValues.wholesalePrice ||
+    values.costPrice !== initialValues.costPrice ||
     values.wholesaleMinQty !== initialValues.wholesaleMinQty ||
     values.stockQuantity !== initialValues.stockQuantity ||
     JSON.stringify(values.attributes) !== JSON.stringify(initialValues.attributes) ||
@@ -361,6 +366,7 @@ export function ProductForm({ mode, product }: Props) {
           price: parseFloat(values.price),
           discountPrice: values.discountPrice ? parseFloat(values.discountPrice) : undefined,
           wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : undefined,
+          costPrice: values.costPrice !== '' ? parseFloat(values.costPrice) : undefined,
           wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : undefined,
           availability: values.availability,
           ...(values.stockQuantity.trim() !== '' ? { stockQuantity: Number(values.stockQuantity) } : {}),
@@ -410,6 +416,7 @@ export function ProductForm({ mode, product }: Props) {
       price: parseFloat(values.price),
       discountPrice: values.discountPrice ? parseFloat(values.discountPrice) : null,
       wholesalePrice: values.wholesalePrice ? parseFloat(values.wholesalePrice) : null,
+      costPrice: values.costPrice === '' ? null : Number(values.costPrice),
       wholesaleMinQty: values.wholesaleMinQty ? parseInt(values.wholesaleMinQty, 10) : null,
       availability: values.availability,
       stockQuantity: values.stockQuantity.trim() === '' ? null : Number(values.stockQuantity),
@@ -661,6 +668,19 @@ export function ProductForm({ mode, product }: Props) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField label="سعر التكلفة (اختياري)" htmlFor="costPrice" error={fieldError('costPrice')}>
+            <Input
+              id="costPrice"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={values.costPrice}
+              onChange={(e) => set('costPrice', e.target.value)}
+              placeholder="يُستخدم لحساب الربح"
+            />
+          </FormField>
+
           <FormField label="سعر الجملة (اختياري)" htmlFor="wholesalePrice" error={fieldError('wholesalePrice')}>
             <Input
               id="wholesalePrice"

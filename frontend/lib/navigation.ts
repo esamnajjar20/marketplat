@@ -26,6 +26,7 @@ import {
   Package,
   Trophy,
   ClipboardList,
+  WalletCards,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 
@@ -43,6 +44,18 @@ export const BROWSE_LINKS = [
 ] as const;
 
 /** Secondary personal activity — not primary destinations. */
+export const SALES_GROUP = {
+  label: 'مبيعاتي',
+  href: ROUTES.sales,
+  icon: WalletCards,
+  children: [
+    { label: 'سجل المبيعات', href: ROUTES.sales },
+    { label: 'العملاء', href: ROUTES.customers },
+    { label: 'الديون', href: ROUTES.salesDebts },
+    { label: 'الأقساط', href: ROUTES.salesInstallments },
+  ],
+} as const;
+
 export const ACTIVITY_GROUP = {
   label: 'نشاطي',
   href: ROUTES.activity,

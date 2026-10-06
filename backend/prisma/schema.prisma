@@ -190,6 +190,9 @@ model User {
   blocksReceived              UserBlock[]               @relation("BlocksReceived")
   activities                  UserActivity[]
   fraudSignals                FraudSignal[]
+  sales                       SaleRecord[]             @relation("SellerSales")
+  customers                   Customer[]               @relation("SellerCustomers")
+  salesStatsCache             SalesStatsCache?         @relation("SellerSalesStats")
 
   storeMemberships   StoreMember[]  @relation("StoreMemberships")
   storeMemberInvites StoreMember[]  @relation("StoreMemberInvites")
@@ -709,6 +712,7 @@ model ServiceRequest {
   customer       User                 @relation("ServiceRequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
   listing        ServiceListing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
   review         ServiceReview?
+  saleRecord     SaleRecord?
 
   @@index([listingId, status])
   @@index([customerId])
@@ -966,6 +970,8 @@ model StoreDetails {
   collections        StoreCollection[]
   members            StoreMember[]
   ads                Ad[]
+  sales              SaleRecord[]
+  salesStatsCache    SalesStatsCache?
 
   @@index([status, city])
   @@index([status, plan])
@@ -1024,6 +1030,7 @@ model Product {
   images          String[]
   price           Decimal                  @db.Decimal(10, 2)
   wholesalePrice  Decimal?                 @db.Decimal(10, 2)
+  costPrice       Decimal?                 @db.Decimal(10, 2)
   wholesaleMinQty Int?
   discountPrice   Decimal?                 @db.Decimal(10, 2)
   availability    ProductAvailability      @default(IN_STOCK)
@@ -1059,7 +1066,9 @@ model StockMovement {
   reason            String   @db.VarChar(120)
   createdAt         DateTime @default(now())
 
-  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product           Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  saleRecord        SaleRecord?   @relation("SaleStockMovement")
+  returnRecord      SaleReturn?   @relation("ReturnStockMovement")
 
   @@index([storeId, createdAt])
   @@index([productId, createdAt])
@@ -1976,3 +1985,203 @@ enum AnalyticsEventType {
   SERVICE_VIEW
 }
 
+
+
+// SALES-LOG P1: seller-owned sales ledger. This is deliberately separate from
+// marketplace orders: a seller may record an offline/cash sale that never
+// passed through a marketplace checkout.
+model SaleRecord {
+  id              String           @id @default(cuid())
+  sellerId        String
+  storeId         String?
+  entityType      SaleEntityType
+  entityId        String?
+  entityTitle     String
+  entityImageUrl  String?
+  quantity        Int              @default(1)
+  unitPrice       Decimal          @db.Decimal(10, 2)
+  costPrice       Decimal?         @db.Decimal(10, 2)
+  totalPrice      Decimal          @db.Decimal(10, 2)
+  currency        String           @default("ILS")
+  invoiceNumber   String?          @unique
+  invoicePdfUrl   String?
+  customerId      String?
+  buyerName       String
+  buyerPhone      String?
+  paymentStatus   SalePaymentStatus @default(PAID)
+  paidAmount      Decimal          @default(0) @db.Decimal(10, 2)
+  dueAmount       Decimal          @default(0) @db.Decimal(10, 2)
+  refundedAmount  Decimal          @default(0) @db.Decimal(10, 2)
+  dueDate         DateTime?
+  note            String?
+  internalNote    String?
+  offlineOperationId String?       @unique
+  soldAt          DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  stockMovementId String?          @unique
+  serviceRequestId String?         @unique
+
+  seller          User             @relation("SellerSales", fields: [sellerId], references: [id], onDelete: Cascade)
+  store           StoreDetails?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  payments        SalePayment[]
+  returns         SaleReturn[]
+  installments    SaleInstallment[]
+  stockMovement   StockMovement?   @relation("SaleStockMovement", fields: [stockMovementId], references: [id], onDelete: SetNull)
+  serviceRequest  ServiceRequest?  @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId, soldAt])
+  @@index([storeId, soldAt])
+  @@index([sellerId, entityType])
+  @@index([sellerId, paymentStatus])
+  @@index([customerId, soldAt])
+  @@index([sellerId, invoiceNumber])
+  @@unique([sellerId, offlineOperationId])
+  @@map("sale_records")
+}
+
+enum SaleEntityType {
+  PRODUCT
+  AD
+  SERVICE
+  FREE
+}
+
+enum SalePaymentStatus {
+  PAID
+  PARTIAL
+  UNPAID
+  OVERDUE
+}
+
+enum SaleTransferMethod {
+  CASH
+  JAWWAL_PAY
+  BANK_PALESTINE
+  PALPAY
+  CARD
+  OTHER
+}
+
+model SalePayment {
+  id          String             @id @default(cuid())
+  saleId      String
+  amount      Decimal            @db.Decimal(10, 2)
+  method      SaleTransferMethod
+  transferRef String?
+  paidAt      DateTime           @default(now())
+  note        String?
+  sale        SaleRecord         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId, paidAt])
+  @@map("sale_payments")
+}
+
+model SaleInstallment {
+  id            String             @id @default(cuid())
+  saleId        String
+  installmentNo Int
+  amount        Decimal            @db.Decimal(10, 2)
+  dueDate       DateTime
+  paidAt        DateTime?
+  paidAmount    Decimal?           @db.Decimal(10, 2)
+  status        InstallmentStatus  @default(PENDING)
+  note          String?
+  sale          SaleRecord         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@unique([saleId, installmentNo])
+  @@index([saleId, installmentNo])
+  @@index([dueDate, status])
+  @@map("sale_installments")
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  PARTIAL
+}
+
+model SaleReturn {
+  id                    String         @id @default(cuid())
+  saleId                String
+  quantity              Int
+  refundAmount          Decimal        @db.Decimal(10, 2)
+  reason                ReturnReason
+  reasonNote            String?
+  restockedToInventory  Boolean        @default(true)
+  stockMovementId       String?        @unique
+  createdAt             DateTime       @default(now())
+  sale                  SaleRecord     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  stockMovement         StockMovement? @relation("ReturnStockMovement", fields: [stockMovementId], references: [id], onDelete: SetNull)
+
+  @@index([saleId])
+  @@map("sale_returns")
+}
+
+enum ReturnReason {
+  DAMAGED
+  WRONG_ITEM
+  NOT_LIKED
+  LATE
+  OTHER
+}
+
+model Customer {
+  id              String       @id @default(cuid())
+  sellerId        String
+  name            String
+  phone           String?
+  email           String?
+  address         String?
+  note            String?
+  tags            String[]
+  totalSpent      Decimal      @default(0) @db.Decimal(10, 2)
+  totalDue        Decimal      @default(0) @db.Decimal(10, 2)
+  purchaseCount   Int          @default(0)
+  lastPurchaseAt  DateTime?
+  firstPurchaseAt DateTime?
+  isVip           Boolean      @default(false)
+  isBlacklisted   Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  seller          User         @relation("SellerCustomers", fields: [sellerId], references: [id], onDelete: Cascade)
+  sales           SaleRecord[]
+
+  @@unique([sellerId, phone])
+  @@index([sellerId, name])
+  @@index([sellerId, totalDue])
+  @@index([sellerId, lastPurchaseAt])
+  @@map("sales_customers")
+}
+
+// Public store stats are intentionally separate from the private sales ledger.
+// The cache contains only aggregate trust/sales numbers safe for a public page.
+model SalesStatsCache {
+  id             String        @id @default(cuid())
+  sellerId       String        @unique
+  storeId        String?       @unique
+  totalSales     Int           @default(0)
+  totalRevenue   Decimal       @default(0) @db.Decimal(10, 2)
+  averageRating  Decimal?      @db.Decimal(3, 2)
+  reviewCount    Int           @default(0)
+  verifiedSeller Boolean       @default(false)
+  updatedAt      DateTime      @updatedAt
+  seller         User          @relation("SellerSalesStats", fields: [sellerId], references: [id], onDelete: Cascade)
+  store          StoreDetails? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@map("sales_stats_cache")
+}
+
+// Concurrency-safe invoice sequence per seller/year. Keeping this separate
+// from SaleRecord avoids max(invoiceNumber)+1 races under concurrent sales.
+model InvoiceCounter {
+  id        String   @id @default(cuid())
+  year      Int      @unique
+  nextValue Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@map("invoice_counters")
+}

@@ -25,6 +25,7 @@ export const createProductSchema = z.object({
       .multipleOf(0.01)
       .optional(),
     wholesalePrice: z.coerce.number().positive().multipleOf(0.01).optional(),
+    costPrice: z.coerce.number().nonnegative().multipleOf(0.01).optional(),
     wholesaleMinQty: z.coerce.number().int().positive().optional(),
     availability: z.nativeEnum(ProductAvailability).default('IN_STOCK'),
     stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
@@ -57,6 +58,7 @@ export const updateProductSchema = z.object({
     price: z.coerce.number().positive().multipleOf(0.01).optional(),
     discountPrice: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
     wholesalePrice: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
+    costPrice: z.coerce.number().nonnegative().multipleOf(0.01).nullable().optional(),
     wholesaleMinQty: z.coerce.number().int().positive().nullable().optional(),
     availability: z.nativeEnum(ProductAvailability).optional(),
     stockQuantity: z.coerce.number().int().min(0).max(1000000).nullable().optional(),

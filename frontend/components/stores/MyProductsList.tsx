@@ -47,8 +47,10 @@ const AVAIL_LABELS: Record<ProductAvailability, string> = {
 };
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
+import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 export function MyProductsList() {
   const router = useRouter();
+  const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
   const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStore);
   const availability = (sp.get('availability') as ProductAvailability | null) || undefined;
   const searchQ = sp.get('q') ?? '';
@@ -344,6 +346,7 @@ export function MyProductsList() {
                     <p className="text-primary font-bold text-sm">
                       {formatPrice(product.discountPrice ?? product.price)}
                     </p>
+                    {product.stockQuantity != null && product.stockQuantity <= 5 && product.stockQuantity >= 0 && <Badge variant="destructive" className="text-2xs">متبقي {product.stockQuantity}</Badge>}
                     {product.discountPrice && (
                       <p className="text-xs text-muted-foreground line-through">
                         {formatPrice(product.price)}
@@ -364,6 +367,11 @@ export function MyProductsList() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
+                  {product.status === 'ACTIVE' && (
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-success" aria-label={`بيع ${product.name}`} title="بعت" onClick={() => setSalePrefill({ entityType: 'PRODUCT', entityId: product.id, entityTitle: product.name, entityImageUrl: product.images?.[0] ?? null, unitPrice: Number(product.discountPrice ?? product.price), costPrice: product.costPrice == null ? null : Number(product.costPrice), storeId: product.storeId })}>
+                      <Package className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   <Link href={ROUTES.myStoreProductEdit(product.id)}>
                     <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${product.name}`}>
                       <Pencil className="h-3.5 w-3.5" />
@@ -448,6 +456,7 @@ export function MyProductsList() {
         isPending={bulkBusy === 'delete'}
         onConfirm={() => void performBulkDelete()}
       />
+    <AddSaleDialog open={Boolean(salePrefill)} onOpenChange={(open) => { if (!open) setSalePrefill(null); }} prefill={salePrefill} />
     </div>
   );
 }

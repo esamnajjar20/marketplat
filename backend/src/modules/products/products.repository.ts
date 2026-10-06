@@ -57,6 +57,7 @@ const productListSelect = {
   price: true,
   discountPrice: true,
   wholesalePrice: true,
+  costPrice: true,
   wholesaleMinQty: true,
   availability: true,
   stockQuantity: true,
@@ -98,6 +99,7 @@ export const productsRepository = {
       price: number;
       discountPrice?: number;
       wholesalePrice?: number;
+      costPrice?: number | null;
       wholesaleMinQty?: number;
       availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
       stockQuantity?: number | null;
@@ -115,6 +117,7 @@ export const productsRepository = {
         price: data.price,
         discountPrice: data.discountPrice,
         wholesalePrice: data.wholesalePrice,
+        costPrice: data.costPrice,
         wholesaleMinQty: data.wholesaleMinQty,
         availability: data.availability,
         stockQuantity: data.stockQuantity ?? null,
@@ -154,6 +157,7 @@ export const productsRepository = {
       stockQuantity: number | null;
       discountPrice: number | null;
       wholesalePrice: number | null;
+      costPrice: number | null;
       wholesaleMinQty: number | null;
       availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
       status: ProductStatus;
@@ -174,6 +178,7 @@ export const productsRepository = {
       stockQuantity: number | null;
       discountPrice: number | null;
       wholesalePrice: number | null;
+      costPrice: number | null;
       wholesaleMinQty: number | null;
       availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
       status: ProductStatus;

@@ -28,10 +28,12 @@ import { ShoppingBag, AlertTriangle } from 'lucide-react';
 import type { AdStatus } from '@/types/ad.types';
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
+import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 export function MyAdsList() {
   // Page/status logic shared with MyServiceListingsList and
   // MyProductsList — see useOwnedListPage.
   const { page, status, setStatus, searchParams: sp } = useOwnedListPage<AdStatus>(ROUTES.myAds);
+  const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
 
   const { data, isLoading, isError, refetch } = useMyAds({ page, limit: 10, status });
   const deleteAd   = useDeleteAd();
@@ -343,6 +345,11 @@ export function MyAdsList() {
                   </div>
                 </div>
                 <div className={cn('flex flex-col gap-1 shrink-0', selectionMode && 'hidden')}>
+                  {ad.status === 'ACTIVE' && (
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-success hover:text-success" aria-label={`بيع ${ad.title}`} title="بعت" onClick={(event) => { event.stopPropagation(); setSalePrefill({ entityType: 'AD', entityId: ad.id, entityTitle: ad.title, entityImageUrl: ad.images?.[0] ?? null, unitPrice: Number(ad.price) }); }}>
+                      <ShoppingBag className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {/* FIX A11Y-01: icon-only action buttons need an
                       accessible name — title alone isn't reliable for
                       screen readers and has no keyboard equivalent. */}
@@ -459,6 +466,7 @@ export function MyAdsList() {
           markAsSold.mutate(soldTargetId, { onSuccess: () => setSoldTargetId(null) });
         }}
       />
+    <AddSaleDialog open={Boolean(salePrefill)} onOpenChange={(open) => { if (!open) setSalePrefill(null); }} prefill={salePrefill} />
     </div>
   );
 }

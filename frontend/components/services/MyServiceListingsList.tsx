@@ -25,6 +25,7 @@ import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import {
@@ -45,6 +46,7 @@ const STATUS_LABELS: Record<ServiceListingStatus, string> = {
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 export function MyServiceListingsList() {
+  const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
   const router = useRouter();
   const { data: provider, isSuccess: providerOk } = useMyServiceProvider();
   const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(
@@ -379,6 +381,11 @@ export function MyServiceListingsList() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
+                  {listing.status === 'ACTIVE' && listing.price != null && (
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-success" aria-label={`بيع ${listing.title}`} title="بعت" onClick={() => setSalePrefill({ entityType: 'SERVICE', entityId: listing.id, entityTitle: listing.title, entityImageUrl: listing.images?.[0] ?? null, unitPrice: Number(listing.price) })}>
+                      <Briefcase className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   <Link href={ROUTES.myServiceEdit(listing.id)}>
                     <Button
                       variant="ghost"
@@ -476,6 +483,7 @@ export function MyServiceListingsList() {
         isPending={bulkBusy === 'delete'}
         onConfirm={() => void performBulkDelete()}
       />
+    <AddSaleDialog open={Boolean(salePrefill)} onOpenChange={(open) => { if (!open) setSalePrefill(null); }} prefill={salePrefill} />
     </div>
   );
 }

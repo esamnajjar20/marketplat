@@ -66,6 +66,27 @@ export const queryKeys = {
       ['recommendations', 'mixed', params ?? {}, ...(scope ? [scope] : [])] as const,
   },
 
+  // ── Sales log ─────────────────────────────────────────────────
+  sales: {
+    all: () => ['sales'] as const,
+    list: (params?: object) => ['sales', 'list', params ?? {}] as const,
+    detail: (id: string) => ['sales', 'detail', id] as const,
+    summary: (period?: string) => ['sales', 'summary', period ?? 'month'] as const,
+    chart: () => ['sales', 'chart'] as const,
+    debts: () => ['sales', 'debts'] as const,
+  },
+
+  customers: {
+    all: () => ['customers'] as const,
+    list: (params?: object) => ['customers', 'list', params ?? {}] as const,
+    detail: (id: string) => ['customers', 'detail', id] as const,
+    search: (q: string) => ['customers', 'search', q] as const,
+  },
+  installments: {
+    upcoming: () => ['installments', 'upcoming'] as const,
+    overdue: () => ['installments', 'overdue'] as const,
+  },
+
   // ── Users ──────────────────────────────────────────────────────
   users: {
     detail: (id: string)           => ['users', id]              as const,

@@ -45,6 +45,8 @@ import { getErrorMessage } from '@/lib/i18n/ar/errors';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { listSalesDrafts, type SalesOfflineDraft } from '@/lib/sales-offline/salesDraftStore';
+import { resolveSalesConflict } from '@/lib/sales-offline/salesSync';
 
 export function SyncCenterClient() {
   const isOnline = useOnlineStatus();
@@ -53,23 +55,26 @@ export function SyncCenterClient() {
   const [failed, setFailed] = useState(0);
   const [failedItems, setFailedItems] = useState<QueuedRequestSummary[]>([]);
   const [drafts, setDrafts] = useState<AdDraft[]>([]);
+  const [salesDrafts, setSalesDrafts] = useState<SalesOfflineDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [counts, failedList, draftList] = await Promise.all([
+      const [counts, failedList, draftList, salesList] = await Promise.all([
         getQueuedRequestCounts().catch(() => ({ pending: 0, failed: 0 })),
         listFailedRequests().catch(() => [] as QueuedRequestSummary[]),
         // FIX AD-DRAFT-USER-SCOPE-01: مسودات صاحب الحساب الحالي فقط —
         // بدونها، مسودة حساب سابق على نفس الجهاز تظهر لحساب جديد.
         listAdDrafts(userId).catch(() => [] as AdDraft[]),
+        listSalesDrafts(userId).catch(() => [] as SalesOfflineDraft[]),
       ]);
       setPending(counts.pending);
       setFailed(counts.failed);
       setFailedItems(failedList);
       setDrafts(draftList);
+      setSalesDrafts(salesList);
     } finally {
       setLoading(false);
     }
@@ -437,6 +442,34 @@ export function SyncCenterClient() {
           </ul>
         )}
       </section>
+
+      {salesDrafts.length > 0 ? (
+        <section className="space-y-3 rounded-2xl border border-primary/20 bg-primary/[0.03] p-4">
+          <div>
+            <h2 className="font-semibold">مبيعات محفوظة أوفلاين</h2>
+            <p className="mt-1 text-sm text-muted-foreground">المبيعات لا تُكرر عند المزامنة؛ لكل عملية معرّف يمنع تسجيلها مرتين.</p>
+          </div>
+          <ul className="space-y-2">
+            {salesDrafts.map((draft) => {
+              const conflict = draft.status === 'conflict';
+              return (
+                <li key={draft.operationId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{draft.payload.entityTitle || 'بيع'}</p>
+                    <p className="text-xs text-muted-foreground">{draft.payload.quantity} × {draft.payload.unitPrice} ₪ · {conflict ? 'تعارض يحتاج مراجعة' : 'بانتظار المزامنة'}</p>
+                    {draft.lastError?.message ? <p className="mt-1 text-xs text-destructive">{draft.lastError.message}</p> : null}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" disabled={!isOnline} onClick={() => void resolveSalesConflict(draft.operationId, 'retry').then(() => refresh())}>إعادة المحاولة</Button>
+                    <Button size="sm" variant="ghost" onClick={() => void resolveSalesConflict(draft.operationId, 'discard').then(() => refresh())}>حذف المسودة</Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-xs text-muted-foreground">في تعارض المخزون أو رقم العملية لا نُنشئ بيعًا ثانيًا تلقائيًا؛ راجع العملية ثم أعد إرسالها بنفس المعرّف.</p>
+        </section>
+      ) : null}
 
       {pending > 0 && (
         <p className="text-sm text-muted-foreground">

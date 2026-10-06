@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus } from 'lucide-react';
+import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -23,6 +23,7 @@ import {
   SERVICE_REQUEST_STATUS_VARIANT,
 } from '@/lib/serviceRequestStatus';
 import type { ServiceRequestStatus } from '@/types/service.types';
+import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 
 const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
   '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED',
@@ -144,6 +145,7 @@ export function IncomingServiceRequestsList() {
   const status = rawStatus && (FILTER_TABS as readonly string[]).includes(rawStatus)
     ? (rawStatus as ServiceRequestStatus)
     : undefined;
+  const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
   const [appointmentTarget, setAppointmentTarget] = useState<{
     providerId: string;
     requestId: string;
@@ -254,17 +256,24 @@ export function IncomingServiceRequestsList() {
                   </Link>
                 </div>
                 <div className="flex items-center sm:items-end">
-                  <RequestActions
-                    id={request.id}
-                    status={request.status}
-                    onBookAppointment={() =>
-                      setAppointmentTarget({
-                        providerId: request.listing.provider.id,
-                        requestId: request.id,
-                        title: request.listing.title,
-                      })
-                    }
-                  />
+                  <div className="flex flex-wrap items-end gap-1.5">
+                    <RequestActions
+                      id={request.id}
+                      status={request.status}
+                      onBookAppointment={() =>
+                        setAppointmentTarget({
+                          providerId: request.listing.provider.id,
+                          requestId: request.id,
+                          title: request.listing.title,
+                        })
+                      }
+                    />
+                    {(['ACCEPTED','IN_PROGRESS','COMPLETED'] as const).includes(request.status as any) && (request.agreedPrice ?? request.quotedPrice) != null ? (
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setSalePrefill({ entityType:'SERVICE', entityId:request.listing.id, entityTitle:request.listing.title, entityImageUrl:request.listing.images?.[0] ?? null, unitPrice:Number(request.agreedPrice ?? request.quotedPrice), serviceRequestId:request.id, buyerName:request.customer.name })}>
+                        <WalletCards className="h-3.5 w-3.5" />تسجيل البيع
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );
@@ -280,6 +289,8 @@ export function IncomingServiceRequestsList() {
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}
+
+      <AddSaleDialog open={Boolean(salePrefill)} onOpenChange={(open) => { if (!open) setSalePrefill(null); }} prefill={salePrefill} />
 
       {appointmentTarget && (
         <CreateAppointmentDialog

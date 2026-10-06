@@ -206,7 +206,7 @@ export function useRelatedAds(id: string) {
  * GET /ads/me — current user's own listings.
  * FIX C-06: URL is /ads/me (was /ads/my in old code — fixed in ads.api.ts).
  */
-export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>) {
+export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>, options?: { enabled?: boolean }) {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   // FIX ADS-OFFLINE-CACHE-SCOPE-01 (same as useAds above): a
   // status-filtered first page (e.g. my SOLD ads) was being written
@@ -243,6 +243,7 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
     },
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.myAds,
+    enabled:         options?.enabled ?? true,
     ...(cached && cached.items.length > 0
       ? {
           initialData: {

@@ -26,6 +26,8 @@ import { productsRouter } from './modules/products';
 import { productCategoriesRouter } from './modules/product-categories';
 import { promotionsRouter } from './modules/promotions';
 import { collectionsRouter } from './modules/collections';
+import { salesRouter, installmentsRouter, publicSalesStatsRouter } from './modules/sales';
+import { customersRouter } from './modules/customers';
 import { badgesRouter } from './modules/badges';
 import { searchRouter } from './modules/search';
 import { auditLogsRouter } from './modules/audit-logs';
@@ -129,6 +131,11 @@ router.use('/promotions', promotionsRouter);
 // comment for why those two public GETs don't collide with the
 // single-segment owner routes despite living in the same router.
 router.use('/collections', collectionsRouter);
+// SALES-LOG P1: private seller sales ledger and customer CRM.
+router.use('/sales', salesRouter);
+router.use('/sales/installments', installmentsRouter);
+router.use('/public/stores', publicSalesStatsRouter);
+router.use('/customers', customersRouter);
 // BADGES (P1): computed, not stored — see badges.types.ts's
 // computeBadges. Only VERIFIED/HIGHLY_RATED/POPULAR/NEW_STORE are
 // implemented; TOP_SELLER and FAST_RESPONSE were dropped from this
