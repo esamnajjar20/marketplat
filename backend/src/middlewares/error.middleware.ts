@@ -106,7 +106,10 @@ export const errorMiddleware = (
       (rawStatus === 400 ? 'BAD_REQUEST' : 'ERROR');
     res.status(rawStatus).json({
       success: false,
-      message: err.message || 'Request could not be processed.',
+      message:
+        rawStatus >= 500
+          ? 'Internal server error'
+          : err.message || 'Request could not be processed.',
       statusCode: rawStatus,
       code,
       requestId,
@@ -166,9 +169,14 @@ export const errorMiddleware = (
       });
     }
     const code = err.code ?? CODE_BY_STATUS[err.statusCode] ?? 'INTERNAL_ERROR';
+    const clientMessage = err.statusCode >= 500
+      ? (err.statusCode === 503
+          ? 'Service temporarily unavailable, please try again shortly'
+          : 'Internal server error')
+      : err.message;
     res
       .status(err.statusCode)
-      .json(buildErrorResponse(err.message, err.statusCode, code, requestId, undefined, err.meta));
+      .json(buildErrorResponse(clientMessage, err.statusCode, code, requestId, undefined, err.meta));
     return;
   }
 

@@ -234,6 +234,7 @@ app.use((req: Request, res: Response) => {
     success: false,
     message: 'Route not found',
     statusCode: 404,
+    code: 'RESOURCE_NOT_FOUND',
     requestId: req.requestId,
   });
 });

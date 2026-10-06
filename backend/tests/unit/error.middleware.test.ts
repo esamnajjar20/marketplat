@@ -70,7 +70,7 @@ describe('errorMiddleware', () => {
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Image upload is temporarily unavailable, please try again shortly',
+        message: 'Service temporarily unavailable, please try again shortly',
         statusCode: 503,
         requestId: 'req-123',
       })
@@ -84,6 +84,19 @@ describe('errorMiddleware', () => {
     errorMiddleware(new AppError('Server issue', 500), mockReq() as Request, res as Response, mockNext);
     expect(logger.error).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Internal server error', code: 'INTERNAL_ERROR' })
+    );
+  });
+
+  it('sanitises raw middleware 500 status errors', () => {
+    const res = mockRes();
+    const raw = Object.assign(new Error('database connection string leaked'), { status: 500 });
+    errorMiddleware(raw, mockReq() as Request, res as Response, mockNext);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Internal server error', code: 'INTERNAL_ERROR' })
+    );
   });
 
   it('handles unknown errors as 500', () => {
