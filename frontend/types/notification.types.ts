@@ -33,7 +33,12 @@ export type NotificationType =
   | 'AD_EXPIRING_SOON'
   | 'AD_EXPIRED'
   | 'MODERATION_REPORT_RECEIVED'
-  | 'MODERATION_DECISION';
+  | 'MODERATION_DECISION'
+  | 'SALES_DAILY_REMINDER'
+  | 'SALES_LOW_STOCK'
+  | 'SALES_OVERDUE_INSTALLMENT'
+  | 'SALES_DEBT_REMINDER'
+  | 'SALES_WEEKLY_REPORT';
 
 /** Per-type deep-link payload — only relevant keys are present per type. */
 export interface NotificationData {
@@ -54,6 +59,9 @@ export interface NotificationData {
   reportId?: string;
   targetType?: string;
   targetId?: string;
+  saleId?: string;
+  installmentId?: string;
+  customerId?: string;
   /** Set by dailyNotificationDigest job */
   digest?: boolean;
   counts?: Record<string, number>;
@@ -76,7 +84,7 @@ export interface NotificationsQuery {
   /** نوع إشعار واحد */
   type?: NotificationType;
   /** فئة الواجهة: messages | favorites | stores | services | system */
-  category?: 'messages' | 'favorites' | 'stores' | 'services' | 'system';
+  category?: 'messages' | 'favorites' | 'stores' | 'services' | 'system' | 'sales';
 }
 
 /** سجل جهاز واحد مسجَّل لاستلام الإشعارات الخارجية — GET /notifications/devices. */

@@ -25,6 +25,17 @@ export interface SalePayment {
   note: string | null;
 }
 
+export interface SaleReturnRecord {
+  id: string;
+  saleId: string;
+  quantity: number;
+  refundAmount: string;
+  reason: 'DAMAGED' | 'WRONG_ITEM' | 'NOT_LIKED' | 'LATE' | 'OTHER';
+  reasonNote: string | null;
+  restockedToInventory: boolean;
+  createdAt: string;
+}
+
 export interface SaleRecord {
   id: string;
   sellerId: string;
@@ -54,7 +65,7 @@ export interface SaleRecord {
   updatedAt: string;
   customer?: SaleCustomer | null;
   payments?: SalePayment[];
-  returns?: unknown[];
+  returns?: SaleReturnRecord[];
 }
 
 export interface SalesPage {

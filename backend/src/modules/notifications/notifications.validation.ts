@@ -42,6 +42,11 @@ const notificationTypeEnum = z.enum([
   'AD_EXPIRED',
   'MODERATION_REPORT_RECEIVED',
   'MODERATION_DECISION',
+  'SALES_DAILY_REMINDER',
+  'SALES_LOW_STOCK',
+  'SALES_OVERDUE_INSTALLMENT',
+  'SALES_DEBT_REMINDER',
+  'SALES_WEEKLY_REPORT',
 ]);
 
 /** فئة واجهة المستخدم → مجموعة أنواع (نفس تجميع الواجهة). */
@@ -95,7 +100,7 @@ export const getNotificationsSchema = z.object({
      * تُحوَّل في الخدمة إلى قائمة types.
      */
     category: z
-      .enum(['messages', 'favorites', 'stores', 'services', 'system'])
+      .enum(['messages', 'favorites', 'stores', 'services', 'system', 'sales'])
       .optional(),
   }),
 });

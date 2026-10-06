@@ -33,6 +33,11 @@ export interface NotificationPreferences {
   storeUpdates: boolean;
   /** Service broadcast quote submitted / accepted. */
   serviceQuotes: boolean;
+  salesAlerts: boolean;
+  lowStockAlerts: boolean;
+  installmentAlerts: boolean;
+  debtAlerts: boolean;
+  weeklySalesReport: boolean;
   /** Opt-in: one digest email when direct notifications stay unread (default off). */
   emailFallback?: boolean;
   /** Suppress external device push during local quiet window (see quietHoursTimeZone). */

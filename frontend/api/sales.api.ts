@@ -16,4 +16,6 @@ export const salesApi = {
   receipt: (id: string) => apiClient.get<ApiResponse<{ invoiceNumber: string | null; sale: SaleRecord }>>(`/sales/${id}/receipt`),
   chart: (params?: { from?: string; to?: string; period?: 'day' | 'week' | 'month' | 'year' }) =>
     apiClient.get<ApiResponse<Array<{ date: string; revenue: number; paid: number; due: number; count: number }>>>('/sales/chart', { params }),
+  compare: (period: 'week'|'month'|'year' = 'month') => apiClient.get<ApiResponse<{period:string;current:SalesSummary;previous:SalesSummary;samePeriodLastYear:SalesSummary;revenueChangePercentage:number|null;lastYearRevenueChangePercentage:number|null}>>('/sales/compare', { params: { period }}),
+  addReturn: (id: string, payload: { quantity:number; refundAmount:number; reason:'DAMAGED'|'WRONG_ITEM'|'NOT_LIKED'|'LATE'|'OTHER'; reasonNote?:string; restockedToInventory:boolean }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/return`, payload),
 };

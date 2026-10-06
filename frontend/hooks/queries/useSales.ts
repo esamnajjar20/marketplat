@@ -18,9 +18,11 @@ export function useSalesSummary(period: 'day' | 'week' | 'month' | 'year' = 'mon
   });
 }
 
-export function useSalesChart() {
+export function useSalesChart(period: 'day'|'week'|'month'|'year' = 'day') {
   return useQuery({
-    queryKey: queryKeys.sales.chart(),
-    queryFn: () => salesApi.chart().then((r) => r.data.data ?? []),
+    queryKey: [...queryKeys.sales.chart(), period],
+    queryFn: () => salesApi.chart({ period }).then((r) => r.data.data ?? []),
   });
 }
+
+export function useSalesCompare(period: 'week'|'month'|'year' = 'month') { return useQuery({ queryKey: [...queryKeys.sales.all(), 'compare', period], queryFn: () => salesApi.compare(period).then(r=>r.data.data) }); }

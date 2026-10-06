@@ -19,6 +19,7 @@ import {
   Wrench,
   CalendarClock,
   ShieldAlert,
+  WalletCards,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -49,6 +50,11 @@ export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   AD_EXPIRED: CalendarClock,
   MODERATION_REPORT_RECEIVED: ShieldAlert,
   MODERATION_DECISION: ShieldAlert,
+  SALES_DAILY_REMINDER: WalletCards,
+  SALES_LOW_STOCK: Package,
+  SALES_OVERDUE_INSTALLMENT: WalletCards,
+  SALES_DEBT_REMINDER: WalletCards,
+  SALES_WEEKLY_REPORT: BarChart3,
 };
 
 export const TYPE_LABEL: Record<NotificationType, string> = {
@@ -76,6 +82,11 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   AD_EXPIRED: 'انتهاء إعلان',
   MODERATION_REPORT_RECEIVED: 'بلاغ جديد',
   MODERATION_DECISION: 'نتيجة المراجعة',
+  SALES_DAILY_REMINDER: 'تذكير المبيعات',
+  SALES_LOW_STOCK: 'مخزون منخفض',
+  SALES_OVERDUE_INSTALLMENT: 'قسط متأخر',
+  SALES_DEBT_REMINDER: 'دين متأخر',
+  SALES_WEEKLY_REPORT: 'تقرير المبيعات',
 };
 
 export type NotificationCategoryId =
@@ -84,7 +95,8 @@ export type NotificationCategoryId =
   | 'favorites'
   | 'stores'
   | 'services'
-  | 'system';
+  | 'system'
+  | 'sales';
 
 export const NOTIFICATION_CATEGORIES: {
   id: NotificationCategoryId;
@@ -212,6 +224,11 @@ export function hrefFor(notification: HrefSource): string | null {
   }
   if (notification.type === 'PROMOTION') {
     return ROUTES.home;
+  }
+  if (notification.type.startsWith('SALES_')) {
+    if (d?.saleId) return `/account/sales/${d.saleId}/receipt`;
+    if (d?.productId) return ROUTES.productDetail(d.productId);
+    return '/account/sales';
   }
   return null;
 }

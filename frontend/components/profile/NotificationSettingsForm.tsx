@@ -29,7 +29,12 @@ type BooleanPrefKey =
   | 'myPromotions'
   | 'savedSearch'
   | 'storeUpdates'
-  | 'serviceQuotes';
+  | 'serviceQuotes'
+  | 'salesAlerts'
+  | 'lowStockAlerts'
+  | 'installmentAlerts'
+  | 'debtAlerts'
+  | 'weeklySalesReport';
 
 const GROUPS: {
   title: string;
@@ -92,6 +97,17 @@ const GROUPS: {
     ],
   },
   {
+    title: 'المبيعات والمخزون',
+    description: 'تنبيهات تساعدك على متابعة نشاطك التجاري',
+    items: [
+      { key: 'salesAlerts', label: 'تذكير المبيعات', desc: 'تذكير إذا لم تسجل مبيعات في اليوم' },
+      { key: 'lowStockAlerts', label: 'انخفاض المخزون', desc: 'عند وصول مخزون منتج إلى حد منخفض' },
+      { key: 'installmentAlerts', label: 'الأقساط المتأخرة', desc: 'عند تأخر قسط على عميل' },
+      { key: 'debtAlerts', label: 'الديون', desc: 'عند استمرار دين العميل لفترة طويلة' },
+      { key: 'weeklySalesReport', label: 'تقرير المبيعات الأسبوعي', desc: 'ملخص أسبوعي للمبيعات والإيرادات' },
+    ],
+  },
+  {
     title: 'تقارير البائع',
     description: 'إحصائيات دورية',
     items: [
@@ -113,6 +129,11 @@ const DEFAULT_PREFS: NotificationPreferences = {
   savedSearch: true,
   storeUpdates: true,
   serviceQuotes: true,
+  salesAlerts: true,
+  lowStockAlerts: true,
+  installmentAlerts: true,
+  debtAlerts: true,
+  weeklySalesReport: true,
   emailFallback: false,
   quietHoursEnabled: false,
   quietHoursStart: '22:00',

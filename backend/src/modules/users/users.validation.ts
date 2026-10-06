@@ -94,6 +94,11 @@ export const updateNotificationPreferencesSchema = z.object({
     savedSearch: z.boolean().optional(),
     storeUpdates: z.boolean().optional(),
     serviceQuotes: z.boolean().optional(),
+    salesAlerts: z.boolean().optional(),
+    lowStockAlerts: z.boolean().optional(),
+    installmentAlerts: z.boolean().optional(),
+    debtAlerts: z.boolean().optional(),
+    weeklySalesReport: z.boolean().optional(),
     // Phase 3 email fallback (opt-in, default off): one digest email when
     // direct notifications (messages, requests, quotes, appointments) stay
     // unread — see notificationEmailFallback.ts for the eligible types.

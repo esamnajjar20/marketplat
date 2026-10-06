@@ -39,7 +39,12 @@ type PrefKey =
   | 'myPromotions'
   | 'savedSearch'
   | 'storeUpdates'
-  | 'serviceQuotes';
+  | 'serviceQuotes'
+  | 'salesAlerts'
+  | 'lowStockAlerts'
+  | 'installmentAlerts'
+  | 'debtAlerts'
+  | 'weeklySalesReport';
 
 /** Same defaults as NotificationSettingsForm — used when a key is missing
  * from the JSON blob (older accounts). */
@@ -52,6 +57,11 @@ const DEFAULT_PREFS: Record<PrefKey, boolean> = {
   savedSearch: true,
   storeUpdates: true,
   serviceQuotes: true,
+  salesAlerts: true,
+  lowStockAlerts: true,
+  installmentAlerts: true,
+  debtAlerts: true,
+  weeklySalesReport: true,
 };
 
 function readPref(raw: unknown, key: PrefKey): boolean {
@@ -128,6 +138,7 @@ export const notificationsService = {
           'SERVICE_REQUEST_UPDATE',
           'APPOINTMENT_UPDATE',
         ],
+        sales: ['SALES_DAILY_REMINDER','SALES_LOW_STOCK','SALES_OVERDUE_INSTALLMENT','SALES_DEBT_REMINDER','SALES_WEEKLY_REPORT'],
         system: [
           'PROMOTION',
           'WEEKLY_AD_VIEWS_REPORT',
@@ -147,6 +158,24 @@ export const notificationsService = {
       items: notifications,
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
     };
+  },
+
+  userAllowsPreference: userAllowsPref,
+
+  createSellerAlert: async (userId: string, key: PrefKey, type: NotificationType, title: string, body: string, data?: Prisma.InputJsonValue) => {
+    if (!(await userAllowsPref(userId, key))) return null;
+    const notification = await notificationsRepository.create({ userId, type, title, body, data });
+    void pushService.notifyUsers([userId], { title, body, url: '/account/sales', tag: type, type });
+    return notification;
+  },
+
+  createSellerAlertOnce: async (userId: string, key: PrefKey, type: NotificationType, title: string, body: string, since: Date, data?: Prisma.InputJsonValue) => {
+    if (!(await userAllowsPref(userId, key))) return null;
+    const existing = await prisma.notification.findFirst({ where: { userId, type, title, createdAt: { gte: since } }, select: { id: true } });
+    if (existing) return null;
+    const notification = await notificationsRepository.create({ userId, type, title, body, data });
+    void pushService.notifyUsers([userId], { title, body, url: '/account/sales', tag: type, type });
+    return notification;
   },
 
   getUnreadCount: (userId: string): Promise<number> =>

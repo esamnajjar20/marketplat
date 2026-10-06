@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma, SalePaymentStatus } from '@prisma/client';
 import { salesRepository } from './sales.repository';
 import { invoicesService } from './invoices.service';
+import { notificationsService } from '../notifications/notifications.service';
 import { customersService } from '../customers/customers.service';
 import { requireStoreAccess } from '../stores/store-members.service';
 import { CreateSaleInput, UpdateSaleInput, ListSalesQuery, AddPaymentInput, ReturnSaleInput } from './sales.validation';
@@ -173,6 +174,12 @@ export const salesService = {
       return salesRepository.findByIdTx(tx, sale.id);
     }).then(async created => {
       await refreshSalesStatsCache(userId, entity.storeId);
+      if (input.entityType === 'PRODUCT' && input.entityId) {
+        const product = await prisma.product.findUnique({ where: { id: input.entityId }, select: { name: true, stockQuantity: true } });
+        if (product?.stockQuantity !== null && product?.stockQuantity !== undefined && product.stockQuantity <= 5) {
+          await notificationsService.createSellerAlertOnce(userId, 'lowStockAlerts', 'SALES_LOW_STOCK', 'مخزون منخفض', `تبقى ${product.stockQuantity} من ${product.name}.`, new Date(Date.now()-24*60*60*1000), { productId: input.entityId, targetType: 'PRODUCT', targetId: input.entityId });
+        }
+      }
       return created;
     }).catch(async error => {
       if (offlineOperationId && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -267,15 +274,17 @@ export const salesService = {
     return salesRepository.summary(userId, start, end);
   },
 
-  chart: async (userId: string, from: Date, to: Date) => {
+  chart: async (userId: string, from: Date, to: Date, period: 'day'|'week'|'month'|'year' = 'day') => {
     const rows = await salesRepository.chart(userId, from, to);
     const buckets = new Map<string, { revenue: number; paid: number; due: number; count: number }>();
-    for (const row of rows) {
-      const key = row.soldAt.toISOString().slice(0, 10);
-      const b = buckets.get(key) ?? { revenue: 0, paid: 0, due: 0, count: 0 };
-      b.revenue += Number(row.totalPrice) - Number(row.refundedAmount); b.paid += Number(row.paidAmount); b.due += Number(row.dueAmount); b.count += 1; buckets.set(key, b);
-    }
-    return [...buckets.entries()].map(([date, values]) => ({ date, ...values }));
+    const bucketKey = (date: Date) => {
+      if (period === 'month') return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`;
+      if (period === 'year') return String(date.getUTCFullYear());
+      if (period === 'week') { const d = new Date(date); const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() - day + 1); return d.toISOString().slice(0,10); }
+      return date.toISOString().slice(0,10);
+    };
+    for (const row of rows) { const key=bucketKey(row.soldAt); const b=buckets.get(key)??{revenue:0,paid:0,due:0,count:0}; b.revenue += Number(row.totalPrice)-Number(row.refundedAmount); b.paid += Number(row.paidAmount); b.due += Number(row.dueAmount); b.count += 1; buckets.set(key,b); }
+    return [...buckets.entries()].sort(([a],[b])=>a.localeCompare(b)).slice(-30).map(([date,values])=>({date,...values}));
   },
 
   compare: async (userId: string, period: 'week' | 'month' | 'year') => {
