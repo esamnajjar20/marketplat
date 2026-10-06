@@ -7,8 +7,8 @@ import { HOME_GEN_KEY } from './home.cache.keys';
 import type { GetHomepageQuery } from './home.validation';
 
 export const HOME_FEED_KEY_PREFIX = 'home:feed:v1:';
-export const HOME_FEED_HARD_TTL_SECONDS = 300;
-export const HOME_FEED_SOFT_TTL_SECONDS = 60;
+export const HOME_FEED_HARD_TTL_SECONDS = 1800;
+export const HOME_FEED_SOFT_TTL_SECONDS = 300;
 export const HOME_FEED_LOCK_TTL_MS = 15_000;
 
 const keyFor = (query: GetHomepageQuery, userId: string | null): string => {

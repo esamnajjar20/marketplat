@@ -5,7 +5,7 @@ import { requireAdmin } from '../../middlewares/admin.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
 
 export const serviceTypesRouter = Router();
-serviceTypesRouter.get('/', CACHE.LONG, serviceTypesController.getActive);
+serviceTypesRouter.get('/', CACHE.STATIC, serviceTypesController.getActive);
 serviceTypesRouter.get('/admin/all', authenticate, requireAdmin, CACHE.NONE, serviceTypesController.getAllForAdmin);
 serviceTypesRouter.post('/', authenticate, requireAdmin, serviceTypesController.create);
 serviceTypesRouter.post('/fields', authenticate, requireAdmin, serviceTypesController.createField);

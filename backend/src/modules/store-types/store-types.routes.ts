@@ -4,4 +4,4 @@ import { CACHE } from '../../middlewares/cacheControl.middleware';
 
 export const storeTypesRouter = Router();
 
-storeTypesRouter.get('/', CACHE.LONG, storeTypesController.getActive);
+storeTypesRouter.get('/', CACHE.STATIC, storeTypesController.getActive);

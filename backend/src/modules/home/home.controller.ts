@@ -30,7 +30,7 @@ export const homeController = {
         'Cache-Control',
         isHomepageDegraded(homepage)
           ? 'public, max-age=5'
-          : 'public, s-maxage=60, max-age=30, stale-while-revalidate=300',
+          : 'public, s-maxage=300, max-age=120, stale-while-revalidate=900',
       );
       res.status(200).json(successResponse('Homepage fetched', homepage));
     } catch (error) {

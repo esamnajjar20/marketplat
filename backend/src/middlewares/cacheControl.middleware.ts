@@ -38,7 +38,12 @@ export const cacheControl =
 
 // Presets
 export const CACHE = {
-  // Static-ish data: categories tree (1 hour)
+  // Immutable-ish data: 24h CDN TTL, 1h browser TTL, 1h SWR.
+  // Reserved for categories, service-types, store-types — nothing
+  // user-editable mutates them; only admin actions do, and those
+  // bump the Redis generation key which invalidates the edge cache.
+  STATIC: cacheControl(86400, 3600),
+  // Reference data: categories tree, 2h
   LONG: cacheControl(7200, 900),
   // Public lists — N2 longer TTL for weak nets (90s + 60s SWR)
   SHORT: cacheControl(180, 90),

@@ -10,10 +10,10 @@ import {
 
 export const productCategoriesRouter = Router();
 
-productCategoriesRouter.get('/', CACHE.LONG, productCategoriesController.getProductCategories);
+productCategoriesRouter.get('/', CACHE.STATIC, productCategoriesController.getProductCategories);
 productCategoriesRouter.get(
   '/slug/:slug',
-  CACHE.LONG,
+  CACHE.STATIC,
   productCategoriesController.getProductCategoryBySlug
 );
 // Registered before /:id so "admin" is never swallowed as an :id param —
@@ -25,7 +25,7 @@ productCategoriesRouter.get(
   CACHE.NONE,
   productCategoriesController.getProductCategoriesForAdmin
 );
-productCategoriesRouter.get('/:id', CACHE.LONG, productCategoriesController.getProductCategoryById);
+productCategoriesRouter.get('/:id', CACHE.STATIC, productCategoriesController.getProductCategoryById);
 productCategoriesRouter.post(
   '/',
   authenticate,

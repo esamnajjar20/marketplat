@@ -10,10 +10,10 @@ import {
 
 export const serviceCategoriesRouter = Router();
 
-serviceCategoriesRouter.get('/', CACHE.LONG, serviceCategoriesController.getServiceCategories);
+serviceCategoriesRouter.get('/', CACHE.STATIC, serviceCategoriesController.getServiceCategories);
 serviceCategoriesRouter.get(
   '/slug/:slug',
-  CACHE.LONG,
+  CACHE.STATIC,
   serviceCategoriesController.getServiceCategoryBySlug
 );
 // EPIC 1.2: registered before /:id so "admin" is never swallowed as an
@@ -27,7 +27,7 @@ serviceCategoriesRouter.get(
   CACHE.NONE,
   serviceCategoriesController.getServiceCategoriesForAdmin
 );
-serviceCategoriesRouter.get('/:id', CACHE.LONG, serviceCategoriesController.getServiceCategoryById);
+serviceCategoriesRouter.get('/:id', CACHE.STATIC, serviceCategoriesController.getServiceCategoryById);
 serviceCategoriesRouter.post(
   '/',
   authenticate,

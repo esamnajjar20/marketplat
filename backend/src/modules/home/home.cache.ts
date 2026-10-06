@@ -25,7 +25,7 @@ import { homeCacheKeyForCity, HOME_GEN_KEY, onHomeInvalidated } from './home.cac
  *   urgent takedown takes the synchronous path and is never served stale, and
  *   an in-flight refresh that started before it can never resurrect the data.
  */
-export const HOME_CACHE_TTL_SECONDS = 30; // soft TTL: after this the entry is "stale"
+export const HOME_CACHE_TTL_SECONDS = 120; // soft TTL: 30→120 to cut Redis rebuilds
 // spread the ≤11 keys so their assemblies don't all
 // re-run at the same instant each window.
 export const HOME_CACHE_TTL_JITTER_SECONDS = 10;

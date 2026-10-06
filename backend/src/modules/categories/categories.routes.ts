@@ -10,8 +10,8 @@ import {
 
 export const categoriesRouter = Router();
 
-categoriesRouter.get('/', CACHE.LONG, categoriesController.getCategories); // 1h — rarely changes
-categoriesRouter.get('/slug/:slug', CACHE.LONG, categoriesController.getCategoryBySlug);
+categoriesRouter.get('/', CACHE.STATIC, categoriesController.getCategories); // 1h — rarely changes
+categoriesRouter.get('/slug/:slug', CACHE.STATIC, categoriesController.getCategoryBySlug);
 // registered before /:id so "admin" is
 // never swallowed as an :id param — same convention as
 // service-categories.routes.ts and product-categories.routes.ts.
@@ -24,7 +24,7 @@ categoriesRouter.get(
   CACHE.NONE,
   categoriesController.getCategoriesForAdmin,
 );
-categoriesRouter.get('/:id', CACHE.LONG, categoriesController.getCategoryById);
+categoriesRouter.get('/:id', CACHE.STATIC, categoriesController.getCategoryById);
 categoriesRouter.post('/', authenticate, requireAdmin, categoryMutationRateLimit, categoriesController.createCategory);
 categoriesRouter.patch('/:id', authenticate, requireAdmin, categoryMutationRateLimit, categoriesController.updateCategory);
 categoriesRouter.delete('/:id', authenticate, requireAdmin, categoryDeleteRateLimit, categoriesController.deleteCategory);
