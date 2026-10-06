@@ -32,6 +32,12 @@ export const createSaleSchema = z.object({
       transferRef: z.string().trim().max(160).optional(),
       note: z.string().trim().max(500).optional(),
     }).optional(),
+    payments: z.array(z.object({
+      amount: positiveMoney,
+      method: z.nativeEnum(SaleTransferMethod),
+      transferRef: z.string().trim().max(160).optional(),
+      note: z.string().trim().max(500).optional(),
+    })).min(1).max(10).optional(),
     installments: z.array(z.object({
       installmentNo: z.coerce.number().int().positive(),
       amount: positiveMoney,
@@ -57,6 +63,11 @@ export const createSaleSchema = z.object({
     }
     if (data.payment && data.payment.amount > total) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['payment', 'amount'], message: 'Payment cannot exceed total.' });
+    }
+    if (data.payments) {
+      const sum = Math.round(data.payments.reduce((s, p) => s + p.amount, 0) * 100) / 100;
+      if (sum !== Math.round(data.paidAmount * 100) / 100) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['payments'], message: 'payments total must equal paidAmount.' });
+      if (sum > total) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['payments'], message: 'Payments cannot exceed total.' });
     }
   }),
 });

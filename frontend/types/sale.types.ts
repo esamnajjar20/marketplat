@@ -94,4 +94,6 @@ export interface CreateSalePayload {
   soldAt?: string;
   serviceRequestId?: string;
   payment?: { amount: number; method: SaleTransferMethod; transferRef?: string; note?: string };
+  payments?: Array<{ amount: number; method: SaleTransferMethod; transferRef?: string; note?: string }>;
+  installments?: Array<{ installmentNo: number; amount: number; dueDate: string; note?: string }>;
 }

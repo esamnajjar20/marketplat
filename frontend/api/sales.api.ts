@@ -11,6 +11,8 @@ export const salesApi = {
   summary: (period: 'day' | 'week' | 'month' | 'year' = 'month') =>
     apiClient.get<ApiResponse<SalesSummary>>('/sales/summary', { params: { period } }),
   debts: () => apiClient.get<ApiResponse<SaleRecord[]>>('/sales/debts'),
+  addPayment: (id: string, payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/payments`, payload),
+  receipt: (id: string) => apiClient.get<ApiResponse<{ invoiceNumber: string | null; sale: SaleRecord }>>(`/sales/${id}/receipt`),
   chart: (params?: { from?: string; to?: string; period?: 'day' | 'week' | 'month' | 'year' }) =>
     apiClient.get<ApiResponse<Array<{ date: string; revenue: number; paid: number; due: number; count: number }>>>('/sales/chart', { params }),
 };

@@ -135,7 +135,13 @@ export const salesService = {
         soldAt: input.soldAt ?? new Date(),
       });
 
-      if (input.payment && initialPaid > 0) {
+      if (input.payments?.length) {
+        const paymentTotal = roundMoney(input.payments.reduce((sum, payment) => sum + payment.amount, 0));
+        if (paymentTotal !== initialPaid) throw new BadRequestError('Payment methods total must equal paidAmount.', 'PAYMENTS_TOTAL_MISMATCH');
+        for (const payment of input.payments) {
+          await salesRepository.addPayment(tx, { sale: { connect: { id: sale.id } }, amount: payment.amount, method: payment.method, transferRef: payment.transferRef, note: payment.note });
+        }
+      } else if (input.payment && initialPaid > 0) {
         await salesRepository.addPayment(tx, { sale: { connect: { id: sale.id } }, amount: initialPaid, method: input.payment.method, transferRef: input.payment.transferRef, note: input.payment.note });
       }
 

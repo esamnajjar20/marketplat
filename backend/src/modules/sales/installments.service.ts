@@ -30,6 +30,7 @@ export const installmentsService = {
       const paid = Number(installment.paidAmount ?? 0) + amount;
       const status = paid >= Number(installment.amount) ? 'PAID' : 'PARTIAL';
       const updated = await tx.saleInstallment.update({ where: { id }, data: { paidAmount: paid, paidAt: status === 'PAID' ? new Date() : undefined, status } });
+      await tx.salePayment.create({ data: { saleId: installment.saleId, amount, method: 'OTHER', note: `INSTALLMENT:${installment.installmentNo}` } });
       const sale = await tx.saleRecord.findUnique({ where: { id: installment.saleId } });
       if (!sale) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
       const salePaid = Number(sale.paidAmount) + amount;
