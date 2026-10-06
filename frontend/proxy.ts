@@ -268,19 +268,6 @@ const API_WORKER_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  // FIX API-EDGE-CACHE-01: next.config.ts's rewrites() does NOT run at
-  // the OpenNext/Cloudflare runtime — it's applied only at build-time
-  // static hosting, so /api/v1/* was 404'ing on the deployed Worker.
-  // Route it here instead: middleware runs per-request on the Edge, so
-  // a rewrite to the API Worker (which edge-caches public GETs) works
-  // the same in dev and in production.
-  if (pathname.startsWith('/api/v1/')) {
-    const url = new URL(
-      `${API_WORKER_ORIGIN}${pathname}${search}`,
-    );
-    return NextResponse.rewrite(url);
-  }
-
   const tokenCookie = request.cookies.get('app_access_token')?.value ?? null;
   const decoded     = tokenCookie ? decodeToken(tokenCookie) : null;
   const hasValidAccessToken = decoded !== null && !isTokenExpired(decoded);
