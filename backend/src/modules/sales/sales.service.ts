@@ -80,6 +80,30 @@ const lockProduct = async (tx: Prisma.TransactionClient, productId: string) => {
   return product;
 };
 
+const preparePosItems = async (userId: string, input: CreateSaleInput) => {
+  if (!input.items?.length) return null;
+  const seen = new Set<string>();
+  const prepared = [] as Array<{
+    productId: string; title: string; imageUrl: string | null; storeId: string;
+    quantity: number; unitPrice: number; discount: number; costPrice: number | null; lineTotal: number;
+  }>;
+  let storeId: string | null = null;
+  for (const item of input.items) {
+    if (seen.has(item.productId)) throw new BadRequestError('The same product cannot appear twice in a POS cart.', 'DUPLICATE_POS_PRODUCT');
+    seen.add(item.productId);
+    const product = await prisma.product.findUnique({ where: { id: item.productId }, select: { id: true, name: true, images: true, price: true, costPrice: true, storeId: true, status: true } });
+    if (!product || product.status === 'DELETED') throw new NotFoundError('Product not found.', 'PRODUCT_NOT_FOUND');
+    await requireStoreAccess(userId, product.storeId, 'manageProducts');
+    if (storeId && storeId !== product.storeId) throw new BadRequestError('A POS sale must contain products from the same store.', 'POS_MULTI_STORE_NOT_SUPPORTED');
+    storeId = product.storeId;
+    const unitPrice = roundMoney(item.unitPrice);
+    const discount = roundMoney(item.discount ?? 0);
+    const lineTotal = roundMoney(Math.max(unitPrice - discount, 0) * item.quantity);
+    prepared.push({ productId: product.id, title: product.name, imageUrl: product.images[0] ?? null, storeId: product.storeId, quantity: item.quantity, unitPrice, discount, costPrice: product.costPrice == null ? null : Number(product.costPrice), lineTotal });
+  }
+  return { items: prepared, storeId: storeId!, total: roundMoney(prepared.reduce((s, item) => s + item.lineTotal, 0)), quantity: prepared.reduce((s, item) => s + item.quantity, 0) };
+};
+
 const refreshSalesStatsCache = async (sellerId: string, storeId: string | null) => {
   if (!storeId) return;
   try {
@@ -132,10 +156,12 @@ export const salesService = {
       const existing = await prisma.saleRecord.findFirst({ where: { sellerId: userId, offlineOperationId } });
       if (existing) return salesRepository.findById(existing.id);
     }
-    const entity = await ensureEntityOwnership(userId, input);
+
+    const pos = await preparePosItems(userId, input);
+    const entity = pos ? { storeId: pos.storeId, costPrice: null, imageUrl: pos.items[0]?.imageUrl ?? null } : await ensureEntityOwnership(userId, input);
     const costTracking = await salesService.getCostSettings(userId);
     const effectiveCostPrice = costTracking.enabled ? entity.costPrice : null;
-    const total = roundMoney(input.unitPrice * input.quantity);
+    const total = pos?.total ?? roundMoney(input.unitPrice * input.quantity);
     const initialPaid = roundMoney(input.payment?.amount ?? input.paidAmount ?? 0);
     if (initialPaid > total) throw new BadRequestError('Paid amount cannot exceed total.', 'PAYMENT_EXCEEDS_TOTAL');
 
@@ -144,6 +170,12 @@ export const salesService = {
       const invoiceNumber = await invoicesService.nextInvoiceNumber(tx, userId);
       const dueAmount = roundMoney(total - initialPaid);
       const status = computeStatus(total, initialPaid, input.dueDate);
+      const saleQuantity = pos?.quantity ?? input.quantity;
+      const saleUnitPrice = pos ? roundMoney(total / Math.max(1, saleQuantity)) : input.unitPrice;
+      const saleCostPrice = pos && costTracking.enabled
+        ? (() => { const cost = pos.items.reduce((s, item) => s + (item.costPrice ?? 0) * item.quantity, 0); return saleQuantity ? roundMoney(cost / saleQuantity) : null; })()
+        : effectiveCostPrice;
+      const saleTitle = pos ? (pos.items.length === 1 ? pos.items[0].title : `${pos.items[0].title} + ${pos.items.length - 1} منتجات`) : input.entityTitle;
 
       const sale = await salesRepository.create(tx, {
         seller: { connect: { id: userId } },
@@ -151,12 +183,12 @@ export const salesService = {
         ...(customer ? { customer: { connect: { id: customer.id } } } : {}),
         ...(input.serviceRequestId ? { serviceRequest: { connect: { id: input.serviceRequestId } } } : {}),
         entityType: input.entityType,
-        entityId: input.entityId,
-        entityTitle: input.entityTitle,
+        entityId: pos ? (pos.items.length === 1 ? pos.items[0].productId : null) : input.entityId,
+        entityTitle: saleTitle,
         entityImageUrl: entity.imageUrl,
-        quantity: input.quantity,
-        unitPrice: input.unitPrice,
-        costPrice: effectiveCostPrice,
+        quantity: saleQuantity,
+        unitPrice: saleUnitPrice,
+        costPrice: saleCostPrice,
         totalPrice: total,
         currency: input.currency,
         invoiceNumber,
@@ -172,12 +204,25 @@ export const salesService = {
         offlineOperationId: offlineOperationId ?? null,
       });
 
+      if (pos) {
+        for (const item of pos.items) {
+          const product = await lockProduct(tx, item.productId);
+          if (product.storeId !== item.storeId) throw new ConflictError('Product store changed during sale.', 'PRODUCT_STORE_CHANGED');
+          const previous = product.stockQuantity;
+          if (previous !== null && item.quantity > previous) throw new BadRequestError(`Insufficient stock for ${item.title}.`, 'INSUFFICIENT_STOCK');
+          const next = previous === null ? null : previous - item.quantity;
+          const movement = await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: previous, newQuantity: next, delta: -item.quantity, reason: `SALE:${sale.id}:${item.productId}` } });
+          await tx.saleItem.create({ data: { saleId: sale.id, productId: item.productId, entityType: 'PRODUCT', entityId: item.productId, title: item.title, imageUrl: item.imageUrl, quantity: item.quantity, unitPrice: item.unitPrice, costPrice: costTracking.enabled ? item.costPrice : null, lineTotal: item.lineTotal, stockMovementId: movement.id } });
+          if (next !== null) await tx.product.update({ where: { id: product.id }, data: { stockQuantity: next, availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK' } });
+        }
+      } else {
+        await tx.saleItem.create({ data: { saleId: sale.id, entityType: input.entityType, entityId: input.entityId ?? null, title: input.entityTitle, imageUrl: entity.imageUrl, quantity: input.quantity, unitPrice: input.unitPrice, costPrice: effectiveCostPrice, lineTotal: total, stockMovementId: null } });
+      }
+
       if (input.payments?.length) {
         const paymentTotal = roundMoney(input.payments.reduce((sum, payment) => sum + payment.amount, 0));
         if (paymentTotal !== initialPaid) throw new BadRequestError('Payment methods total must equal paidAmount.', 'PAYMENTS_TOTAL_MISMATCH');
-        for (const payment of input.payments) {
-          await salesRepository.addPayment(tx, { sale: { connect: { id: sale.id } }, amount: payment.amount, method: payment.method, transferRef: payment.transferRef, note: payment.note });
-        }
+        for (const payment of input.payments) await salesRepository.addPayment(tx, { sale: { connect: { id: sale.id } }, amount: payment.amount, method: payment.method, transferRef: payment.transferRef, note: payment.note });
       } else if (input.payment && initialPaid > 0) {
         await salesRepository.addPayment(tx, { sale: { connect: { id: sale.id } }, amount: initialPaid, method: input.payment.method, transferRef: input.payment.transferRef, note: input.payment.note });
       }
@@ -191,13 +236,14 @@ export const salesService = {
         await tx.saleInstallment.createMany({ data: input.installments.map(i => ({ saleId: sale.id, installmentNo: i.installmentNo, amount: i.amount, dueDate: i.dueDate, note: i.note })) });
       }
 
-      if (input.entityType === 'PRODUCT' && input.entityId) {
+      if (!pos && input.entityType === 'PRODUCT' && input.entityId) {
         const product = await lockProduct(tx, input.entityId);
         if (product.storeId !== entity.storeId) throw new ConflictError('Product store changed during sale.', 'PRODUCT_STORE_CHANGED');
         const previous = product.stockQuantity;
         const next = previous === null ? null : previous - input.quantity;
         const movement = await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: previous, newQuantity: next, delta: -input.quantity, reason: `SALE:${sale.id}` } });
         await tx.saleRecord.update({ where: { id: sale.id }, data: { stockMovementId: movement.id } });
+        await tx.saleItem.updateMany({ where: { saleId: sale.id }, data: { stockMovementId: movement.id } });
         if (next !== null) await tx.product.update({ where: { id: product.id }, data: { stockQuantity: next, availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK' } });
       }
 
@@ -205,12 +251,6 @@ export const salesService = {
       return salesRepository.findByIdTx(tx, sale.id);
     }).then(async created => {
       await refreshSalesStatsCache(userId, entity.storeId);
-      if (input.entityType === 'PRODUCT' && input.entityId) {
-        const product = await prisma.product.findUnique({ where: { id: input.entityId }, select: { name: true, stockQuantity: true } });
-        if (product?.stockQuantity !== null && product?.stockQuantity !== undefined && product.stockQuantity <= 5) {
-          await notificationsService.createSellerAlertOnce(userId, 'lowStockAlerts', 'SALES_LOW_STOCK', 'مخزون منخفض', `تبقى ${product.stockQuantity} من ${product.name}.`, new Date(Date.now()-24*60*60*1000), { productId: input.entityId, targetType: 'PRODUCT', targetId: input.entityId });
-        }
-      }
       return created;
     }).catch(async error => {
       if (offlineOperationId && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -220,7 +260,6 @@ export const salesService = {
       throw error;
     });
   },
-
   list: (userId: string, query: ListSalesQuery) => salesRepository.findForSeller(userId, query),
 
   getById: async (userId: string, id: string) => {
@@ -239,13 +278,13 @@ export const salesService = {
   remove: async (userId: string, id: string) => {
     const sale = await salesService.getById(userId, id);
     return prisma.$transaction(async tx => {
-      if (sale.entityType === 'PRODUCT' && sale.entityId) {
-        const product = await lockProduct(tx, sale.entityId);
-        const returnedQty = sale.returns.reduce((s, r) => s + r.quantity, 0);
-        const restoreQty = Math.max(sale.quantity - returnedQty, 0);
+      for (const item of sale.items) {
+        if (item.entityType !== 'PRODUCT' || !item.productId) continue;
+        const product = await lockProduct(tx, item.productId);
+        const restoreQty = Math.max(item.quantity - item.returnedQuantity, 0);
         if (product.stockQuantity !== null && restoreQty > 0) {
           const next = product.stockQuantity + restoreQty;
-          await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: product.stockQuantity, newQuantity: next, delta: restoreQty, reason: `SALE_DELETE:${sale.id}` } });
+          await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: product.stockQuantity, newQuantity: next, delta: restoreQty, reason: `SALE_DELETE:${sale.id}:${item.id}` } });
           await tx.product.update({ where: { id: product.id }, data: { stockQuantity: next, availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK' } });
         }
       }
@@ -270,22 +309,25 @@ export const salesService = {
 
   addReturn: async (userId: string, id: string, input: ReturnSaleInput) => {
     const sale = await salesService.getById(userId, id);
-    const alreadyReturned = sale.returns.reduce((s, r) => s + r.quantity, 0);
-    if (alreadyReturned + input.quantity > sale.quantity) throw new BadRequestError('Returned quantity exceeds sold quantity.', 'RETURN_QUANTITY_EXCEEDED');
+    const item = input.itemId ? sale.items.find(i => i.id === input.itemId) : sale.items.length === 1 ? sale.items[0] : null;
+    if (!item) throw new BadRequestError('itemId is required when returning from a multi-item sale.', 'RETURN_ITEM_REQUIRED');
+    const alreadyReturned = item.returnedQuantity;
+    if (alreadyReturned + input.quantity > item.quantity) throw new BadRequestError('Returned quantity exceeds sold quantity.', 'RETURN_QUANTITY_EXCEEDED');
     const remainingRefundable = roundMoney(Number(sale.totalPrice) - Number(sale.refundedAmount));
     if (input.refundAmount > remainingRefundable) throw new BadRequestError('Refund exceeds the remaining sale value.', 'REFUND_EXCEEDS_SALE');
     return prisma.$transaction(async tx => {
       let movementId: string | undefined;
-      if (input.restockedToInventory && sale.entityType === 'PRODUCT' && sale.entityId) {
-        const product = await lockProduct(tx, sale.entityId);
+      if (input.restockedToInventory && item.entityType === 'PRODUCT' && item.productId) {
+        const product = await lockProduct(tx, item.productId);
         if (product.stockQuantity !== null) {
           const next = product.stockQuantity + input.quantity;
-          const movement = await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: product.stockQuantity, newQuantity: next, delta: input.quantity, reason: `RETURN:${sale.id}` } });
+          const movement = await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: product.stockQuantity, newQuantity: next, delta: input.quantity, reason: `RETURN:${sale.id}:${item.id}` } });
           movementId = movement.id;
           await tx.product.update({ where: { id: product.id }, data: { stockQuantity: next, availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK' } });
         }
       }
-      await salesRepository.addReturn(tx, { sale: { connect: { id } }, quantity: input.quantity, refundAmount: input.refundAmount, reason: input.reason, reasonNote: input.reasonNote, restockedToInventory: input.restockedToInventory, ...(movementId ? { stockMovement: { connect: { id: movementId } } } : {}) });
+      await salesRepository.addReturn(tx, { sale: { connect: { id } }, item: { connect: { id: item.id } }, quantity: input.quantity, refundAmount: input.refundAmount, reason: input.reason, reasonNote: input.reasonNote, restockedToInventory: input.restockedToInventory, ...(movementId ? { stockMovement: { connect: { id: movementId } } } : {}) });
+      await tx.saleItem.update({ where: { id: item.id }, data: { returnedQuantity: { increment: input.quantity } } });
       const refunded = roundMoney(Number(sale.refundedAmount) + input.refundAmount);
       const due = roundMoney(Math.max(Number(sale.totalPrice) - Number(sale.paidAmount) - refunded, 0));
       const status = computeStatus(Number(sale.totalPrice) - refunded, Number(sale.paidAmount), sale.dueDate);
@@ -294,7 +336,6 @@ export const salesService = {
       return salesRepository.findByIdTx(tx, id);
     });
   },
-
   summary: async (userId: string, period: 'day' | 'week' | 'month' | 'year') => {
     const end = new Date();
     const start = new Date(end);
@@ -335,5 +376,33 @@ export const salesService = {
   },
 
   top: (userId: string, limit: number) => Promise.all([salesRepository.topProducts(userId, limit), salesRepository.topCustomers(userId, limit)]),
+  dashboard: async (userId: string) => {
+    const [summary, compare, debt, top, lowStock] = await Promise.all([
+      salesService.summary(userId, 'month'),
+      salesService.compare(userId, 'month'),
+      salesService.debtSummary(userId),
+      salesService.top(userId, 5),
+      prisma.product.findMany({ where: { status: { not: 'DELETED' }, stockQuantity: { lte: 5 }, store: { sellerProfile: { userId } } }, select: { id: true, name: true, stockQuantity: true, price: true, store: { select: { id: true, name: true } } }, orderBy: { stockQuantity: 'asc' }, take: 10 }),
+    ]);
+    return { summary, compare, debt, topProducts: top[0], topCustomers: top[1], lowStock };
+  },
+  report: async (userId: string, query: import('./sales.validation').ReportQuery) => {
+    const where: Prisma.SaleRecordWhereInput = { sellerId: userId, ...(query.storeId ? { storeId: query.storeId } : {}), ...(query.status ? { paymentStatus: query.status } : {}), ...(query.from || query.to ? { soldAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}) };
+    const sales = await prisma.saleRecord.findMany({ where, orderBy: [{ soldAt: 'desc' }, { id: 'desc' }], take: query.limit, select: { id: true, invoiceNumber: true, soldAt: true, buyerName: true, buyerPhone: true, entityTitle: true, totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true, paymentStatus: true, currency: true, store: { select: { name: true } }, items: { select: { title: true, quantity: true, returnedQuantity: true, unitPrice: true, lineTotal: true, costPrice: true } } } });
+    const rows = sales.map(sale => {
+      const cost = sale.items.reduce((sum, item) => sum + (item.costPrice === null ? 0 : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)), 0);
+      const revenue = Number(sale.totalPrice) - Number(sale.refundedAmount);
+      return { id: sale.id, invoiceNumber: sale.invoiceNumber, soldAt: sale.soldAt, buyerName: sale.buyerName, buyerPhone: sale.buyerPhone, storeName: sale.store?.name ?? null, title: sale.entityTitle, quantity: sale.items.reduce((sum, item) => sum + Math.max(item.quantity - item.returnedQuantity, 0), 0), revenue: roundMoney(revenue), cost: roundMoney(cost), profit: roundMoney(revenue - cost), paid: roundMoney(Number(sale.paidAmount)), due: roundMoney(Number(sale.dueAmount)), refunded: roundMoney(Number(sale.refundedAmount)), status: sale.paymentStatus, currency: sale.currency };
+    });
+    return { rows, count: rows.length, totals: rows.reduce((a, r) => ({ revenue: roundMoney(a.revenue+r.revenue), cost: roundMoney(a.cost+r.cost), profit: roundMoney(a.profit+r.profit), paid: roundMoney(a.paid+r.paid), due: roundMoney(a.due+r.due), refunded: roundMoney(a.refunded+r.refunded) }), { revenue:0,cost:0,profit:0,paid:0,due:0,refunded:0 }) };
+  },
+  debtSummary: async (userId: string) => {
+    const now = new Date();
+    const rows = await prisma.saleRecord.findMany({ where: { sellerId: userId, dueAmount: { gt: 0 }, paymentStatus: { in: ['PARTIAL', 'UNPAID', 'OVERDUE'] } }, select: { dueAmount: true, dueDate: true } });
+    const totalDue = rows.reduce((s, r) => s + Number(r.dueAmount), 0);
+    const overdueDue = rows.filter(r => r.dueDate && r.dueDate < now).reduce((s, r) => s + Number(r.dueAmount), 0);
+    const dueToday = rows.filter(r => r.dueDate && r.dueDate.toDateString() === now.toDateString()).reduce((s, r) => s + Number(r.dueAmount), 0);
+    return { totalDue: roundMoney(totalDue), overdueDue: roundMoney(overdueDue), dueToday: roundMoney(dueToday), debtorCount: rows.length };
+  },
   debts: (userId: string) => salesRepository.debts(userId),
 };

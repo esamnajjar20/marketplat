@@ -5,6 +5,7 @@ import { ListSalesQuery } from './sales.validation';
 
 const saleInclude = {
   customer: true,
+  items: { orderBy: { createdAt: 'asc' as const } },
   payments: { orderBy: { paidAt: 'asc' as const } },
   returns: { orderBy: { createdAt: 'asc' as const } },
   installments: { orderBy: { installmentNo: 'asc' as const } },
@@ -40,15 +41,43 @@ export const salesRepository = {
   addReturn: (tx: Prisma.TransactionClient, data: Prisma.SaleReturnCreateInput) => tx.saleReturn.create({ data }),
 
   summary: async (sellerId: string, from: Date, to: Date) => {
-    const rows = await prisma.saleRecord.findMany({ where: { sellerId, soldAt: { gte: from, lt: to } }, select: { totalPrice: true, refundedAmount: true, costPrice: true, paidAmount: true, dueAmount: true, quantity: true, returns: { select: { quantity: true } } } });
-    const totalRevenue = rows.reduce((s, r) => s + Number(r.totalPrice) - Number(r.refundedAmount), 0);
-    const totalCost = rows.reduce((s, r) => { const returnedQty = r.returns.reduce((q, ret) => q + ret.quantity, 0); const netQty = Math.max(r.quantity - returnedQty, 0); return s + (r.costPrice === null ? 0 : Number(r.costPrice) * netQty); }, 0);
-    return { salesCount: rows.length, quantity: rows.reduce((s, r) => s + r.quantity, 0), totalRevenue, totalCost, netProfit: totalRevenue - totalCost, totalPaid: rows.reduce((s, r) => s + Number(r.paidAmount), 0), totalRefunded: rows.reduce((s, r) => s + Number(r.refundedAmount), 0), totalDue: rows.reduce((s, r) => s + Number(r.dueAmount), 0) };
+    const rows = await prisma.saleRecord.findMany({
+      where: { sellerId, soldAt: { gte: from, lt: to } },
+      select: { totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true, quantity: true, items: { select: { quantity: true, returnedQuantity: true, costPrice: true, lineTotal: true } } },
+    });
+    const totalRevenue = rows.reduce((sum, r) => sum + Number(r.totalPrice) - Number(r.refundedAmount), 0);
+    const totalCost = rows.reduce((sum, r) => {
+      if (r.items.length) return sum + r.items.reduce((itemSum, item) => itemSum + (item.costPrice === null ? 0 : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)), 0);
+      return sum;
+    }, 0);
+    return {
+      salesCount: rows.length,
+      quantity: rows.reduce((sum, r) => sum + r.quantity, 0),
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalCost: Math.round(totalCost * 100) / 100,
+      netProfit: Math.round((totalRevenue - totalCost) * 100) / 100,
+      totalPaid: rows.reduce((sum, r) => sum + Number(r.paidAmount), 0),
+      totalRefunded: rows.reduce((sum, r) => sum + Number(r.refundedAmount), 0),
+      totalDue: rows.reduce((sum, r) => sum + Number(r.dueAmount), 0),
+    };
   },
 
   chart: async (sellerId: string, from: Date, to: Date) => prisma.saleRecord.findMany({ where: { sellerId, soldAt: { gte: from, lt: to } }, select: { soldAt: true, totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true }, orderBy: { soldAt: 'asc' } }),
 
-  topProducts: async (sellerId: string, limit: number) => prisma.saleRecord.groupBy({ by: ['entityId', 'entityTitle'], where: { sellerId, entityType: 'PRODUCT' }, _sum: { totalPrice: true, quantity: true }, _count: { id: true }, orderBy: { _sum: { totalPrice: 'desc' } }, take: limit }),
+  topProducts: async (sellerId: string, limit: number) => {
+    const items = await prisma.saleItem.findMany({ where: { sale: { sellerId }, entityType: 'PRODUCT' }, select: { productId: true, title: true, quantity: true, returnedQuantity: true, lineTotal: true, costPrice: true } });
+    const grouped = new Map<string, { productId: string | null; title: string; quantity: number; revenue: number; profit: number }>();
+    for (const item of items) {
+      const key = item.productId ?? item.title;
+      const current = grouped.get(key) ?? { productId: item.productId, title: item.title, quantity: 0, revenue: 0, profit: 0 };
+      const netQty = Math.max(item.quantity - item.returnedQuantity, 0);
+      const revenue = Number(item.lineTotal) * (netQty / Math.max(item.quantity, 1));
+      const cost = item.costPrice === null ? 0 : Number(item.costPrice) * netQty;
+      current.quantity += netQty; current.revenue += revenue; current.profit += revenue - cost;
+      grouped.set(key, current);
+    }
+    return [...grouped.values()].sort((a,b) => b.revenue - a.revenue).slice(0, limit).map(x => ({ ...x, revenue: Math.round(x.revenue*100)/100, profit: Math.round(x.profit*100)/100 }));
+  },
 
   topCustomers: async (sellerId: string, limit: number) => prisma.saleRecord.groupBy({ by: ['customerId', 'buyerName'], where: { sellerId, customerId: { not: null } }, _sum: { totalPrice: true }, _count: { id: true }, orderBy: { _sum: { totalPrice: 'desc' } }, take: limit }),
 

@@ -7,6 +7,13 @@ const positiveMoney = z.coerce.number().finite().positive().multipleOf(0.01);
 
 export const createSaleSchema = z.object({
   body: z.object({
+    items: z.array(z.object({
+      productId: z.string().min(1),
+      quantity: z.coerce.number().int().positive().max(1_000_000),
+      unitPrice: money,
+      costPrice: money.optional().nullable(),
+      discount: money.default(0),
+    })).min(1).max(200).optional(),
     storeId: z.string().min(1).optional(),
     entityType: z.nativeEnum(SaleEntityType),
     entityId: z.string().min(1).optional(),
@@ -51,7 +58,13 @@ export const createSaleSchema = z.object({
     if (data.entityType === 'SERVICE' && !data.serviceRequestId && !data.entityId) {
       // A manually recorded service may use entityId; a linked service request is optional.
     }
-    const total = Math.round(data.unitPrice * data.quantity * 100) / 100;
+    const legacyTotal = Math.round(data.unitPrice * data.quantity * 100) / 100;
+    const itemsTotal = data.items?.reduce((sum, item) => sum + Math.max(0, item.unitPrice - item.discount) * item.quantity, 0);
+    const total = Math.round((itemsTotal ?? legacyTotal) * 100) / 100;
+    if (data.items) {
+      if (data.entityType !== 'PRODUCT') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'items are only supported for PRODUCT sales.' });
+      if (data.items.some(item => item.discount > item.unitPrice)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Item discount cannot exceed unit price.' });
+    }
     if (data.paidAmount > total) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['paidAmount'], message: 'paidAmount cannot exceed total.' });
     }
@@ -111,6 +124,7 @@ export const addPaymentSchema = z.object({
 export const returnSaleSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
+    itemId: z.string().min(1).optional(),
     quantity: z.coerce.number().int().positive(),
     refundAmount: money,
     reason: z.nativeEnum(ReturnReason),
@@ -157,3 +171,18 @@ export const updateProductCostSchema = z.object({
 
 export type UpdateCostSettingsInput = z.infer<typeof updateCostSettingsSchema>['body'];
 export type UpdateProductCostInput = z.infer<typeof updateProductCostSchema>['body'];
+
+
+export const reportQuerySchema = z.object({
+  query: z.object({
+    from: z.coerce.date().optional(),
+    to: z.coerce.date().optional(),
+    storeId: z.string().min(1).optional(),
+    status: z.nativeEnum(SalePaymentStatus).optional(),
+    limit: z.coerce.number().int().min(1).max(5000).default(1000),
+  }).refine(q => !q.from || !q.to || q.to >= q.from, { message: 'to must be after from' }),
+});
+export type ReportQuery = z.infer<typeof reportQuerySchema>['query'];
+
+// Phase 10-11 endpoints intentionally require no client parameters: all data is
+// scoped to the authenticated seller and the service owns the thresholds.

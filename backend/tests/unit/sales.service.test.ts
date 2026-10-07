@@ -16,6 +16,7 @@ const tx = {
   stockMovement: { create: jest.fn() },
   product: { update: jest.fn() },
   saleInstallment: { createMany: jest.fn() },
+  saleItem: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   $queryRaw: jest.fn(),
 };
 
@@ -34,7 +35,7 @@ describe('salesService', () => {
     jest.clearAllMocks();
     (prisma.$transaction as jest.Mock).mockImplementation(async (fn: any) => fn(tx));
     (invoicesService.nextInvoiceNumber as jest.Mock).mockResolvedValue('INV-2026-0001');
-    (salesRepository.create as jest.Mock).mockResolvedValue({ id: 'sale-1', ...base, sellerId: 'user-1', totalPrice: 50, dueAmount: 0, returns: [], customerId: null });
+    (salesRepository.create as jest.Mock).mockResolvedValue({ id: 'sale-1', ...base, sellerId: 'user-1', totalPrice: 50, dueAmount: 0, returns: [], items: [], customerId: null });
     (salesRepository.findByIdTx as jest.Mock).mockResolvedValue({ id: 'sale-1' });
     (tx.saleRecord.findMany as jest.Mock).mockResolvedValue([]);
   });

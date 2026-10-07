@@ -194,6 +194,7 @@ model User {
   sales                       SaleRecord[]             @relation("SellerSales")
   customers                   Customer[]               @relation("SellerCustomers")
   salesStatsCache             SalesStatsCache?         @relation("SellerSalesStats")
+  salesAutomationEvents      SalesAutomationEvent[]
 
   storeMemberships   StoreMember[]  @relation("StoreMemberships")
   storeMemberInvites StoreMember[]  @relation("StoreMemberInvites")
@@ -1059,6 +1060,7 @@ model Product {
   promotions      Promotion[]
   collections     StoreCollectionProduct[]
   stockMovements  StockMovement[]
+  saleItems       SaleItem[]
 
   @@index([storeId, status])
   @@index([categoryId, status])
@@ -1079,6 +1081,7 @@ model StockMovement {
 
   product           Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   saleRecord        SaleRecord?   @relation("SaleStockMovement")
+  saleItem          SaleItem?     @relation("SaleItemStockMovement")
   returnRecord      SaleReturn?   @relation("ReturnStockMovement")
 
   @@index([storeId, createdAt])
@@ -1591,6 +1594,12 @@ model FailedBackgroundTask {
 }
 
 enum NotificationType {
+  SALES_OVERDUE_DEBT
+  SALES_UPCOMING_INSTALLMENT
+  SALES_LOW_STOCK
+  SALES_INACTIVE_CUSTOMER
+  SALES_DAILY_SUMMARY
+  SALES_SMART_INSIGHT
   NEW_MESSAGE
   FAV_AD_PRICE_CHANGED
   // Gap #15: fires when an ad a user favorited transitions to SOLD —
@@ -1666,7 +1675,6 @@ enum NotificationType {
   MODERATION_REPORT_RECEIVED
   MODERATION_DECISION
   SALES_DAILY_REMINDER
-  SALES_LOW_STOCK
   SALES_OVERDUE_INSTALLMENT
   SALES_DEBT_REMINDER
   SALES_WEEKLY_REPORT
@@ -2043,6 +2051,8 @@ model SaleRecord {
   stockMovementId String?          @unique
   serviceRequestId String?         @unique
 
+  items           SaleItem[]
+
   seller          User             @relation("SellerSales", fields: [sellerId], references: [id], onDelete: Cascade)
   store           StoreDetails?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
   customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -2083,6 +2093,33 @@ enum SaleTransferMethod {
   PALPAY
   CARD
   OTHER
+}
+
+model SaleItem {
+  id              String       @id @default(cuid())
+  saleId          String
+  productId       String?
+  entityType      SaleEntityType
+  entityId        String?
+  title           String
+  imageUrl        String?
+  quantity        Int
+  unitPrice       Decimal      @db.Decimal(10, 2)
+  costPrice       Decimal?     @db.Decimal(10, 2)
+  lineTotal       Decimal      @db.Decimal(10, 2)
+  returnedQuantity Int          @default(0)
+  stockMovementId String?      @unique
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  sale            SaleRecord   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product         Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  stockMovement   StockMovement? @relation("SaleItemStockMovement", fields: [stockMovementId], references: [id], onDelete: SetNull)
+  returns         SaleReturn[]
+
+  @@index([saleId])
+  @@index([productId, createdAt])
+  @@map("sale_items")
 }
 
 model SalePayment {
@@ -2133,11 +2170,14 @@ model SaleReturn {
   reasonNote            String?
   restockedToInventory  Boolean        @default(true)
   stockMovementId       String?        @unique
+  itemId                String?
   createdAt             DateTime       @default(now())
   sale                  SaleRecord     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   stockMovement         StockMovement? @relation("ReturnStockMovement", fields: [stockMovementId], references: [id], onDelete: SetNull)
+  item                  SaleItem?      @relation(fields: [itemId], references: [id], onDelete: SetNull)
 
   @@index([saleId])
+  @@index([itemId])
   @@map("sale_returns")
 }
 
@@ -2205,4 +2245,31 @@ model InvoiceCounter {
   updatedAt DateTime @updatedAt
 
   @@map("invoice_counters")
+}
+
+// SALES-AUTOMATION-01: idempotent fingerprints for seller-facing sales alerts.
+// A fingerprint represents one logical alert (for example a specific low-stock
+// product or overdue sale) and prevents repeated notifications on every sweep.
+model SalesAutomationEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  type        SalesAutomationEventType
+  fingerprint String
+  lastSentAt  DateTime @default(now())
+  sendCount   Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, fingerprint])
+  @@index([userId, lastSentAt])
+  @@map("sales_automation_events")
+}
+
+enum SalesAutomationEventType {
+  LOW_STOCK
+  OVERDUE_DEBT
+  UPCOMING_INSTALLMENT
+  INACTIVE_CUSTOMER
+  DAILY_SUMMARY
 }

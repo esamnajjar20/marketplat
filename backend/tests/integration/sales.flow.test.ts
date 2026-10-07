@@ -72,6 +72,28 @@ describe('Sales integration flow', () => {
     expect(sale.returns).toHaveLength(1);
   });
 
+  it('creates a multi-product POS sale and decrements each product independently', async () => {
+    const { user, store } = await sellerStore();
+    const first = await createProduct(store.id);
+    const second = await prisma.product.create({ data: { storeId: store.id, categoryId: first.categoryId, name: 'Integration Product 2', description: 'Second product', images: [], price: 7, costPrice: 3, stockQuantity: 5 } });
+    const res = await request(app).post('/api/v1/sales').set('Authorization', `Bearer ${user.accessToken}`).send({
+      entityType: 'PRODUCT', storeId: store.id, entityTitle: 'POS cart', quantity: 3, unitPrice: 8, buyerName: 'POS Buyer', paidAmount: 23,
+      payment: { amount: 23, method: 'CASH' }, items: [
+        { productId: first.id, quantity: 2, unitPrice: 8, discount: 1 },
+        { productId: second.id, quantity: 1, unitPrice: 8, discount: 0 },
+      ],
+    });
+    expect(res.status).toBe(201);
+    const saleId = res.body.data.id;
+    const sale = await prisma.saleRecord.findUniqueOrThrow({ where: { id: saleId }, include: { items: true } });
+    const firstFresh = await prisma.product.findUniqueOrThrow({ where: { id: first.id } });
+    const secondFresh = await prisma.product.findUniqueOrThrow({ where: { id: second.id } });
+    expect(sale.items).toHaveLength(2);
+    expect(Number(sale.totalPrice)).toBe(23);
+    expect(firstFresh.stockQuantity).toBe(8);
+    expect(secondFresh.stockQuantity).toBe(4);
+  });
+
   it('persists mixed payments as separate SalePayment rows', async () => {
     const user = await createTestUser();
     const res = await request(app).post('/api/v1/sales').set('Authorization', `Bearer ${user.accessToken}`).send({
