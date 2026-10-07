@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AlertTriangle, MessageSquare, X, Star, CalendarPlus, Check } from 'lucide-react';
+import { AlertTriangle, MessageSquare, X, Star, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -12,10 +12,8 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceRequestDialog';
-import { CreateAppointmentDialog } from '@/components/services/CreateAppointmentDialog';
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
-import { useUpdateAppointmentStatus } from '@/hooks/mutations/useAppointmentMutations';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice, formatRelativeTime, formatDateTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -26,7 +24,7 @@ import {
 import type { ServiceRequestStatus } from '@/types/service.types';
 
 const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
-  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED',
+  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED',
 ];
 
 /**
@@ -46,9 +44,6 @@ export function MyServiceRequestsList() {
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const respond = useRespondToServiceRequest(cancelTargetId ?? '');
   const [reviewTarget, setReviewTarget] = useState<{ id: string; title: string } | null>(null);
-  const [appointmentTarget, setAppointmentTarget] = useState<{ providerId: string; requestId: string; title: string } | null>(null);
-  const [appointmentCancelTargetId, setAppointmentCancelTargetId] = useState<string | null>(null);
-  const updateAppointmentStatus = useUpdateAppointmentStatus();
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -149,13 +144,9 @@ export function MyServiceRequestsList() {
                   )}
                   <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
                   {request.appointment && (
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="text-primary">الموعد: {formatDateTime(request.appointment.scheduledStart)}</span>
-                      {request.appointment.status === 'SCHEDULED' && (
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive" onClick={() => setAppointmentCancelTargetId(request.appointment!.id)}>
-                          إلغاء الموعد
-                        </Button>
-                      )}
+                    <div className="mt-2 flex items-center gap-2 rounded-md bg-primary/5 px-2.5 py-2 text-xs text-primary">
+                      <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span>الموعد: {formatDateTime(request.appointment.scheduledStart)}</span>
                     </div>
                   )}
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
@@ -180,30 +171,6 @@ export function MyServiceRequestsList() {
                     </Button>
                   )}
                 </div>
-                {request.status === 'ACCEPTED' && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    <Button
-                      size="sm"
-                      className="gap-1"
-                      onClick={() => respond.mutate({ action: 'IN_PROGRESS', agreedPrice: request.quotedPrice ? Number(request.quotedPrice) : undefined })}
-                      disabled={respond.isPending || request.quotedPrice == null}
-                    >
-                      <Check className="h-3.5 w-3.5" />موافقة وبدء التنفيذ
-                    </Button>
-                    {request.appointment === null && (
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setAppointmentTarget({ providerId: request.listing.provider.id, requestId: request.id, title: request.listing.title })}>
-                        <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
-                      </Button>
-                    )}
-                  </div>
-                )}
-                {request.status === 'IN_PROGRESS' && request.appointment === null && (
-                  <div className="mt-2">
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => setAppointmentTarget({ providerId: request.listing.provider.id, requestId: request.id, title: request.listing.title })}>
-                      <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
-                    </Button>
-                  </div>
-                )}
                 {canCancel && (
                   <div className="flex flex-col gap-1 shrink-0">
                     <Button
@@ -246,33 +213,6 @@ export function MyServiceRequestsList() {
           respond.mutate({ action: 'CANCELLED' }, { onSuccess: () => setCancelTargetId(null) });
         }}
       />
-
-      <ConfirmDialog
-        open={appointmentCancelTargetId !== null}
-        onOpenChange={(open) => { if (!open) setAppointmentCancelTargetId(null); }}
-        title="إلغاء الموعد؟"
-        description="سيُلغى الموعد فقط، وسيبقى طلب الخدمة قائمًا."
-        confirmLabel="إلغاء الموعد"
-        destructive
-        isPending={updateAppointmentStatus.isPending}
-        onConfirm={() => {
-          if (!appointmentCancelTargetId) return;
-          updateAppointmentStatus.mutate(
-            { id: appointmentCancelTargetId, payload: { status: 'CANCELLED' } },
-            { onSuccess: () => setAppointmentCancelTargetId(null) },
-          );
-        }}
-      />
-
-      {appointmentTarget && (
-        <CreateAppointmentDialog
-          open={appointmentTarget !== null}
-          onOpenChange={(open) => { if (!open) setAppointmentTarget(null); }}
-          providerId={appointmentTarget.providerId}
-          requestId={appointmentTarget.requestId}
-          contextLabel={appointmentTarget.title}
-        />
-      )}
 
       {reviewTarget && (
         <ReviewServiceRequestDialog
