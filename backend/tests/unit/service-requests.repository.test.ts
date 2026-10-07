@@ -17,6 +17,7 @@ const mockTx = {
     updateMany: jest.fn(),
     findUniqueOrThrow: jest.fn(),
   },
+  appointment: { updateMany: jest.fn() },
 } as any;
 
 const requestId = 'request-1';
@@ -129,6 +130,24 @@ describe('serviceRequestsRepository', () => {
       expect(callArgs.data).not.toHaveProperty('agreedPrice');
     });
 
+    it('writes cancelledBy only for a CANCELLED target', async () => {
+      mockTx.serviceRequest.updateMany.mockResolvedValue({ count: 1 });
+
+      await serviceRequestsRepository.transitionStatus(mockTx, requestId, 'PENDING', 'CANCELLED', {
+        cancelledBy: 'CUSTOMER',
+      });
+      expect(mockTx.serviceRequest.updateMany.mock.calls[0][0].data).toMatchObject({
+        status: 'CANCELLED',
+        cancelledBy: 'CUSTOMER',
+      });
+
+      mockTx.serviceRequest.updateMany.mockClear();
+      await serviceRequestsRepository.transitionStatus(mockTx, requestId, 'PENDING', 'ACCEPTED', {
+        cancelledBy: 'CUSTOMER',
+      });
+      expect(mockTx.serviceRequest.updateMany.mock.calls[0][0].data).not.toHaveProperty('cancelledBy');
+    });
+
     it('returns a count of 0 when the row no longer matches the expected status', async () => {
       mockTx.serviceRequest.updateMany.mockResolvedValue({ count: 0 });
 
@@ -140,6 +159,43 @@ describe('serviceRequestsRepository', () => {
       );
 
       expect(result.count).toBe(0);
+    });
+  });
+
+  describe('syncLinkedAppointment', () => {
+    it.each(['CANCELLED', 'COMPLETED'] as const)(
+      'moves only a SCHEDULED appointment of the request to %s',
+      async (action) => {
+        mockTx.appointment.updateMany.mockResolvedValue({ count: 1 });
+
+        await serviceRequestsRepository.syncLinkedAppointment(mockTx, requestId, action);
+
+        expect(mockTx.appointment.updateMany).toHaveBeenCalledWith({
+          where: { requestId, status: 'SCHEDULED' },
+          data: { status: action },
+        });
+      }
+    );
+  });
+
+  describe('countTerminalStatsByProviderId', () => {
+    it('counts customer-initiated cancellations out, provider-initiated and legacy ones in', async () => {
+      (prisma.serviceRequest.count as jest.Mock).mockResolvedValue(0);
+
+      await serviceRequestsRepository.countTerminalStatsByProviderId(providerId);
+
+      const calls = (prisma.serviceRequest.count as jest.Mock).mock.calls;
+      expect(calls[0][0].where).toMatchObject({ listing: { providerId }, status: 'COMPLETED' });
+      expect(calls[1][0].where).toEqual({
+        listing: { providerId },
+        OR: [
+          { status: 'REJECTED' },
+          {
+            status: 'CANCELLED',
+            OR: [{ cancelledBy: 'PROVIDER' }, { cancelledBy: null, respondedAt: { not: null } }],
+          },
+        ],
+      });
     });
   });
 

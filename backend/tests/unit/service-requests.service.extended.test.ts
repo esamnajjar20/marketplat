@@ -373,4 +373,53 @@ describe('serviceRequestsService — additional coverage', () => {
       expect(mockTx.serviceRequest.findUniqueOrThrow).not.toHaveBeenCalled();
     });
   });
+  // SR-CANCEL-BLAME-01 / SR-APPT-SYNC-01
+  describe('respondToRequest — cancellation attribution and linked appointment', () => {
+    const arrange = (status: string, final: string) => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(buildRequest({ status }));
+      (serviceRequestsRepository.transitionStatus as jest.Mock).mockResolvedValue({ count: 1 });
+      const mockTx = {
+        serviceRequest: { findUniqueOrThrow: jest.fn().mockResolvedValue(buildRequest({ status: final })) },
+      };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
+      return mockTx;
+    };
+
+    it('records cancelledBy CUSTOMER when the customer cancels', async () => {
+      const tx = arrange('PENDING', 'CANCELLED');
+      await serviceRequestsService.respondToRequest(customerId, requestId, 'CANCELLED');
+      expect(serviceRequestsRepository.transitionStatus).toHaveBeenCalledWith(
+        tx, requestId, 'PENDING', 'CANCELLED', expect.objectContaining({ cancelledBy: 'CUSTOMER' })
+      );
+    });
+
+    it('records cancelledBy PROVIDER when the provider cancels', async () => {
+      const tx = arrange('ACCEPTED', 'CANCELLED');
+      await serviceRequestsService.respondToRequest(providerUserId, requestId, 'CANCELLED');
+      expect(serviceRequestsRepository.transitionStatus).toHaveBeenCalledWith(
+        tx, requestId, 'ACCEPTED', 'CANCELLED', expect.objectContaining({ cancelledBy: 'PROVIDER' })
+      );
+    });
+
+    it('closes the linked appointment on CANCELLED', async () => {
+      const tx = arrange('ACCEPTED', 'CANCELLED');
+      await serviceRequestsService.respondToRequest(customerId, requestId, 'CANCELLED');
+      expect(serviceRequestsRepository.syncLinkedAppointment).toHaveBeenCalledWith(tx, requestId, 'CANCELLED');
+    });
+
+    it('closes the linked appointment on COMPLETED', async () => {
+      const tx = arrange('IN_PROGRESS', 'COMPLETED');
+      await serviceRequestsService.respondToRequest(providerUserId, requestId, 'COMPLETED', { agreedPrice: 100 });
+      expect(serviceRequestsRepository.syncLinkedAppointment).toHaveBeenCalledWith(tx, requestId, 'COMPLETED');
+    });
+
+    it('does not touch appointments or cancelledBy on ACCEPTED', async () => {
+      arrange('PENDING', 'ACCEPTED');
+      await serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED', { quotedPrice: 50 });
+      expect(serviceRequestsRepository.syncLinkedAppointment).not.toHaveBeenCalled();
+      const extra = (serviceRequestsRepository.transitionStatus as jest.Mock).mock.calls[0][4];
+      expect(extra).not.toHaveProperty('cancelledBy');
+    });
+  });
+
 });

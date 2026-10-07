@@ -89,7 +89,7 @@ export const serviceRequestsRepository = {
     id: string,
     from: ServiceRequestStatus,
     to: ServiceRequestStatus,
-    extra?: { quotedPrice?: number; agreedPrice?: number }
+    extra?: { quotedPrice?: number; agreedPrice?: number; cancelledBy?: 'CUSTOMER' | 'PROVIDER' }
   ): Promise<Prisma.BatchPayload> =>
     tx.serviceRequest.updateMany({
       where: { id, status: from },
@@ -98,7 +98,25 @@ export const serviceRequestsRepository = {
         respondedAt: new Date(),
         ...(extra?.quotedPrice !== undefined && { quotedPrice: extra.quotedPrice }),
         ...(extra?.agreedPrice !== undefined && { agreedPrice: extra.agreedPrice }),
+        // Only meaningful for CANCELLED — ignored for every other target.
+        ...(to === 'CANCELLED' && extra?.cancelledBy && { cancelledBy: extra.cancelledBy }),
       },
+    }),
+
+  // SR-APPT-SYNC-01: a request has at most one Appointment (requestId is
+  // @unique). When the request ends (CANCELLED / COMPLETED) a still-SCHEDULED
+  // appointment must end with it — otherwise it keeps blocking the provider's
+  // calendar (appointmentsRepository.findOverlapping counts SCHEDULED rows).
+  // Conditional on SCHEDULED so a provider's own COMPLETED/NO_SHOW/CANCELLED
+  // marking is never overwritten. Runs inside the caller's transaction.
+  syncLinkedAppointment: (
+    tx: Prisma.TransactionClient,
+    requestId: string,
+    action: 'CANCELLED' | 'COMPLETED'
+  ): Promise<Prisma.BatchPayload> =>
+    tx.appointment.updateMany({
+      where: { requestId, status: 'SCHEDULED' },
+      data: { status: action },
     }),
 
   findManyByCustomerId: async (
@@ -147,7 +165,21 @@ export const serviceRequestsRepository = {
       prisma.serviceRequest.count({
         where: {
           listing: { providerId },
-          OR: [{ status: 'REJECTED' }, { status: 'CANCELLED', respondedAt: { not: null } }],
+          OR: [
+            { status: 'REJECTED' },
+            {
+              status: 'CANCELLED',
+              // SR-CANCEL-BLAME-01: only provider-initiated cancellations count
+              // against the provider. A customer cancelling (cancelledBy
+              // 'CUSTOMER') is not a fulfilment failure. Legacy rows have no
+              // cancelledBy (NULL) — they keep the old rule (respondedAt set)
+              // since who cancelled them is unknowable.
+              OR: [
+                { cancelledBy: 'PROVIDER' },
+                { cancelledBy: null, respondedAt: { not: null } },
+              ],
+            },
+          ],
           ...sinceFilter,
         },
       }),

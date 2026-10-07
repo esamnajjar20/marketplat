@@ -708,6 +708,10 @@ model ServiceRequest {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   respondedAt    DateTime?
+  /// Who triggered a CANCELLED transition: 'CUSTOMER' | 'PROVIDER'. NULL for
+  /// every other status and for rows cancelled before this column existed.
+  /// Lets provider stats count only provider-initiated cancellations.
+  cancelledBy    String?
   appointment    Appointment?
   conversation   Conversation?
   customer       User                 @relation("ServiceRequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)

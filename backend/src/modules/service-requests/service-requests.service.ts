@@ -141,6 +141,14 @@ export const serviceRequestsService = {
       throw new ForbiddenError('You cannot request your own service listing.', 'CANNOT_REQUEST_OWN_LISTING');
     }
 
+    // SR-SUSPENDED-01: a suspended seller's listings are hidden from every
+    // discovery path, but listingId can still be known (shared link, cached
+    // page, direct POST) — and listingsRepository.findById has no suspended
+    // filter. Treat it exactly like an unavailable listing.
+    if (provider?.sellerProfile.suspended) {
+      throw new BadRequestError('This service listing is not available for requests.', 'SERVICE_PROVIDER_SUSPENDED');
+    }
+
     if (provider?.availabilityStatus === 'UNAVAILABLE') {
       throw new BadRequestError('This service provider is currently unavailable for new requests.', 'PROVIDER_UNAVAILABLE');
     }
@@ -339,7 +347,10 @@ export const serviceRequestsService = {
         requestId,
         request.status,
         action,
-        extra
+        // SR-CANCEL-BLAME-01: remember who cancelled (see repository).
+        action === 'CANCELLED'
+          ? { ...extra, cancelledBy: isProvider ? 'PROVIDER' : 'CUSTOMER' }
+          : extra
       );
       if (result.count === 0) {
         // Status changed between the read above and this write (rare
@@ -356,6 +367,12 @@ export const serviceRequestsService = {
       // the provider's counters didn't move, or vice versa).
       if (TERMINAL_STATUSES.includes(action)) {
         await recomputeProviderStats(tx, request.listing.providerId);
+      }
+
+      // SR-APPT-SYNC-01: close the linked appointment together with the
+      // request so it stops blocking the provider's calendar.
+      if (action === 'CANCELLED' || action === 'COMPLETED') {
+        await serviceRequestsRepository.syncLinkedAppointment(tx, requestId, action);
       }
 
       // Gap #10: fire-and-forget, see activityService.record()'s own
@@ -402,7 +419,7 @@ export const serviceRequestsService = {
   },
 
   // (audit H4). Run from cron (scripts/expireStaleServiceRequests.ts).
-  // Moves PENDING requests older than the TTL to CANCELLED with
+  // Moves PENDING requests older than the TTL to EXPIRED with
   // respondedAt left NULL (the "system closed it" marker — no schema
   // change needed) and tells the customer. Safe to re-run and to overlap
   // with user actions: the UPDATE is conditional on status = PENDING.

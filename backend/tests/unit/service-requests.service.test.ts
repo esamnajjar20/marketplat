@@ -77,6 +77,25 @@ describe('ServiceRequestsService', () => {
       expect(serviceRequestsRepository.create).not.toHaveBeenCalled();
     });
 
+    // SR-SUSPENDED-01: a suspended seller's listing may still be reachable by
+    // id (shared link / cached page) — it must not accept new requests.
+    it('rejects new requests when the provider seller is suspended', async () => {
+      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
+      (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue({
+        ...mockProvider,
+        sellerProfile: { userId: 'seller-user-1', suspended: true },
+      });
+
+      await expect(
+        serviceRequestsService.createRequest('customer-user-2', {
+          listingId: 'listing-1',
+          details: 'test',
+        } as any)
+      ).rejects.toMatchObject({ code: 'SERVICE_PROVIDER_SUSPENDED' });
+
+      expect(serviceRequestsRepository.create).not.toHaveBeenCalled();
+    });
+
     it('allows a request from a genuinely different customer', async () => {
       (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
       (serviceProvidersRepository.findPublicById as jest.Mock).mockResolvedValue(mockProvider);
