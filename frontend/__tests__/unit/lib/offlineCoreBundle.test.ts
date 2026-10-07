@@ -41,6 +41,24 @@ describe('offlineCoreBundle', () => {
     expect(entry!.url).toBe('https://api.example.com/service-categories');
   });
 
+  // CORE-TAXONOMY-01: URLs must match the apiClient calls literally (Cache API
+  // match() compares the full URL) — no params, no trailing slash.
+  it.each([
+    ['product-categories', 'https://api.example.com/product-categories'],
+    ['store-types', 'https://api.example.com/store-types'],
+    ['service-types', 'https://api.example.com/service-types'],
+  ])('buildCoreUrls includes %s with the exact unparameterised URL', (key, url) => {
+    const entry = buildCoreUrls().find((u) => u.key === key);
+    expect(entry).toBeTruthy();
+    expect(entry!.url).toBe(url);
+  });
+
+  it('buildCoreUrls has unique keys and unique URLs', () => {
+    const urls = buildCoreUrls();
+    expect(new Set(urls.map((u) => u.key)).size).toBe(urls.length);
+    expect(new Set(urls.map((u) => u.url)).size).toBe(urls.length);
+  });
+
   it('getWarmupProgress returns a progress object', () => {
     const p = getWarmupProgress();
     expect(p).toBeTruthy();

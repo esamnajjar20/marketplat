@@ -163,6 +163,17 @@ export function buildCoreUrls(): { key: string; url: string }[] {
       // الـ endpoint نفسه بلا صفحات (نفس نمط 'categories' أعلاه).
       url: `${API_BASE_URL}/service-categories`,
     },
+    // CORE-TAXONOMY-01: بقية تصنيفات النماذج/الاستكشاف كانت غائبة، بنفس سبب
+    // FEAT-CREATE-BROADCAST-01 أعلاه — مستخدم لم يفتح الصفحة المعنية وهو
+    // أونلاين يرى قائمة فارغة أول مرة بلا اتصال:
+    //   - /product-categories → useProductCategories (قسم المنتجات في الاستكشاف)
+    //   - /store-types        → useStoreTypes (BecomeStoreOwnerCard / فتح متجر)
+    //   - /service-types      → useServiceTypes (نماذج مزوّد الخدمة)
+    // الثلاثة بلا معاملات (نفس URL الذي تبنيه productCategoriesApi.getAll /
+    // storeTypesApi.getAll / serviceTypesApi.getAll)، وCACHE.STATIC بالباك-إند.
+    { key: 'product-categories', url: `${API_BASE_URL}/product-categories` },
+    { key: 'store-types', url: `${API_BASE_URL}/store-types` },
+    { key: 'service-types', url: `${API_BASE_URL}/service-types` },
     {
       key: 'products',
       // FIX CACHE-KEY-01: ترتيب المعاملات هنا يجب يطابق حرفيًا الترتيب اللي
