@@ -6,8 +6,8 @@ export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
   include: {
     listing: {
       include: {
-        provider: { select: { id: true; sellerProfileId: true; businessName: true; sellerProfile: { select: { userId: true; displayName: true } } } };
-        serviceType: true;
+        provider: { include: { sellerProfile: true } },
+        serviceType: true,
       };
     };
     customer: { select: { id: true; name: true; avatarUrl: true } };
@@ -17,7 +17,7 @@ export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
 }>;
 
 const requestWithRelations = {
-  listing: { include: { provider: { select: { id: true, sellerProfileId: true, businessName: true, sellerProfile: { select: { userId: true, displayName: true } } } }, serviceType: true } },
+  listing: { include: { provider: { include: { sellerProfile: true } }, serviceType: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
   // Epic 3.2/3.3: lets the customer-side list/detail UI show "review
   // submitted" instead of a review button without a second round-trip —
@@ -91,20 +91,21 @@ export const serviceRequestsRepository = {
     id: string,
     from: ServiceRequestStatus,
     to: ServiceRequestStatus,
-    extra?: { quotedPrice?: number; agreedPrice?: number; cancelledBy?: 'CUSTOMER' | 'PROVIDER' }
+    extra?: { quotedPrice?: number; agreedPrice?: number; cancelledBy?: 'CUSTOMER' | 'PROVIDER'; disputeReason?: string }
   ): Promise<Prisma.BatchPayload> =>
     tx.serviceRequest.updateMany({
       where: { id, status: from },
       data: {
         status: to,
-        // A customer cancellation is not a provider response. Keep
-        // respondedAt unchanged so response-time/fulfilment metrics do not
-        // treat customer-initiated cancellation as provider activity.
+        // Customer cancellation is not a provider response — keep
+        // respondedAt unchanged so response-time / fulfilment stats
+        // never treat a customer-initiated cancel as provider activity.
         ...((to !== 'CANCELLED' || extra?.cancelledBy !== 'CUSTOMER') && { respondedAt: new Date() }),
         ...(extra?.quotedPrice !== undefined && { quotedPrice: extra.quotedPrice }),
         ...(extra?.agreedPrice !== undefined && { agreedPrice: extra.agreedPrice }),
         // Only meaningful for CANCELLED — ignored for every other target.
         ...(to === 'CANCELLED' && extra?.cancelledBy && { cancelledBy: extra.cancelledBy }),
+        ...(to === 'DISPUTED' && extra?.disputeReason && { disputeReason: extra.disputeReason, disputedAt: new Date(), disputedBy: 'CUSTOMER' }),
       },
     }),
 

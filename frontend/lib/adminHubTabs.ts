@@ -33,6 +33,7 @@ export const ADMIN_TABS = [
   'products',
   'service-listings',
   'open-requests',
+  'service-request-disputes',
   'categories',
   'service-categories',
   'product-categories',
@@ -60,6 +61,7 @@ export const MODERATOR_ADMIN_TABS: readonly AdminTab[] = [
   'products',
   'service-listings',
   'open-requests',
+  'service-request-disputes',
 ];
 
 /** Where a MODERATOR lands when no (allowed) tab is requested. */

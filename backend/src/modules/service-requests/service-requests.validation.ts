@@ -18,9 +18,10 @@ export type CreateServiceRequestInput = z.infer<typeof createServiceRequestSchem
 export const respondToServiceRequestSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
-    action: z.enum(['ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
+    action: z.enum(['ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'DISPUTED']),
     quotedPrice: z.coerce.number().positive().multipleOf(0.01).optional(),
     agreedPrice: z.coerce.number().positive().multipleOf(0.01).optional(),
+    disputeReason: z.string().trim().min(10).max(1000).optional(),
   }),
 });
 
@@ -35,7 +36,7 @@ export const getServiceRequestsSchema = z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
     status: z
-      .enum(['PENDING', 'ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED'])
+      .enum(['PENDING', 'ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED', 'DISPUTED'])
       .optional(),
   }),
 });

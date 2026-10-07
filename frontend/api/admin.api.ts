@@ -119,6 +119,12 @@ export const adminApi = {
     apiClient.patch<ApiResponse<unknown>>(`/admin/service-listings/${id}/status`, body),
 
 
+  getServiceRequestDisputes: (params?: { page?: number; limit?: number }) =>
+    apiClient.get<ApiResponse<unknown[]>>('/admin/service-request-disputes', { params }),
+
+  resolveServiceRequestDispute: (id: string, body: { resolution: 'COMPLETED' | 'CANCELLED'; note?: string }) =>
+    apiClient.patch<ApiResponse<unknown>>(`/admin/service-request-disputes/${id}/resolve`, body),
+
   // FIX ADMIN-API-TYPING-01: see getAdminProducts above.
   getAdminOpenRequests: (params?: {
     page?: number;

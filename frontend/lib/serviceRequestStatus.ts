@@ -9,6 +9,7 @@ export const SERVICE_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string>
   COMPLETED: 'مكتمل',
   CANCELLED: 'ملغى',
   EXPIRED: 'منتهي تلقائيًا',
+  DISPUTED: 'قيد النزاع',
 };
 
 export const SERVICE_REQUEST_STATUS_VARIANT: Record<
@@ -22,4 +23,5 @@ export const SERVICE_REQUEST_STATUS_VARIANT: Record<
   COMPLETED: 'outline',
   CANCELLED: 'destructive',
   EXPIRED: 'outline',
+  DISPUTED: 'destructive',
 };

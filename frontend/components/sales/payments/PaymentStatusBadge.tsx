@@ -1,7 +1,5 @@
-'use client';
-
-import { StatusBadge, type StatusTone } from '@/components/shared/ui/StatusBadge';
 import type { SalePaymentStatus } from '@/types/sale.types';
+import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 
 const labels: Record<SalePaymentStatus, string> = {
   PAID: 'مدفوع',
@@ -10,13 +8,13 @@ const labels: Record<SalePaymentStatus, string> = {
   OVERDUE: 'متأخر',
 };
 
-const tones: Record<SalePaymentStatus, StatusTone> = {
+const tones: Record<SalePaymentStatus, 'success' | 'warning' | 'outline' | 'destructive'> = {
   PAID: 'success',
   PARTIAL: 'warning',
-  UNPAID: 'neutral',
-  OVERDUE: 'danger',
+  UNPAID: 'outline',
+  OVERDUE: 'destructive',
 };
 
 export function PaymentStatusBadge({ status }: { status: SalePaymentStatus }) {
-  return <StatusBadge tone={tones[status]}>{labels[status]}</StatusBadge>;
+  return <StatusBadge status={status} labels={labels} tone={tones[status]} />;
 }

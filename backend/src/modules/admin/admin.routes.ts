@@ -40,6 +40,9 @@ adminRouter.get('/service-listings', requireMinRole(ROLES.MODERATOR), adminContr
 adminRouter.patch('/service-listings/:id/status', requireMinRole(ROLES.MODERATOR), adminController.setServiceListingStatus);
 
 // سوق الطلبات — قائمة + إلغاء إداري لطلب مفتوح
+adminRouter.get('/service-request-disputes', requireMinRole(ROLES.MODERATOR), adminController.getServiceRequestDisputes);
+adminRouter.patch('/service-request-disputes/:id/resolve', requireMinRole(ROLES.MODERATOR), adminController.resolveServiceRequestDispute);
+
 adminRouter.get('/open-requests', requireMinRole(ROLES.MODERATOR), adminController.getAdminOpenRequests);
 adminRouter.patch('/open-requests/:id/cancel', requireMinRole(ROLES.MODERATOR), adminController.adminCancelOpenRequest);
 

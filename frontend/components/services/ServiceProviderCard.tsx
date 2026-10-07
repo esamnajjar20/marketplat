@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
-import { formatPhone } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { formatDistanceKm } from '@/lib/distance';
 import { useAuthStore } from '@/store/auth.store';
@@ -100,9 +99,6 @@ export function ServiceProviderCard({ provider, className }: Props) {
             <span className="truncate">{provider.serviceAreaCities.join('، ')}</span>
           </div>
         ) : null}
-        <p className="text-2xs text-muted-foreground sm:text-xs">
-          {formatPhone(provider.contactPhone)}
-        </p>
       </div>
     </Link>
   );

@@ -712,6 +712,12 @@ model ServiceRequest {
   /// every other status and for rows cancelled before this column existed.
   /// Lets provider stats count only provider-initiated cancellations.
   cancelledBy    String?
+  disputeReason  String?              @db.VarChar(1000)
+  disputedAt     DateTime?
+  disputedBy     String?
+  disputeResolutionNote String?        @db.VarChar(1000)
+  disputeResolvedAt DateTime?
+  disputeResolvedBy String?
   appointment    Appointment?
   conversation   Conversation?
   customer       User                 @relation("ServiceRequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
@@ -1864,6 +1870,7 @@ enum ServiceRequestStatus {
   CANCELLED
   // FIX SR-EXPIRY (audit H4): closed by the expiry cron, not by a user.
   EXPIRED
+  DISPUTED
 }
 
 enum AppointmentStatus {

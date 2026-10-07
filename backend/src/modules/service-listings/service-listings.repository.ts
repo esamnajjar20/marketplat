@@ -7,13 +7,7 @@ import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
 export type ServiceListingWithProvider = Prisma.ServiceListingGetPayload<{
   include: {
-    provider: {
-      select: {
-        id: true; businessName: true; logoUrl: true; availabilityStatus: true;
-        serviceAreaCities: true; contactPhone: true;
-        sellerProfile: { select: { userId: true; displayName: true; verified: true; averageRating: true; paymentMethods: true; suspended: true } };
-      };
-    };
+    provider: { include: { sellerProfile: true } };
     category: { select: { id: true; name: true; nameAr: true } };
   };
 }>;
@@ -22,7 +16,7 @@ export type ServiceListingWithProvider = Prisma.ServiceListingGetPayload<{
 // reuses the same ServiceListingWithProvider include shape rather
 // than a second definition.
 export const listingWithRelations = {
-  provider: { select: { id: true, businessName: true, logoUrl: true, availabilityStatus: true, serviceAreaCities: true, contactPhone: true, sellerProfile: { select: { userId: true, displayName: true, verified: true, averageRating: true, paymentMethods: true, suspended: true } } } },
+  provider: { include: { sellerProfile: true } },
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;
 
@@ -50,7 +44,6 @@ const serviceListingListSelect = {
       logoUrl: true,
       availabilityStatus: true,
       serviceAreaCities: true,
-      contactPhone: true,
       sellerProfile: {
         select: {
           userId: true,
@@ -133,20 +126,6 @@ export const serviceListingsRepository = {
   // listing intact.
   softDelete: (id: string): Promise<ServiceListing> =>
     prisma.serviceListing.update({ where: { id }, data: { status: 'DELETED' } }),
-
-  // Serializes request creation against soft deletion of the same listing.
-  // Both paths take this row lock before their decisive write/check, so a
-  // request cannot slip in between the delete's open-request count and the
-  // status change (or vice versa).
-  lockForMutation: async (tx: Prisma.TransactionClient, id: string): Promise<{ id: string; status: ServiceListingStatus; providerId: string } | null> => {
-    const rows = await tx.$queryRaw<{ id: string; status: ServiceListingStatus; providerId: string }[]>`
-      SELECT "id", "status", "providerId"
-      FROM "service_listings"
-      WHERE "id" = ${id}
-      FOR UPDATE
-    `;
-    return rows[0] ?? null;
-  },
 
   // Gap #3 fix: mirrors ads.repository.ts's addImages exactly — atomic
   // array append via raw SQL (no SELECT + UPDATE race), existing images

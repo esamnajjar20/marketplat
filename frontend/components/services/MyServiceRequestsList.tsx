@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AlertTriangle, MessageSquare, X, Star, CheckCheck } from 'lucide-react';
+import { AlertTriangle, MessageSquare, X, Star, CheckCheck, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -24,7 +24,7 @@ import {
 import type { ServiceRequestStatus } from '@/types/service.types';
 
 const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
-  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED',
+  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'DISPUTED',
 ];
 
 /**
@@ -45,9 +45,11 @@ export function MyServiceRequestsList() {
   const [reviewTarget, setReviewTarget] = useState<{ id: string; title: string } | null>(null);
   const [completeTargetId, setCompleteTargetId] = useState<string | null>(null);
   const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
+  const [disputeTargetId, setDisputeTargetId] = useState<string | null>(null);
   const respond = useRespondToServiceRequest(cancelTargetId ?? '');
   const completeRespond = useRespondToServiceRequest(completeTargetId ?? '');
   const approveRespond = useRespondToServiceRequest(approveTargetId ?? '');
+  const disputeRespond = useRespondToServiceRequest(disputeTargetId ?? '');
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -168,6 +170,17 @@ export function MyServiceRequestsList() {
                       <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />موافقة وبدء التنفيذ
                     </Button>
                   )}
+                  {(request.status === 'IN_PROGRESS' || request.status === 'COMPLETED') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 gap-1.5 text-destructive hover:text-destructive"
+                      disabled={disputeRespond.isPending}
+                      onClick={() => setDisputeTargetId(request.id)}
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />فتح نزاع
+                    </Button>
+                  )}
                   {request.status === 'IN_PROGRESS' && (
                     <Button
                       variant="outline"
@@ -208,6 +221,24 @@ export function MyServiceRequestsList() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(disputeTargetId)}
+        onOpenChange={(open) => { if (!open) setDisputeTargetId(null); }}
+        title="فتح نزاع على الطلب؟"
+        description="سيتم إيقاف دورة الطلب حتى يراجعه فريق الإدارة. اذكر المشكلة بوضوح لتسهيل حلها."
+        confirmLabel="فتح النزاع"
+        destructive
+        requireReason
+        reasonLabel="سبب النزاع"
+        reasonPlaceholder="اشرح المشكلة (10 أحرف على الأقل)…"
+        isPending={disputeRespond.isPending}
+        onConfirm={() => undefined}
+        onConfirmWithReason={(reason) => {
+          if (!disputeTargetId) return;
+          disputeRespond.mutate({ action: 'DISPUTED', disputeReason: reason }, { onSuccess: () => setDisputeTargetId(null) });
+        }}
+      />
 
       {totalPages > 1 && (
         <Pagination

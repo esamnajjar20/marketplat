@@ -179,3 +179,19 @@ export type BulkSetAdFeaturedInput = z.infer<typeof bulkSetAdFeaturedSchema>['bo
 export type BulkSetAdPinnedInput = z.infer<typeof bulkSetAdPinnedSchema>['body'];
 export type BulkDeleteAdsInput = z.infer<typeof bulkDeleteAdsSchema>['body'];
 export type BulkToggleUserActiveInput = z.infer<typeof bulkToggleUserActiveSchema>['body'];
+
+
+export const adminGetServiceRequestDisputesSchema = z.object({
+  query: z.object({
+    page: optionalQueryNumber(z.number().int().min(1)),
+    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+  }),
+});
+
+export const adminResolveServiceRequestDisputeSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    resolution: z.enum(['COMPLETED', 'CANCELLED']),
+    note: z.string().trim().min(3).max(1000).optional(),
+  }),
+});

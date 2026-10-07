@@ -16,6 +16,7 @@ import { adminStatsCache } from '../../shared/utils/adminStatsCache';
 // never invalidated it.
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.service';
 import { hidePublicEntities } from '../../shared/utils/publicListCache';
+import { logger } from '../../shared/utils/logger';
 
 /** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
 let _systemHealthMem: { at: number; value: any } | null = null;
@@ -994,6 +995,65 @@ export const adminService = {
    * Open Requests marketplace admin list (SERVICE | PRODUCT | RENTAL).
    * Separate from service-broadcasts (feed).
    */
+  getServiceRequestDisputes: async (query: { page?: number; limit?: number }): Promise<{ items: unknown[]; meta: ReturnType<typeof buildPaginationMeta> }> => {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const skip = (page - 1) * limit;
+    const where = { status: 'DISPUTED' as const };
+    const [items, total] = await Promise.all([
+      prisma.serviceRequest.findMany({
+        where,
+        orderBy: { disputedAt: 'asc' },
+        skip,
+        take: limit,
+        include: {
+          customer: { select: { id: true, name: true, avatarUrl: true } },
+          listing: { select: { id: true, title: true, provider: { select: { id: true, businessName: true, sellerProfile: { select: { userId: true, displayName: true } } } } } },
+        },
+      }),
+      prisma.serviceRequest.count({ where }),
+    ]);
+    return { items, meta: buildPaginationMeta(total, page, limit) };
+  },
+
+  resolveServiceRequestDispute: async (
+    id: string,
+    adminUserId: string,
+    resolution: 'COMPLETED' | 'CANCELLED',
+    note?: string,
+  ): Promise<unknown> => {
+    return prisma.$transaction(async tx => {
+      const request = await tx.serviceRequest.findUnique({
+        where: { id },
+        select: {
+          id: true, status: true, listingId: true, customerId: true, quotedPrice: true, agreedPrice: true,
+          listing: { select: { pricingType: true, price: true, provider: { select: { sellerProfile: { select: { userId: true } } } } } },
+        },
+      });
+      if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
+      if (request.status !== 'DISPUTED') {
+        throw new BadRequestError('Only disputed service requests can be resolved.', 'SERVICE_REQUEST_NOT_DISPUTED');
+      }
+      let agreedPrice = request.agreedPrice;
+      if (resolution === 'COMPLETED' && agreedPrice == null) {
+        agreedPrice = request.quotedPrice ?? (request.listing.pricingType === 'FIXED' ? request.listing.price : null);
+        if (agreedPrice == null) {
+          throw new BadRequestError('A final agreed price is required before resolving the dispute as completed.', 'AGREED_PRICE_REQUIRED');
+        }
+      }
+      const updated = await tx.serviceRequest.update({
+        where: { id },
+        data: { status: resolution, respondedAt: new Date(), agreedPrice: resolution === 'COMPLETED' ? agreedPrice : request.agreedPrice, disputeResolutionNote: note, disputeResolvedAt: new Date(), disputeResolvedBy: adminUserId },
+        include: { customer: { select: { id: true, name: true } } },
+      });
+      if (resolution === 'COMPLETED' || resolution === 'CANCELLED') {
+        await tx.appointment.updateMany({ where: { requestId: id, status: 'SCHEDULED' }, data: { status: resolution } });
+      }
+      logger.info('Service request dispute resolved', { requestId: id, adminUserId, resolution });
+      return updated;
+    });
+  },
+
   getAdminOpenRequests: async (query: {
     page?: number;
     limit?: number;

@@ -26,7 +26,7 @@ import type { ServiceRequestStatus } from '@/types/service.types';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 
 const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
-  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED',
+  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'DISPUTED',
 ];
 
 /**

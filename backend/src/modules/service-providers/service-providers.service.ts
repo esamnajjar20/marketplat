@@ -4,8 +4,6 @@ import { uploadServiceProviderLogo, deleteImage } from '../../config/cloudinary'
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import {
   serviceProvidersRepository,
-  PublicServiceProviderWithSeller,
-  PublicServiceProviderSummary,
   NearbyServiceProviderRow,
 } from './service-providers.repository';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
@@ -281,7 +279,7 @@ export const serviceProvidersService = {
   // silently truncate without any signal today.
   getPublicServiceProvider: async (
     id: string
-  ): Promise<PublicServiceProviderWithSeller & { listings: ServiceListing[] }> => {
+  ): Promise<NonNullable<Awaited<ReturnType<typeof serviceProvidersRepository.findPublicById>>> & { listings: ServiceListing[] }> => {
     const details = await serviceProvidersRepository.findPublicById(id);
     if (!details) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     // SEC-FIX: same gap products.service.ts's getProductById already
@@ -299,14 +297,24 @@ export const serviceProvidersService = {
       status: 'ACTIVE',
       limit: 100,
     });
-    return { ...details, listings };
+    // Public provider pages must not expose direct contact data, exact geo pins,
+    // or seller payment-method configuration. Owners still receive these fields
+    // from the authenticated /me endpoint.
+    const publicDetails = {
+      ...details,
+      contactPhone: '',
+      latitude: null,
+      longitude: null,
+      sellerProfile: { ...details.sellerProfile, paymentMethods: null },
+    };
+    return { ...publicDetails, listings };
   },
 
   // Home discovery plan (): public city/browse list — thin
   // wrapper mirroring storesService.getStores/productsService.getProducts.
   getServiceProviders: async (
     query: GetServiceProvidersQuery
-  ): Promise<{ providers: PublicServiceProviderSummary[]; meta: PaginationMeta }> => {
+  ): Promise<{ providers: ServiceProviderDetails[]; meta: PaginationMeta }> => {
     // Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('service-providers', query, async () => {
       const { page, limit, skip, take } = getPaginationParams(query.page, query.limit);

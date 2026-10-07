@@ -20,6 +20,8 @@ import {
   bulkSetAdPinnedSchema,
   bulkDeleteAdsSchema,
   bulkToggleUserActiveSchema,
+  adminGetServiceRequestDisputesSchema,
+  adminResolveServiceRequestDisputeSchema,
 } from './admin.validation';
 import { broadcastNotificationSchema } from '../notifications/notifications.validation';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -104,6 +106,27 @@ export const adminController = {
 
 
 
+
+  getServiceRequestDisputes: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { query } = adminGetServiceRequestDisputesSchema.parse({ query: req.query });
+      const result = await adminService.getServiceRequestDisputes(query);
+      res.status(200).json(successResponse('Service request disputes fetched', result.items, { pagination: result.meta }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  resolveServiceRequestDispute: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params, body } = adminResolveServiceRequestDisputeSchema.parse({ params: req.params, body: req.body });
+      const result = await adminService.resolveServiceRequestDispute(params.id, user.userId, body.resolution, body.note);
+      res.status(200).json(successResponse('Service request dispute resolved', result));
+    } catch (error) {
+      next(error);
+    }
+  },
 
   getAdminOpenRequests: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

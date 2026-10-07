@@ -220,6 +220,15 @@ export function useAdminServiceListings(params?: { page?: number; limit?: number
   });
 }
 
+export function useAdminServiceRequestDisputes(params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ['admin', 'service-request-disputes', params],
+    queryFn: () => adminApi.getServiceRequestDisputes(params).then((r) => r.data),
+    staleTime: CACHE_TTL.adminList,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useAdminOpenRequests(params?: {
   page?: number;
   limit?: number;

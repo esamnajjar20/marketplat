@@ -55,6 +55,7 @@ import { AdminFraudTable } from '@/components/admin/AdminFraudTable';
 import { AdminProductsTable } from '@/components/admin/AdminProductsTable';
 import { AdminServiceListingsTable } from '@/components/admin/AdminServiceListingsTable';
 import { AdminOpenRequestsTable } from '@/components/admin/AdminOpenRequestsTable';
+import { AdminServiceRequestDisputesTable } from '@/components/admin/AdminServiceRequestDisputesTable';
 import { AdminCategoryTypeTabs } from '@/components/admin/AdminCategoryTypeTabs';
 import { AdminCategoriesTree } from '@/components/admin/AdminCategoriesTree';
 import { AdminProductCategoriesTree } from '@/components/admin/AdminProductCategoriesTree';
@@ -171,6 +172,12 @@ function TabBody({ tab }: { tab: AdminTab }) {
       return (
         <AdminPageShell title="الطلبات المفتوحة" description="طلبات الخدمة والمنتج والإيجار — مراجعة وإلغاء الطلبات عند الحاجة.">
           <Suspense fallback={tableFallback}><AdminOpenRequestsTable /></Suspense>
+        </AdminPageShell>
+      );
+    case 'service-request-disputes':
+      return (
+        <AdminPageShell title="نزاعات الخدمات" description="مراجعة النزاعات المفتوحة وحسمها بإكمال الطلب أو إلغائه.">
+          <Suspense fallback={tableFallback}><AdminServiceRequestDisputesTable /></Suspense>
         </AdminPageShell>
       );
     case 'categories':

@@ -786,3 +786,17 @@ export function useAdminUpdateStoreTypeField() {
     onError: (err) => toast.error(parseApiError(err).message),
   });
 }
+
+
+export function useAdminResolveServiceRequestDispute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, resolution, note }: { id: string; resolution: 'COMPLETED' | 'CANCELLED'; note?: string }) =>
+      adminApi.resolveServiceRequestDispute(id, { resolution, note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'service-request-disputes'] });
+      toast.success('تم حل النزاع');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}

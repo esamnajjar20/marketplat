@@ -1,41 +1,14 @@
-import type { ReactNode } from 'react';
-import { Badge, type BadgeProps } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+'use client';
+import { Badge, type BadgeProps } from '@/components/shared/ui/Badge';
 
-export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+export type StatusBadgeTone = NonNullable<BadgeProps['variant']>;
 
-const toneVariant: Record<StatusTone, BadgeProps['variant']> = {
-  neutral: 'soft',
-  info: 'secondary',
-  success: 'soft-success',
-  warning: 'soft-warning',
-  danger: 'destructive',
-};
-
-interface StatusBadgeProps {
-  children: ReactNode;
-  tone?: StatusTone;
-  size?: BadgeProps['size'];
-  className?: string;
-  icon?: ReactNode;
+export interface StatusBadgeProps extends Omit<BadgeProps, 'variant'> {
+  status: string;
+  labels?: Record<string, string>;
+  tone?: StatusBadgeTone;
 }
 
-/** Semantic status chip used across marketplace/admin surfaces. */
-export function StatusBadge({
-  children,
-  tone = 'neutral',
-  size = 'sm',
-  className,
-  icon,
-}: StatusBadgeProps) {
-  return (
-    <Badge
-      size={size}
-      variant={toneVariant[tone]}
-      className={cn('gap-1.5 whitespace-nowrap', className)}
-    >
-      {icon}
-      {children}
-    </Badge>
-  );
+export function StatusBadge({ status, labels, tone = 'outline', ...props }: StatusBadgeProps) {
+  return <Badge variant={tone} {...props}>{labels?.[status] ?? status}</Badge>;
 }

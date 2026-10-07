@@ -27,13 +27,14 @@ import { blockedUsersService } from '../blocked-users';
 const ALLOWED_TRANSITIONS: Record<ServiceRequestStatus, ServiceRequestStatus[]> = {
   PENDING: ['ACCEPTED', 'REJECTED', 'CANCELLED'],
   ACCEPTED: ['IN_PROGRESS', 'CANCELLED'],
-  IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
-  COMPLETED: [],
+  IN_PROGRESS: ['COMPLETED', 'CANCELLED', 'DISPUTED'],
+  COMPLETED: ['DISPUTED'],
   REJECTED: [],
   CANCELLED: [],
   // (audit H4): EXPIRED is system-only — no path
   // leads into or out of it via the API. Listed so the Record stays exhaustive.
   EXPIRED: [],
+  DISPUTED: [],
 };
 
 // services-design.md §7 table: who is allowed to *initiate* each
@@ -49,7 +50,9 @@ const TRANSITION_ACTOR: Record<string, Actor> = {
   'ACCEPTED->IN_PROGRESS': 'provider',
   'ACCEPTED->CANCELLED': 'either',
   'IN_PROGRESS->CANCELLED': 'either',
-  'IN_PROGRESS->COMPLETED': 'either',
+  'IN_PROGRESS->COMPLETED': 'provider',
+  'IN_PROGRESS->DISPUTED': 'customer',
+  'COMPLETED->DISPUTED': 'customer',
 };
 
 // Terminal statuses only — see recomputeProviderStats below. A request
@@ -57,7 +60,7 @@ const TRANSITION_ACTOR: Record<string, Actor> = {
 // outgoing edges from any of the three), so this recompute fires at
 // most once per request.
 // (audit H4): EXPIRED is terminal like the rest.
-const TERMINAL_STATUSES: ServiceRequestStatus[] = ['COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'];
+const TERMINAL_STATUSES: ServiceRequestStatus[] = ['COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED', 'DISPUTED'];
 
 // FIX (dead-stats): completedRequestsCount/fulfillmentRate
 // (ServiceProviderDetails) were rendered on MyServiceProviderCard from
@@ -279,7 +282,7 @@ export const serviceRequestsService = {
     userId: string,
     requestId: string,
     action: ServiceRequestStatus,
-    extra?: { quotedPrice?: number; agreedPrice?: number }
+    extra?: { quotedPrice?: number; agreedPrice?: number; disputeReason?: string }
   ): Promise<ServiceRequest> => {
     const request = await serviceRequestsRepository.findById(requestId);
     if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
@@ -363,6 +366,21 @@ export const serviceRequestsService = {
         extra = { ...extra, agreedPrice: Number(request.agreedPrice) };
       } else if (fixedListingPrice != null) {
         extra = { ...extra, agreedPrice: Number(fixedListingPrice) };
+      }
+    }
+
+    if (action === 'DISPUTED') {
+      if (!isCustomer) {
+        throw new ForbiddenError('Only the customer can open a dispute.', 'DISPUTE_CUSTOMER_ONLY');
+      }
+      if (!extra?.disputeReason || extra.disputeReason.trim().length < 10) {
+        throw new BadRequestError('A dispute reason of at least 10 characters is required.', 'DISPUTE_REASON_REQUIRED');
+      }
+      if (request.status === 'COMPLETED') {
+        const disputeWindowMs = 48 * 60 * 60 * 1000;
+        if (Date.now() - request.updatedAt.getTime() > disputeWindowMs) {
+          throw new ConflictError('The dispute window has expired.', 'DISPUTE_WINDOW_EXPIRED');
+        }
       }
     }
 

@@ -31,7 +31,7 @@ function toWaPhone(phone: string): string {
  * بطاقة مقدم الخدمة — بنفس روح SellerCard في الإعلان:
  * صورة، اسم، رابط الملف، تقييم، زر مراسلة يفتح محادثة مع حساب الشخص.
  */
-export function ProviderContactCard({ listing, showPhone = true }: Props) {
+export function ProviderContactCard({ listing, showPhone = false }: Props) {
   const router = useRouter();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);

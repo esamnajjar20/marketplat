@@ -1,13 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { PlusCircle, Phone, Wrench } from 'lucide-react';
+import { PlusCircle, Wrench } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { ROUTES, APP_URL } from '@/lib/constants';
-import { formatPhone } from '@/lib/formatters';
 import type { PublicProfileServiceProvider } from '@/types/user.types';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import type { ServiceAvailability } from '@/types/service.types';
@@ -37,12 +36,6 @@ const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
   UNAVAILABLE: 'bg-muted-foreground',
 };
 
-function toWaPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('970')) return digits;
-  if (digits.startsWith('0')) return `970${digits.slice(1)}`;
-  return digits;
-}
 
 /**
  * UNIFIED-PROFILE: summary card for the profile's "الخدمات" tab.
@@ -56,7 +49,6 @@ export function ProfileServiceProviderSummary({
 }: Props) {
   const logo = getAvatarUrl(provider.logoUrl ?? '', 96);
   const shareUrl = `${APP_URL}${ROUTES.userProfile(profileUserId)}?tab=services`;
-  const waPhone = provider.contactPhone ? toWaPhone(provider.contactPhone) : '';
 
   return (
     <div className="space-y-3">
@@ -101,25 +93,6 @@ export function ProfileServiceProviderSummary({
 
         {!isOwnProvider && (
           <div className="flex flex-wrap gap-2">
-            {provider.contactPhone && (
-              <a
-                href={`tel:${provider.contactPhone}`}
-                className="inline-flex flex-1 min-w-[8rem] items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground"
-              >
-                <Phone className="h-3.5 w-3.5" />
-                {formatPhone(provider.contactPhone)}
-              </a>
-            )}
-            {waPhone.length >= 9 && (
-              <a
-                href={`https://wa.me/${waPhone}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex flex-1 min-w-[7rem] items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-2.5 text-sm font-medium text-[#128C7E] dark:text-[#25D366]"
-              >
-                واتساب
-              </a>
-            )}
             <ShareAdButton title={provider.businessName} url={shareUrl} variant="button" className="flex-1 min-w-[7rem]" />
           </div>
         )}
@@ -153,7 +126,6 @@ export function ProfileServiceProviderSummary({
         paymentMethods={sellerPaymentMethods}
         entityName={provider.businessName}
         fallbackName={provider.businessName}
-        fallbackPhone={provider.contactPhone}
         className="mt-3"
       />
     </div>

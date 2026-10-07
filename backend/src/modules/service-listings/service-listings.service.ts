@@ -12,14 +12,13 @@ import {
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { ConflictError } from '../../shared/errors/ConflictError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { uploadImage } from '../../config/cloudinary';
-import { cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import { uploadImage, deleteImage } from '../../config/cloudinary';
+import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
-import { validateServiceListingAttributes, validateServiceProviderAttributes, validateServiceTypeCapabilities } from '../service-types/service-types.service';
+import { validateServiceListingAttributes, validateServiceTypeCapabilities } from '../service-types/service-types.service';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
@@ -30,6 +29,7 @@ import { createEntityImageOperations } from '../../shared/utils/entityImageOpera
 import { logger } from '../../shared/utils/logger';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
+import { ConflictError } from '../../shared/errors/ConflictError';
 
 const MAX_LISTING_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images — see config/limits.ts
 
@@ -133,17 +133,6 @@ export const serviceListingsService = {
     if (!serviceType) throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
     validateServiceTypeCapabilities(serviceType, input.pricingType, input.serviceLocation);
     await validateServiceListingAttributes(serviceTypeId, input.attributes);
-
-    // Provider-scoped fields are part of the provider's capability for this
-    // service type, not just listing metadata. Do not let the first listing
-    // silently create an empty provider profile and thereby bypass required
-    // onboarding fields. Existing profile attributes are validated against
-    // the same active service-type definition used by updateMyServiceTypeProfile.
-    const providerTypeProfile = await serviceProvidersRepository.findServiceTypeProfile(provider.id, serviceTypeId);
-    await validateServiceProviderAttributes(
-      serviceTypeId,
-      (providerTypeProfile?.attributes as Record<string, unknown> | null) ?? undefined,
-    );
 
     if (files.length > MAX_LISTING_IMAGES) {
       throw new BadRequestError(`You can upload at most ${MAX_LISTING_IMAGES} images.`);
@@ -359,7 +348,14 @@ export const serviceListingsService = {
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
     serviceListingsRepository.incrementViews(id).catch(() => undefined);
-    return listing;
+    return {
+      ...listing,
+      provider: {
+        ...listing.provider,
+        contactPhone: '',
+        sellerProfile: { ...listing.provider.sellerProfile, paymentMethods: null },
+      },
+    };
   },
 
   updateServiceListing: async (
@@ -469,12 +465,8 @@ export const serviceListingsService = {
     }
 
     await prisma.$transaction(async tx => {
-      const lockedListing = await serviceListingsRepository.lockForMutation(tx, id);
-      if (!lockedListing || lockedListing.status === 'DELETED') {
-        throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
-      }
       const openRequestCount = await tx.serviceRequest.count({
-        where: { listingId: id, status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS'] } },
+        where: { listingId: id, status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'DISPUTED'] } },
       });
       if (openRequestCount > 0) {
         throw new ConflictError(

@@ -40,6 +40,7 @@ const NAV_LINKS = [
   { tab: 'products' as AdminTab, href: ROUTES.admin.products,          label: 'المنتجات',       icon: Package },
   { tab: 'service-listings' as AdminTab, href: ROUTES.admin.serviceListings,   label: 'الخدمات',        icon: Wrench },
   { tab: 'open-requests' as AdminTab, href: ROUTES.admin.openRequests,      label: 'الطلبات المفتوحة', icon: ListOrdered },
+  { tab: 'service-request-disputes' as AdminTab, href: '/admin?tab=service-request-disputes', label: 'نزاعات الخدمات', icon: ShieldAlert },
   { tab: 'categories' as AdminTab, href: ROUTES.admin.categories,        label: 'فئات الإعلانات', icon: FolderTree },
   // EPIC 1.2: was entirely missing — see AdminServiceCategoriesTree.tsx.
   { tab: 'service-categories' as AdminTab, href: ROUTES.admin.serviceCategories, label: 'فئات الخدمات',   icon: Wrench },

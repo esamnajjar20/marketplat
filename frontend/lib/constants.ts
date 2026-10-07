@@ -168,6 +168,7 @@ export const ROUTES = {
     products:          '/admin?tab=products',
     serviceListings:   '/admin?tab=service-listings',
     openRequests:      '/admin?tab=open-requests',
+    serviceRequestDisputes: '/admin?tab=service-request-disputes',
     notifications:     '/admin?tab=notifications',
     system:            '/admin?tab=system',
   },

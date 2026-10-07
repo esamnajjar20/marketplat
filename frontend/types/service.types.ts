@@ -82,11 +82,11 @@ export type ServicePricingType = 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE';
 export type ServiceListingStatus = 'ACTIVE' | 'PAUSED' | 'DELETED';
 export type ServiceLocationType = 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE';
 export type ServiceRequestStatus =
-  | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
+  | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED' | 'DISPUTED';
 /** Action values accepted by PATCH /service-requests/:id/respond. PENDING is
  * never a valid target — only ever the creation default. */
 export type ServiceRequestAction =
-  | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export type WorkingHours = Record<
@@ -120,8 +120,8 @@ export interface ServiceProviderDetails {
 }
 
 /** GET /service-providers/:id — public page, includes parent seller trust data. */
-export type ServiceProviderPublic = Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & {
-  sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings' | 'paymentMethods'>;
+export type ServiceProviderPublic = Omit<ServiceProviderDetails, 'contactPhone' | 'latitude' | 'longitude'> & {
+  sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings'>;
   listings: ServiceListing[];
   serviceTypeProfiles?: ServiceProviderServiceTypeProfile[];
 };
@@ -232,6 +232,9 @@ export interface ServiceRequest {
   /** Prisma Decimal(10,2) — string in JSON, or null until quoted/agreed. */
   quotedPrice: string | null;
   agreedPrice: string | null;
+  disputeReason?: string | null;
+  disputedAt?: string | null;
+  disputedBy?: string | null;
   createdAt: string;
   updatedAt: string;
   respondedAt: string | null;
@@ -268,7 +271,6 @@ export interface Appointment {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
-  request?: { id: string; customerId: string; listing: { id: string; title: string; providerId: string } } | null;
 }
 
 export interface ServiceReview {
@@ -343,7 +345,7 @@ export interface NearbyServiceProvidersParams {
 // sellerProfile join (unlike ServiceListingWithProvider). A nearby-search
 // card therefore only has businessName/logoUrl/availabilityStatus/
 // distance to show — not the seller's displayName or rating.
-export type NearbyServiceProviderRow = Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & {
+export type NearbyServiceProviderRow = ServiceProviderDetails & {
   distanceKm: number;
 };
 
@@ -410,6 +412,7 @@ export interface CreateServiceRequestPayload {
 /** PATCH /service-requests/:id/respond. */
 export interface RespondToServiceRequestPayload {
   action: ServiceRequestAction;
+  disputeReason?: string;
   quotedPrice?: number;
   agreedPrice?: number;
 }
