@@ -7,9 +7,16 @@
  *
  * Public GET/HEAD بدون Authorization/Cookie → عبر API Worker (edge cache).
  * الباقي (POST/PATCH, auth, admin) → مباشرة إلى Render.
+ *
+ * EDGE-AUTH-STRIP-01: المستخدم المسجّل يرسل Authorization + cookie مع كل طلب،
+ * فكان يتجاوز الـedge بالكامل حتى للقوائم العامة المتطابقة للجميع. الآن، لمسارات
+ * القراءة العامة المطابقة لقائمة lib/edgeProxy.ts فقط (deny-by-default)، تُحذف
+ * ترويسات الهوية قبل الانتقال إلى API Worker فيُخدَم من نفس كاش الزوار.
+ * أي مسار غير مدرج هناك يبقى على السلوك السابق (Render مباشرة عند وجود هوية).
  */
 import type { NextRequest } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { isViewerIndependentPath, stripIdentityHeaders } from '@/lib/edgeProxy';
 
 const RENDER = 'https://marketplat.onrender.com';
 
@@ -46,7 +53,26 @@ async function proxy(
     (init as { duplex?: string }).duplex = 'half';
   }
 
-  if (shouldUseApiWorker(req.method, path, req)) {
+  // EDGE-AUTH-STRIP-01: عام ومتطابق للجميع → نفس كاش الـedge حتى للمسجّل.
+  // نبني Request جديدًا بترويسات مجرّدة من الهوية؛ `init` الأصلي يبقى كما هو
+  // للـfallback إلى Render.
+  if (isViewerIndependentPath(req.method, path)) {
+    try {
+      const { env } = getCloudflareContext();
+      const apiWorker = (env as unknown as { API_WORKER?: { fetch: typeof fetch } }).API_WORKER;
+      if (apiWorker) {
+        return await apiWorker.fetch(
+          new Request(`https://api/api/v1/${pathStr}${search}`, {
+            method: req.method,
+            headers: stripIdentityHeaders(req.headers),
+            redirect: 'manual',
+          }),
+        );
+      }
+    } catch {
+      // fallback: Render مباشرة بالترويسات الأصلية (تطوير محلي / Binding غير متاح)
+    }
+  } else if (shouldUseApiWorker(req.method, path, req)) {
     // استخدام Service Binding — لا يمر عبر الشبكة، لا يحظره Cloudflare
     try {
       const cfCtx = getCloudflareContext();
