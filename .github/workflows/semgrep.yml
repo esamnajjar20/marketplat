@@ -1,0 +1,38 @@
+name: Semgrep
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'  # weekly Monday 03:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep (local rules + community)
+        run: |
+          semgrep ci \
+            --config=.semgrep.yml \
+            --config=p/owasp-top-ten \
+            --config=p/typescript \
+            --sarif --output=semgrep.sarif \
+            --error
+        continue-on-error: false
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif

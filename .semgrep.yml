@@ -1,0 +1,111 @@
+rules:
+  # ─────────────────────────────────────────────────────────────
+  # AUTH-01: Express routes must be preceded by authenticate
+  # Catches: a new admin/edit route without middleware.
+  # ─────────────────────────────────────────────────────────────
+  - id: missing-auth-middleware
+    languages: [typescript]
+    severity: ERROR
+    message: |
+      Express route without an auth guard. Add `authenticate` (or
+      `requireMinRole`) as the second argument to the router method,
+      or document why the route is intentionally public with a
+      `// public-route:` comment directly above it.
+    patterns:
+      - pattern-either:
+          - pattern: $ROUTER.patch($PATH, $HANDLER)
+          - pattern: $ROUTER.delete($PATH, $HANDLER)
+          - pattern: $ROUTER.put($PATH, $HANDLER)
+      - pattern-not: $ROUTER.patch($PATH, authenticate, ...)
+      - pattern-not: $ROUTER.patch($PATH, requireMinRole, ...)
+      - pattern-not: $ROUTER.patch($PATH, optionalAuth, ...)
+      - pattern-not-inside: |
+          // public-route: $REASON
+          ...
+    paths:
+      include:
+        - 'backend/src/**/*.routes.ts'
+
+  # ─────────────────────────────────────────────────────────────
+  # SECRET-01: No hardcoded JWT secrets or API keys
+  # ─────────────────────────────────────────────────────────────
+  - id: no-hardcoded-secrets
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: |
+      Hardcoded secret detected. Read from process.env / env object
+      instead, and add the value to .env (never commit .env).
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $X = "..."
+          - pattern: |
+              $X = '...'
+      - metavariable-regex:
+          metavariable: $X
+          regex: (?i).*(secret|password|api_?key|token|private_?key).*
+      - pattern-not: |
+          $X = process.env.$Y
+      - pattern-not: |
+          $X = env.$Y
+      - pattern-not: |
+          $X = ''
+      - pattern-not: |
+          $X = ""
+      - pattern-not-inside: |
+          interface $I { ... }
+      - pattern-not-inside: |
+          type $T = { ... }
+    paths:
+      include:
+        - 'backend/src/**'
+        - 'frontend/lib/**'
+
+  # ─────────────────────────────────────────────────────────────
+  # PRISMA-01: $executeRaw / $queryRaw must use tagged templates
+  # ─────────────────────────────────────────────────────────────
+  - id: prisma-raw-requires-tagged-template
+    languages: [typescript]
+    severity: ERROR
+    message: |
+      Prisma raw query must use a tagged template literal
+      (`` `...${var}...` ``) so values are parameterized. String
+      concatenation defeats Prisma's automatic escaping and exposes
+      the query to SQL injection.
+    patterns:
+      - pattern-either:
+          - pattern: prisma.$executeRaw($ARG)
+          - pattern: prisma.$queryRaw($ARG)
+          - pattern: tx.$executeRaw($ARG)
+          - pattern: tx.$queryRaw($ARG)
+      - pattern-not: prisma.$executeRaw`...`
+      - pattern-not: prisma.$queryRaw`...`
+      - pattern-not: tx.$executeRaw`...`
+      - pattern-not: tx.$queryRaw`...`
+    paths:
+      include:
+        - 'backend/src/**'
+
+  # ─────────────────────────────────────────────────────────────
+  # CSRF-01: Mutating requests must carry CSRF or X-Offline-Op-Id
+  # Catches: new unsafe HTTP methods without CSRF middleware.
+  # ─────────────────────────────────────────────────────────────
+  - id: mutating-route-missing-csrf
+    languages: [typescript]
+    severity: WARNING
+    message: |
+      Route with an unsafe HTTP method. Ensure the middleware chain
+      includes the CSRF guard (or an X-Offline-Op-Id path), unless
+      the route is intentionally excluded with `// csrf-exempt:`.
+    patterns:
+      - pattern-either:
+          - pattern: $ROUTER.post($PATH, ...)
+          - pattern: $ROUTER.patch($PATH, ...)
+          - pattern: $ROUTER.put($PATH, ...)
+          - pattern: $ROUTER.delete($PATH, ...)
+      - pattern-not-inside: |
+          // csrf-exempt: $REASON
+          ...
+    paths:
+      include:
+        - 'backend/src/**/*.routes.ts'

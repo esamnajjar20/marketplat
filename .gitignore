@@ -72,3 +72,8 @@ frontend-full.txt
 *.log
 *.txt
 !README*.txt
+
+# Editor/tool backups — never commit
+*.bak
+*.old
+*.tmp
