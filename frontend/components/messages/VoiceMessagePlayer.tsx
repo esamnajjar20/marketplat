@@ -163,7 +163,7 @@ export function VoiceMessagePlayer({ src, variant = 'theirs', className, onError
             />
           </div>
         </div>
-        <div className={cn('flex items-center justify-between text-[10px] font-medium tabular-nums', timeColor)}>
+        <div className={cn('flex items-center justify-between text-2xs font-medium tabular-nums', timeColor)}>
           <span>{formatTime(current)}</span>
           <span>{error ? 'فشل التحميل' : formatTime(duration)}</span>
         </div>

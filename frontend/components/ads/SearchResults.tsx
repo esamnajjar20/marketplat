@@ -171,13 +171,13 @@ export function SearchResults({ categorySlug }: Props = {}) {
           <div className="flex gap-1" role="group" aria-label="طريقة العرض">
             <button onClick={() => setView('grid')}
               aria-label="عرض شبكي" aria-pressed={view === 'grid'}
-              className={cn('p-1.5 rounded', view === 'grid' ? 'bg-muted' : 'hover:bg-muted/50')}>
-              <LayoutGrid className="h-4 w-4" />
+              className={cn('inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background', view === 'grid' ? 'bg-muted' : 'hover:bg-muted/50')}>
+              <LayoutGrid className="h-4 w-4" aria-hidden="true" />
             </button>
             <button onClick={() => setView('list')}
               aria-label="عرض قائمة" aria-pressed={view === 'list'}
-              className={cn('p-1.5 rounded', view === 'list' ? 'bg-muted' : 'hover:bg-muted/50')}>
-              <LayoutList className="h-4 w-4" />
+              className={cn('inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background', view === 'list' ? 'bg-muted' : 'hover:bg-muted/50')}>
+              <LayoutList className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>

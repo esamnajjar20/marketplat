@@ -236,7 +236,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
               ref={product.id === highlightId ? highlightRef : undefined}
               className={
                 product.id === highlightId
-                  ? 'rounded-xl ring-2 ring-primary ring-offset-2 ring-offset-background transition-all'
+                  ? 'rounded-xl ring-2 ring-primary ring-offset-2 ring-offset-background transition-[box-shadow] duration-200'
                   : undefined
               }
             >

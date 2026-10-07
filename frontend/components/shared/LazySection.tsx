@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { isDataSaverEnabled } from '@/lib/dataSaver';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Props {
   children: ReactNode;
@@ -137,14 +138,14 @@ function DefaultFallback({ minHeight }: { minHeight: number }) {
       aria-hidden
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="h-5 w-36 animate-pulse rounded-md bg-muted" />
-        <div className="h-4 w-16 animate-pulse rounded-md bg-muted" />
+        <Skeleton className="h-5 w-36" />
+        <Skeleton className="h-4 w-16" />
       </div>
       <div className="flex gap-3 overflow-hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="aspect-[4/3] w-40 shrink-0 animate-pulse rounded-xl bg-muted sm:w-auto"
+            className="aspect-[4/3] w-40 shrink-0 rounded-xl sm:w-auto"
           />
         ))}
       </div>

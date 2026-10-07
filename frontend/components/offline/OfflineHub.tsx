@@ -214,7 +214,7 @@ function WifiOnlyToggle({
       >
         <span
           className={cn(
-            'absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition-all',
+            'absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition-[inset-inline-start,box-shadow] duration-200',
             enabled ? 'inset-inline-start-5' : 'inset-inline-start-0.5',
           )}
         />

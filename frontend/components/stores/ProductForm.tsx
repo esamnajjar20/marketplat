@@ -611,7 +611,7 @@ export function ProductForm({ mode, product }: Props) {
           <div>
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-semibold">بيانات {storeTypeLabels.product} الخاصة</h2>
-              <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">{productFields.length} {productFields.length === 1 ? 'حقل' : 'حقول'}</span>
+              <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-2xs-tight text-muted-foreground">{productFields.length} {productFields.length === 1 ? 'حقل' : 'حقول'}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">حقول إضافية يحددها الأدمن لهذا النوع. الحقول المعلّمة بنجمة مطلوبة.</p>
           </div>

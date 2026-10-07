@@ -408,7 +408,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9"
+                        className="h-[var(--touch-target)] w-[var(--touch-target)]"
                         aria-label="تعديل"
                         onClick={() => openEditPayee(p)}
                       >
@@ -418,7 +418,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 text-destructive"
+                        className="h-[var(--touch-target)] w-[var(--touch-target)] text-destructive"
                         aria-label="حذف"
                         onClick={() => setConfirmDeletePayee(p)}
                       >
@@ -489,7 +489,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9"
+                        className="h-[var(--touch-target)] w-[var(--touch-target)]"
                         aria-label="تعديل"
                         onClick={() => openEditCard(c)}
                       >
@@ -499,7 +499,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 text-destructive"
+                        className="h-[var(--touch-target)] w-[var(--touch-target)] text-destructive"
                         aria-label="حذف"
                         onClick={() => setConfirmDeleteCard(c)}
                       >

@@ -357,7 +357,7 @@ export function CreateRequestForm() {
                     type="button"
                     onClick={() => onTypeChange(t)}
                     className={cn(
-                      'flex flex-col items-start gap-1.5 rounded-xl border p-3 text-start transition-all',
+                      'flex flex-col items-start gap-1.5 rounded-xl border p-3 text-start transition-[border-color,background-color,box-shadow,transform] duration-200',
                       'min-h-[5.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       active
                         ? 'border-primary bg-primary/10 shadow-sm ring-1 ring-primary/30'

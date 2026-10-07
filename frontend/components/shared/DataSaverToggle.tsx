@@ -39,7 +39,7 @@ export function DataSaverToggle({ className }: { className?: string }) {
       >
         <span
           className={cn(
-            'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-all',
+            'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-[inset-inline-start,box-shadow] duration-200',
             // `inset-inline-start-5` is not a valid
             // Tailwind 3.x class — the correct logical-property utility is
             // `start-5` (Tailwind maps `start-*` to inset-inline-start). The

@@ -61,7 +61,7 @@ export function HomeScrollRail({
   };
 
   const arrowClass =
-    'absolute top-1/3 z-10 hidden h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-sm backdrop-blur transition-opacity hover:bg-background md:flex';
+    'absolute top-1/3 z-10 hidden h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-sm backdrop-blur transition-opacity hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:flex';
 
   return (
     <div className="relative">

@@ -17,6 +17,7 @@ import { formatRelativeTimeShort } from '@/lib/formatters';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type { Conversation, ConversationListItem } from '@/types/conversation.types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /** Whichever side the caller ISN'T — the person this thread is with. */
 function otherParty(conversation: Conversation, userId: string | undefined) {
@@ -103,11 +104,11 @@ export function ConversationList({ selectedId }: Props = {}) {
     return (
       <div className="flex flex-col gap-0 divide-y" role="status" aria-label="جارٍ التحميل">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 p-4 animate-pulse">
-            <div className="h-14 w-14 shrink-0 rounded-full bg-muted" />
+          <div key={i} className="flex items-center gap-3 p-4">
+            <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-3.5 w-1/3 rounded bg-muted" />
-              <div className="h-3 w-2/3 rounded bg-muted/70" />
+              <Skeleton className="h-3.5 w-1/3" />
+              <Skeleton className="h-3 w-2/3" />
             </div>
           </div>
         ))}

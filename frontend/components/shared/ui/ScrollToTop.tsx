@@ -36,7 +36,7 @@ export function ScrollToTop({ className }: { className?: string }) {
       className={cn(
         'fixed start-4 z-40 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full',
         'border border-border/80 bg-card/95 text-foreground shadow-md backdrop-blur-sm',
-        'transition-all duration-200 hover:border-primary/40 hover:text-primary hover:shadow-lg',
+        'transition-[border-color,color,box-shadow,transform] duration-200 hover:border-primary/40 hover:text-primary hover:shadow-lg',
         'active:scale-95',
         'bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))] md:bottom-6',
         className,

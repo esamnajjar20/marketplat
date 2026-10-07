@@ -152,7 +152,7 @@ export function UpdatePrompt() {
         type="button"
         onClick={handleDismiss}
         aria-label="إخفاء الإشعار"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="flex h-[var(--touch-target)] w-[var(--touch-target)] shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <X className="h-4 w-4" />
       </button>

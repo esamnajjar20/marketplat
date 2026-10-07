@@ -496,7 +496,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
       <form onSubmit={handleSubmit} className="px-3 py-2.5">
         <div
           className={cn(
-            'flex items-end gap-1.5 rounded-3xl border bg-muted/60 p-1.5 shadow-inner transition-all',
+            'flex items-end gap-1.5 rounded-3xl border bg-muted/60 p-1.5 shadow-inner transition-[border-color,background-color,box-shadow]',
             'focus-within:border-primary/30 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/15',
           )}
         >
@@ -546,7 +546,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             onClick={() => void toggleRecording()}
             disabled={uploading}
             className={cn(
-              'group relative mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all duration-200',
+              'group relative mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-[border-color,background-color,color,box-shadow,transform] duration-200',
               recording
                 ? 'border-destructive/40 bg-destructive text-destructive-foreground shadow-md shadow-destructive/20'
                 : 'border-transparent text-muted-foreground hover:border-primary/20 hover:bg-primary/10 hover:text-primary active:scale-95',
@@ -597,7 +597,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             }}
             disabled={!canSend}
             className={cn(
-              'mb-0.5 me-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-md transition-all',
+              'mb-0.5 me-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-md transition-[box-shadow,transform]',
               canSend
                 ? 'bg-primary text-primary-foreground hover:shadow-lg hover:scale-105 active:scale-95'
                 : 'bg-muted text-muted-foreground opacity-50 pointer-events-none',

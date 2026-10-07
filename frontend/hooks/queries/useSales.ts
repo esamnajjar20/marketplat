@@ -18,10 +18,10 @@ export function useSalesSummary(period: 'day' | 'week' | 'month' | 'year' = 'mon
   });
 }
 
-export function useSalesChart() {
+export function useSalesChart(period: 'day' | 'week' | 'month' = 'day') {
   return useQuery({
-    queryKey: queryKeys.sales.chart(),
-    queryFn: () => salesApi.chart().then((r) => r.data.data ?? []),
+    queryKey: [...queryKeys.sales.chart(), period],
+    queryFn: () => salesApi.chart({ period }).then((r) => r.data.data ?? []),
   });
 }
 

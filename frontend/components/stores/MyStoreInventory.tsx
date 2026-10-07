@@ -127,7 +127,7 @@ function StockRow({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 w-8 p-0"
+            className="h-[var(--touch-target)] w-[var(--touch-target)] p-0"
             disabled={adjust.isPending}
             onClick={() => bump(-1)}
             aria-label="إنقاص"
@@ -138,7 +138,7 @@ function StockRow({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 w-8 p-0"
+            className="h-[var(--touch-target)] w-[var(--touch-target)] p-0"
             disabled={adjust.isPending}
             onClick={() => bump(1)}
             aria-label="زيادة"

@@ -52,7 +52,7 @@ export function StoreTypeFieldsAdmin({ storeTypeId }: { storeTypeId: string }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <span className="text-xs font-semibold">الحقول الديناميكية</span>
-          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
+          <div className="mt-1 flex flex-wrap gap-1.5 text-2xs-tight text-muted-foreground">
             <span className="rounded-full bg-muted px-2 py-0.5">المتجر {storeFieldsCount}/20</span>
             <span className="rounded-full bg-muted px-2 py-0.5">المنتج {productFieldsCount}/20</span>
           </div>
@@ -81,7 +81,7 @@ export function StoreTypeFieldsAdmin({ storeTypeId }: { storeTypeId: string }) {
           {form.type === 'SELECT' && (
             <div className="space-y-1.5 sm:col-span-2">
               <textarea dir="rtl" className="min-h-24 w-full resize-y break-words rounded-md border bg-background px-3 py-2 text-sm leading-6" placeholder="value|الاسم الظاهر، خيار في كل سطر" value={form.options} onChange={(e) => setForm({ ...form, options: e.target.value })} />
-              <p className="text-[11px] text-muted-foreground">استخدم الصيغة value|الاسم الظاهر. احتفظ بقيمة value الحالية عند تعديل الاسم حتى لا تتغير البيانات المخزنة.</p>
+              <p className="text-2xs-tight text-muted-foreground">استخدم الصيغة value|الاسم الظاهر. احتفظ بقيمة value الحالية عند تعديل الاسم حتى لا تتغير البيانات المخزنة.</p>
             </div>
           )}
           <Input dir="ltr" type="number" placeholder="الترتيب" value={String(form.sortOrder)} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} />

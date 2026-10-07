@@ -104,7 +104,7 @@ export function AdminPlatformTrends() {
             >
               <div
                 className={cn(
-                  'w-full max-w-[12px] rounded-t-sm transition-all',
+                  'w-full max-w-[12px] rounded-t-sm transition-[height] duration-300',
                   METRICS.find((m) => m.key === metric)?.color ?? 'bg-primary',
                 )}
                 style={{ height: `${h}%` }}

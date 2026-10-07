@@ -33,7 +33,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(
           // LoginForm/RegisterForm/SecuritySettingsForm), so the toggle
           // sits on the field's trailing edge in LTR terms — the right
           // side — regardless of the surrounding RTL page direction.
-          className="absolute inset-y-0 right-0 flex h-full min-w-11 items-center justify-center px-2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+          className="absolute inset-y-0 right-0 flex h-full min-w-11 items-center justify-center px-2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-md"
           aria-label={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
           // was tabIndex={-1}, which removed the
           // toggle from the keyboard tab order entirely — WCAG 2.1.1

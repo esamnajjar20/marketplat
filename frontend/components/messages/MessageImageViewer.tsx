@@ -102,13 +102,13 @@ export function MessageImageViewer({ images, initialIndex, open, onOpenChange }:
               {index + 1} / {images.length}
             </span>
             <div className="flex items-center gap-1 rounded-full bg-black/45 p-1 backdrop-blur">
-              <button type="button" onClick={() => zoom(-SCALE_STEP)} disabled={scale <= MIN_SCALE} className="rounded-full p-2 hover:bg-white/15 disabled:opacity-35" aria-label="تصغير"><Minus className="h-4 w-4" /></button>
+              <button type="button" onClick={() => zoom(-SCALE_STEP)} disabled={scale <= MIN_SCALE} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-35" aria-label="تصغير"><Minus className="h-4 w-4" /></button>
               <span className="min-w-12 text-center text-xs tabular-nums">{Math.round(scale * 100)}%</span>
-              <button type="button" onClick={() => zoom(SCALE_STEP)} disabled={scale >= MAX_SCALE} className="rounded-full p-2 hover:bg-white/15 disabled:opacity-35" aria-label="تكبير"><Plus className="h-4 w-4" /></button>
-              <button type="button" onClick={resetView} className="rounded-full p-2 hover:bg-white/15" aria-label="إعادة ضبط"><RotateCcw className="h-4 w-4" /></button>
-              <a href={current.imageUrl} target="_blank" rel="noopener noreferrer" className="rounded-full p-2 hover:bg-white/15" aria-label="فتح الصورة"><span className="text-sm">↗</span></a>
-              <a href={current.imageUrl} download className="rounded-full p-2 hover:bg-white/15" aria-label="تنزيل الصورة"><Download className="h-4 w-4" /></a>
-              <button type="button" onClick={() => onOpenChange(false)} className="rounded-full p-2 hover:bg-white/15" aria-label="إغلاق"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => zoom(SCALE_STEP)} disabled={scale >= MAX_SCALE} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-35" aria-label="تكبير"><Plus className="h-4 w-4" /></button>
+              <button type="button" onClick={resetView} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="إعادة ضبط"><RotateCcw className="h-4 w-4" /></button>
+              <a href={current.imageUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="فتح الصورة"><span className="text-sm">↗</span></a>
+              <a href={current.imageUrl} download className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="تنزيل الصورة"><Download className="h-4 w-4" /></a>
+              <button type="button" onClick={() => onOpenChange(false)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="إغلاق"><X className="h-4 w-4" /></button>
             </div>
           </div>
 

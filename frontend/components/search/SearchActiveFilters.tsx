@@ -66,7 +66,7 @@ export function SearchActiveFilters() {
           {labelFor(key, value)}
           <button
             type="button"
-            className="rounded-full p-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             onClick={() => clear(key)}
             aria-label={`إزالة ${LABELS[key] ?? key}`}
           >
@@ -77,7 +77,7 @@ export function SearchActiveFilters() {
       {hasLocation && (
         <Badge variant="outline" className="min-h-8 gap-1 rounded-full bg-muted/60 px-2.5 text-xs font-medium">
           بالقرب مني
-          <button type="button" className="rounded-full p-0.5 hover:bg-muted" onClick={clearLocation} aria-label="إزالة الموقع">
+          <button type="button" className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background" onClick={clearLocation} aria-label="إزالة الموقع">
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
         </Badge>

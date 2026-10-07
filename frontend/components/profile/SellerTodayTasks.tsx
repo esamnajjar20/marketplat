@@ -17,6 +17,7 @@ import { useMyAttention, useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Task = {
   id: string;
@@ -32,13 +33,13 @@ export function SellerTodayTasks() {
   const { data: attention, isLoading, isError, refetch } = useMyAttention();
 
   if (!sellerLoaded || !providerLoaded) {
-    return <div className="h-20 animate-pulse rounded-xl bg-muted" aria-hidden />;
+    return <Skeleton className="h-20 rounded-xl" />;
   }
 
   if (!isSeller && !isProvider) return null;
 
   if (isLoading) {
-    return <div className="h-20 animate-pulse rounded-xl bg-muted" aria-hidden />;
+    return <Skeleton className="h-20 rounded-xl" />;
   }
 
   if (isError || !attention) {

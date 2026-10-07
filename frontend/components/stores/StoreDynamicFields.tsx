@@ -159,7 +159,7 @@ export function StoreDynamicFieldGrid({
             'min-w-0 rounded-xl border px-3 py-2.5 text-right',
             mode === 'card' ? 'border-border/60 bg-muted/35' : 'border-border/70 bg-card',
           )}>
-            <p className="break-words text-[11px] leading-5 text-muted-foreground">{label}</p>
+            <p className="break-words text-2xs-tight leading-5 text-muted-foreground">{label}</p>
             <p className="mt-0.5 break-words text-sm font-semibold leading-6 text-foreground">{formatStoreFieldValue(field, value)}</p>
           </div>
         );
@@ -187,7 +187,7 @@ export function StoreDynamicFieldChips({
   return (
     <div dir="rtl" className="flex flex-wrap gap-1.5 text-right">
       {visible.map((field) => (
-        <span key={field.id} className="inline-flex max-w-full items-start gap-1 rounded-full border border-border/70 bg-muted/45 px-2.5 py-1 text-[11px] leading-5 text-muted-foreground">
+        <span key={field.id} className="inline-flex max-w-full items-start gap-1 rounded-full border border-border/70 bg-muted/45 px-2.5 py-1 text-2xs-tight leading-5 text-muted-foreground">
           {field.type === 'BOOLEAN' ? (attributes[field.key] === true ? <Check className="h-3 w-3" /> : <Circle className="h-3 w-3" />) : null}
           <span className="min-w-0 break-words">{field.cardLabelAr || field.labelAr}: {formatStoreFieldValue(field, attributes[field.key])}</span>
         </span>

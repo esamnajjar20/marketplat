@@ -159,7 +159,7 @@ export function ProductDetail({ product, related = [] }: Props) {
                     onClick={() => setImgIdx(i)}
                     aria-label={`صورة ${i + 1}`}
                     className={cn(
-                      'relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      'relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-[border-color,opacity,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                       i === imgIdx ? 'border-primary opacity-100 ring-2 ring-primary/15 ring-offset-1' : 'border-transparent opacity-70 hover:opacity-100',
                     )}
                   >

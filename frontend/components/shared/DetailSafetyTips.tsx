@@ -34,8 +34,9 @@ export function DetailSafetyTips({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-3 text-start sm:px-4"
+        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3.5 py-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4"
         aria-expanded={open}
+        aria-label={open ? 'طي نصائح السلامة' : 'فتح نصائح السلامة'}
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-primary">
           <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
