@@ -12,7 +12,7 @@ const cardVariants = cva(
         default: 'bg-card shadow-sm',
         /** Clickable listing cards — lift + stronger shadow on hover */
         interactive:
-          'bg-card shadow-sm interactive-lift hover:border-primary/25',
+          'bg-card shadow-sm interactive-lift hover:border-primary/25 focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-2 focus-within:ring-offset-background',
         /** Featured / promoted — soft terracotta tint + accent border */
         featured:
           'bg-card shadow-sm border-accent/40 ring-1 ring-accent/15',

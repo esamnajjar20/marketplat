@@ -211,6 +211,21 @@
 
   html, body { @apply overflow-x-hidden; }
 
+  /* Final UX QA: keep viewport geometry stable when scrollbars appear/disappear
+     between loading, results, dialogs and long lists. This reduces horizontal
+     layout shift on desktop without affecting mobile overlay scrollbars. */
+  @supports (scrollbar-gutter: stable) {
+    html { scrollbar-gutter: stable; }
+  }
+
+  /* Final UX QA: remove the default mobile tap flash while retaining the
+     component-level active/focus feedback defined by the design system. */
+  button, a { -webkit-tap-highlight-color: transparent; }
+
+  /* Headings should wrap at sensible phrase boundaries in Arabic instead of
+     producing awkward one-word orphan lines in cards and narrow mobile views. */
+  :where(h1, h2, h3, h4) { text-wrap: balance; }
+
   /* Keyboard users should always see where focus landed, including
      native links/buttons that don't use the shared Button primitive. */
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {
@@ -412,6 +427,15 @@
     .desktop-dense-grid {
       row-gap: 1.25rem;
     }
+  }
+
+
+  /* PERF-10: Mounted lazy sections can still be numerous on long feeds.
+   * Let the browser skip layout/paint work for content well outside the
+   * viewport while preserving a stable intrinsic slot to avoid CLS. */
+  .lazy-section-content {
+    content-visibility: auto;
+    contain-intrinsic-size: 240px;
   }
 
   /* Keep long Arabic labels and dense admin tables visually calm on desktop. */
