@@ -349,7 +349,7 @@ export function MobileNav() {
           {/* Backdrop */}
           {isMobileNavOpen && (
             <div
-              className="fixed inset-0 z-40 bg-black/40"
+              className="fixed inset-0 z-40 bg-foreground/45 backdrop-blur-[2px] transition-opacity duration-150"
               onClick={closeMobileNav}
               aria-hidden="true"
             />
@@ -369,7 +369,7 @@ export function MobileNav() {
             id={NAV_ID}
             // FIX MOBILE-01: max-w-[85vw] — see identical fix in
             // ProtectedMobileNav.tsx.
-            className={`fixed inset-y-0 right-0 z-[60] flex w-72 max-w-[85vw] flex-col bg-background shadow-xl transition-transform duration-200 ${
+            className={`fixed inset-y-0 right-0 z-[60] flex w-72 max-w-[85vw] flex-col border-e border-border bg-background shadow-xl transition-transform duration-200 ease-out ${
               isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
@@ -391,7 +391,7 @@ export function MobileNav() {
               already uses, so it only adds extra top space where a safe
               area actually exists (installed app) and stays 1rem
               everywhere else (browser tab). */}
-          <div className="shrink-0 border-b p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="shrink-0 border-b border-border/80 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
             <div className="flex items-center justify-between">
               {isAuthenticated && user ? (
                 <div className="flex items-center gap-3 min-w-0">
@@ -404,7 +404,7 @@ export function MobileNav() {
               <button
                 ref={closeButtonRef}
                 onClick={closeMobileNav}
-                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+                className="min-h-10 min-w-10 shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="أغلق القائمة"
               >
                 <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">

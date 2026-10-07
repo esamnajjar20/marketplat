@@ -226,6 +226,19 @@
      producing awkward one-word orphan lines in cards and narrow mobile views. */
   :where(h1, h2, h3, h4) { text-wrap: balance; }
 
+  /* Keep text selection intentional and brand-neutral across touch and desktop. */
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+    color: hsl(var(--foreground));
+  }
+
+  /* Avoid accidental horizontal clipping from long unbroken Arabic/Latin tokens. */
+  :where(p, li, dt, dd) { overflow-wrap: anywhere; }
+
+  /* Native controls should inherit the product surface in dark mode. */
+  color-scheme: light;
+  .dark { color-scheme: dark; }
+
   /* Keyboard users should always see where focus landed, including
      native links/buttons that don't use the shared Button primitive. */
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {

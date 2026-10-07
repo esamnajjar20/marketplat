@@ -122,7 +122,7 @@ export function Tooltip({
           role="tooltip"
           id={id}
           className={cn(
-            'pointer-events-none absolute z-50 whitespace-nowrap rounded-md border bg-foreground px-2 py-1 text-xs text-background shadow-md animate-in fade-in-0 zoom-in-95',
+            'pointer-events-none absolute z-50 whitespace-nowrap rounded-[var(--radius-control)] border bg-foreground px-2.5 py-1.5 text-xs leading-4 text-background shadow-md animate-in fade-in-0 zoom-in-95 duration-[var(--motion-fast)]',
             SIDE_CLASSES[side],
             className,
           )}

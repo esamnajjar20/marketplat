@@ -63,7 +63,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const navItemClass = (active: boolean) =>
     active
-      ? 'bg-primary-soft text-primary hover:bg-primary-soft/80 hover:text-primary'
+      ? 'bg-primary-soft text-primary shadow-xs hover:bg-primary-soft/80 hover:text-primary'
       : 'text-muted-foreground hover:bg-muted hover:text-foreground';
 
   return (
@@ -87,7 +87,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
         </div>
       </div>
 
-      <div className="container mx-auto hidden h-16 max-w-7xl items-center gap-3 px-4 lg:gap-4 md:flex">
+      <div className="container mx-auto hidden min-h-16 max-w-7xl items-center gap-3 px-4 py-2 lg:gap-4 md:flex">
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo />
         </Link>
@@ -101,7 +101,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
             Providers silently vanish with zero fallback, since
             MobileNav itself is md:hidden at that width. Matches the
             container's own md:flex so the whole row turns on together. */}
-        <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-lg border border-transparent bg-surface-1/50 p-1 md:flex">
+        <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-xl border border-border/50 bg-surface-1/50 p-1 md:flex">
           {/* SPRINT-2-IA: desktop navigation now exposes the five primary
               discovery destinations consistently: search/explore, ads,
               products, services, and stores. Service providers remain

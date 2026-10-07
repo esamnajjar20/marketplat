@@ -158,19 +158,19 @@ export function DashboardStats() {
             const inner = (
               <>
                 <Icon className={cn('h-5 w-5', color)} />
-                <p className="text-2xl font-bold tabular-nums">
+                <p className="text-xl font-semibold tabular-nums sm:text-2xl">
                   {/* SW-DASHBOARD-STATS-FIXES-01: '—' for a failed source
                       passes through as-is; only real numbers go through
                       formatNumber. Avoids showing "NaN" or throwing. */}
                   {typeof value === 'number' ? formatNumber(value) : value}
                 </p>
-                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="text-xs leading-5 text-muted-foreground sm:text-sm">{label}</p>
               </>
             );
             const className = cn(
-              'rounded-xl border border-border bg-card p-4 space-y-2 shadow-xs transition-all',
+              'group rounded-[var(--radius-card)] border border-border bg-card p-4 space-y-2 shadow-xs transition-[border-color,box-shadow,transform] duration-normal',
               highlight && 'border-primary/35 bg-primary-soft',
-              href && 'hover:border-primary/25 hover:shadow-sm',
+              href && 'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
             );
             return href ? (
               <Link key={label} href={href} className={className}>

@@ -157,9 +157,9 @@ export function TabsHub<T extends string>({
               onClick={() => select(tab)}
               onKeyDown={(event) => onTabKeyDown(event, tab)}
               className={cn(
-                'flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:min-h-11 lg:px-3.5',
+                'flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:min-h-11 lg:px-3.5',
                 selected
-                  ? 'border-primary bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/10'
+                  ? 'border-primary bg-primary text-primary-foreground shadow-xs ring-1 ring-primary/10'
                   : 'border-border/80 bg-card/50 text-muted-foreground hover:border-primary/30 hover:bg-primary-soft/50 hover:text-foreground',
               )}
             >

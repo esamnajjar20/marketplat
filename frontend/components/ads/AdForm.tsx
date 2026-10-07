@@ -17,6 +17,8 @@ import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
   setActiveOfflineDraftId,
@@ -172,7 +174,7 @@ export function AdForm({ mode, ad }: Props) {
   // there's already a real saved ad to fall back to, and restoring a
   // stale draft over freshly-fetched server data would be confusing
   // rather than helpful.
-  const { clearDraft, lastSavedAt } = useFormDraft<DraftValues>(
+  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<DraftValues>(
     'ad:create',
     {
       title: values.title, description: values.description, price: values.price,
@@ -181,6 +183,8 @@ export function AdForm({ mode, ad }: Props) {
     },
     { enabled: mode === 'create' },
   );
+
+  useUnsavedChangesWarning(isDirty);
 
   // SW-HISTORY-GUARD-01: history.back() leaves the app entirely when
   // the user opened /ads/create via a deep link (notification, bookmark,
@@ -502,16 +506,7 @@ export function AdForm({ mode, ad }: Props) {
         />
       )}
 
-      {mode === 'create' && lastSavedAt && (
-        <p
-          className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-          مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
-        </p>
-      )}
+      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} enabled={mode === 'create'} />
 
       {isWizard && (
         <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">

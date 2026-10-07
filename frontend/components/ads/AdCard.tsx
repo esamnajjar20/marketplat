@@ -17,7 +17,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { AdListItem } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
 import { CardKindBadge, CardOfflineBadge, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
-import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_HEART_BUTTON_BASE, CARD_HEART_BUTTON_BG, CARD_HEART_ICON_FILLED, CARD_HEART_ICON_OUTLINE, CARD_IMAGE_43, CARD_MAX_BADGES, CARD_PRESS, CARD_PRICE_UNSET, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
+import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_FOCUS, CARD_HOVER, CARD_IMAGE_HOVER, CARD_HEART_BUTTON_BASE, CARD_HEART_BUTTON_BG, CARD_HEART_ICON_FILLED, CARD_HEART_ICON_OUTLINE, CARD_IMAGE_43, CARD_MAX_BADGES, CARD_PRESS, CARD_PRICE_UNSET, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 
 interface Props {
   ad: AdListItem;
@@ -68,9 +68,9 @@ export function AdCard({ ad, context = 'public', className, priority = false, de
 
   return (
     <article className={cn('group relative h-full min-w-0', className)}>
-      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex flex-col transition-[transform,box-shadow,border-color] duration-200', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', CARD_PRESS, ad.isFeatured && !isSold && 'border-accent/40')}>
+      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex flex-col', CARD_HOVER, CARD_FOCUS, CARD_PRESS, ad.isFeatured && !isSold && 'border-accent/40')}>
         <div className={CARD_IMAGE_43}>
-          <SafeImage src={thumb} alt={ad.title} fill className={cn('object-cover transition-transform duration-200 group-hover/card:scale-[1.02]', isSold && 'opacity-60')} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
+          <SafeImage src={thumb} alt={ad.title} fill className={cn('object-cover', CARD_IMAGE_HOVER, isSold && 'opacity-60')} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
           <CardOfflineBadge />
           {isSold && <div className="absolute inset-0 z-[1] flex items-center justify-center bg-foreground/45"><span className="rounded-full bg-background/95 px-3 py-1 text-sm font-bold">مباع</span></div>}
           <div className="absolute start-2 top-2 z-10 flex max-w-[68%] flex-col items-start gap-1">

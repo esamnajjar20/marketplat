@@ -32,12 +32,14 @@ interface Props {
   form: ReactNode;
   /** Live preview panel — hidden below md, a sticky sidebar at md+. */
   preview: ReactNode;
+  /** Optional status shown above the form column. */
+  status?: ReactNode;
 }
 
-export function CreateFormLayout({ form, preview }: Props) {
+export function CreateFormLayout({ form, preview, status }: Props) {
   return (
     <div className="md:grid md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-6">
-      <div className="min-w-0">{form}</div>
+      <div className="min-w-0 space-y-4">{status}{form}</div>
       {/* top-20 matches ProductDetail/ServiceListingDetail's own sticky
           sidebar offset, clearing ProtectedHeader's sticky top-0 bar. */}
       <aside className="hidden md:sticky md:top-20 md:block">{preview}</aside>

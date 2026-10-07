@@ -16,13 +16,13 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
       ref={ref}
       role="status"
       className={cn(
-        'flex min-h-48 w-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-1 px-5 py-8 text-center',
+        'flex min-h-48 w-full flex-col items-center justify-center rounded-[var(--radius-card)] border border-dashed border-border bg-surface-1 px-[var(--space-5)] py-[var(--space-8)] text-center',
         className,
       )}
       {...props}
     >
       {icon ? (
-        <div className="icon-well mb-4 h-12 w-12 rounded-xl" aria-hidden="true">
+        <div className="icon-well mb-4 h-12 w-12 rounded-[var(--radius-control)]" aria-hidden="true">
           {icon}
         </div>
       ) : null}

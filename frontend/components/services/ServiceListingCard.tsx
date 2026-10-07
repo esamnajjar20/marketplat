@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Star } from 'lucide-react';
 import { CardKindBadge, CardOfflineBadge, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
-import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_HEART_POSITION, CARD_IMAGE_43, CARD_PRESS, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
+import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_FOCUS, CARD_HOVER, CARD_IMAGE_HOVER, CARD_HEART_POSITION, CARD_IMAGE_43, CARD_PRESS, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { ROUTES } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
@@ -45,9 +45,9 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
 
   return (
     <article className={cn('group relative h-full min-w-0', className)}>
-      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex transition-[transform,box-shadow,border-color] duration-200', layout === 'list' ? 'flex-row' : 'flex-col', 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md active:scale-[0.995]', 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', CARD_PRESS)}>
+      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex', layout === 'list' ? 'flex-row' : 'flex-col', CARD_HOVER, CARD_FOCUS, CARD_PRESS)}>
         <div className={cn(CARD_IMAGE_43, layout === 'list' && 'aspect-auto h-28 w-28 shrink-0 sm:h-36 sm:w-44')}>
-          <SafeImage src={thumb} alt={listing.title} fill className="object-cover transition-transform duration-200 group-hover/card:scale-[1.02]" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
+          <SafeImage src={thumb} alt={listing.title} fill className={cn('object-cover', CARD_IMAGE_HOVER)} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
           <CardOfflineBadge />
           <div className="absolute start-2 top-2 z-10 flex max-w-[68%] flex-col items-start gap-1">
             {showKind && <CardKindBadge kind="service" />}

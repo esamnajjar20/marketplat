@@ -103,7 +103,7 @@ export function CategoriesRow() {
               prefetch={false}
               className={cn(
                 'group inline-flex min-h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-border/80 bg-card px-2 py-2.5 text-center shadow-sm',
-                'transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md active:scale-[0.97]',
+                'transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md active:scale-[0.995]',
               )}
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">

@@ -8,6 +8,7 @@ import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
 import type { RequestType } from '@/types/request.types';
 import { REQUEST_TYPE_LABEL, formatRequestBudget } from '@/lib/requestStatus';
 import { Button } from '@/components/shared/ui/Button';
@@ -180,7 +181,7 @@ export function CreateRequestForm() {
   const [draftLoading, setDraftLoading] = useState(Boolean(offlineDraftId));
   const [stepError, setStepError] = useState<string | null>(null);
 
-  const { clearDraft, lastSavedAt } = useFormDraft<DraftValues>(
+  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<DraftValues>(
     'open-request:create',
     { type, categoryId, title, description, city, budgetMin, budgetMax, step, expiresInDays },
     { enabled: !offlineDraftId },
@@ -332,11 +333,7 @@ export function CreateRequestForm() {
     >
       <StepIndicator current={step} />
 
-      {lastSavedAt && (
-        <p className="text-xs text-muted-foreground" role="status">
-          مسودة محفوظة تلقائيًا
-        </p>
-      )}
+      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} />
 
       {stepError && (
         <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">

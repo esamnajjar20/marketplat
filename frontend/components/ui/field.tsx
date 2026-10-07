@@ -11,9 +11,9 @@ interface FieldProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Field = React.forwardRef<HTMLDivElement, FieldProps>(
   ({ className, label, htmlFor, hint, error, required, children, ...props }, ref) => (
-    <div ref={ref} className={cn('space-y-2', className)} {...props}>
+    <div ref={ref} className={cn('space-y-[var(--space-2)]', className)} {...props}>
       {label ? (
-        <label htmlFor={htmlFor} className="block text-sm font-medium text-foreground">
+        <label htmlFor={htmlFor} className="block text-sm font-medium leading-5 text-foreground">
           {label}
           {required ? <span className="ms-1 text-destructive" aria-hidden="true">*</span> : null}
         </label>

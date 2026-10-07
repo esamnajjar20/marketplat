@@ -276,7 +276,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
           id="search-dropdown"
           role="listbox"
           aria-label="عمليات البحث الأخيرة"
-          className="absolute inset-x-0 top-full z-[100] mt-1 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
+          className="absolute inset-x-0 top-full z-[100] mt-2 overflow-hidden rounded-[var(--radius-card)] border border-border/80 bg-popover text-popover-foreground shadow-[var(--shadow-2)]"
         >
           <div className="flex items-center justify-between border-b px-3 py-1.5">
             <span className="text-xs font-medium text-muted-foreground">عمليات البحث الأخيرة</span>
@@ -300,7 +300,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
                   role="option"
                   aria-selected={i === activeIndex}
                   className={cn(
-                    'flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm min-h-[44px]',
+                    'flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-start text-sm transition-colors duration-[var(--motion-fast)]',
                     i === activeIndex ? 'bg-muted' : 'hover:bg-muted',
                   )}
                   onMouseDown={(e) => e.preventDefault()}

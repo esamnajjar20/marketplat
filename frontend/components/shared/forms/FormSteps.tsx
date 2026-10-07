@@ -39,11 +39,11 @@ export function FormSteps({ steps, current, className, onStepClick, navLabel = '
                 onClick={() => clickable && onStepClick?.(index)}
                 aria-current={active ? 'step' : undefined}
                 className={cn(
-                  'flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-start transition-colors',
+                  'flex min-h-12 w-full items-start gap-3 rounded-[var(--radius-control)] border px-3 py-2.5 text-start transition-[background-color,border-color,box-shadow,transform] duration-[var(--motion-normal)]',
                   active && 'border-primary/40 bg-primary-soft shadow-xs',
                   done && !active && 'border-border bg-card hover:border-primary/25',
                   !done && !active && 'border-border/70 bg-muted/30 opacity-80',
-                  clickable && 'cursor-pointer',
+                  clickable && 'cursor-pointer hover:-translate-y-px hover:shadow-xs active:translate-y-0',
                   !clickable && 'cursor-default',
                 )}
               >

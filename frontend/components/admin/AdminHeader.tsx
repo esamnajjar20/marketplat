@@ -52,7 +52,7 @@ export function AdminHeader() {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/80 ps-12 md:ps-4 bg-background/90 px-4 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/80 ps-12 bg-background/90 px-3 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/80 sm:px-4 md:ps-4">
       <div className="flex min-w-0 items-center gap-2">
         <Link prefetch={false} href={ROUTES.admin.dashboard} className="shrink-0 font-bold text-sm text-primary">
           سوق غزة — إدارة
@@ -100,7 +100,7 @@ export function AdminHeader() {
          */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label={`الإشعارات — ${openReports} بلاغ بانتظار المراجعة`}>
+            <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-lg" aria-label={`الإشعارات — ${openReports} بلاغ بانتظار المراجعة`}>
               <Bell className="h-4 w-4" />
               {openReports > 0 && (
                 <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-2xs font-medium text-destructive-foreground">

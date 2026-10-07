@@ -265,8 +265,8 @@ export function SearchResults() {
           call savedSearchEvents, unlike ads/products/services, so
           there is no matcher a stores-typed SavedSearch could ever
           fire against. */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border/60 bg-card/70 px-3 py-2.5 sm:px-4">
+        <p className="text-xs text-muted-foreground sm:text-sm" role="status" aria-live="polite" aria-atomic="true">
           <span>{total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}</span>
           {q && (
             <>

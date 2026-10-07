@@ -158,7 +158,7 @@ export function ConversationList({ selectedId }: Props = {}) {
   }
 
   return (
-    <div className="flex flex-col rounded-xl bg-card shadow-sm overflow-hidden md:rounded-none md:shadow-none md:h-full">
+    <div className="flex flex-col rounded-[var(--radius-card)] border border-border/70 bg-card shadow-xs overflow-hidden md:rounded-none md:border-0 md:shadow-none md:h-full">
       {/* Desktop sticky header */}
       <div className="hidden md:flex sticky top-0 z-10 flex-col gap-2 border-b bg-card/95 backdrop-blur-sm px-3 py-3">
         <div className="flex items-center justify-between gap-2 px-1">
@@ -171,7 +171,7 @@ export function ConversationList({ selectedId }: Props = {}) {
         </div>
         <div className="flex gap-1.5 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
           {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
-            <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'}>{label}</button>
+            <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={cn('min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition-[background-color,border-color,color,box-shadow] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', inbox === value ? 'border-primary bg-primary text-primary-foreground shadow-xs' : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground')}>{label}</button>
           ))}
         </div>
         <div className="relative">

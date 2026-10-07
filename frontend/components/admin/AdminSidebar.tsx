@@ -107,9 +107,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               // min-h for comfortable touch targets on mobile
-              'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors md:min-h-10',
+              'flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-10',
               isActive
-                ? 'bg-primary-soft text-primary shadow-xs'
+                ? 'bg-primary-soft text-primary shadow-xs ring-1 ring-primary/10'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
@@ -213,7 +213,7 @@ function MobileDrawer() {
             <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-64 max-w-[85vw] overflow-y-auto border-e border-border bg-card shadow-xl">
               <button
                 onClick={() => setOpen(false)}
-                className="absolute top-3 end-3 z-[102] p-1 rounded-md hover:bg-muted"
+                className="absolute top-3 end-3 z-[102] min-h-10 min-w-10 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="إغلاق القائمة"
               >
                 <X className="h-5 w-5" />

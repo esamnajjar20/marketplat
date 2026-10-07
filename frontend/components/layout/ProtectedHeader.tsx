@@ -34,7 +34,7 @@ export function ProtectedHeader() {
   const isAdsBrowseActive = pathname === ROUTES.search && (searchParams.get('type') ?? 'all') === 'ads';
   const navItemClass = (active: boolean) =>
     active
-      ? 'bg-primary-soft text-primary hover:bg-primary-soft/80 hover:text-primary'
+      ? 'bg-primary-soft text-primary shadow-xs hover:bg-primary-soft/80 hover:text-primary'
       : 'text-muted-foreground hover:bg-muted hover:text-foreground';
 
   return (
@@ -54,7 +54,7 @@ export function ProtectedHeader() {
           PublicHeader's same three links, same position (between logo
           and account controls), same lg breakpoint — below lg they stay
           reachable via ProtectedMobileNav's "تصفح" section (REORG-07). */}
-      <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-lg border border-transparent bg-surface-1/50 p-1 lg:flex">
+      <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-xl border border-border/50 bg-surface-1/50 p-1 lg:flex">
         {/* NAV-GAP FIX: mirrors PublicHeader's own addition — see
             lib/navigation.ts's BROWSE_LINKS comment for why ads gets a
             standing link here (and products deliberately doesn't). */}

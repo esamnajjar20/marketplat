@@ -31,17 +31,17 @@ export function AccountPageShell({
       )}
     >
       <header className="border-b border-border/70 bg-surface-1/90 shadow-[0_1px_0_hsl(var(--border)/0.3)]">
-        <div className="container mx-auto flex min-h-20 max-w-7xl flex-wrap items-center justify-between gap-4 px-3 py-4 sm:px-4 sm:py-5 lg:min-h-24 lg:py-6">
+        <div className="container mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:min-h-20 sm:px-4 sm:py-4 lg:min-h-22 lg:py-5">
           <div className="min-w-0">
-            <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+            <h1 className="text-balance text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
             {description ? (
-              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{description}</p>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground sm:text-sm">{description}</p>
             ) : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
         </div>
       </header>
-      <div className="container mx-auto w-full max-w-7xl px-3 pt-5 sm:px-4 sm:pt-7 lg:pt-8">{children}</div>
+      <div className="container mx-auto w-full max-w-7xl px-3 pt-4 sm:px-4 sm:pt-6 lg:pt-7">{children}</div>
     </div>
   );
 }

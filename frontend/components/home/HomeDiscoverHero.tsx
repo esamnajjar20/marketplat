@@ -31,26 +31,21 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
           <h1
             className={cn(
               'text-balance font-bold tracking-tight text-foreground',
-              showGuestCopy ? 'text-base leading-snug sm:text-2xl' : 'sr-only',
+              showGuestCopy ? 'text-lg leading-tight sm:text-2xl' : 'sr-only',
             )}
           >
             السوق المحلي — ابحث، قارن، واكتشف
           </h1>
           {showGuestCopy ? (
-            <p className="mt-1 max-w-2xl text-pretty text-sm text-muted-foreground">
+            <p className="mt-1 max-w-2xl text-pretty text-xs leading-6 text-muted-foreground sm:text-sm">
               إعلانات ومنتجات وخدمات ومتاجر في مكان واحد.
             </p>
           ) : null}
           {isHydrated && isAuthenticated ? <WelcomeBar /> : null}
-          <div className="mt-3 max-w-2xl">
+          <div className="mt-4 max-w-3xl">
             <SearchBox />
           </div>
-          <div className="mt-2 flex flex-wrap gap-2" aria-label="اختصارات الاستكشاف">
-            <a href="/services" className="min-h-9 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary">الخدمات</a>
-            <a href="/products" className="min-h-9 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary">المنتجات</a>
-            <a href="/ads" className="min-h-9 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary">الإعلانات</a>
-            <a href="/stores" className="min-h-9 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary">المتاجر</a>
-          </div>
+
         </div>
       </div>
     </section>

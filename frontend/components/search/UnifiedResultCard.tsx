@@ -58,7 +58,7 @@ export function UnifiedResultCard({ result, className }: Props) {
         className={cn(
           'flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card',
           'shadow-sm transition-[box-shadow,border-color] duration-200',
-          'active:scale-[0.98]',
+          'active:scale-[0.995]',
           'group-hover/card:border-primary/30 group-hover/card:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           className,

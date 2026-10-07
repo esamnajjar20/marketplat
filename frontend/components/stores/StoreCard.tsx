@@ -7,7 +7,7 @@ import { BadgeCheck, Star, MapPin, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
-import { CARD_HEART_POSITION, CARD_PRESS, HIT_AREA } from '@/components/shared/cards/cardTokens';
+import { CARD_HEART_POSITION, CARD_PRESS, CARD_FOCUS, CARD_HOVER, HIT_AREA } from '@/components/shared/cards/cardTokens';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { getStoreTypePresentation, type StoreWithSeller } from '@/types/store.types';
 import { CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
@@ -38,16 +38,16 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
         href={ROUTES.storeDetail(store.id)}
         prefetch={false}
         className={cn(
-          'flex h-full min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm',
-          'transition-[transform,box-shadow,border-color] duration-200', layout === 'list' ? 'flex-row' : 'flex-col',
-          'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          'flex h-full min-w-0 overflow-hidden rounded-card border border-border/70 bg-card shadow-card',
+          layout === 'list' ? 'flex-row' : 'flex-col',
+          CARD_HOVER,
+          CARD_FOCUS,
           CARD_PRESS,
         )}
       >
         <div className={cn('relative overflow-hidden bg-muted', layout === 'list' ? 'aspect-auto h-32 w-32 shrink-0 sm:h-36 sm:w-44' : 'aspect-[3/1]') }>
           {cover ? (
-            <SafeImage src={cover} alt="" fill className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" sizes="(max-width: 640px) 100vw, 360px" />
+            <SafeImage src={cover} alt="" fill className="object-cover transition-transform duration-normal ease-standard group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, 360px" />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-muted to-accent/10" aria-hidden />
           )}

@@ -56,6 +56,7 @@ export function useFormDraft<T extends object>(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRun = useRef(true);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [versions, setVersions] = useState<FormDraftVersion<T>[]>([]);
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export function useFormDraft<T extends object>(
     }
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
+      setIsSaving(true);
       try {
         const prevRaw = window.localStorage.getItem(storageKey);
         if (prevRaw) {
@@ -99,6 +101,8 @@ export function useFormDraft<T extends object>(
         setLastSavedAt(Date.now());
       } catch {
         /* storage full / private mode */
+      } finally {
+        setIsSaving(false);
       }
     }, debounceMs);
     return () => {
@@ -132,7 +136,7 @@ export function useFormDraft<T extends object>(
     }
   }
 
-  return { clearDraft, lastSavedAt, versions, restoreVersion };
+  return { clearDraft, lastSavedAt, isSaving, versions, restoreVersion };
 }
 
 /** Read a draft once (mount seed) without a subscription. */

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  *   - xs: image overlays & very tight spaces (AdCard condition / featured)
  */
 const badgeVariants = cva(
-  'inline-flex items-center border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center border font-medium transition-[background-color,border-color,color,box-shadow] duration-[var(--motion-fast)] ease-[var(--ease-standard)] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {
@@ -43,8 +43,8 @@ const badgeVariants = cva(
           'border-transparent bg-success/90 text-success-foreground shadow-sm backdrop-blur-md',
       },
       size: {
-        default: 'rounded-md px-2.5 py-0.5 text-xs',
-        sm: 'rounded-full px-1.5 py-0.5 text-2xs leading-none',
+        default: 'rounded-full px-2.5 py-1 text-xs leading-4',
+        sm: 'rounded-full px-2 py-1 text-2xs leading-none',
         xs: 'rounded-full px-2 py-0.5 text-2xs font-bold leading-none',
       },
     },

@@ -31,12 +31,12 @@ export function EagerHomeSections() {
   return (
     <>
       <HomeDiscoverHero />
-      <div className="space-y-2.5 pt-2.5 sm:space-y-3 sm:pt-3">
+      <div className="space-y-3 pt-3 sm:space-y-4 sm:pt-4">
         <HomeContextStrip />
       </div>
-      <div className="container mx-auto max-w-7xl px-3 pt-2.5 sm:px-4 sm:pt-3">
+      <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-3 sm:space-y-5 sm:px-4 sm:pt-4">
         <FeaturedCarousel />
-        <div className="pt-3 sm:pt-4">
+        <div className="border-t border-border/50 pt-4 sm:pt-5">
           <CategoriesRow />
         </div>
       </div>

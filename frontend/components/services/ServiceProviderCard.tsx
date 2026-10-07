@@ -47,7 +47,7 @@ export function ServiceProviderCard({ provider, className }: Props) {
       prefetch={false}
       className={cn(
         'group flex h-full gap-3 rounded-2xl border border-border/80 bg-card p-3 shadow-sm',
-        'transition-all duration-200 active:scale-[0.98]',
+        'transition-[transform,box-shadow,border-color] duration-200 active:scale-[0.995]',
         'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
         className,

@@ -13,6 +13,8 @@ import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 import { ServiceTypeFieldsForm } from '@/components/services/ServiceTypeFieldsForm';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
   setActiveOfflineDraftId,
@@ -175,7 +177,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   // PHASE-OFFLINE-DRAFTS: بوضع create فقط — نفس استثناء AdForm.tsx
   // لوضع edit (بيانات سيرفر حقيقية موجودة أصلاً، لا داعي لمسودة).
-  const { clearDraft, lastSavedAt } = useFormDraft<ServiceDraftValues>(
+  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<ServiceDraftValues>(
     'service:create',
     {
       serviceTypeId: values.serviceTypeId,
@@ -302,6 +304,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [initialValues] = useState(() => values);
   const isDirty = JSON.stringify(values) !== JSON.stringify(initialValues);
+  useUnsavedChangesWarning(isDirty);
 
   function goBackSafely() {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -507,16 +510,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      {mode === 'create' && lastSavedAt && (
-        <p
-          className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-          مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
-        </p>
-      )}
+      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} enabled={mode === 'create'} />
       {isWizard && (
         <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps

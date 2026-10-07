@@ -239,7 +239,7 @@ export function ProtectedMobileNav() {
         <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-[90] bg-black/50 lg:hidden"
+          className="fixed inset-0 z-[90] bg-foreground/45 backdrop-blur-[2px] transition-opacity duration-150 lg:hidden"
           onClick={close}
           aria-hidden="true"
         />
@@ -270,7 +270,7 @@ export function ProtectedMobileNav() {
           // padding isn't enough to clear the OS status bar in standalone/
           // TWA mode, since there's no browser chrome to push fixed
           // inset-y-0 content below it.
-          'fixed inset-y-0 right-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain bg-background p-6 pt-[max(1.5rem,env(safe-area-inset-top))] shadow-xl transition-transform duration-200 lg:hidden',
+          'fixed inset-y-0 right-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain border-e border-border bg-background p-5 pt-[max(1.25rem,env(safe-area-inset-top))] shadow-xl transition-transform duration-200 ease-out lg:hidden',
           // start-0 (inset-inline-start) in this RTL app (dir="rtl") maps
           // to right:0 — MDN: "with direction rtl, inset-inline-start
           // moves the element from the left side to the right side".
@@ -302,7 +302,7 @@ export function ProtectedMobileNav() {
           <button
             ref={closeButtonRef}
             onClick={close}
-            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="min-h-10 min-w-10 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="أغلق القائمة"
           >
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">

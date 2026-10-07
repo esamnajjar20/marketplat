@@ -17,12 +17,12 @@ export function SalesPageClient() {
   const items = data?.items ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <WalletCards className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold">نظرة عامة</h2>
+            <h2 className="text-lg font-semibold sm:text-xl">نظرة عامة</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">ملخص سريع للمبيعات والدفعات والمبالغ المستحقة.</p>
         </div>
@@ -44,11 +44,11 @@ export function SalesPageClient() {
         {isLoading ? (
           <div className="grid gap-3 md:grid-cols-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-xl border bg-muted/40" />)}</div>
         ) : isError ? (
-          <div className="rounded-xl border p-6 text-center"><p className="text-sm text-destructive">تعذر تحميل أحدث المبيعات.</p><Button className="mt-3" variant="outline" onClick={() => void refetch()}>إعادة المحاولة</Button></div>
+          <div className="rounded-[var(--radius-card)] border p-6 text-center shadow-xs"><p className="text-sm text-destructive">تعذر تحميل أحدث المبيعات.</p><Button className="mt-3" variant="outline" onClick={() => void refetch()}>إعادة المحاولة</Button></div>
         ) : items.length ? (
           <div className="grid gap-3 md:grid-cols-2">{items.map((sale) => <SaleCard key={sale.id} sale={sale} />)}</div>
         ) : (
-          <div className="rounded-xl border border-dashed p-10 text-center"><ReceiptText className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 font-medium">لا توجد مبيعات بعد</p><Button className="mt-4" onClick={() => setOpen(true)}>تسجيل أول بيع</Button></div>
+          <div className="rounded-[var(--radius-card)] border border-dashed bg-surface-1 p-8 text-center sm:p-10"><ReceiptText className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 font-medium">لا توجد مبيعات بعد</p><Button className="mt-4" onClick={() => setOpen(true)}>تسجيل أول بيع</Button></div>
         )}
       </section>
 

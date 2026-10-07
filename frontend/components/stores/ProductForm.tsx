@@ -13,6 +13,8 @@ import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { useStoreTypeFields } from '@/hooks/queries/useStoreTypes';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
   setActiveOfflineDraftId,
@@ -231,7 +233,7 @@ export function ProductForm({ mode, product }: Props) {
   // يملأ نموذج منتج *جديد* — بوضع create فقط (نفس استثناء AdForm.tsx:
   // بوضع edit توجد بيانات منتج حقيقية بالسيرفر، فاستعادة مسودة قديمة
   // فوقها سيكون مربكًا لا مفيدًا).
-  const { clearDraft, lastSavedAt } = useFormDraft<ProductDraftValues>(
+  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<ProductDraftValues>(
     'product:create',
     {
       categoryId: values.categoryId,
@@ -332,6 +334,7 @@ export function ProductForm({ mode, product }: Props) {
     values.images.length > 0 ||
     values.existingImages.length !== initialValues.existingImages.length ||
     values.existingImages.some((url, i) => url !== initialValues.existingImages[i]);
+  useUnsavedChangesWarning(isDirty);
 
   function goBackSafely() {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -518,16 +521,7 @@ export function ProductForm({ mode, product }: Props) {
 
   const formElement = (
     <form dir="rtl" onSubmit={handleSubmit} noValidate className="space-y-6 text-right">
-      {mode === 'create' && lastSavedAt && (
-        <p
-          className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-          مسودة محفوظة تلقائياً — يمكنك إغلاق الصفحة والعودة لاحقاً
-        </p>
-      )}
+      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} enabled={mode === 'create'} />
       {isWizard && (
         <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps

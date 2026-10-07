@@ -128,12 +128,30 @@ const config: Config = {
       // (w-18, p-18, gap-18, top-18, ...) now work as expected.
       spacing: {
         18: '4.5rem',
+        // Phase 1 semantic rhythm. Numeric Tailwind spacing remains intact.
+        'space-1': 'var(--space-1)',
+        'space-2': 'var(--space-2)',
+        'space-3': 'var(--space-3)',
+        'space-4': 'var(--space-4)',
+        'space-5': 'var(--space-5)',
+        'space-6': 'var(--space-6)',
+        'space-8': 'var(--space-8)',
+        'space-10': 'var(--space-10)',
+        'space-12': 'var(--space-12)',
+        'space-16': 'var(--space-16)',
       },
 
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
+        // Existing aliases remain backward-compatible. New semantic names
+        // make the Phase 1 hierarchy explicit for shared components.
         sm: 'calc(var(--radius) - 4px)',
+        md: 'calc(var(--radius) - 2px)',
+        lg: 'var(--radius)',
+        control: 'var(--radius-control)',
+        card: 'var(--radius-card)',
+        shell: 'var(--radius-shell)',
+        modal: 'var(--radius-modal)',
+        hero: 'var(--radius-hero)',
       },
 
       boxShadow: {
@@ -142,6 +160,10 @@ const config: Config = {
         DEFAULT: 'var(--shadow-sm)',
         md: 'var(--shadow-md)',
         lg: 'var(--shadow-lg)',
+        'elevation-1': 'var(--elevation-1)',
+        'elevation-2': 'var(--elevation-2)',
+        'elevation-3': 'var(--elevation-3)',
+        'elevation-4': 'var(--elevation-4)',
         'glow-primary': 'var(--shadow-glow-primary)',
         'glow-accent': 'var(--shadow-glow-accent)',
       },
@@ -158,6 +180,12 @@ const config: Config = {
        * Use text-2xs / text-3xs in cards, badges, and dense meta rows.
        */
       fontSize: {
+        // Semantic typography names. Existing sizes remain unchanged.
+        display: ['2.25rem', { lineHeight: '2.5rem', letterSpacing: '-0.02em' }],
+        'page-title': ['1.875rem', { lineHeight: '2.25rem', letterSpacing: '-0.015em' }],
+        'section-title': ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.01em' }],
+        'body-compact': ['0.875rem', { lineHeight: '1.375rem' }],
+        'meta': ['0.75rem', { lineHeight: '1rem' }],
         '3xs': ['0.5625rem', { lineHeight: '0.75rem' }], // 9px
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }], // 10px
         // FIX TYPO-TOKEN-01: 11px sits between 2xs and xs; many
@@ -212,6 +240,10 @@ const config: Config = {
         },
       },
       animation: {
+        // Phase 1 motion grammar: fast interaction, normal component, slow
+        // emphasis, and restrained page entrance.
+        'motion-fade-up': 'fade-slide-up var(--motion-slow) var(--ease-standard) both',
+        'motion-page': 'fade-slide-up var(--motion-page) var(--ease-standard) both',
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'page-fade': 'page-fade 0.22s cubic-bezier(0.22, 1, 0.36, 1)',

@@ -32,12 +32,12 @@ export function EditPageHeader({ backTo, backLabel, title }: Props) {
     <div className="mb-6 space-y-3">
       <Link
         href={backTo}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-control)] px-2 text-sm text-muted-foreground transition-[background-color,color] duration-[var(--motion-fast)] hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ArrowRight className="h-4 w-4" />
         {backLabel}
       </Link>
-      <h1 className="text-2xl font-bold">{title}</h1>
+      <h1 className="text-[length:var(--font-size-page-title)] font-semibold tracking-tight">{title}</h1>
     </div>
   );
 }

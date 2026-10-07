@@ -73,10 +73,10 @@ export function FormField({
   }
 
   return (
-    <div className={cn('flex flex-col gap-1.5', error && '[&_input]:border-destructive [&_textarea]:border-destructive [&_button[role=combobox]]:border-destructive', className)}>
+    <div className={cn('flex flex-col gap-2', error && '[&_input]:border-destructive [&_textarea]:border-destructive [&_button[role=combobox]]:border-destructive', className)}>
       <label
         htmlFor={htmlFor}
-        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        className="text-sm font-semibold leading-snug peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
       >
         {label}
         {/* UX-11 FIX: ms-1 is logical (RTL-safe) instead of ml-1 */}
@@ -88,10 +88,10 @@ export function FormField({
       {renderedChildren}
 
       {hint && !error && (
-        <p id={hintId} className="text-xs text-muted-foreground">{hint}</p>
+        <p id={hintId} className="text-xs leading-5 text-muted-foreground">{hint}</p>
       )}
       {error && (
-        <p id={errorId} className="text-xs text-destructive" role="alert" aria-live="assertive">
+        <p id={errorId} className="text-xs leading-5 text-destructive" role="alert" aria-live="assertive">
           {error}
         </p>
       )}

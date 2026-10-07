@@ -119,14 +119,14 @@ export function BottomNav() {
         prefetch={false}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
         <span
           className={cn(
-            'relative inline-flex items-center justify-center rounded-xl px-2.5 py-1 transition-colors',
-            isActive && 'bg-primary/10',
+            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-2.5 py-1 transition-colors duration-150',
+            isActive && 'bg-primary-soft text-primary shadow-xs',
           )}
         >
           <Icon className={cn('h-5 w-5', isActive && 'text-primary')} aria-hidden={true} />
@@ -161,13 +161,13 @@ export function BottomNav() {
         aria-expanded={exploreOpen}
         aria-haspopup="dialog"
         className={cn(
-          'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
         <span
           className={cn(
-            'relative inline-flex items-center justify-center rounded-xl px-2.5 py-1 transition-colors',
+            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-2.5 py-1 transition-colors duration-150',
             isExploreActive && 'bg-primary/10',
           )}
         >
@@ -185,10 +185,10 @@ export function BottomNav() {
             aria-haspopup="dialog"
             aria-label={draftsCount > 0 ? `أضف — ${draftsCount} مسودة معلّقة` : 'أضف'}
             className={cn(
-              'flex h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-full',
+              'flex h-14 w-14 min-h-[52px] min-w-[52px] items-center justify-center rounded-full',
               'border-4 border-background bg-primary text-primary-foreground',
               'shadow-md shadow-primary/25 transition-transform',
-              'hover:scale-105 hover:shadow-lg active:scale-95',
+              'transition-[transform,box-shadow] duration-150 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             )}
           >

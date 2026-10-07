@@ -37,11 +37,11 @@ export default async function SearchPage({ searchParams }: Props) {
         to signal "you're still in سوق غزة", not enough to compete with
         the results below, which are the actual job of this page.
       */}
-      <div className="relative bg-primary px-4 py-6 text-primary-foreground">
+      <div className="relative bg-primary px-3 py-4 text-primary-foreground sm:px-4 sm:py-6">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           <WovenTexture opacity={0.06} />
         </div>
-        <div className="relative container mx-auto space-y-4">
+        <div className="relative container mx-auto max-w-7xl space-y-3 sm:space-y-4">
           <Suspense>
             <SearchBox
               defaultValue={q ?? ''}
@@ -51,7 +51,7 @@ export default async function SearchPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <div id="search-results" className="container mx-auto space-y-6 px-3 pt-5 sm:px-4 sm:pt-6">
+      <div id="search-results" className="container mx-auto space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6">
         <Suspense>
           <SearchTabsWrapper />
         </Suspense>
@@ -67,7 +67,7 @@ export default async function SearchPage({ searchParams }: Props) {
         {/* FIX P2-08 (audit item #8): sort sits next to the filters
             trigger, independent of it, on every breakpoint — not nested
             inside the "تصفية" sheet/panel it used to live in. */}
-        <div className="flex items-center gap-2">
+        <div className="sticky top-[var(--header-height,4rem)] z-20 -mx-3 flex items-center gap-2 border-y border-border/60 bg-background/95 px-3 py-2 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
           <Suspense>
             <SearchFiltersSheet />
           </Suspense>
