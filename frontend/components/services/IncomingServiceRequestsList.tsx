@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards, CalendarClock } from 'lucide-react';
+import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -16,7 +16,7 @@ import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
 import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
-import { formatRelativeTime, formatDateTime } from '@/lib/formatters';
+import { formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
   SERVICE_REQUEST_STATUS_LABELS,
@@ -26,7 +26,7 @@ import type { ServiceRequestStatus } from '@/types/service.types';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 
 const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
-  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED',
+  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED',
 ];
 
 /**
@@ -41,10 +41,12 @@ function RequestActions({
   id,
   status,
   onBookAppointment,
+  requiresCustomerApproval,
 }: {
   id: string;
   status: ServiceRequestStatus;
   onBookAppointment: () => void;
+  requiresCustomerApproval: boolean;
 }) {
   const respond = useRespondToServiceRequest(id);
   const [confirmReject, setConfirmReject] = useState(false);
@@ -102,9 +104,13 @@ function RequestActions({
         <Button size="sm" variant="outline" className="gap-1" onClick={onBookAppointment}>
           <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
         </Button>
-        <Button size="sm" className="gap-1" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'IN_PROGRESS' })}>
-          <Play className="h-3.5 w-3.5" />بدء التنفيذ
-        </Button>
+        {requiresCustomerApproval ? (
+          <span className="max-w-44 text-xs text-muted-foreground">بانتظار موافقة العميل على السعر</span>
+        ) : (
+          <Button size="sm" className="gap-1" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'IN_PROGRESS' })}>
+            <Play className="h-3.5 w-3.5" />بدء التنفيذ
+          </Button>
+        )}
       </div>
     );
   }
@@ -229,7 +235,7 @@ export function IncomingServiceRequestsList() {
               : PLACEHOLDER_SVG;
 
             return (
-              <div key={request.id} className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
+              <div key={request.id} className="flex flex-col gap-3 p-3 rounded-lg border bg-card sm:flex-row">
                 <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
                   <SafeImage src={thumb} alt={request.listing.title} fill className="object-cover" sizes="96px" />
                 </div>
@@ -246,17 +252,8 @@ export function IncomingServiceRequestsList() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">من {request.customer.name}</p>
-                  {request.status === 'PENDING' && (
-                    <p className="text-xs font-medium text-primary">يحتاج إلى ردك</p>
-                  )}
                   <p className="text-sm line-clamp-2">{request.details}</p>
                   <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
-                  {request.appointment && (
-                    <div className="mt-2 flex items-center gap-2 rounded-md bg-primary/5 px-2.5 py-2 text-xs text-primary">
-                      <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span>الموعد: {formatDateTime(request.appointment.scheduledStart)}</span>
-                    </div>
-                  )}
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}
@@ -269,6 +266,7 @@ export function IncomingServiceRequestsList() {
                     <RequestActions
                       id={request.id}
                       status={request.status}
+                      requiresCustomerApproval={request.listing.serviceType?.capabilities?.requestQuote === true}
                       onBookAppointment={() =>
                         setAppointmentTarget({
                           providerId: request.listing.provider.id,

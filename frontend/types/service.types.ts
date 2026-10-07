@@ -239,7 +239,7 @@ export interface ServiceRequest {
   // `requestWithRelations` — every list/detail endpoint always includes
   // these two relations (there is no "bare" ServiceRequest response on
   // the wire), so they're required here rather than optional.
-  listing: Pick<ServiceListing, 'id' | 'title' | 'images' | 'providerId' | 'pricingType' | 'price'> & {
+  listing: Pick<ServiceListing, 'id' | 'title' | 'images' | 'providerId' | 'pricingType' | 'price' | 'serviceType'> & {
     provider: Pick<ServiceProviderDetails, 'id' | 'businessName'> & {
       sellerProfile: Pick<SellerProfile, 'userId' | 'displayName'>;
     };
@@ -254,6 +254,7 @@ export interface ServiceRequest {
   // a second request — null until the customer submits a ServiceReview
   // for this request (unique per requestId, so at most one ever exists).
   review: { id: string } | null;
+  /** Linked appointment (unique per request), null when none is scheduled. */
   appointment: Appointment | null;
 }
 
@@ -317,6 +318,7 @@ export type UpdateServiceProviderPayload = Partial<CreateServiceProviderPayload>
  * directory. Mirrors StoresQuery/AdSearchParams' city-optional shape;
  * omitted city means general/unfiltered, never an error.
  */
+/** GET /service-providers — public directory summary (no lat/lng). */
 export type PublicServiceProviderSummary = Omit<ServiceProviderDetails, 'latitude' | 'longitude'>;
 
 export interface ServiceProvidersQuery {

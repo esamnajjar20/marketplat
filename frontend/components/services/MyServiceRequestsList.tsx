@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AlertTriangle, MessageSquare, X, Star, CalendarClock } from 'lucide-react';
+import { AlertTriangle, MessageSquare, X, Star, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -15,7 +15,7 @@ import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceR
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
-import { formatPrice, formatRelativeTime, formatDateTime } from '@/lib/formatters';
+import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
   SERVICE_REQUEST_STATUS_LABELS,
@@ -24,7 +24,7 @@ import {
 import type { ServiceRequestStatus } from '@/types/service.types';
 
 const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
-  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED',
+  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED',
 ];
 
 /**
@@ -42,8 +42,12 @@ export function MyServiceRequestsList() {
 
   const { data, isLoading, isError, refetch } = useMyServiceRequests({ page, limit: 10, status });
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
-  const respond = useRespondToServiceRequest(cancelTargetId ?? '');
   const [reviewTarget, setReviewTarget] = useState<{ id: string; title: string } | null>(null);
+  const [completeTargetId, setCompleteTargetId] = useState<string | null>(null);
+  const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
+  const respond = useRespondToServiceRequest(cancelTargetId ?? '');
+  const completeRespond = useRespondToServiceRequest(completeTargetId ?? '');
+  const approveRespond = useRespondToServiceRequest(approveTargetId ?? '');
 
   const items = data?.items ?? [];
   const totalPages = data?.meta?.totalPages ?? 1;
@@ -143,12 +147,6 @@ export function MyServiceRequestsList() {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
-                  {request.appointment && (
-                    <div className="mt-2 flex items-center gap-2 rounded-md bg-primary/5 px-2.5 py-2 text-xs text-primary">
-                      <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span>الموعد: {formatDateTime(request.appointment.scheduledStart)}</span>
-                    </div>
-                  )}
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}
@@ -159,6 +157,26 @@ export function MyServiceRequestsList() {
                     <p className="text-xs text-success flex items-center gap-1">
                       <Star className="h-3 w-3 fill-rating text-rating" />تم إرسال تقييمك
                     </p>
+                  )}
+                  {request.status === 'ACCEPTED' && request.listing.serviceType?.capabilities?.requestQuote && request.quotedPrice != null && request.agreedPrice == null && (
+                    <Button
+                      size="sm"
+                      className="mt-1 gap-1.5"
+                      disabled={approveRespond.isPending}
+                      onClick={() => setApproveTargetId(request.id)}
+                    >
+                      <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />موافقة وبدء التنفيذ
+                    </Button>
+                  )}
+                  {request.status === 'IN_PROGRESS' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-1 gap-1.5"
+                      onClick={() => setCompleteTargetId(request.id)}
+                    >
+                      <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />تأكيد إتمام الخدمة
+                    </Button>
                   )}
                   {canReview && (
                     <Button
@@ -199,6 +217,37 @@ export function MyServiceRequestsList() {
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}
+
+      <ConfirmDialog
+        open={approveTargetId !== null}
+        onOpenChange={(open) => { if (!open) setApproveTargetId(null); }}
+        title="اعتماد السعر وبدء التنفيذ؟"
+        description="بالموافقة يصبح السعر المعروض هو السعر المتفق عليه ويبدأ تنفيذ الخدمة."
+        confirmLabel="موافقة وبدء التنفيذ"
+        isPending={approveRespond.isPending}
+        onConfirm={() => {
+          if (!approveTargetId) return;
+          const request = items.find((item) => item.id === approveTargetId);
+          if (!request?.quotedPrice) return;
+          approveRespond.mutate(
+            { action: 'IN_PROGRESS', agreedPrice: Number(request.quotedPrice) },
+            { onSuccess: () => setApproveTargetId(null) },
+          );
+        }}
+      />
+
+      <ConfirmDialog
+        open={completeTargetId !== null}
+        onOpenChange={(open) => { if (!open) setCompleteTargetId(null); }}
+        title="تأكيد إتمام الخدمة؟"
+        description="سيتم إغلاق الطلب باعتباره مكتملًا، ويمكنك بعد ذلك تقييم الخدمة."
+        confirmLabel="تأكيد الإتمام"
+        isPending={completeRespond.isPending}
+        onConfirm={() => {
+          if (!completeTargetId) return;
+          completeRespond.mutate({ action: 'COMPLETED' }, { onSuccess: () => setCompleteTargetId(null) });
+        }}
+      />
 
       <ConfirmDialog
         open={cancelTargetId !== null}
