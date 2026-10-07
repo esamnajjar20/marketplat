@@ -309,7 +309,7 @@ export const PRESENCE_HEARTBEAT_INTERVAL = 60_000; // 60 s — raised from 45s: 
 //     keeps refreshToken first-party (the whole point of PROXY-API-01).
 export const API_BASE_URL = (() => {
   if (typeof window === 'undefined') {
-    const raw = getRawApiUrl()?.trim() || 'https://marketplat.onrender.com';
+    const raw = getRawApiUrl()?.trim() || 'https://marketplat-api.esamnajjar6.workers.dev';
     return `${raw}/api/v1`;
   }
   return '/api/v1';
