@@ -1,12 +1,14 @@
-import type { ApiResponse } from '@/types/api.types';
-import { unwrapPaginated } from '@/lib/apiPagination';
+import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import { apiClient } from './client';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { CreateSalePayload, SaleRecord, SalesSummary } from '@/types/sale.types';
 
 export const salesApi = {
+  // NOTE: GET /sales returns { data: { items, meta } } directly (see sales.controller list),
+  // NOT a bare array + meta.pagination — so unwrapPaginated must NOT be used here
+  // (it would nest { items, meta } inside items and the list would render empty).
   list: (params?: Record<string, unknown>) =>
-    apiClient.get<ApiResponse<SaleRecord[]>>('/sales', { params }).then((r) => unwrapPaginated<SaleRecord>(r)),
+    apiClient.get<ApiResponse<{ items: SaleRecord[]; meta: PaginationMeta }>>('/sales', { params }),
   getById: (id: string) => apiClient.get<ApiResponse<SaleRecord>>(`/sales/${id}`),
   create: (payload: CreateSalePayload, operationId?: string) => apiClient.post<ApiResponse<SaleRecord>>('/sales', payload, { headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined }),
   summary: (period: 'day' | 'week' | 'month' | 'year' = 'month') =>
