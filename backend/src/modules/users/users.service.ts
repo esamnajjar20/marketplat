@@ -100,8 +100,30 @@ export const usersService = {
   getUserById: async (id: string): Promise<PublicUser> => {
     const user = await usersRepository.findPublicById(id);
     if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
-    const sellerProfile =
-      user.sellerProfile && !user.sellerProfile.suspended ? user.sellerProfile : null;
+    // SEC-LEAK-01: strip PII fields from the public profile projection.
+    //   sellerProfile.paymentMethods → bank/jawwal/palpay account numbers
+    //     ("بنك فلسطين 0598398815") — must never be exposed to anonymous
+    //     visitors or other users. Owners still receive them from
+    //     GET /users/me via SafeUser (a separate, authenticated path).
+    //   serviceProviderDetails.contactPhone → the service provider's direct
+    //     phone — the intended contact channel is in-app messaging, not a
+    //     public phone number; the same rationale that already hides it on
+    //     /service-providers (service-providers.service.ts).
+    // If a future feature needs to expose payment methods to a specific
+    // viewer, gate it on a real authorization check (owner/blocked/etc)
+    // rather than undoing this strip.
+    const sellerProfile = user.sellerProfile && !user.sellerProfile.suspended
+      ? {
+          ...user.sellerProfile,
+          paymentMethods: [] as typeof user.sellerProfile.paymentMethods,
+          serviceProviderDetails: user.sellerProfile.serviceProviderDetails
+            ? {
+                ...user.sellerProfile.serviceProviderDetails,
+                contactPhone: '',
+              }
+            : null,
+        }
+      : null;
     return {
       id: user.id,
       name: user.name,
