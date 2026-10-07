@@ -33,6 +33,10 @@ function normalize(raw: unknown): PaginatedCustomers {
   return { items: [], meta: null };
 }
 
+export function useCustomerSummary() {
+  return useQuery({ queryKey: [...queryKeys.customers.all(), 'summary'], queryFn: () => customersApi.summary().then(r => r.data.data), staleTime: 30_000 });
+}
+
 export function useCustomers(params?: { page?: number; limit?: number; q?: string; dueOnly?: boolean }) {
   return useQuery({
     queryKey: queryKeys.customers.list(params),
