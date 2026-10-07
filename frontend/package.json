@@ -36,7 +36,7 @@
     "@capacitor/push-notifications": "^7.0.0",
     "@capacitor/share": "^7.0.0",
     "@capacitor/splash-screen": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0",
+    "@capacitor/status-bar": "^8.0.4",
     "@fontsource/cairo": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
