@@ -23,7 +23,8 @@ appointmentsRouter.get(
   appointmentsController.getAvailability
 );
 
-// Provider-only from here down (ownership enforced in the service layer).
+// Authenticated appointments. The service layer authorizes provider-owned
+// appointments plus customer actions on appointments linked to their requests.
 appointmentsRouter.get('/me', authenticate, CACHE.NONE, appointmentsController.getMyAppointments);
 // the two mutations had a rate limit but
 // no requireVerifiedEmail, while every parallel mutation on the

@@ -8,6 +8,7 @@ export const SERVICE_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string>
   IN_PROGRESS: 'قيد التنفيذ',
   COMPLETED: 'مكتمل',
   CANCELLED: 'ملغى',
+  EXPIRED: 'منتهي تلقائيًا',
 };
 
 export const SERVICE_REQUEST_STATUS_VARIANT: Record<
@@ -20,4 +21,5 @@ export const SERVICE_REQUEST_STATUS_VARIANT: Record<
   IN_PROGRESS: 'success',
   COMPLETED: 'outline',
   CANCELLED: 'destructive',
+  EXPIRED: 'outline',
 };

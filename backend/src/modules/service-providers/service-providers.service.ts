@@ -4,7 +4,8 @@ import { uploadServiceProviderLogo, deleteImage } from '../../config/cloudinary'
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import {
   serviceProvidersRepository,
-  ServiceProviderWithSeller,
+  PublicServiceProviderWithSeller,
+  PublicServiceProviderSummary,
   NearbyServiceProviderRow,
 } from './service-providers.repository';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
@@ -280,7 +281,7 @@ export const serviceProvidersService = {
   // silently truncate without any signal today.
   getPublicServiceProvider: async (
     id: string
-  ): Promise<ServiceProviderWithSeller & { listings: ServiceListing[] }> => {
+  ): Promise<PublicServiceProviderWithSeller & { listings: ServiceListing[] }> => {
     const details = await serviceProvidersRepository.findPublicById(id);
     if (!details) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     // SEC-FIX: same gap products.service.ts's getProductById already
@@ -305,7 +306,7 @@ export const serviceProvidersService = {
   // wrapper mirroring storesService.getStores/productsService.getProducts.
   getServiceProviders: async (
     query: GetServiceProvidersQuery
-  ): Promise<{ providers: ServiceProviderDetails[]; meta: PaginationMeta }> => {
+  ): Promise<{ providers: PublicServiceProviderSummary[]; meta: PaginationMeta }> => {
     // Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('service-providers', query, async () => {
       const { page, limit, skip, take } = getPaginationParams(query.page, query.limit);

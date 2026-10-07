@@ -46,7 +46,7 @@ const TRANSITION_ACTOR: Record<string, Actor> = {
   'PENDING->ACCEPTED': 'provider',
   'PENDING->REJECTED': 'provider',
   'PENDING->CANCELLED': 'customer',
-  'ACCEPTED->IN_PROGRESS': 'provider',
+  'ACCEPTED->IN_PROGRESS': 'customer',
   'ACCEPTED->CANCELLED': 'either',
   'IN_PROGRESS->CANCELLED': 'either',
   'IN_PROGRESS->COMPLETED': 'provider',
@@ -184,13 +184,17 @@ export const serviceRequestsService = {
 
     let request: ServiceRequest;
     try {
-      request = await prisma.$transaction(async tx =>
-        serviceRequestsRepository.create(tx, customerId, input.listingId, {
+      request = await prisma.$transaction(async tx => {
+        const lockedListing = await serviceListingsRepository.lockForMutation(tx, input.listingId);
+        if (!lockedListing || lockedListing.status !== 'ACTIVE') {
+          throw new BadRequestError('This service listing is not available for requests.');
+        }
+        return serviceRequestsRepository.create(tx, customerId, input.listingId, {
           details: input.details,
           attachedImages: input.attachedImages ?? [],
           offlineOperationId: offlineOperationId ?? null,
-        })
-      );
+        });
+      });
     } catch (err: unknown) {
       if (
         offlineOperationId &&
@@ -317,10 +321,15 @@ export const serviceRequestsService = {
     const capabilities = getServiceTypeCapabilities(request.listing.serviceType?.capabilities);
     const requiresQuote = capabilities.requestQuote === true;
     if (action === 'ACCEPTED' && requiresQuote && extra?.quotedPrice === undefined) {
-      throw new BadRequestError(
-        'quotedPrice is required when accepting a quote-based request.',
-        'QUOTED_PRICE_REQUIRED',
-      );
+      const fixedListingPrice = request.listing.pricingType === 'FIXED' ? request.listing.price : null;
+      if (fixedListingPrice != null) {
+        extra = { ...extra, quotedPrice: Number(fixedListingPrice) };
+      } else {
+        throw new BadRequestError(
+          'quotedPrice is required when accepting a quote-based request.',
+          'QUOTED_PRICE_REQUIRED',
+        );
+      }
     }
     if (action === 'ACCEPTED' && !requiresQuote && extra?.quotedPrice !== undefined) {
       throw new BadRequestError(
@@ -328,15 +337,31 @@ export const serviceRequestsService = {
         'QUOTED_PRICE_NOT_ALLOWED',
       );
     }
-    if (action === 'COMPLETED' && extra?.agreedPrice === undefined) {
-      const fixedListingPrice = request.listing.pricingType === 'FIXED' ? request.listing.price : null;
-      if (fixedListingPrice == null && requiresQuote) {
-        throw new BadRequestError(
-          'agreedPrice is required when completing a quote-based request.',
-          'AGREED_PRICE_REQUIRED',
-        );
+    if (action === 'IN_PROGRESS') {
+      if (!isCustomer) {
+        throw new ForbiddenError('Only the customer can approve the quoted price and start the request.');
       }
-      if (fixedListingPrice != null) {
+      const quotedPrice = extra?.agreedPrice ?? (request.quotedPrice != null ? Number(request.quotedPrice) : undefined);
+      if (quotedPrice === undefined) {
+        throw new BadRequestError('A quoted price must be approved before work can start.', 'PRICE_APPROVAL_REQUIRED');
+      }
+      if (request.quotedPrice != null && Number(request.quotedPrice) !== quotedPrice) {
+        throw new BadRequestError('The agreed price must match the provider quote.', 'AGREED_PRICE_MISMATCH');
+      }
+      extra = { ...extra, agreedPrice: quotedPrice };
+    }
+
+    if (action === 'COMPLETED' && extra?.agreedPrice === undefined) {
+      if (request.agreedPrice != null) {
+        extra = { ...extra, agreedPrice: Number(request.agreedPrice) };
+      } else {
+        const fixedListingPrice = request.listing.pricingType === 'FIXED' ? request.listing.price : null;
+        if (fixedListingPrice == null) {
+          throw new BadRequestError(
+            'agreedPrice is required when completing a request without an approved price.',
+            'AGREED_PRICE_REQUIRED',
+          );
+        }
         extra = { ...extra, agreedPrice: Number(fixedListingPrice) };
       }
     }

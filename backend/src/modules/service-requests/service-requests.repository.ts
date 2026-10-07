@@ -6,22 +6,24 @@ export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
   include: {
     listing: {
       include: {
-        provider: { include: { sellerProfile: true } },
-        serviceType: true,
+        provider: { select: { id: true; sellerProfileId: true; businessName: true; sellerProfile: { select: { userId: true; displayName: true } } } };
+        serviceType: true;
       };
     };
     customer: { select: { id: true; name: true; avatarUrl: true } };
     review: { select: { id: true } };
+    appointment: { select: { id: true; providerId: true; requestId: true; scheduledStart: true; scheduledEnd: true; status: true; notes: true; createdAt: true; updatedAt: true } };
   };
 }>;
 
 const requestWithRelations = {
-  listing: { include: { provider: { include: { sellerProfile: true } }, serviceType: true } },
+  listing: { include: { provider: { select: { id: true, sellerProfileId: true, businessName: true, sellerProfile: { select: { userId: true, displayName: true } } } }, serviceType: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
   // Epic 3.2/3.3: lets the customer-side list/detail UI show "review
   // submitted" instead of a review button without a second round-trip —
   // { select: { id: true } } keeps this cheap since only presence matters.
   review: { select: { id: true } },
+  appointment: { select: { id: true, providerId: true, requestId: true, scheduledStart: true, scheduledEnd: true, status: true, notes: true, createdAt: true, updatedAt: true } },
 } as const;
 
 export const serviceRequestsRepository = {
@@ -95,7 +97,10 @@ export const serviceRequestsRepository = {
       where: { id, status: from },
       data: {
         status: to,
-        respondedAt: new Date(),
+        // A customer cancellation is not a provider response. Keep
+        // respondedAt unchanged so response-time/fulfilment metrics do not
+        // treat customer-initiated cancellation as provider activity.
+        ...((to !== 'CANCELLED' || extra?.cancelledBy !== 'CUSTOMER') && { respondedAt: new Date() }),
         ...(extra?.quotedPrice !== undefined && { quotedPrice: extra.quotedPrice }),
         ...(extra?.agreedPrice !== undefined && { agreedPrice: extra.agreedPrice }),
         // Only meaningful for CANCELLED — ignored for every other target.

@@ -2,13 +2,28 @@ import { prisma } from '../../config/prisma';
 import { Prisma, ServiceProviderDetails } from '@prisma/client';
 import { GetServiceProvidersQuery } from './service-providers.validation';
 
-export type ServiceProviderWithSeller = Prisma.ServiceProviderDetailsGetPayload<{
-  include: {
-    sellerProfile: true;
+export type PublicServiceProviderWithSeller = Prisma.ServiceProviderDetailsGetPayload<{
+  select: {
+    id: true; sellerProfileId: true; businessName: true; businessType: true; logoUrl: true;
+    description: true; serviceAreaCities: true; workingHours: true; contactPhone: true;
+    availabilityStatus: true; completedRequestsCount: true; fulfillmentRate: true;
+    createdAt: true; updatedAt: true;
+    sellerProfile: { select: { userId: true; displayName: true; avatarUrl: true; verified: true; trustScore: true; averageRating: true; totalRatings: true; paymentMethods: true; suspended: true } };
+    serviceTypeProfiles: { where: { isActive: true; serviceType: { isActive: true } }; include: { serviceType: { include: { fields: { where: { scope: 'PROVIDER'; isActive: true }; orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } } } }; orderBy: [{ createdAt: 'asc' }] };
   };
 }>;
 
-export interface NearbyServiceProviderRow extends ServiceProviderDetails {
+
+const publicProviderSelect = {
+  id: true, sellerProfileId: true, businessName: true, businessType: true,
+  logoUrl: true, description: true, serviceAreaCities: true, workingHours: true,
+  contactPhone: true, availabilityStatus: true, completedRequestsCount: true,
+  fulfillmentRate: true, createdAt: true, updatedAt: true,
+} as const;
+
+export type PublicServiceProviderSummary = Prisma.ServiceProviderDetailsGetPayload<{ select: typeof publicProviderSelect }>;
+
+export interface NearbyServiceProviderRow extends Omit<ServiceProviderDetails, 'latitude' | 'longitude'> {
   distanceKm: number;
 }
 
@@ -22,8 +37,12 @@ export const serviceProvidersRepository = {
   findPublicById: (id: string) =>
     prisma.serviceProviderDetails.findUnique({
       where: { id },
-      include: {
-        sellerProfile: true,
+      select: {
+        id: true, sellerProfileId: true, businessName: true, businessType: true,
+        logoUrl: true, description: true, serviceAreaCities: true, workingHours: true,
+        contactPhone: true, availabilityStatus: true, completedRequestsCount: true,
+        fulfillmentRate: true, createdAt: true, updatedAt: true,
+        sellerProfile: { select: { userId: true, displayName: true, avatarUrl: true, verified: true, trustScore: true, averageRating: true, totalRatings: true, paymentMethods: true, suspended: true } },
         serviceTypeProfiles: {
           where: { isActive: true, serviceType: { isActive: true } },
           include: {
@@ -110,7 +129,7 @@ export const serviceProvidersRepository = {
     query: GetServiceProvidersQuery,
     skip: number,
     take: number
-  ): Promise<{ rows: ServiceProviderDetails[]; total: number }> => {
+  ): Promise<{ rows: PublicServiceProviderSummary[]; total: number }> => {
     const where: Prisma.ServiceProviderDetailsWhereInput = {
       availabilityStatus: { not: 'UNAVAILABLE' },
       sellerProfile: { suspended: false },
@@ -120,6 +139,7 @@ export const serviceProvidersRepository = {
     const [rows, total] = await Promise.all([
       prisma.serviceProviderDetails.findMany({
         where,
+        select: publicProviderSelect,
         orderBy: { createdAt: 'desc' },
         skip,
         take,
@@ -223,6 +243,7 @@ export const serviceProvidersRepository = {
     const distanceById = new Map(idRows.map(row => [row.id, row.distanceKm]));
     const providers = await prisma.serviceProviderDetails.findMany({
       where: { id: { in: idRows.map(row => row.id) } },
+      select: publicProviderSelect,
     });
     const providersById = new Map(providers.map(p => [p.id, p]));
 

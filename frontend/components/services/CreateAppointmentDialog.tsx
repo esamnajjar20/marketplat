@@ -23,10 +23,9 @@ interface Props {
 const MAX_NOTES_LENGTH = 500;
 
 /**
- * CreateAppointmentDialog — Epic 4. Two entry points share this same
- * dialog: a standalone "احجز موعد" button on the appointments page
- * (no requestId), and a per-row action on an ACCEPTED/IN_PROGRESS
- * request in IncomingServiceRequestsList (requestId set) — mirrors how
+ * CreateAppointmentDialog — Epic 4. A standalone provider booking and
+ * an accepted/in-progress request booking share the same dialog. A customer
+ * may use the request form too; the backend authorizes the actor explicitly.
  * ReviewServiceRequestDialog is shared the same way from a list row.
  */
 export function CreateAppointmentDialog({

@@ -82,7 +82,7 @@ export type ServicePricingType = 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE';
 export type ServiceListingStatus = 'ACTIVE' | 'PAUSED' | 'DELETED';
 export type ServiceLocationType = 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE';
 export type ServiceRequestStatus =
-  | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
 /** Action values accepted by PATCH /service-requests/:id/respond. PENDING is
  * never a valid target — only ever the creation default. */
 export type ServiceRequestAction =
@@ -120,7 +120,7 @@ export interface ServiceProviderDetails {
 }
 
 /** GET /service-providers/:id — public page, includes parent seller trust data. */
-export type ServiceProviderPublic = ServiceProviderDetails & {
+export type ServiceProviderPublic = Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & {
   sellerProfile: Pick<SellerProfile, 'userId' | 'displayName' | 'avatarUrl' | 'verified' | 'trustScore' | 'averageRating' | 'totalRatings' | 'paymentMethods'>;
   listings: ServiceListing[];
   serviceTypeProfiles?: ServiceProviderServiceTypeProfile[];
@@ -239,7 +239,7 @@ export interface ServiceRequest {
   // `requestWithRelations` — every list/detail endpoint always includes
   // these two relations (there is no "bare" ServiceRequest response on
   // the wire), so they're required here rather than optional.
-  listing: Pick<ServiceListing, 'id' | 'title' | 'images' | 'providerId'> & {
+  listing: Pick<ServiceListing, 'id' | 'title' | 'images' | 'providerId' | 'pricingType' | 'price'> & {
     provider: Pick<ServiceProviderDetails, 'id' | 'businessName'> & {
       sellerProfile: Pick<SellerProfile, 'userId' | 'displayName'>;
     };
@@ -254,6 +254,7 @@ export interface ServiceRequest {
   // a second request — null until the customer submits a ServiceReview
   // for this request (unique per requestId, so at most one ever exists).
   review: { id: string } | null;
+  appointment: Appointment | null;
 }
 
 export interface Appointment {
@@ -266,6 +267,7 @@ export interface Appointment {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  request?: { id: string; customerId: string; listing: { id: string; title: string; providerId: string } } | null;
 }
 
 export interface ServiceReview {
@@ -315,6 +317,8 @@ export type UpdateServiceProviderPayload = Partial<CreateServiceProviderPayload>
  * directory. Mirrors StoresQuery/AdSearchParams' city-optional shape;
  * omitted city means general/unfiltered, never an error.
  */
+export type PublicServiceProviderSummary = Omit<ServiceProviderDetails, 'latitude' | 'longitude'>;
+
 export interface ServiceProvidersQuery {
   page?: number;
   limit?: number;
@@ -337,7 +341,7 @@ export interface NearbyServiceProvidersParams {
 // sellerProfile join (unlike ServiceListingWithProvider). A nearby-search
 // card therefore only has businessName/logoUrl/availabilityStatus/
 // distance to show — not the seller's displayName or rating.
-export type NearbyServiceProviderRow = ServiceProviderDetails & {
+export type NearbyServiceProviderRow = Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & {
   distanceKm: number;
 };
 

@@ -3,9 +3,8 @@
  * Verified against appointments.routes.ts:
  *   - GET /availability/:providerId is public (no auth) — customers need
  *     to see open slots before booking anything.
- *   - GET /me returns the CALLER's own appointments as a provider (there
- *     is no customer-side "my appointments" list — Appointment has no
- *     customerId at all, only providerId + optional requestId).
+ *   - GET /me returns appointments visible to the caller: provider-owned
+ *     appointments plus appointments linked to the caller's customer requests.
  *   - POST / and PATCH /:id/status are both provider-only from the
  *     service layer's requireOwnProvider guard, same as
  *     service-requests.api.ts's provider-only respond().
@@ -29,13 +28,13 @@ export const appointmentsApi = {
       { params: { date } }
     ),
 
-  /** GET /appointments/me — caller's own appointments as provider, paginated. */
+  /** GET /appointments/me — caller's appointments as provider or customer, paginated. */
   getMine: (params?: AppointmentsQuery) =>
     apiClient
       .get<ApiResponse<Appointment[]>>('/appointments/me', { params })
       .then((r) => unwrapPaginated<Appointment>(r)),
 
-  /** POST /appointments — provider books a slot, optionally against a request. */
+  /** POST /appointments — provider books standalone/request slots; a customer may book a slot for their accepted request. */
   create: (payload: CreateAppointmentPayload) =>
     apiClient.post<ApiResponse<Appointment>>('/appointments', payload),
 

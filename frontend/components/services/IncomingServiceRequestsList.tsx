@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
+import { AlertTriangle, Inbox, Check, X, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -26,7 +26,7 @@ import type { ServiceRequestStatus } from '@/types/service.types';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 
 const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
-  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED',
+  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED',
 ];
 
 /**
@@ -41,13 +41,18 @@ function RequestActions({
   id,
   status,
   onBookAppointment,
+  pricingType,
+  fixedPrice,
 }: {
   id: string;
   status: ServiceRequestStatus;
   onBookAppointment: () => void;
+  pricingType: 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE';
+  fixedPrice: string | null;
 }) {
   const respond = useRespondToServiceRequest(id);
   const [confirmReject, setConfirmReject] = useState(false);
+  const [quotedPrice, setQuotedPrice] = useState(fixedPrice ? Number(fixedPrice).toFixed(2) : '');
 
   if (status === 'PENDING') {
     // FIX REJECT-NO-CONFIRM: rejecting a pending request is a
@@ -71,11 +76,23 @@ function RequestActions({
           >
             <X className="h-3.5 w-3.5" />رفض
           </Button>
+          {pricingType !== 'FIXED' && (
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={quotedPrice}
+              onChange={(e) => setQuotedPrice(e.target.value)}
+              placeholder="السعر المقترح"
+              aria-label="السعر المقترح"
+              className="h-9 w-28 rounded-md border bg-background px-2 text-sm"
+            />
+          )}
           <Button
             size="sm"
             className="gap-1"
-            disabled={respond.isPending}
-            onClick={() => respond.mutate({ action: 'ACCEPTED' })}
+            disabled={respond.isPending || (pricingType !== 'FIXED' && (!quotedPrice || Number(quotedPrice) <= 0))}
+            onClick={() => respond.mutate({ action: 'ACCEPTED', quotedPrice: pricingType === 'FIXED' ? undefined : Number(quotedPrice) })}
           >
             <Check className="h-3.5 w-3.5" />قبول
           </Button>
@@ -102,9 +119,7 @@ function RequestActions({
         <Button size="sm" variant="outline" className="gap-1" onClick={onBookAppointment}>
           <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
         </Button>
-        <Button size="sm" className="gap-1" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'IN_PROGRESS' })}>
-          <Play className="h-3.5 w-3.5" />بدء التنفيذ
-        </Button>
+
       </div>
     );
   }
@@ -260,6 +275,8 @@ export function IncomingServiceRequestsList() {
                     <RequestActions
                       id={request.id}
                       status={request.status}
+                      pricingType={request.listing.pricingType}
+                      fixedPrice={request.listing.price}
                       onBookAppointment={() =>
                         setAppointmentTarget({
                           providerId: request.listing.provider.id,

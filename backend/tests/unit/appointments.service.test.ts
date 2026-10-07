@@ -290,7 +290,7 @@ describe('appointmentsService', () => {
     });
 
     it('returns paginated appointments for the caller’s provider profile', async () => {
-      (appointmentsRepository.findManyByProviderId as jest.Mock).mockResolvedValue({
+      (appointmentsRepository.findManyByUserId as jest.Mock).mockResolvedValue({
         appointments: [mockAppointment],
         total: 1,
       });
@@ -299,14 +299,14 @@ describe('appointmentsService', () => {
 
       expect(result.items).toEqual([mockAppointment]);
       expect(result.meta.total).toBe(1);
-      expect(appointmentsRepository.findManyByProviderId).toHaveBeenCalledWith(
+      expect(appointmentsRepository.findManyByUserId).toHaveBeenCalledWith(
         provider.id,
         { page: 1, limit: 20 }
       );
     });
 
     it('defaults page/limit in pagination meta when the query omits them', async () => {
-      (appointmentsRepository.findManyByProviderId as jest.Mock).mockResolvedValue({
+      (appointmentsRepository.findManyByUserId as jest.Mock).mockResolvedValue({
         appointments: [],
         total: 0,
       });

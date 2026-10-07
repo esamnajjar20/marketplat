@@ -13,6 +13,7 @@ import type { ApiResponse } from '@/types/api.types';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   ServiceProviderDetails,
+  PublicServiceProviderSummary,
   ServiceProviderPublic,
   ServiceProviderAnalytics,
   CreateServiceProviderPayload,
@@ -31,8 +32,8 @@ export const serviceProvidersApi = {
    */
   getAll: (params?: ServiceProvidersQuery) =>
     apiClient
-      .get<ApiResponse<ServiceProviderDetails[]>>('/service-providers', { params })
-      .then((r) => unwrapPaginated<ServiceProviderDetails>(r)),
+      .get<ApiResponse<PublicServiceProviderSummary[]>>('/service-providers', { params })
+      .then((r) => unwrapPaginated<PublicServiceProviderSummary>(r)),
 
   /** POST /service-providers/me — creates the caller's provider profile (once). */
   createMyProvider: (payload: CreateServiceProviderPayload) =>

@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/auth.store';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
 
 interface Props {
-  provider: ServiceProviderDetails & { distanceKm?: number };
+  provider: Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & { distanceKm?: number };
   className?: string;
 }
 

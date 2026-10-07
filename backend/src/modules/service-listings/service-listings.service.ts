@@ -12,13 +12,14 @@ import {
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { ConflictError } from '../../shared/errors/ConflictError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { uploadImage, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import { uploadImage } from '../../config/cloudinary';
+import { cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
-import { validateServiceListingAttributes, validateServiceTypeCapabilities } from '../service-types/service-types.service';
+import { validateServiceListingAttributes, validateServiceProviderAttributes, validateServiceTypeCapabilities } from '../service-types/service-types.service';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
@@ -132,6 +133,17 @@ export const serviceListingsService = {
     if (!serviceType) throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
     validateServiceTypeCapabilities(serviceType, input.pricingType, input.serviceLocation);
     await validateServiceListingAttributes(serviceTypeId, input.attributes);
+
+    // Provider-scoped fields are part of the provider's capability for this
+    // service type, not just listing metadata. Do not let the first listing
+    // silently create an empty provider profile and thereby bypass required
+    // onboarding fields. Existing profile attributes are validated against
+    // the same active service-type definition used by updateMyServiceTypeProfile.
+    const providerTypeProfile = await serviceProvidersRepository.findServiceTypeProfile(provider.id, serviceTypeId);
+    await validateServiceProviderAttributes(
+      serviceTypeId,
+      (providerTypeProfile?.attributes as Record<string, unknown> | null) ?? undefined,
+    );
 
     if (files.length > MAX_LISTING_IMAGES) {
       throw new BadRequestError(`You can upload at most ${MAX_LISTING_IMAGES} images.`);
@@ -456,33 +468,31 @@ export const serviceListingsService = {
       throw new ForbiddenError('You do not own this service listing.', 'NOT_YOUR_SERVICE_LISTING');
     }
 
-    await serviceListingsRepository.softDelete(id);
+    await prisma.$transaction(async tx => {
+      const lockedListing = await serviceListingsRepository.lockForMutation(tx, id);
+      if (!lockedListing || lockedListing.status === 'DELETED') {
+        throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+      }
+      const openRequestCount = await tx.serviceRequest.count({
+        where: { listingId: id, status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS'] } },
+      });
+      if (openRequestCount > 0) {
+        throw new ConflictError(
+          'This service listing has open requests and cannot be deleted. Pause it instead.',
+          'SERVICE_LISTING_HAS_OPEN_REQUESTS',
+        );
+      }
+      await tx.serviceListing.update({ where: { id }, data: { status: 'DELETED' } });
+    });
     await hidePublicEntities('service-listings');
 
     // Gap #10: fire-and-forget, see createServiceListing's own comment.
     activityService.record({ userId, ...activityTemplates.serviceDeleted(listing.id, listing.title) });
 
-    // Best-effort Cloudinary cleanup — same "don't fail the request over
-    // a storage cleanup miss" convention as cleanupUploadedImages itself.
-    // .catch(() => undefined) previously discarded the
-    // error with no trace — logging each failure (per-image, since this
-    // fans out over the whole listing.images array) so orphaned assets
-    // from a failed batch delete are findable later, same rationale as
-    // entityImageOperations.ts's removeImage.
-    await Promise.all(
-      listing.images.map(imageUrl => {
-        const publicId = extractCloudinaryPublicId(imageUrl);
-        return publicId
-          ? deleteImage(publicId).catch(err => {
-              logger.warn('Failed to delete service listing image from Cloudinary — orphaned asset', {
-                listingId: id,
-                imageUrl,
-                err,
-              });
-            })
-          : undefined;
-      })
-    );
+    // Keep listing images after soft-delete: historical service requests
+    // retain listing references and must not render broken Cloudinary URLs.
+    // Physical asset cleanup belongs to a separate retention job after the
+    // historical reference window has elapsed.
   },
 
   // Gap #3 fix: closes the report's finding — service listings had no

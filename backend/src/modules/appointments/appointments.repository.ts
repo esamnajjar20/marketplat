@@ -2,6 +2,20 @@ import { prisma } from '../../config/prisma';
 import { Appointment, Prisma } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 
+const appointmentPublicInclude = {
+  request: {
+    select: {
+      id: true,
+      customerId: true,
+      listing: { select: { id: true, title: true, providerId: true } },
+    },
+  },
+} as const;
+
+export type AppointmentWithRequest = Appointment & {
+  request: { id: string; customerId: string; listing: { id: string; title: string; providerId: string } } | null;
+};
+
 export const appointmentsRepository = {
   // services-design.md §8: classic interval-overlap query — two ranges
   // [start,end) overlap iff existingStart < newEnd AND existingEnd > newStart.
@@ -56,14 +70,18 @@ export const appointmentsRepository = {
       where: { providerId, status: 'SCHEDULED', scheduledStart: { gte: now } },
     }),
 
-  findManyByProviderId: async (
-    providerId: string,
+  findManyByUserId: async (
+    providerId: string | null,
+    userId: string,
     query: { page?: number; limit?: number; from?: Date; to?: Date }
-  ): Promise<{ appointments: Appointment[]; total: number }> => {
+  ): Promise<{ appointments: AppointmentWithRequest[]; total: number }> => {
     const { page = 1, limit = 20, from, to } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.AppointmentWhereInput = {
-      providerId,
+      OR: [
+        ...(providerId ? [{ providerId }] : []),
+        { request: { customerId: userId } },
+      ],
       ...((from || to) && {
         scheduledStart: {
           ...(from && { gte: from }),
@@ -73,7 +91,7 @@ export const appointmentsRepository = {
     };
 
     const [appointments, total] = await Promise.all([
-      prisma.appointment.findMany({ where, orderBy: { scheduledStart: 'asc' }, skip, take }),
+      prisma.appointment.findMany({ where, include: appointmentPublicInclude, orderBy: { scheduledStart: 'asc' }, skip, take }),
       prisma.appointment.count({ where }),
     ]);
     return { appointments, total };

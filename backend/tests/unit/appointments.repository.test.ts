@@ -130,7 +130,7 @@ describe('appointmentsRepository', () => {
       (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.appointment.count as jest.Mock).mockResolvedValue(0);
 
-      await appointmentsRepository.findManyByProviderId(providerId, {});
+      await appointmentsRepository.findManyByUserId(providerId, 'user-1', {});
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith({
         where: { providerId },
@@ -145,7 +145,7 @@ describe('appointmentsRepository', () => {
       (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.appointment.count as jest.Mock).mockResolvedValue(0);
 
-      await appointmentsRepository.findManyByProviderId(providerId, { page: 3, limit: 10 });
+      await appointmentsRepository.findManyByUserId(providerId, 'user-1', { page: 3, limit: 10 });
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 20, take: 10 })
@@ -157,7 +157,7 @@ describe('appointmentsRepository', () => {
       (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.appointment.count as jest.Mock).mockResolvedValue(0);
 
-      await appointmentsRepository.findManyByProviderId(providerId, { from });
+      await appointmentsRepository.findManyByUserId(providerId, 'user-1', { from });
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -171,7 +171,7 @@ describe('appointmentsRepository', () => {
       (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.appointment.count as jest.Mock).mockResolvedValue(0);
 
-      await appointmentsRepository.findManyByProviderId(providerId, { to });
+      await appointmentsRepository.findManyByUserId(providerId, 'user-1', { to });
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -186,7 +186,7 @@ describe('appointmentsRepository', () => {
       (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.appointment.count as jest.Mock).mockResolvedValue(0);
 
-      await appointmentsRepository.findManyByProviderId(providerId, { from, to });
+      await appointmentsRepository.findManyByUserId(providerId, 'user-1', { from, to });
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -200,7 +200,7 @@ describe('appointmentsRepository', () => {
       (prisma.appointment.findMany as jest.Mock).mockResolvedValue(appointments);
       (prisma.appointment.count as jest.Mock).mockResolvedValue(2);
 
-      const result = await appointmentsRepository.findManyByProviderId(providerId, {});
+      const result = await appointmentsRepository.findManyByUserId(providerId, 'user-1', {});
 
       expect(result).toEqual({ appointments, total: 2 });
     });
