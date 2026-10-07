@@ -1,7 +1,7 @@
 {
   "name": "classifieds-platform-backend",
   "version": "3.0.0",
-  "description": "Classifieds & Marketplace Platform — Backend API",
+  "description": "Classifieds & Marketplace Platform \u2014 Backend API",
   "license": "UNLICENSED",
   "main": "dist/server.js",
   "engines": {
@@ -52,7 +52,8 @@
     "report:overdue-sales-installments": "ts-node-dev --transpile-only --exit-child src/scripts/overdueSalesInstallments.ts",
     "report:sales-debt-reminder": "ts-node-dev --transpile-only --exit-child src/scripts/debtReminder.ts",
     "report:weekly-sales-report": "ts-node-dev --transpile-only --exit-child src/scripts/weeklySalesReport.ts",
-    "cron:sales-notifications": "ts-node-dev --transpile-only --exit-child src/scripts/runSalesNotificationJobs.ts"
+    "cron:sales-notifications": "ts-node-dev --transpile-only --exit-child src/scripts/runSalesNotificationJobs.ts",
+    "postinstall": "prisma generate || true"
   },
   "lint-staged": {
     "src/**/*.ts": [

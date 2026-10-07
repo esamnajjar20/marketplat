@@ -87,6 +87,10 @@ const BULK_NO_BUFFER_THRESHOLD = 200;
 const REPLAY_IO_TIMEOUT_MS = 300;
 /** Replay on connect is allowed a little longer — it runs once per reconnect. */
 const REPLAY_READ_TIMEOUT_MS = 1_500;
+/** Hard cap for live events that arrive while a reconnect is replaying.
+ * Overflow is handled as a consistency gap: discard the partial queue and
+ * ask the client to refetch authoritative state instead of growing memory. */
+const MAX_PENDING_EVENTS = 250;
 
 type Client = {
   res: Response;
@@ -104,6 +108,7 @@ type Client = {
    * the same as real arrival order under Promise.all).
    */
   duringReplay: boolean;
+  pendingOverflow: boolean;
 };
 
 const localClients = new Map<string, Set<Client>>();
@@ -161,7 +166,12 @@ function deliverLocal(userId: string, payload: LiveStreamEvent, id?: string): vo
   if (!set || set.size === 0) return;
   for (const client of set) {
     if (!client.ready) {
-      client.pending.push({ id, payload });
+      if (client.pending.length >= MAX_PENDING_EVENTS) {
+        client.pending = [];
+        client.pendingOverflow = true;
+      } else if (!client.pendingOverflow) {
+        client.pending.push({ id, payload });
+      }
       continue;
     }
     sendToClient(client, payload, id);
@@ -267,15 +277,23 @@ async function replayThenGoLive(userId: string, client: Client, lastEventId?: st
   // Previously duringReplay was cleared first, so an event published
   // mid-replay (buffered in pending AND present in the replay tail)
   // was delivered twice — NotificationToasts showed duplicate toasts.
+  const overflowed = client.pendingOverflow;
   try {
-    if (gap) writeSse(client.res, 'resync', { reason: 'replay_gap' });
+    if (gap || overflowed) {
+      writeSse(client.res, 'resync', { reason: overflowed ? 'pending_overflow' : 'replay_gap' });
+    }
   } catch {
     /* gone */
   }
 
   const queued = client.pending;
   client.pending = [];
-  for (const item of queued) sendToClient(client, item.payload, item.id);
+  client.pendingOverflow = false;
+  // If the queue overflowed, none of its remaining tail can be trusted: a
+  // resync is the complete recovery path. Never flush a partial event set.
+  if (!overflowed) {
+    for (const item of queued) sendToClient(client, item.payload, item.id);
+  }
   client.duringReplay = false;
   client.ready = true;
 }
@@ -295,7 +313,7 @@ export function addNotificationStreamClient(
     }
   }, 25_000);
 
-  const client: Client = { res, heartbeat, ready: false, pending: [], duringReplay: true };
+  const client: Client = { res, heartbeat, ready: false, pending: [], pendingOverflow: false, duringReplay: true };
   let set = localClients.get(userId);
   if (!set) {
     set = new Set();
