@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { salesService } from './sales.service';
-import { createSaleSchema, updateSaleSchema, saleIdSchema, listSalesSchema, addPaymentSchema, returnSaleSchema, statsPeriodSchema, compareSchema, topSchema, updateCostSettingsSchema, updateProductCostSchema } from './sales.validation';
+import { salesAutomationService } from './salesAutomation.service';
+import { salesInsightsService } from './salesInsights.service';
+import { createSaleSchema, updateSaleSchema, saleIdSchema, listSalesSchema, addPaymentSchema, returnSaleSchema, statsPeriodSchema, compareSchema, topSchema, updateCostSettingsSchema, updateProductCostSchema, reportQuerySchema } from './sales.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 
@@ -21,5 +23,10 @@ export const salesController = {
   chart: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { query } = statsPeriodSchema.parse({ query: req.query }); const to = query.to ?? new Date(); const from = query.from ?? new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000); res.json(successResponse('Sales chart fetched', await salesService.chart(user.userId, from, to, query.period))); } catch (e) { next(e); } },
   compare: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { query } = compareSchema.parse({ query: req.query }); res.json(successResponse('Sales comparison fetched', await salesService.compare(user.userId, query.period))); } catch (e) { next(e); } },
   top: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { query } = topSchema.parse({ query: req.query }); const [products, customers] = await salesService.top(user.userId, query.limit); res.json(successResponse('Top sales fetched', { products, customers })); } catch (e) { next(e); } },
+  dashboard: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales dashboard fetched', await salesService.dashboard(user.userId))); } catch (e) { next(e); } },
+  report: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { query } = reportQuerySchema.parse({ query: req.query }); res.json(successResponse('Sales report fetched', await salesService.report(user.userId, query))); } catch (e) { next(e); } },
+  debtSummary: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Debt summary fetched', await salesService.debtSummary(user.userId))); } catch (e) { next(e); } },
   debts: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales debts fetched', await salesService.debts(user.userId))); } catch (e) { next(e); } },
+  automationRun: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales automation completed', await salesAutomationService.run(user.userId))); } catch (e) { next(e); } },
+  smartInsights: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales smart insights fetched', await salesInsightsService.get(user.userId))); } catch (e) { next(e); } },
 };
