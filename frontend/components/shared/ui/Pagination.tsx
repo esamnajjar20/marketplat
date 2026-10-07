@@ -92,7 +92,7 @@ export function Pagination({
   return (
     <nav
       className="flex flex-wrap items-center justify-center gap-2 py-8"
-      aria-label="Pagination"
+      aria-label="التنقل بين الصفحات"
     >
       {/* UX-01 FIX: disabled pages render as <span> so they are not focusable */}
       {isFirst ? (

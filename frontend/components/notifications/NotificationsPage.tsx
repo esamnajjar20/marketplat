@@ -123,6 +123,27 @@ export function NotificationsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Bell className="h-4 w-4" aria-hidden />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold sm:text-xl">الإشعارات</h1>
+                <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                  التحديثات والطلبات والرسائل التي تحتاج انتباهك.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="shrink-0 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            {unreadCount > 0 ? `${unreadCount} غير مقروء` : 'كل شيء مقروء'}
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           {unreadCount > 0 ? (

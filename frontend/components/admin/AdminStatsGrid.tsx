@@ -44,7 +44,12 @@ export function AdminStatsGrid() {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <section aria-label="مؤشرات المنصة" className="space-y-3">
+      <div>
+        <h2 className="text-base font-semibold">مؤشرات المنصة</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">أرقام سريعة تساعدك على تحديد الأولويات.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {stats.map(({ label, value, icon: Icon, color }) => (
         <div key={label} className="rounded-lg border bg-card p-4 space-y-2">
           <Icon className={`h-5 w-5 ${color}`} />
@@ -52,6 +57,7 @@ export function AdminStatsGrid() {
           <p className="text-sm text-muted-foreground">{label}</p>
         </div>
       ))}
-    </div>
+      </div>
+    </section>
   );
 }

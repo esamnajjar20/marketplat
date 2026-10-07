@@ -7,6 +7,7 @@ import { SearchFilters } from '@/components/search/SearchFilters';
 import { SearchFiltersSheet } from '@/components/search/SearchFiltersSheet';
 import { SearchSortBarWrapper } from '@/components/search/SearchSortBarWrapper';
 import { SearchResults } from '@/components/search/SearchResults';
+import { SearchActiveFilters } from '@/components/search/SearchActiveFilters';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { WovenTexture } from '@/components/shared/ui/WovenTexture';
 
@@ -76,6 +77,10 @@ export default async function SearchPage({ searchParams }: Props) {
             </Suspense>
           </div>
         </div>
+
+        <Suspense>
+          <SearchActiveFilters />
+        </Suspense>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-4 lg:gap-6">
           <aside className="hidden lg:col-span-1 lg:block">

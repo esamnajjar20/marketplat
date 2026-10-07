@@ -35,6 +35,8 @@ export function LoadingSpinner({
   const spinner = (
     <div
       role="status"
+      aria-live="polite"
+      aria-atomic="true"
       aria-label={label}
       className={cn('relative shrink-0', RING[size], className)}
     >

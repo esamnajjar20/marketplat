@@ -102,24 +102,25 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
             MobileNav itself is md:hidden at that width. Matches the
             container's own md:flex so the whole row turns on together. */}
         <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-lg border border-transparent bg-surface-1/50 p-1 md:flex">
-          {/* NAV-GAP FIX: ads previously had no standing nav link here
-              (only reachable via Home's CTA or the /search type tab) —
-              see lib/navigation.ts's BROWSE_LINKS comment for the full
-              reasoning. Hand-written here rather than mapped from
-              BROWSE_LINKS since this header's desktop nav has always
-              been its own literal list, not sourced from that shared
-              array (only the mobile drawers read BROWSE_LINKS). */}
+          {/* SPRINT-2-IA: desktop navigation now exposes the five primary
+              discovery destinations consistently: search/explore, ads,
+              products, services, and stores. Service providers remain
+              reachable from the services surface and the shared Explore
+              drawer instead of consuming a top-level slot. */}
+          <Button asChild variant="ghost" size="sm" className={navItemClass(onSearchPage)}>
+            <Link prefetch={false} href={ROUTES.search} aria-current={onSearchPage ? 'page' : undefined}>استكشاف</Link>
+          </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isAdsBrowseActive)}>
             <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.stores))}>
-            <Link prefetch={false} href={ROUTES.stores} aria-current={isActive(ROUTES.stores) ? 'page' : undefined}>المتاجر</Link>
+          <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.products))}>
+            <Link prefetch={false} href={ROUTES.products} aria-current={isActive(ROUTES.products) ? 'page' : undefined}>المنتجات</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.services))}>
             <Link prefetch={false} href={ROUTES.services} aria-current={isActive(ROUTES.services) ? 'page' : undefined}>الخدمات</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.serviceProviders))}>
-            <Link prefetch={false} href={ROUTES.serviceProviders} aria-current={isActive(ROUTES.serviceProviders) ? 'page' : undefined}>مقدمو الخدمة</Link>
+          <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.stores))}>
+            <Link prefetch={false} href={ROUTES.stores} aria-current={isActive(ROUTES.stores) ? 'page' : undefined}>المتاجر</Link>
           </Button>
         </nav>
 

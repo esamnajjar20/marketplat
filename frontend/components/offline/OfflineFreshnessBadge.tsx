@@ -36,6 +36,7 @@ export function OfflineFreshnessBadge({
   if (hideWhenFresh && !isOffline && !label.includes('قديمة')) return null;
 
   const isWarning = isOffline || label.includes('قديمة');
+  const contextLabel = isOffline ? 'بيانات محفوظة على الجهاز' : label.includes('قديمة') ? 'قد تحتاج لتحديث' : '';
 
   return (
     <p
@@ -48,7 +49,8 @@ export function OfflineFreshnessBadge({
         className,
       )}
     >
-      {label}
+      <span>{label}</span>
+      {contextLabel ? <span className="ms-1 opacity-80">· {contextLabel}</span> : null}
     </p>
   );
 }

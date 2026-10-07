@@ -242,7 +242,7 @@ export function ConversationList({ selectedId }: Props = {}) {
       </div>
 
       {/* Mobile search */}
-      <div className="md:hidden space-y-2 border-b px-3 py-2">
+      <div className="md:hidden space-y-2 border-b bg-card px-3 py-2">
         <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
           {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
             <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
@@ -259,31 +259,50 @@ export function ConversationList({ selectedId }: Props = {}) {
             aria-label="بحث في المحادثات"
           />
         </div>
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => setUnreadOnly(false)}
-            className={
-              !unreadOnly
-                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                : 'rounded-full border px-3 py-1 text-2xs-tight text-muted-foreground'
-            }
-          >
-            الكل
-          </button>
-          <button
-            type="button"
-            onClick={() => setUnreadOnly(true)}
-            className={
-              unreadOnly
-                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                : 'rounded-full border px-3 py-1 text-2xs-tight text-muted-foreground'
-            }
-          >
-            غير مقروء{totalUnread > 0 ? ` (${totalUnread})` : ''}
-          </button>
+        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+          {[
+            ['all', 'الكل'],
+            ['unread', `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}`],
+            ['archived', 'الأرشيف'],
+          ].map(([value, label]) => {
+            const active = value === 'all' ? !unreadOnly && !archivedOnly : value === 'unread' ? unreadOnly : archivedOnly;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setUnreadOnly(value === 'unread');
+                  setArchivedOnly(value === 'archived');
+                }}
+                className={active
+                  ? 'min-h-10 shrink-0 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
+                  : 'min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs text-muted-foreground'}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
+
+      {(query.trim() || unreadOnly || archivedOnly || inbox !== 'all') && filtered.length > 0 && (
+        <div className="flex items-center gap-2 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">{filtered.length}</span>
+          <span>محادثة مطابقة للفلاتر الحالية</span>
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setUnreadOnly(false);
+              setArchivedOnly(false);
+              setInbox('all');
+            }}
+            className="ms-auto font-medium text-primary hover:underline"
+          >
+            مسح الفلاتر
+          </button>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-12 px-4 text-center">

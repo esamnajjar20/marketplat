@@ -53,9 +53,13 @@ export function AdminHeader() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/80 ps-12 md:ps-4 bg-background/90 px-4 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
-      <Link prefetch={false} href={ROUTES.admin.dashboard} className="font-bold text-sm text-primary">
-        سوق غزة — إدارة
-      </Link>
+      <div className="flex min-w-0 items-center gap-2">
+        <Link prefetch={false} href={ROUTES.admin.dashboard} className="shrink-0 font-bold text-sm text-primary">
+          سوق غزة — إدارة
+        </Link>
+        <span className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
+        <span className="hidden truncate text-xs text-muted-foreground sm:block">مركز المراجعة والتشغيل</span>
+      </div>
       <div className="flex items-center gap-2">
         {/*
          * UX-FIX: there was previously no way back to the public site

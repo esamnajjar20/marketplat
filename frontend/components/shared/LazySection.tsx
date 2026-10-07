@@ -117,6 +117,7 @@ export function LazySection({
       // unless the section rendered nothing (see `collapsed`).
       style={{ minHeight: collapsed ? 0 : minHeight }}
       data-lazy={visible ? 'ready' : near ? 'idle' : 'pending'}
+      aria-busy={!visible}
     >
       {visible ? (
         <div ref={contentRef}>{children}</div>

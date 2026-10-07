@@ -36,6 +36,7 @@ import {
   SERVICE_REQUEST_STATUS_LABELS,
   SERVICE_REQUEST_STATUS_VARIANT,
 } from '@/lib/serviceRequestStatus';
+import { ServiceRequestTimeline } from '@/components/services/ServiceRequestTimeline';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -80,6 +81,8 @@ export default function ServiceRequestDetailPage({ params }: Props) {
       <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowRight className="h-4 w-4" />رجوع
       </Link>
+
+      <ServiceRequestTimeline request={request} />
 
       <div className="space-y-4 rounded-lg border bg-card p-4">
         <div className="flex items-start justify-between gap-3">
@@ -148,6 +151,13 @@ export default function ServiceRequestDetailPage({ params }: Props) {
             </div>
           )}
         </dl>
+
+        {request.appointment && (
+          <div className="rounded-lg bg-muted/50 p-3">
+            <p className="text-sm font-medium">الموعد المرتبط</p>
+            <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(request.appointment.scheduledStart)} — {formatDateTime(request.appointment.scheduledEnd)}</p>
+          </div>
+        )}
 
         {request.review && (
           <p className="text-xs text-muted-foreground">تم إرسال تقييم لهذا الطلب.</p>

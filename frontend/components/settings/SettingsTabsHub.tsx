@@ -116,7 +116,15 @@ function TabBody({ tab }: { tab: SettingsTab }) {
 
 export function SettingsTabsHub() {
   return (
-    <TabsHub<SettingsTab>
+    <div className="mx-auto w-full max-w-6xl">
+      <div className="mb-4 rounded-2xl border bg-card px-4 py-4 shadow-sm sm:px-5">
+        <p className="text-xs font-medium text-primary">مساحة الحساب</p>
+        <h1 className="mt-1 text-xl font-bold sm:text-2xl">الإعدادات</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          تحكم في ملفك، أمان حسابك، إشعاراتك والجلسات المفتوحة من مكان واحد.
+        </p>
+      </div>
+      <TabsHub<SettingsTab>
       idPrefix="settings"
       sectionLabel="الإعدادات"
       tabListLabel="أقسام الإعدادات"
@@ -132,6 +140,7 @@ export function SettingsTabsHub() {
           جاري التحميل…
         </div>
       }
-    />
+      />
+    </div>
   );
 }

@@ -126,16 +126,20 @@ export function PublicProfileHeader({ user }: Props) {
             block, and report gate themselves on the viewer (via
             useAuthStore) — only show on someone else's profile; edit
             only shows on your own. */}
-        <div className="mt-4 flex w-full max-w-sm flex-wrap items-center justify-center gap-2">
-          <ShareAdButton
-            title={user.name}
-            url={`${APP_URL}${ROUTES.userProfile(user.id)}`}
-            variant="button"
-          />
-          <MessageUserButtonGate targetUserId={user.id} />
-          <EditProfileButtonGate targetUserId={user.id} />
-          <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />
-          <ReportUserButtonGate targetUserId={user.id} />
+        <div className="mt-4 w-full max-w-sm space-y-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <MessageUserButtonGate targetUserId={user.id} />
+            <ShareAdButton
+              title={user.name}
+              url={`${APP_URL}${ROUTES.userProfile(user.id)}`}
+              variant="button"
+            />
+            <EditProfileButtonGate targetUserId={user.id} />
+          </div>
+          <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+            <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />
+            <ReportUserButtonGate targetUserId={user.id} />
+          </div>
         </div>
 
         {(profilePaymentMethods.length > 0 || !!fallbackPhone) && (

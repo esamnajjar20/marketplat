@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
 import { cn } from '@/lib/utils';
 
@@ -78,8 +78,10 @@ export function AdminFilterBar({
     return () => clearTimeout(t);
   }, [search, urlSearch, replaceParams, searchParam]);
 
+  const hasFilters = Boolean(urlSearch) || urlTab !== defaultTab;
+
   return (
-    <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between', className)}>
+    <div className={cn('flex flex-col gap-3 rounded-xl border bg-card p-3 sm:p-4', className)}>
       <div className="relative w-full sm:max-w-xs">
         <Search className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -90,7 +92,8 @@ export function AdminFilterBar({
           aria-label={searchPlaceholder}
         />
       </div>
-      <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
         {tabs.map((tab) => {
           const active = urlTab === tab.value;
           return (
@@ -119,6 +122,17 @@ export function AdminFilterBar({
             </button>
           );
         })}
+        </div>
+        {hasFilters ? (
+          <button
+            type="button"
+            onClick={() => replaceParams({ [searchParam]: null, [tabParam]: null })}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+            مسح الفلاتر
+          </button>
+        ) : null}
       </div>
     </div>
   );

@@ -158,7 +158,7 @@ export function BottomNav() {
       <button
         type="button"
         onClick={() => setExploreOpen(true)}
-        aria-current={isExploreActive ? 'page' : undefined}
+        aria-expanded={exploreOpen}
         aria-haspopup="dialog"
         className={cn(
           'relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[48px] py-2 text-2xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
@@ -181,6 +181,7 @@ export function BottomNav() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
+            aria-expanded={createOpen}
             aria-haspopup="dialog"
             aria-label={draftsCount > 0 ? `أضف — ${draftsCount} مسودة معلّقة` : 'أضف'}
             className={cn(

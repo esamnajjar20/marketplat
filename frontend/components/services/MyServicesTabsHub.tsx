@@ -38,11 +38,11 @@ import {
   type MyServicesTab,
 } from '@/lib/myServicesHubTabs';
 
-const TAB_META: Record<MyServicesTab, { label: string; Icon: typeof Inbox }> = {
-  overview: { label: 'نظرة عامة', Icon: LayoutDashboard },
-  requests: { label: 'الطلبات الواردة', Icon: Inbox },
-  appointments: { label: 'المواعيد', Icon: CalendarClock },
-  analytics: { label: 'الإحصائيات', Icon: BarChart3 },
+const TAB_META: Record<MyServicesTab, { label: string; description: string; Icon: typeof Inbox }> = {
+  overview: { label: 'نظرة عامة', description: 'حالة العمل والإجراءات اليومية', Icon: LayoutDashboard },
+  requests: { label: 'الطلبات الواردة', description: 'طلبات العملاء التي تحتاج متابعة', Icon: Inbox },
+  appointments: { label: 'المواعيد', description: 'جدول مواعيدك القادمة', Icon: CalendarClock },
+  analytics: { label: 'الإحصائيات', description: 'أداء الخدمات والطلبات', Icon: BarChart3 },
 };
 
 function TabBody({ tab }: { tab: MyServicesTab }) {
@@ -50,7 +50,10 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
     case 'requests':
       return (
         <div className="space-y-4">
-          <h1 className="text-xl font-bold">الطلبات الواردة</h1>
+          <div>
+            <h1 className="text-xl font-bold">الطلبات الواردة</h1>
+            <p className="mt-1 text-sm text-muted-foreground">راجع الطلبات الجديدة واتخذ الإجراء المناسب لكل طلب.</p>
+          </div>
           <Suspense>
             <IncomingServiceRequestsList />
           </Suspense>
@@ -59,7 +62,10 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
     case 'appointments':
       return (
         <div className="space-y-4">
-          <h1 className="text-xl font-bold">مواعيدي</h1>
+          <div>
+            <h1 className="text-xl font-bold">مواعيدي</h1>
+            <p className="mt-1 text-sm text-muted-foreground">تابع جدولك ومواعيد الخدمات المرتبطة بطلباتك.</p>
+          </div>
           <Suspense>
             <MyAppointmentsSection />
           </Suspense>
@@ -69,7 +75,10 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h1 className="text-xl font-bold">إحصائيات مقدم الخدمة</h1>
+            <div>
+              <h1 className="text-xl font-bold">إحصائيات مقدم الخدمة</h1>
+              <p className="mt-1 text-sm text-muted-foreground">مؤشرات تساعدك على فهم أداء خدماتك واتخاذ قرارات أفضل.</p>
+            </div>
             <Button size="sm" asChild className="gap-1.5 font-semibold">
               <Link prefetch={false} href={ROUTES.myServiceCreate}>
                 <Plus className="h-4 w-4" />

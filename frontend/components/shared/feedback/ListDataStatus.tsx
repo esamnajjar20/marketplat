@@ -41,6 +41,7 @@ export function ListDataStatus({
     return (
       <p
         role="status"
+        aria-atomic="true"
         className={cn(
           'mb-2 rounded-lg bg-warning-soft px-3 py-1.5 text-center text-2xs font-medium text-warning-foreground sm:text-xs',
           className,
@@ -55,6 +56,7 @@ export function ListDataStatus({
     return (
       <p
         role="status"
+        aria-atomic="true"
         className={cn(
           'mb-2 animate-pulse text-center text-2xs text-muted-foreground sm:text-xs',
           className,

@@ -130,6 +130,7 @@ export function NetworkStatusBanner() {
       {showOfflineFull && (
         <div
           role="status"
+          aria-atomic="true"
           className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground pwa-safe-bottom"
         >
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
@@ -141,6 +142,7 @@ export function NetworkStatusBanner() {
       {showOfflineCompact && (
         <div
           role="status"
+          aria-atomic="true"
           className={cn(
             'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] start-3 z-[60] flex items-center gap-1.5 rounded-full',
             'bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium shadow-lg',
@@ -156,6 +158,7 @@ export function NetworkStatusBanner() {
       {showBackOnline && (
         <div
           role="status"
+          aria-atomic="true"
           className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-success px-4 py-2.5 text-sm font-medium text-success-foreground pwa-safe-bottom"
         >
           <Wifi className="h-4 w-4 shrink-0" aria-hidden />
@@ -175,6 +178,7 @@ export function NetworkStatusBanner() {
       {showSlowHint && isOnline && !showBackOnline && (
         <div
           role="status"
+          aria-atomic="true"
           className={cn(
             'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] start-3 z-[55] flex max-w-[min(100%,280px)] items-center gap-1.5 rounded-full',
             'bg-warning text-warning-foreground px-3 py-1.5 text-xs font-medium shadow-lg',

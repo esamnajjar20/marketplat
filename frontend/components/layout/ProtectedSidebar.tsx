@@ -242,6 +242,7 @@ export function ProtectedSidebar() {
   return (
     <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 lg:block lg:w-60">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1.5 p-3 lg:p-4">
+        <p className="px-3 pb-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">الوصول السريع</p>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.href}
@@ -255,6 +256,7 @@ export function ProtectedSidebar() {
         ))}
 
         <div className="my-1.5 border-t border-border/70" aria-hidden="true" />
+        <p className="px-3 pt-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">مساحتي</p>
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {
@@ -272,6 +274,7 @@ export function ProtectedSidebar() {
         })}
 
         <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border/70 bg-background/60 p-1">
+            <p className="px-2 pt-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">النشاط والإعدادات</p>
             {!activityVisible && (
               <Suspense fallback={<DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>

@@ -297,7 +297,7 @@ function StatusHero({
   } else {
     headline = 'كل شيء مُزامَن';
     detail = isSignedIn
-      ? 'لا يوجد طابور معلّق. المحفوظات والمسودات تحت السيطرة.'
+      ? 'لا يوجد شيء بانتظار الإرسال. يمكنك متابعة العمل، وسنوضح أي تغيير يحتاج مزامنة.'
       : 'تصفح المحفوظات أو جهّز التطبيق للعمل بدون نت.';
   }
 
@@ -413,7 +413,7 @@ function SyncTabBody({
       {isSignedIn ? (
         <SyncCenterClient />
       ) : (
-        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-center" role="status">
+        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-center" role="status" aria-live="polite">
           <p className="text-sm font-medium">المزامنة متاحة بعد تسجيل الدخول</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             لن نعرض أو نقرأ طابور الإرسال أو المسودات الخاصة بأي حساب من جلسة ضيف.

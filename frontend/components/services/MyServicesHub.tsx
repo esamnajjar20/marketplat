@@ -1,23 +1,14 @@
 'use client';
 
-/**
- * Service provider operating hub — status, attention, quick actions.
- * Full metrics live only on /my-services/analytics.
- */
-
 import Link from 'next/link';
 import {
-  Wrench,
-  ExternalLink,
-  Plus,
-  Inbox,
-  CalendarClock,
-  BarChart3,
-  AlertTriangle,
-  Radio,
+  Wrench, ExternalLink, Plus, Inbox, CalendarClock, BarChart3,
+  AlertTriangle, Radio, ListChecks, CheckCircle2, Clock3,
 } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/ui/Card';
+import { StatCard } from '@/components/shared/ui/StatCard';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import {
   useMyServiceProvider,
@@ -42,94 +33,165 @@ const AVAIL_VARIANT: Record<ServiceAvailability, 'default' | 'secondary' | 'dest
 };
 
 function HubBody({ provider }: { provider: ServiceProviderDetails }) {
-  // Only for actionable pending count — not full KPI mirror of analytics page
   const { data: analytics } = useMyServiceProviderAnalytics();
   const currentUser = useAuthStore(selectUser);
   const publicProfileHref = currentUser?.id ? ROUTES.userProfile(currentUser.id) : null;
+  const pendingRequests = analytics?.pendingRequests ?? 0;
+  const upcomingAppointments = analytics?.upcomingAppointments ?? 0;
+  const activeListings = analytics?.activeListings ?? 0;
+  const completedRequests = analytics?.completedRequests ?? 0;
+  const needsAttention = pendingRequests + upcomingAppointments;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Wrench className="h-5 w-5 text-muted-foreground shrink-0" />
-            <h1 className="text-xl font-bold truncate">{provider.businessName}</h1>
-            <Badge variant={AVAIL_VARIANT[provider.availabilityStatus]}>
-              {AVAIL_LABELS[provider.availabilityStatus]}
-            </Badge>
+      <section className="rounded-xl border bg-card p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Wrench className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-xl font-bold">{provider.businessName}</h2>
+              <Badge variant={AVAIL_VARIANT[provider.availabilityStatus]}>
+                {AVAIL_LABELS[provider.availabilityStatus]}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {provider.serviceAreaCities?.length
+                ? provider.serviceAreaCities.join(' · ')
+                : 'مناطق الخدمة غير محددة'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {needsAttention > 0
+                ? `لديك ${needsAttention} عنصر${needsAttention === 1 ? '' : 'اً'} يحتاج إلى متابعة.`
+                : 'لا توجد إجراءات عاجلة الآن. يمكنك متابعة خدماتك ومواعيدك.'}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {provider.serviceAreaCities?.length
-              ? provider.serviceAreaCities.join(' · ')
-              : 'مناطق الخدمة غير محددة'}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {publicProfileHref && (
-            <Button variant="outline" size="sm" asChild className="gap-1.5">
-              <Link href={publicProfileHref}>
-                البروفايل العام <ExternalLink className="h-3.5 w-3.5" />
-              </Link>
+          <div className="flex flex-wrap gap-2">
+            {publicProfileHref && (
+              <Button variant="outline" size="sm" asChild className="gap-1.5">
+                <Link href={publicProfileHref}>
+                  البروفايل العام <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            )}
+            <Button variant="outline" size="sm" asChild>
+              <Link href={ROUTES.settings.serviceProvider}>الإعدادات</Link>
             </Button>
-          )}
-          <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link href={ROUTES.settings.serviceProvider}>الإعدادات</Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link href={ROUTES.myServiceProviderAnalytics}>
-              <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
-            </Link>
-          </Button>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {analytics && analytics.pendingRequests > 0 && (
-        <div className="rounded-lg border border-warning/25 bg-warning/5 p-3 text-sm flex flex-wrap gap-2 items-center">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-          <Link href={ROUTES.incomingServiceRequests} className="text-primary hover:underline">
-            {analytics.pendingRequests} طلب بانتظار ردك
-          </Link>
-        </div>
-      )}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="ملخص أداء مقدم الخدمة">
+        <StatCard icon={Inbox} label="طلبات معلقة" value={pendingRequests.toLocaleString('ar')} />
+        <StatCard icon={CalendarClock} label="مواعيد قادمة" value={upcomingAppointments.toLocaleString('ar')} />
+        <StatCard icon={ListChecks} label="خدمات نشطة" value={activeListings.toLocaleString('ar')} />
+        <StatCard icon={CheckCircle2} label="طلبات مكتملة" value={completedRequests.toLocaleString('ar')} />
+      </section>
 
-      {analytics && analytics.upcomingAppointments > 0 && (
-        <div className="rounded-lg border p-3 text-sm flex flex-wrap gap-2 items-center">
-          <CalendarClock className="h-4 w-4 text-primary shrink-0" />
-          <Link href={ROUTES.myServiceAppointments} className="text-primary hover:underline">
-            {analytics.upcomingAppointments} موعد قادم
-          </Link>
-        </div>
-      )}
+      {needsAttention > 0 ? (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4 text-primary" aria-hidden />
+              يحتاج إلى إجراء
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 sm:grid-cols-2">
+            {pendingRequests > 0 && (
+              <Link
+                href={ROUTES.incomingServiceRequests}
+                className="group rounded-lg border p-3 transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Inbox className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <span className="font-medium">طلبات بانتظار ردك</span>
+                  </div>
+                  <Badge>{pendingRequests.toLocaleString('ar')}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">راجع الطلبات وحدد الإجراء المناسب.</p>
+              </Link>
+            )}
+            {upcomingAppointments > 0 && (
+              <Link
+                href={ROUTES.myServiceAppointments}
+                className="group rounded-lg border p-3 transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <CalendarClock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <span className="font-medium">مواعيد قادمة</span>
+                  </div>
+                  <Badge>{upcomingAppointments.toLocaleString('ar')}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">راجع جدولك قبل بدء المواعيد.</p>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">إجراءات سريعة</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <Button asChild className="h-auto flex-col gap-1 py-3 font-semibold">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold">إجراءات سريعة</h2>
+            <p className="text-xs text-muted-foreground">أهم العمليات التي تستخدمها لإدارة عملك.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <Button asChild className="h-auto min-h-20 flex-col gap-1.5 py-3 font-semibold">
             <Link href={ROUTES.myServiceCreate}>
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden />
               خدمة جديدة
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
             <Link href={ROUTES.incomingServiceRequests}>
-              <Inbox className="h-4 w-4" />
+              <Inbox className="h-4 w-4" aria-hidden />
               الطلبات الواردة
+              {pendingRequests > 0 && <Badge variant="secondary">{pendingRequests.toLocaleString('ar')}</Badge>}
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
             <Link href={ROUTES.myServiceAppointments}>
-              <CalendarClock className="h-4 w-4" />
+              <CalendarClock className="h-4 w-4" aria-hidden />
               المواعيد
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
             <Link href={ROUTES.requests}>
-              <Radio className="h-4 w-4" />
+              <Radio className="h-4 w-4" aria-hidden />
               الطلبات المفتوحة
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
+            <Link href={ROUTES.myServiceProviderAnalytics}>
+              <BarChart3 className="h-4 w-4" aria-hidden />
+              الإحصائيات
             </Link>
           </Button>
         </div>
       </section>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden />
+            حالة العمل
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3">
+            <span className="text-muted-foreground">حالة الظهور</span>
+            <Badge variant={AVAIL_VARIANT[provider.availabilityStatus]}>
+              {AVAIL_LABELS[provider.availabilityStatus]}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3">
+            <span className="text-muted-foreground">الخدمات النشطة</span>
+            <span className="font-semibold">{activeListings.toLocaleString('ar')}</span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
