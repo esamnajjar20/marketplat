@@ -133,4 +133,6 @@ export interface ConversationsQuery {
 export interface MessagesQuery {
   page?: number;
   limit?: number;
+  /** Opaque cursor for loading the next older message window. */
+  before?: string;
 }

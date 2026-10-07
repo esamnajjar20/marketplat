@@ -267,40 +267,52 @@ describe('messagesRepository', () => {
   });
 
   describe('findManyByConversationId', () => {
-    it('applies default page/limit (limit defaults to 30, not 20) when the query is empty', async () => {
+    it('uses deterministic newest-first ordering and fetches one extra row for cursor pagination', async () => {
       (prisma.message.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.message.count as jest.Mock).mockResolvedValue(0);
-
-      await messagesRepository.findManyByConversationId('conv-1', {});
-
-      expect(prisma.message.findMany).toHaveBeenCalledWith({
-        where: { conversationId: 'conv-1' },
-        orderBy: { createdAt: 'desc' },
-        skip: 0,
-        take: 30,
-      });
-      expect(prisma.message.count).toHaveBeenCalledWith({ where: { conversationId: 'conv-1' } });
-    });
-
-    it('applies pagination skip/take from page and limit', async () => {
-      (prisma.message.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.message.count as jest.Mock).mockResolvedValue(0);
-
-      await messagesRepository.findManyByConversationId('conv-1', { page: 2, limit: 10 });
-
-      expect(prisma.message.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 10, take: 10 })
-      );
-    });
-
-    it('returns the messages and total from the parallel queries', async () => {
-      const messages = [{ id: 'msg-1' }, { id: 'msg-2' }];
-      (prisma.message.findMany as jest.Mock).mockResolvedValue(messages);
-      (prisma.message.count as jest.Mock).mockResolvedValue(2);
 
       const result = await messagesRepository.findManyByConversationId('conv-1', {});
 
-      expect(result).toEqual({ messages, total: 2 });
+      expect(prisma.message.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { conversationId: 'conv-1' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 31,
+      }));
+      expect(result).toEqual({ messages: [], total: 0, nextCursor: null });
+    });
+
+    it('applies a stable before cursor instead of OFFSET', async () => {
+      (prisma.message.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.message.count as jest.Mock).mockResolvedValue(0);
+      const before = Buffer.from(JSON.stringify({ createdAt: '2026-01-01T00:00:00.000Z', id: 'msg-10' })).toString('base64url');
+
+      await messagesRepository.findManyByConversationId('conv-1', { before, limit: 10 });
+
+      expect(prisma.message.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          conversationId: 'conv-1',
+          OR: [
+            { createdAt: { lt: new Date('2026-01-01T00:00:00.000Z') } },
+            { createdAt: new Date('2026-01-01T00:00:00.000Z'), id: { lt: 'msg-10' } },
+          ],
+        },
+        take: 11,
+      }));
+    });
+
+    it('returns a cursor only when another older row exists', async () => {
+      const rows = [
+        { id: 'msg-2', createdAt: new Date('2026-01-02T00:00:00.000Z') },
+        { id: 'msg-1', createdAt: new Date('2026-01-01T00:00:00.000Z') },
+      ];
+      (prisma.message.findMany as jest.Mock).mockResolvedValue(rows);
+      (prisma.message.count as jest.Mock).mockResolvedValue(2);
+
+      const result = await messagesRepository.findManyByConversationId('conv-1', { limit: 1 });
+
+      expect(result.messages).toEqual([rows[0]]);
+      expect(result.total).toBe(2);
+      expect(result.nextCursor).toBeTruthy();
     });
   });
 

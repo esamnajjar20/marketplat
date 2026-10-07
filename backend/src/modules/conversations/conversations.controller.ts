@@ -255,6 +255,13 @@ export const conversationsController = {
           },
           offlineOperationId,
         );
+        // A durable idempotency hit can happen after the upload itself.
+        // If PostgreSQL returned an older message, discard this newly uploaded
+        // asset instead of leaving an orphan in Cloudinary.
+        if (message.imageUrl !== uploaded.url) {
+          const publicId = extractCloudinaryPublicId(uploaded.url);
+          if (publicId) deleteImage(publicId).catch(() => undefined);
+        }
         res.status(201).json(successResponse('Message sent', message));
       } catch (err) {
         // Best-effort cleanup prevents an uploaded image from becoming an
@@ -280,6 +287,10 @@ export const conversationsController = {
       try {
         const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
         const message = await conversationsService.sendMessage(user.userId, params.id, { body: typeof req.body?.body === 'string' ? req.body.body : undefined, file: { url: uploaded.url, name: file.originalname, mimeType: file.mimetype, size: file.size } }, offlineOperationId);
+        if (message.fileUrl !== uploaded.url) {
+          const publicId = extractCloudinaryPublicId(uploaded.url);
+          if (publicId) deleteMedia(publicId, 'raw').catch(() => undefined);
+        }
         res.status(201).json(successResponse('File message sent', message));
       } catch (err) { const publicId = extractCloudinaryPublicId(uploaded.url); if (publicId) deleteMedia(publicId, 'raw').catch(() => undefined); throw err; }
     } catch (error) { next(error); }
@@ -304,6 +315,9 @@ export const conversationsController = {
           { body: typeof req.body?.body === 'string' ? req.body.body : undefined, audioUrl: uploaded.url },
           offlineOperationId,
         );
+        if (message.audioUrl !== uploaded.url && uploaded.publicId) {
+          deleteMedia(uploaded.publicId, 'video').catch(() => undefined);
+        }
         res.status(201).json(successResponse('Voice message sent', message));
       } catch (err) {
         const publicId = uploaded.publicId;

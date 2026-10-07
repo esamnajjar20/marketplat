@@ -136,10 +136,11 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
             };
             return { ...payload, items: [...payload.items].reverse() };
           });
-        // FIX MSG-STORE-USER-PASS-MESSAGES-SAVE-01: userId passed so
-        // the store's write-side user check actually runs.
-        // حفظ حتى القائمة الفارغة لمسح رسائل محلّية قديمة بعد الحذف من السيرفر.
-        void saveMessagesForConversation(conversationId, data.items, userId);
+        // Cache only the authoritative newest window. Older cursor windows
+        // are merged in ChatWindow and must not overwrite the local newest cache.
+        if (params?.before !== '__disabled__') {
+          void saveMessagesForConversation(conversationId, data.items, userId);
+        }
         return data;
       } catch (err) {
         // FIX MSG-STORE-USER-PASS-MESSAGES-GET-01: userId passed to the
@@ -153,7 +154,7 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
     },
     staleTime: CACHE_TTL.messages,
     refetchInterval: () => pollingInterval(CACHE_TTL.messages, 6),
-    enabled: isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
+    enabled: isAuthenticated && Boolean(conversationId) && params?.before !== '__disabled__' && (hasToken || !isOnline),
   });
 }
 

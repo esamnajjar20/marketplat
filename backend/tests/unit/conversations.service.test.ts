@@ -374,6 +374,17 @@ describe('conversationsService', () => {
       expect(messagesRepository.create).not.toHaveBeenCalled();
     });
 
+    it('reuses a durable message for the same client operation id', async () => {
+      const existing = { ...mockMessage, conversationId: 'conv-1', senderId: buyerId };
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findBySenderAndOperationId as jest.Mock).mockResolvedValue(existing);
+
+      const result = await conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' }, 'op-1');
+
+      expect(result).toBe(existing);
+      expect(messagesRepository.create).not.toHaveBeenCalled();
+    });
+
     it('creates the message and bumps the conversation updatedAt', async () => {
       (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
@@ -472,6 +483,7 @@ describe('conversationsService', () => {
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({
         messages: mockMessages,
         total: 2,
+        nextCursor: null,
       });
       (messagesRepository.markReadForRecipient as jest.Mock).mockResolvedValue({ count: 1 });
 
@@ -487,6 +499,7 @@ describe('conversationsService', () => {
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({
         messages: [],
         total: 0,
+        nextCursor: null,
       });
       (messagesRepository.markReadForRecipient as jest.Mock).mockResolvedValue({ count: 0 });
 
@@ -502,6 +515,7 @@ describe('conversationsService', () => {
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({
         messages: [liveMessage, deletedMessage],
         total: 2,
+        nextCursor: null,
       });
       (messagesRepository.markReadForRecipient as jest.Mock).mockResolvedValue({ count: 0 });
 

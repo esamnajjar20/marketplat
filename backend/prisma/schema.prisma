@@ -1275,6 +1275,9 @@ model ConversationUserSetting {
 
 model Message {
   id             String       @id @default(cuid())
+  // Client-generated operation id is the durable idempotency key for message sends.
+  // Nullable so existing rows and non-idempotent internal writes remain valid.
+  clientOperationId String?    @db.VarChar(128)
   conversationId String
   senderId       String
   body           String       @db.VarChar(2000)
@@ -1302,7 +1305,8 @@ model Message {
   pin            MessagePin?  @relation("MessagePin")
   stars          MessageStar[] @relation("MessageStars")
 
-  @@index([conversationId, createdAt])
+  @@unique([senderId, clientOperationId])
+  @@index([conversationId, createdAt, id])
   // FIX UX-15: powers the per-conversation unreadCount added to
   // findManyForUser (conversations.repository.ts) — that query filters
   // on conversationId + senderId + readAt together (unread = readAt

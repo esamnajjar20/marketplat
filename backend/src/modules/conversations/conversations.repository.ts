@@ -2,6 +2,8 @@ import { prisma } from '../../config/prisma';
 import { Prisma, Conversation, Message } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { decodeMessageCursor, encodeMessageCursor } from '../../shared/utils/messageCursor';
 
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {
@@ -301,10 +303,16 @@ export const messagesRepository = {
     body: string,
     imageUrl?: string | null,
     audioUrl?: string | null,
-    file?: { url: string; name: string; mimeType: string; size: number } | null
+    file?: { url: string; name: string; mimeType: string; size: number } | null,
+    clientOperationId?: string | null,
   ): Promise<Message> =>
     prisma.message.create({
-      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null, audioUrl: audioUrl ?? null, fileUrl: file?.url ?? null, fileName: file?.name ?? null, fileMimeType: file?.mimeType ?? null, fileSize: file?.size ?? null },
+      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null, audioUrl: audioUrl ?? null, fileUrl: file?.url ?? null, fileName: file?.name ?? null, fileMimeType: file?.mimeType ?? null, fileSize: file?.size ?? null, clientOperationId: clientOperationId ?? null },
+    }),
+
+  findBySenderAndOperationId: (senderId: string, clientOperationId: string): Promise<Message | null> =>
+    prisma.message.findUnique({
+      where: { senderId_clientOperationId: { senderId, clientOperationId } },
     }),
 
   findById: (id: string): Promise<Message | null> =>
@@ -352,35 +360,44 @@ export const messagesRepository = {
 
   findManyByConversationId: async (
     conversationId: string,
-    query: { page?: number; limit?: number },
+    query: { page?: number; limit?: number; before?: string },
     viewerId?: string,
-  ): Promise<{ messages: Message[]; total: number }> => {
-    const { page = 1, limit = 30 } = query;
-    const { skip, take } = getPaginationParams(page, limit);
+  ): Promise<{ messages: Message[]; total: number; nextCursor: string | null }> => {
+    const limit = Math.min(Math.max(query.limit ?? 30, 1), 100);
+    const cursor = query.before ? decodeMessageCursor(query.before) : null;
     const where: Prisma.MessageWhereInput = { conversationId };
 
-    const [messages, total] = await Promise.all([
-      // Newest-first at the DB level (cheap for pagination), same as
-      // every other list endpoint in this codebase — the frontend
-      // reverses this into chronological order for the actual thread
-      // view (see useMessages's own doc comment for why). Soft-deleted
-      // rows are still included (not filtered out) — the thread must
-      // keep the placeholder in its correct chronological slot; only
-      // `body` is stripped, in the service layer just before the
-      // response is built.
+    if (query.before && !cursor) {
+      throw new BadRequestError('Invalid message cursor', 'INVALID_MESSAGE_CURSOR');
+    }
+    if (cursor) {
+      where.OR = [
+        { createdAt: { lt: cursor.createdAt } },
+        { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+      ];
+    }
+
+    const [rows, total] = await Promise.all([
       prisma.message.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
         include: {
           pin: true,
           ...(viewerId ? { stars: { where: { userId: viewerId }, select: { userId: true } } } : {}),
         },
       }),
-      prisma.message.count({ where }),
+      prisma.message.count({ where: { conversationId } }),
     ]);
-    return { messages, total };
+
+    const hasMore = rows.length > limit;
+    const messages = hasMore ? rows.slice(0, limit) : rows;
+    const last = messages[messages.length - 1];
+    return {
+      messages,
+      total,
+      nextCursor: hasMore && last ? encodeMessageCursor({ createdAt: last.createdAt, id: last.id }) : null,
+    };
   },
 
   /** Marks every unread message in the thread not sent by the caller as

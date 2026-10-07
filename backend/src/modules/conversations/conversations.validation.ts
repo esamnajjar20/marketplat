@@ -75,6 +75,8 @@ export const getMessagesSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+    // Opaque base64url cursor produced by the messages endpoint.
+    before: z.string().min(1).max(300).optional(),
   }),
 });
 

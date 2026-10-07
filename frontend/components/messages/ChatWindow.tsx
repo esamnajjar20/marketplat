@@ -175,26 +175,34 @@ export function ChatWindow({ conversationId }: Props) {
 
   const [retryingQueueId, setRetryingQueueId] = useState<number | null>(null);
 
-  // FIX UX-GAP-03: `page` starts at null (unused — the live query above
-  // already covers page 1) and only becomes a real second fetch once
-  // "تحميل رسائل أقدم" is clicked, via the `enabled`-equivalent branch
-  // below (page argument only set once olderPage is non-null).
-  const [olderPage, setOlderPage] = useState<number | null>(null);
+  // Older messages use an opaque (createdAt,id) cursor rather than OFFSET.
+  // `olderCursorToFetch` is null until the user explicitly asks for older rows.
+  const [olderCursorToFetch, setOlderCursorToFetch] = useState<string | null>(null);
   const [olderMessages, setOlderMessages] = useState<Message[]>([]);
+  const [nextOlderCursor, setNextOlderCursor] = useState<string | null>(null);
+  const [hasLoadedOlder, setHasLoadedOlder] = useState(false);
 
   const { data: olderPageData, isFetching: fetchingOlder } = useMessages(
     conversationId,
-    olderPage !== null ? { page: olderPage, limit: MESSAGES_PAGE_SIZE } : { limit: MESSAGES_PAGE_SIZE },
+    olderCursorToFetch !== null
+      ? { before: olderCursorToFetch, limit: MESSAGES_PAGE_SIZE }
+      : { before: '__disabled__', limit: MESSAGES_PAGE_SIZE },
   );
 
   useEffect(() => {
-    if (olderPage === null || !olderPageData) return;
+    if (olderCursorToFetch === null || !olderPageData) return;
     setOlderMessages((prev) => {
       const seen = new Set(prev.map((m) => m.id));
       const fresh = olderPageData.items.filter((m) => !seen.has(m.id));
       return fresh.length ? [...fresh, ...prev] : prev;
     });
-  }, [olderPage, olderPageData]);
+    setNextOlderCursor(olderPageData.meta.nextCursor ?? null);
+    setHasLoadedOlder(true);
+    // Disable the query again; the next click explicitly requests the
+    // frontier stored in nextOlderCursor. This avoids auto-fetching the
+    // entire history just because the previous cursor advanced.
+    setOlderCursorToFetch(null);
+  }, [olderCursorToFetch, olderPageData]);
 
   const liveMessages = messagesPage?.items ?? [];
   // FIX UX-GAP-03 (dedup bug): the effect above only deduped a newly
@@ -243,11 +251,11 @@ export function ChatWindow({ conversationId }: Props) {
   function handleDiscardQueued(queueId: number) {
     discardQueuedMessage(queueId);
   }
-  // Whether an older page beyond whichever page was fetched last is
-  // still available: before any click, that's the live page-1 fetch's
-  // own hasNextPage; after a click, it's the latest older-page fetch's
-  // hasNextPage, since that one's now the frontier of what's loaded.
-  const hasMoreOlder = Boolean((olderPage === null ? messagesPage : olderPageData)?.meta?.hasNextPage);
+  // Whether another older cursor exists. The live window supplies the
+  // first cursor; every subsequent click advances nextOlderCursor.
+  const hasMoreOlder = Boolean(
+    hasLoadedOlder ? nextOlderCursor : messagesPage?.meta?.nextCursor,
+  );
 
   // SW-FIX-CHAT-SCROLL-ANCHOR: the old version measured scrollHeight before
   // the setOlderPage state change and tried to restore the offset inside a
@@ -268,7 +276,8 @@ export function ChatWindow({ conversationId }: Props) {
         scrollTop: el.scrollTop,
       };
     }
-    setOlderPage((p) => (p ?? 1) + 1);
+    const cursor = (hasLoadedOlder ? nextOlderCursor : messagesPage?.meta?.nextCursor) ?? null;
+    if (cursor) setOlderCursorToFetch(cursor);
   }
 
   useLayoutEffect(() => {
@@ -297,7 +306,9 @@ export function ChatWindow({ conversationId }: Props) {
   // otherwise merge into B). Also reset near-bottom so the new thread
   // opens following the latest messages.
   useEffect(() => {
-    setOlderPage(null);
+    setOlderCursorToFetch(null);
+    setNextOlderCursor(null);
+    setHasLoadedOlder(false);
     setOlderMessages([]);
     isNearBottomRef.current = true;
     setShowJumpToLatest(false);

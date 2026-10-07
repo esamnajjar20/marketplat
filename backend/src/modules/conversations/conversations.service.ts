@@ -13,12 +13,14 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { ServiceUnavailableError } from '../../shared/errors/ServiceUnavailableError';
+import { ConflictError } from '../../shared/errors/ConflictError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { logger } from '../../shared/utils/logger';
 import { cacheRedis } from '../../config/redis';
 import { sellerResponseTimeService } from '../sellers/seller-response-time.service';
 import { env } from '../../config/env';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
   if (conversation.buyerId !== userId && conversation.sellerId !== userId) {
@@ -291,6 +293,19 @@ export const conversationsService = {
         ? offlineOperationId.trim().slice(0, 128)
         : null;
 
+    // PostgreSQL is the final idempotency boundary. Redis below is only a
+    // fast concurrency guard; if Redis is unavailable or its 24h key is lost,
+    // this durable key still prevents a second message row from being created.
+    if (opId) {
+      const existing = await messagesRepository.findBySenderAndOperationId(userId, opId);
+      if (existing) {
+        if (existing.conversationId !== conversationId) {
+          throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
+        }
+        return existing;
+      }
+    }
+
     let claimedOpKey: string | null = null;
 
     if (opId) {
@@ -407,15 +422,25 @@ export const conversationsService = {
     // rather than masking the successful send.
     let message: Message;
     try {
-      message = await messagesRepository.create(
-        conversationId,
-        userId,
-        body || (imageUrl ? '📷' : audioUrl ? '🎤 رسالة صوتية' : file ? `📎 ${file.name}` : ''),
-        imageUrl,
-        audioUrl,
-        file
-      );
+      const messageBody = body || (imageUrl ? '📷' : audioUrl ? '🎤 رسالة صوتية' : file ? `📎 ${file.name}` : '');
+      message = opId
+        ? await messagesRepository.create(conversationId, userId, messageBody, imageUrl, audioUrl, file, opId)
+        : await messagesRepository.create(conversationId, userId, messageBody, imageUrl, audioUrl, file);
     } catch (err) {
+      // The composite unique index is the final race-proof boundary. If two
+      // requests reached PostgreSQL together, the loser reuses the winner.
+      if (opId && isPrismaError(err, 'P2002')) {
+        const existing = await messagesRepository.findBySenderAndOperationId(userId, opId);
+        if (existing) {
+          if (existing.conversationId !== conversationId) {
+            throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
+          }
+          if (claimedOpKey) {
+            try { await cacheRedis.set(claimedOpKey, existing.id, 'EX', MSG_OP_TTL_SEC); } catch { /* ignore */ }
+          }
+          return existing;
+        }
+      }
       // Release claim so a client/queue retry can re-enter cleanly.
       if (claimedOpKey) {
         try {
@@ -692,13 +717,13 @@ export const conversationsService = {
   getMessages: async (
     userId: string,
     conversationId: string,
-    query: { page?: number; limit?: number }
-  ): Promise<PaginatedResult<Message>> => {
+    query: { page?: number; limit?: number; before?: string }
+  ): Promise<PaginatedResult<Message> & { meta: PaginatedResult<Message>['meta'] & { nextCursor: string | null } }> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
 
-    const [{ messages, total }] = await Promise.all([
+    const [{ messages, total, nextCursor }] = await Promise.all([
       messagesRepository.findManyByConversationId(conversationId, query, userId),
       messagesRepository.markReadForRecipient(conversationId, userId),
     ]);
@@ -714,7 +739,13 @@ export const conversationsService = {
         isPinned: Boolean((message as Message & { pin?: unknown }).pin),
         isStarredByMe: Array.isArray((message as Message & { stars?: unknown[] }).stars) && (message as Message & { stars?: unknown[] }).stars!.length > 0,
       })),
-      meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),
+      meta: {
+        ...buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),
+        nextCursor: nextCursor ?? null,
+        // Cursor pagination is authoritative for older-message traversal.
+        hasNextPage: Boolean(nextCursor),
+        hasPrevPage: Boolean(query.before),
+      },
     };
   },
 };

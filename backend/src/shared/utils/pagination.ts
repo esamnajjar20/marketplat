@@ -7,6 +7,7 @@ export interface PaginationMeta {
   totalPages: number;
   hasNextPage: boolean;
   hasPrevPage: boolean;
+  nextCursor?: string | null;
 }
 
 // INTEG FIX: frontend's types/api.types.ts declares PaginationMeta.hasNextPage

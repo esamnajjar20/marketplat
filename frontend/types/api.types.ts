@@ -28,6 +28,8 @@ export interface PaginationMeta {
   totalPages:  number;
   hasNextPage: boolean;
   hasPrevPage: boolean;
+  /** Cursor for the next older window when supported by the endpoint. */
+  nextCursor?: string | null;
 }
 
 export interface PaginatedResponse<T> {
