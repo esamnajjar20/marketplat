@@ -18,6 +18,8 @@ export const createCustomerSchema = z.object({
     address: z.string().trim().max(500).optional().nullable(),
     note: z.string().trim().max(1000).optional().nullable(),
     tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+    isVip: z.boolean().optional(),
+    isBlacklisted: z.boolean().optional(),
   }),
 });
 

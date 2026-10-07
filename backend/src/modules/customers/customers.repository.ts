@@ -21,5 +21,15 @@ export const customersRepository = {
     ]);
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit), hasNextPage: page < Math.ceil(total / limit), hasPrevPage: page > 1 } };
   },
+  summary: async (sellerId: string) => {
+    const [totalCustomers, vipCustomers, debtors, inactiveCustomers, spent] = await Promise.all([
+      prisma.customer.count({ where: { sellerId } }),
+      prisma.customer.count({ where: { sellerId, isVip: true } }),
+      prisma.customer.count({ where: { sellerId, totalDue: { gt: 0 } } }),
+      prisma.customer.count({ where: { sellerId, OR: [{ lastPurchaseAt: null }, { lastPurchaseAt: { lt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) } }] } }),
+      prisma.customer.aggregate({ where: { sellerId }, _sum: { totalSpent: true }, _avg: { totalSpent: true } }),
+    ]);
+    return { totalCustomers, vipCustomers, debtors, inactiveCustomers, totalSpent: Number(spent._sum.totalSpent ?? 0), averageCustomerSpend: Number(spent._avg.totalSpent ?? 0) };
+  },
   search: (sellerId: string, q: string) => prisma.customer.findMany({ where: { sellerId, OR: [{ name: { contains: q, mode: 'insensitive' } }, { phone: { contains: q } }] }, orderBy: [{ lastPurchaseAt: 'desc' }, { name: 'asc' }], take: 10 }),
 };

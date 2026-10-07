@@ -4,6 +4,7 @@ import { customersController } from './customers.controller';
 
 export const customersRouter = Router();
 customersRouter.use(authenticate);
+customersRouter.get('/summary', customersController.summary);
 customersRouter.get('/', customersController.list);
 customersRouter.get('/search', customersController.search);
 customersRouter.get('/:id', customersController.getById);

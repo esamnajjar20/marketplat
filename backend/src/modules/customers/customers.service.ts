@@ -12,6 +12,7 @@ const normalizePhone = (phone?: string | null) => {
 export const customersService = {
   normalizePhone,
   list: (sellerId: string, query: { page?: number; limit?: number; q?: string; dueOnly?: boolean }) => customersRepository.list(sellerId, query),
+  summary: (sellerId: string) => customersRepository.summary(sellerId),
   search: (sellerId: string, q: string) => customersRepository.search(sellerId, q),
   getById: async (sellerId: string, id: string) => {
     const customer = await customersRepository.findBySellerAndId(sellerId, id);

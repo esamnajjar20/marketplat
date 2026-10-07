@@ -47,6 +47,12 @@ const notificationTypeEnum = z.enum([
   'SALES_OVERDUE_INSTALLMENT',
   'SALES_DEBT_REMINDER',
   'SALES_WEEKLY_REPORT',
+  // Sales automation additions (backend/src/modules/sales/salesAutomation.service.ts)
+  'SALES_OVERDUE_DEBT',
+  'SALES_UPCOMING_INSTALLMENT',
+  'SALES_INACTIVE_CUSTOMER',
+  'SALES_DAILY_SUMMARY',
+  'SALES_SMART_INSIGHT',
 ]);
 
 /** فئة واجهة المستخدم → مجموعة أنواع (نفس تجميع الواجهة). */
