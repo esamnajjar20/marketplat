@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { BarChart3, ClipboardList, LayoutDashboard, ReceiptText, Users, WalletCards } from 'lucide-react';
+import { BarChart3, Brain, ClipboardList, LayoutDashboard, ReceiptText, Users, WalletCards, FileSpreadsheet } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { Button } from '@/components/shared/ui/Button';
 import { SalesPageClient } from './SalesPageClient';
@@ -11,8 +11,12 @@ import { SalesCustomersSection } from './SalesCustomersSection';
 import { SalesDebtsSection } from './SalesDebtsSection';
 import { SalesInstallmentsSection } from './SalesInstallmentsSection';
 import { SalesChart } from './SalesChart';
+import { SalesDashboard } from './SalesDashboard';
+import { SalesReports } from './SalesReports';
 import { SalesCompareCard } from './SalesCompareCard';
 import { SalesCostSection } from './SalesCostSection';
+import { SalesSmartInsights } from './SalesSmartInsights';
+import { SalesAutomationPanel } from './SalesAutomationPanel';
 import { useSalesCostSettings } from '@/hooks/queries/useSales';
 import {
   DEFAULT_SALES_HUB_TAB,
@@ -30,7 +34,9 @@ const TAB_META: Record<SalesHubTab, { label: string; Icon: typeof WalletCards }>
   debts: { label: 'الديون', Icon: WalletCards },
   installments: { label: 'الأقساط', Icon: ClipboardList },
   analytics: { label: 'الإحصائيات', Icon: BarChart3 },
+  reports: { label: 'التقارير', Icon: FileSpreadsheet },
   costs: { label: 'التكلفة الحقيقية', Icon: WalletCards },
+  smart: { label: 'التحليلات الذكية', Icon: Brain },
 };
 
 function TabBody({ tab }: { tab: SalesHubTab }) {
@@ -43,8 +49,12 @@ function TabBody({ tab }: { tab: SalesHubTab }) {
       return <Suspense><SalesDebtsSection /></Suspense>;
     case 'installments':
       return <Suspense><SalesInstallmentsSection /></Suspense>;
+    case 'reports':
+      return <Suspense><SalesReports /></Suspense>;
     case 'costs':
       return <Suspense><SalesCostSection /></Suspense>;
+    case 'smart':
+      return <div className="space-y-4"><SalesAutomationPanel /><SalesSmartInsights /></div>;
     case 'analytics':
       return (
         <div className="space-y-4">
@@ -57,7 +67,7 @@ function TabBody({ tab }: { tab: SalesHubTab }) {
       );
     case 'overview':
     default:
-      return <Suspense><SalesPageClient /></Suspense>;
+      return <Suspense><SalesPageClient /><SalesDashboard /></Suspense>;
   }
 }
 

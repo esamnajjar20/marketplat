@@ -40,3 +40,20 @@ export function useSalesCostSettings() {
 export function useSalesCostProducts(enabled = true) {
   return useQuery({ queryKey: [...queryKeys.sales.all(), 'cost-products'], queryFn: () => salesApi.costProducts().then(r => r.data.data ?? []), enabled });
 }
+
+export function useDebtSummary() {
+  return useQuery({ queryKey: [...queryKeys.sales.debts(), 'summary'], queryFn: () => salesApi.debtSummary().then(r => r.data.data), staleTime: 30_000 });
+}
+
+
+export function useSalesDashboard() {
+  return useQuery({ queryKey: [...queryKeys.sales.all(), 'dashboard'], queryFn: () => salesApi.dashboard().then(r => r.data.data), staleTime: 30_000 });
+}
+
+export function useSalesReport(params?: { from?: string; to?: string; storeId?: string; status?: import('@/types/sale.types').SalePaymentStatus; limit?: number }) {
+  return useQuery({ queryKey: [...queryKeys.sales.all(), 'report', params ?? {}], queryFn: () => salesApi.report(params).then(r => r.data.data), staleTime: 30_000 });
+}
+
+export function useSalesSmartInsights() {
+  return useQuery({ queryKey: [...queryKeys.sales.all(), 'smart-insights'], queryFn: () => salesApi.smartInsights().then(r => r.data.data), staleTime: 60_000 });
+}

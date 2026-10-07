@@ -18,7 +18,7 @@ export function SaleCard({ sale }: { sale: SaleRecord }) {
   const profit = net - (Number(sale.costPrice ?? 0) * sale.quantity);
   return <>
     <article className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate font-semibold">{sale.entityTitle}</h3><Badge variant="outline">{typeLabel[sale.entityType]}</Badge><PaymentStatusBadge status={sale.paymentStatus}/>{Number(sale.refundedAmount ?? 0) > 0 ? <Badge>مرتجع {Number(sale.refundedAmount).toFixed(2)} ₪</Badge> : null}</div><p className="mt-1 text-sm text-muted-foreground">{sale.buyerName}{sale.buyerPhone ? ` · ${sale.buyerPhone}` : ''}</p></div></div>
+      <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate font-semibold">{sale.entityTitle}</h3><Badge variant="outline">{typeLabel[sale.entityType]}</Badge><PaymentStatusBadge status={sale.paymentStatus}/>{Number(sale.refundedAmount ?? 0) > 0 ? <Badge>مرتجع {Number(sale.refundedAmount).toFixed(2)} ₪</Badge> : null}</div><p className="mt-1 text-sm text-muted-foreground">{sale.buyerName}{sale.buyerPhone ? ` · ${sale.buyerPhone}` : ''}{sale.items && sale.items.length > 1 ? ` · ${sale.items.length} أصناف` : ''}</p></div></div>
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div><div className="text-muted-foreground">الإجمالي</div><strong>{net.toFixed(2)} ₪</strong></div>
         <div><div className="text-muted-foreground">المدفوع</div><strong>{Number(sale.paidAmount).toFixed(2)} ₪</strong></div>

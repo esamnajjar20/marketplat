@@ -36,6 +36,22 @@ export interface SaleReturnRecord {
   createdAt: string;
 }
 
+export interface SaleItem {
+  id: string;
+  saleId: string;
+  productId: string | null;
+  entityType: SaleEntityType;
+  entityId: string | null;
+  title: string;
+  imageUrl: string | null;
+  quantity: number;
+  unitPrice: string;
+  costPrice: string | null;
+  lineTotal: string;
+  returnedQuantity: number;
+  stockMovementId?: string | null;
+}
+
 export interface SaleRecord {
   id: string;
   sellerId: string;
@@ -64,6 +80,7 @@ export interface SaleRecord {
   createdAt: string;
   updatedAt: string;
   customer?: SaleCustomer | null;
+  items?: SaleItem[];
   payments?: SalePayment[];
   returns?: SaleReturnRecord[];
 }
@@ -104,7 +121,55 @@ export interface CreateSalePayload {
   internalNote?: string | null;
   soldAt?: string;
   serviceRequestId?: string;
+  items?: Array<{ productId: string; quantity: number; unitPrice: number; discount?: number; costPrice?: number | null }>;
   payment?: { amount: number; method: SaleTransferMethod; transferRef?: string; note?: string };
   payments?: Array<{ amount: number; method: SaleTransferMethod; transferRef?: string; note?: string }>;
   installments?: Array<{ installmentNo: number; amount: number; dueDate: string; note?: string }>;
 }
+
+
+export interface SalesDashboard {
+  summary: SalesSummary;
+  compare: { period: string; current: SalesSummary; previous: SalesSummary; revenueChangePercentage: number | null };
+  debt: { totalDue: number; overdueDue: number; dueToday: number; debtorCount: number };
+  topProducts: Array<{ productId: string | null; title: string; quantity: number; revenue: number; profit: number }>;
+  topCustomers: Array<{ customerId: string | null; buyerName: string; _sum: { totalPrice: unknown }; _count: { id: number } }>;
+  lowStock: Array<{ id: string; name: string; stockQuantity: number | null; price: string; store: { id: string; name: string } | null }>;
+}
+
+export interface SalesReportRow {
+  id: string; invoiceNumber: string | null; soldAt: string; buyerName: string; buyerPhone: string | null;
+  storeName: string | null; title: string; quantity: number; revenue: number; cost: number; profit: number;
+  paid: number; due: number; refunded: number; status: SalePaymentStatus; currency: string;
+}
+export interface SalesReport {
+  rows: SalesReportRow[]; count: number;
+  totals: { revenue: number; cost: number; profit: number; paid: number; due: number; refunded: number };
+}
+
+export type SalesSmartInsight = {
+  id: string;
+  severity: 'info' | 'warning' | 'critical';
+  category: string;
+  title: string;
+  body: string;
+  metric?: number;
+  unit?: string;
+};
+
+export type SalesSmartInsights = {
+  generatedAt: string;
+  periodDays: number;
+  kpis: {
+    revenue: number;
+    previousRevenue: number;
+    revenueChange: number;
+    orders: number;
+    averageTicket: number;
+    overdueAmount: number;
+    lowStockProducts: number;
+  };
+  forecast: { next30DaysRevenue: number; method: string };
+  topProducts: Array<{ title: string; revenue: number; cost: number; quantity: number; profit: number; margin: number }>;
+  insights: SalesSmartInsight[];
+};

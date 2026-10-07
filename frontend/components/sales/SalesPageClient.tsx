@@ -6,7 +6,7 @@ import { Plus, ReceiptText, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SalesSummary } from './SalesSummary';
 import { SaleCard } from './SaleCard';
-import { AddSaleDialog } from './AddSaleDialog';
+import { POSDialog } from './POSDialog';
 import { useSales, useSalesSummary } from '@/hooks/queries/useSales';
 import { salesHubTabHref } from '@/lib/salesHubTabs';
 
@@ -52,7 +52,7 @@ export function SalesPageClient() {
         )}
       </section>
 
-      <AddSaleDialog open={open} onOpenChange={setOpen} />
+      <POSDialog open={open} onOpenChange={setOpen} />
     </div>
   );
 }

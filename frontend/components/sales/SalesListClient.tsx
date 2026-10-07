@@ -5,7 +5,7 @@ import { Plus, RefreshCw, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SaleCard } from './SaleCard';
-import { AddSaleDialog } from './AddSaleDialog';
+import { POSDialog } from './POSDialog';
 import { useSales } from '@/hooks/queries/useSales';
 
 export function SalesListClient() {
@@ -95,7 +95,7 @@ export function SalesListClient() {
         </div>
       ) : null}
 
-      <AddSaleDialog open={open} onOpenChange={setOpen} />
+      <POSDialog open={open} onOpenChange={setOpen} />
     </div>
   );
 }

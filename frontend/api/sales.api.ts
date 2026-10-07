@@ -1,7 +1,7 @@
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import { apiClient } from './client';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
-import type { CreateSalePayload, SaleRecord, SalesSummary } from '@/types/sale.types';
+import type { CreateSalePayload, SaleRecord, SalesSummary, SalesDashboard, SalesReport, SalesSmartInsights } from '@/types/sale.types';
 
 export const salesApi = {
   // NOTE: GET /sales returns { data: { items, meta } } directly (see sales.controller list),
@@ -13,6 +13,9 @@ export const salesApi = {
   create: (payload: CreateSalePayload, operationId?: string) => apiClient.post<ApiResponse<SaleRecord>>('/sales', payload, { headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined }),
   summary: (period: 'day' | 'week' | 'month' | 'year' = 'month') =>
     apiClient.get<ApiResponse<SalesSummary>>('/sales/summary', { params: { period } }),
+  dashboard: () => apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard'),
+  report: (params?: { from?: string; to?: string; storeId?: string; status?: import('@/types/sale.types').SalePaymentStatus; limit?: number }) => apiClient.get<ApiResponse<SalesReport>>('/sales/reports', { params }),
+  debtSummary: () => apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary'),
   debts: () => apiClient.get<ApiResponse<SaleRecord[]>>('/sales/debts'),
   addPayment: (id: string, payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/payments`, payload),
   receipt: (id: string) => apiClient.get<ApiResponse<{ invoiceNumber: string | null; sale: SaleRecord }>>(`/sales/${id}/receipt`),
@@ -23,5 +26,7 @@ export const salesApi = {
   updateCostSettings: (enabled: boolean) => apiClient.patch<ApiResponse<{ enabled: boolean }>>('/sales/cost-settings', { enabled }),
   costProducts: () => apiClient.get<ApiResponse<Array<{ id:string; storeId:string; name:string; price:string; costPrice:string|null; stockQuantity:number|null; availability:string; images:string[]; store:{id:string;name:string} }>>>('/sales/cost-products'),
   updateProductCost: (productId:string, costPrice:number|null) => apiClient.patch<ApiResponse<unknown>>(`/sales/cost-products/${productId}`, { costPrice }),
-  addReturn: (id: string, payload: { quantity:number; refundAmount:number; reason:'DAMAGED'|'WRONG_ITEM'|'NOT_LIKED'|'LATE'|'OTHER'; reasonNote?:string; restockedToInventory:boolean }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/return`, payload),
+  smartInsights: () => apiClient.get<ApiResponse<SalesSmartInsights>>('/sales/smart-insights'),
+  runAutomation: () => apiClient.post<ApiResponse<{ scanned: Record<string, number>; notificationsSent: number }>>('/sales/automation/run', {}),
+  addReturn: (id: string, payload: { itemId?: string; quantity:number; refundAmount:number; reason:'DAMAGED'|'WRONG_ITEM'|'NOT_LIKED'|'LATE'|'OTHER'; reasonNote?:string; restockedToInventory:boolean }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/return`, payload),
 };
