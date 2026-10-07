@@ -2,7 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma, Notification, NotificationType, PushSubscription, FcmDeviceToken } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
-import { publishNotificationEvent, publishNotificationEventToMany } from '../../shared/utils/notificationStream';
+import { publishNotificationEvent, publishNotificationEventsToMany } from '../../shared/utils/notificationStream';
 import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
 // NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
 import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
@@ -70,7 +70,22 @@ export const notificationsRepository = {
    * doesn't return the created rows (fine here: nothing reads them back
    * immediately after a broadcast). */
   createMany: async (inputs: CreateNotificationInput[]): Promise<Prisma.BatchPayload> => {
-    const result = await prisma.notification.createMany({ data: inputs });
+    // Prisma 5.22/PostgreSQL supports createManyAndReturn, so the bulk insert
+    // stays one DB operation while SSE can carry the real persisted notification
+    // id for every created row. This keeps reconnect/dedup semantics aligned with
+    // the durable row instead of emitting id-less bulk events.
+    const created = await prisma.notification.createManyAndReturn({
+      data: inputs,
+      select: {
+        id: true,
+        userId: true,
+        type: true,
+        title: true,
+        body: true,
+        data: true,
+      },
+    });
+    const result = { count: created.length };
     // invalidate every distinct recipient's cached
     // count, not just re-fetch — Set de-dupes since a broadcast/fan-out
     // list is not guaranteed unique-per-user (see onSavedSearchMatched's
@@ -99,59 +114,23 @@ export const notificationsRepository = {
       );
     }
 
-    // fan-out over SSE must
-    // respect per-recipient content. The previous implementation
-    // always published inputs[0]'s { type, title, body } to every
-    // recipient — correct today, because every existing call site
-    // (admin broadcast, favorite-price-change alert) sends identical
-    // content to all recipients. But the moment any future caller
-    // sends *different* content per user through createMany (e.g. "X
-    // favorited YOUR ad"), every recipient after the first would see
-    // the wrong title/body in their live toast until a manual refresh
-    // pulled the correct row from the DB.
-    //
-    // Detect the two cases explicitly so the common (uniform) case
-    // stays a single publish call, and the mixed case degrades to
-    // per-user publishes with each user's real content. Comparison is
-    // on the three fields the SSE payload actually carries — if any
-    // future field is added to the payload, update the comparison too
-    // (`data` was added for toast deep links).
-    const allSameContent =
-      inputs.length > 0 &&
-      inputs.every(
-        (i) =>
-          i.type === inputs[0].type &&
-          i.title === inputs[0].title &&
-          i.body === inputs[0].body &&
-          JSON.stringify(i.data ?? null) === JSON.stringify(inputs[0].data ?? null),
-      );
-
-    if (allSameContent) {
-      void publishNotificationEventToMany(recipientIds, {
-        type: 'notification',
-        action: 'created',
-        notificationType: inputs[0].type,
-        title: inputs[0].title,
-        body: inputs[0].body,
-        data: asLiveData(inputs[0].data),
-      });
-    } else {
-      // Mixed content: one publish per recipient with their own data.
-      // Kept synchronous-looking (void + Promise.all) so createMany
-      // keeps its "fire-and-forget fan-out" contract.
-      void Promise.all(
-        inputs.map((input) =>
-          publishNotificationEvent(input.userId, {
-            type: 'notification',
-            action: 'created',
-            notificationType: input.type,
-            title: input.title,
-            body: input.body,
-            data: asLiveData(input.data),
-          }),
-        ),
-      );
-    }
+    // Publish the rows returned by the DB so each live event carries the
+    // notification id actually stored in PostgreSQL. The stream helper keeps
+    // the existing bounded replay behavior for large fan-outs.
+    void publishNotificationEventsToMany(
+      created.map((notification) => ({
+        userId: notification.userId,
+        event: {
+          type: 'notification' as const,
+          action: 'created' as const,
+          notificationId: notification.id,
+          notificationType: notification.type,
+          title: notification.title,
+          body: notification.body,
+          data: asLiveData(notification.data),
+        },
+      })),
+    );
 
     return result;
   },

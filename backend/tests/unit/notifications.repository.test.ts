@@ -4,13 +4,14 @@ import { pushSubscriptionsRepository } from '../../src/shared/utils/pushSubscrip
 
 jest.mock('../../src/shared/utils/notificationStream', () => ({
   publishNotificationEvent: jest.fn().mockResolvedValue(undefined),
-  publishNotificationEventToMany: jest.fn().mockResolvedValue(undefined),
+  publishNotificationEventsToMany: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     notification: {
       create: jest.fn(),
       createMany: jest.fn(),
+      createManyAndReturn: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       updateMany: jest.fn(),
@@ -95,12 +96,32 @@ describe('notificationsRepository', () => {
         { userId: 'u1', type: 'PROMOTION' as const, title: 'عرض', body: 'خصم' },
         { userId: 'u2', type: 'PROMOTION' as const, title: 'عرض', body: 'خصم' },
       ];
-      (prisma.notification.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+      (prisma.notification.createManyAndReturn as jest.Mock).mockResolvedValue([
+        { id: 'n1', ...inputs[0], data: null },
+        { id: 'n2', ...inputs[1], data: null },
+      ]);
 
       const result = await notificationsRepository.createMany(inputs);
 
-      expect(prisma.notification.createMany).toHaveBeenCalledWith({ data: inputs });
+      expect(prisma.notification.createManyAndReturn).toHaveBeenCalledWith({
+        data: inputs,
+        select: { id: true, userId: true, type: true, title: true, body: true, data: true },
+      });
       expect(result).toEqual({ count: 2 });
+
+      const { publishNotificationEventsToMany } = jest.requireMock(
+        '../../src/shared/utils/notificationStream',
+      );
+      expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
+        {
+          userId: 'u1',
+          event: expect.objectContaining({ notificationId: 'n1' }),
+        },
+        {
+          userId: 'u2',
+          event: expect.objectContaining({ notificationId: 'n2' }),
+        },
+      ]);
     });
   });
 

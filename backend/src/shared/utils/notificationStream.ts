@@ -87,9 +87,9 @@ const BULK_NO_BUFFER_THRESHOLD = 200;
 const REPLAY_IO_TIMEOUT_MS = 300;
 /** Replay on connect is allowed a little longer — it runs once per reconnect. */
 const REPLAY_READ_TIMEOUT_MS = 1_500;
-/** Hard cap for live events that arrive while a reconnect is replaying.
- * Overflow is handled as a consistency gap: discard the partial queue and
- * ask the client to refetch authoritative state instead of growing memory. */
+/** Hard cap for events accumulated while a reconnect replay is in progress.
+ * If exceeded, the client is forced to resync from the durable API instead of
+ * allowing a slow connection to grow an unbounded in-memory queue. */
 const MAX_PENDING_EVENTS = 250;
 
 type Client = {
@@ -98,6 +98,7 @@ type Client = {
   /** False while the replay for a reconnect is being written; live events queue in `pending` meanwhile. */
   ready: boolean;
   pending: Array<{ id?: string; payload: LiveStreamEvent }>;
+  pendingOverflowed: boolean;
   /** Highest id written to this client — drops duplicates between replay and live. */
   lastSentId?: string;
   /**
@@ -108,7 +109,6 @@ type Client = {
    * the same as real arrival order under Promise.all).
    */
   duringReplay: boolean;
-  pendingOverflow: boolean;
 };
 
 const localClients = new Map<string, Set<Client>>();
@@ -167,11 +167,14 @@ function deliverLocal(userId: string, payload: LiveStreamEvent, id?: string): vo
   for (const client of set) {
     if (!client.ready) {
       if (client.pending.length >= MAX_PENDING_EVENTS) {
-        client.pending = [];
-        client.pendingOverflow = true;
-      } else if (!client.pendingOverflow) {
-        client.pending.push({ id, payload });
+        // Drop the transient tail and force a durable resync after replay.
+        // This keeps a slow/reconnecting client from retaining unbounded
+        // event payloads in process memory.
+        client.pending.length = 0;
+        client.pendingOverflowed = true;
+        continue;
       }
+      client.pending.push({ id, payload });
       continue;
     }
     sendToClient(client, payload, id);
@@ -277,21 +280,24 @@ async function replayThenGoLive(userId: string, client: Client, lastEventId?: st
   // Previously duringReplay was cleared first, so an event published
   // mid-replay (buffered in pending AND present in the replay tail)
   // was delivered twice — NotificationToasts showed duplicate toasts.
-  const overflowed = client.pendingOverflow;
   try {
-    if (gap || overflowed) {
-      writeSse(client.res, 'resync', { reason: overflowed ? 'pending_overflow' : 'replay_gap' });
-    }
+    if (gap) writeSse(client.res, 'resync', { reason: 'replay_gap' });
   } catch {
     /* gone */
   }
 
   const queued = client.pending;
   client.pending = [];
-  client.pendingOverflow = false;
-  // If the queue overflowed, none of its remaining tail can be trusted: a
-  // resync is the complete recovery path. Never flush a partial event set.
-  if (!overflowed) {
+  if (client.pendingOverflowed) {
+    gap = true;
+    client.pendingOverflowed = false;
+    try {
+      writeSse(client.res, 'resync', { reason: 'pending_overflow' });
+    } catch {
+      /* gone */
+    }
+  }
+  if (!gap) {
     for (const item of queued) sendToClient(client, item.payload, item.id);
   }
   client.duringReplay = false;
@@ -313,7 +319,14 @@ export function addNotificationStreamClient(
     }
   }, 25_000);
 
-  const client: Client = { res, heartbeat, ready: false, pending: [], pendingOverflow: false, duringReplay: true };
+  const client: Client = {
+    res,
+    heartbeat,
+    ready: false,
+    pending: [],
+    pendingOverflowed: false,
+    duringReplay: true,
+  };
   let set = localClients.get(userId);
   if (!set) {
     set = new Set();
@@ -379,16 +392,29 @@ async function appendBulkGapMarker(userId: string): Promise<void> {
   }
 }
 
+
+export async function publishNotificationEventsToMany(
+  entries: Array<{ userId: string; event: LiveStreamEvent }>,
+): Promise<void> {
+  if (entries.length === 0) return;
+  const unique = Array.from(new Set(entries.map((entry) => entry.userId)));
+  const buffer = unique.length <= BULK_NO_BUFFER_THRESHOLD;
+  if (!buffer) {
+    await Promise.all(unique.map((userId) => appendBulkGapMarker(userId)));
+  }
+  await Promise.all(
+    entries.map((entry) =>
+      publishNotificationEvent(entry.userId, entry.event, { buffer }),
+    ),
+  );
+}
+
 export async function publishNotificationEventToMany(
   userIds: string[],
   event: LiveStreamEvent,
 ): Promise<void> {
   const unique = Array.from(new Set(userIds));
-  const buffer = unique.length <= BULK_NO_BUFFER_THRESHOLD;
-  if (!buffer) {
-    // no per-user replay entry for the real event; drop a
-    // marker so a reconnecting client knows its replay tail is not complete.
-    await Promise.all(unique.map((id) => appendBulkGapMarker(id)));
-  }
-  await Promise.all(unique.map((id) => publishNotificationEvent(id, event, { buffer })));
+  await publishNotificationEventsToMany(
+    unique.map((userId) => ({ userId, event })),
+  );
 }
