@@ -58,6 +58,14 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
   // other context (SearchBar also drives HeroBanner's desktop search).
   const pathname = usePathname();
   const onSearchPage = pathname === ROUTES.search;
+  // UI-REVIEW-HOME-SEARCH-DUP: the homepage renders its own SearchBox
+  // inside HomeDiscoverHero — a richer control with quick-shortcut chips
+  // (خدمات/منتجات/إعلانات/متاجر) that appear directly under the hero.
+  // Without this guard, / (home) showed the same field twice: once in
+  // this header, once in the hero. Hide the header copy on the homepage
+  // only; every other public route keeps it (there is no hero SearchBox
+  // anywhere else).
+  const isHomePage = pathname === '/';
   const searchParams = useSearchParams();
   const isAdsBrowseActive = onSearchPage && (searchParams.get('type') ?? 'all') === 'ads';
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -125,7 +133,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
         </nav>
 
         <div className="hidden flex-1 md:block">
-          {!onSearchPage && showSearch && <SearchBar />}
+          {!onSearchPage && !isHomePage && showSearch && <SearchBar />}
         </div>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -171,7 +179,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           width to stay comfortably tappable. Hidden on /search itself
           for the same reason as the desktop copy above — see this
           component's top-level comment. */}
-      {!onSearchPage && showSearch && (
+      {!onSearchPage && !isHomePage && showSearch && (
         <div className="border-t px-4 py-2 md:hidden">
           <SearchBar />
         </div>
