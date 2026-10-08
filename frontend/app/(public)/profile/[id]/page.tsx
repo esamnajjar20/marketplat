@@ -3,6 +3,7 @@ import { cache }               from 'react';
 import Link                    from 'next/link';
 import { UserX, ShieldCheck }  from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
+import { PublicProfileClient } from '@/components/profile/PublicProfileClient';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
 import { EmptyState }          from '@/components/shared/feedback/EmptyState';
 import { buildMetadata }       from '@/lib/seo';
@@ -51,22 +52,8 @@ export default async function PublicProfilePage({ params }: Props) {
     if (status !== 404) loadFailed = true;
   }
 
-  if (!user && loadFailed) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <EmptyState
-          icon={<UserX className="h-10 w-10" />}
-          title="تعذّر تحميل الملف الشخصي"
-          description="حدثت مشكلة في الاتصال، حاول مرة أخرى بعد قليل"
-          action={
-            <Link href={ROUTES.userProfile(id)} prefetch={false} className="text-sm text-primary hover:underline">
-              إعادة المحاولة
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
+  // FIX SSR-FALLBACK-02: SSR fetch failed (not a 404) -> let the browser fetch it.
+  if (!user && loadFailed) return <PublicProfileClient id={id} />;
 
   // UX-FIX (audit P2-06): was bare centered text with no icon and, more
   // importantly, no way back into the app — every other not-found state

@@ -142,7 +142,7 @@ export function useMyStore(options?: { enabled?: boolean }) {
   // T770 — user-scoped.
   const userId = useAuthStore((s) => s.user?.id ?? null);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.stores.me(),
     queryFn: async () => {
       try {
@@ -162,6 +162,28 @@ export function useMyStore(options?: { enabled?: boolean }) {
     enabled: (options?.enabled ?? true) && isAuthenticated && (hasToken || !isOnline),
     retry: false,
   });
+
+  // Keep the already-persisted role/capability hint in sync with the
+  // store query that the protected navigation already uses. This is a
+  // side effect of an existing query — it does NOT create another request.
+  // Only a confirmed store response can mark the capability true; a
+  // confirmed 404 means there is no store. Other errors leave the last
+  // known value untouched so a transient network failure never hides an
+  // existing store.
+  const setLastKnownRoles = useAuthStore((s) => s.setLastKnownRoles);
+  useEffect(() => {
+    if (query.data) {
+      setLastKnownRoles({ hasActiveStore: query.data.status === 'ACTIVE' });
+      return;
+    }
+
+    const statusCode = (query.error as { statusCode?: number } | null)?.statusCode;
+    if (query.isError && statusCode === 404) {
+      setLastKnownRoles({ hasActiveStore: false });
+    }
+  }, [query.data, query.error, query.isError, setLastKnownRoles]);
+
+  return query;
 }
 
 /**

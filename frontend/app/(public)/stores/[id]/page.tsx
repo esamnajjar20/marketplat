@@ -5,6 +5,7 @@ import { SearchX } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { storesApi } from '@/api/stores.api';
 import { StoreHeader } from '@/components/stores/StoreHeader';
+import { StoreDetailClient } from '@/components/stores/StoreDetailClient';
 import { StoreStorefront } from '@/components/stores/StoreStorefront';
 import { StoreRecommendations } from '@/components/recommendations/StoreRecommendations';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -63,7 +64,9 @@ export default async function StorePage({ params }: Props) {
     const statusCode =
       (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
       (err as { response?: { status?: number } })?.response?.status;
-    if (statusCode !== 404) throw err;
+    // FIX SSR-FALLBACK-03: instead of throwing (opaque React #441 crash), let
+    // the browser fetch the store through the same-origin proxy.
+    if (statusCode !== 404) return <StoreDetailClient id={id} />;
   }
 
   if (!store) {

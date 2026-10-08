@@ -18,7 +18,7 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios';
-import { isViewerIndependentPath, stripIdentityHeaders } from '@/lib/edgeProxy';
+import { stripIdentityHeaders } from '@/lib/edgeProxy';
 
 type BindingFetcher = { fetch: typeof fetch };
 
@@ -50,7 +50,14 @@ export const serverApiAdapter: AxiosAdapter = async (config) => {
   const method = (config.method ?? 'get').toUpperCase();
   const parts = method === 'GET' ? toSegments(config) : null;
 
-  if (!parts || !isViewerIndependentPath(method, parts.segs)) return fallback(config);
+  // FIX SSR-BINDING-02: SSR requests carry no viewer identity, so ANY anonymous
+  // GET may use the binding (e.g. GET /users/:id, which is not in edgeProxy's
+  // cacheable shapes but must still avoid the blocked workers.dev hop; the API
+  // worker passes non-cacheable paths straight through to the backend).
+  // A request that does carry credentials keeps the normal path.
+  const h = config.headers as unknown as { get?: (k: string) => unknown } | undefined;
+  const hasAuth = Boolean(h?.get?.('Authorization') || h?.get?.('authorization') || h?.get?.('Cookie'));
+  if (!parts || hasAuth) return fallback(config);
 
   const worker = await getApiWorker();
   if (!worker) return fallback(config);

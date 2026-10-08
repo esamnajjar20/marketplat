@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
+import { useAuthStore, selectLastKnownRoles, type LastKnownRoles } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 
 /**
@@ -53,6 +54,24 @@ const CREATE_LINKS = [
   },
 ] as const;
 
+/**
+ * Role-aware create capabilities.
+ *
+ * IMPORTANT: this is intentionally a pure filter over the already-persisted
+ * role/store hint. It does not call a query hook and therefore does not add
+ * any network request when the "+" sheet opens.
+ *
+ * The actual destination pages remain server/client gated as defense in depth.
+ */
+export function getVisibleCreateLinks(roles: LastKnownRoles | null) {
+  return CREATE_LINKS.filter((link) => {
+    if (link.href === ROUTES.adCreate) return Boolean(roles?.isSeller);
+    if (link.href === ROUTES.myStoreProductCreate) return Boolean(roles?.hasActiveStore);
+    if (link.href === ROUTES.myServiceCreate) return Boolean(roles?.isProvider);
+    return true;
+  });
+}
+
 export function CreateSheet({
   open,
   onOpenChange,
@@ -60,6 +79,8 @@ export function CreateSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const roles = useAuthStore(selectLastKnownRoles);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="p-0">
@@ -74,7 +95,7 @@ export function CreateSheet({
           aria-label="إضافة عنصر جديد"
           className="flex flex-col gap-2 px-4 pt-3"
         >
-          {CREATE_LINKS.map(({ label, description, href, icon: Icon, primary, iconClass }) => (
+          {getVisibleCreateLinks(roles).map(({ label, description, href, icon: Icon, primary, iconClass }) => (
             <Link
               key={href}
               href={href}

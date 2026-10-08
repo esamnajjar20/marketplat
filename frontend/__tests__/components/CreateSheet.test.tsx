@@ -10,7 +10,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
-import { CreateSheet } from '@/components/layout/CreateSheet';
+import { CreateSheet, getVisibleCreateLinks } from '@/components/layout/CreateSheet';
+
+const mockRoles = { isSeller: true, isProvider: true, hasActiveStore: true };
+
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: (selector: (state: typeof mockRoles) => unknown) => selector(mockRoles),
+  selectLastKnownRoles: (state: typeof mockRoles) => state,
+}));
 
 describe('CreateSheet', () => {
   it('renders nothing while closed', () => {
@@ -19,14 +26,26 @@ describe('CreateSheet', () => {
     expect(screen.queryByText('إعلان جديد')).not.toBeInTheDocument();
   });
 
-  it('renders all four links with the correct hrefs once open', () => {
+  it('renders only the capabilities available to the current user', () => {
+    const roles = { isSeller: true, isProvider: false, hasActiveStore: true };
+
     render(<CreateSheet open={true} onOpenChange={vi.fn()} />);
 
-    expect(screen.getByRole('link', { name: /إعلان جديد/ }).getAttribute('href')).toBe('/ads/create');
-    expect(screen.getByRole('link', { name: /منتج جديد/ }).getAttribute('href')).toBe('/my-store/products/new');
-    expect(screen.getByRole('link', { name: /خدمة جديدة/ }).getAttribute('href')).toBe('/my-services/new');
-    // FEAT-CREATE-BROADCAST-01: "طلب خدمة" — سوق الطلبات.
-    expect(screen.getByRole('link', { name: /طلب خدمة/ }).getAttribute('href')).toBe('/service-broadcasts/new');
+    // This component reads auth-store state; the pure helper is covered
+    // directly below for deterministic capability combinations.
+    expect(getVisibleCreateLinks(roles).map((link) => link.href)).toEqual([
+      '/ads/create',
+      '/my-store/products/new',
+      '/requests/new',
+    ]);
+  });
+
+  it('returns only request creation when no role capabilities exist', () => {
+    expect(getVisibleCreateLinks({
+      isSeller: false,
+      isProvider: false,
+      hasActiveStore: false,
+    }).map((link) => link.href)).toEqual(['/requests/new']);
   });
 
   it('calls onOpenChange(false) when a destination is tapped, so the sheet closes on navigation', async () => {
