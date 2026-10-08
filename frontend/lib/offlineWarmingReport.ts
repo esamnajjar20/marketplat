@@ -37,7 +37,10 @@ const PER_ROUTE_COOLDOWN_MS = 60 * 60 * 1000; // 1h
 // Errors we do NOT report — these are expected behaviour on Gaza's
 // networks, and reporting them would drown the signal in noise.
 const SKIP_PATTERNS = [
-  /^AbortError/,           // fetch timeout — network is just slow
+  // Fetch-abort variants — a user navigating away or closing the tab
+  // produces `signal is aborted without reason` (Chrome) or `AbortError`
+  // (Safari/Firefox). Both are normal cancellation, not warming bugs.
+  /abort/i,                // matches "AbortError" AND "signal is aborted..."
   /^html-401/,             // session expired; auth flow handles it
   /^html-403/,             // permission; not a warming bug
   /^html-404/,             // wrong route list — dev bug, not network

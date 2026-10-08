@@ -236,6 +236,24 @@ export function ChatWindow({ conversationId }: Props) {
   const handleDiscardQueued = useCallback((queueId: number) => {
     discardQueuedMessage(queueId);
   }, []);
+
+  // HYDRATION/RENDER-SAFE: these MUST be declared above the early returns
+  // below. If they were placed after `if (conversationLoading) return...`,
+  // React would see N hooks on the loading render and N+2 on the loaded
+  // render, triggering "Rendered more hooks than during the previous render".
+  const handleMarkMessage = useCallback((input: { messageId: string; kind: 'star' | 'pin'; active: boolean }) => {
+    setPendingMarkMessageId(input.messageId);
+    markMessage(input, { onSettled: () => setPendingMarkMessageId(null) });
+  }, [markMessage]);
+
+  const handleEditQueued = useCallback((message: DisplayMessage) => {
+    window.dispatchEvent(new CustomEvent('offline-message-edit', {
+      detail: { conversationId, body: message.body === '📷' || message.body === '🎤 رسالة صوتية' ? '' : message.body },
+    }));
+    toast.message('المحتوى موجود في المحرر', {
+      description: 'عدّل النص ثم أرسل رسالة جديدة. الرسالة السابقة محفوظة حتى تقرر حذفها.',
+    });
+  }, [conversationId]);
   // Whether another older cursor exists. The live window supplies the
   // first cursor; every subsequent click advances nextOlderCursor.
   const hasMoreOlder = Boolean(
@@ -382,19 +400,6 @@ export function ChatWindow({ conversationId }: Props) {
           : null)
     : null;
 
-  const handleMarkMessage = useCallback((input: { messageId: string; kind: 'star' | 'pin'; active: boolean }) => {
-    setPendingMarkMessageId(input.messageId);
-    markMessage(input, { onSettled: () => setPendingMarkMessageId(null) });
-  }, [markMessage]);
-
-  const handleEditQueued = useCallback((message: DisplayMessage) => {
-    window.dispatchEvent(new CustomEvent('offline-message-edit', {
-      detail: { conversationId, body: message.body === '📷' || message.body === '🎤 رسالة صوتية' ? '' : message.body },
-    }));
-    toast.message('المحتوى موجود في المحرر', {
-      description: 'عدّل النص ثم أرسل رسالة جديدة. الرسالة السابقة محفوظة حتى تقرر حذفها.',
-    });
-  }, [conversationId]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">

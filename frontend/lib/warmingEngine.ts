@@ -29,10 +29,12 @@ function estimateFits(
   used: { requests: number; bytes: number; durationMs: number },
   job: ReturnType<typeof getWarmingJob>,
 ): boolean {
+  // Duration is only a *hint* for telemetry. It must not gate admission,
+  // otherwise a slow network turns every pass into "skip everything after
+  // the first job". Real cost = requests + bytes.
   return (
     used.requests + job.cost.requests <= budget.maxRequests &&
-    used.bytes + job.cost.bytes <= budget.maxBytes &&
-    used.durationMs + job.cost.durationMs <= budget.maxDurationMs
+    used.bytes + job.cost.bytes <= budget.maxBytes
   );
 }
 
