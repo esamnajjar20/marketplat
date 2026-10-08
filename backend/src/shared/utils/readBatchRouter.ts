@@ -1,5 +1,7 @@
 import type { Request, RequestHandler, Response } from 'express';
 import type { Router } from 'express';
+import { sendApiError } from '../errors/errorResponse';
+import { ErrorCode } from '../errors/errorCodes';
 
 const MAX_BATCH_SIZE = 8;
 const MAX_PATH_LENGTH = 2048;
@@ -274,12 +276,13 @@ export function createReadBatchHandler(router: Router): RequestHandler {
     try {
       const raw = req.body?.requests;
       if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_BATCH_SIZE) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            message: `Batch must contain 1-${MAX_BATCH_SIZE} GET requests.`,
-          });
+        sendApiError(
+          req,
+          res,
+          400,
+          ErrorCode.BAD_REQUEST,
+          `Batch must contain 1-${MAX_BATCH_SIZE} GET requests.`
+        );
         return;
       }
 
@@ -358,11 +361,13 @@ export function createReadBatchHandler(router: Router): RequestHandler {
         data: { responses },
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message:
-          error instanceof Error ? error.message : 'Invalid read batch.',
-      });
+      sendApiError(
+        req,
+        res,
+        400,
+        ErrorCode.BAD_REQUEST,
+        error instanceof Error ? error.message : 'Invalid read batch.'
+      );
     }
   };
 }

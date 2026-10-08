@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Conversation, Message } from '@prisma/client';
 import { conversationsRepository, messagesRepository, ConversationWithRelations, ConversationListItem } from './conversations.repository';
 import { adsRepository } from '../ads/ads.repository';
@@ -731,7 +732,7 @@ export const conversationsService = {
     // Sync bell: mark NEW_MESSAGE notifications for this conversation read.
     void notificationsService
       .markConversationNotificationsRead(userId, conversationId)
-      .catch(() => {});
+      .catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.service.ts', error));
 
     return {
       items: messages.map((message) => ({

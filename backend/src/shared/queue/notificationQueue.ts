@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../utils/backgroundTask';
 /**
  * BullMQ glue for the `notifications` queue ().
  *
@@ -112,7 +113,7 @@ export async function deferPush(
             state === 'completed' ||
             state === 'waiting'
           ) {
-            await existing.remove().catch(() => undefined);
+            await existing.remove().catch((error) => reportBackgroundFailure('backend/src/shared/queue/notificationQueue.ts', error));
           } else if (state === 'active') {
             effectiveJobId = `${jobId}_${Date.now()}`;
           }

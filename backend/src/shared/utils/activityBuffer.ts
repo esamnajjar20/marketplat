@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './backgroundTask';
 import { redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
@@ -192,7 +193,7 @@ export const activityBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      activityBuffer.flush().catch(() => {});
+      activityBuffer.flush().catch((error) => reportBackgroundFailure('backend/src/shared/utils/activityBuffer.ts', error));
     }, FLUSH_INTERVAL);
     flushTimer.unref(); // don't keep process alive
     logger.info(`Activity buffer flush timer started (every ${FLUSH_INTERVAL / 1000}s)`);

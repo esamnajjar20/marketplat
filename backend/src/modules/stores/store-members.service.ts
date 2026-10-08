@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { StoreDetails, StoreMember, StoreMemberRole, StoreMemberStatus } from '@prisma/client';
 import { storeMembersRepository, StoreMemberWithUser } from './store-members.repository';
 import { storesRepository } from './stores.repository';
@@ -263,14 +264,14 @@ export const storeMembersService = {
         targetUserId: targetUser.id,
         role: input.role,
       },
-    }).catch(() => undefined);
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error));
 
     // FIX (audit #21): implemented — see notifications.service.ts's
     // onStoreMemberInvited. Fire-and-forget, same as the auditLog call
     // above, so a notification-service hiccup never blocks the invite.
     void notificationEvents
       .onStoreMemberInvited(targetUser.id, store.id, member.id, store.name)
-      .catch(() => undefined);
+      .catch((error) => reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error));
 
     return member;
   },
@@ -378,7 +379,7 @@ export const storeMembersService = {
         removedUserId: member.userId,
         wasSelf: isSelf,
       },
-    }).catch(() => undefined);
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error));
   },
 
   list: async (

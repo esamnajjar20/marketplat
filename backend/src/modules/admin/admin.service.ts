@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { AdStatus, AuditEventType, ReportStatus, Role, Prisma } from '@prisma/client';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
@@ -239,7 +240,7 @@ export const adminService = {
         event: AuditEventType.ADMIN_AD_FEATURED,
         userId: adminUserId,
         details: { adId, isFeatured },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
       // BUGFIX: without this, GET /ads keeps serving the pre-change
       // isFeatured value from cache for up to its 30s TTL — a featured
       // ad wouldn't actually appear "featured" to browsing users right
@@ -265,7 +266,7 @@ export const adminService = {
         event: AuditEventType.ADMIN_AD_PINNED,
         userId: adminUserId,
         details: { adId, isPinned },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
       // BUGFIX: same reasoning as setAdFeatured above.
       await bumpAdsCacheVersion();
       return ad;
@@ -294,7 +295,7 @@ export const adminService = {
         event: AuditEventType.ADMIN_AD_DELETED,
         userId: adminUserId,
         details: { adId, reason: reason ?? null },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
       // BUGFIX (found during a post-implementation code audit):
       // previously missing entirely — the regular, user-initiated
       // deleteAd (ads.service.ts) already calls this, but this admin
@@ -447,7 +448,7 @@ export const adminService = {
         event: AuditEventType.ADMIN_USER_STATUS_CHANGED,
         userId: adminUserId,
         details: { targetUserId: userId, isActive },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
 
       return user;
     } catch (e: any) {
@@ -591,7 +592,7 @@ export const adminService = {
           previousRole: user.previousRole,
           newRole: role,
         },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
 
       return user.updated;
     } catch (e: any) {
@@ -687,7 +688,7 @@ export const adminService = {
       event: AuditEventType.ADMIN_AD_DELETED, // closest existing event; details carry product
       userId: adminUserId,
       details: { productId, status, reason: reason ?? null, kind: 'product' },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
     return updated;
   },
 
@@ -752,7 +753,7 @@ export const adminService = {
       event: AuditEventType.ADMIN_AD_DELETED,
       userId: adminUserId,
       details: { listingId, status, reason: reason ?? null, kind: 'service_listing' },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
     return updated;
   },
 
@@ -851,7 +852,7 @@ export const adminService = {
       const { redis } = await import('../../config/redis');
       const t0 = nowMs();
       if (redis.status !== 'ready') {
-        await redis.connect().catch(() => undefined);
+        await redis.connect().catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
       }
       // UPSTASH-SAVE: PING واحد بعد التأكد من الاتصال (بدل 4 أوامر)
       const s0 = nowMs();
@@ -1138,7 +1139,7 @@ export const adminService = {
         reason: reason ?? null,
         kind: 'open-request',
       },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
 
     return updated;
   },

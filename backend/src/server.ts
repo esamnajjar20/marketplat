@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './shared/utils/backgroundTask';
 // FIX APM-02: must be the literal first import — see instrument.ts's
 // own header comment for why Sentry.init() has to run before any other
 // module (including ./app and its own transitive imports) is loaded.
@@ -214,7 +215,7 @@ const bootstrap = async (): Promise<void> => {
         // batch between process restarts.
         await activityBuffer.stopFlushTimer();
         // Finish in-flight notification jobs while Prisma/Redis are still available.
-        await notificationQueueStartup?.catch(() => undefined);
+        await notificationQueueStartup?.catch((error) => reportBackgroundFailure('backend/src/server.ts', error));
         await stopNotificationQueue?.();
         redisMemoryMonitor.stop();
         stopUserCacheInvalidationSubscriber();
@@ -296,7 +297,7 @@ const bootstrap = async (): Promise<void> => {
           await viewsBuffer.stopFlushTimer();
           await activityBuffer.stopFlushTimer();
           // FIX-NOTIF-SHUTDOWN-01: see the other shutdown site.
-          await notificationQueueStartup?.catch(() => undefined);
+          await notificationQueueStartup?.catch((error) => reportBackgroundFailure('backend/src/server.ts', error));
           await stopNotificationQueue?.();
           redisMemoryMonitor.stop();
           stopUserCacheInvalidationSubscriber();

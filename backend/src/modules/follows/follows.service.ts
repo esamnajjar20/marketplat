@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { FollowTargetType, NotificationType, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { followsRepository } from './follows.repository';
@@ -119,7 +120,7 @@ export const followsService = {
     }
 
     if (input.targetType === FollowTargetType.USER) {
-      void notificationEvents.onNewFollower(input.targetId, followerId).catch(() => undefined);
+      void notificationEvents.onNewFollower(input.targetId, followerId).catch((error) => reportBackgroundFailure('backend/src/modules/follows/follows.service.ts', error));
     }
     return { action: 'followed' as const, targetType: input.targetType, targetId: input.targetId };
   },

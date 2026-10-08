@@ -109,3 +109,34 @@ describe('errorMiddleware', () => {
     );
   });
 });
+
+describe('error response contract hardening', () => {
+  it('does not expose raw middleware messages for status-coded errors', () => {
+    const res = mockRes();
+    const err = Object.assign(new Error('database credentials leaked'), { status: 400 });
+    errorMiddleware(err, mockReq('req-safe') as unknown as Request, res as Response, mockNext);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'VALIDATION_ERROR',
+      requestId: 'req-safe',
+      message: 'Request could not be processed.',
+    }));
+    expect(res.json).not.toHaveBeenCalledWith(expect.objectContaining({ message: 'database credentials leaked' }));
+  });
+
+  it('preserves structured AppError metadata while keeping 5xx client-safe', () => {
+    const res = mockRes();
+    errorMiddleware(
+      new AppError('internal details', 500, 'INTERNAL_ERROR', { operation: 'create-product' }),
+      mockReq('req-meta') as unknown as Request,
+      res as Response,
+      mockNext,
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'INTERNAL_ERROR',
+      requestId: 'req-meta',
+      meta: { operation: 'create-product' },
+      message: 'Internal server error',
+    }));
+  });
+});

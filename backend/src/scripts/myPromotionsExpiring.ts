@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
  * Promotion lifecycle notifications — PROMO-1 (of the
  * promotions design doc, deferred at MVP time: "هذه ليست ضرورية في
@@ -128,7 +129,7 @@ async function notifyFollowers(promotion: Promotion, productName: string): Promi
       tag: `store-promotion-${promotion.id}`,
       type: 'STORE_PROMOTION_STARTED',
     })
-    .catch(() => {});
+    .catch((error) => reportBackgroundFailure('backend/src/scripts/myPromotionsExpiring.ts', error));
 
   await prisma.notification.createMany({
     data: followerIds.map(userId => ({
@@ -164,7 +165,7 @@ async function notify(
       tag: `promotion-${promotion.id}-${event}`,
       type: 'PROMOTION_STATUS_CHANGE',
     })
-    .catch(() => {});
+    .catch((error) => reportBackgroundFailure('backend/src/scripts/myPromotionsExpiring.ts', error));
 
   await prisma.notification.create({
     data: {

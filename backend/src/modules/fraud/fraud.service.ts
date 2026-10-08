@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { fraudRepository } from './fraud.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { env } from '../../config/env';
@@ -334,7 +335,7 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_SIGNAL_REVIEWED,
       userId: adminUserId,
       details: { signalId, signalType: existing.type, adId: existing.adId ?? undefined },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
 
     return updated;
   },
@@ -346,7 +347,7 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_SIGNAL_REVIEWED,
       userId: adminUserId,
       details: { adId, action: 'cleared_flag' },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
   },
 
   /** Manual flag — see FraudSignalType.MANUAL_ADMIN_FLAG's doc comment in schema.prisma. */
@@ -379,6 +380,6 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_MANUAL_FLAG,
       userId: adminUserId,
       details: { adId, reason: input.reason, targetUserId: input.userId ?? undefined },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
   },
 };

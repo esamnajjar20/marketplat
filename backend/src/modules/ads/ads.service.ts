@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { createHash } from 'crypto';
 import { adsRepository, AdWithAuthor, AdListRow } from './ads.repository';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, GetMyAdsQuery } from './ads.validation';
@@ -319,7 +320,7 @@ export const adsService = {
         'محتوى جديد ممن تتابعهم',
         `${ad.title} أصبح متاحًا الآن`,
         { targetType: FollowTargetType.USER, targetId: userId, contentType: 'AD', contentId: ad.id, categoryId: ad.categoryId, storeId: ad.storeId },
-      ).catch(() => undefined);
+      ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
 
       // Fraud detection (item 12): scores the new ad against the
       // heuristic rules (rapid posting, suspicious price, off-platform
@@ -361,7 +362,7 @@ export const adsService = {
               categoryId: ad.categoryId,
             },
             err
-          ).catch(() => {});
+          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
         });
 
       return ad;
@@ -571,7 +572,7 @@ export const adsService = {
             'FAVORITED_AD_PRICE_CHANGED',
             { adId, title: updated.title },
             err
-          ).catch(() => {});
+          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
         });
     }
 
@@ -594,7 +595,7 @@ export const adsService = {
             'FAVORITED_AD_SOLD',
             { adId, title: updated.title },
             err
-          ).catch(() => {});
+          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
         });
     }
 
@@ -659,7 +660,7 @@ export const adsService = {
               categoryId: updated.categoryId,
             },
             err
-          ).catch(() => {});
+          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
         });
     }
 

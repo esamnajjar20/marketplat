@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../shared/errors/AppError';
+import { buildApiErrorBody } from '../shared/errors/errorResponse';
+import { ErrorCode } from '../shared/errors/errorCodes';
 import { logger } from '../shared/utils/logger';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -36,47 +38,28 @@ interface ErrorResponse {
   meta?: Record<string, unknown>;
 }
 
-const buildErrorResponse = (
-  message: string,
-  statusCode: number,
-  code: string,
-  requestId?: string,
-  errors?: Record<string, string[]>,
-  meta?: Record<string, unknown>,
-  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>
-): ErrorResponse => ({
-  success: false,
-  message,
-  statusCode,
-  code,
-  ...(requestId && { requestId }),
-  ...(errors && { errors }),
-  ...(errorMeta && { errorMeta }),
-  ...(meta && { meta }),
-});
-
 // Fallback codes for errors that don't carry an explicit AppError.code —
 // e.g. a raw ZodError, an unmapped Prisma error, or a truly unexpected
 // exception. Keeps `code` always present in the response body even when
 // no call site set one explicitly.
 const CODE_BY_STATUS: Record<number, string> = {
-  400: 'VALIDATION_ERROR',
-  401: 'UNAUTHORIZED',
-  403: 'FORBIDDEN',
-  404: 'RESOURCE_NOT_FOUND',
-  409: 'CONFLICT',
+  400: ErrorCode.VALIDATION_ERROR,
+  401: ErrorCode.UNAUTHORIZED,
+  403: ErrorCode.FORBIDDEN,
+  404: ErrorCode.RESOURCE_NOT_FOUND,
+  409: ErrorCode.CONFLICT,
   // the frontend's errorParser.ts already has a
   // dedicated `case 422` branch expecting a `code`, but nothing here
   // populated CODE_BY_STATUS for it — any AppError thrown with
   // statusCode 422 and no explicit `.code` would silently fall through
-  // to the generic 'INTERNAL_ERROR' code below instead of a stable,
+  // to the generic ErrorCode.INTERNAL_ERROR code below instead of a stable,
   // translatable one. Filling this in now (rather than only when a
   // 422-throwing call site is added) means `code` is always present
   // for every status this API defines, closing the gap the frontend's
   // ErrorResponse contract already assumes.
-  422: 'UNPROCESSABLE_ENTITY',
-  429: 'RATE_LIMIT_EXCEEDED',
-  503: 'SERVICE_UNAVAILABLE',
+  422: ErrorCode.UNPROCESSABLE_ENTITY,
+  429: ErrorCode.RATE_LIMIT_EXCEEDED,
+  503: ErrorCode.SERVICE_UNAVAILABLE,
 };
 
 export const errorMiddleware = (
@@ -103,17 +86,29 @@ export const errorMiddleware = (
   if (rawStatus && rawStatus >= 400 && rawStatus < 600) {
     const code =
       CODE_BY_STATUS[rawStatus] ??
-      (rawStatus === 400 ? 'BAD_REQUEST' : 'ERROR');
-    res.status(rawStatus).json({
-      success: false,
-      message:
-        rawStatus >= 500
-          ? 'Internal server error'
-          : err.message || 'Request could not be processed.',
-      statusCode: rawStatus,
-      code,
-      requestId,
-    });
+      (rawStatus === 400 ? ErrorCode.BAD_REQUEST : ErrorCode.INTERNAL_ERROR);
+    const safeMessage =
+      rawStatus >= 500
+        ? rawStatus === 503
+          ? 'Service temporarily unavailable, please try again shortly'
+          : 'Internal server error'
+        : rawStatus === 400
+          ? 'Request could not be processed.'
+          : rawStatus === 401
+            ? 'Authentication required.'
+            : rawStatus === 403
+              ? 'Forbidden.'
+              : rawStatus === 404
+                ? 'Resource not found.'
+                : rawStatus === 409
+                  ? 'Request conflicts with the current resource state.'
+                  : rawStatus === 422
+                    ? 'Request could not be processed.'
+                    : rawStatus === 429
+                      ? 'Too many requests.'
+                      : 'Request could not be processed.';
+    res.locals.errorCode = code;
+    res.status(rawStatus).json(buildApiErrorBody(req, rawStatus, code, safeMessage));
     return;
   }
 
@@ -144,16 +139,17 @@ export const errorMiddleware = (
         }),
       });
     });
+    res.locals.errorCode = ErrorCode.VALIDATION_ERROR;
     res
       .status(400)
       .json(
-        buildErrorResponse(
-          'Validation failed',
+        buildApiErrorBody(
+          req,
           400,
-          'VALIDATION_ERROR',
-          requestId,
-          errors,
+          ErrorCode.VALIDATION_ERROR,
+          'Validation failed',
           undefined,
+          errors,
           errorMeta
         )
       );
@@ -168,15 +164,16 @@ export const errorMiddleware = (
         requestId,
       });
     }
-    const code = err.code ?? CODE_BY_STATUS[err.statusCode] ?? 'INTERNAL_ERROR';
+    const code = err.code ?? CODE_BY_STATUS[err.statusCode] ?? ErrorCode.INTERNAL_ERROR;
     const clientMessage = err.statusCode >= 500
       ? (err.statusCode === 503
           ? 'Service temporarily unavailable, please try again shortly'
           : 'Internal server error')
       : err.message;
+    res.locals.errorCode = code;
     res
       .status(err.statusCode)
-      .json(buildErrorResponse(clientMessage, err.statusCode, code, requestId, undefined, err.meta));
+      .json(buildApiErrorBody(req, err.statusCode, code, clientMessage, err.meta));
     return;
   }
 
@@ -196,31 +193,34 @@ export const errorMiddleware = (
     });
 
     if (err.code === 'P2002') {
+      res.locals.errorCode = ErrorCode.CONFLICT;
       res
         .status(409)
         .json(
-          buildErrorResponse('A record with this value already exists', 409, 'CONFLICT', requestId)
+          buildApiErrorBody(req, 409, ErrorCode.CONFLICT, 'A record with this value already exists')
         );
       return;
     }
     if (err.code === 'P2025') {
+      res.locals.errorCode = ErrorCode.RESOURCE_NOT_FOUND;
       res
         .status(404)
-        .json(buildErrorResponse('Record not found', 404, 'RESOURCE_NOT_FOUND', requestId));
+        .json(buildApiErrorBody(req, 404, ErrorCode.RESOURCE_NOT_FOUND, 'Record not found'));
       return;
     }
     if (err.code === 'P2003') {
+      res.locals.errorCode = ErrorCode.CONFLICT;
       res
         .status(409)
         .json(
-          buildErrorResponse('This action conflicts with related data', 409, 'CONFLICT', requestId)
+          buildApiErrorBody(req, 409, ErrorCode.CONFLICT, 'This action conflicts with related data')
         );
       return;
     }
-
+    res.locals.errorCode = ErrorCode.INTERNAL_ERROR;
     res
       .status(500)
-      .json(buildErrorResponse('Internal server error', 500, 'INTERNAL_ERROR', requestId));
+      .json(buildApiErrorBody(req, 500, ErrorCode.INTERNAL_ERROR, 'Internal server error'));
     return;
   }
 
@@ -231,8 +231,8 @@ export const errorMiddleware = (
     path: req.path,
     method: req.method,
   });
-
+  res.locals.errorCode = ErrorCode.INTERNAL_ERROR;
   res
     .status(500)
-    .json(buildErrorResponse('Internal server error', 500, 'INTERNAL_ERROR', requestId));
+    .json(buildApiErrorBody(req, 500, ErrorCode.INTERNAL_ERROR, 'Internal server error'));
 };

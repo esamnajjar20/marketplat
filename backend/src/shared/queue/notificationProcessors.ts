@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../utils/backgroundTask';
 /**
  * Job handlers for the `notifications` queue.
  *
@@ -178,7 +179,7 @@ export async function processEmailFallback(job: Job<EmailFallbackJobData>): Prom
   const sent = await emailService.sendNotificationDigestEmail(user.email, summarizeDigest(items, total));
   if (!sent) {
     // Release the claim so the retry (or the next notification) can try again.
-    await redis.del(gapKey).catch(() => undefined);
+    await redis.del(gapKey).catch((error) => reportBackgroundFailure('backend/src/shared/queue/notificationProcessors.ts', error));
     throw new Error('Notification digest email was not sent');
   }
 }

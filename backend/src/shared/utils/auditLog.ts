@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { AuditEventType } from '@prisma/client';
 import { sanitizeAuditDetails } from './sanitizeAuditDetails';
+import { runBackgroundTask } from './backgroundTask';
 
 export { AuditEventType as AuditEvent };
 
@@ -41,9 +42,12 @@ export const auditLog = async (entry: AuditLogEntry): Promise<void> => {
     timestamp: new Date().toISOString(),
   });
 
-  // نكتب للـ DB بشكل async — لا ننتظر ولا نوقف الطلب إذا فشل
-  prisma.auditLog
-    .create({
+  // DB persistence remains outside the request's critical path, but it now
+  // gets bounded infrastructure retries and a durable failed-task breadcrumb
+  // instead of disappearing after the first transient DB/connection error.
+  void runBackgroundTask(
+    'audit-log.persist',
+    () => prisma.auditLog.create({
       data: {
         event: entry.event,
         userId: entry.userId,
@@ -52,8 +56,11 @@ export const auditLog = async (entry: AuditLogEntry): Promise<void> => {
         userAgent: entry.userAgent,
         details: safeDetails ?? undefined,
       },
-    })
-    .catch(err => {
-      logger.error('Failed to write audit log to DB', { err, entry: { ...entry, details: safeDetails } });
-    });
+    }),
+    {
+      taskType: 'AUDIT_LOG_WRITE',
+      payload: { event: entry.event, userId: entry.userId, sessionId: entry.sessionId },
+      retries: 2,
+    },
+  );
 };

@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
  * Weekly service-listing views delta report for providers.
  * Mirrors weeklyStoreViewsReport.ts — aggregate listing views per provider owner.
@@ -88,7 +89,7 @@ async function main(): Promise<void> {
           tag: 'weekly-service-views-report',
           type: 'WEEKLY_SERVICE_VIEWS_REPORT',
         })
-        .catch(() => {});
+        .catch((error) => reportBackgroundFailure('backend/src/scripts/weeklyServiceViewsReport.ts', error));
 
       await prisma.notification.create({
         data: {

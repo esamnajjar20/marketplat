@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
  * Weekly store-views report for store owners.
  * Cron example: 0 9 * * 1  npm run report:weekly-store-views
@@ -75,7 +76,7 @@ async function main(): Promise<void> {
           tag: 'weekly-store-views-report',
           type: 'WEEKLY_STORE_VIEWS_REPORT',
         })
-        .catch(() => {});
+        .catch((error) => reportBackgroundFailure('backend/src/scripts/weeklyStoreViewsReport.ts', error));
 
       await prisma.notification.create({
         data: {

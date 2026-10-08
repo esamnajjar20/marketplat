@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { usersRepository, SafeUser, PublicUser } from './users.repository';
 import { hashPassword, comparePassword } from '../../shared/utils/hash';
 import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.validation';
@@ -279,7 +280,7 @@ export const usersService = {
       ...adPublicIds,
     ];
     if (toDelete.length > 0) {
-      await cleanupUploadedImages(toDelete).catch(() => undefined);
+      await cleanupUploadedImages(toDelete).catch((error) => reportBackgroundFailure('backend/src/modules/users/users.service.ts', error));
     }
   },
 
@@ -337,7 +338,7 @@ export const usersService = {
         : Promise.resolve(),
     ]);
 
-    auditLog({ event: AuditEvent.PASSWORD_CHANGED, userId }).catch(() => {});
+    auditLog({ event: AuditEvent.PASSWORD_CHANGED, userId }).catch((error) => reportBackgroundFailure('backend/src/modules/users/users.service.ts', error));
 
     // Gap #10: fire-and-forget, see activityService.record()'s own doc
     // comment — same call site as the auditLog() line directly above,
@@ -366,7 +367,7 @@ export const usersService = {
       // Best-effort: delete the previous avatar now that the new one is saved.
       if (user.avatarUrl) {
         const oldPublicId = extractCloudinaryPublicId(user.avatarUrl);
-        if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
+        if (oldPublicId) await deleteImage(oldPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/users/users.service.ts', error));
       }
 
       return updated;

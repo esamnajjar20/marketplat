@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { sellersRepository, SellerProfileWithAds, SellerRatingWithRater } from './sellers.repository';
 import { CreateSellerProfileInput, UpdateSellerProfileInput, CreateRatingInput, GetSellerRatingsQuery } from './sellers.validation';
@@ -326,7 +327,7 @@ export const sellersService = {
       event: AuditEvent.ADMIN_SELLER_VERIFIED,
       userId: adminUserId,
       details: { sellerProfileId, verified },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/sellers/sellers.service.ts', error));
 
     return updated;
   },
@@ -363,7 +364,7 @@ export const sellersService = {
       event: AuditEvent.ADMIN_SELLER_SUSPENDED,
       userId: adminUserId,
       details: { sellerProfileId, suspended, ...(reason ? { reason } : {}) },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/sellers/sellers.service.ts', error));
 
     return updated;
   },

@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { FollowTargetType, StoryVisibility } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { uploadImage, deleteMedia } from '../../config/cloudinary';
@@ -59,7 +60,7 @@ export const storiesService = {
       const full = await prisma.story.findUnique({ where: { id: story.id }, include: { user: { select: userSummary }, _count: { select: { views: true } } } });
       return shapeStory(full, userId);
     } catch (error) {
-      if (uploaded?.publicId) void deleteMedia(uploaded.publicId).catch(() => {});
+      if (uploaded?.publicId) void deleteMedia(uploaded.publicId).catch((error) => reportBackgroundFailure('backend/src/modules/stories/stories.service.ts', error));
       throw error;
     }
   },
@@ -115,7 +116,7 @@ export const storiesService = {
     if (!story || story.userId !== userId) throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
     const result = await storiesRepository.delete(storyId, userId);
     if (!result.count) throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
-    if (story.mediaPublicId) void deleteMedia(story.mediaPublicId).catch(() => {});
+    if (story.mediaPublicId) void deleteMedia(story.mediaPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/stories/stories.service.ts', error));
   },
 
   viewers: async (userId: string, storyId: string) => {

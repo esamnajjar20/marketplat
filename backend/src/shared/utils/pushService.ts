@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './backgroundTask';
 import { createHash } from 'crypto';
 import webpush from 'web-push';
 import { env } from '../../config/env';
@@ -293,7 +294,7 @@ export const pushService = {
     // below (own try/catch, own graceful-degradation, see
     // fcmPushService.ts). Fire-and-forget here too, matching this
     // whole function's own contract with ITS callers.
-    void fcmPushService.notifyUser(userId, payload).catch(() => undefined);
+    void fcmPushService.notifyUser(userId, payload).catch((error) => reportBackgroundFailure('backend/src/shared/utils/pushService.ts', error));
 
     // wraps the whole body (not just the per-subscription
     // sendNotification below, which already had its own try/catch) so

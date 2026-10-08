@@ -1,3 +1,7 @@
+import { sendApiError } from '../../shared/errors/errorResponse';
+import { ErrorCode } from '../../shared/errors/errorCodes';
+
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Request, Response, NextFunction } from 'express';
 import { conversationsService } from './conversations.service';
 import {
@@ -124,14 +128,14 @@ export const conversationsController = {
       const messageId = String(req.params.messageId || '');
       const kind = req.params.kind as 'image' | 'audio' | 'file';
       if (!conversationId || !messageId || !['image', 'audio', 'file'].includes(kind)) {
-        res.status(400).json({ success: false, message: 'Invalid media request' });
+        sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'Invalid media request');
         return;
       }
 
       const asset = await conversationsService.getMediaAsset(user.userId, conversationId, messageId, kind);
       const remote = await fetch(asset.url, { redirect: 'follow' });
       if (!remote.ok || !remote.body) {
-        res.status(502).json({ success: false, message: 'Media provider unavailable' });
+        sendApiError(req, res, 503, ErrorCode.SERVICE_UNAVAILABLE, 'Media provider unavailable');
         return;
       }
 
@@ -230,7 +234,7 @@ export const conversationsController = {
       const { params } = conversationIdSchema.parse({ params: req.params });
       const file = req.file;
       if (!file) {
-        res.status(400).json({ success: false, message: 'Image required' });
+        sendApiError(req, res, 400, ErrorCode.IMAGE_REQUIRED, 'Image required');
         return;
       }
       // Static import — a dynamic import inside a hot path served no
@@ -260,7 +264,7 @@ export const conversationsController = {
         // asset instead of leaving an orphan in Cloudinary.
         if (message.imageUrl !== uploaded.url) {
           const publicId = extractCloudinaryPublicId(uploaded.url);
-          if (publicId) deleteImage(publicId).catch(() => undefined);
+          if (publicId) deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
         }
         res.status(201).json(successResponse('Message sent', message));
       } catch (err) {
@@ -270,7 +274,7 @@ export const conversationsController = {
         // is logged rather than propagated.
         const publicId = extractCloudinaryPublicId(uploaded.url);
         if (publicId) {
-          deleteImage(publicId).catch(() => undefined);
+          deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
         }
         throw err;
       }
@@ -282,17 +286,17 @@ export const conversationsController = {
   sendMessageFile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req); const { params } = conversationIdSchema.parse({ params: req.params }); const file = req.file;
-      if (!file) { res.status(400).json({ success: false, message: 'File required' }); return; }
+      if (!file) { sendApiError(req, res, 400, ErrorCode.NO_FILE_ATTACHED, 'File required'); return; }
       const uploaded = await uploadRawFile(file.buffer, 'chat-files', file.originalname);
       try {
         const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
         const message = await conversationsService.sendMessage(user.userId, params.id, { body: typeof req.body?.body === 'string' ? req.body.body : undefined, file: { url: uploaded.url, name: file.originalname, mimeType: file.mimetype, size: file.size } }, offlineOperationId);
         if (message.fileUrl !== uploaded.url) {
           const publicId = extractCloudinaryPublicId(uploaded.url);
-          if (publicId) deleteMedia(publicId, 'raw').catch(() => undefined);
+          if (publicId) deleteMedia(publicId, 'raw').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
         }
         res.status(201).json(successResponse('File message sent', message));
-      } catch (err) { const publicId = extractCloudinaryPublicId(uploaded.url); if (publicId) deleteMedia(publicId, 'raw').catch(() => undefined); throw err; }
+      } catch (err) { const publicId = extractCloudinaryPublicId(uploaded.url); if (publicId) deleteMedia(publicId, 'raw').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error)); throw err; }
     } catch (error) { next(error); }
   },
 
@@ -302,7 +306,7 @@ export const conversationsController = {
       const { params } = conversationIdSchema.parse({ params: req.params });
       const file = req.file;
       if (!file) {
-        res.status(400).json({ success: false, message: 'Audio required' });
+        sendApiError(req, res, 400, ErrorCode.NO_FILE_ATTACHED, 'Audio required');
         return;
       }
       const { uploadAudio, deleteMedia } = await import('../../config/cloudinary');
@@ -316,12 +320,12 @@ export const conversationsController = {
           offlineOperationId,
         );
         if (message.audioUrl !== uploaded.url && uploaded.publicId) {
-          deleteMedia(uploaded.publicId, 'video').catch(() => undefined);
+          deleteMedia(uploaded.publicId, 'video').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
         }
         res.status(201).json(successResponse('Voice message sent', message));
       } catch (err) {
         const publicId = uploaded.publicId;
-        if (publicId) deleteMedia(publicId, 'video').catch(() => undefined);
+        if (publicId) deleteMedia(publicId, 'video').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
         throw err;
       }
     } catch (error) {

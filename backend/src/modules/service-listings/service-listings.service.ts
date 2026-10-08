@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { ServiceListing } from '@prisma/client';
@@ -220,7 +221,7 @@ export const serviceListingsService = {
       'خدمة جديدة',
       `${listing.title} أصبحت متاحة الآن`,
       { targetType: FollowTargetType.USER, targetId: userId, contentType: 'SERVICE', contentId: listing.id, categoryId: listing.categoryId },
-    ).catch(() => undefined);
+    ).catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
 
     fraudService
       .scoreListing({
@@ -232,7 +233,7 @@ export const serviceListingsService = {
         price: listing.price != null ? Number(listing.price) : null,
         categoryId: listing.categoryId,
       })
-      .catch(() => undefined);
+      .catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
 
     // PLATFORM-WIDE-01: notify saved-search owners (type 'services')
     // whose criteria match this new listing — same fire-and-forget
@@ -359,7 +360,7 @@ export const serviceListingsService = {
       throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
-    serviceListingsRepository.incrementViews(id).catch(() => undefined);
+    serviceListingsRepository.incrementViews(id).catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
     return {
       ...listing,
       provider: {
@@ -463,7 +464,7 @@ export const serviceListingsService = {
         price: updated.price != null ? Number(updated.price) : null,
         categoryId: updated.categoryId,
       })
-      .catch(() => undefined);
+      .catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
 
     return updated;
   },

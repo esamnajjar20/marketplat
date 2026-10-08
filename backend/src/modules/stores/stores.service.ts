@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { StoreDetails, Prisma } from '@prisma/client';
@@ -225,7 +226,7 @@ export const storesService = {
       await bumpPublicListCache('stores');
       if (store.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.logoUrl);
-        if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
+        if (oldPublicId) await deleteImage(oldPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error));
       }
       return updated;
     } catch (error) {
@@ -243,7 +244,7 @@ export const storesService = {
       await bumpPublicListCache('stores');
       if (store.coverImageUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.coverImageUrl);
-        if (oldPublicId) await deleteImage(oldPublicId).catch(() => undefined);
+        if (oldPublicId) await deleteImage(oldPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error));
       }
       return updated;
     } catch (error) {
@@ -287,7 +288,7 @@ export const storesService = {
     // STORE-VIEWS: fire-and-forget, same "don't fail the read on a
     // failed counter bump" convention as products.service.ts's
     // getProductById.
-    storesRepository.incrementViews(store.id).catch(() => undefined);
+    storesRepository.incrementViews(store.id).catch((error) => reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error));
     return { ...store, isOpen: computeIsOpen(store.workingHours) };
   },
 

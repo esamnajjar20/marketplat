@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Notification, NotificationType, Prisma } from '@prisma/client';
 import { notificationsRepository, PushSubscriptionInput, RegisterFcmTokenInput } from './notifications.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -251,7 +252,7 @@ export const notificationsService = {
             type: 'PROMOTION',
           })
         )
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     }
 
     void pushChain;
@@ -456,7 +457,7 @@ async function fanOutSameContentNotification(
       type,
       ...(pushImage ? { image: pushImage } : {}),
     })
-    .catch(() => {});
+    .catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
   return notificationsRepository.createMany(
     recipients.map((userId) => ({ userId, type, title, body, data }))
   );
@@ -505,7 +506,7 @@ export const notificationEvents = {
     const body = `سينتهي إعلان "${adTitle}" خلال 7 أيام تقريبًا`;
     const data = { adId, expiresAt: expiresAt.toISOString(), event: 'expiring' };
     await notificationsRepository.create({ userId, type: 'AD_EXPIRING_SOON', title, body, data });
-    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expiry-${adId}`, type: 'AD_EXPIRING_SOON' }).catch(() => {});
+    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expiry-${adId}`, type: 'AD_EXPIRING_SOON' }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
   },
 
   /** Seller-facing terminal lifecycle event. */
@@ -514,7 +515,7 @@ export const notificationEvents = {
     const body = `انتهت مدة نشر "${adTitle}". يمكنك تجديده من إعلاناتك.`;
     const data = { adId, event: 'expired' };
     await notificationsRepository.create({ userId, type: 'AD_EXPIRED', title, body, data });
-    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expired-${adId}`, type: 'AD_EXPIRED' }).catch(() => {});
+    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expired-${adId}`, type: 'AD_EXPIRED' }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
   },
 
   /** Moderation queue: every moderator/admin gets a durable in-app row and a push. */
@@ -536,7 +537,7 @@ export const notificationEvents = {
     const data = { reportId: input.reportId, targetType: input.targetType, targetId: input.targetId };
     void pushService.notifyUsers(userIds, {
       title, body, url: '/admin?tab=reports', tag: `report-${input.reportId}`, type: 'MODERATION_REPORT_RECEIVED',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.createMany(userIds.map((userId) => ({
       userId, type: 'MODERATION_REPORT_RECEIVED' as const, title, body, data,
     })));
@@ -555,7 +556,7 @@ export const notificationEvents = {
     const data = { reportId: input.reportId, targetType: input.targetType, targetId: input.targetId, status: input.status };
     void pushService.notifyUsers(input.userIds, {
       title, body, url: '/notifications', tag: `moderation-${input.reportId}`, type: 'MODERATION_DECISION',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.createMany(input.userIds.map((userId) => ({
       userId, type: 'MODERATION_DECISION' as const, title, body, data,
     })));
@@ -620,7 +621,7 @@ export const notificationEvents = {
       tag: `conversation-${conversationId}`,
       urgent: true,
       type: 'NEW_MESSAGE',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return row;
   },
 
@@ -752,7 +753,7 @@ export const notificationEvents = {
           type: 'SAVED_SEARCH_MATCH',
         })
       )
-    ).catch(() => {});
+    ).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.createMany(
       matches.map(({ userId, savedSearchId, label }) => ({
         userId,
@@ -855,7 +856,7 @@ export const notificationEvents = {
       url: '/my-store?tab=members',
       tag: `store-invite-${memberId}`,
       type: 'STORE_MEMBER_INVITED',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.create({
       userId: targetUserId,
       type: 'STORE_MEMBER_INVITED',
@@ -882,7 +883,7 @@ export const notificationEvents = {
       url: `/requests/${requestId}`,
       tag: `request-${requestId}`,
       type: 'NEW_REQUEST_OFFER',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.create({
       userId: customerId,
       type: 'NEW_REQUEST_OFFER',
@@ -908,7 +909,7 @@ export const notificationEvents = {
       url: `/requests/${requestId}`,
       tag: `request-${requestId}`,
       type: 'REQUEST_OFFER_ACCEPTED',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.create({
       userId: offererUserId,
       type: 'REQUEST_OFFER_ACCEPTED',
@@ -937,7 +938,7 @@ export const notificationEvents = {
       url: `/service-requests/${requestId}`,
       tag: `service-request-${requestId}`,
       type: 'SERVICE_REQUEST_NEW',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.create({
       userId: providerUserId,
       type: 'SERVICE_REQUEST_NEW',
@@ -968,7 +969,7 @@ export const notificationEvents = {
       url: `/service-requests/${requestId}`,
       tag: `service-request-${requestId}`,
       type: 'SERVICE_REQUEST_UPDATE',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.create({
       userId: recipientUserId,
       type: 'SERVICE_REQUEST_UPDATE',
@@ -998,7 +999,7 @@ export const notificationEvents = {
       url: `/service-requests/${requestId}`,
       tag: `service-request-${requestId}`,
       type: 'SERVICE_REQUEST_UPDATE',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.create({
       userId: customerUserId,
       type: 'SERVICE_REQUEST_UPDATE',
@@ -1031,7 +1032,7 @@ export const notificationEvents = {
       url: `/service-requests/${requestId}`,
       tag: `service-request-${requestId}`,
       type: 'APPOINTMENT_UPDATE',
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
     return notificationsRepository.create({
       userId: customerUserId,
       type: 'APPOINTMENT_UPDATE',

@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
  * Weekly ad-views-report job — closes the audit report's finding:
  * WEEKLY_AD_VIEWS_REPORT existed as a NotificationType enum value and
@@ -129,7 +130,7 @@ async function main(): Promise<void> {
           tag: 'weekly-ad-views-report',
           type: 'WEEKLY_AD_VIEWS_REPORT',
         })
-        .catch(() => {});
+        .catch((error) => reportBackgroundFailure('backend/src/scripts/weeklyAdViewsReport.ts', error));
 
       await prisma.notification.create({
         data: {

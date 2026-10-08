@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authController } from './auth.controller';
+import { sendApiError } from '../../shared/errors/errorResponse';
+import { ErrorCode } from '../../shared/errors/errorCodes';
 import {
   authRateLimit,
   forgotPasswordRateLimit,
@@ -36,12 +38,7 @@ export const authRouter = Router();
  */
 function requireGoogleOAuthConfigured(req: Request, res: Response, next: NextFunction): void {
   if (!env.googleOAuth.isConfigured) {
-    res.status(503).json({
-      success: false,
-      message: 'Google OAuth is not configured on this server',
-      code: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-      statusCode: 503,
-    });
+    sendApiError(req, res, 503, ErrorCode.GOOGLE_OAUTH_NOT_CONFIGURED, 'Google OAuth is not configured on this server');
     return;
   }
   next();

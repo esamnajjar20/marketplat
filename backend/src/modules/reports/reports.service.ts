@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { reportsRepository, ReportWithDetails } from './reports.repository';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
 import { usersService } from '../users'; // FEAT-REPORT-USER-STORE: target-exists check for USER reports
@@ -79,7 +80,7 @@ const submitReport = async (
       targetId,
       targetLabel: TARGET_LABEL[targetType],
       autoHidden,
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/reports/reports.service.ts', error));
 
     return report;
   } catch (err) {
@@ -196,7 +197,7 @@ export const reportsService = {
       targetId: report.targetId,
       status: input.status,
       targetTitle: report.ad?.title ?? TARGET_LABEL[report.targetType],
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/reports/reports.service.ts', error));
 
     // A resolved/dismissed AD is safe to surface again only when the moderator
     // explicitly clears the review flag; changing report status alone must not

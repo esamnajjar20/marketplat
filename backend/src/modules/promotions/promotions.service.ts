@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Promotion, Product } from '@prisma/client';
 import { promotionsRepository } from './promotions.repository';
 import { productsRepository } from '../products/products.repository';
@@ -35,7 +36,7 @@ const resolveStatus = (promotion: Promotion, now: Date): Promotion['status'] => 
 const syncStatus = (promotion: Promotion, now: Date): Promotion => {
   const resolved = resolveStatus(promotion, now);
   if (resolved !== promotion.status) {
-    promotionsRepository.update(promotion.id, { status: resolved }).catch(() => undefined);
+    promotionsRepository.update(promotion.id, { status: resolved }).catch((error) => reportBackgroundFailure('backend/src/modules/promotions/promotions.service.ts', error));
     return { ...promotion, status: resolved };
   }
   return promotion;

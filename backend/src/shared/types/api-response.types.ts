@@ -11,7 +11,3 @@ export const successResponse = <T>(
   meta?: Record<string, unknown>
 ): ApiResponse<T> => ({ success: true, message, data, meta });
 
-export const errorResponse = (message: string): ApiResponse => ({
-  success: false,
-  message,
-});

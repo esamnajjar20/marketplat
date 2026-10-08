@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 /**
  * TRACK-REPUBLISH ()
  *
@@ -232,7 +233,7 @@ export const adsRepublishService = {
               categoryId: created.categoryId,
             },
             err,
-          ).catch(() => {});
+          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads-republish.service.ts', error));
         });
 
       logger.info('Ad republished', {

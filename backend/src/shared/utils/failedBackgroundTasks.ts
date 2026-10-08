@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { Prisma } from '@prisma/client';
+import { backgroundTaskFailuresTotal, backgroundTaskFailurePersistenceTotal } from './metrics';
 
 /**
  * / M-012 — silent-failure safety net for fire-and-forget
@@ -34,7 +35,10 @@ export async function recordFailedTask(
         errorMessage: error instanceof Error ? error.message : String(error),
       },
     });
+    backgroundTaskFailuresTotal.inc({ task_type: taskType.slice(0, 100), outcome: 'recorded' });
   } catch (persistError) {
+    backgroundTaskFailurePersistenceTotal.inc({ task_type: taskType.slice(0, 100) });
+    backgroundTaskFailuresTotal.inc({ task_type: taskType.slice(0, 100), outcome: 'persistence_failed' });
     logger.error('Failed to persist FailedBackgroundTask record itself', {
       taskType,
       persistError: persistError instanceof Error ? persistError.message : String(persistError),

@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { authRepository } from './auth.repository';
 import { prisma } from '../../config/prisma';
 import crypto from 'crypto';
@@ -150,7 +151,7 @@ export const authService = {
       throw new AppError('Registration failed, please try again', 503);
     }
 
-    auditLog({ event: AuditEvent.REGISTER, userId: user.id, ip, userAgent }).catch(() => {});
+    auditLog({ event: AuditEvent.REGISTER, userId: user.id, ip, userAgent }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
     // FIX FEAT-EMAIL-VERIFY: fire-and-forget (same contract as
     // forgotPassword's dispatch) — a slow or failing verification
@@ -289,7 +290,7 @@ export const authService = {
         ip,
         userAgent,
         details: { emailAttempts, reason: 'no_such_account' },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
@@ -316,7 +317,7 @@ export const authService = {
         ip,
         userAgent,
         details: { emailAttempts },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
@@ -327,7 +328,7 @@ export const authService = {
           ip,
           event: 'ACCOUNT_LOCKED',
           details: { email: normalizedEmail },
-        }).catch(() => {});
+        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
         throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes', 'ACCOUNT_LOCKED');
       }
@@ -344,7 +345,7 @@ export const authService = {
       ip,
       userAgent,
       sessionId,
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
     return result;
   },
@@ -434,7 +435,7 @@ export const authService = {
         userId: user.id,
         sessionId: payload.sessionId,
         details: { provider: 'google', source: 'settings' },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
     });
   },
 
@@ -461,7 +462,7 @@ export const authService = {
           userAgent,
           sessionId,
           details: { provider: 'google' },
-        }).catch(() => {});
+        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
         return result;
       }
@@ -539,7 +540,7 @@ export const authService = {
           userAgent,
           sessionId,
           details: { provider: 'google', previousProvider: byEmail.provider },
-        }).catch(() => {});
+        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
         logger.info('Linked Google account to existing user', { userId: linked.id });
 
@@ -564,7 +565,7 @@ export const authService = {
         userAgent,
         sessionId,
         details: { provider: 'google' },
-      }).catch(() => {});
+      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
       return result;
     });
@@ -677,7 +678,7 @@ export const authService = {
           event: AuditEvent.TOKEN_REFRESHED,
           userId: payload.userId,
           sessionId: payload.sessionId,
-        }).catch(() => {});
+        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
         return newTokens;
       }
 
@@ -718,7 +719,7 @@ export const authService = {
             sessionId: payload.sessionId,
             event: 'TOKEN_REUSE',
           }),
-        ]).catch(() => {});
+        ]).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
         logger.warn('Refresh token reuse detected — all sessions invalidated', {
           userId: payload.userId,
@@ -749,7 +750,7 @@ export const authService = {
       ttl > 0 ? tokenStore.blacklistAccessToken(accessToken, ttl) : Promise.resolve(),
     ]);
 
-    auditLog({ event: AuditEvent.LOGOUT, userId, sessionId, ip }).catch(() => {});
+    auditLog({ event: AuditEvent.LOGOUT, userId, sessionId, ip }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
   },
 
   logoutAll: async (userId: string, accessToken: string, ip = 'unknown'): Promise<void> => {
@@ -761,7 +762,7 @@ export const authService = {
       ttl > 0 ? tokenStore.blacklistAccessToken(accessToken, ttl) : Promise.resolve(),
     ]);
 
-    auditLog({ event: AuditEvent.LOGOUT_ALL, userId, ip }).catch(() => {});
+    auditLog({ event: AuditEvent.LOGOUT_ALL, userId, ip }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
   },
 
   revokeSession: async (userId: string, targetSessionId: string): Promise<void> => {
@@ -775,7 +776,7 @@ export const authService = {
       event: AuditEvent.SESSION_REVOKED,
       userId,
       sessionId: targetSessionId,
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
   },
 
   getSessions: async (userId: string, currentSessionId: string) =>
@@ -871,7 +872,7 @@ export const authService = {
       ip: 'unknown',
       userAgent: 'unknown',
       details: { provider: 'google' },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
     return { alreadyVerified: false };
   },
@@ -919,7 +920,7 @@ export const authService = {
       ip: 'unknown',
       userAgent: 'unknown',
       details: { action: 'password_reset_via_google', provider: 'google' },
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
     return token;
   },
@@ -1102,11 +1103,11 @@ export const authService = {
       }),
     ]);
 
-    userCache.invalidate(record.userId).catch(() => {});
+    userCache.invalidate(record.userId).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
     auditLog({
       event: AuditEvent.EMAIL_VERIFIED,
       userId: record.userId,
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
   },
 
   /**

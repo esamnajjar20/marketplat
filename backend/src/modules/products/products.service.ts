@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { Product } from '@prisma/client';
@@ -230,14 +231,14 @@ export const productsService = {
     storeFollowersRepository
       .findUserIdsByStoreId(store.id)
       .then(followerIds => notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name))
-      .catch(() => undefined);
+      .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
 
     void followsService.notifyActivityForTargets(
       [{ targetType: FollowTargetType.CATEGORY, targetId: `PRODUCT:${product.categoryId}` }],
       'منتج جديد',
       `${product.name} أُضيف إلى متجر ${store.name}`,
       { targetType: FollowTargetType.STORE, targetId: store.id, contentType: 'PRODUCT', contentId: product.id, categoryId: product.categoryId },
-    ).catch(() => undefined);
+    ).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
 
     // PLATFORM-WIDE-01: notify saved-search owners (type 'products')
     // whose criteria match this new product — same fire-and-forget
@@ -264,7 +265,7 @@ export const productsService = {
         price: product.price != null ? Number(product.price) : null,
         categoryId: product.categoryId,
       })
-      .catch(() => undefined);
+      .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
 
     return product;
   },
@@ -346,7 +347,7 @@ export const productsService = {
       throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
-    productsRepository.incrementViews(id).catch(() => undefined);
+    productsRepository.incrementViews(id).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
     const effectivePrice = await promotionsService.getEffectivePrice(product);
     return { ...product, effectivePrice };
   },
@@ -447,7 +448,7 @@ export const productsService = {
         price: updated.price != null ? Number(updated.price) : null,
         categoryId: updated.categoryId,
       })
-      .catch(() => undefined);
+      .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
 
     // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fires once, on the
     // OUT_OF_STOCK -> (IN_STOCK | LIMITED) edge only — checked against
@@ -461,7 +462,7 @@ export const productsService = {
         .then(followerIds =>
           notificationEvents.onStoreProductRestocked(followerIds, store.id, updated.id, updated.name)
         )
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
     }
 
     return updated;
@@ -498,7 +499,7 @@ export const productsService = {
         .then(followerIds =>
           notificationEvents.onStoreProductRestocked(followerIds, store.id, updated.id, updated.name)
         )
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
     }
 
     return updated;
@@ -536,7 +537,7 @@ export const productsService = {
     await Promise.all(
       product.images.map(imageUrl => {
         const publicId = extractCloudinaryPublicId(imageUrl);
-        return publicId ? deleteImage(publicId).catch(() => undefined) : undefined;
+        return publicId ? deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)) : undefined;
       })
     );
 

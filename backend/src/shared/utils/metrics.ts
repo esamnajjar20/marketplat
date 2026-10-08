@@ -27,6 +27,8 @@ import client from 'prom-client';
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { env } from '../../config/env';
+import { sendApiError } from '../errors/errorResponse';
+import { ErrorCode } from '../errors/errorCodes';
 
 // plain `!==` on secret tokens leaks timing
 // information proportional to the length of the matching prefix,
@@ -65,6 +67,27 @@ export const homeFeedShortRailTotal = new client.Counter({
   name: 'home_feed_short_rail_total',
   help: 'Home feed builds where a recommendation rail was shorter than the healthy minimum',
   labelNames: ['rail', 'personalized'] as const,
+  registers: [register],
+});
+
+export const httpErrorsTotal = new client.Counter({
+  name: 'http_errors_total',
+  help: 'HTTP error responses grouped by low-cardinality status and stable error code',
+  labelNames: ['method', 'route', 'status_code', 'error_code'] as const,
+  registers: [register],
+});
+
+export const backgroundTaskFailuresTotal = new client.Counter({
+  name: 'background_task_failures_total',
+  help: 'Background task failures grouped by task type and terminal outcome',
+  labelNames: ['task_type', 'outcome'] as const,
+  registers: [register],
+});
+
+export const backgroundTaskFailurePersistenceTotal = new client.Counter({
+  name: 'background_task_failure_persistence_errors_total',
+  help: 'Failures while persisting a failed background task record',
+  labelNames: ['task_type'] as const,
   registers: [register],
 });
 
@@ -121,6 +144,26 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
 
     httpRequestsTotal.inc(labels);
     httpRequestDurationSeconds.observe(labels, durationSeconds);
+
+    if (res.statusCode >= 400) {
+      const fallbackCode =
+        res.statusCode === 400 ? 'BAD_REQUEST' :
+        res.statusCode === 401 ? 'UNAUTHORIZED' :
+        res.statusCode === 403 ? 'FORBIDDEN' :
+        res.statusCode === 404 ? 'RESOURCE_NOT_FOUND' :
+        res.statusCode === 409 ? 'CONFLICT' :
+        res.statusCode === 422 ? 'UNPROCESSABLE_ENTITY' :
+        res.statusCode === 429 ? 'RATE_LIMIT_EXCEEDED' :
+        res.statusCode === 503 ? 'SERVICE_UNAVAILABLE' :
+        res.statusCode >= 500 ? 'INTERNAL_ERROR' : 'HTTP_ERROR';
+      const responseCode = typeof res.locals?.errorCode === 'string' ? res.locals.errorCode : fallbackCode;
+      httpErrorsTotal.inc({
+        method: req.method,
+        route: route.length <= 200 ? route : 'unmatched',
+        status_code: String(res.statusCode),
+        error_code: responseCode.slice(0, 100),
+      });
+    }
   });
 
   next();
@@ -154,7 +197,7 @@ export const metricsHandler = async (req: Request, res: Response): Promise<void>
     const authHeader = req.headers.authorization;
     const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!providedToken || !safeTokenEquals(providedToken, requiredToken)) {
-      res.status(401).json({ success: false, message: 'Unauthorized' });
+      sendApiError(req, res, 401, ErrorCode.UNAUTHORIZED, 'Unauthorized');
       return;
     }
   }

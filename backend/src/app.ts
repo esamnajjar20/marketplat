@@ -10,6 +10,8 @@ import { router } from './routes';
 import { errorMiddleware } from './middlewares/error.middleware';
 import { globalRateLimit } from './middlewares/rateLimit.middleware';
 import { requestIdMiddleware } from './middlewares/requestId.middleware';
+import { sendApiError } from './shared/errors/errorResponse';
+import { ErrorCode } from './shared/errors/errorCodes';
 import { logger } from './shared/utils/logger';
 import { env } from './config/env';
 import { swaggerSpec } from './config/swagger';
@@ -230,13 +232,7 @@ app.use('/api/v1', router);
 
 // ── 404 Handler ───────────────────────────────────────
 app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-    statusCode: 404,
-    code: 'RESOURCE_NOT_FOUND',
-    requestId: req.requestId,
-  });
+  sendApiError(req, res, 404, ErrorCode.RESOURCE_NOT_FOUND, 'Route not found');
 });
 
 // ── Sentry Error Handler ──────────────────────────────

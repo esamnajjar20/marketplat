@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './backgroundTask';
 import { deleteImage } from '../../config/cloudinary';
 import { env } from '../../config/env';
 
@@ -40,5 +41,5 @@ export function extractCloudinaryPublicId(imageUrl: string): string | null {
  * asset is a minor storage cost, not worth failing the whole request over.
  */
 export async function cleanupUploadedImages(publicIds: string[]): Promise<void> {
-  await Promise.all(publicIds.map((publicId) => deleteImage(publicId).catch(() => undefined)));
+  await Promise.all(publicIds.map((publicId) => deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/shared/utils/cloudinaryHelpers.ts', error))));
 }
