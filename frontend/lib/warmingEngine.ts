@@ -83,25 +83,35 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
     let failure: unknown;
     try {
       await item.run();
-      const runtimeAfter = getWarmingRuntimeBudgetState();
-      const runtimeDidWork = !runtimeBefore || !runtimeAfter ||
-        runtimeAfter.requests > runtimeBefore.requests || runtimeAfter.bytes > runtimeBefore.bytes;
-      if (runtimeDidWork) completed.push(item.job.id);
-      ok = runtimeDidWork;
+      // A job that ran without throwing is considered successful — even if it
+      // made zero network requests (e.g. everything was cached, or the phase
+      // legitimately had nothing to do).
+      ok = true;
+      completed.push(item.job.id);
     } catch (error) {
       // Warming is strictly best-effort. One broken phase must never prevent
       // lower-priority safety work from running on the same pass.
       failure = error;
     } finally {
+      const runtimeAfter = getWarmingRuntimeBudgetState();
+      // Consume only the *actual* requests/bytes the phase spent, not the
+      // pre-estimated job cost. Otherwise a no-op or failed phase would
+      // exhaust the pass budget and skip every lower-priority job.
+      const actualRequests = (runtimeBefore && runtimeAfter)
+        ? Math.max(0, runtimeAfter.requests - runtimeBefore.requests)
+        : (ok ? item.job.cost.requests : 0);
+      const actualBytes = (runtimeBefore && runtimeAfter)
+        ? Math.max(0, runtimeAfter.bytes - runtimeBefore.bytes)
+        : (ok ? item.job.cost.bytes : 0);
       const durationMs = Math.max(item.job.cost.durationMs, Date.now() - startedAt);
-      used.requests += item.job.cost.requests;
-      used.bytes += item.job.cost.bytes;
+      used.requests += actualRequests;
+      used.bytes += actualBytes;
       used.durationMs += durationMs;
       recordWarmingJob({
         id: item.job.id,
         ok,
-        requests: item.job.cost.requests,
-        bytes: item.job.cost.bytes,
+        requests: actualRequests,
+        bytes: actualBytes,
         durationMs,
         source: 'estimated',
       });

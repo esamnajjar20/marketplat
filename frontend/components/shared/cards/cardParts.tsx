@@ -69,13 +69,26 @@ function stopNowScheduler(): void {
 }
 
 function subscribeToNow(listener: () => void, dateStr?: string): () => void {
-  nowListeners.set(listener, { dateStr, lastBucket: relativeBucket(dateStr, Date.now()) });
-  if (!nowInitialized) {
-    nowInitialized = true;
-    nowSnapshot = Date.now();
-    startNowScheduler();
+  // HYDRATION-SAFE: React calls subscribe() synchronously during the first
+  // commit. We must NOT mutate nowSnapshot here (React may have already read
+  // getSnapshot() during hydration and any later read must match for the
+  // first render to be stable). Defer the initialization to a microtask.
+  const isFirstSubscriber = nowListeners.size === 0;
+  nowListeners.set(listener, { dateStr, lastBucket: '' });
+  if (isFirstSubscriber) {
+    queueMicrotask(() => {
+      if (nowListeners.size === 0) return;
+      if (!nowInitialized) {
+        nowInitialized = true;
+        nowSnapshot = Date.now();
+        startNowScheduler();
+      }
+      for (const [l, state] of nowListeners) {
+        state.lastBucket = relativeBucket(state.dateStr, nowSnapshot ?? Date.now());
+        l();
+      }
+    });
   }
-  listener();
 
   return () => {
     nowListeners.delete(listener);
