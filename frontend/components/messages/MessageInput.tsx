@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
 import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Radio, Paperclip } from 'lucide-react';
@@ -97,7 +98,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
   function signalTyping(isTyping: boolean) {
     if (disabled) return;
     typingActive.current = isTyping;
-    void conversationsApi.signalTyping(conversationId, isTyping).catch(() => undefined);
+    void conversationsApi.signalTyping(conversationId, isTyping).catch((error) => reportBackgroundFailure('frontend/components/messages/MessageInput.tsx', error));
   }
 
   function onBodyChange(value: string) {
@@ -115,7 +116,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
     return () => {
       if (typingTimer.current) clearTimeout(typingTimer.current);
       if (typingActive.current) {
-        void conversationsApi.signalTyping(conversationId, false).catch(() => undefined);
+        void conversationsApi.signalTyping(conversationId, false).catch((error) => reportBackgroundFailure('frontend/components/messages/MessageInput.tsx', error));
       }
     };
   }, [conversationId]);

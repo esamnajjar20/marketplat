@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './backgroundTask';
 /**
  * سجل تنزيلات الكتالوج + ربط IndexedDB للمحتوى الكامل (تصفح دون نت).
  */
@@ -50,7 +51,7 @@ function writeList(list: CatalogDownloadRecord[]) {
   localSet(KEY, kept);
   if (evicted.length > 0) {
     void Promise.all(
-      evicted.map((r) => idbDeleteCatalog(r.id).catch(() => undefined)),
+      evicted.map((r) => idbDeleteCatalog(r.id).catch((error) => reportBackgroundFailure('frontend/lib/downloadStorage.ts', error))),
     );
   }
 }
@@ -113,7 +114,7 @@ export async function removeCatalogDownload(id: string): Promise<void> {
 export async function clearCatalogDownloads(): Promise<void> {
   const ids = readList().map((r) => r.id);
   writeList([]);
-  await Promise.all(ids.map((id) => idbDeleteCatalog(id).catch(() => undefined)));
+  await Promise.all(ids.map((id) => idbDeleteCatalog(id).catch((error) => reportBackgroundFailure('frontend/lib/downloadStorage.ts', error))));
 }
 
 export { openCatalogOffline };

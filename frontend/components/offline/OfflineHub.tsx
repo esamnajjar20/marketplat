@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
 /**
  * OFFLINE-HUB-01 — مركز الأوفلاين: one page for everything offline.
@@ -492,7 +493,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
         .then((c) => {
           if (!cancelled) setFailedQueue(c.failed);
         })
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('frontend/components/offline/OfflineHub.tsx', error));
     }
     refreshFailed();
     function onSwMessage(event: MessageEvent) {
@@ -568,7 +569,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
       setRetrying(false);
       getQueuedRequestCounts()
         .then((c) => setFailedQueue(c.failed))
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('frontend/components/offline/OfflineHub.tsx', error));
       setActivity(listOfflineActivity(8));
     }
   }

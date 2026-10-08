@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './backgroundTask';
 import { clearOfflineJson, OFFLINE_JSON_KEYS } from '@/lib/offlineJsonCache';
 import { clearOfflineList, OFFLINE_LIST_KEYS } from '@/lib/offlineListCache';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
@@ -64,6 +65,6 @@ export function invalidateOfflineCachesForMutation(url: string, method: string):
         type: 'INVALIDATE_API_CACHE',
         prefixes: rule.prefixes,
       });
-    }).catch(() => {});
+    }).catch((error) => reportBackgroundFailure('frontend/lib/offlineCacheInvalidation.ts', error));
   }
 }

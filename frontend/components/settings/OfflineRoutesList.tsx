@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
 /**
  * components/settings/OfflineRoutesList.tsx
@@ -185,7 +186,7 @@ export function OfflineRoutesList() {
           let total = 0;
           for (const chunkPath of meta.chunks) {
             for (const cache of opened) {
-              const hit = await cache.match(chunkPath).catch(() => undefined);
+              const hit = await cache.match(chunkPath).catch((error) => reportBackgroundFailure('frontend/components/settings/OfflineRoutesList.tsx', error));
               if (hit) {
                 try {
                   const size = (await hit.clone().blob()).size;

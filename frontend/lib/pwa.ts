@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './backgroundTask';
 /**
  * تسجيل الـ Service Worker + إدارة التحديثات + اشتراكات Push.
  *
@@ -274,7 +275,7 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
     // UPDATE_CHECK_MS = 60 دقيقة) — طويل جدًا ليكتشف النشر الجديد في
     // جلسة استخدام عادية. هذا هو السبب الفعلي الذي جعل شريط "تحديث متوفر"
     // لا يظهر في الاختبار بعد كل نشر جديد.
-    void registration.update().catch(() => undefined);
+    void registration.update().catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error));
 
     // فحص دوري — الآن كل 5 دقائق بدل ساعة. trade-off: طلب واحد صغير من
     // المتصفح لـ /sw.js (الرد 304 عادةً) كل 5 دقائق لكل مستخدم نشط. على
@@ -290,7 +291,7 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
       // تحديث نُشِر ثم عاد الاتصال. الآن نفحص فوراً عند 'online' بدل
       // انتظار 5 دقائق.
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-      void registration.update().catch(() => undefined);
+      void registration.update().catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error));
     };
     window.setInterval(checkUpdate, UPDATE_CHECK_MS);
     const onVisible = () => {
@@ -447,7 +448,7 @@ export async function subscribeToPush(): Promise<boolean> {
   } catch (err) {
     // لو فشل حفظ الاشتراك في الباك-إند يبقى المتصفح مشتركًا دون أن يعرف الخادم —
     // نتراجع محليًا فورًا لإبقاء الحالتين متطابقتين.
-    await subscription.unsubscribe().catch(() => undefined);
+    await subscription.unsubscribe().catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error));
     throw err;
   }
 }
@@ -463,7 +464,7 @@ export async function unsubscribeFromPush(): Promise<void> {
   await subscription.unsubscribe();
   await apiClient
     .delete('/notifications/push-subscriptions', { data: { endpoint } })
-    .catch(() => undefined); // فشل حذف السجل من الخادم لا يجب أن يمنع الإلغاء المحلي
+    .catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error)); // فشل حذف السجل من الخادم لا يجب أن يمنع الإلغاء المحلي
 }
 
 /**
@@ -498,7 +499,7 @@ export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscr
         await apiClient.post('/notifications/push-subscriptions', subscription.toJSON());
         return 'subscribed';
       } catch {
-        await subscription.unsubscribe().catch(() => undefined);
+        await subscription.unsubscribe().catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error));
         return 'skipped';
       }
     }

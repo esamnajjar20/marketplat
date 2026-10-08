@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../backgroundTask';
 /**
  * Native push notifications via @capacitor/push-notifications + FCM.
  *
@@ -150,7 +151,7 @@ export async function unregisterNativePush(deviceToken: string): Promise<void> {
   if (!(await isNativePlatform())) return;
   await apiClient
     .delete('/notifications/fcm-tokens', { data: { token: deviceToken } })
-    .catch(() => undefined);
+    .catch((error) => reportBackgroundFailure('frontend/lib/capacitor/nativePush.ts', error));
 }
 
 export interface NativePushNotification {

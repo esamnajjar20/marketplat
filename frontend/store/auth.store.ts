@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from '../lib/backgroundTask';
 /**
  * Auth store — Zustand with persist middleware.
  *
@@ -214,7 +215,7 @@ export const useAuthStore = create<AuthStore>()(
         if (user?.id) {
           void import('@/lib/capacitor/nativeSessionStorage')
             .then(({ setNativeSessionMeta }) => setNativeSessionMeta(user.id))
-            .catch(() => {});
+            .catch((error) => reportBackgroundFailure('frontend/store/auth.store.ts', error));
         }
       },
       setLastKnownRoles: (patch) =>
@@ -248,7 +249,7 @@ export const useAuthStore = create<AuthStore>()(
         // ANALYTICS-SESSION-SCOPE-01: new session for the next user.
         void import('@/lib/analytics')
           .then(({ resetAnalyticsSession }) => resetAnalyticsSession())
-          .catch(() => {});
+          .catch((error) => reportBackgroundFailure('frontend/store/auth.store.ts', error));
         set({
           user:            null,
           lastKnownRoles:  null,
@@ -260,7 +261,7 @@ export const useAuthStore = create<AuthStore>()(
         // NATIVE-SESSION-01: also cleared by clearSensitiveLocalData; belt-and-suspenders.
         void import('@/lib/capacitor/nativeSessionStorage')
           .then(({ clearNativeSessionMeta }) => clearNativeSessionMeta())
-          .catch(() => {});
+          .catch((error) => reportBackgroundFailure('frontend/store/auth.store.ts', error));
       },
 
       setHydrated: (value) => set({ isHydrated: value }),

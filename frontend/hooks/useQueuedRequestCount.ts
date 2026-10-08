@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../lib/backgroundTask';
 
 import { useEffect, useState } from 'react';
 import { getQueuedRequestCount } from '@/lib/offlineQueue';
@@ -43,7 +44,7 @@ export function useQueuedRequestCount(): number {
         .then((n) => {
           if (!cancelled) setCount(n);
         })
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('frontend/hooks/useQueuedRequestCount.ts', error));
     }
 
     refresh();

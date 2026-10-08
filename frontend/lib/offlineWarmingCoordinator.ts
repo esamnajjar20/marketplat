@@ -1,3 +1,4 @@
+import { reportBackgroundFailure } from './backgroundTask';
 /**
  * lib/offlineWarmingCoordinator.ts
  *
@@ -191,7 +192,7 @@ export async function acquireWarmingLock(
     // Swallow rejections on this floating promise — the caller never
     // sees them, and an unhandled rejection would show up in the
     // console as noise.
-    requestPromise.catch(() => {});
+    requestPromise.catch((error) => reportBackgroundFailure('frontend/lib/offlineWarmingCoordinator.ts', error));
 
     await entered;
     if (!lockAvailable) return null;

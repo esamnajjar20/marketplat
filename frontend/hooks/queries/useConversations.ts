@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
 import { useQuery } from '@tanstack/react-query';
 import { conversationsApi } from '@/api/conversations.api';
@@ -99,8 +100,8 @@ export function useConversationMedia(conversationId: string, enabled = true) {
       try {
         const items = await conversationsApi.getMedia(conversationId, 100).then((r) => r.data.data ?? []);
         if (userId) {
-          void saveConversationMedia(userId, conversationId, items).catch(() => undefined);
-          void cacheConversationMediaBlobs(userId, conversationId, items).catch(() => undefined);
+          void saveConversationMedia(userId, conversationId, items).catch((error) => reportBackgroundFailure('frontend/hooks/queries/useConversations.ts', error));
+          void cacheConversationMediaBlobs(userId, conversationId, items).catch((error) => reportBackgroundFailure('frontend/hooks/queries/useConversations.ts', error));
         }
         return items;
       } catch (error) {

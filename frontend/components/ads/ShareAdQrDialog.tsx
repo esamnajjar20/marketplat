@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
 /**
  * components/ads/ShareAdQrDialog.tsx
@@ -53,7 +54,7 @@ export function ShareAdQrDialog({ open, onOpenChange, payload }: Props) {
   // and never falls into a lazy-import race after a deploy.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    import('qrcode').catch(() => {});
+    import('qrcode').catch((error) => reportBackgroundFailure('frontend/components/ads/ShareAdQrDialog.tsx', error));
   }, []);
 
   useEffect(() => {

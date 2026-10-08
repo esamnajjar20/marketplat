@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../lib/backgroundTask';
 
 /**
  * DRAFTS-BADGE-01: عدد المسودات المعلّقة (draft | pending_sync | failed)
@@ -25,7 +26,7 @@ export function usePendingDraftsCount(userId: string | null | undefined): number
     function refresh() {
       countPendingAdDrafts(userId)
         .then((n) => { if (!cancelled) setCount(n); })
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('frontend/hooks/usePendingDraftsCount.ts', error));
     }
 
     refresh();

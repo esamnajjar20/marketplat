@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -31,7 +32,7 @@ export function usePendingMessages(conversationId: string): QueuedMessageEntry[]
         .then((items) => {
           if (!cancelled) setMessages(items);
         })
-        .catch(() => undefined);
+        .catch((error) => reportBackgroundFailure('frontend/hooks/queries/usePendingMessages.ts', error));
     }
 
     refresh();
