@@ -37,30 +37,48 @@ function flattenAssets(value, out = new Set()) {
   return out;
 }
 
-function routeAssets(manifest, route) {
-  if (!manifest || typeof manifest !== 'object') return [];
+function routeAssets(manifests, route) {
+  const list = Array.isArray(manifests) ? manifests : [manifests];
   const clean = route.replace(/\/$/, '') || '/';
   const suffix = clean === '/' ? '' : clean;
-  // Next's build manifests have changed shape across versions and App Router
-  // route groups are represented by filesystem-ish keys. Keep matching narrow
-  // aliases instead of assigning the entire build to every route.
+
+  // Next 16 App Router manifests use multiple shapes:
+  //   app-build-manifest.json  → { pages: { '/products': [...chunks] } }
+  //   app-paths-manifest.json  → { '/products/page': './app/(public)/products/page.js' }
+  //   build-manifest.json      → { pages: { '/products': [...] } }
+  // Try every candidate key, then fall back to suffix scan.
   const candidates = [
     clean,
     clean === '/' ? '/page' : `${clean}/page`,
+    `${clean}.js`,
+    clean === '/' ? '/page.js' : `${clean}/page.js`,
     `app${suffix}/page`,
     `app${suffix || ''}/page`,
+    `app${suffix}/page.js`,
+    `app${suffix || ''}/page.js`,
     `app/(public)${suffix}/page`,
-    `app/(public)${suffix || ''}/page`,
+    `app/(public)${suffix}/page.js`,
+    `app/(protected)${suffix}/page`,
+    `app/(protected)${suffix}/page.js`,
   ];
-  const pages = manifest.pages ?? manifest.app ?? manifest;
+
   const out = new Set();
-  for (const candidate of candidates) {
-    if (pages && Object.prototype.hasOwnProperty.call(pages, candidate)) flattenAssets(pages[candidate], out);
-  }
-  if (out.size === 0 && pages && typeof pages === 'object') {
-    const routeSuffix = clean === '/' ? '/page' : `${clean}/page`;
-    for (const [key, value] of Object.entries(pages)) {
-      if (key.endsWith(routeSuffix) || key.endsWith(`${routeSuffix}.js`)) flattenAssets(value, out);
+  for (const manifest of list) {
+    if (!manifest || typeof manifest !== 'object') continue;
+    const pages = manifest.pages ?? manifest.app ?? manifest;
+    for (const candidate of candidates) {
+      if (pages && Object.prototype.hasOwnProperty.call(pages, candidate)) {
+        flattenAssets(pages[candidate], out);
+      }
+    }
+    // Suffix scan (fallback)
+    if (pages && typeof pages === 'object') {
+      const routeSuffix = clean === '/' ? '/page' : `${clean}/page`;
+      for (const [key, value] of Object.entries(pages)) {
+        if (key.endsWith(routeSuffix) || key.endsWith(`${routeSuffix}.js`)) {
+          flattenAssets(value, out);
+        }
+      }
     }
   }
   return [...out].sort();
@@ -82,7 +100,7 @@ const manifest = {
   ...(buildId ? { buildId } : {}),
   source: appManifest ? 'next-app-build-manifest' : appPathsManifest ? 'next-app-paths-manifest' : buildManifest ? 'next-build-manifest' : 'route-source-only',
   routes: Object.fromEntries(routes.map((route) => [route, {
-    assets: routeAssets(appManifest ?? buildManifest, route),
+    assets: routeAssets([appManifest, appPathsManifest, buildManifest], route),
     auth: personalRoutes.includes(route),
   }])),
 };
