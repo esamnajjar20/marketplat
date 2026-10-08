@@ -36,9 +36,8 @@ export function useAddSalePayment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string } }) => salesApi.addPayment(id, payload).then(r => r.data.data),
-    onSuccess: (_sale, vars) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.sales.all() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.sales.detail(vars.id) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.sales.debts() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() });
       toast.success('تم تسجيل الدفعة');

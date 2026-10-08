@@ -144,7 +144,6 @@ describe('useMarkAsSold', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k.includes('"detail"') && k.includes('ad-1'))).toBe(true);
     expect(invalidatedKeys.some((k) => k.includes('"me"'))).toBe(true);
   });
 
@@ -475,7 +474,7 @@ describe('useAddAdImages', () => {
     expect(adsApi.addImages).toHaveBeenCalledWith('ad-1', files, onProgress);
   });
 
-  it('invalidates ads.all() and the ad detail key on success, without a toast', async () => {
+  it('invalidates ads.all() (which includes the ad detail cache) on success, without a toast', async () => {
     (adsApi.addImages as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'ad-1' } } });
     const { wrapper, invalidateSpy } = createWrapper();
 
@@ -485,7 +484,6 @@ describe('useAddAdImages', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
     expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
-    expect(invalidatedKeys.some((k) => k.includes('"detail"') && k.includes('ad-1'))).toBe(true);
     expect(toast.success).not.toHaveBeenCalled();
   });
 
@@ -513,7 +511,7 @@ describe('useRemoveAdImage', () => {
     expect(adsApi.removeImage).toHaveBeenCalledWith('ad-1', 'http://x/img.png');
   });
 
-  it('invalidates ads.all() and the ad detail key on success', async () => {
+  it('invalidates ads.all() (which includes the ad detail cache) on success', async () => {
     (adsApi.removeImage as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'ad-1' } } });
     const { wrapper, invalidateSpy } = createWrapper();
 
@@ -523,7 +521,6 @@ describe('useRemoveAdImage', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
     expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
-    expect(invalidatedKeys.some((k) => k.includes('"detail"') && k.includes('ad-1'))).toBe(true);
   });
 
   it('shows an error toast on failure', async () => {
@@ -551,7 +548,7 @@ describe('useReorderAdImages', () => {
     expect(adsApi.reorderImages).toHaveBeenCalledWith('ad-1', images);
   });
 
-  it('invalidates ads.all() and the ad detail key on success', async () => {
+  it('invalidates ads.all() (which includes the ad detail cache) on success', async () => {
     (adsApi.reorderImages as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'ad-1' } } });
     const { wrapper, invalidateSpy } = createWrapper();
 
@@ -561,7 +558,6 @@ describe('useReorderAdImages', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
     expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
-    expect(invalidatedKeys.some((k) => k.includes('"detail"') && k.includes('ad-1'))).toBe(true);
   });
 
   it('shows an error toast on failure', async () => {

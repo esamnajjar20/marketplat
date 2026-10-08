@@ -23,13 +23,10 @@ vi.mock('@/lib/errorParser', () => ({
   }),
 }));
 
-function wrapper() {
-  const qc = new QueryClient({
-    defaultOptions: { mutations: { retry: false } },
-  });
-  return function W({ children }: { children: ReactNode }) {
-    return createElement(QueryClientProvider, { client: qc }, children);
-  };
+function makeWrapper() {
+  const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  const Wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: qc }, children);
+  return { Wrapper, qc };
 }
 
 describe('useRepublishAd', () => {
@@ -40,7 +37,9 @@ describe('useRepublishAd', () => {
 
   it('republishes and shows success toast', async () => {
     vi.mocked(republishAd).mockResolvedValue({ data: { data: {} } } as never);
-    const { result } = renderHook(() => useRepublishAd(), { wrapper: wrapper() });
+    const { Wrapper, qc } = makeWrapper();
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+    const { result } = renderHook(() => useRepublishAd(), { wrapper: Wrapper });
 
     await act(async () => {
       result.current.mutate('ad-1');
@@ -48,5 +47,6 @@ describe('useRepublishAd', () => {
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('تم إعادة نشر الإعلان'));
     expect(republishAd).toHaveBeenCalledWith('ad-1');
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['ads', 'detail', 'ad-1'] });
   });
 });

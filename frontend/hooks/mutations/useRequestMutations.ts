@@ -121,9 +121,8 @@ export function useCancelRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => requestsApi.cancel(id).then((r) => r.data.data),
-    onSuccess: (_data, id) => {
+    onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
-      void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
       toast.success('تم إلغاء الطلب');
     },
     onError: toastMutationError,

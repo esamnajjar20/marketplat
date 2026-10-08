@@ -212,9 +212,8 @@ export function useAddProductImages(onUploadProgress?: (percent: number) => void
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
       productsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
-    onSuccess: (_product, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
     },
     onError: toastMutationError,
   });
@@ -230,9 +229,8 @@ export function useRemoveProductImage() {
   return useMutation({
     mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
       productsApi.removeImage(id, imageUrl).then((r) => r.data.data),
-    onSuccess: (_product, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
     },
     onError: toastMutationError,
   });
@@ -247,9 +245,8 @@ export function useReorderProductImages() {
   return useMutation({
     mutationFn: ({ id, images }: { id: string; images: string[] }) =>
       productsApi.reorderImages(id, images).then((r) => r.data.data),
-    onSuccess: (_product, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
     },
     onError: toastMutationError,
   });

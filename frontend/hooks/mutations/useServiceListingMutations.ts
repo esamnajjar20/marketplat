@@ -215,9 +215,8 @@ export function useAddServiceListingImages(onUploadProgress?: (percent: number) 
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
       serviceListingsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
-    onSuccess: (_listing, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
     },
     onError: toastMutationError,
   });
@@ -233,9 +232,8 @@ export function useRemoveServiceListingImage() {
   return useMutation({
     mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
       serviceListingsApi.removeImage(id, imageUrl).then((r) => r.data.data),
-    onSuccess: (_listing, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
     },
     onError: toastMutationError,
   });
@@ -251,9 +249,8 @@ export function useReorderServiceListingImages() {
   return useMutation({
     mutationFn: ({ id, images }: { id: string; images: string[] }) =>
       serviceListingsApi.reorderImages(id, images).then((r) => r.data.data),
-    onSuccess: (_listing, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.detail(id) });
     },
     onError: toastMutationError,
   });

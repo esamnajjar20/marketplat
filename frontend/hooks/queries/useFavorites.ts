@@ -22,7 +22,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { favoritesApi } from '@/api/favorites.api';
 import { queryKeys }    from '@/lib/queryKeys';
@@ -34,6 +34,71 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
+
+
+// Shared reactive bridge for favorite-id Sets. A card must subscribe to the
+// Set value, not directly to QueryCache. The registry keeps one QueryCache
+// listener per QueryClient/query-key regardless of how many cards consume it.
+type FavoriteSetStore = {
+  listeners: Set<() => void>;
+  unsubscribeCache: (() => void) | null;
+  getSnapshot: () => Set<string>;
+  subscribe: (listener: () => void) => () => void;
+};
+
+const favoriteStores = new WeakMap<object, Map<string, FavoriteSetStore>>();
+
+function getFavoriteSetStore(queryClient: ReturnType<typeof useQueryClient>, queryKey: readonly unknown[]): FavoriteSetStore {
+  let stores = favoriteStores.get(queryClient);
+  if (!stores) {
+    stores = new Map();
+    favoriteStores.set(queryClient, stores);
+  }
+
+  const key = JSON.stringify(queryKey);
+  const existing = stores.get(key);
+  if (existing) return existing;
+
+  const store: FavoriteSetStore = {
+    listeners: new Set<() => void>(),
+    unsubscribeCache: null,
+    getSnapshot: () => queryClient.getQueryData<Set<string>>(queryKey) ?? EMPTY_SET,
+    subscribe: () => () => {},
+  };
+
+  store.subscribe = (listener: () => void) => {
+    store.listeners.add(listener);
+    if (!store.unsubscribeCache) {
+      store.unsubscribeCache = queryClient.getQueryCache().subscribe((event) => {
+        const eventKey = event.query.queryKey;
+        if (eventKey.length !== queryKey.length || eventKey.some((part: unknown, i: number) => part !== queryKey[i])) return;
+        for (const subscriber of store.listeners) subscriber();
+      });
+    }
+
+    return () => {
+      store.listeners.delete(listener);
+      if (store.listeners.size === 0 && store.unsubscribeCache) {
+        store.unsubscribeCache();
+        store.unsubscribeCache = null;
+        stores?.delete(key);
+      }
+    };
+  };
+
+  stores.set(key, store);
+  return store;
+}
+
+const EMPTY_SET = new Set<string>();
+
+function useFavoriteSetMembership(queryClient: ReturnType<typeof useQueryClient>, queryKey: readonly unknown[], entityId: string, enabled: boolean): boolean {
+  const store = useMemo(() => getFavoriteSetStore(queryClient, queryKey), [queryClient, queryKey]);
+  const subscribe = useMemo(() => (listener: () => void) => enabled ? store.subscribe(listener) : () => {}, [store, enabled]);
+  const getSnapshot = useMemo(() => () => enabled ? store.getSnapshot().has(entityId) : false, [store, entityId, enabled]);
+  const getServerSnapshot = useMemo(() => () => false, []);
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
 
 /** GET /favorites — paginated list of the user's favorited ads */
 export function useFavorites(params?: { page?: number; limit?: number; listId?: string }) {
@@ -169,39 +234,8 @@ export function getFavoriteIdsSnapshot(
 export function useIsFavorited(adId: string): boolean {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient = useQueryClient();
-
-  // HYDRATION FIX (#418): starting from the cache snapshot on the
-  // client produced isFavorited=true for favorited ads while the SSR
-  // pass (empty queryClient) rendered false — the heart's className
-  // and aria-pressed flipped on hydration. Starting at false keeps the
-  // initial render byte-identical to the server; the effect below
-  // already syncs to the real value on mount.
-  const [isFavorited, setIsFavorited] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsFavorited(false);
-      return;
-    }
-
-    // Sync immediately on mount/adId change in case the cache already
-    // has a value (e.g. navigated here after favorites were loaded
-    // elsewhere).
-    setIsFavorited(getFavoriteIdsSnapshot(queryClient).has(adId));
-
-    const cache = queryClient.getQueryCache();
-    const unsubscribe = cache.subscribe((event) => {
-      const key = event.query.queryKey;
-      const idsKey = queryKeys.favorites.ids();
-      if (key.length !== idsKey.length || key.some((k: unknown, i: number) => k !== idsKey[i])) return;
-
-      setIsFavorited(getFavoriteIdsSnapshot(queryClient).has(adId));
-    });
-
-    return unsubscribe;
-  }, [adId, isAuthenticated, queryClient]);
-
-  return isFavorited;
+  const queryKey = useMemo(() => queryKeys.favorites.ids(), []);
+  return useFavoriteSetMembership(queryClient, queryKey, adId, isAuthenticated);
 }
 
 /**
@@ -318,38 +352,6 @@ export function getFavoriteEntityIdsSnapshot(
 export function useIsEntityFavorited(type: FavoriteEntityKind, entityId: string): boolean {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient = useQueryClient();
-
-  // T734 — mirror useIsFavorited's HYDRATION FIX (#418) above. The
-  // AD-only hook was already changed to start at `false` because
-  // seeding from the client cache during the initial render produced
-  // isFavorited=true on the client while SSR (empty queryClient)
-  // rendered false — the heart's className / aria-pressed flipped on
-  // hydration. This generic counterpart was left on the old pattern,
-  // so the same mismatch is reproducible on any product/store/
-  // service-listing card that renders after a page where
-  // useFavoritesByType already populated the entityIds(type) Set.
-  // The useEffect below still syncs the real value on mount.
-  const [isFavorited, setIsFavorited] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsFavorited(false);
-      return;
-    }
-
-    setIsFavorited(getFavoriteEntityIdsSnapshot(queryClient, type).has(entityId));
-
-    const cache = queryClient.getQueryCache();
-    const unsubscribe = cache.subscribe((event) => {
-      const key = event.query.queryKey;
-      const idsKey = queryKeys.favorites.entityIds(type);
-      if (key.length !== idsKey.length || key.some((k: unknown, i: number) => k !== idsKey[i])) return;
-
-      setIsFavorited(getFavoriteEntityIdsSnapshot(queryClient, type).has(entityId));
-    });
-
-    return unsubscribe;
-  }, [type, entityId, isAuthenticated, queryClient]);
-
-  return isFavorited;
+  const queryKey = useMemo(() => queryKeys.favorites.entityIds(type), [type]);
+  return useFavoriteSetMembership(queryClient, queryKey, entityId, isAuthenticated);
 }

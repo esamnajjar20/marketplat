@@ -223,7 +223,7 @@ describe('useUpdateServiceListing', () => {
 });
 
 describe('useAddServiceListingImages', () => {
-  it('invalidates the list and the detail query for the given id', async () => {
+  it('invalidates the listing prefix (which includes the detail cache)', async () => {
     const queryClient = newClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     (serviceListingsApi.addImages as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'sl1' } } });
@@ -237,7 +237,6 @@ describe('useAddServiceListingImages', () => {
 
     expect(serviceListingsApi.addImages).toHaveBeenCalledWith('sl1', files, undefined);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.serviceListings.all() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.serviceListings.detail('sl1') });
   });
 
   it('shows an error toast on failure', async () => {
@@ -257,7 +256,7 @@ describe('useAddServiceListingImages', () => {
 });
 
 describe('useRemoveServiceListingImage', () => {
-  it('invalidates the list and the detail query for the given id', async () => {
+  it('invalidates the listing prefix (which includes the detail cache)', async () => {
     const queryClient = newClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     (serviceListingsApi.removeImage as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'sl1' } } });
@@ -270,12 +269,11 @@ describe('useRemoveServiceListingImage', () => {
 
     expect(serviceListingsApi.removeImage).toHaveBeenCalledWith('sl1', 'https://example.com/a.jpg');
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.serviceListings.all() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.serviceListings.detail('sl1') });
   });
 });
 
 describe('useReorderServiceListingImages', () => {
-  it('invalidates the list and the detail query for the given id', async () => {
+  it('invalidates the listing prefix (which includes the detail cache)', async () => {
     const queryClient = newClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     (serviceListingsApi.reorderImages as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'sl1' } } });
@@ -288,7 +286,6 @@ describe('useReorderServiceListingImages', () => {
 
     expect(serviceListingsApi.reorderImages).toHaveBeenCalledWith('sl1', ['b.jpg', 'a.jpg']);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.serviceListings.all() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.serviceListings.detail('sl1') });
   });
 });
 

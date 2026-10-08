@@ -260,14 +260,14 @@ export function useMarkAsSold() {
 
   return useMutation({
     mutationFn: (adId: string) => adsApi.markAsSold(adId).then((r) => r.data.data),
-    onSuccess: (_data, adId) => {
+    onSuccess: (_data, _adId) => {
       // FIX I-05: invalidate the whole ['ads'] prefix, not just detail+mine —
       // but also invalidate detail/mine explicitly so a sold ad's own
       // detail page and the seller's "my ads" list are always covered,
       // even if a caller's mocked/spied queryClient only inspects exact
       // invalidate() call arguments rather than resulting cache matches.
+      // ['ads'] already matches the detail cache; avoid a duplicate invalidation notification.
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(adId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
       toast.success('تم تعليم الإعلان كمباع');
     },
@@ -292,9 +292,8 @@ export function useAddAdImages(onUploadProgress?: (percent: number) => void) {
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
       adsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
-    onSuccess: (_ad, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });
     },
     onError: toastMutationError,
   });
@@ -314,9 +313,8 @@ export function useRemoveAdImage() {
   return useMutation({
     mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
       adsApi.removeImage(id, imageUrl).then((r) => r.data.data),
-    onSuccess: (_ad, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });
     },
     onError: toastMutationError,
   });
@@ -335,9 +333,8 @@ export function useReorderAdImages() {
   return useMutation({
     mutationFn: ({ id, images }: { id: string; images: string[] }) =>
       adsApi.reorderImages(id, images).then((r) => r.data.data),
-    onSuccess: (_ad, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(id) });
     },
     onError: toastMutationError,
   });

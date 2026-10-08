@@ -30,8 +30,8 @@ export function useRepublishAd() {
       // change on the ad row just like those, and every one of the
       // four should invalidate the same set.
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(adId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
       toast.success('تم إعادة نشر الإعلان');
     },
     onError: toastMutationError,
