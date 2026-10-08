@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Pagination — URL-based pagination component.
  * Reads current page from searchParams and renders page controls.
@@ -16,7 +18,6 @@
  *   need announced on every page change — the numbered buttons are a
  *   supplementary visual/mouse shortcut, not a replacement).
  */
-'use client';
 
 import Link from 'next/link';
 import { Button } from './Button';

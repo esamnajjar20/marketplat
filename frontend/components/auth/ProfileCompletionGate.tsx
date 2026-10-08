@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ProfileCompletionGate — FEAT-GOOGLE-COMPLETE-PROFILE.
  *
@@ -26,7 +28,6 @@
  * one. No API call bypass either way: every real POST/
  * goes through the backend regardless of what page is showing.
  */
-'use client';
 
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';

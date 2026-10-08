@@ -1,3 +1,5 @@
+'use client';
+
 import { reportBackgroundFailure } from './backgroundTask';
 /**
  * lib/offlineWarmingCoordinator.ts
@@ -39,7 +41,6 @@ import { reportBackgroundFailure } from './backgroundTask';
  *     await release();
  *   }
  */
-'use client';
 
 const LOCK_NAME = 'marketplat-warming';
 const FALLBACK_KEY = 'marketplat-warming-lock';

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * مركز الأوفلاين — نقطة العمل المحلية عند انقطاع الاتصال أو عند فتحه يدويًا.
  *
@@ -5,7 +7,6 @@
  * من أجله ثم الرجوع بنفسه. كل حالات الطابور والمزامنة تظهر داخل تبويب
  * «المزامنة» بدل تكرارها فوق المركز.
  */
-'use client';
 
 import { useEffect, useState } from 'react';
 import { OfflineHub } from '@/components/offline/OfflineHub';

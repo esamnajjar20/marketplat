@@ -88,10 +88,6 @@ export const storesController = {
     try {
       const { query } = getStoresSchema.parse({ query: req.query });
       const { stores, meta } = await storesService.getStores(query);
-      // 30s + 30s swr, same as CACHE.LIVE — a
-      // removed listing may not linger at the browser/CDN for ~2 minutes.
-      res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=30');
-      res.setHeader('Vary', 'Authorization');
       res.status(200).json(successResponse('Stores fetched', stores, { pagination: meta }));
     } catch (error) {
       next(error);

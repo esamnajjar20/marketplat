@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ProtectedSidebar — inline-start navigation for the authenticated section.
  *
@@ -61,7 +63,6 @@
  *   skeleton — CACHE_TTL.sellerProfile means it's already in cache
  *   on every load after the first this session.
  */
-'use client';
 
 import { Suspense, useState } from 'react';
 import Link           from 'next/link';

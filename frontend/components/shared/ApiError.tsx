@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Unified API error presentation.
  *
@@ -6,7 +8,6 @@
  * place and makes all pages render network, conflict, rate-limit and server
  * failures consistently.
  */
-'use client';
 
 import { AlertTriangle, CloudOff, SearchX, ShieldAlert, WifiOff } from 'lucide-react';
 import { Unauthorized } from './Unauthorized';

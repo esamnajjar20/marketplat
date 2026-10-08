@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * DESKTOP-AUDIT-03: no app-level keyboard shortcuts existed anywhere —
  * every onKeyDown in the codebase was a local "Enter submits this one
@@ -24,7 +26,6 @@
  * Mounted once in AppProviders, same posture as PresenceHeartbeat/
  * PageViewTracker — no props, no visible output.
  */
-'use client';
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';

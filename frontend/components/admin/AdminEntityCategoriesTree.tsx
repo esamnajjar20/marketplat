@@ -1,6 +1,7 @@
+'use client';
+
 // FIX ENTITY-TREE-APIERROR-01: error state uses the shared ApiError
 // component instead of a hand-rolled AlertTriangle + bare <button>.
-'use client';
 
 import { ChevronDown, ChevronLeft, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';

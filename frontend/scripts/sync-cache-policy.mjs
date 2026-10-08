@@ -1,0 +1,25 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = path.resolve(frontendRoot, '..');
+const source = path.join(repoRoot, 'shared', 'cache-policy.json');
+const target = path.join(frontendRoot, 'public', 'cache-policy.js');
+const frontendJsonTarget = path.join(frontendRoot, 'lib', 'cache-policy.json');
+const backendJsonTarget = path.join(repoRoot, 'backend', 'src', 'shared', 'cache', 'cache-policy.json');
+const policyText = fs.readFileSync(source, 'utf8');
+const contractSource = path.join(repoRoot, 'shared', 'cache', 'cache-contract.json');
+const contractTarget = path.join(frontendRoot, 'lib', 'cache', 'cache-contract.json');
+const backendContractTarget = path.join(repoRoot, 'backend', 'src', 'shared', 'cache', 'cache-contract.json');
+const contractText = fs.readFileSync(contractSource, 'utf8');
+const policy = JSON.parse(policyText);
+fs.writeFileSync(frontendJsonTarget, policyText);
+fs.writeFileSync(backendJsonTarget, policyText);
+fs.writeFileSync(contractTarget, contractText);
+fs.writeFileSync(backendContractTarget, contractText);
+const output = `/* generated from shared/cache-policy.json — do not edit */\nself.MARKET_CACHE_POLICY = ${JSON.stringify(policy)};\n`;
+fs.writeFileSync(target, output);
+const contractOutput = `/* generated from shared/cache/cache-contract.json — do not edit */\nself.MARKET_CACHE_CONTRACT = ${contractText.trim()};\n`;
+fs.writeFileSync(path.join(frontendRoot, 'public', 'cache-contract.js'), contractOutput);
+console.log(`[cache-policy] generated ${path.relative(repoRoot, target)}`);

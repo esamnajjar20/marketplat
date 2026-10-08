@@ -1,6 +1,7 @@
+'use client';
+
 // FIX CREATE-ENTITY-RESET-01: useResettableDialog (reset on each open)
 // + drop the decorative async keyword on handleCreate.
-'use client';
 
 /**
  * FIX SEC-4.3: CreateProductCategoryButton.tsx and

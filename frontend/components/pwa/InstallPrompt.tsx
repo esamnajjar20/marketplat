@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * زر/شريط تثبيت التطبيق (Add to Home Screen).
  *
@@ -9,7 +11,6 @@
  * iOS Safari لا يطلق `beforeinstallprompt` إطلاقًا (قيد من Apple) — نعرض
  * بدلاً منه إرشادات نصية لخطوات "مشاركة ← إضافة إلى الشاشة الرئيسية".
  */
-'use client';
 
 import { useEffect, useState } from 'react';
 import { X, Share, PlusSquare, Download } from 'lucide-react';

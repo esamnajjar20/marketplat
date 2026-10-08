@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Forbidden — rendered when the API returns 403.
  *
@@ -7,7 +9,6 @@
  *    but client-side navigations may reach here).
  *  - User trying to edit/delete another user's ad.
  */
-'use client';
 
 import Link        from 'next/link';
 import { useRouter } from 'next/navigation';

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * (protected)/messages/layout.tsx — DESKTOP-SPLIT-01.
  *
@@ -35,7 +37,6 @@
  * (already handling its own back button) isn't fighting a second
  * nav element for the same space.
  */
-'use client';
 
 import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';

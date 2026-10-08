@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * components/settings/OfflineControlClient.tsx
  *
@@ -20,7 +22,6 @@
  * the cancel flag between routes. Mode selection is locked during
  * warming.
  */
-'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';

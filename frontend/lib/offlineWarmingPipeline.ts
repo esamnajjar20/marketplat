@@ -18,7 +18,7 @@
 'use client';
 
 import { runWarmingEngine } from '@/lib/warmingEngine';
-import { shouldPauseBackgroundWarming } from '@/lib/offlineStoragePressure';
+import { getBackgroundWarmingBudget, shouldPauseBackgroundWarming } from '@/lib/offlineStoragePressure';
 
 let pipelineInFlight = false;
 // WARM-PIPELINE-QUEUE-01: when a warm pass starts before auth has
@@ -108,7 +108,6 @@ export async function runWarmingPipeline(
   }
 
   pipelineInFlight = true;
-  let pipelineRan = false;
   try {
     const queueIdle = await waitForQueueReplayIdle();
     if (!queueIdle) return { ran: false };
@@ -119,22 +118,21 @@ export async function runWarmingPipeline(
     if (!options.force && (await shouldPauseBackgroundWarming())) {
       return { ran: false };
     }
+    const storageBudget = options.force ? 'full' : await getBackgroundWarmingBudget();
+    if (storageBudget === 'paused') return { ran: false };
 
-    // Count a run only after the queue and storage gates have opened. This prevents a
-    // timed-out queue wait from consuming the scheduler's rate-limit window.
     lastPipelineStartedAt = Date.now();
     if (options.authenticated) lastPipelineAuthenticated = true;
 
     if (!online) return { ran: false };
 
-    // W0-W3: one engine owns the pass budget and priority ordering. The
-    // existing phase functions remain responsible for atomic writes,
-    // freshness gates and cross-tab locks.
+    // W0-W3 + Cache W7: engine owns network budget + priority, storage
+    // gates the phases. Network budget is still enforced by the engine;
+    // storage budget decides how many phases run.
     const result = await runWarmingEngine({
-      authenticated: options.authenticated === true,
+      authenticated: options.authenticated === true && storageBudget === 'full',
       force: options.force === true,
     });
-    pipelineRan = result.ran;
     if (result.skipped.length > 0) {
       console.info('[warm-pipeline] budget skipped:', result.skipped.join(','));
     }
@@ -149,5 +147,5 @@ export async function runWarmingPipeline(
       void runWarmingPipeline({ authenticated: true });
     }
   }
-  return { ran: pipelineRan };
+  return { ran: result.ran };
 }

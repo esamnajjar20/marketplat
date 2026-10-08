@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/imageCompressWorkerClient.ts
  *
@@ -18,7 +20,6 @@
  * A blob: URL would have been blocked, which is why the worker is a
  * real file and not an inline Blob.
  */
-'use client';
 
 const WORKER_URL = '/imageCompressWorker.js';
 const MAX_WORKERS = 2;

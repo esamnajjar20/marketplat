@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Unauthorized — rendered when the API returns 401.
  *
@@ -9,7 +11,6 @@
  * but client-side fetches (TanStack Query) can hit 401 if the
  * token expires mid-session before the refresh interceptor fires.
  */
-'use client';
 
 import Link     from 'next/link';
 import { usePathname } from 'next/navigation';

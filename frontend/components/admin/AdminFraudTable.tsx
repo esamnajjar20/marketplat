@@ -1,7 +1,8 @@
+'use client';
+
 // FIX FRAUD-FRAGMENT-KEY-01: the row + its expandable signals row were
 // wrapped in a keyless Fragment, so React saw an array of unkeyed
 // same-shaped elements.
-'use client';
 
 /**
  * FRAUD-UI: /admin/fraud/* (fraud.service.ts / fraud.repository.ts /

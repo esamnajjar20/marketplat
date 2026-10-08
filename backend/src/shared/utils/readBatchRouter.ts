@@ -353,7 +353,6 @@ export function createReadBatchHandler(router: Router): RequestHandler {
           : { status, error: reason?.message ?? 'Request failed.' };
       });
 
-      res.setHeader('Cache-Control', 'no-store');
       res.setHeader('X-App-Batch-Size', String(items.length));
       res.status(200).json({
         success: true,

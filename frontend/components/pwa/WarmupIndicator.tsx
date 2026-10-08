@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * شريط مؤقت يعرض تقدّم تجهيز "الحزمة الأساسية بدون نت" (warmCoreBundle،
  * انظر lib/offlineCoreBundle.ts) — يظهر فقط أثناء التحميل، ويختفي تلقائيًا
@@ -12,7 +14,6 @@
  *   الشريط من جديد حتى لو أُغلق بدورة سابقة — الإغلاق مؤقت لهذه الدورة
  *   فقط، مو تفضيلًا دائمًا يستحق التخزين.
  */
-'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { DownloadCloud, X } from 'lucide-react';

@@ -246,9 +246,16 @@ async function refreshInBackground<T>(o: SwrOptions<T>, state: CacheState): Prom
 export async function swrGetWithStatus<T>(
   o: SwrOptions<T>,
 ): Promise<{ value: T; status: SwrStatus }> {
+  const startedAt = process.hrtime.bigint();
+  const finish = <R extends { value: T; status: SwrStatus }>(result: R): R => {
+    const elapsedSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+    cacheMetrics.observeDuration(o.name, result.status, elapsedSeconds);
+    return result;
+  };
+
   if (o.cacheable === false) {
     cacheMetrics.record(o.name, 'bypass');
-    return { value: await build(o, null), status: 'bypass' };
+    return finish({ value: await build(o, null), status: 'bypass' });
   }
 
   let state: CacheState;
@@ -257,7 +264,7 @@ export async function swrGetWithStatus<T>(
   } catch (error) {
     logger.warn(`[swr:${o.name}] cache read failed, falling back to DB`, error);
     cacheMetrics.record(o.name, 'bypass');
-    return { value: await build(o, null), status: 'bypass' };
+    return finish({ value: await build(o, null), status: 'bypass' });
   }
 
   const envelope = parseEnvelope<T>(state.raw);
@@ -265,16 +272,16 @@ export async function swrGetWithStatus<T>(
 
   if (verdict === 'fresh') {
     cacheMetrics.record(o.name, 'hit');
-    return { value: envelope!.payload, status: 'hit' };
+    return finish({ value: envelope!.payload, status: 'hit' });
   }
   if (verdict === 'stale') {
     cacheMetrics.record(o.name, 'stale');
     void refreshInBackground(o, state);
-    return { value: envelope!.payload, status: 'stale' };
+    return finish({ value: envelope!.payload, status: 'stale' });
   }
 
   cacheMetrics.record(o.name, 'miss');
-  return { value: await build(o, state), status: 'miss' };
+  return finish({ value: await build(o, state), status: 'miss' });
 }
 
 export async function swrGet<T>(o: SwrOptions<T>): Promise<T> {

@@ -1,10 +1,11 @@
+'use client';
+
 /**
  * PublicHeader — top navigation for all public-facing pages.
  *
  * Contains: Logo, main nav links, search bar, auth buttons (or user menu).
  * Responsive: collapses to a hamburger menu on mobile.
  */
-'use client';
 
 import { useState } from 'react';
 

@@ -1,6 +1,8 @@
-import { createHash } from 'crypto';
+import { canonicalCacheKey, canonicalGenerationKey } from '../cache/cacheKey';
+import { getCacheDomain } from '../cache/cacheContract';
 import { swrGet, bumpGeneration } from './swrCache';
 import { invalidateHomeCache } from '../../modules/home/home.cache.keys';
+import { cachePolicy } from '../cache/cachePolicy';
 
 /**
  * Redis SWR cache for the public browse lists of
@@ -42,42 +44,44 @@ export const ALL_PUBLIC_LIST_NAMESPACES: readonly PublicListNamespace[] = [
   'service-providers',
 ];
 
-export const PUBLIC_LIST_SOFT_TTL_MS = 20_000;
-export const PUBLIC_LIST_SOFT_JITTER_MS = 5_000;
-export const PUBLIC_LIST_HARD_TTL_SECONDS = 90;
-export const PUBLIC_LIST_LOCK_TTL_MS = 10_000;
+const PUBLIC_LIST_POLICY = cachePolicy('publicLive').server;
+export const PUBLIC_LIST_SOFT_TTL_MS = PUBLIC_LIST_POLICY.softTtlMs;
+export const PUBLIC_LIST_SOFT_JITTER_MS = PUBLIC_LIST_POLICY.softJitterMs;
+export const PUBLIC_LIST_HARD_TTL_SECONDS = PUBLIC_LIST_POLICY.hardTtlSec;
+export const PUBLIC_LIST_LOCK_TTL_MS = PUBLIC_LIST_POLICY.lockTtlMs;
 /** Free-text values longer than this are near-unique per user: don't cache them. */
 export const PUBLIC_LIST_MAX_CACHEABLE_TEXT = 24;
 
-const hardGenKey = (ns: PublicListNamespace): string => `plist:gen:hard:${ns}`;
-const softGenKey = (ns: PublicListNamespace): string => `plist:gen:soft:${ns}`;
-
-const stableStringify = (value: unknown): string => {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
+const DOMAIN_BY_NAMESPACE: Record<PublicListNamespace, Parameters<typeof getCacheDomain>[0]> = {
+  stores: 'storeList',
+  products: 'productList',
+  'service-listings': 'serviceList',
+  'service-providers': 'serviceProviderList',
 };
 
-/** Long free-text (search) queries are served from the DB, still singleflighted. */
+const hardGenKey = (ns: PublicListNamespace): string => {
+  const domain = getCacheDomain(DOMAIN_BY_NAMESPACE[ns]);
+  return canonicalGenerationKey(domain.namespace, domain.scope as 'public', 'hard');
+};
+const softGenKey = (ns: PublicListNamespace): string => {
+  const domain = getCacheDomain(DOMAIN_BY_NAMESPACE[ns]);
+  return canonicalGenerationKey(domain.namespace, domain.scope as 'public', 'soft');
+};
+
+/** Long free-text values are near-unique per user: don't persist them in shared Redis. */
 const isCacheableQuery = (query: unknown): boolean => {
   if (!query || typeof query !== 'object') return true;
-  return Object.entries(query as Record<string, unknown>).every(([k, v]) => {
-    if (typeof v !== 'string') return true;
-    const freeText = k === 'q' || k === 'search';
-    return !freeText || v.length <= PUBLIC_LIST_MAX_CACHEABLE_TEXT;
+  return Object.entries(query as Record<string, unknown>).every(([key, value]) => {
+    if (typeof value !== 'string') return true;
+    const freeText = key === 'q' || key === 'search';
+    return !freeText || value.length <= PUBLIC_LIST_MAX_CACHEABLE_TEXT;
   });
 };
 
+
 export const publicListCacheKey = (ns: PublicListNamespace, query: unknown): string => {
-  const body = stableStringify(query);
-  // Bound the key length (long filters would otherwise make multi-KB keys).
-  const digest = body.length > 120 ? createHash('sha1').update(body).digest('hex') : body;
-  return `plist:v1:${ns}:${digest}`;
+  const domain = getCacheDomain(DOMAIN_BY_NAMESPACE[ns]);
+  return canonicalCacheKey(domain.namespace, domain.scope as 'public', query);
 };
 
 export function cachedPublicList<T>(

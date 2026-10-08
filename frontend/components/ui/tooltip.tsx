@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Lightweight, dependency-free tooltip.
  *
@@ -29,7 +31,6 @@
  * props (a Button, a Link, a plain button/span) — it's cloned with the
  * show/hide handlers merged onto whatever handlers it already has.
  */
-'use client';
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';

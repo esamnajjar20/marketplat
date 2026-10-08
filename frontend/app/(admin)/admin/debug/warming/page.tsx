@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * /admin/debug/warming — read-only diagnostic view of the offline
  * warming system (routes, caches, coordination, storage).
@@ -9,7 +11,6 @@
  * re-check auth. Pure client component — nothing here is server-safe
  * (IndexedDB, caches, navigator.connection are all browser-only).
  */
-'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import {

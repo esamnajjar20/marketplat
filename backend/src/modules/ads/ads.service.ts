@@ -1,4 +1,5 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { cachePolicy } from '../../shared/cache/cachePolicy';
 import { createHash } from 'crypto';
 import { adsRepository, AdWithAuthor, AdListRow } from './ads.repository';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, GetMyAdsQuery } from './ads.validation';
@@ -63,14 +64,15 @@ import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
  * one-request soft-stale window adds no staleness clients weren't allowed to
  * see already.
  */
-const ADS_LIST_SOFT_TTL_MS = 30_000; // ads change frequently
-const ADS_LIST_SOFT_JITTER_MS = 5_000;
+const ADS_LIST_POLICY = cachePolicy('publicLive').server;
+const ADS_LIST_SOFT_TTL_MS = ADS_LIST_POLICY.softTtlMs;
+const ADS_LIST_SOFT_JITTER_MS = ADS_LIST_POLICY.softJitterMs;
 // FIX ADS-WARM-TTL-01: raised 120 → 600 so keep-warm (every 240s) can actually
 // hold first-page default lists between cycles. Generation invalidation still
 // purges on write; SWR serves soft-stale immediately. Safe because only
 // unfiltered/default first pages are warmed (see cacheWarmup WARMUP_TASKS).
-const ADS_LIST_HARD_TTL_SECONDS = 600;
-const ADS_LIST_LOCK_TTL_MS = 10_000;
+const ADS_LIST_HARD_TTL_SECONDS = ADS_LIST_POLICY.hardTtlSec;
+const ADS_LIST_LOCK_TTL_MS = ADS_LIST_POLICY.lockTtlMs;
 
 // Invalidation helpers live in ads.cache.keys.ts (import-cycle-free); re-exported
 // so existing importers of ads.service keep working.

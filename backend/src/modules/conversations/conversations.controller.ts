@@ -143,7 +143,6 @@ export const conversationsController = {
       const contentLength = remote.headers.get('content-length');
       if (contentLength) res.setHeader('Content-Length', contentLength);
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'private, max-age=300');
       res.setHeader('Content-Disposition', kind === 'file' && asset.fileName
         ? `inline; filename*=UTF-8''${encodeURIComponent(asset.fileName)}`
         : 'inline');

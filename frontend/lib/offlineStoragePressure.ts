@@ -9,8 +9,6 @@
  */
 'use client';
 
-import { SW_CACHE_VERSION } from './cacheVersion';
-
 export const STORAGE_WARNING_RATIO = 0.8;
 export const STORAGE_CRITICAL_RATIO = 0.9;
 
@@ -55,25 +53,16 @@ export async function getStorageEstimate(): Promise<StorageEstimate> {
  * personal shells automatically.
  */
 export async function cleanupDisposableOfflineCaches(): Promise<string[]> {
-  if (typeof caches === 'undefined') return [];
-
-  const names = await caches.keys();
-  const disposable = new Set([
-    'market-auto-read-ads',
-    `market-images-${SW_CACHE_VERSION}`,
-    `market-api-${SW_CACHE_VERSION}`,
-  ]);
-
-  const removed: string[] = [];
-  for (const name of names) {
-    if (!disposable.has(name)) continue;
-    try {
-      if (await caches.delete(name)) removed.push(name);
-    } catch {
-      // Best effort: quota cleanup must never break the app.
-    }
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return [];
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const target = registration.active ?? navigator.serviceWorker.controller;
+    if (!target) return [];
+    target.postMessage({ type: 'TRIM_DISPOSABLE_CACHES' });
+    return ['service-worker-trim-requested'];
+  } catch {
+    return [];
   }
-  return removed;
 }
 
 /**
@@ -81,6 +70,15 @@ export async function cleanupDisposableOfflineCaches(): Promise<string[]> {
  * we first remove disposable caches, then re-check the browser quota. If the
  * origin is still critically full, warming must yield to user data and drafts.
  */
+export type BackgroundWarmingBudget = 'full' | 'public-only' | 'paused';
+
+export async function getBackgroundWarmingBudget(): Promise<BackgroundWarmingBudget> {
+  const estimate = await getStorageEstimate();
+  if (estimate.pressure === 'critical') return 'paused';
+  if (estimate.pressure === 'warning') return 'public-only';
+  return 'full';
+}
+
 export async function shouldPauseBackgroundWarming(): Promise<boolean> {
   const before = await getStorageEstimate();
   if (before.pressure !== 'critical') return false;

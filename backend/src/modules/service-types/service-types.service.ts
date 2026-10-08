@@ -1,4 +1,6 @@
 import { redis } from '../../config/redis';
+import { canonicalCacheKey } from '../../shared/cache/cacheKey';
+import { getCacheDomain } from '../../shared/cache/cacheContract';
 import { logger } from '../../shared/utils/logger';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -7,7 +9,7 @@ import { serviceTypesRepository } from './service-types.repository';
 import { CreateServiceTypeFieldInput, CreateServiceTypeInput, UpdateServiceTypeFieldInput, UpdateServiceTypeInput, validateServiceTypeFieldDefinition, validateServiceTypeCapabilitiesDefinition } from './service-types.validation';
 export { validateServiceTypeFieldDefinition, validateServiceTypeCapabilitiesDefinition } from './service-types.validation';
 
-const CACHE_KEY = 'service_types:active:v1';
+const CACHE_KEY = canonicalCacheKey(getCacheDomain('serviceCategories').namespace, getCacheDomain('serviceCategories').scope as 'public', { resource: 'service-types-active', version: 1 });
 const CACHE_TTL = 30 * 60;
 
 export interface ServiceTypeCapabilities {

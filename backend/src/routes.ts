@@ -41,6 +41,7 @@ import { followsRouter } from './modules/follows';
 import { storiesRouter } from './modules/stories';
 import { csrfProtection } from './middlewares/csrf.middleware';
 import { createReadBatchHandler } from './shared/utils/readBatchRouter';
+import { CACHE } from './middlewares/cacheControl.middleware';
 
 export const router = Router();
 
@@ -61,7 +62,7 @@ router.use(csrfProtection);
 // several independent GETs. Individual GET requests are never intercepted or
 // rewritten on the client; this route only handles /batch calls explicitly
 // made through apiClient.batchGet().
-router.post('/batch', createReadBatchHandler(router));
+router.post('/batch', CACHE.NONE, createReadBatchHandler(router));
 
 router.use('/auth', authRouter);
 router.use('/users', usersRouter);

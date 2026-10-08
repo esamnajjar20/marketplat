@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/offlineWarmingState.ts
  *
@@ -25,7 +27,6 @@
  *
  * Storage quota: one snapshot is ~20-40 KB JSON. Negligible.
  */
-'use client';
 
 const DB_NAME = 'marketplat-warming';
 const DB_VERSION = 1;

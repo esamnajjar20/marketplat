@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * PriceInput — numeric input with currency prefix and "Negotiable" toggle.
  *
@@ -13,7 +15,6 @@
  * label), and this component was never actually wired into AdForm in
  * the first place. Default corrected and wired into AdForm below.
  */
-'use client';
 
 import { useId }  from 'react';
 import { Input }  from '@/components/shared/ui/Input';

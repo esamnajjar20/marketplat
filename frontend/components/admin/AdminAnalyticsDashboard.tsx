@@ -1,6 +1,7 @@
+'use client';
+
 // FIX ANALYTICS-DASH-POLISH-01: shared ApiError + uniform ?? 0 on the
 // totals fields (was inconsistent).
-'use client';
 
 
 /**

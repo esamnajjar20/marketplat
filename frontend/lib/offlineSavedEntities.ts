@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/offlineSavedEntities.ts
  *
@@ -18,7 +20,6 @@
  * require editing sw.js's currentCaches in lockstep — a change with
  * its own bug surface, for zero functional gain.
  */
-'use client';
 
 import { API_BASE_URL } from '@/lib/constants';
 import { localGet, localSet } from '@/lib/localStore';

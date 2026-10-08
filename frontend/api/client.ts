@@ -49,6 +49,8 @@ import { makeOfflineError } from '@/lib/offlineError';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { recordRequestErrorCode, recordRequestRetry, recordRequestStarted } from '@/lib/networkObservability';
 import { isNetworkFailure } from '@/lib/networkErrors';
+import { invalidateReactQueryForMutation } from '@/lib/cache/queryCacheInvalidation';
+import { getQueryClient } from '@/lib/queryClient';
 import {
   getRetryDelayMs,
   isRetryableHttpStatus,
@@ -508,6 +510,12 @@ apiClient.interceptors.response.use(
         code:       'OFFLINE_QUEUED',
         queued:     true,
       });
+    }
+    // CACHE-W4: successful mutations resolve invalidation from the canonical
+    // URL contract. Only active React Query observers refetch immediately.
+    const method = (response.config.method ?? 'get').toLowerCase();
+    if (typeof window !== 'undefined' && !['get', 'head', 'options'].includes(method)) {
+      void invalidateReactQueryForMutation(getQueryClient(), response.config.url ?? '');
     }
     return response;
   },

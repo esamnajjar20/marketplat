@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Central network policy for bandwidth-sensitive client work.
  *
@@ -5,7 +7,6 @@
  * application state. Consumers can use one decision source instead of
  * duplicating navigator.connection/effectiveType checks.
  */
-'use client';
 
 import {
   getAverageRequestMs,

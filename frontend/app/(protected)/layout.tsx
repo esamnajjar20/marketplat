@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Protected route layout.
  *
@@ -23,7 +25,6 @@
  *          navigation (browser back button only). Now mounted here, same
  *          pattern as (admin)/layout.tsx.
  */
-'use client';
 
 import { useEffect }    from 'react';
 import { useRouter, usePathname } from 'next/navigation';

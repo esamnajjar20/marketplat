@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ImageUpload — drag-and-drop / click-to-upload for ad images.
  * Validates file type and size client-side before adding to the queue.
@@ -37,7 +39,6 @@
  * images[0]) — so reordering here is the entire feature; no separate
  * "set as primary" concept was introduced.
  */
-'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MAX_FILE_SIZE_MB, ALLOWED_IMAGE_TYPES, MAX_IMAGES } from '@/lib/constants';

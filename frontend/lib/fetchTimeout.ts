@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/fetchTimeout.ts
  *
@@ -17,7 +19,6 @@
  * caller owns the cancellation policy and we don't add a second
  * controller on top (that would double-abort in confusing ways).
  */
-'use client';
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 

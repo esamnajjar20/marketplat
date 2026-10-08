@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "publicLive": {
+    "server": {
+      "softTtlMs": 20000,
+      "softJitterMs": 5000,
+      "hardTtlSec": 90,
+      "lockTtlMs": 10000
+    },
+    "http": {
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 30
+    },
+    "client": {
+      "staleTimeMs": 90000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 1800000,
+      "hardAfterMs": 86400000
+    }
+  },
+  "publicDetail": {
+    "server": {
+      "softTtlMs": 60000,
+      "softJitterMs": 10000,
+      "hardTtlSec": 300,
+      "lockTtlMs": 10000
+    },
+    "http": {
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 30
+    },
+    "client": {
+      "staleTimeMs": 60000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 1800000,
+      "hardAfterMs": 86400000
+    }
+  },
+  "publicHome": {
+    "server": {
+      "softTtlMs": 120000,
+      "softJitterMs": 10000,
+      "hardTtlSec": 600,
+      "lockTtlMs": 15000
+    },
+    "http": {
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 30
+    },
+    "client": {
+      "staleTimeMs": 90000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 1800000,
+      "hardAfterMs": 86400000
+    }
+  },
+  "recommendations": {
+    "server": {
+      "softTtlMs": 60000,
+      "softJitterMs": 10000,
+      "guestHardTtlSec": 300,
+      "userHardTtlSec": 120,
+      "lockTtlMs": 10000
+    },
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 60000,
+      "gcTimeMs": 300000
+    },
+    "offline": {
+      "staleAfterMs": 900000,
+      "hardAfterMs": 86400000
+    }
+  },
+  "reference": {
+    "http": {
+      "maxAgeSec": 300,
+      "staleWhileRevalidateSec": 600
+    },
+    "client": {
+      "staleTimeMs": 3600000,
+      "gcTimeMs": 86400000
+    },
+    "offline": {
+      "staleAfterMs": 86400000,
+      "hardAfterMs": 172800000
+    }
+  },
+  "personal": {
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 60000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 900000,
+      "hardAfterMs": 86400000
+    }
+  },
+  "messages": {
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 30000,
+      "gcTimeMs": 300000
+    },
+    "offline": {
+      "staleAfterMs": 300000,
+      "hardAfterMs": 86400000
+    }
+  },
+  "security": {
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 0,
+      "gcTimeMs": 60000
+    },
+    "offline": {
+      "staleAfterMs": 0,
+      "hardAfterMs": 0
+    }
+  },
+  "storage": {
+    "serviceWorker": {
+      "apiEntries": 60,
+      "imageEntries": 80,
+      "savedAdsEntries": 700,
+      "staticEntries": 500,
+      "staticBytes": 31457280,
+      "personalShellEntries": 300,
+      "userDataEntries": 40,
+      "userDataBytes": 8388608
+    },
+    "offlineLists": {
+      "adsBrowse": 24,
+      "myAds": 30,
+      "productsBrowse": 24,
+      "servicesBrowse": 24,
+      "storesBrowse": 24,
+      "categories": 80,
+      "activity": 40,
+      "savedSearches": 20,
+      "sellersRanking": 30,
+      "notifications": 30,
+      "conversations": 50,
+      "messagesPerConversation": 100,
+      "savedAdsExplicit": 30
+    }
+  }
+}

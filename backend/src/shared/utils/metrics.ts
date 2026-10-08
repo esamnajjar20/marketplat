@@ -44,12 +44,12 @@ function safeTokenEquals(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-export const register = new client.Registry();
+import { register } from './metricsRegistry';
+export { register };
 
-// Default process/runtime metrics (CPU, memory, event loop lag, GC,
-// active handles) — the standard baseline every Prometheus Node.js setup
-// scrapes, prefixed so they're visually grouped in Grafana/dashboards.
-client.collectDefaultMetrics({ register, prefix: 'app_' });
+// Default process/runtime metrics are registered once in metricsRegistry.ts
+// so cache telemetry can share the same Prometheus registry without cycles.
+
 
 export const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',

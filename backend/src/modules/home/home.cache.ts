@@ -9,6 +9,7 @@ import {
 import { homeService, isHomepageDegraded, type HomepageResult } from './home.service';
 import { HOME_CITIES, type GetHomepageQuery } from './home.validation';
 import { homeCacheKeyForCity, HOME_GEN_KEY, onHomeInvalidated } from './home.cache.keys';
+import { cachePolicy } from '../../shared/cache/cachePolicy';
 
 /**
  * Stale-while-revalidate cache for the assembled GET /home payload.
@@ -25,14 +26,14 @@ import { homeCacheKeyForCity, HOME_GEN_KEY, onHomeInvalidated } from './home.cac
  *   urgent takedown takes the synchronous path and is never served stale, and
  *   an in-flight refresh that started before it can never resurrect the data.
  */
-export const HOME_CACHE_TTL_SECONDS = 120; // soft TTL: 30→120 to cut Redis rebuilds
-// spread the ≤11 keys so their assemblies don't all
-// re-run at the same instant each window.
-export const HOME_CACHE_TTL_JITTER_SECONDS = 10;
+const HOME_CACHE_POLICY = cachePolicy('publicHome').server;
+export const HOME_CACHE_TTL_SECONDS = HOME_CACHE_POLICY.softTtlMs / 1000;
+// spread the ≤11 keys so their assemblies don't all re-run at the same instant each window.
+export const HOME_CACHE_TTL_JITTER_SECONDS = HOME_CACHE_POLICY.softJitterMs / 1000;
 /** How long a stale entry may still be served while a refresh is pending/failing. */
-export const HOME_CACHE_HARD_TTL_SECONDS = 600;
+export const HOME_CACHE_HARD_TTL_SECONDS = HOME_CACHE_POLICY.hardTtlSec;
 /** Upper bound for one background rebuild; released early when it finishes. */
-export const HOME_REFRESH_LOCK_TTL_MS = 15_000;
+export const HOME_REFRESH_LOCK_TTL_MS = HOME_CACHE_POLICY.lockTtlMs;
 /** After an invalidation, wait briefly (coalescing bursts) then re-warm the general homepage. */
 export const HOME_REWARM_DELAY_MS = 1_500;
 /**

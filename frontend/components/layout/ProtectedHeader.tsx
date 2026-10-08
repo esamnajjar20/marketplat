@@ -1,8 +1,9 @@
+'use client';
+
 /**
  * ProtectedHeader — top bar for authenticated pages (dashboard, my ads, etc.).
  * Simpler than PublicHeader — no search bar, quick-post CTA, user menu.
  */
-'use client';
 
 import { useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/warmingBroadcast.ts
  *
@@ -16,7 +18,6 @@
  * If unavailable, we degrade silently: each tab simply sees its own
  * progress, same as before this file existed.
  */
-'use client';
 
 import type { WarmingSource, SourceProgress } from './warmingProgress';
 

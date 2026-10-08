@@ -18,7 +18,7 @@ notificationsRouter.get(
 notificationsRouter.get(
   '/stream',
   authenticate,
-  CACHE.NONE,
+  CACHE.STREAM,
   notificationsController.stream
 );
 notificationsRouter.patch('/read-all', authenticate, notificationsController.markAllRead);

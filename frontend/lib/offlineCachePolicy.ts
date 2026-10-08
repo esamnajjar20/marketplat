@@ -9,6 +9,7 @@
  * (SW لا يستورد هذا الملف — انسخ القيم يدويًا هناك).
  */
 
+import { CACHE_POLICY } from '@/lib/cachePolicy';
 
 /**
  * FIX OFFLINE-CACHE-SCOPE-HELPER-01: whitelist-based check for "is this
@@ -78,31 +79,15 @@ export function isUnfilteredFirstPage<T extends object>(
 }
 
 /** حدود قوائم البيانات المحلية (localStorage / offlineListCache). */
-export const OFFLINE_DATA_LIMITS = {
-  adsBrowse: 24,
-  myAds: 30,
-  productsBrowse: 24,
-  servicesBrowse: 24,
-  storesBrowse: 24,
-  categories: 80,
-  activity: 40,
-  savedSearches: 20,
-  sellersRanking: 30,
-  notifications: 30,
-  conversations: 50,
-  messagesPerConversation: 100,
-  savedAdsExplicit: 30,
-} as const;
+export const OFFLINE_DATA_LIMITS = CACHE_POLICY.storage.offlineLists;
 
 /** حدود Cache Storage (معلوماتية — التنفيذ في sw.js). */
 export const SW_CACHE_LIMITS = {
-  apiEntries: 60,
-  imageEntries: 80,
-  savedAdsEntries: 700,  // FIX CACHE-SAVED-ADS-CAP
-  staticEntries: 500,
-  personalShellEntries: 300,  // FIX CACHE-PERSONAL-SHELL
-  // CORE_CACHE مقصود بلا حد (يُحدَّث يدوياً عبر warmCoreBundle).
-  // autoReadEntries يُدار عبر الفهرس (MAX_AUTO=15) — لا trimCache رسمي.
+  apiEntries: CACHE_POLICY.storage.serviceWorker.apiEntries,
+  imageEntries: CACHE_POLICY.storage.serviceWorker.imageEntries,
+  savedAdsEntries: CACHE_POLICY.storage.serviceWorker.savedAdsEntries,
+  staticEntries: CACHE_POLICY.storage.serviceWorker.staticEntries,
+  personalShellEntries: CACHE_POLICY.storage.serviceWorker.personalShellEntries,
 } as const;
 
 /** أسماء كاشات مُصدَّرة (غير مرتبطة بإصدار) vs مُصدَّرة. */

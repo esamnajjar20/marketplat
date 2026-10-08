@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/warmingPreferences.ts
  *
@@ -13,7 +15,6 @@
  * visible. Freshness gates decide whether anything is actually fetched. It
  * can also be triggered on demand from /settings/offline.
  */
-'use client';
 
 const STORAGE_KEY = 'marketplat:warming-pref';
 

@@ -1,5 +1,6 @@
-// FIX ADMIN-CAT-TREE-APIERROR-01: shared ApiError for the error state.
 'use client';
+
+// FIX ADMIN-CAT-TREE-APIERROR-01: shared ApiError for the error state.
 
 import { ChevronDown, ChevronLeft, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';

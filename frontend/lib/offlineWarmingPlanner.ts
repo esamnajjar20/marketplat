@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/offlineWarmingPlanner.ts
  *
@@ -11,7 +13,6 @@
  * FIX WARM-PRIORITY-MARKETPLACE-01: PRIORITY_ROUTES ordered by real usage
  * for a classifieds marketplace (browse → search → chat → sell → tools).
  */
-'use client';
 
 import { getWarmingMode } from './warmingPreferences';
 import { getNetworkPolicy, type NetworkTier } from './networkPolicy';

@@ -5,32 +5,14 @@ import { clearNotificationsCache } from '@/lib/notificationsCache';
 
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
 
-type InvalidationRule = {
-  prefixes: string[];
-  local: Array<'ads' | 'products' | 'services' | 'stores' | 'categories' | 'productCategories' | 'serviceCategories' | 'activity' | 'savedSearches' | 'myAds' | 'appointments' | 'profile' | 'seller' | 'storeSelf' | 'providerSelf' | 'notifications'>;
-};
+import { getCacheInvalidationRule, type CacheInvalidationRule } from '@/lib/cache/cacheInvalidationRegistry';
+import { canonicalPathname } from '@/lib/cache/cacheKey';
 
-const RULES: InvalidationRule[] = [
-  { prefixes: ['/ads', '/favorites'], local: ['ads', 'myAds'] },
-  { prefixes: ['/products', '/promotions', '/collections'], local: ['products'] },
-  { prefixes: ['/service-listings', '/service-providers'], local: ['services', 'providerSelf'] },
-  { prefixes: ['/stores', '/store-types'], local: ['stores', 'storeSelf'] },
-  { prefixes: ['/categories'], local: ['categories'] },
-  { prefixes: ['/product-categories'], local: ['productCategories'] },
-  { prefixes: ['/service-categories', '/service-types'], local: ['serviceCategories'] },
-  { prefixes: ['/activity'], local: ['activity'] },
-  { prefixes: ['/saved-searches'], local: ['savedSearches'] },
-  { prefixes: ['/appointments'], local: ['appointments'] },
-  { prefixes: ['/users/me'], local: ['profile'] },
-  { prefixes: ['/sellers/me'], local: ['seller'] },
-  { prefixes: ['/notifications'], local: ['notifications'] },
-];
-
-function matchingRule(pathname: string): InvalidationRule | null {
-  return RULES.find((rule) => rule.prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(`${prefix}?`))) ?? null;
+function matchingRule(pathname: string): CacheInvalidationRule | null {
+  return getCacheInvalidationRule(pathname);
 }
 
-function clearLocal(slot: InvalidationRule['local'][number]): void {
+function clearLocal(slot: CacheInvalidationRule['local'][number]): void {
   switch (slot) {
     case 'ads': clearOfflineList(OFFLINE_LIST_KEYS.adsBrowse); break;
     case 'myAds': clearOfflineList(OFFLINE_LIST_KEYS.myAds); break;
@@ -55,7 +37,7 @@ export function invalidateOfflineCachesForMutation(url: string, method: string):
   if (SAFE_METHODS.has(method.toLowerCase())) return;
   let parsed: URL;
   try { parsed = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost'); } catch { return; }
-  const resourcePath = parsed.pathname.replace(/^\/api\/v\d+/, '') || parsed.pathname;
+  const resourcePath = canonicalPathname(parsed.pathname);
   const rule = matchingRule(resourcePath);
   if (!rule) return;
   for (const slot of rule.local) clearLocal(slot);
@@ -64,6 +46,7 @@ export function invalidateOfflineCachesForMutation(url: string, method: string):
       registration.active?.postMessage({
         type: 'INVALIDATE_API_CACHE',
         prefixes: rule.prefixes,
+        domains: rule.domains,
       });
     }).catch((error) => reportBackgroundFailure('frontend/lib/offlineCacheInvalidation.ts', error));
   }

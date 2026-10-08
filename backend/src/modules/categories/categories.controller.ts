@@ -22,8 +22,6 @@ export const categoriesController = {
   getCategories: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const categories = await categoriesService.getCategories();
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
-      res.setHeader('Vary', 'Authorization');
       res.status(200).json(successResponse('Categories fetched', categories));
     } catch (error) {
       next(error);

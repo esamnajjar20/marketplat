@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/offlineWarmingReport.ts
  *
@@ -24,7 +26,6 @@
  * If NEXT_PUBLIC_ERROR_REPORTER_URL is unset, reportClientError still
  * logs to console — useful in dev without a real endpoint configured.
  */
-'use client';
 
 import { reportClientError } from './errorReporter';
 

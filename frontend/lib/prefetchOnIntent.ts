@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Intent-driven prefetching with a strict network budget.
  *
@@ -6,7 +8,6 @@
  * current policy does not permit it. Work is also re-checked at execution
  * time because the connection can change while an idle callback is waiting.
  */
-'use client';
 
 import { getQueryClient } from '@/lib/queryClient';
 import { getNetworkPolicy } from '@/lib/networkPolicy';

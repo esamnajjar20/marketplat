@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * SaveSearchButton — reads the currently-applied search/filter params
  * (same params the calling page's own results component reads for its
@@ -30,7 +32,6 @@
  * explicit `type` and is completely unaffected — this step only ever
  * appears when `type` is omitted.
  */
-'use client';
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * صفحة /update — الوجهة التي يصل إليها المستخدم عند الضغط على إشعار
  * "تحديث التطبيق متاح" (من NotificationBell، صفحة الإشعارات، أو شريط
@@ -12,7 +14,6 @@
  * والمتبقي فعليًا هو خطوتان فقط — تفعيل ثم إعادة تحميل — وهذا بالضبط ما
  * تعرضه الصفحة، مطابقةً لمنطق activateWaitingServiceWorker في lib/pwa.ts.
  */
-'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';

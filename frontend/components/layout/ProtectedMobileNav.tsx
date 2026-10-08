@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ProtectedMobileNav — slide-out drawer navigation for the authenticated
  * section on small screens.
@@ -48,7 +50,6 @@
  * WAS added below (see SELLER-GATE comment near LINKS), since unlike
  * adCreate it had no other entry point in this drawer.
  */
-'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';

@@ -1,9 +1,10 @@
+'use client';
+
 /**
  * Native-shell bootstrap — sibling to PwaBootstrap (SW / web-PWA only).
  * No-op on plain web. Logic for back/deep-links/chrome lives in
  * lib/runtime/navigation.ts; push tap routing stays here (needs router).
  */
-'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';

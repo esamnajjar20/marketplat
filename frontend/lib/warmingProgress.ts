@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/warmingProgress.ts
  *
@@ -23,7 +25,6 @@
  * Safe to call from anywhere; listeners are cheap and the state is a
  * single object swap. No persistence — this is in-memory only.
  */
-'use client';
 
 import {
   broadcastProgress as broadcastProgressRaw,

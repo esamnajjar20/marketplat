@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * شريط إشعار بوجود نسخة جديدة من التطبيق جاهزة للتفعيل.
  *
@@ -9,7 +11,6 @@
  * - بعد الإغلاق يُعاد الظهور دوريًا (كل 4 ساعات) طالما التحديث ما زال متاحًا.
  * - يُعرَض أيضًا كإشعار في قسم الإشعارات (NotificationBell + صفحة الإشعارات).
  */
-'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * نقطة إقلاع نظام الـ Offline — تُركَّب مرة واحدة في AppProviders.
  *
@@ -11,7 +13,6 @@
  * التشغيلات، ونبضة كل 10 دقائق بدل مؤقّت 6 ساعات). كل مرحلة داخل الـ
  * pipeline لها نافذة طزاجة خاصة، فالنبضة رخيصة إن لم يكن هناك شيء قديم.
  */
-'use client';
 
 import { useEffect } from 'react';
 import { requestQueueReplay, syncQueueNetworkHint } from '@/lib/offlineQueue';

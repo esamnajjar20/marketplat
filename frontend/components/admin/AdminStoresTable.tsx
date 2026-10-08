@@ -1,7 +1,8 @@
+'use client';
+
 // FIX BULK-BTN-DISABLED-01: same treatment as AdminAdsTable/AdminSellersTable
 // -- the bulk action buttons had no disabled state during isPending, so
 // a double-click could fire the same batch twice.
-'use client';
 
 /**
  * AdminStoresTable — audit report issue #1 (🔴 critical).

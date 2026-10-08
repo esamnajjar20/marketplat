@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/offlineWarmingUserData.ts
  *
@@ -29,7 +31,6 @@
  * produce, so the SW's networkFirstApi can fall through to it without
  * any transformation.
  */
-'use client';
 
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 import { USER_WARMING_QUERIES } from './warmingQueryContract';

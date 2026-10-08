@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ThemeToggle — light/dark/system switcher.
  *
@@ -13,7 +15,6 @@
  * a device/browser preference, not an account setting, so it needs to
  * work for logged-out visitors too.
  */
-'use client';
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * نقطة الإقلاع لمنطق PWA الأساسي — تُركَّب مرة واحدة في AppProviders.
  * تسجّل الـ Service Worker وتركّب شريطي التثبيت/التحديث فقط.
@@ -7,7 +9,6 @@
  * نفس الكود، نفس السلوك، ملف مختلف. لا تغيير سلوكي بهذه الخطوة، تنظيم
  * تسمية فقط.
  */
-'use client';
 
 import { useEffect } from 'react';
 import { registerServiceWorker } from '@/lib/pwa';

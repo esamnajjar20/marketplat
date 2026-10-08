@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ShareAdButton — مشاركة عبر واتساب / تيليجرام / نسخ الرابط.
  *
@@ -13,7 +15,6 @@
  * which meant desktop users (no navigator.share) got copy-link and never
  * saw the WhatsApp/Telegram deep links that actually drive traffic here.
  */
-'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { Share2, MessageCircle, Send, Link2, Check, QrCode } from 'lucide-react';

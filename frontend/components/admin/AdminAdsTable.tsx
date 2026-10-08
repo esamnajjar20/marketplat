@@ -1,7 +1,8 @@
+'use client';
+
 // FIX BULK-BTN-DISABLED-01: bulk action buttons in the admin tables
 // had no disabled state during their mutation's isPending -- a
 // double-click could fire the same batch twice.
-'use client';
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';

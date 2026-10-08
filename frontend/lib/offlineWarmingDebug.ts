@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/offlineWarmingDebug.ts
  *
@@ -10,7 +12,6 @@
  * already 1000+ lines with careful comments; the diagnostic layer
  * should be independently deletable without touching the engine.
  */
-'use client';
 
 import {
   readSnapshot,

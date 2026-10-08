@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * lib/offlineWarmingScheduler.ts
  *
@@ -29,7 +31,6 @@
  *  - Cheap tick: TICK_MS while visible. Safe because every its own
  *    freshness gate (shells 6h/24h, core by network tier, user-data 10min/2h).
  */
-'use client';
 
 import { getLastPipelineRun, runWarmingPipeline } from './offlineWarmingPipeline';
 import { getWarmingPlan } from './offlineWarmingPlanner';

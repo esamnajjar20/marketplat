@@ -7,16 +7,14 @@
  * consistent, and gives a single isOfflineStale() gate for banners.
  */
 
+import { CACHE_POLICY } from '@/lib/cachePolicy';
+
 /** Default thresholds (ms). Override per-call when a surface needs tighter TTL. */
 export const OFFLINE_STALE_AFTER_MS = {
-  /** Lists / home / search results — soft stale after 30 min. */
-  list: 30 * 60 * 1000,
-  /** Profile / dashboard attention — soft stale after 15 min. */
-  profile: 15 * 60 * 1000,
-  /** Messages / conversations — soft stale after 5 min. */
-  messages: 5 * 60 * 1000,
-  /** Hard "don't trust" after 24 h for any personal data. */
-  hard: 24 * 60 * 60 * 1000,
+  list: CACHE_POLICY.publicLive.offline.staleAfterMs,
+  profile: CACHE_POLICY.personal.offline.staleAfterMs,
+  messages: CACHE_POLICY.messages.offline.staleAfterMs,
+  hard: CACHE_POLICY.personal.offline.hardAfterMs,
 } as const;
 
 export type OfflineFreshnessKind = keyof typeof OFFLINE_STALE_AFTER_MS;

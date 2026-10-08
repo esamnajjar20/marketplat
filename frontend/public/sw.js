@@ -38,6 +38,9 @@
  * fetch API الحقيقي (Response/Headers/Blob) + IndexedDB مُحاكاة سلوكيًا.
  */
 
+try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
+const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
+
 // FIX PWA-VER-01: كان CACHE_VERSION هنا 'v5' بينما lib/offlineRouteShells.ts
 // وlib/offlineCoreBundle.ts (اللذان يفترض أن يطابقا هذه القيمة "حرفيًا" حسب
 // تعليقاتهما الخاصة) كانا لا يزالان مثبَّتين على 'v4' — عدم تطابق حقيقي كان
@@ -107,7 +110,7 @@
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v47';
+const CACHE_VERSION = 'v49';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -131,8 +134,8 @@ const USER_DATA_CACHE_PREFIX = `market-user-data-${CACHE_VERSION}-`;
 // decoded JWT subject as a cache partition key; the server remains the source
 // of truth for authentication/authorization. If the token is opaque, no
 // user-scoped cache is used.
-const MAX_USER_DATA_ENTRIES = 40;
-const MAX_USER_DATA_BYTES = 8 * 1024 * 1024;
+const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 40;
+const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 8 * 1024 * 1024;
 
 function userDataCacheName(userId) {
   return `${USER_DATA_CACHE_PREFIX}${encodeURIComponent(userId)}`;
@@ -185,9 +188,9 @@ const CORE_CACHE = `market-core-${CACHE_VERSION}`; // يجب مطابقة lib/of
 // currentCaches بـ 'activate' أدناه وإلا سيُحذف كأي كاش market-* غير معروف.
 const SAVED_ADS_CACHE = 'market-saved-ads';
 
-const MAX_API_ENTRIES = 60;
+const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 60;
 /** حد صور IMAGE_CACHE — FIFO عند التجاوز (لا نترك الكاش بلا سقف). */
-const MAX_IMAGE_ENTRIES = 80;
+const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 80;
 
 /** FIX SW-MEMORY-01: حد أقصى لمدخلات STATIC_CACHE (HTML/RSC/JS/CSS).
  * بدون حد، كل تنقّل يُخزَّن بلا تقليم → ذاكرة الهاتف تنفد بعد أشهر.
@@ -195,25 +198,25 @@ const MAX_IMAGE_ENTRIES = 80;
  * shell (HTML + RSC + ~10 chunks لكل واحد) = ~130 مدخل، فـ 500 يعطي
  * هامشاً واسعاً للزيارات المتنوعة دون حذف حيّ. MAX_STATIC_BYTES أدناه
  * يقيّد الحجم الكلي على الأجهزة ذات التخزين المحدود. */
-const MAX_STATIC_ENTRIES = 500;
+const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 500;
 // SW-SMART-CACHE-01: byte-based cap alongside the entry cap. Entry count
 // alone lets a cache of 500 large chunks reach 50 MB on one device and
 // 5 MB on another, with no way to protect the smaller one. 30 MB is a
 // soft ceiling — the entry cap still fires independently, and either
 // constraint alone triggers trimming. Only STATIC_CACHE passes this
 // value; the other caches keep their existing entry-only policy.
-const MAX_STATIC_BYTES = 30 * 1024 * 1024;
+const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 30 * 1024 * 1024;
 
 /** FIX SW-MEMORY-02: حد أقصى لمدخلات SAVED_ADS_CACHE — الإعلانات
  * المحفوظة يدويًا + صورها. عند التجاوز، الأقدم يُحذف. */
 // FIX CACHE-SAVED-ADS-CAP: 30 إعلان (offlineSavedAds MAX_SAVED_ADS) ×
 // حتى 21 مدخل/إعلان (10 صور × 2 + API) = 630. 500 قد يحذف إعلانات
 // المستخدم القديمة. رُفع إلى 700 (احتياط 70 مدخل).
-const MAX_SAVED_ADS_ENTRIES = 700;
+const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 700;
 
 /** FIX CACHE-PERSONAL-SHELL: كان بلا حد — ينمو مع كل زيارة محمية.
  * 300 مدخل يكفي لـ ~100 صفحة (HTML + RSC + chunks). */
-const MAX_PERSONAL_SHELL_ENTRIES = 300;
+const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 300;
 
 const OFFLINE_URL = '/offline';
 const READ_BATCH_PATH = '/api/v1/batch';
@@ -1128,9 +1131,12 @@ async function cacheFirstImage(event, request, url) {
       const tooLarge = Number.isFinite(lenNum) && lenNum > 2.5 * 1024 * 1024;
       if (!tooLarge) {
         event.waitUntil(
-          putTimestamped(cache, request, response.clone()).then(() =>
-            trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
-          ),
+          shouldSkipDisposableCacheWrite(IMAGE_CACHE).then((skip) => {
+            if (skip) return;
+            return putTimestamped(cache, request, response.clone()).then(() =>
+              trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
+            );
+          }),
         );
       }
     }
@@ -1270,9 +1276,33 @@ function inferCacheTier(cacheName, request) {
 const TRIM_MIN_INTERVAL_MS = 30_000;
 const lastTrimAtByCache = new Map();
 
+async function storagePressureRatio() {
+  try {
+    const estimate = await navigator.storage?.estimate?.();
+    if (!estimate || typeof estimate.usage !== 'number' || typeof estimate.quota !== 'number' || estimate.quota <= 0) return null;
+    return Math.min(1, Math.max(0, estimate.usage / estimate.quota));
+  } catch { return null; }
+}
+
+// W7: progressively shrink only disposable network-reconstructable caches.
+function adaptiveCacheLimits(cacheName, maxEntries, maxBytes, ratio) {
+  if (ratio == null || (cacheName !== API_CACHE && cacheName !== IMAGE_CACHE)) return { maxEntries, maxBytes };
+  if (ratio >= 0.95) return { maxEntries: Math.max(10, Math.floor(maxEntries * 0.25)), maxBytes: maxBytes ? Math.floor(maxBytes * 0.25) : undefined };
+  if (ratio >= 0.90) return { maxEntries: Math.max(20, Math.floor(maxEntries * 0.5)), maxBytes: maxBytes ? Math.floor(maxBytes * 0.5) : undefined };
+  return { maxEntries, maxBytes };
+}
+
+async function shouldSkipDisposableCacheWrite(cacheName) {
+  const ratio = await storagePressureRatio();
+  return ratio != null && ratio >= 0.95 && (cacheName === API_CACHE || cacheName === IMAGE_CACHE);
+}
+
 async function trimCache(cacheName, maxEntries, maxBytes) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
+  const limits = adaptiveCacheLimits(cacheName, maxEntries, maxBytes, await storagePressureRatio());
+  maxEntries = limits.maxEntries;
+  maxBytes = limits.maxBytes;
 
   // Fast path 1: entry cap not reached AND no byte cap requested.
   if (keys.length <= maxEntries && maxBytes === undefined) return;
@@ -1395,6 +1425,7 @@ async function networkFirstApi(event, request, url) {
       return;
     }
     if (!hadAuth) {
+      if (await shouldSkipDisposableCacheWrite(API_CACHE)) return;
       await putTimestamped(cache, request, response.clone());
       await trimCache(API_CACHE, MAX_API_ENTRIES);
       return;
@@ -2649,6 +2680,70 @@ self.addEventListener('message', (event) => {
 
   if (type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (type === 'INVALIDATE_API_CACHE') {
+    const prefixes = Array.isArray(event.data?.prefixes)
+      ? event.data.prefixes.filter((value) => typeof value === 'string' && value.startsWith('/'))
+      : [];
+    const domains = Array.isArray(event.data?.domains)
+      ? event.data.domains.filter((value) => typeof value === 'string')
+      : [];
+    // Prefixes remain the authoritative physical deletion selector; domains
+    // are the canonical logical contract and are retained for diagnostics.
+    if (prefixes.length === 0 && domains.length === 0) return;
+
+    const contractPrefixes = domains.length && self.MARKET_CACHE_CONTRACT?.invalidation
+      ? self.MARKET_CACHE_CONTRACT.invalidation
+          .filter((rule) => Array.isArray(rule.domains) && rule.domains.some((domain) => domains.includes(domain)))
+          .flatMap((rule) => Array.isArray(rule.prefixes) ? rule.prefixes : [])
+      : [];
+    const effectivePrefixes = [...new Set([...prefixes, ...contractPrefixes])];
+
+    const matchesPrefix = (request) => {
+      try {
+        const pathname = new URL(request.url).pathname;
+        return effectivePrefixes.some((prefix) =>
+          pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(`${prefix}?`),
+        );
+      } catch {
+        return false;
+      }
+    };
+
+    event.waitUntil((async () => {
+      const cacheNames = await caches.keys();
+      const targetNames = cacheNames.filter((name) =>
+        name === API_CACHE ||
+        name.startsWith(USER_DATA_CACHE_PREFIX),
+      );
+      await Promise.all(targetNames.map(async (name) => {
+        const cache = await caches.open(name);
+        const keys = await cache.keys();
+        await Promise.all(keys.filter(matchesPrefix).map((request) => cache.delete(request)));
+      }));
+    })());
+    return;
+  }
+
+  if (type === 'TRIM_DISPOSABLE_CACHES') {
+    // CACHE-W11: pressure cleanup is coordinated by the SW so we trim the
+    // disposable layers instead of deleting the whole API/image cache.
+    // Protected caches (core, saved ads, personal shells, queue) are never
+    // touched by this command.
+    event.waitUntil((async () => {
+      const ratio = await storagePressureRatio();
+      const factor = ratio != null && ratio >= 0.95 ? 0.25 : 0.5;
+      await Promise.all([
+        trimCache(API_CACHE, Math.max(10, Math.floor(MAX_API_ENTRIES * factor))),
+        trimCache(IMAGE_CACHE, Math.max(10, Math.floor(MAX_IMAGE_ENTRIES * factor))),
+      ]);
+      // Auto-read is explicitly disposable and has its own bounded index.
+      // Clear only its Cache Storage payload here; the index will naturally
+      // repopulate from subsequent visits.
+      try { await caches.delete('market-auto-read-ads'); } catch (_) {}
+    })());
     return;
   }
 

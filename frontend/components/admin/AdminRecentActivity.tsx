@@ -1,5 +1,6 @@
-// FIX RECENT-ACTIVITY-APIERROR-01: shared ApiError.
 'use client';
+
+// FIX RECENT-ACTIVITY-APIERROR-01: shared ApiError.
 
 import Link from 'next/link';
 import { useAdminAds } from '@/hooks/queries/useAdmin';

@@ -1,6 +1,7 @@
+'use client';
+
 // FIX OPS-QUEUE-FIX-01: shared ApiError + deduplicated icon className
 // (was "h-4.5 w-4.5 h-4 w-4" -- Tailwind kept only the last pair).
-'use client';
 
 import Link from 'next/link';
 import { Flag, Store, UserCheck, ShieldAlert, ArrowLeft } from 'lucide-react';

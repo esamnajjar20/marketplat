@@ -1,8 +1,9 @@
+'use client';
+
 // FIX SIDEBAR-ROLE-GATE-01: nav link visibility now fails closed --
 // only a recognized admin-tier role (ADMIN/SUPER_ADMIN/MODERATOR) sees
 // any links; previously every non-MODERATOR role (including undefined
 // during loading) saw all of them.
-'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';

@@ -1,8 +1,9 @@
+'use client';
+
 // FIX BROADCAST-STRUCTURE-01: preview block was rendered OUTSIDE the
 // Dialog (as a fragment sibling), so it appeared floating on any page
 // this component mounted on. Also removed the decorative audience
 // selector -- its state was never forwarded to the mutation.
-'use client';
 
 /**
  * FEAT: admin bulk-notification broadcast.

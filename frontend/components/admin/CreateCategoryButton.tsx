@@ -1,6 +1,7 @@
+'use client';
+
 // FIX CREATE-CAT-RESET-01: useResettableDialog + drop the decorative
 // async on handleCreate.
-'use client';
 
 import { useState } from 'react';
 import { Plus }     from 'lucide-react';

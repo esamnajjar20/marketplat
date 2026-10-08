@@ -1,7 +1,8 @@
+'use client';
+
 // FIX ADMIN-HEADER-USER-NULL-01: report.user accessed without optional
 // chain in the bell dropdown preview -- crashed the admin header when a
 // report's reporter record was missing.
-'use client';
 
 import Link from 'next/link';
 import { LogOut, Bell, AlertTriangle, ExternalLink } from 'lucide-react';

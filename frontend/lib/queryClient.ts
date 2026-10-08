@@ -11,6 +11,7 @@
  *   Axios marks a retry it already consumed so TanStack Query does not stack another one.
  */
 import { QueryClient } from '@tanstack/react-query';
+import { CLIENT_CACHE_DEFAULTS } from '@/lib/cachePolicy';
 import {
   getRetryAfterFromParsedError,
   getRetryDelayMs,
@@ -46,16 +47,16 @@ export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime:            90_000,  // SLOW-NET phase1 — keep cached UI stable on slow links
+        staleTime:            CLIENT_CACHE_DEFAULTS.staleTime,  // SLOW-NET phase1 — keep cached UI stable on slow links
         // LOAD-SPEED-01: avoid refetch storms on remount while data is fresh
-        gcTime:               10 * 60_000,
+        gcTime:               CLIENT_CACHE_DEFAULTS.gcTime,
         retry:                shouldRetry,
         retryDelay,   // API-INT-04 FIX: smart retry
         refetchOnWindowFocus: false,
         refetchOnMount: (query) => {
           // QueryOptions typing varies by TanStack version — read safely
           const opts = query.options as { staleTime?: number | typeof Infinity };
-          const staleMs = typeof opts.staleTime === 'number' ? opts.staleTime : 90_000;
+          const staleMs = typeof opts.staleTime === 'number' ? opts.staleTime : CLIENT_CACHE_DEFAULTS.staleTime;
           if (!query.state.dataUpdatedAt) return true;
           return Date.now() - query.state.dataUpdatedAt > staleMs;
         },

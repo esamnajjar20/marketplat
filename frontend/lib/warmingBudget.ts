@@ -1,5 +1,6 @@
-/** Adaptive global budget for one client warming pass. */
 'use client';
+
+/** Adaptive global budget for one client warming pass. */
 
 import type { NetworkPolicy, NetworkTier } from './networkPolicy';
 

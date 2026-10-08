@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Admin layout.
  *
@@ -12,7 +14,6 @@
  *
  * Non-admin authenticated users → redirect to /dashboard (not /login).
  */
-'use client';
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
