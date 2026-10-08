@@ -59,8 +59,16 @@ export const ConversationRow = memo(function ConversationRow({
   const hasUnread = conversation.unreadCount > 0;
   const ctx = contextLabel(conversation);
   const settings = conversation.mySettings;
-  const muted = Boolean(settings?.mutedUntil && new Date(settings.mutedUntil).getTime() > Date.now());
-  const now = useNowAfterMount(true, conversation.updatedAt) ?? Date.now();
+  // HYDRATION-SAFE: must match AdCard / ProductCard / ServiceListingCard.
+  // The ?? Date.now() fallback defeated useNowAfterMount's null-before-mount
+  // contract — server (S) and client (C) produced different `now`, and when
+  // the S↔C delta crossed a relative-time bucket boundary React #418 fired.
+  const now = useNowAfterMount(true, conversation.updatedAt);
+  const muted = Boolean(
+    settings?.mutedUntil &&
+    now !== null &&
+    new Date(settings.mutedUntil).getTime() > now,
+  );
 
   return (
     <div
@@ -92,7 +100,7 @@ export const ConversationRow = memo(function ConversationRow({
               {party.name}
             </p>
             <span className={cn('shrink-0 text-2xs leading-tight tabular-nums', hasUnread ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-              {formatRelativeTimeShort(conversation.updatedAt, now)}
+              {now !== null ? formatRelativeTimeShort(conversation.updatedAt, now) : ''}
             </span>
           </div>
           <p className={cn('text-xs line-clamp-1 leading-relaxed', hasUnread ? 'font-medium text-foreground/80' : 'text-muted-foreground')}>

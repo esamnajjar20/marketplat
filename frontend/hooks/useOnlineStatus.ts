@@ -54,9 +54,14 @@ function handleOffline(): void {
 function startListening(): void {
   if (listening || typeof window === 'undefined') return;
   listening = true;
-  // Synchronize after the subscriber has been registered. This preserves the
-  // old hook's first-render=true behavior while correcting the value promptly.
-  syncFromBrowser();
+  // HYDRATION-SAFE: defer browser sync to a microtask so the first client
+  // render matches the SSR snapshot (true). Calling syncFromBrowser()
+  // synchronously here would change the snapshot during React's subscribe
+  // phase and trigger React #418 when navigator.onLine === false at hydration.
+  queueMicrotask(() => {
+    if (!listening) return;
+    syncFromBrowser();
+  });
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
 }
