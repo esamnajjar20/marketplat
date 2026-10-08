@@ -9,6 +9,11 @@ import { guardedCache } from './cacheGuard';
 import { cacheMetrics } from './cacheMetrics';
 import { cacheClient } from './swrCache';
 import { logger } from './logger';
+import { cacheWarmupTasksTotal, cacheWarmupTaskDurationSeconds } from './metrics';
+import { productsService } from '../../modules/products/products.service';
+import { storesService } from '../../modules/stores/stores.service';
+import { serviceListingsService } from '../../modules/service-listings/service-listings.service';
+import { serviceProvidersService } from '../../modules/service-providers/service-providers.service';
 
 /**
  * / CACHE-KEEPWARM-01: keep the public, viewer-independent
@@ -46,11 +51,15 @@ export const WARMUP_PAUSE_MS = 150;
 
 export interface WarmupTask {
   name: string;
+  /** Higher priority tasks run first. */
+  priority?: number;
+  /** Viewer-independent cache workload. */
   run: () => Promise<unknown>;
 }
 
 const homeTask = (city: string | undefined): WarmupTask => ({
   name: `home:${city ?? 'general'}`,
+  priority: city ? 60 : 100,
   // Age-gated: a key that real traffic (or the post-invalidation rewarm) rebuilt
   // recently is skipped, so an idle-but-healthy cache costs 11 cheap reads per
   // cycle instead of 11 full assemblies.
@@ -63,28 +72,49 @@ const homeTask = (city: string | undefined): WarmupTask => ({
 // so the 240s keep-warm interval can hold them), then the ten city variants.
 export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   homeTask(undefined),
-  { name: 'categories', run: () => categoriesService.getCategories() },
-  { name: 'product-categories', run: () => productCategoriesService.getProductCategories() },
-  { name: 'service-categories', run: () => serviceCategoriesService.getServiceCategories() },
+  { name: 'categories', priority: 95, run: () => categoriesService.getCategories() },
+  { name: 'product-categories', priority: 94, run: () => productCategoriesService.getProductCategories() },
+  { name: 'service-categories', priority: 93, run: () => serviceCategoriesService.getServiceCategories() },
   // Default first pages only (no filters/search) — matches frontend
   // offlineCoreBundle / ads page defaults.
   {
     name: 'ads:list:default',
+    priority: 92,
     run: () =>
       adsService.getAds({
         page: 1,
-        limit: 20,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       } satisfies GetAdsQuery),
   },
   {
     name: 'ads:list:featured',
+    priority: 91,
     run: () =>
       adsService.getAds({
         isFeatured: true,
         limit: 4,
       } satisfies GetAdsQuery),
+  },
+  {
+    name: 'products:list:default',
+    priority: 88,
+    run: () => productsService.getProducts({ page: 1, limit: 12, sortBy: 'createdAt', sortOrder: 'desc' }),
+  },
+  {
+    name: 'stores:list:default',
+    priority: 87,
+    run: () => storesService.getStores({ page: 1, sortBy: 'createdAt', sortOrder: 'desc' }),
+  },
+  {
+    name: 'service-listings:list:default',
+    priority: 86,
+    run: () => serviceListingsService.getServiceListings({ page: 1, sortBy: 'createdAt', sortOrder: 'desc' }),
+  },
+  {
+    name: 'service-providers:list:default',
+    priority: 85,
+    run: () => serviceProvidersService.getServiceProviders({ page: 1 }),
   },
   ...HOME_CITIES.map(city => homeTask(city)),
 ];
@@ -99,8 +129,9 @@ export async function warmPublicCaches(
   let failed = 0;
   const startedAt = Date.now();
 
-  for (let i = 0; i < tasks.length; i += 1) {
-    const task = tasks[i];
+  const orderedTasks = [...tasks].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+  for (let i = 0; i < orderedTasks.length; i += 1) {
+    const task = orderedTasks[i];
     const taskStartedAt = process.hrtime.bigint();
     try {
       await task.run();
@@ -114,7 +145,7 @@ export async function warmPublicCaches(
       const durationSeconds = Number(process.hrtime.bigint() - taskStartedAt) / 1e9;
       cacheWarmupTaskDurationSeconds.observe({ task: task.name }, durationSeconds);
     }
-    if (pauseMs > 0 && i < tasks.length - 1) await sleep(pauseMs);
+    if (pauseMs > 0 && i < orderedTasks.length - 1) await sleep(pauseMs);
   }
 
   logger.info('[cache-warmup] done', { ok, failed, ms: Date.now() - startedAt });

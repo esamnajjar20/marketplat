@@ -81,7 +81,7 @@ const isCacheableQuery = (query: unknown): boolean => {
 
 export const publicListCacheKey = (ns: PublicListNamespace, query: unknown): string => {
   const domain = getCacheDomain(DOMAIN_BY_NAMESPACE[ns]);
-  return canonicalCacheKey(domain.namespace, domain.scope as 'public', query);
+  return canonicalCacheKey(domain.namespace, domain.scope as 'public' | 'personal' | 'private', query);
 };
 
 export function cachedPublicList<T>(
