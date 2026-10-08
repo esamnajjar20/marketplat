@@ -23,7 +23,10 @@
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap add android",
     "cap:open:android": "npx cap open android",
-    "cap:run:android": "npx cap run android"
+    "cap:run:android": "npx cap run android",
+    "perf:render-audit": "node scripts/render-audit.mjs",
+    "perf:render-regression": "node scripts/render-regression-audit.mjs",
+    "perf:query-invalidation-audit": "node scripts/query-invalidation-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
