@@ -175,6 +175,12 @@ export async function clearSensitiveLocalData(): Promise<void> {
   } catch (err) {
     console.warn('[auth-cleanup] queryClient.clear() failed:', err);
   }
+  try {
+    const { clearOfflineQueryCache } = await import('@/lib/offlineQueryCache');
+    await clearOfflineQueryCache();
+  } catch (err) {
+    console.warn('[auth-cleanup] offline query cache clear failed:', err);
+  }
   // FIX LOGOUT-CACHE-DIRECT-01: awaited (was fire-and-forget).
   await clearServiceWorkerApiCache();
   await clearUnversionedOfflineBuckets();

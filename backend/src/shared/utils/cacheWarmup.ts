@@ -142,8 +142,7 @@ export async function warmPublicCaches(
       cacheWarmupTasksTotal.inc({ task: task.name, outcome: 'failure' });
       logger.warn(`[cache-warmup] ${task.name} failed`, error);
     } finally {
-      const durationSeconds = Number(process.hrtime.bigint() - taskStartedAt) / 1e9;
-      cacheWarmupTaskDurationSeconds.observe({ task: task.name }, durationSeconds);
+      cacheWarmupTaskDurationSeconds.observe({ task: task.name }, Number(process.hrtime.bigint() - taskStartedAt) / 1e9);
     }
     if (pauseMs > 0 && i < orderedTasks.length - 1) await sleep(pauseMs);
   }

@@ -55,6 +55,7 @@ import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { AnalyticsConsentBanner } from '@/components/shared/AnalyticsConsentBanner';
 import { NavigationProgress } from '@/components/shared/NavigationProgress';
 import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
+import { restoreOfflineQueryCache, subscribeOfflineQueryCache, persistOfflineQueryCache } from '@/lib/offlineQueryCache';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -116,6 +117,19 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
   useEffect(() => {
     installGlobalErrorHandlers();
   }, []);
+
+  // Restore safe public query snapshots without blocking initial rendering.
+  // Restore only fills missing/older entries, so it cannot overwrite fresher data.
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    void restoreOfflineQueryCache(queryClient).then(() => {
+      if (cancelled) return;
+      unsubscribe = subscribeOfflineQueryCache(queryClient);
+      void persistOfflineQueryCache(queryClient);
+    });
+    return () => { cancelled = true; unsubscribe?.(); };
+  }, [queryClient]);
 
   return (
     // FIX UX-03: ThemeProvider existed as a standalone wrapper around

@@ -14,6 +14,8 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useConnectionQuality } from '@/hooks/useConnectionQuality';
 import { connectionQualityLabel } from '@/lib/connectionQuality';
 import { cn } from '@/lib/utils';
+import { getLastOfflineQueryCacheSavedAt } from '@/lib/offlineQueryCache';
+import { formatOfflineSavedAt } from '@/lib/offlineFreshness';
 
 const BACK_ONLINE_DURATION_MS = 3500;
 const OFFLINE_FULL_DURATION_MS = 3000;
@@ -27,6 +29,7 @@ export function NetworkStatusBanner() {
   const [showBackOnline, setShowBackOnline] = useState(false);
   const [offlinePhase, setOfflinePhase] = useState<OfflinePhase | null>(null);
   const [showSlowHint, setShowSlowHint] = useState(false);
+  const [offlineQuerySavedAt, setOfflineQuerySavedAt] = useState<number | null>(null);
   const wasOnlineRef = useRef(isOnline);
   const wasSlowRef = useRef(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,6 +56,8 @@ export function NetworkStatusBanner() {
       slowTimerRef.current = null;
     }
   }
+
+  useEffect(() => { setOfflineQuerySavedAt(getLastOfflineQueryCacheSavedAt()); }, [isOnline]);
 
   useEffect(() => {
     if (!wasOnlineRef.current && isOnline) {
@@ -135,6 +140,7 @@ export function NetworkStatusBanner() {
         >
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
           <span>لا يوجد اتصال بالإنترنت</span>
+          {offlineQuerySavedAt != null && <span className="text-xs font-normal opacity-90">— بيانات محفوظة · {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
         </div>
       )}
 
@@ -150,7 +156,8 @@ export function NetworkStatusBanner() {
           )}
         >
           <WifiOff className="h-3.5 w-3.5" aria-hidden />
-          غير متصل
+          <span>غير متصل</span>
+          {offlineQuerySavedAt != null && <span className="max-w-[55vw] truncate font-normal opacity-90">· {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
         </div>
       )}
 
