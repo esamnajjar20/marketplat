@@ -146,3 +146,49 @@ export function handleChunkLoadError(error: Error): boolean {
   window.location.reload();
   return true;
 }
+
+// ── Global unhandled rejection filter ─────────────────────────────
+// Without this, two classes of self-healing failure flood Sentry as
+// "Unhandled promise rejection":
+//
+//  1) A stale chunk after a deploy (import() rejects before any of
+//     our code can catch it) — recoverFromStaleChunk already knows
+//     how to fix this, but the browser fires unhandledrejection
+//     before that helper's own catch runs.
+//  2) Transient network errors during SSE reconnect, or an aborted
+//     fetch when the user navigates away. The caller retries; there
+//     is nothing actionable to report.
+//
+// Both are filtered here so real bugs still reach the default
+// listener (our window 'error' handler that forwards to Sentry).
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const reason = event.reason as { name?: string; message?: string } | string | undefined;
+    const msg = typeof reason === 'string' ? reason : reason?.message ?? '';
+    const name = typeof reason === 'object' && reason ? reason.name ?? '' : '';
+
+    // 1) Stale chunk after deploy — recover by hard reload once (the
+    //    existing recoverFromStaleChunk helper handles the dedupe).
+    if (
+      name === 'ChunkLoadError' ||
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading CSS chunk')
+    ) {
+      event.preventDefault();
+      handleChunkLoadError(reason as Error);
+      return;
+    }
+
+    // 2) Transient network noise — SSE reconnect, aborted navigation.
+    if (
+      name === 'AbortError' ||
+      name === 'NetworkError' ||
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError when attempting to fetch')
+    ) {
+      event.preventDefault();
+    }
+  });
+}
+

@@ -39,6 +39,7 @@ import axios, {
 import { useAuthStore }  from '@/store/auth.store';
 import { parseApiError } from '@/lib/errorParser';
 import { API_BASE_URL }  from '@/lib/constants';
+import { serverApiAdapter } from '@/lib/serverApiAdapter';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { getCsrfToken } from '@/lib/csrf';
 import { toast } from 'sonner';
@@ -111,6 +112,12 @@ export const apiClient = axios.create({
   withCredentials: true,
   headers:         { 'Content-Type': 'application/json' },
 }) as ApiClientWithBatchGet;
+
+// FIX SSR-BINDING-01: on the server (Cloudflare Worker SSR) route public GETs
+// through the API_WORKER Service Binding; see lib/serverApiAdapter.ts.
+if (typeof window === 'undefined') {
+  apiClient.defaults.adapter = serverApiAdapter;
+}
 
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
 

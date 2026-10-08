@@ -50,10 +50,13 @@ export default async function ProductDetailPage({ params }: Props) {
     const statusCode =
       (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
       (err as { response?: { status?: number } })?.response?.status;
-    // Only a confirmed 404 should become a not-found state. Propagate
-    // transport/5xx failures so an existing product is not presented as
-    // deleted during an outage.
-    if (statusCode !== 404) throw err;
+    // FIX SSR-RESILIENCE-01: a transport/5xx failure used to be re-thrown,
+    // which crashed the whole page with the opaque React #441. The
+    // ProductDetailSection below fetches the product again client-side and
+    // renders its own 404 / retry UI, so SSR failure only costs the JSON-LD.
+    // A product is never presented as deleted here: product stays null and
+    // the client section decides.
+    void statusCode;
   }
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 

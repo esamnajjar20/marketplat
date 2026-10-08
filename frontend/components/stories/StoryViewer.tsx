@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Trash2, X } from 'lucide-react';
 import { getFullscreenImageUrl, getAvatarUrl } from '@/lib/cloudinary';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useDeleteStory, useViewStory } from '@/hooks/mutations/useStoryMutations';
 import { useStoryViewers } from '@/hooks/queries/useStories';
 import type { StoryGroup } from '@/api/stories.api';
+import { resolveStoryBackground } from '@/lib/storyBackgrounds';
 
 export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: () => void }) {
   const [index, setIndex] = useState(0);
@@ -15,17 +16,38 @@ export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: ()
   const { mutate: markViewed } = useViewStory();
   const remove = useDeleteStory();
   const { data: viewers = [] } = useStoryViewers(story?.id ?? '', showViewers && Boolean(story?.isOwner));
-  const progress = useMemo(() => group.stories.map((_, i) => i <= index ? 100 : 0), [group.stories, index]);
+  // FIX STORY-TIMER-01: onClose/markViewed are inline/unstable references;
+  // as effect deps they restarted the 5s timer on every parent re-render
+  // (e.g. each feed refetch), so stories never advanced reliably. Keep them
+  // in refs. Also pause auto-advance while the viewers panel is open — it used
+  // to close the story 5s after the owner opened the viewers list.
+  const onCloseRef = useRef(onClose);
+  const markViewedRef = useRef(markViewed);
+  useEffect(() => { onCloseRef.current = onClose; markViewedRef.current = markViewed; });
+  const [filled, setFilled] = useState(false);
+  const lastIndex = group.stories.length - 1;
 
   useEffect(() => {
-    if (!story) return;
-    if (!story.viewed && !story.isOwner) markViewed(story.id);
+    setFilled(false);
+    const raf = window.requestAnimationFrame(() => setFilled(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, [index]);
+
+  useEffect(() => {
+    if (!story?.id) return;
+    if (!story.viewed && !story.isOwner) markViewedRef.current(story.id);
+  }, [story?.id, story?.viewed, story?.isOwner]);
+
+  useEffect(() => {
+    if (!story || showViewers) return;
     const timer = window.setTimeout(() => {
-      if (index < group.stories.length - 1) setIndex((i) => i + 1);
-      else onClose();
+      if (index < lastIndex) setIndex((i) => i + 1);
+      else onCloseRef.current();
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [story?.id, story?.viewed, story?.isOwner, index, group.stories.length, onClose, markViewed]);
+  }, [story?.id, index, lastIndex, showViewers]);
+
+  const progress = group.stories.map((_, i) => (i < index ? 100 : i === index && filled ? 100 : 0));
 
   if (!story) return null;
 
@@ -42,7 +64,7 @@ export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: ()
         <div className="absolute inset-x-3 top-3 z-20 flex gap-1">{group.stories.map((_, i) => <div key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-white/25"><div className="h-full rounded-full bg-white" style={{ width: `${progress[i] ?? 0}%`, transition: i === index ? 'width 5s linear' : undefined }} /></div>)}</div>
         <div className="absolute inset-x-4 top-7 z-20 flex items-center justify-between text-white"><div className="flex items-center gap-2"><SafeImage variant="avatar" src={getAvatarUrl(group.user.avatarUrl ?? '', 72)} alt="" width={38} height={38} className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30" /><div><p className="text-sm font-semibold">{group.user.name}</p><p className="text-[10px] text-white/70">{new Date(story.createdAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}</p></div></div><div className="flex items-center gap-1"><button type="button" onClick={() => setShowViewers((v) => !v)} className="rounded-full bg-black/30 p-2 hover:bg-black/50" aria-label="المشاهدون"><Eye className="h-5 w-5" /></button>{story.isOwner && <button type="button" onClick={deleteCurrent} className="rounded-full bg-black/30 p-2 hover:bg-red-500/70" aria-label="حذف"><Trash2 className="h-5 w-5" /></button>}<button type="button" onClick={onClose} className="rounded-full bg-black/30 p-2 hover:bg-black/50" aria-label="إغلاق"><X className="h-5 w-5" /></button></div></div>
 
-        {story.mediaUrl ? <SafeImage src={getFullscreenImageUrl(story.mediaUrl, 1000)} alt="" fill priority className="object-contain" sizes="(max-width: 640px) 100vw, 448px" /> : <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${story.background ?? 'from-slate-900 to-slate-700'} p-8 text-center text-3xl font-bold leading-relaxed text-white`}>{story.text}</div>}
+        {story.mediaUrl ? <SafeImage src={getFullscreenImageUrl(story.mediaUrl, 1000)} alt="" fill priority className="object-contain" sizes="(max-width: 640px) 100vw, 448px" /> : <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${resolveStoryBackground(story.background)} p-8 text-center text-3xl font-bold leading-relaxed text-white`}>{story.text}</div>}
         {story.mediaUrl && story.text && <div className="absolute inset-x-5 bottom-8 rounded-2xl bg-black/45 px-4 py-3 text-center text-lg font-semibold text-white backdrop-blur-sm">{story.text}</div>}
 
         <button type="button" onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0} className="absolute start-2 top-1/2 z-20 rounded-full bg-black/20 p-2 text-white disabled:invisible"><ChevronLeft className="h-7 w-7" /></button>

@@ -37,10 +37,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PublicProfilePage({ params }: Props) {
   const { id } = await params;
   let user: PublicUser | null = null;
+  let loadFailed = false;
   try {
     const res = await getCachedUser(id);
     user = res.data.data ?? null;
-  } catch { /* user 404 */ }
+  } catch (err) {
+    // FIX SSR-RESILIENCE-02: only a confirmed 404 means "user not found".
+    // Any other failure (network, 5xx, timeout) used to be swallowed here
+    // and shown as a deleted account.
+    const status =
+      (err as { statusCode?: number })?.statusCode ??
+      (err as { response?: { status?: number } })?.response?.status;
+    if (status !== 404) loadFailed = true;
+  }
+
+  if (!user && loadFailed) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <EmptyState
+          icon={<UserX className="h-10 w-10" />}
+          title="تعذّر تحميل الملف الشخصي"
+          description="حدثت مشكلة في الاتصال، حاول مرة أخرى بعد قليل"
+          action={
+            <Link href={ROUTES.userProfile(id)} prefetch={false} className="text-sm text-primary hover:underline">
+              إعادة المحاولة
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   // UX-FIX (audit P2-06): was bare centered text with no icon and, more
   // importantly, no way back into the app — every other not-found state
