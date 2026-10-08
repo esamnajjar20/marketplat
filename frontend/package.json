@@ -5,9 +5,10 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "node scripts/generate-warming-manifest.mjs && next build --webpack && node scripts/generate-warming-manifest.mjs",
     "start": "next start",
     "lint": "eslint .",
+    "warming:audit": "node scripts/warming-final-audit.mjs",
     "type-check": "tsc --noEmit",
     "type-check:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "test": "vitest run",
@@ -24,10 +25,10 @@
     "cap:android": "npx cap add android",
     "cap:open:android": "npx cap open android",
     "cap:run:android": "npx cap run android",
-    "perf:virtualization-audit": "node scripts/virtualization-audit.mjs",
     "perf:render-audit": "node scripts/render-audit.mjs",
     "perf:render-regression": "node scripts/render-regression-audit.mjs",
-    "perf:query-invalidation-audit": "node scripts/query-invalidation-audit.mjs"
+    "perf:query-invalidation-audit": "node scripts/query-invalidation-audit.mjs",
+    "perf:virtualization-audit": "node scripts/virtualization-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

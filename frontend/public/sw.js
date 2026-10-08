@@ -107,7 +107,7 @@
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v45';
+const CACHE_VERSION = 'v47';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع

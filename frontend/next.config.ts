@@ -251,6 +251,13 @@ const nextConfig: NextConfig = {
         source: '/manifest.webmanifest',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' }],
       },
+      {
+        // WARM-MANIFEST-FRESH-01: the manifest contains build-hashed chunk URLs.
+        // A stale CDN/browser copy can point warming at chunks from the previous
+        // deployment and make an otherwise healthy route fail atomically.
+        source: '/warming-manifest.json',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
     ];
   },
 

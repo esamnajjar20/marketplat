@@ -73,6 +73,9 @@ import { reportProgress } from './warmingProgress';
 import { reportWarmingFailure } from './offlineWarmingReport';
 import { fetchWithTimeout as sharedFetchWithTimeout } from './fetchTimeout';
 import { STATIC_CACHE_NAME, PERSONAL_SHELL_CACHE_NAME } from '@/lib/cacheVersion';
+import { getExpectedRouteAssets } from './warmingManifest';
+import { recordWarmedRoute, recordWarmingTransfer } from './warmingTelemetry';
+import { reserveWarmingRequest, recordWarmingRuntimeBytes } from './warmingRuntimeBudget';
 
 // PROXY-WARMING: transient staging area for atomic per-route warming.
 // Deliberately NOT versioned — sw.js's activate handler deletes any
@@ -440,12 +443,20 @@ function shellTimeoutMs(): number {
 // resolves). It starts when fetch() is CALLED, so a request that the browser
 // holds in its per-origin queue burns its budget while waiting — which is why
 // chunk fetches go through settlePool() below instead of being fired all at once.
-function fetchWithTimeout(
+async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
   timeoutMs: number = shellTimeoutMs(),
 ): Promise<Response> {
-  return sharedFetchWithTimeout(url, options, timeoutMs);
+  if (!reserveWarmingRequest()) return Promise.reject(new Error('warming-request-budget-exhausted'));
+  return sharedFetchWithTimeout(url, options, timeoutMs).then(async (response) => {
+    const length = Number(response.headers.get('content-length'));
+    if (Number.isFinite(length) && length > 0 && !recordWarmingRuntimeBytes(length)) {
+      try { await response.body?.cancel(); } catch { /* noop */ }
+      throw new Error('warming-byte-budget-exhausted');
+    }
+    return response;
+  });
 }
 
 /**
@@ -605,14 +616,21 @@ async function warmRouteAtomic(
         error: `html-${htmlRes.status}${htmlRes.redirected ? '-redirected' : ''}`,
       };
     }
+    const htmlLength = Number(htmlRes.headers.get('content-length'));
+    if (Number.isFinite(htmlLength) && htmlLength > 0) recordWarmingTransfer(route, htmlLength);
 
     // 2. Extract every _next/static asset the HTML references.
     const html = await htmlRes.clone().text();
-    const chunkUrls = Array.from(
+    const htmlChunkUrls = Array.from(
       html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
     )
       .map((m) => m[1])
       .filter((u): u is string => Boolean(u));
+    // W5: the build-time manifest covers lazy/app chunks that may not be
+    // present in the first HTML response. Runtime HTML extraction remains
+    // the source of truth; manifest assets are an additive safety net.
+    const manifestChunkUrls = await getExpectedRouteAssets(route);
+    const chunkUrls = [...new Set([...htmlChunkUrls, ...manifestChunkUrls])];
 
     // 3. Stage every chunk. Skip ones already in STATIC_CACHE from an
     //    earlier pass — they are already live.
@@ -621,6 +639,8 @@ async function warmRouteAtomic(
       if (alreadyLive) return { url, skipped: true };
       const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
       if (!res.ok) throw new Error(`chunk-${res.status}`);
+      const length = Number(res.headers.get('content-length'));
+      if (Number.isFinite(length) && length > 0) recordWarmingTransfer(route, length);
       await putTimestamped(stagingCache, url, res);
       stagedPaths.push(url);
       return { url, skipped: false };
@@ -663,6 +683,7 @@ async function warmRouteAtomic(
     //    route stays offline-complete.
     const visitAt = await cachedAtOf(staticCache, route);
     if (isFreshVisitCopy(visitAt, priorWarmedAt)) {
+      recordWarmedRoute(route);
       return {
         ok: true,
         urls: [route, ...chunkUrls, rscShellKey(route)],
@@ -694,6 +715,7 @@ async function warmRouteAtomic(
       // Non-fatal.
     }
 
+    recordWarmedRoute(route);
     return { ok: true, urls: [route, ...chunkUrls, rscShellKey(route)] };
   } catch (err) {
     for (const url of stagedPaths) {
@@ -1016,11 +1038,16 @@ async function warmPersonalRouteAtomic(
     }
 
     const html = await htmlRes.clone().text();
-    const chunkUrls = Array.from(
+    const htmlChunkUrls = Array.from(
       html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
     )
       .map((m) => m[1])
       .filter((u): u is string => Boolean(u));
+    // W5: the build-time manifest covers lazy/app chunks that may not be
+    // present in the first HTML response. Runtime HTML extraction remains
+    // the source of truth; manifest assets are an additive safety net.
+    const manifestChunkUrls = await getExpectedRouteAssets(route);
+    const chunkUrls = [...new Set([...htmlChunkUrls, ...manifestChunkUrls])];
 
     await settlePool(chunkUrls, CHUNK_FETCH_CONCURRENCY, async (url) => {
       const alreadyLive = await staticCache.match(url);

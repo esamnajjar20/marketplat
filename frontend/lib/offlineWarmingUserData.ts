@@ -32,6 +32,9 @@
 'use client';
 
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
+import { USER_WARMING_QUERIES } from './warmingQueryContract';
+import { recordWarmingTransfer } from './warmingTelemetry';
+import { reserveWarmingRequest, recordWarmingRuntimeBytes } from './warmingRuntimeBudget';
 
 import { API_BASE_URL } from './constants';
 import { reportProgress } from './warmingProgress';
@@ -73,24 +76,12 @@ const CRITICAL_TTL_MULTIPLIER = 3;
  * most first — a pass cut short by a bad link still got the best ones).
  * Each entry becomes one fetch + one cache.put. Keep this list small.
  */
-export const USER_DATA_ENDPOINTS: ReadonlyArray<{ path: string; group: UserDataGroup }> = [
-  { path: '/conversations?limit=20', group: 'volatile' },
-  { path: '/conversations/unread-count', group: 'volatile' },
-  { path: '/notifications?limit=20', group: 'volatile' },
-  { path: '/notifications/unread-count', group: 'volatile' },
-  { path: '/users/me', group: 'stable' },
-  { path: '/ads/me?page=1&limit=20', group: 'volatile' },
-  { path: '/favorites?page=1&limit=20', group: 'volatile' },
-  { path: '/ads/me/stats', group: 'volatile' },
-  { path: '/sellers/me/attention', group: 'volatile' },
-  { path: '/activity?limit=8', group: 'volatile' },
-  // Seller / provider (return 404 for plain buyers — tolerated & remembered)
-  { path: '/stores/me', group: 'stable' },
-  { path: '/service-providers/me', group: 'stable' },
-  { path: '/sellers/me/profile', group: 'stable' },
-  // Form data for create pages
-  { path: '/product-categories', group: 'stable' },
-];
+export const USER_DATA_ENDPOINTS: ReadonlyArray<{ path: string; group: UserDataGroup }> = USER_WARMING_QUERIES.map((entry) => ({
+  path: entry.path,
+  group: ['me', 'my-store', 'my-provider', 'my-seller-profile', 'product-categories'].includes(entry.id)
+    ? 'stable'
+    : 'volatile',
+}));
 
 interface FreshEntry {
   /** Date.now() of the last successful warm. */
@@ -176,6 +167,7 @@ async function fetchWithAuth(
   signal: AbortSignal,
   allowRefresh: boolean,
 ): Promise<Response> {
+  if (!reserveWarmingRequest()) throw new Error('warming-request-budget-exhausted');
   const token = useAuthStore.getState().accessToken;
   // No session: still request (public endpoints such as /product-categories
   // keep warming for guests); personal endpoints simply answer 401 and are
@@ -229,6 +221,10 @@ async function warmOneEndpoint(
     const headers = new Headers(res.headers);
     headers.set('X-SW-Cached-At', String(Date.now()));
     const body = await res.clone().blob();
+    if (body.size > 0) {
+      recordWarmingRuntimeBytes(body.size);
+      recordWarmingTransfer(fullUrl.split('?')[0] ?? fullUrl, body.size);
+    }
 
     // FIX WARM-LOGOUT-RACE-01: logout may have run clearSensitiveLocalData()
     // while this request was in flight. Writing now would resurrect the

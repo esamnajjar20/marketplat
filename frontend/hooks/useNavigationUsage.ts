@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { recordRouteUse } from '@/lib/warmingTelemetry';
 
 const STORAGE_KEY = 'marketplat:navigation-usage:v1';
 const MAX_ITEMS = 80;
@@ -8,21 +9,22 @@ const RECENT_LIMIT = 8;
 const RECENCY_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 
 type UsageEntry = { count: number; lastUsed: number };
-type UsageMap = Record<string, UsageEntry>;
+export type NavigationUsageEntry = UsageEntry;
+export type NavigationUsageMap = Record<string, NavigationUsageEntry>;
 
-function readUsage(): UsageMap {
+export function readNavigationUsage(): NavigationUsageMap {
   if (typeof window === 'undefined') return {};
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as UsageMap;
+    const parsed = JSON.parse(raw) as NavigationUsageMap;
     return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return {};
   }
 }
 
-function writeUsage(usage: UsageMap) {
+function writeUsage(usage: NavigationUsageMap) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(usage));
   } catch {
@@ -31,17 +33,18 @@ function writeUsage(usage: UsageMap) {
 }
 
 export function useNavigationUsage() {
-  const [usage, setUsage] = useState<UsageMap>({});
+  const [usage, setUsage] = useState<NavigationUsageMap>({});
 
   useEffect(() => {
-    setUsage(readUsage());
+    setUsage(readNavigationUsage());
   }, []);
 
   const recordNavigation = useCallback((href: string) => {
     if (!href || href.startsWith('#')) return;
+    recordRouteUse(href.split('?')[0] || href);
 
-    setUsage((current) => {
-      const next: UsageMap = {
+    setUsage((current: NavigationUsageMap) => {
+      const next: NavigationUsageMap = {
         ...current,
         [href]: {
           count: (current[href]?.count ?? 0) + 1,
@@ -64,7 +67,7 @@ export function useNavigationUsage() {
 
   const recentHrefs = useMemo(
     () =>
-      Object.entries(usage)
+      (Object.entries(usage) as Array<[string, NavigationUsageEntry]>)
         .sort(([, a], [, b]) => b.lastUsed - a.lastUsed)
         .slice(0, RECENT_LIMIT)
         .map(([href]) => href),

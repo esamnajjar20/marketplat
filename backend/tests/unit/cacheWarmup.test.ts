@@ -26,6 +26,18 @@ jest.mock('../../src/modules/service-categories/service-categories.service', () 
 jest.mock('../../src/modules/ads/ads.service', () => ({
   adsService: { getAds: jest.fn().mockResolvedValue({ items: [], meta: {} }) },
 }));
+jest.mock('../../src/modules/products/products.service', () => ({
+  productsService: { getProducts: jest.fn().mockResolvedValue({ items: [], meta: {} }) },
+}));
+jest.mock('../../src/modules/stores/stores.service', () => ({
+  storesService: { getStores: jest.fn().mockResolvedValue({ stores: [], meta: {} }) },
+}));
+jest.mock('../../src/modules/service-listings/service-listings.service', () => ({
+  serviceListingsService: { getServiceListings: jest.fn().mockResolvedValue({ items: [], meta: {} }) },
+}));
+jest.mock('../../src/modules/service-providers/service-providers.service', () => ({
+  serviceProvidersService: { getServiceProviders: jest.fn().mockResolvedValue({ providers: [], meta: {} }) },
+}));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
@@ -46,6 +58,10 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
       'service-categories',
       'ads:list:default',
       'ads:list:featured',
+      'products:list:default',
+      'stores:list:default',
+      'service-listings:list:default',
+      'service-providers:list:default',
       ...HOME_CITIES.map(city => `home:${city}`),
     ]);
   });
@@ -61,7 +77,6 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
     await featuredTask.run();
     expect(adsService.getAds).toHaveBeenNthCalledWith(1, {
       page: 1,
-      limit: 20,
       sortBy: 'createdAt',
       sortOrder: 'desc',
     });

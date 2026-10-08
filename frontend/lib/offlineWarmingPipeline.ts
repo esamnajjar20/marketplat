@@ -17,9 +17,7 @@
  */
 'use client';
 
-import { warmCoreBundle } from '@/lib/offlineCoreBundle';
-import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRouteShells';
-import { warmUserData } from '@/lib/offlineWarmingUserData';
+import { runWarmingEngine } from '@/lib/warmingEngine';
 import { shouldPauseBackgroundWarming } from '@/lib/offlineStoragePressure';
 
 let pipelineInFlight = false;
@@ -110,6 +108,7 @@ export async function runWarmingPipeline(
   }
 
   pipelineInFlight = true;
+  let pipelineRan = false;
   try {
     const queueIdle = await waitForQueueReplayIdle();
     if (!queueIdle) return { ran: false };
@@ -126,39 +125,18 @@ export async function runWarmingPipeline(
     lastPipelineStartedAt = Date.now();
     if (options.authenticated) lastPipelineAuthenticated = true;
 
-    // Phase 2 — core JSON bundle (categories, featured listings).
     if (!online) return { ran: false };
-    try {
-      // FIX WARM-FORCE-CORE-01: `force` was passed only to the shell
-      // phases, so the manual "warm now" button never refreshed the core
-      // lists (they stayed up to several hours old).
-      await warmCoreBundle({ force: options.force === true });
-    } catch (err) {
-      console.warn('[warm-pipeline] core failed:', err);
-    }
 
-    // Phase 3 — public shells (marketplace browse paths).
-    if (!online) return { ran: true };
-    try {
-      await warmRouteShellsAtomic(options.force === true);
-    } catch (err) {
-      console.warn('[warm-pipeline] public shells failed:', err);
-    }
-
-    if (options.authenticated) {
-      if (!online) return { ran: true };
-      // Phase 4 — personal page shells.
-      try {
-        await warmPersonalShellsAtomic(options.force === true);
-      } catch (err) {
-        console.warn('[warm-pipeline] personal shells failed:', err);
-      }
-      // Phase 5 — auth-scoped API + self profile JSON.
-      try {
-        await warmUserData({ force: options.force === true });
-      } catch (err) {
-        console.warn('[warm-pipeline] user data failed:', err);
-      }
+    // W0-W3: one engine owns the pass budget and priority ordering. The
+    // existing phase functions remain responsible for atomic writes,
+    // freshness gates and cross-tab locks.
+    const result = await runWarmingEngine({
+      authenticated: options.authenticated === true,
+      force: options.force === true,
+    });
+    pipelineRan = result.ran;
+    if (result.skipped.length > 0) {
+      console.info('[warm-pipeline] budget skipped:', result.skipped.join(','));
     }
   } finally {
     pipelineInFlight = false;
@@ -171,5 +149,5 @@ export async function runWarmingPipeline(
       void runWarmingPipeline({ authenticated: true });
     }
   }
-  return { ran: true };
+  return { ran: pipelineRan };
 }

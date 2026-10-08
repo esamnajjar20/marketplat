@@ -4,8 +4,9 @@
  * Decides how aggressive the offline warming pass should be, based on
  * measured network quality (Gaza-first).
  *
- * FIX WARM-MIN-20-01 (superseded by WARM-DEADCODE-01): the measured-speed
- * tiers this note described are gone; 'fast' warms ROUTE_BUDGETS.core.
+ * W0-W3: route scope remains planner-owned, but the global warming budget
+ * now caps it again using measured network conditions. This keeps explicit
+ * 'full' from bypassing safety limits on unknown/weak links.
  *
  * FIX WARM-PRIORITY-MARKETPLACE-01: PRIORITY_ROUTES ordered by real usage
  * for a classifieds marketplace (browse → search → chat → sell → tools).
@@ -14,6 +15,8 @@
 
 import { getWarmingMode } from './warmingPreferences';
 import { getNetworkPolicy, type NetworkTier } from './networkPolicy';
+import { getWarmingBudget } from './warmingBudget';
+import { readNavigationUsage } from '@/hooks/useNavigationUsage';
 
 // NOTE: getWarmingPlan() no longer produces 'critical' (see FIX WARM-DEADCODE-01);
 // the member stays in the union because downstream consumers and their tests
@@ -106,7 +109,8 @@ export const PINNED_OFFLINE_ROUTES = ['/offline'] as const;
  * cached the first time the user visits it (networkFirstPage) or on demand
  * via the per-row "retry" button in /settings/offline.
  *
- * 'full' (explicit user choice) is unchanged: every known route.
+ * 'full' is still the broadest user-selected mode, but the adaptive global
+ * budget is an upper bound; weak/unknown links remain intentionally bounded.
  */
 export const ROUTE_BUDGETS = {
   core: { public: 12, personal: 8 },
@@ -249,17 +253,37 @@ export function selectRoutesByPlan(
   const remaining = routesInPriorityOrder.filter(
     (r) => !pinnedSet.has(r) && !priority.includes(r),
   );
-  const ordered = [...priority, ...remaining];
+  const baseImportance = Object.fromEntries(PRIORITY_ROUTES.map((route, index) => [route, 100 - index]));
+  const usage = readNavigationUsage();
+  const score = (route: string) => {
+    const entry = usage[route];
+    if (!entry) return baseImportance[route] ?? 0;
+    const age = Math.max(0, Date.now() - entry.lastUsed);
+    const recency = Math.max(0, 1 - age / (30 * 24 * 60 * 60 * 1000));
+    const frequency = Math.min(entry.count, 12) / 12;
+    return (baseImportance[route] ?? 0) + recency * 28 + frequency * 18;
+  };
+  // W7: usage personalizes only the order; the static marketplace importance
+  // remains the tie-break baseline, so a frequently visited low-value route
+  // cannot consume the entire warming budget.
+  const ordered = [...priority, ...remaining].sort((a, b) => {
+    const diff = score(b) - score(a);
+    return Math.abs(diff) > 0.5 ? diff : a.localeCompare(b);
+  });
+
+  const warmingMode = getWarmingMode();
+  const adaptive = getWarmingBudget(getNetworkPolicy(), warmingMode === 'full' ? 'full' : 'fast');
+  const adaptiveBudget = kind === 'public' ? adaptive.maxRouteCount : adaptive.maxPersonalRouteCount;
 
   switch (plan.tier) {
     case 'critical':
     case 'core': {
-      const budget = ROUTE_BUDGETS[plan.tier][kind];
-      return [...pinned, ...ordered.slice(0, budget)];
+      const staticBudget = ROUTE_BUDGETS[plan.tier][kind];
+      return [...pinned, ...ordered.slice(0, Math.min(staticBudget, adaptiveBudget))];
     }
     case 'full':
     default:
-      return [...pinned, ...ordered];
+      return [...pinned, ...ordered.slice(0, adaptiveBudget)];
   }
 }
 

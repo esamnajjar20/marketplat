@@ -18,3 +18,6 @@ public/tessdata/
 /android/app/build/
 /android/build/
 /android/.gradle/
+
+# W5: generated at build time by scripts/generate-warming-manifest.mjs
+public/warming-manifest.json

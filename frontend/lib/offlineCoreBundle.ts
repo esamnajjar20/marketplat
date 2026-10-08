@@ -36,6 +36,12 @@ import { API_BASE_URL } from '@/lib/constants';
 import { CORE_CACHE_NAME } from '@/lib/cacheVersion';
 import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
+import { getWarmingMode } from './warmingPreferences';
+import { getWarmingBudget } from './warmingBudget';
+import { reserveWarmingRequest, recordWarmingRuntimeBytes } from './warmingRuntimeBudget';
+import { PUBLIC_WARMING_QUERIES, warmingQueryUrl } from './warmingQueryContract';
+import { recordWarmingTransfer } from './warmingTelemetry';
+import { getNetworkPolicy } from './networkPolicy';
 import {
   reportProgress,
   subscribeWarmingProgress,
@@ -150,80 +156,21 @@ export function getWarmupProgress(): WarmupProgress {
  * للتخزين في Cache Storage، مو JSON مُحلَّل (اللي axios يرجعه).
  */
 export function buildCoreUrls(): { key: string; url: string }[] {
+  const contract = new Map(PUBLIC_WARMING_QUERIES.map((entry) => [entry.id, entry.path]));
   return [
     { key: 'categories', url: `${API_BASE_URL}/categories` },
-    {
-      key: 'service-categories',
-      // FEAT-CREATE-BROADCAST-01: كانت غائبة عن هذه القائمة رغم أن
-      // ServiceListingForm.tsx (نموذج "خدمة جديدة") وCreateOpenRequestForm
-      // (نموذج "طلب / احتياج") كلاهما يعتمد على GET /service-categories
-      // لملء قائمة الفئات — دون تسخين استباقي، أي مستخدم لم يفتح صفحة
-      // تجلبها من قبل وهو أونلاين يرى قائمة فئات فارغة (ولا يقدر يُكمل
-      // النشر، الحقل required) أول مرة يحاول ينشر بلا اتصال. لا معاملات —
-      // الـ endpoint نفسه بلا صفحات (نفس نمط 'categories' أعلاه).
-      url: `${API_BASE_URL}/service-categories`,
-    },
-    // CORE-TAXONOMY-01: بقية تصنيفات النماذج/الاستكشاف كانت غائبة، بنفس سبب
-    // FEAT-CREATE-BROADCAST-01 أعلاه — مستخدم لم يفتح الصفحة المعنية وهو
-    // أونلاين يرى قائمة فارغة أول مرة بلا اتصال:
-    //   - /product-categories → useProductCategories (قسم المنتجات في الاستكشاف)
-    //   - /store-types        → useStoreTypes (BecomeStoreOwnerCard / فتح متجر)
-    //   - /service-types      → useServiceTypes (نماذج مزوّد الخدمة)
-    // الثلاثة بلا معاملات (نفس URL الذي تبنيه productCategoriesApi.getAll /
-    // storeTypesApi.getAll / serviceTypesApi.getAll)، وCACHE.STATIC بالباك-إند.
+    { key: 'service-categories', url: `${API_BASE_URL}/service-categories` },
     { key: 'product-categories', url: `${API_BASE_URL}/product-categories` },
     { key: 'store-types', url: `${API_BASE_URL}/store-types` },
     { key: 'service-types', url: `${API_BASE_URL}/service-types` },
-    {
-      key: 'products',
-      // FIX CACHE-KEY-01: ترتيب المعاملات هنا يجب يطابق حرفيًا الترتيب اللي
-      // axios يبنيه فعليًا من كائن params في ProductsGrid.tsx —
-      // { search, page, city, sortBy, sortOrder, hasPromotion, limit: 12 }
-      // — search/city/hasPromotion غير معرّفة بالتصفح الافتراضي فتُحذف،
-      // فالترتيب الفعلي يطلع page→sortBy→sortOrder→limit (limit أخيرًا،
-      // مو ثانيًا). كان limit موضوع بالمرتبة الثانية هنا فـ Cache API's
-      // مطابقة السلسلة الحرفية للـ URL كانت تفشل دائمًا لهذا الطلب تحديدًا
-      // (miss دائم) رغم إنه محفوظ فعليًا بـ CORE_CACHE.
-      url: `${API_BASE_URL}/products?page=1&sortBy=createdAt&sortOrder=desc&limit=12`,
-    },
-    {
-      key: 'stores',
-      // مطابق لقيم StoresGrid.tsx الافتراضية بدون أي فلتر من URL.
-      url: `${API_BASE_URL}/stores?page=1&sortBy=createdAt&sortOrder=desc`,
-    },
-    {
-      key: 'ads',
-      // مطابق لقيم SearchResults.tsx الافتراضية (تصفّح عام بدون q) — بدون
-      // limit صريح فيُطبَّق افتراضي الباك-إند (20، انظر ads.service.ts).
-      // ADD-ADS-PAGE: نفس الرابط يخدم الآن أيضًا app/(public)/ads/page.tsx
-      // (تستخدم نفس ads/SearchResults.tsx بنفس القيم الافتراضية)، إضافة
-      // لتبويب /search?type=ads كما كان الحال سابقًا.
-      url: `${API_BASE_URL}/ads?page=1&sortBy=createdAt&sortOrder=desc`,
-    },
-    {
-      key: 'services',
-      // مطابق لقيم ServiceListingsGrid.tsx الافتراضية بدون أي فلتر من URL
-      // (بدون limit صريح -> افتراضي الباك-إند 20، انظر service-listings.service.ts).
-      url: `${API_BASE_URL}/service-listings?page=1&sortBy=createdAt&sortOrder=desc`,
-    },
-    // SW-ADD-HOME-WARMING: the home page's own sections fired requests
-    // the core bundle never warmed — on offline they 404'd or showed
-    // empty placeholders. Adding the two stable shapes:
-    //   - FeaturedAds ({isFeatured: true, limit: 4}) — no city/filters
-    //   - RecentProductsSection ({limit: 8, createdAt desc}) — only
-    //     when the location resolver hasn't picked a city, so the
-    //     `city` param is undefined and axios drops it from the URL.
-    //     The city-parametrized variant (once the resolver settles on
-    //     a city) is per-user state and belongs in user-data warming,
-    //     not here.
-    {
-      key: 'ads-featured',
-      url: `${API_BASE_URL}/ads?isFeatured=true&limit=4`,
-    },
-    {
-      key: 'products-home',
-      url: `${API_BASE_URL}/products?limit=8&sortBy=createdAt&sortOrder=desc`,
-    },
+    ...([
+      ['products-default', 'products'],
+      ['stores-default', 'stores'],
+      ['ads-default', 'ads'],
+      ['services-default', 'services'],
+      ['ads-featured', 'ads-featured'],
+      ['products-home', 'products-home'],
+    ] as const).map(([id, key]) => ({ key, url: warmingQueryUrl(contract.get(id) as string) })),
   ];
 }
 
@@ -353,7 +300,13 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
 
     await runPool(urls, concurrency, async ({ key, url }) => {
       try {
+        if (!reserveWarmingRequest()) throw new Error('warming-request-budget-exhausted');
         const response = await fetchWithTimeout(url, {}, timeoutMs); // بدون credentials — نقاط عامة
+        const length = Number(response.headers.get('content-length'));
+        if (Number.isFinite(length) && length > 0) {
+          if (!recordWarmingRuntimeBytes(length)) throw new Error('warming-byte-budget-exhausted');
+          recordWarmingTransfer(key, length);
+        }
         if (await cachePut(cache, url, response.clone())) {
           jsonSucceeded += 1;
           if (key === 'ads' || key === 'products' || key === 'services' || key === 'stores') {
@@ -389,13 +342,21 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
     }
 
     // الصور best-effort: تُسخَّن فقط إن نجحت القوائم (وإلا لا معنى لها).
-    const thumbnails = jsonOk ? collectThumbnailUrls(bodies) : [];
+    const warmingMode = getWarmingMode();
+    const budget = getWarmingBudget(getNetworkPolicy(), warmingMode === 'full' ? 'full' : 'fast');
+    const thumbnails = jsonOk && budget.allowImages ? collectThumbnailUrls(bodies) : [];
     total = urls.length + thumbnails.length;
     notifyWarmup({ active: true, completed, total });
 
     await runPool(thumbnails, concurrency, async (url) => {
       try {
+        if (!reserveWarmingRequest()) throw new Error('warming-request-budget-exhausted');
         const response = await fetchWithTimeout(url, {}, timeoutMs);
+        const length = Number(response.headers.get('content-length'));
+        if (Number.isFinite(length) && length > 0) {
+          if (!recordWarmingRuntimeBytes(length)) throw new Error('warming-byte-budget-exhausted');
+          recordWarmingTransfer(url, length);
+        }
         await cachePut(cache, url, response);
       } catch {
         // صورة واحدة فاشلة لا توقف الباقي.

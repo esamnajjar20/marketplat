@@ -84,6 +84,21 @@ export const backgroundTaskFailuresTotal = new client.Counter({
   registers: [register],
 });
 
+export const cacheWarmupTasksTotal = new client.Counter({
+  name: 'cache_warmup_tasks_total',
+  help: 'Public cache warming task outcomes by stable task name',
+  labelNames: ['task', 'outcome'] as const,
+  registers: [register],
+});
+
+export const cacheWarmupTaskDurationSeconds = new client.Histogram({
+  name: 'cache_warmup_task_duration_seconds',
+  help: 'Public cache warming task duration by stable task name',
+  labelNames: ['task'] as const,
+  buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+  registers: [register],
+});
+
 export const backgroundTaskFailurePersistenceTotal = new client.Counter({
   name: 'background_task_failure_persistence_errors_total',
   help: 'Failures while persisting a failed background task record',

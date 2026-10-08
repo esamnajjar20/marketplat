@@ -70,13 +70,11 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     }
   });
 
-  it("'full' (explicit user choice) still warms every known route", () => {
+  it("'full' remains bounded by the adaptive budget when connection quality is unknown", () => {
     mode = 'full';
     const plan = getWarmingPlan();
-    expect(selectRoutesByPlan(plan, [...CORE_ROUTES], 'public')).toHaveLength(CORE_ROUTES.length);
-    expect(selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal')).toHaveLength(
-      PERSONAL_SHELL_ROUTES_ESSENTIAL.length,
-    );
+    expect(selectRoutesByPlan(plan, [...CORE_ROUTES], 'public').length).toBeLessThanOrEqual(8);
+    expect(selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal').length).toBeLessThanOrEqual(3);
   });
 
   it("'off' selects nothing", () => {
