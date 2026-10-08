@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { CardKindBadge, CardOfflineBadge, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
@@ -17,17 +18,17 @@ interface Props { product: ProductWithStore; storeId?: string; context?: CardCon
   mixedList?: boolean; }
 const AVAILABILITY_LABEL: Record<ProductAvailability, string> = { IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'غير متوفر' };
 
-export function ProductCard({ product, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false, mixedList = false }: Props) {
+export const ProductCard = memo(function ProductCard({ product, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false, mixedList = false }: Props) {
   const compact = density === 'compact' || layout === 'list';
   const detailHref = ROUTES.productDetail(product.id);
   const rawImage = product.images?.[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, mixedList ? 240 : 320) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const outOfStock = product.availability === 'OUT_OF_STOCK';
-  const now = useNowAfterMount();
+  const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
+  const now = useNowAfterMount(showTime);
   const timeColorClass = freshnessClass(now, product.createdAt);
   const showLocation = context !== 'store' && context !== 'owner';
-  const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
   const showStore = context === 'favorites' || context === 'catalog';
   const showHeart = context !== 'owner';
   const effectivePrice = product.effectivePrice ?? { price: Number(product.price ?? 0), originalPrice: Number(product.price ?? 0), discountPrice: product.discountPrice != null ? Number(product.discountPrice) : null, discountPercentage: null, hasActivePromotion: false, activePromotionId: null };
@@ -41,7 +42,7 @@ export function ProductCard({ product, context = 'public', className, priority =
   const visibleBadges = [...candidates].sort((a, b) => b.priority - a.priority).slice(0, CARD_MAX_BADGES).sort((a, b) => a.order - b.order).map((c) => c.node);
 
   return (
-    <article className={cn('group relative h-full min-w-0', className)}>
+    <article className={cn('group relative h-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_320px]', className)}>
       <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex', layout === 'list' ? 'flex-row' : 'flex-col', CARD_HOVER, CARD_FOCUS, CARD_PRESS)}>
         <div className={cn(mixedList ? CARD_IMAGE_43 : CARD_IMAGE_SQUARE, layout === 'list' && 'aspect-auto h-28 w-28 shrink-0 sm:h-36 sm:w-44') }>
           <SafeImage src={thumb} alt={product.name} fill className={cn('object-cover', CARD_IMAGE_HOVER, outOfStock && 'opacity-60')} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
@@ -65,4 +66,4 @@ export function ProductCard({ product, context = 'public', className, priority =
       {showHeart && <FavoriteButton entityType="PRODUCT" entityId={product.id} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
     </article>
   );
-}
+});

@@ -17,6 +17,7 @@ import {
 } from '@/lib/downloadStorage';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 // toLocaleString never throws — an invalid
 // date produces the string "Invalid Date", not an exception. The old
@@ -30,7 +31,7 @@ function formatDate(iso: string) {
 
 export function DownloadsPageClient() {
   const [items, setItems] = useState<CatalogDownloadRecord[]>([]);
-  const [online, setOnline] = useState(true);
+  const online = useOnlineStatus();
   const [query, setQuery] = useState('');
   // replace window.confirm with shared ConfirmDialog.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
@@ -51,15 +52,6 @@ export function DownloadsPageClient() {
 
   useEffect(() => {
     refresh();
-    setOnline(navigator.onLine);
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
-    return () => {
-      window.removeEventListener('online', on);
-      window.removeEventListener('offline', off);
-    };
   }, [refresh]);
 
   if (items.length === 0) {

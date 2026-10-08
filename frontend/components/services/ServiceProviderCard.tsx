@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +32,7 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
 /**
  * Directory card for /service-providers — design system aligned.
  */
-export function ServiceProviderCard({ provider, className }: Props) {
+export const ServiceProviderCard = memo(function ServiceProviderCard({ provider, className }: Props) {
   const avatar = getAvatarUrl(provider.logoUrl ?? '', 96);
   const userCity = useAuthStore((s) => s.user?.city ?? null);
 
@@ -46,7 +47,7 @@ export function ServiceProviderCard({ provider, className }: Props) {
       href={ROUTES.serviceProvider(provider.id)}
       prefetch={false}
       className={cn(
-        'group flex h-full gap-3 rounded-2xl border border-border/80 bg-card p-3 shadow-sm',
+        'group flex h-full gap-3 rounded-2xl [content-visibility:auto] [contain-intrinsic-size:auto_180px] border border-border/80 bg-card p-3 shadow-sm',
         'transition-[transform,box-shadow,border-color] duration-200 active:scale-[0.995]',
         'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
@@ -102,4 +103,4 @@ export function ServiceProviderCard({ provider, className }: Props) {
       </div>
     </Link>
   );
-}
+});

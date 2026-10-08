@@ -26,6 +26,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import {
   Dialog,
   DialogContent,
@@ -94,7 +95,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
   const [payees, setPayees] = useState<SavedPayee[]>([]);
   const [cards, setCards] = useState<SavedNetCard[]>([]);
   const [tab, setTab] = useState<'pay' | 'cards'>('pay');
-  const [online, setOnline] = useState(true);
+  const online = useOnlineStatus();
   const [query, setQuery] = useState('');
 
   const [addPayOpen, setAddPayOpen] = useState(false);
@@ -125,15 +126,6 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
 
   useEffect(() => {
     refresh();
-    setOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
-    return () => {
-      window.removeEventListener('online', on);
-      window.removeEventListener('offline', off);
-    };
   }, [refresh]);
 
   const q = query.trim().toLowerCase();

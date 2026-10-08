@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { getDetailImageUrl } from '@/lib/cloudinary';
@@ -21,7 +22,7 @@ interface Props {
 }
 
 /** Directory card for /stores — aligned with design system. */
-export function StoreCard({ store, className, density = 'default', context = 'public', layout = 'grid' }: Props) {
+export const StoreCard = memo(function StoreCard({ store, className, density = 'default', context = 'public', layout = 'grid' }: Props) {
   const compact = density === 'compact' || layout === 'list';
   const avatar = getAvatarUrl(store.logoUrl ?? '', 96);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 720) : null;
@@ -33,7 +34,7 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
   const showHeart = context !== 'owner';
 
   return (
-    <article className={cn('group relative h-full w-full min-w-0', className)}>
+    <article className={cn('group relative [content-visibility:auto] [contain-intrinsic-size:auto_320px] h-full w-full min-w-0', className)}>
       <Link
         href={ROUTES.storeDetail(store.id)}
         prefetch={false}
@@ -103,4 +104,4 @@ export function StoreCard({ store, className, density = 'default', context = 'pu
       {showHeart && <FavoriteButton entityType="STORE" entityId={store.id} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
     </article>
   );
-}
+});

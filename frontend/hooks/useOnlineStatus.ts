@@ -1,35 +1,88 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+
+type Listener = () => void;
 
 /**
- * حالة الاتصال بالإنترنت — مستخرج من NetworkStatusBanner.tsx وBottomNav.tsx's
- * badge (زر القائمة) ليستخدما نفس المصدر بدل تكرار مستمعي online/offline في
- * كل مكوّن على حدة.
+ * Browser connectivity is a singleton external signal.
  *
- * يبدأ بـ true دائمًا (حتى بأول رندر على العميل) لتفادي وميض "غير متصل"
- * خاطئ قبل أن يتحقق useEffect فعليًا من navigator.onLine بعد التركيب —
- * الفرق حقيقي فقط لجزء من الميلي ثانية، ولا داعي لقراءة navigator.onLine
- * أثناء الرندر نفسه (غير متاح بالخادم أصلًا، والقيمة الابتدائية بأي حال
- * تُصحَّح فورًا بأول useEffect بعد التركيب).
+ * Before this implementation every useOnlineStatus() instance created its own
+ * React state and its own `online`/`offline` DOM listeners. That is especially
+ * expensive in card/list UIs where the hook can be mounted dozens of times.
+ *
+ * The public hook API stays unchanged, but the browser is now subscribed only
+ * while at least one React consumer exists. React consumers subscribe to the
+ * singleton store through useSyncExternalStore, which is the correct React 19
+ * primitive for external browser state and keeps the server snapshot stable.
+ */
+const listeners = new Set<Listener>();
+let listening = false;
+
+// Keep the historical SSR/hydration contract: the first render is optimistic
+// (`true`) and the real browser value is synchronized when the first consumer
+// subscribes after commit. This avoids reading navigator during SSR/render.
+let snapshot = true;
+
+function getSnapshot(): boolean {
+  return snapshot;
+}
+
+function getServerSnapshot(): boolean {
+  return true;
+}
+
+function notify(next: boolean): void {
+  if (next === snapshot) return;
+  snapshot = next;
+  for (const listener of listeners) listener();
+}
+
+function syncFromBrowser(): void {
+  if (typeof navigator === 'undefined') return;
+  notify(navigator.onLine);
+}
+
+function handleOnline(): void {
+  notify(true);
+}
+
+function handleOffline(): void {
+  notify(false);
+}
+
+function startListening(): void {
+  if (listening || typeof window === 'undefined') return;
+  listening = true;
+  // Synchronize after the subscriber has been registered. This preserves the
+  // old hook's first-render=true behavior while correcting the value promptly.
+  syncFromBrowser();
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+}
+
+function stopListening(): void {
+  if (!listening || typeof window === 'undefined') return;
+  window.removeEventListener('online', handleOnline);
+  window.removeEventListener('offline', handleOffline);
+  listening = false;
+}
+
+function subscribe(listener: Listener): () => void {
+  listeners.add(listener);
+  if (listeners.size === 1) startListening();
+
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) stopListening();
+  };
+}
+
+/**
+ * Returns the current browser connectivity state.
+ *
+ * Multiple consumers share one underlying pair of browser event listeners.
  */
 export function useOnlineStatus(): boolean {
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const onOnline = () => setIsOnline(true);
-    const onOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
-
-    return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-    };
-  }, []);
-
-  return isOnline;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

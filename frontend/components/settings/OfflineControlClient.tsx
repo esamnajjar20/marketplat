@@ -32,6 +32,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectUser } from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadge';
 import {
   getWarmingMode, setWarmingMode,
@@ -73,7 +74,7 @@ export function OfflineControlClient() {
   const [mode, setMode] = useState<WarmingMode>('fast');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [online, setOnline] = useState(true);
+  const online = useOnlineStatus();
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [progress, setProgress] = useState<AggregatedProgress | null>(null);
@@ -126,20 +127,13 @@ export function OfflineControlClient() {
   useEffect(() => {
     void readSnapshotLive();
     setMode(getWarmingMode());
-    setOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
     const id = window.setInterval(() => {
       void readSnapshotLive();
     }, 5_000);
 
-    const onOnline = () => setOnline(true);
-    const onOffline = () => setOnline(false);
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
     return () => {
       window.clearInterval(id);
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
     };
   }, [readSnapshotLive]);
 

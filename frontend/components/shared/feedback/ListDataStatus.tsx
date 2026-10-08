@@ -4,7 +4,7 @@
  * SLOW-NET — visible feedback when list UI is from cache or refreshing.
  * design tokens instead of hardcoded amber classes.
  */
-import { useEffect, useState } from 'react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -20,20 +20,7 @@ export function ListDataStatus({
   isPlaceholderData = false,
   className,
 }: Props) {
-  const [online, setOnline] = useState(true);
-
-  useEffect(() => {
-    if (typeof navigator === 'undefined') return;
-    setOnline(navigator.onLine);
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
-    return () => {
-      window.removeEventListener('online', on);
-      window.removeEventListener('offline', off);
-    };
-  }, []);
+  const online = useOnlineStatus();
 
   if (!hasData) return null;
 

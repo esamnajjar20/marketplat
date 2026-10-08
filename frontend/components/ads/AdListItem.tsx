@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar } from 'lucide-react';
@@ -9,13 +10,13 @@ import { cn } from '@/lib/utils';
 
 interface Props { ad: AdListItemType; className?: string; }
 
-export function AdListItem({ ad, className }: Props) {
+export const AdListItem = memo(function AdListItem({ ad, className }: Props) {
   const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 160, 120) : PLACEHOLDER_SVG;
 
   return (
     <Link href={ROUTES.adDetail(ad.id)}
       prefetch={false}
-      className={cn('flex gap-3 p-3 rounded-lg border bg-card hover:shadow-sm transition-shadow', className)}>
+      className={cn('flex gap-3 p-3 [content-visibility:auto] [contain-intrinsic-size:auto_140px] rounded-lg border bg-card hover:shadow-sm transition-shadow', className)}>
       <div className="relative w-28 h-20 shrink-0 rounded overflow-hidden bg-muted">
         <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="112px" />
         {ad.status === 'SOLD' && (
@@ -34,4 +35,4 @@ export function AdListItem({ ad, className }: Props) {
       </div>
     </Link>
   );
-}
+});

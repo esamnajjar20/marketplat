@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Star } from 'lucide-react';
@@ -28,23 +29,23 @@ function fieldValue(field: ServiceTypeField, value: unknown): string {
   return String(value);
 }
 
-export function ServiceListingCard({ listing, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false }: Props) {
+export const ServiceListingCard = memo(function ServiceListingCard({ listing, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false }: Props) {
   const compact = density === 'compact' || layout === 'list';
   const detailHref = ROUTES.serviceDetail(listing.id);
   const rawImage = listing.images[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 240) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
-  const now = useNowAfterMount();
+  const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
+  const now = useNowAfterMount(showTime);
   const timeColorClass = freshnessClass(now, listing.createdAt);
   const showLocation = context !== 'store' && context !== 'owner';
-  const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
   const showProvider = context === 'favorites' || context === 'catalog';
   const showHeart = context !== 'owner';
   const cardFields = (listing.serviceType?.fields ?? []).filter((field) => field.scope === 'LISTING' && field.isActive && field.showOnCard && listing.attributes?.[field.key] !== undefined && listing.attributes?.[field.key] !== null && listing.attributes?.[field.key] !== '').slice(0, compact ? 1 : 2);
 
   return (
-    <article className={cn('group relative h-full min-w-0', className)}>
+    <article className={cn('group relative h-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_320px]', className)}>
       <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex', layout === 'list' ? 'flex-row' : 'flex-col', CARD_HOVER, CARD_FOCUS, CARD_PRESS)}>
         <div className={cn(CARD_IMAGE_43, layout === 'list' && 'aspect-auto h-28 w-28 shrink-0 sm:h-36 sm:w-44')}>
           <SafeImage src={thumb} alt={listing.title} fill className={cn('object-cover', CARD_IMAGE_HOVER)} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
@@ -86,4 +87,4 @@ export function ServiceListingCard({ listing, context = 'public', className, pri
       {showHeart && <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
     </article>
   );
-}
+});
