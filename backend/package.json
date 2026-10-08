@@ -38,6 +38,7 @@
     "docker:prod": "docker-compose up -d",
     "prepare": "husky install || true",
     "report:cleanup-notifications": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupOldNotifications.ts",
+    "report:cleanup-stories": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupExpiredStories.ts",
     "report:notification-digest": "ts-node-dev --transpile-only --exit-child src/scripts/dailyNotificationDigest.ts",
     "report:weekly-service-views": "ts-node-dev --transpile-only --exit-child src/scripts/weeklyServiceViewsReport.ts",
     "report:cleanup-tokens": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupExpiredTokens.ts",

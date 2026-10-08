@@ -4,12 +4,14 @@ import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { HomeAppPromo } from '@/components/home/HomeAppPromo';
 import { HomeSafeBuyingTips } from '@/components/home/HomeSafeBuyingTips';
 import { ForYouMixedSection } from '@/components/home/ForYouMixedSection';
+import { FollowingFeedSection } from '@/components/home/FollowingFeedSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
 import { HomeAboveFold } from '@/components/home/HomeAboveFold';
 import { HomeServicesSection } from '@/components/home/HomeServicesSection';
 import { FeaturedStoresSection } from '@/components/home/FeaturedStoresSection';
 import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
 import { HomeBusyBoundary } from '@/components/home/HomeBusyBoundary';
+import { StoriesRail } from '@/components/stories/StoriesRail';
 import { LazySection } from '@/components/shared/LazySection';
 
 /**
@@ -22,8 +24,12 @@ export function HomePageContent() {
     <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-16 md:pb-16">
       <HomeBusyBoundary>
         <EagerHomeSections />
+        <div className="mx-auto mt-3 max-w-7xl px-3 sm:mt-5 sm:px-4"><StoriesRail /></div>
 
         <div className="mt-3 space-y-5 sm:mt-6 sm:space-y-8">
+          <LazySection minHeight={220} rootMargin="20px 0px" whenIdle={false}>
+            <FollowingFeedSection />
+          </LazySection>
           <LazySection minHeight={240} rootMargin="20px 0px" whenIdle={false}>
             <ForYouMixedSection />
           </LazySection>

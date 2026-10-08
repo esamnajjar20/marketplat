@@ -37,6 +37,8 @@ import { recommendationsRouter } from './modules/recommendations';
 import { fraudRouter } from './modules/fraud';
 import { observabilityRouter } from './modules/observability';
 import { homeRouter } from './modules/home';
+import { followsRouter } from './modules/follows';
+import { storiesRouter } from './modules/stories';
 import { csrfProtection } from './middlewares/csrf.middleware';
 import { createReadBatchHandler } from './shared/utils/readBatchRouter';
 
@@ -68,6 +70,8 @@ router.use('/ads', adsRouter);
 // CategoriesRow, HomeAboveFold's city/general ads) into one request —
 // see home.validation.ts for exactly what is/isn't included and why.
 router.use('/home', homeRouter);
+router.use('/follows', followsRouter);
+router.use('/stories', storiesRouter);
 router.use('/categories', categoriesRouter);
 router.use('/reports', reportsRouter);
 router.use('/favorites', favoritesRouter);

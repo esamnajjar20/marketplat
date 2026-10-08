@@ -17,6 +17,7 @@ const JOBS: Job[] = [
   { name: 'report:cleanup-tokens', hour: 3, minute: 15 },
   { name: 'report:cleanup-failed-tasks', hour: 3, minute: 30 },
   { name: 'report:cleanup-notifications', hour: 3, minute: 30, weekdays: [0] },
+  { name: 'report:cleanup-stories', hour: 3, minute: 40 },
   { name: 'report:expire-service-requests', hour: 3, minute: 45 },
   { name: 'report:cleanup-analytics', hour: 3, minute: 45 },
   { name: 'report:demote-stale-boosts', hour: 4, minute: 0, weekdays: [0] },

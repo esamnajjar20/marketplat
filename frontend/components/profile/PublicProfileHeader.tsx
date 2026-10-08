@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Calendar, FileText, Star } from 'lucide-react';
+import { MapPin, Calendar, FileText, Star, UserPlus, UserMinus } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { getAvatarUrl }   from '@/lib/cloudinary';
 import { formatDate }     from '@/lib/formatters';
@@ -12,11 +14,17 @@ import { EditProfileButtonGate } from '@/components/profile/EditProfileButtonGat
 import { BlockUserButtonGate } from '@/components/profile/BlockUserButtonGate';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ProfileBadges } from '@/components/profile/ProfileBadges';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { PublicUser } from '@/types/user.types';
 import { APP_URL, ROUTES } from '@/lib/constants';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { normalizePaymentMethods, type StorePaymentMethod } from '@/lib/storePaymentMethods';
+import { useToggleFollow } from '@/hooks/mutations/useFollowMutations';
+import { useFollowStatus } from '@/hooks/queries/useFollows';
+import { useUserStories } from '@/hooks/queries/useStories';
+import { StoryViewer } from '@/components/stories/StoryViewer';
+import type { StoryGroup } from '@/api/stories.api';
+import { useAuthStore } from '@/store/auth.store';
 
 interface Props { user: PublicUser; }
 
@@ -42,6 +50,12 @@ export function PublicProfileHeader({ user }: Props) {
   const seller = user.sellerProfile;
   const rating = seller ? parseFloat(seller.averageRating) : 0;
   const isOnline = useIsUserOnline(user.id);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
+  const isOwnProfile = currentUserId === user.id;
+  const { data: isFollowing = false } = useFollowStatus('USER', user.id);
+  const toggleFollow = useToggleFollow();
+  const { data: profileStories = [] } = useUserStories(user.id);
+  const [activeStoryGroup, setActiveStoryGroup] = useState<StoryGroup | null>(null);
 
   const profilePaymentMethods = useMemo(() => {
     const seller = user.sellerProfile;
@@ -64,10 +78,16 @@ export function PublicProfileHeader({ user }: Props) {
     <div className="mx-auto w-full max-w-lg">
       <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/50 pb-5 pt-7 shadow-sm">
       <div className="relative z-10 flex flex-col items-center px-4 text-center">
-        <div className="relative shrink-0">
-          <div className="relative h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-[3px] border-background bg-muted shadow-md sm:h-24 sm:w-24">
+        <div className={`relative shrink-0 rounded-full p-[3px] ${profileStories.length ? 'bg-gradient-to-tr from-amber-500 via-pink-500 to-violet-600' : 'bg-transparent'}`}>
+          <button
+            type="button"
+            disabled={profileStories.length === 0}
+            onClick={() => profileStories.length > 0 && setActiveStoryGroup({ user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null }, stories: profileStories, hasUnseen: profileStories.some((story) => !story.viewed), latestCreatedAt: profileStories[profileStories.length - 1]?.createdAt ?? user.createdAt })}
+            className="relative block h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-[3px] border-background bg-muted shadow-md sm:h-24 sm:w-24"
+            aria-label={profileStories.length ? 'مشاهدة قصص المستخدم' : undefined}
+          >
             <SafeImage variant="avatar" src={avatar} alt={user.name} fill className="object-cover" sizes="96px" />
-          </div>
+          </button>
           {seller?.verified && (
             <div className="absolute -bottom-0.5 -end-0.5 z-10">
               <VerifiedBadge />
@@ -101,6 +121,16 @@ export function PublicProfileHeader({ user }: Props) {
               <span className="text-lg font-semibold tabular-nums text-foreground">{user._count.ads}</span>
               <span className="text-2xs-tight text-muted-foreground">إعلان</span>
             </div>
+            <div className="w-px h-8 bg-border" />
+            <div className="flex flex-col items-center">
+              <span className="text-lg font-semibold tabular-nums text-foreground">{user.followStats.followers}</span>
+              <span className="text-2xs-tight text-muted-foreground">متابع</span>
+            </div>
+            <div className="w-px h-8 bg-border" />
+            <div className="flex flex-col items-center">
+              <span className="text-lg font-semibold tabular-nums text-foreground">{user.followStats.following}</span>
+              <span className="text-2xs-tight text-muted-foreground">أتابعهم</span>
+            </div>
             {user.city && (
               <>
                 <div className="w-px h-8 bg-border" />
@@ -116,6 +146,10 @@ export function PublicProfileHeader({ user }: Props) {
               <span className="text-2xs-tight text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
             </div>
           </div>
+          <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <Link href={`/profile/${user.id}/followers`} className="hover:text-foreground hover:underline">المتابعون</Link>
+            <Link href={`/profile/${user.id}/following`} className="hover:text-foreground hover:underline">أتابعهم</Link>
+          </div>
         </div>
 
         {user.bio && (
@@ -128,6 +162,17 @@ export function PublicProfileHeader({ user }: Props) {
             only shows on your own. */}
         <div className="mt-4 w-full max-w-sm space-y-2">
           <div className="flex flex-wrap items-center justify-center gap-2">
+            {!isOwnProfile && (
+              <button
+                type="button"
+                disabled={toggleFollow.isPending}
+                onClick={() => toggleFollow.mutate({ targetType: 'USER', targetId: user.id })}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
+              >
+                {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
+              </button>
+            )}
             <MessageUserButtonGate targetUserId={user.id} />
             <ShareAdButton
               title={user.name}
@@ -141,6 +186,8 @@ export function PublicProfileHeader({ user }: Props) {
             <ReportUserButtonGate targetUserId={user.id} />
           </div>
         </div>
+
+        {activeStoryGroup && <StoryViewer group={activeStoryGroup} onClose={() => setActiveStoryGroup(null)} />}
 
         {(profilePaymentMethods.length > 0 || !!fallbackPhone) && (
           <div className="mt-3 w-full max-w-sm">
