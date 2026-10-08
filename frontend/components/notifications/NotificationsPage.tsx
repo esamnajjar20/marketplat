@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import Link from 'next/link';
 import {
@@ -11,8 +11,6 @@ import {
   Trash2,
   RefreshCw,
   WifiOff,
-  MailOpen,
-  Circle,
   Smartphone,
 } from 'lucide-react';
 import { useMyNotifications, useUnreadNotificationCount } from '@/hooks/queries/useNotifications';
@@ -26,16 +24,13 @@ import {
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import {
-  iconFor,
-  labelFor,
-  hrefFor,
   NOTIFICATION_CATEGORIES,
   groupNotificationsByDay,
   groupNotificationsByContext,
   type NotificationCategoryId,
 } from '@/lib/notificationMeta';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
+import { NotificationRow } from '@/components/notifications/NotificationRow';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import type { Notification } from '@/types/notification.types';
@@ -117,9 +112,12 @@ export function NotificationsPage() {
   const showHardError = isError && items.length === 0;
   const showStaleNotice = !online && items.length > 0;
 
-  function onRowClick(n: Notification) {
+  const onRowClick = useCallback((n: Notification) => {
     if (!n.readAt) markRead.mutate(n.id);
-  }
+  }, [markRead.mutate]);
+  const onMarkRead = useCallback((id: string) => markRead.mutate(id), [markRead.mutate]);
+  const onMarkUnread = useCallback((id: string) => markUnread.mutate(id), [markUnread.mutate]);
+  const onDelete = useCallback((id: string) => deleteOne.mutate(id), [deleteOne.mutate]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -379,121 +377,19 @@ export function NotificationsPage() {
                   {group.label}
                 </div>
                 <ul className="divide-y">
-                  {group.items.map((n) => {
-                    const Icon = iconFor(n.type);
-                    const href = hrefFor(n);
-                    const unread = !n.readAt;
-                    const inner = (
-                      <div
-                        className={cn(
-                          'flex items-start gap-3 p-4 transition-colors hover:bg-muted/40',
-                          unread && 'bg-primary/[0.04]',
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-                            unread
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-muted text-muted-foreground',
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p
-                                className={cn(
-                                  'text-sm line-clamp-1',
-                                  unread && 'font-semibold',
-                                )}
-                              >
-                                {n.title}
-                              </p>
-                              <p className="mt-0.5 text-2xs-tight text-muted-foreground">
-                                {labelFor(n.type)}
-                              </p>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-0.5">
-                              <span className="text-2xs-tight tabular-nums text-muted-foreground">
-                                {formatRelativeTime(n.createdAt)}
-                              </span>
-                              {unread && (
-                                <span className="ms-1 h-2 w-2 rounded-full bg-primary" />
-                              )}
-                            </div>
-                          </div>
-                          <p className="mt-1 text-sm leading-relaxed text-muted-foreground line-clamp-3">
-                            {n.body}
-                          </p>
-                          <div className="mt-2 flex items-center gap-1">
-                            {unread ? (
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs-tight text-muted-foreground hover:bg-muted hover:text-foreground"
-                                disabled={markRead.isPending}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  markRead.mutate(n.id);
-                                }}
-                              >
-                                <MailOpen className="h-3 w-3" />
-                                تعليم كمقروء
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs-tight text-muted-foreground hover:bg-muted hover:text-foreground"
-                                disabled={markUnread.isPending}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  markUnread.mutate(n.id);
-                                }}
-                              >
-                                <Circle className="h-3 w-3" />
-                                تعليم كغير مقروء
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              aria-label="حذف الإشعار"
-                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs-tight text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                              disabled={deleteOne.isPending}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                deleteOne.mutate(n.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              حذف
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-
-                    return (
-                      <li key={n.id}>
-                        {href ? (
-                          <Link href={href} onClick={() => onRowClick(n)} className="block">
-                            {inner}
-                          </Link>
-                        ) : (
-                          <button
-                            type="button"
-                            className="w-full text-start"
-                            onClick={() => onRowClick(n)}
-                          >
-                            {inner}
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
+                  {group.items.map((n) => (
+                    <NotificationRow
+                      key={n.id}
+                      notification={n}
+                      onOpen={onRowClick}
+                      onMarkRead={onMarkRead}
+                      onMarkUnread={onMarkUnread}
+                      onDelete={onDelete}
+                      markReadPending={markRead.isPending}
+                      markUnreadPending={markUnread.isPending}
+                      deletePending={deleteOne.isPending}
+                    />
+                  ))}
                 </ul>
               </div>
             ))}
