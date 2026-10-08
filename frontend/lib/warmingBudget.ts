@@ -16,8 +16,8 @@ export interface WarmingBudget {
 
 const BASE_BUDGETS: Record<NetworkTier, WarmingBudget> = {
   offline: { maxRequests: 0, maxBytes: 0, maxDurationMs: 0, maxConcurrency: 0, maxRouteCount: 0, maxPersonalRouteCount: 0, allowImages: false },
-  'very-slow': { maxRequests: 16, maxBytes: 512_000, maxDurationMs: 20_000, maxConcurrency: 1, maxRouteCount: 8, maxPersonalRouteCount: 2, allowImages: false },
-  slow: { maxRequests: 24, maxBytes: 1_500_000, maxDurationMs: 35_000, maxConcurrency: 1, maxRouteCount: 12, maxPersonalRouteCount: 4, allowImages: false },
+  'very-slow': { maxRequests: 16, maxBytes: 700_000, maxDurationMs: 20_000, maxConcurrency: 1, maxRouteCount: 8, maxPersonalRouteCount: 2, allowImages: false },
+  slow: { maxRequests: 24, maxBytes: 2_200_000, maxDurationMs: 35_000, maxConcurrency: 1, maxRouteCount: 12, maxPersonalRouteCount: 4, allowImages: false },
   normal: { maxRequests: 40, maxBytes: 4_000_000, maxDurationMs: 60_000, maxConcurrency: 2, maxRouteCount: 20, maxPersonalRouteCount: 6, allowImages: false },
   fast: { maxRequests: 60, maxBytes: 10_000_000, maxDurationMs: 90_000, maxConcurrency: 3, maxRouteCount: 40, maxPersonalRouteCount: 12, allowImages: true },
   unknown: { maxRequests: 12, maxBytes: 1_000_000, maxDurationMs: 30_000, maxConcurrency: 1, maxRouteCount: 8, maxPersonalRouteCount: 3, allowImages: false },

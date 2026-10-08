@@ -43,12 +43,15 @@ import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
 import { isWarmingCancelled } from './offlineRouteShells';
 import { useAuthStore } from '@/store/auth.store';
-import { SW_CACHE_VERSION, userDataCacheName } from '@/lib/cacheVersion';
+import { SW_CACHE_VERSION, userDataCacheName, USER_DATA_CACHE_PREFIX } from '@/lib/cacheVersion';
+// Single source: the prefix lives in lib/cacheVersion.ts, next to
+// SW_CACHE_VERSION. Re-exporting avoids a second literal that could silently
+// drift from the source of truth.
+export { USER_DATA_CACHE_PREFIX };
 
 const USER_DATA_LOCK_NAME = 'marketplat-warming-userdata';
 
-/** Must match sw.js's USER_DATA_CACHE template literally. */
-export const USER_DATA_CACHE_PREFIX = `market-user-data-${SW_CACHE_VERSION}-`;
+// USER_DATA_CACHE_PREFIX is now imported/re-exported from lib/cacheVersion.ts.
 
 export function getUserDataCacheName(userId: string): string {
   return userDataCacheName(userId);
