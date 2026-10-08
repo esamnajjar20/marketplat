@@ -36,7 +36,8 @@ export function useToggleFavorite() {
       // returns immediately regardless of onMutate and no caller reads
       // the cache synchronously right after it — the justification
       // was incorrect.
-      await queryClient.cancelQueries({ queryKey: ['favorites'] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.favorites.all() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.favorites.ids() });
 
       const previousIds = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids());
 
@@ -69,8 +70,10 @@ export function useToggleFavorite() {
       toast.error(parsed.message);
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+    onSettled: (_data, _error, adId) => {
+      queryClient.invalidateQueries({ queryKey: ['favorites', 'list'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.ids() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.check(adId) });
     },
   });
 }

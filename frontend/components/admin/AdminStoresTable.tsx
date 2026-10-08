@@ -24,7 +24,7 @@
  * AdminSellersTable's verify vs. suspend.
  */
 
-import { memo, useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle2, Ban, RotateCcw, Search, Star } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
@@ -33,15 +33,14 @@ import { Input }         from '@/components/shared/ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/ui/Select';
 import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
-import { Tooltip }       from '@/components/shared/ui/Tooltip';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import { useAdminStores, useAdminStoreTypes } from '@/hooks/queries/useAdmin';
+import { AdminStoreRow } from '@/components/admin/AdminStoreRow';
 import { useAdminUpdateStoreStatus, useAdminUpdateStorePlan, useAdminUpdateStoreType, useAdminBulkUpdateStoreStatus } from '@/hooks/mutations/useAdminMutations';
-import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
@@ -138,13 +137,13 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
     setSelectedIds(new Set());
   }, [page, q, status, featureRequested]);
 
-  function toggleOne(id: string) {
+  const toggleOne = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  }
+  }, []);
 
   function toggleAll() {
     setSelectedIds(allSelected ? new Set() : new Set(items.map((s) => s.id)));
@@ -158,6 +157,19 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
     params.delete('page');
     router.replace(adminListHref('stores', params));
   }
+
+  const updateStatusForRow = useCallback((storeId: string, status: AdminStoreStatus) => {
+    updateStatus.mutate({ storeId, status });
+  }, [updateStatus]);
+  const updatePlanForRow = useCallback((storeId: string, plan: 'FREE' | 'FEATURED') => {
+    updatePlan.mutate({ storeId, plan });
+  }, [updatePlan]);
+  const updateTypeForRow = useCallback((storeId: string, storeTypeId: string) => {
+    updateType.mutate({ storeId, storeTypeId });
+  }, [updateType]);
+  const setBlockTargetForRow = useCallback((id: string, name: string) => {
+    setBlockTarget({ id, name });
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -355,99 +367,21 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {items.map((store) => {
-                const badge = { label: STORE_STATUS_LABELS[store.status], variant: STORE_STATUS_VARIANT[store.status] };
-                return (
-                  <tr key={store.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                    <td className="p-3">
-                      <Checkbox
-                        checked={selectedIds.has(store.id)}
-                        onChange={() => toggleOne(store.id)}
-                        aria-label={`تحديد متجر ${store.name}`}
-                      />
-                    </td>
-                    <td className="p-3">
-                      <span className="font-medium">{store.name}</span>
-                      <span className="block text-xs text-muted-foreground md:hidden">
-                        {store.sellerProfile.displayName}
-                      </span>
-                    </td>
-                    <td className="p-3 hidden md:table-cell text-muted-foreground">
-                      {store.sellerProfile.displayName}
-                    </td>
-                    <td className="p-3 hidden sm:table-cell text-muted-foreground">{store.city}</td>
-                    <td className="p-3 hidden lg:table-cell">
-                      <Select
-                        value={store.storeTypeId}
-                        onValueChange={(storeTypeId) => updateType.mutate({ storeId: store.id, storeTypeId })}
-                        disabled={updateType.isPending}
-                      >
-                        <SelectTrigger className="h-8 min-w-28 text-xs">
-                          <SelectValue placeholder="نوع المتجر" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {storeTypes.map((type) => <SelectItem key={type.id} value={type.id}>{type.nameAr}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="p-3">
-                      <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>
-                    </td>
-                    <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">
-                      {formatDate(store.createdAt)}
-                    </td>
-                    <td className="p-3">
-                      {/* DESKTOP-AUDIT-01: title= → Tooltip across this
-                          row's four actions, same pattern as
-                          AdminAuditLogsTable/AdminAdsTable/AdminUsersTable. */}
-                      <div className="flex items-center gap-1">
-                        {store.status !== 'ACTIVE' && (
-                          <Tooltip content="الموافقة على المتجر">
-                            <Button variant="ghost" size="icon" className="h-9 w-9"
-                              aria-label={`الموافقة على متجر ${store.name}`}
-                              disabled={pendingId === store.id}
-                              onClick={() => updateStatus.mutate({ storeId: store.id, status: 'ACTIVE' })}>
-                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                            </Button>
-                          </Tooltip>
-                        )}
-                        {store.status === 'BLOCKED' ? (
-                          <Tooltip content="رفع الحظر">
-                            <Button variant="ghost" size="icon" className="h-9 w-9"
-                              aria-label={`رفع الحظر عن متجر ${store.name}`}
-                              disabled={pendingId === store.id}
-                              onClick={() => updateStatus.mutate({ storeId: store.id, status: 'PENDING' })}>
-                              <RotateCcw className="h-3.5 w-3.5 text-success" />
-                            </Button>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip content="حظر المتجر">
-                            <Button variant="ghost" size="icon" className="h-9 w-9"
-                              aria-label={`حظر متجر ${store.name}`}
-                              disabled={pendingId === store.id}
-                              onClick={() => setBlockTarget({ id: store.id, name: store.name })}>
-                              <Ban className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
-                          </Tooltip>
-                        )}
-                        {/* FIX BUG-02: StorePlan.FEATURED was unreachable
-                            — no admin control existed to ever set it. */}
-                        <Tooltip content={store.plan === 'FEATURED' ? 'إلغاء تمييز المتجر' : 'تمييز المتجر'}>
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            aria-label={store.plan === 'FEATURED' ? `إلغاء تمييز متجر ${store.name}` : `تمييز متجر ${store.name}`}
-                            disabled={pendingId === store.id}
-                            onClick={() => updatePlan.mutate({
-                              storeId: store.id,
-                              plan: store.plan === 'FEATURED' ? 'FREE' : 'FEATURED',
-                            })}>
-                            <Star className={`h-3.5 w-3.5 ${store.plan === 'FEATURED' ? 'fill-warning text-warning' : 'text-muted-foreground'}`} />
-                          </Button>
-                        </Tooltip>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map((store) => (
+                <AdminStoreRow
+                  key={store.id}
+                  store={store}
+                  selected={selectedIds.has(store.id)}
+                  pendingId={pendingId}
+                  pendingTypeId={updateType.isPending ? updateType.variables?.storeId : undefined}
+                  storeTypes={storeTypes}
+                  onToggle={toggleOne}
+                  onUpdateStatus={updateStatusForRow}
+                  onUpdatePlan={updatePlanForRow}
+                  onUpdateType={updateTypeForRow}
+                  onBlock={setBlockTargetForRow}
+                />
+              ))}
               {items.length === 0 && (
                 <tr><td colSpan={8}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد متاجر" /></td></tr>
               )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, ExternalLink, Search } from 'lucide-react';
@@ -19,6 +19,7 @@ import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/consta
 import { formatRelativeTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
+import { AdminReportRow } from '@/components/admin/AdminReportRow';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 
 const REPORT_STATUSES = ['PENDING', 'RESOLVED', 'DISMISSED'] as const;
@@ -126,13 +127,17 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
     setSelectedIds(new Set());
   }, [page, status, targetType]);
 
-  function toggleOne(id: string) {
+  const toggleOne = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  }
+  }, []);
+
+  const requestStatusChange = useCallback((reportId: string, nextStatus: 'RESOLVED' | 'DISMISSED') => {
+    setConfirmTarget({ reportId, status: nextStatus });
+  }, []);
 
   // FIX (lint: @typescript-eslint/no-unused-vars): this updater never
   // needed the previous Set — toggleAll's next value only depends on
@@ -318,64 +323,14 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((report) => (
-                <tr key={report.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                  <td className="p-3">
-                    {report.status === 'PENDING' && (
-                      <Checkbox
-                        checked={selectedIds.has(report.id)}
-                        onChange={() => toggleOne(report.id)}
-                        aria-label={`تحديد البلاغ ${report.id}`}
-                      />
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <div className="space-y-0.5">
-                      <Badge variant="outline" className="text-xs">
-                        {REPORT_REASON_LABELS[report.reason] ?? report.reason}
-                      </Badge>
-                      {/* FIX TYPE-ERROR-01: was report.details, a field
-                          that does not exist on Report
-                          (types/admin.types.ts) — the actual field is
-                          `notes`. Silently rendered nothing at runtime
-                          (report.details was always undefined), so any
-                          note an admin or user attached to a report was
-                          never actually visible in this table. */}
-                      {report.notes && <p className="text-xs text-muted-foreground line-clamp-2">{report.notes}</p>}
-                    </div>
-                  </td>
-                  <td className="p-3 hidden md:table-cell">
-                    <Link prefetch={false} href={targetHref(report.targetType, report.targetId)} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-primary hover:underline text-xs">
-                      <ExternalLink className="h-3 w-3" />
-                      <span className="text-muted-foreground">[{TARGET_TYPE_LABELS[report.targetType]}]</span>
-                      {report.ad?.title ? report.ad.title.slice(0, 40) : report.targetId.slice(-8)}
-                    </Link>
-                  </td>
-                  {/* FIX TYPE-ERROR-01: was report.reporter, a field
-                      that does not exist on Report — the actual field
-                      is `user`. This always fell back to the '—'
-                      placeholder at runtime, meaning the reporting
-                      user's name was never actually shown to admins
-                      reviewing reports. */}
-                  <td className="p-3 hidden sm:table-cell text-muted-foreground text-xs">{report.user?.name ?? '—'}</td>
-                  <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{formatRelativeTime(report.createdAt)}</td>
-                  <td className="p-3">
-                    {report.status === 'PENDING' && (
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="sm" className="h-7 text-success"
-                          disabled={pendingReportId === report.id}
-                          onClick={() => setConfirmTarget({ reportId: report.id, status: 'RESOLVED' })}>
-                          <CheckCircle className="h-3.5 w-3.5 me-1" />حل
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground"
-                          disabled={pendingReportId === report.id}
-                          onClick={() => setConfirmTarget({ reportId: report.id, status: 'DISMISSED' })}>
-                          رفض
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                <AdminReportRow
+                  key={report.id}
+                  report={report}
+                  selected={selectedIds.has(report.id)}
+                  isPending={pendingReportId === report.id}
+                  onToggleSelected={toggleOne}
+                  onRequestStatus={requestStatusChange}
+                />
               ))}
               {items.length === 0 && (
                 <tr><td colSpan={6}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد بلاغات" /></td></tr>

@@ -44,8 +44,30 @@ check(/MessageBodyEditor/.test(messageInput), 'MessageInput: MessageBodyEditor i
 
 const clock = read('components/shared/cards/cardParts.tsx');
 check(/setInterval\(notifyNow,\s*60_000\)/.test(clock), 'card clock: minute ticker missing');
-check(/useNowAfterMount\(enabled:\s*boolean\s*=\s*true\)/.test(clock), 'card clock: conditional subscription gate missing');
-check(/enabled \? subscribeToNow : noopSubscribe/.test(clock), 'card clock: disabled cards still subscribe to the shared clock');
+check(/useNowAfterMount\(enabled:\s*boolean\s*=\s*true,\s*dateStr\?:\s*string\)/.test(clock), 'card clock: timestamp-aware scheduler API missing');
+check(/enabled \? subscribeToNow\(listener,\s*dateStr\) : noopSubscribe\(listener\)/.test(clock), 'card clock: disabled cards still subscribe to the shared clock');
+check(/visibilitychange/.test(clock), 'card clock: visibility-aware scheduler missing');
+check(/relativeBucket/.test(clock), 'card clock: per-subscriber bucket gating missing');
+
+const conversationList = read('components/messages/ConversationList.tsx');
+const conversationRow = read('components/messages/ConversationRow.tsx');
+const chatWindowNext = read('components/messages/ChatWindow.tsx');
+check(/<ConversationRow/.test(conversationList), 'ConversationList: rows are still rendered inline');
+check(/memo\(function ConversationRow/.test(conversationRow), 'ConversationRow: React.memo boundary missing');
+check(/pendingFlagId === conversation\.id/.test(conversationList), 'ConversationList: flag pending state is still global');
+check(/pendingMarkMessageId === message\.id/.test(chatWindowNext), 'ChatWindow: message mark pending state is still global');
+
+const sharedIdSetStore = read('hooks/queries/sharedIdSetStore.ts');
+const storesQuery = read('hooks/queries/useStores.ts');
+const blockedUsersQuery = read('hooks/queries/useBlockedUsers.ts');
+check(/useQueryIdSetMembership/.test(sharedIdSetStore), 'shared ID-set registry missing');
+check(/useQueryIdSetMembership/.test(storesQuery), 'useIsFollowingStore: shared registry not used');
+check(/useQueryIdSetMembership/.test(blockedUsersQuery), 'useIsUserBlocked: shared registry not used');
+
+const notificationMutations = read('hooks/mutations/useNotificationMutations.ts');
+const conversationMutations = read('hooks/mutations/useConversationMutations.ts');
+check(!/queryClient\.invalidateQueries\(\{ queryKey: \['notifications'\] \}\)/.test(notificationMutations), 'notification mutations: root invalidation returned');
+check(!/queryClient\.invalidateQueries\(\{ queryKey: \['conversations'\] \}\)/.test(conversationMutations), 'conversation mutations: root invalidation returned');
 
 const notifications = read('components/notifications/NotificationsPage.tsx');
 const notificationRow = read('components/notifications/NotificationRow.tsx');

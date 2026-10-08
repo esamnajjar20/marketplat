@@ -54,6 +54,9 @@ export function NotificationsPage() {
   // SW-FIX-NOTIF-CONFIRM-DIALOG: replaced window.confirm with the shared
   // ConfirmDialog (same as every other destructive action in the app).
   const [confirmDeleteRead, setConfirmDeleteRead] = useState(false);
+  const [pendingReadId, setPendingReadId] = useState<string | null>(null);
+  const [pendingUnreadId, setPendingUnreadId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const online = useOnlineStatus();
 
   useEffect(() => {
@@ -113,11 +116,23 @@ export function NotificationsPage() {
   const showStaleNotice = !online && items.length > 0;
 
   const onRowClick = useCallback((n: Notification) => {
-    if (!n.readAt) markRead.mutate(n.id);
+    if (!n.readAt) {
+      setPendingReadId(n.id);
+      markRead.mutate(n.id, { onSettled: () => setPendingReadId(null) });
+    }
   }, [markRead.mutate]);
-  const onMarkRead = useCallback((id: string) => markRead.mutate(id), [markRead.mutate]);
-  const onMarkUnread = useCallback((id: string) => markUnread.mutate(id), [markUnread.mutate]);
-  const onDelete = useCallback((id: string) => deleteOne.mutate(id), [deleteOne.mutate]);
+  const onMarkRead = useCallback((id: string) => {
+    setPendingReadId(id);
+    markRead.mutate(id, { onSettled: () => setPendingReadId(null) });
+  }, [markRead.mutate]);
+  const onMarkUnread = useCallback((id: string) => {
+    setPendingUnreadId(id);
+    markUnread.mutate(id, { onSettled: () => setPendingUnreadId(null) });
+  }, [markUnread.mutate]);
+  const onDelete = useCallback((id: string) => {
+    setPendingDeleteId(id);
+    deleteOne.mutate(id, { onSettled: () => setPendingDeleteId(null) });
+  }, [deleteOne.mutate]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -385,9 +400,9 @@ export function NotificationsPage() {
                       onMarkRead={onMarkRead}
                       onMarkUnread={onMarkUnread}
                       onDelete={onDelete}
-                      markReadPending={markRead.isPending}
-                      markUnreadPending={markUnread.isPending}
-                      deletePending={deleteOne.isPending}
+                      markReadPending={pendingReadId === n.id}
+                      markUnreadPending={pendingUnreadId === n.id}
+                      deletePending={pendingDeleteId === n.id}
                     />
                   ))}
                 </ul>

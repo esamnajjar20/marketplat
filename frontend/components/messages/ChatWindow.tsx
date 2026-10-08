@@ -123,7 +123,8 @@ export function ChatWindow({ conversationId }: Props) {
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
   const [partyTyping, setPartyTyping] = useState(false);
   const { mutate: setFlags, isPending: flagsPending } = useSetConversationFlags();
-  const { mutate: markMessage, isPending: markPending } = useMessageMarkMutation(conversationId);
+  const { mutate: markMessage } = useMessageMarkMutation(conversationId);
+  const [pendingMarkMessageId, setPendingMarkMessageId] = useState<string | null>(null);
   const { data: mediaItems = [], isLoading: mediaLoading } = useConversationMedia(conversationId, showMedia);
   const pendingQueued = usePendingMessages(conversationId);
 
@@ -382,7 +383,8 @@ export function ChatWindow({ conversationId }: Props) {
     : null;
 
   const handleMarkMessage = useCallback((input: { messageId: string; kind: 'star' | 'pin'; active: boolean }) => {
-    markMessage(input);
+    setPendingMarkMessageId(input.messageId);
+    markMessage(input, { onSettled: () => setPendingMarkMessageId(null) });
   }, [markMessage]);
 
   const handleEditQueued = useCallback((message: DisplayMessage) => {
@@ -591,7 +593,7 @@ export function ChatWindow({ conversationId }: Props) {
                   isMine={message.senderId === user?.id}
                   conversationId={conversationId}
                   isRetrying={retryingQueueId === message.queueId}
-                  markPending={markPending}
+                  markPending={pendingMarkMessageId === message.id}
                   onMarkMessage={handleMarkMessage}
                   onDeleteRequest={setConfirmDeleteMessageId}
                   onRetryQueued={handleRetryQueued}

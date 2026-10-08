@@ -26,7 +26,7 @@ export const ProductCard = memo(function ProductCard({ product, context = 'publi
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const outOfStock = product.availability === 'OUT_OF_STOCK';
   const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
-  const now = useNowAfterMount(showTime);
+  const now = useNowAfterMount(showTime, product.createdAt);
   const timeColorClass = freshnessClass(now, product.createdAt);
   const showLocation = context !== 'store' && context !== 'owner';
   const showStore = context === 'favorites' || context === 'catalog';

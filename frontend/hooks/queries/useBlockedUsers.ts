@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blockedUsersApi } from '@/api/blocked-users.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -12,6 +12,7 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { BlockedUsersQuery } from '@/types/blocked-user.types';
+import { useQueryIdSetMembership } from '@/hooks/queries/sharedIdSetStore';
 
 /**
  * GET /blocked-users — the caller's blocked users, paginated.
@@ -86,29 +87,10 @@ export function useIsUserBlocked(userId: string): boolean {
   const queryClient = useQueryClient();
   useMyBlockedUsers({ limit: 100 });
 
-  const [isBlocked, setIsBlocked] = useState<boolean>(() =>
-    getBlockedUserIdsSnapshot(queryClient).has(userId),
+  return useQueryIdSetMembership(
+    queryClient,
+    queryKeys.blockedUsers.ids(),
+    userId,
+    isAuthenticated,
   );
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsBlocked(false);
-      return;
-    }
-
-    setIsBlocked(getBlockedUserIdsSnapshot(queryClient).has(userId));
-
-    const cache = queryClient.getQueryCache();
-    const unsubscribe = cache.subscribe((event) => {
-      const key = event.query.queryKey;
-      const idsKey = queryKeys.blockedUsers.ids();
-      if (key.length !== idsKey.length || key.some((k: unknown, i: number) => k !== idsKey[i])) return;
-
-      setIsBlocked(getBlockedUserIdsSnapshot(queryClient).has(userId));
-    });
-
-    return unsubscribe;
-  }, [userId, isAuthenticated, queryClient]);
-
-  return isBlocked;
 }

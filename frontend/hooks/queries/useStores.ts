@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -18,6 +18,7 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
+import { useQueryIdSetMembership } from '@/hooks/queries/sharedIdSetStore';
 import type { StoresQuery, StoreDetails, StoreWithSeller } from '@/types/store.types';
 import {
   getOfflineJson,
@@ -270,29 +271,10 @@ export function useIsFollowingStore(storeId: string): boolean {
   const queryClient = useQueryClient();
   useMyFollowedStores({ limit: 100 });
 
-  const [isFollowing, setIsFollowing] = useState<boolean>(() =>
-    getFollowedStoreIdsSnapshot(queryClient).has(storeId),
+  return useQueryIdSetMembership(
+    queryClient,
+    queryKeys.stores.followedIds(),
+    storeId,
+    isAuthenticated,
   );
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsFollowing(false);
-      return;
-    }
-
-    setIsFollowing(getFollowedStoreIdsSnapshot(queryClient).has(storeId));
-
-    const cache = queryClient.getQueryCache();
-    const unsubscribe = cache.subscribe((event) => {
-      const key = event.query.queryKey;
-      const idsKey = queryKeys.stores.followedIds();
-      if (key.length !== idsKey.length || key.some((k: unknown, i: number) => k !== idsKey[i])) return;
-
-      setIsFollowing(getFollowedStoreIdsSnapshot(queryClient).has(storeId));
-    });
-
-    return unsubscribe;
-  }, [storeId, isAuthenticated, queryClient]);
-
-  return isFollowing;
 }

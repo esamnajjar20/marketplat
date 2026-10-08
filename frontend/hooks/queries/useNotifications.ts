@@ -54,7 +54,7 @@ export function useMyNotifications(params?: NotificationsQuery) {
     queryFn: () => notificationsApi.getMine(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.notifications,
     // SSE updates the inbox; poll is a slow backup, paused when hidden/offline.
-    refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 4),
+    refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
     enabled: isAuthenticated && (hasToken || !isOnline),
     ...(cached && cached.items.length > 0
       ? {
@@ -86,7 +86,7 @@ export function useUnreadNotificationCount() {
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: () => notificationsApi.getUnreadCount().then((r) => r.data.data?.count ?? 0),
     staleTime: CACHE_TTL.notifications,
-    refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 4),
+    refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
     enabled: isAuthenticated && (hasToken || !isOnline),
       ...(cached && typeof cached.unreadCount === 'number'
       ? {

@@ -25,9 +25,11 @@ export function canBackgroundPoll(): boolean {
 export function pollingInterval(
   baseMs: number,
   streamMultiplier = 3,
+  pauseWhenStreamConnected = false,
 ): number | false {
   if (!canBackgroundPoll()) return false;
   if (isNotificationStreamConnected()) {
+    if (pauseWhenStreamConnected) return false;
     return Math.max(baseMs * streamMultiplier, baseMs);
   }
   return baseMs;

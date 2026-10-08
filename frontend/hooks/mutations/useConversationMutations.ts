@@ -228,7 +228,7 @@ export function useSetConversationFlags() {
       mutedUntil?: string | null;
     }) => conversationsApi.setFlags(id, flags).then((r) => r.data.data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
       if (variables?.id) queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', variables.id] });
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -261,7 +261,8 @@ export function useDeleteConversation() {
     mutationFn: (id: string) => conversationsApi.deleteConversation(id).then((r) => r.data.data),
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: ['conversations', 'detail', id] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'unreadCount'] });
       toast.success('تم حذف المحادثة من محادثاتك');
     },
     onError: (err) => toast.error(parseApiError(err).message),

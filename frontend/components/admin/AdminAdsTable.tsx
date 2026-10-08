@@ -3,7 +3,7 @@
 // double-click could fire the same batch twice.
 'use client';
 
-import { memo, useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -16,20 +16,20 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { Tooltip } from '@/components/shared/ui/Tooltip';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError }       from '@/components/shared/ApiError';
 import { ConfirmDialog }  from '@/components/shared/feedback/ConfirmDialog';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { BulkActionBar }  from '@/components/shared/admin/BulkActionBar';
 import { useAdminAds }    from '@/hooks/queries/useAdmin';
+import { AdminAdRow } from '@/components/admin/AdminAdRow';
 import {
   useAdminSetFeatured, useAdminSetPinned, useAdminForceDeleteAd,
   useAdminBulkSetFeatured, useAdminBulkSetPinned, useAdminBulkDeleteAds,
 } from '@/hooks/mutations/useAdminMutations';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
@@ -98,27 +98,27 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
     setSelectedIds(new Set());
   }, [page, q, status]);
 
-  function toggleOne(id: string) {
+  const toggleOne = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  }
+  }, []);
 
   function toggleAll() {
     setSelectedIds(allSelected ? new Set() : new Set(items.map((ad) => ad.id)));
   }
 
-  function toggleFeatured(adId: string, next: boolean) {
+  const toggleFeatured = useCallback((adId: string, next: boolean) => {
     setPendingToggle({ adId, field: 'featured' });
     featureAd.mutate({ adId, value: next }, { onSettled: () => setPendingToggle(null) });
-  }
+  }, [featureAd]);
 
-  function togglePinned(adId: string, next: boolean) {
+  const togglePinned = useCallback((adId: string, next: boolean) => {
     setPendingToggle({ adId, field: 'pinned' });
     pinAd.mutate({ adId, value: next }, { onSettled: () => setPendingToggle(null) });
-  }
+  }, [pinAd]);
 
   function search(value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -306,82 +306,18 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {items.map((ad) => {
-                const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 80, 60) : PLACEHOLDER_SVG;
-                return (
-                  <tr key={ad.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                    <td className="p-3">
-                      <Checkbox
-                        checked={selectedIds.has(ad.id)}
-                        onChange={() => toggleOne(ad.id)}
-                        aria-label={`تحديد ${ad.title}`}
-                      />
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-12 h-9 rounded overflow-hidden bg-muted shrink-0">
-                          <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="48px" />
-                        </div>
-                        <div className="min-w-0">
-                          <Link prefetch={false} href={ROUTES.adDetail(ad.id)} className="font-medium hover:underline line-clamp-1"
-                            target="_blank" rel="noopener noreferrer">{ad.title}</Link>
-                          {ad.isFeatured && <Badge variant="outline" className="text-xs border-warning text-warning">مميز</Badge>}
-                          {ad.isPinned   && <Badge variant="outline" className="text-xs me-1">مثبّت</Badge>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 hidden md:table-cell text-muted-foreground">{ad.user?.name ?? '—'}</td>
-                    <td className="p-3 font-semibold">{formatPrice(ad.price)}</td>
-                    <td className="p-3 hidden sm:table-cell">
-                      <Badge
-                        variant={AD_STATUS_VARIANT[ad.status]}
-                        className="text-xs"
-                      >
-                        {STATUS_LABELS[ad.status] ?? ad.status}
-                      </Badge>
-                    </td>
-                    <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{formatRelativeTime(ad.createdAt)}</td>
-                    <td className="p-3">
-                      {/* FIX A11Y-01: title alone isn't reliably
-                          announced by screen readers / has no keyboard
-                          equivalent — aria-label is the real accessible
-                          name here, and reflects the actual action
-                          (toggle on/off) rather than a static label. */}
-                      {/* DESKTOP-AUDIT-01: title= → Tooltip, matching
-                          AdminAuditLogsTable. Content now tracks the
-                          actual toggle state (was static "تمييز"/"تثبيت"
-                          regardless of ad.isFeatured/isPinned — aria-label
-                          already had the correct dynamic text, the visual
-                          hint just hadn't caught up to it). */}
-                      <div className="flex gap-1 justify-end">
-                        <Tooltip content={ad.isFeatured ? 'إلغاء تمييز' : 'تمييز'}>
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            aria-label={ad.isFeatured ? `إلغاء تمييز ${ad.title}` : `تمييز ${ad.title}`}
-                            disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'featured'}
-                            onClick={() => toggleFeatured(ad.id, !ad.isFeatured)}>
-                            <Star className={`h-3.5 w-3.5 ${ad.isFeatured ? 'fill-warning text-warning' : ''}`} />
-                          </Button>
-                        </Tooltip>
-                        <Tooltip content={ad.isPinned ? 'إلغاء تثبيت' : 'تثبيت'}>
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
-                            aria-label={ad.isPinned ? `إلغاء تثبيت ${ad.title}` : `تثبيت ${ad.title}`}
-                            disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'pinned'}
-                            onClick={() => togglePinned(ad.id, !ad.isPinned)}>
-                            <Pin className={`h-3.5 w-3.5 ${ad.isPinned ? 'text-primary' : ''}`} />
-                          </Button>
-                        </Tooltip>
-                        <Tooltip content="حذف">
-                          <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive"
-                            aria-label={`حذف ${ad.title}`}
-                            onClick={() => setDeleteTargetId(ad.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </Tooltip>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map((ad) => (
+                <AdminAdRow
+                  key={ad.id}
+                  ad={ad}
+                  selected={selectedIds.has(ad.id)}
+                  pendingToggle={pendingToggle}
+                  onToggle={toggleOne}
+                  onToggleFeatured={toggleFeatured}
+                  onTogglePinned={togglePinned}
+                  onDelete={setDeleteTargetId}
+                />
+              ))}
               {items.length === 0 && (
                 <tr><td colSpan={7}><EmptyState icon={<Search className="h-8 w-8" />} title="لا توجد إعلانات" /></td></tr>
               )}

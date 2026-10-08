@@ -17,14 +17,13 @@
  */
 
 import { adminPagination } from '@/lib/adminHubTabs';
-import { memo, useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ShieldOff, ShieldCheck, BadgeCheck, BadgeX, Star, Search } from 'lucide-react';
+import { ShieldOff, ShieldCheck, BadgeCheck, BadgeX, Search } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Checkbox }      from '@/components/shared/ui/Checkbox';
 import { Pagination }    from '@/components/shared/ui/Pagination';
-import { Tooltip }       from '@/components/shared/ui/Tooltip';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
@@ -32,11 +31,11 @@ import { ApiError } from '@/components/shared/ApiError';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import { useAdminSellers } from '@/hooks/queries/useAdmin';
+import { AdminSellerRow } from '@/components/admin/AdminSellerRow';
 import {
   useAdminSetSellerVerified, useAdminSetSellerSuspended,
   useAdminBulkSetSellerVerified, useAdminBulkSetSellerSuspended,
 } from '@/hooks/mutations/useAdminMutations';
-import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 
 export const AdminSellersTable = memo(function AdminSellersTable() {
@@ -103,17 +102,24 @@ export const AdminSellersTable = memo(function AdminSellersTable() {
     setSelectedIds(new Set());
   }, [page, q, verification]);
 
-  function toggleOne(id: string) {
+  const toggleOne = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  }
+  }, []);
 
   function toggleAll() {
     setSelectedIds(allSelected ? new Set() : new Set(items.map((s) => s.id)));
   }
+
+  const setVerifiedForRow = useCallback((sellerProfileId: string, verified: boolean) => {
+    setVerified.mutate({ sellerProfileId, verified });
+  }, [setVerified]);
+  const setSuspendedForRow = useCallback((sellerProfileId: string, suspended: boolean) => {
+    setSuspended.mutate({ sellerProfileId, suspended });
+  }, [setSuspended]);
 
   return (
     <div className="space-y-4">
@@ -253,79 +259,17 @@ export const AdminSellersTable = memo(function AdminSellersTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((seller) => (
-                <tr key={seller.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                  <td className="p-3">
-                    <Checkbox
-                      checked={selectedIds.has(seller.id)}
-                      onChange={() => toggleOne(seller.id)}
-                      aria-label={`تحديد ${seller.displayName}`}
-                    />
-                  </td>
-                  <td className="p-3">
-                    <span className="font-medium">{seller.displayName}</span>
-                    <span className="block text-xs text-muted-foreground md:hidden">{seller.user.email}</span>
-                  </td>
-                  <td className="p-3 hidden md:table-cell text-muted-foreground">{seller.user.email}</td>
-                  <td className="p-3 hidden sm:table-cell">
-                    {seller.totalRatings > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-xs">
-                        <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-                        {Number(seller.averageRating).toFixed(1)}
-                        <span className="text-muted-foreground">({seller.totalRatings})</span>
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">لا يوجد تقييم</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <Badge variant={seller.verified ? 'success' : 'secondary'} className="text-xs">
-                      {seller.verified ? 'موثّق' : 'غير موثّق'}
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant={seller.suspended ? 'destructive' : 'success'} className="text-xs">
-                      {seller.suspended ? 'موقوف' : 'نشط'}
-                    </Badge>
-                  </td>
-                  <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">
-                    {formatDate(seller.createdAt)}
-                  </td>
-                  <td className="p-3">
-                    {/* DESKTOP-AUDIT-01: title= → Tooltip, same pattern
-                        as the other admin tables. */}
-                    <div className="flex items-center gap-1">
-                      <Tooltip content={seller.verified ? 'إلغاء التوثيق' : 'توثيق البائع'}>
-                        <Button variant="ghost" size="icon" className="h-9 w-9"
-                          aria-label={seller.verified ? `إلغاء توثيق ${seller.displayName}` : `توثيق ${seller.displayName}`}
-                          disabled={pendingVerifyId === seller.id}
-                          onClick={() => setVerified.mutate({ sellerProfileId: seller.id, verified: !seller.verified })}>
-                          {seller.verified
-                            ? <BadgeX className="h-3.5 w-3.5 text-muted-foreground" />
-                            : <BadgeCheck className="h-3.5 w-3.5 text-success" />}
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content={seller.suspended ? 'رفع الإيقاف' : 'إيقاف البائع'}>
-                        <Button variant="ghost" size="icon" className="h-9 w-9"
-                          aria-label={seller.suspended ? `رفع الإيقاف عن ${seller.displayName}` : `إيقاف ${seller.displayName}`}
-                          disabled={pendingSuspendId === seller.id}
-                          onClick={() => {
-                            // Un-suspending is low-risk and reversible with
-                            // one click either way, so only the
-                            // suspend direction goes through the dialog.
-                            if (seller.suspended) {
-                              setSuspended.mutate({ sellerProfileId: seller.id, suspended: false });
-                            } else {
-                              setSuspendTarget({ id: seller.id, name: seller.displayName });
-                            }
-                          }}>
-                          {seller.suspended
-                            ? <ShieldCheck className="h-3.5 w-3.5 text-success" />
-                            : <ShieldOff className="h-3.5 w-3.5 text-destructive" />}
-                        </Button>
-                      </Tooltip>
-                    </div>
-                  </td>
-                </tr>
+                <AdminSellerRow
+                  key={seller.id}
+                  seller={seller}
+                  selected={selectedIds.has(seller.id)}
+                  pendingVerifyId={pendingVerifyId}
+                  pendingSuspendId={pendingSuspendId}
+                  onToggle={toggleOne}
+                  onSetVerified={setVerifiedForRow}
+                  onSetSuspended={setSuspendedForRow}
+                  onSuspendRequest={(id, name) => setSuspendTarget({ id, name })}
+                />
               ))}
               {items.length === 0 && (
                 <tr><td colSpan={8}><EmptyState icon={<Search className="h-8 w-8" />} title="لا يوجد بائعون" /></td></tr>

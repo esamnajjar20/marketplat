@@ -53,7 +53,7 @@ export function useMyConversations(params?: ConversationsQuery) {
       }
     },
     staleTime: CACHE_TTL.conversations,
-    refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 3),
+    refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 6),
     // أونلاين: فقط مع توكن. أوفلاين: شغّل queryFn لإرجاع الكاش المحلي.
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
@@ -154,7 +154,7 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
       }
     },
     staleTime: CACHE_TTL.messages,
-    refetchInterval: () => pollingInterval(CACHE_TTL.messages, 6),
+    refetchInterval: () => pollingInterval(CACHE_TTL.messages, 8),
     enabled: isAuthenticated && Boolean(conversationId) && params?.before !== '__disabled__' && (hasToken || !isOnline),
   });
 }

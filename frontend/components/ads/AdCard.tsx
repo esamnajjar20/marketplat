@@ -37,7 +37,7 @@ export const AdCard = memo(function AdCard({ ad, context = 'public', className, 
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const isSold = ad.status === 'SOLD';
   const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
-  const now = useNowAfterMount(showTime);
+  const now = useNowAfterMount(showTime, ad.createdAt);
   const timeColorClass = freshnessClass(now, ad.createdAt);
   const isAuth = useAuthStore(selectIsAuthenticated);
   const isOnline = useOnlineStatus();

@@ -37,7 +37,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({ listing, co
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
   const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
-  const now = useNowAfterMount(showTime);
+  const now = useNowAfterMount(showTime, listing.createdAt);
   const timeColorClass = freshnessClass(now, listing.createdAt);
   const showLocation = context !== 'store' && context !== 'owner';
   const showProvider = context === 'favorites' || context === 'catalog';

@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { favoriteListsApi } from '@/api/favorite-lists.api';
 import { favoriteListsQueryKey } from '@/hooks/queries/useFavoriteLists';
-import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 
@@ -38,7 +37,7 @@ export function useDeleteFavoriteList() {
     mutationFn: (listId: string) => favoriteListsApi.remove(listId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: favoriteListsQueryKey });
-      qc.invalidateQueries({ queryKey: queryKeys.favorites.all() });
+      qc.invalidateQueries({ queryKey: ['favorites', 'list'] });
       toast.success('تم حذف القائمة (العناصر بقيت في «الكل»)');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -66,7 +65,7 @@ export function useMoveFavoritesToList() {
     },
     onSuccess: ({ ok, fail, total }) => {
       qc.invalidateQueries({ queryKey: favoriteListsQueryKey });
-      qc.invalidateQueries({ queryKey: queryKeys.favorites.all() });
+      qc.invalidateQueries({ queryKey: ['favorites', 'list'] });
       if (fail === total && total > 0) {
         toast.error('تعذر نقل العناصر المحددة');
       } else {
@@ -89,7 +88,7 @@ export function useMoveFavoriteToList() {
     }) => favoriteListsApi.moveFavorite(favoriteId, { listId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: favoriteListsQueryKey });
-      qc.invalidateQueries({ queryKey: queryKeys.favorites.all() });
+      qc.invalidateQueries({ queryKey: ['favorites', 'list'] });
       toast.success('تم نقل العنصر');
     },
     onError: (err) => toast.error(parseApiError(err).message),
