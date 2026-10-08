@@ -34,6 +34,11 @@ export function usePresence(userIds: string[]) {
     queryFn: () => usersApi.getPresence(userIds).then((r) => r.data.data),
     staleTime: CACHE_TTL.presence,
     refetchInterval: () => pollingInterval(CACHE_TTL.presence, 3),
+    // Presence already pauses through pollingInterval when hidden/offline.
+    // Avoid an extra immediate fetch merely because a long-lived protected
+    // page regained focus; reconnect/online changes still refresh normally.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
     enabled: isAuthenticated && userIds.length > 0 && (hasToken || !isOnline),
   });
 }

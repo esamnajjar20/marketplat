@@ -84,6 +84,7 @@ export function FeaturedCarousel() {
   const programmaticUntilRef = useRef(0);
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [pageVisible, setPageVisible] = useState(true);
 
   const feed = useHomeFeed();
   const fromFeed = feed.data?.featured.carousel;
@@ -149,8 +150,12 @@ export function FeaturedCarousel() {
   // يُقرأ بعد الـ mount لتفادي اختلاف الـ hydration مع HTML القادم من السيرفر.
   useEffect(() => {
     setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const onVisibility = () => setPageVisible(!document.hidden);
+    onVisibility();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
-  const autoPlaying = slides.length > 1 && !paused && !reduceMotion;
+  const autoPlaying = slides.length > 1 && !paused && !reduceMotion && pageVisible;
 
   useEffect(() => {
     if (!autoPlaying) return;

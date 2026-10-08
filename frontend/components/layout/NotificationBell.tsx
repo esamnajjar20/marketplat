@@ -182,8 +182,9 @@ function NotificationGroupRow({
 }
 
 export function NotificationBell() {
+  const [open, setOpen] = useState(false);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
-  const { data: notificationsPage, isLoading } = useMyNotifications({ limit: 10 });
+  const { data: notificationsPage, isLoading } = useMyNotifications({ limit: 10 }, { enabled: open });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
@@ -219,7 +220,7 @@ export function NotificationBell() {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           className="relative flex h-10 w-10 items-center justify-center rounded-full outline-none ring-offset-background transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

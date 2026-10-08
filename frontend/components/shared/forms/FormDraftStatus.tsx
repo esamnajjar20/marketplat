@@ -3,6 +3,8 @@
 import { Check, CloudOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const DRAFT_TIME_FORMATTER = typeof Intl !== 'undefined' ? new Intl.DateTimeFormat('ar', { hour: 'numeric', minute: '2-digit' }) : null;
+
 interface Props {
   savedAt: number | null;
   saving?: boolean;
@@ -16,7 +18,7 @@ export function FormDraftStatus({ savedAt, saving = false, enabled = true, class
   const label = saving
     ? 'جارٍ حفظ المسودة…'
     : savedAt
-      ? `محفوظة تلقائيًا · ${new Intl.DateTimeFormat('ar', { hour: 'numeric', minute: '2-digit' }).format(savedAt)}`
+      ? `محفوظة تلقائيًا · ${DRAFT_TIME_FORMATTER?.format(savedAt) ?? ''}`
       : 'سيتم حفظ المسودة تلقائيًا';
 
   return (

@@ -23,10 +23,12 @@
  */
 
 import { adminPagination } from '@/lib/adminHubTabs';
-import { memo, Fragment, useState, useMemo } from 'react';
+import { AdminFraudRow } from './AdminFraudRow';
+import { AdSignalsPanel } from './AdSignalsPanel';
+import { memo, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, ExternalLink, ChevronDown, ChevronUp, ShieldCheck, Flag as FlagIcon } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
 import { Input }         from '@/components/shared/ui/Input';
@@ -38,81 +40,19 @@ import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/shared/ui/Dialog';
-import { useAdminFlaggedAds, useAdminFraudSignals } from '@/hooks/queries/useAdmin';
+import { useAdminFlaggedAds } from '@/hooks/queries/useAdmin';
 import {
   useAdminClearFraudFlag,
   useAdminManualFraudFlag,
-  useAdminReviewFraudSignal,
 } from '@/hooks/mutations/useAdminMutations';
-import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime, formatPrice } from '@/lib/formatters';
+import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
-import type { FraudSignalType } from '@/types/admin.types';
+import { ROUTES } from '@/lib/constants';
+
 
 // Backend Prisma enum FraudSignalType (schema.prisma) — see
 // fraud.service.ts's computeSignals for what triggers each one.
-const SIGNAL_TYPE_LABELS: Record<FraudSignalType, string> = {
-  RAPID_POSTING:              'نشر متسارع',
-  SUSPICIOUS_PRICE:           'سعر مشبوه',
-  SUSPICIOUS_CONTACT_PATTERN: 'نمط تواصل مشبوه',
-  SUSPICIOUS_KEYWORDS:        'كلمات مشبوهة',
-  DUPLICATE_LISTING:          'إعلان مكرر',
-  NEW_ACCOUNT_HIGH_ACTIVITY:  'حساب جديد بنشاط مرتفع',
-  MANUAL_ADMIN_FLAG:          'علامة يدوية من الإدارة',
-};
-
-function riskBadgeVariant(riskScore: number): 'destructive' | 'outline' | 'secondary' {
-  if (riskScore >= 70) return 'destructive';
-  if (riskScore >= 40) return 'secondary';
-  return 'outline';
-}
-
-/** Expandable signal list for one flagged ad — fetched on demand when the row is opened. */
-function AdSignalsPanel({ adId }: { adId: string }) {
-  const { data, isLoading, isError, error, refetch } = useAdminFraudSignals({ adId, limit: 20 });
-  const reviewSignal = useAdminReviewFraudSignal();
-
-  if (isLoading) return <div className="p-3 text-xs text-muted-foreground">جارِ التحميل…</div>;
-  if (isError) {
-    return (
-      <div className="p-3">
-        <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />
-      </div>
-    );
-  }
-
-  const signals = data?.items ?? [];
-  if (signals.length === 0) {
-    return <div className="p-3 text-xs text-muted-foreground">لا توجد إشارات مسجّلة لهذا الإعلان.</div>;
-  }
-
-  return (
-    <div className="p-3 space-y-2">
-      {signals.map((signal) => (
-        <div key={signal.id} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Badge variant="outline" className="text-xs shrink-0">
-              {SIGNAL_TYPE_LABELS[signal.type] ?? signal.type}
-            </Badge>
-            <span className="text-xs text-muted-foreground shrink-0">وزن {signal.weight}</span>
-            <span className="text-xs text-muted-foreground truncate">{formatRelativeTime(signal.createdAt)}</span>
-          </div>
-          {signal.reviewed ? (
-            <Badge variant="outline" className="text-xs text-success shrink-0">تمت المراجعة</Badge>
-          ) : (
-            <Button
-              variant="ghost" size="sm" className="h-7 shrink-0"
-              disabled={reviewSignal.isPending && reviewSignal.variables === signal.id}
-              onClick={() => reviewSignal.mutate(signal.id)}
-            >
-              <ShieldCheck className="h-3.5 w-3.5 me-1" />تأكيد المراجعة
-            </Button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+function riskBadgeVariant(riskScore: number): 'destructive' | 'outline' | 'secondary' { if (riskScore >= 70) return 'destructive'; if (riskScore >= 40) return 'secondary'; return 'outline'; }
 
 export const AdminFraudTable = memo(function AdminFraudTable() {
   const sp     = useSearchParams();
@@ -208,54 +148,15 @@ export const AdminFraudTable = memo(function AdminFraudTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((ad) => (
-                <Fragment key={ad.id}>
-                  <tr className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                    <td className="p-3 max-w-xs">
-                      <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-primary hover:underline text-xs">
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{ad.title}</span>
-                      </Link>
-                      <span className="text-xs text-muted-foreground">{formatPrice(ad.price)}</span>
-                    </td>
-                    <td className="p-3 hidden sm:table-cell text-muted-foreground text-xs">
-                      {ad.user?.name ?? '—'}
-                    </td>
-                    <td className="p-3">
-                      <Badge variant={riskBadgeVariant(ad.riskScore)} className="text-xs">
-                        {ad.riskScore}
-                      </Badge>
-                    </td>
-                    <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">
-                      {formatRelativeTime(ad.createdAt)}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="sm" className="h-7"
-                          onClick={() => setExpandedId(expandedId === ad.id ? null : ad.id)}>
-                          {expandedId === ad.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                          الإشارات
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-7"
-                          onClick={() => setFlagTargetId(ad.id)}>
-                          <FlagIcon className="h-3.5 w-3.5 me-1" />علامة يدوية
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-success"
-                          disabled={clearFlag.isPending && clearFlag.variables === ad.id}
-                          onClick={() => setClearTargetId(ad.id)}>
-                          <ShieldCheck className="h-3.5 w-3.5 me-1" />إعلان سليم
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                  {expandedId === ad.id && (
-                    <tr className="bg-muted/20">
-                      <td colSpan={5} className="p-0">
-                        <AdSignalsPanel adId={ad.id} />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <AdminFraudRow
+                  key={ad.id}
+                  ad={ad}
+                  expanded={expandedId === ad.id}
+                  onToggleExpanded={(id) => setExpandedId(expandedId === id ? null : id)}
+                  onFlag={setFlagTargetId}
+                  onClear={setClearTargetId}
+                  clearPending={clearFlag.isPending && clearFlag.variables === ad.id}
+                />
               ))}
               {items.length === 0 && (
                 <tr><td colSpan={5}>

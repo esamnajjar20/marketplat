@@ -1,9 +1,7 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { ShieldAlert, CheckCheck, XCircle } from 'lucide-react';
-import { Badge } from '@/components/shared/ui/Badge';
-import { Button } from '@/components/shared/ui/Button';
+import { ShieldAlert } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
@@ -11,6 +9,7 @@ import { ApiError } from '@/components/shared/ApiError';
 import { useAdminServiceRequestDisputes } from '@/hooks/queries/useAdmin';
 import { useAdminResolveServiceRequestDispute } from '@/hooks/mutations/useAdminMutations';
 import { parseApiError } from '@/lib/errorParser';
+import { AdminServiceRequestDisputeRow } from './AdminServiceRequestDisputeRow';
 
 type Row = {
   id: string; status: 'DISPUTED'; disputeReason?: string | null; disputedAt?: string | null;
@@ -35,13 +34,7 @@ export const AdminServiceRequestDisputesTable = memo(function AdminServiceReques
           <thead className="bg-muted/50 text-start"><tr>
             <th className="p-3 font-medium">الطلب</th><th className="p-3 font-medium">الأطراف</th><th className="p-3 font-medium">سبب النزاع</th><th className="p-3 font-medium">التاريخ</th><th className="p-3" />
           </tr></thead>
-          <tbody>{items.map((r) => <tr key={r.id} className="border-t align-top [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
-            <td className="p-3"><div className="font-medium">{r.listing?.title ?? '—'}</div><Badge variant="destructive" className="mt-1">قيد النزاع</Badge></td>
-            <td className="p-3"><div>{r.customer?.name ?? '—'}</div><div className="text-xs text-muted-foreground">{r.listing?.provider?.businessName ?? '—'}</div></td>
-            <td className="max-w-[320px] p-3 whitespace-pre-wrap text-muted-foreground">{r.disputeReason ?? '—'}</td>
-            <td className="p-3 text-xs text-muted-foreground">{r.disputedAt ? new Date(r.disputedAt).toLocaleString('ar') : '—'}</td>
-            <td className="p-3"><div className="flex gap-2"><Button size="sm" className="gap-1" onClick={() => setTarget({ id: r.id, resolution: 'COMPLETED' })}><CheckCheck className="h-3.5 w-3.5" />إكمال</Button><Button size="sm" variant="destructive" className="gap-1" onClick={() => setTarget({ id: r.id, resolution: 'CANCELLED' })}><XCircle className="h-3.5 w-3.5" />إلغاء</Button></div></td>
-          </tr>)}</tbody>
+          <tbody>{items.map((r) => <AdminServiceRequestDisputeRow key={r.id} row={r} onResolve={(id, resolution) => setTarget({ id, resolution })} />)}</tbody>
         </table>
       </div>
       <ConfirmDialog

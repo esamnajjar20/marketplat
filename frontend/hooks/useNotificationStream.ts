@@ -138,6 +138,8 @@ function refetchAfterGap(queryClient: ReturnType<typeof useQueryClient>) {
 
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
+const SSE_HEARTBEAT_TIMEOUT_MS = 45_000;
+const SSE_LAST_EVENT_STORAGE_KEY = 'marketplat:sse:last-event-id';
 
 export function useNotificationStream(options?: Options) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -184,6 +186,11 @@ export function useNotificationStream(options?: Options) {
     // Resume point: id of the last event applied. Sent as Last-Event-ID so the
     // server replays what we missed; absent on the very first connect.
     let lastEventId: string | undefined;
+    try {
+      lastEventId = sessionStorage.getItem(SSE_LAST_EVENT_STORAGE_KEY) ?? undefined;
+    } catch {
+      lastEventId = undefined;
+    }
     let everConnected = false;
     let failures = 0;
     const nextDelay = () =>
@@ -235,7 +242,20 @@ export function useNotificationStream(options?: Options) {
         let buffer = '';
 
         while (!closed) {
-          const { done, value } = await reader.read();
+          let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
+          const heartbeatTimeout = new Promise<never>((_, reject) => {
+            heartbeatTimer = setTimeout(() => reject(new Error('SSE heartbeat timeout')), SSE_HEARTBEAT_TIMEOUT_MS);
+          });
+          let result: ReadableStreamReadResult<Uint8Array>;
+          try {
+            result = await Promise.race([reader.read(), heartbeatTimeout]);
+          } catch (error) {
+            await reader.cancel().catch(() => undefined);
+            throw error;
+          } finally {
+            if (heartbeatTimer) clearTimeout(heartbeatTimer);
+          }
+          const { done, value } = result;
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           const chunks = buffer.split('\n\n');
@@ -257,6 +277,7 @@ export function useNotificationStream(options?: Options) {
               // FIX-F3-RESYNC-01: clear lastEventId; otherwise every reconnect
               // re-sends the same stale id and the server re-emits resync+refetch.
               lastEventId = undefined;
+              try { sessionStorage.removeItem(SSE_LAST_EVENT_STORAGE_KEY); } catch { /* storage unavailable */ }
               // Server could not prove the replay was complete → drop caches' trust.
               refetchAfterGap(queryClient);
               continue;
@@ -310,7 +331,10 @@ export function useNotificationStream(options?: Options) {
               // FIX-F1-ORDER-01: advance lastEventId only after the handler
               // succeeds; otherwise a throw silently loses the event forever.
               onEventRef.current?.(payload);
-              if (eventId) lastEventId = eventId;
+              if (eventId) {
+                lastEventId = eventId;
+                try { sessionStorage.setItem(SSE_LAST_EVENT_STORAGE_KEY, eventId); } catch { /* storage unavailable */ }
+              }
             } catch {
               /* ignore */
             }
@@ -335,9 +359,18 @@ export function useNotificationStream(options?: Options) {
       }
     }
 
+    const onOnline = () => {
+      if (!closed && !streamConnected) {
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = setTimeout(connect, 0);
+      }
+    };
+    window.addEventListener('online', onOnline);
+
     void connect();
 
     return () => {
+      window.removeEventListener('online', onOnline);
       closed = true;
       ac.abort();
       if (retryTimer) clearTimeout(retryTimer);

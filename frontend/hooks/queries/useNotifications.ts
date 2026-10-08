@@ -30,7 +30,7 @@ import { offlineMeta } from '@/lib/apiPagination';
  * عودة الاتصال يُعاد الجلب تلقائيًا (refetchOnReconnect الافتراضي في
  * TanStack Query) فتتحدّث القائمة والنسخة المحلية معًا.
  */
-export function useMyNotifications(params?: NotificationsQuery) {
+export function useMyNotifications(params?: NotificationsQuery, options?: { enabled?: boolean }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
@@ -55,7 +55,7 @@ export function useMyNotifications(params?: NotificationsQuery) {
     staleTime: CACHE_TTL.notifications,
     // SSE updates the inbox; poll is a slow backup, paused when hidden/offline.
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
-    enabled: isAuthenticated && (hasToken || !isOnline),
+    enabled: (options?.enabled ?? true) && isAuthenticated && (hasToken || !isOnline),
     ...(cached && cached.items.length > 0
       ? {
           initialData: { items: cached.items, meta: offlineMeta(cached.items.length) },

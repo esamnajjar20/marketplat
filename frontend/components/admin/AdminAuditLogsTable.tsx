@@ -11,7 +11,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { Tooltip } from '@/components/shared/ui/Tooltip';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { ApiError } from '@/components/shared/ApiError';
@@ -24,6 +23,7 @@ import {
 import { useAdminAuditLogs } from '@/hooks/queries/useAdmin';
 import { AUDIT_EVENT_LABELS } from '@/lib/constants';
 import { formatDateTime } from '@/lib/formatters';
+import { AdminAuditLogRow } from './AdminAuditLogRow';
 import { parseApiError } from '@/lib/errorParser';
 import type { AuditLog, AuditEventType } from '@/types/admin.types';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
@@ -272,62 +272,14 @@ export const AdminAuditLogsTable = memo(function AdminAuditLogsTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((log, index) => (
-                <tr
+                <AdminAuditLogRow
                   key={log.id}
-                  ref={(el) => { rowRefs.current[index] = el; }}
-                  tabIndex={0}
-                  onClick={() => setDetailsLog(log)}
-                  onKeyDown={(e) => handleRowKeyDown(e, log, index)}
-                  className="cursor-pointer hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                >
-                  <td className="p-3">
-                    <Badge variant="outline" className="text-xs">
-                      {AUDIT_EVENT_LABELS[log.event] ?? log.event}
-                    </Badge>
-                  </td>
-                  <td className="p-3 hidden sm:table-cell text-muted-foreground text-xs">
-                    {log.user?.name ?? log.userId ?? '—'}
-                  </td>
-                  <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">
-                    {formatDateTime(log.createdAt)}
-                  </td>
-                  <td className="p-3 hidden md:table-cell text-muted-foreground text-xs">
-                    {log.ip ?? '—'}
-                  </td>
-                  <td className="p-3 hidden xl:table-cell text-muted-foreground text-xs max-w-[220px] truncate">
-                    {/* DESKTOP-AUDIT-01: was truncate with no way to read
-                        the full value — a mouse user on this exact
-                        breakpoint (xl, where this column is even visible)
-                        had no way to see the rest without opening the
-                        details dialog. Only wrap in Tooltip when there's
-                        something to truncate — an empty '—' never needs one. */}
-                    {log.userAgent ? (
-                      <Tooltip content={log.userAgent} side="top">
-                        <span className="cursor-default">{log.userAgent}</span>
-                      </Tooltip>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {/* DESKTOP-AUDIT-01: title= gave a native browser
-                        tooltip (slow, unstyled, inconsistent across
-                        browsers) — swapped for the app's own Tooltip.
-                        aria-label stays; it's what's actually announced
-                        to screen readers, independent of the visual hint. */}
-                    <Tooltip content="التفاصيل">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9"
-                        aria-label={`عرض تفاصيل الحدث ${AUDIT_EVENT_LABELS[log.event] ?? log.event}`}
-                        onClick={(e) => { e.stopPropagation(); setDetailsLog(log); }}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                    </Tooltip>
-                  </td>
-                </tr>
+                  log={log}
+                  index={index}
+                  onOpen={setDetailsLog}
+                  onKeyDown={handleRowKeyDown}
+                  setRowRef={(rowIndex, el) => { rowRefs.current[rowIndex] = el; }}
+                />
               ))}
               {items.length === 0 && (
                 <tr>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Trash2, X } from 'lucide-react';
 import { getFullscreenImageUrl, getAvatarUrl } from '@/lib/cloudinary';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -47,7 +47,11 @@ export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: ()
     return () => window.clearTimeout(timer);
   }, [story?.id, index, lastIndex, showViewers]);
 
-  const progress = group.stories.map((_, i) => (i < index ? 100 : i === index && filled ? 100 : 0));
+  const progress = useMemo(
+    () => group.stories.map((_, i) => (i < index ? 100 : i === index && filled ? 100 : 0)),
+    [group.stories, index, filled],
+  );
+  const storyTime = useMemo(() => new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit' }), []);
 
   if (!story) return null;
 
@@ -62,7 +66,7 @@ export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: ()
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/95 p-0 sm:p-4" role="dialog" aria-modal="true" aria-label={`ستوري ${group.user.name}`}>
       <div className="relative h-full w-full max-w-md overflow-hidden bg-black sm:h-[92vh] sm:rounded-3xl sm:shadow-2xl">
         <div className="absolute inset-x-3 top-3 z-20 flex gap-1">{group.stories.map((_, i) => <div key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-white/25"><div className="h-full rounded-full bg-white" style={{ width: `${progress[i] ?? 0}%`, transition: i === index ? 'width 5s linear' : undefined }} /></div>)}</div>
-        <div className="absolute inset-x-4 top-7 z-20 flex items-center justify-between text-white"><div className="flex items-center gap-2"><SafeImage variant="avatar" src={getAvatarUrl(group.user.avatarUrl ?? '', 72)} alt="" width={38} height={38} className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30" /><div><p className="text-sm font-semibold">{group.user.name}</p><p className="text-[10px] text-white/70">{new Date(story.createdAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}</p></div></div><div className="flex items-center gap-1"><button type="button" onClick={() => setShowViewers((v) => !v)} className="rounded-full bg-black/30 p-2 hover:bg-black/50" aria-label="المشاهدون"><Eye className="h-5 w-5" /></button>{story.isOwner && <button type="button" onClick={deleteCurrent} className="rounded-full bg-black/30 p-2 hover:bg-red-500/70" aria-label="حذف"><Trash2 className="h-5 w-5" /></button>}<button type="button" onClick={onClose} className="rounded-full bg-black/30 p-2 hover:bg-black/50" aria-label="إغلاق"><X className="h-5 w-5" /></button></div></div>
+        <div className="absolute inset-x-4 top-7 z-20 flex items-center justify-between text-white"><div className="flex items-center gap-2"><SafeImage variant="avatar" src={getAvatarUrl(group.user.avatarUrl ?? '', 72)} alt="" width={38} height={38} className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30" /><div><p className="text-sm font-semibold">{group.user.name}</p><p className="text-[10px] text-white/70">{storyTime.format(new Date(story.createdAt))}</p></div></div><div className="flex items-center gap-1"><button type="button" onClick={() => setShowViewers((v) => !v)} className="rounded-full bg-black/30 p-2 hover:bg-black/50" aria-label="المشاهدون"><Eye className="h-5 w-5" /></button>{story.isOwner && <button type="button" onClick={deleteCurrent} className="rounded-full bg-black/30 p-2 hover:bg-red-500/70" aria-label="حذف"><Trash2 className="h-5 w-5" /></button>}<button type="button" onClick={onClose} className="rounded-full bg-black/30 p-2 hover:bg-black/50" aria-label="إغلاق"><X className="h-5 w-5" /></button></div></div>
 
         {story.mediaUrl ? <SafeImage src={getFullscreenImageUrl(story.mediaUrl, 1000)} alt="" fill priority className="object-contain" sizes="(max-width: 640px) 100vw, 448px" /> : <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${resolveStoryBackground(story.background)} p-8 text-center text-3xl font-bold leading-relaxed text-white`}>{story.text}</div>}
         {story.mediaUrl && story.text && <div className="absolute inset-x-5 bottom-8 rounded-2xl bg-black/45 px-4 py-3 text-center text-lg font-semibold text-white backdrop-blur-sm">{story.text}</div>}

@@ -2,9 +2,7 @@
 
 import { memo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ClipboardList, Ban } from 'lucide-react';
-import { Button } from '@/components/shared/ui/Button';
-import { Badge } from '@/components/shared/ui/Badge';
+import { ClipboardList } from 'lucide-react';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { TableSkeleton } from '@/components/shared/skeletons/TableSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -13,12 +11,11 @@ import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { useAdminOpenRequests } from '@/hooks/queries/useAdmin';
 import { useAdminCancelOpenRequest } from '@/hooks/mutations/useAdminMutations';
-import { formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
-import { REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import type { RequestStatus, RequestType } from '@/types/request.types';
 import { adminPagination } from '@/lib/adminHubTabs';
+import { AdminOpenRequestRow } from './AdminOpenRequestRow';
 
 type RequestRow = {
   id: string;
@@ -104,31 +101,7 @@ export const AdminOpenRequestsTable = memo(function AdminOpenRequestsTable() {
             </thead>
             <tbody>
               {items.map((r) => (
-                <tr key={r.id} className="border-t [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                  <td className="p-3">
-                    <div className="font-medium">{r.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {r.customer?.name ?? '—'}
-                      {r.city ? ` · ${r.city}` : ''}
-                    </div>
-                  </td>
-                  <td className="p-3">{REQUEST_TYPE_LABEL[r.type] ?? r.type}</td>
-                  <td className="p-3">
-                    <Badge variant={r.status === 'OPEN' ? 'default' : 'secondary'}>
-                      {REQUEST_STATUS_LABEL[r.status] ?? r.status}
-                    </Badge>
-                  </td>
-                  <td className="p-3">{r._count?.offers ?? 0}</td>
-                  <td className="p-3 text-muted-foreground">{formatRelativeTime(r.createdAt)}</td>
-                  <td className="p-3">
-                    {r.status === 'OPEN' && (
-                      <Button size="sm" variant="outline" onClick={() => setCancelId(r.id)}>
-                        <Ban className="me-1 h-3.5 w-3.5" />
-                        إلغاء
-                      </Button>
-                    )}
-                  </td>
-                </tr>
+                <AdminOpenRequestRow key={r.id} row={r} onCancel={setCancelId} />
               ))}
             </tbody>
           </table>

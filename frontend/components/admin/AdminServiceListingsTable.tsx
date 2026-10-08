@@ -14,9 +14,10 @@ import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { useAdminServiceListings } from '@/hooks/queries/useAdmin';
 import { useAdminSetServiceListingStatus } from '@/hooks/mutations/useAdminMutations';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
+import { AdminServiceListingRow } from './AdminServiceListingRow';
 
 export const AdminServiceListingsTable = memo(function AdminServiceListingsTable() {
   const sp = useSearchParams();
@@ -140,61 +141,9 @@ export const AdminServiceListingsTable = memo(function AdminServiceListingsTable
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.map((row) => {
-              const provider = row.provider as { businessName?: string } | undefined;
-              return (
-                <tr key={String(row.id)} className="hover:bg-muted/30 [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                  <td className="p-3 font-medium">{String(row.title)}</td>
-                  <td className="p-3 text-muted-foreground">{provider?.businessName ?? '—'}</td>
-                  <td className="p-3 tabular-nums">
-                    {row.price != null ? formatPrice(Number(row.price)) : '—'}
-                  </td>
-                  <td className="p-3">
-                    <Badge variant={row.status === 'ACTIVE' ? 'success' : 'secondary'}>
-                      {String(row.status)}
-                    </Badge>
-                  </td>
-                  <td className="p-3 text-xs text-muted-foreground">
-                    {formatRelativeTime(String(row.createdAt))}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex gap-1">
-                        {row.status === 'ACTIVE' && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            aria-label={`إيقاف الخدمة ${String(row.title)}`}
-                            disabled={pendingStatusId === String(row.id)}
-                            onClick={() =>
-                              setStatus.mutate(
-                                { id: String(row.id), status: 'PAUSED' },
-                                { onSuccess: () => toast.success('تم إيقاف الخدمة') },
-                              )
-                            }
-                          >
-                            <Pause className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {row.status !== 'DELETED' && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            aria-label={`حذف الخدمة ${String(row.title)}`}
-                            onClick={() =>
-                              setDeleteTarget({ id: String(row.id), title: String(row.title) })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((row) => (
+              <AdminServiceListingRow key={String(row.id)} row={row} pendingStatusId={pendingStatusId} onPause={(id) => setStatus.mutate({ id, status: 'PAUSED' }, { onSuccess: () => toast.success('تم إيقاف الخدمة') })} onDelete={(id, title) => setDeleteTarget({ id, title })} />
+            ))}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6}>

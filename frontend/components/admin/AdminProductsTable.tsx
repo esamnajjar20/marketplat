@@ -15,8 +15,9 @@ import { parseApiError } from '@/lib/errorParser';
 import { AdminFilterBar } from '@/components/admin/AdminFilterBar';
 import { useAdminProducts } from '@/hooks/queries/useAdmin';
 import { useAdminSetProductStatus } from '@/hooks/mutations/useAdminMutations';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { AdminProductRow } from './AdminProductRow';
 
 export const AdminProductsTable = memo(function AdminProductsTable() {
   const sp = useSearchParams();
@@ -150,52 +151,9 @@ export const AdminProductsTable = memo(function AdminProductsTable() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.map((p) => {
-              const store = p.store as { name?: string } | undefined;
-              return (
-                <tr key={String(p.id)} className="hover:bg-muted/30 [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
-                  <td className="p-3 font-medium">{String(p.name)}</td>
-                  <td className="p-3 text-muted-foreground">{store?.name ?? '—'}</td>
-                  <td className="p-3 tabular-nums">{formatPrice(Number(p.price))}</td>
-                  <td className="p-3">
-                    <Badge variant={p.status === 'ACTIVE' ? 'success' : 'secondary'}>
-                      {String(p.status)}
-                    </Badge>
-                  </td>
-                  <td className="p-3 text-xs text-muted-foreground">
-                    {formatRelativeTime(String(p.createdAt))}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex gap-1">
-                        {p.status === 'ACTIVE' && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            aria-label={`إيقاف المنتج ${String(p.name)}`}
-                            onClick={() => pause(String(p.id))}
-                            disabled={pendingStatusId === String(p.id)}
-                          >
-                            <Pause className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {p.status !== 'DELETED' && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            aria-label={`حذف المنتج ${String(p.name)}`}
-                            onClick={() => setDeleteTarget({ id: String(p.id), name: String(p.name) })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((p) => (
+              <AdminProductRow key={String(p.id)} product={p} pendingStatusId={pendingStatusId} onPause={pause} onDelete={(id, name) => setDeleteTarget({ id, name })} />
+            ))}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6}>
