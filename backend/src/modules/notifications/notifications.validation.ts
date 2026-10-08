@@ -19,6 +19,10 @@ const optionalQueryBoolean = z.preprocess(
 // Kept in the same order as schema.prisma's enum for visual diffing.
 const notificationTypeEnum = z.enum([
   'NEW_MESSAGE',
+  'NEW_FOLLOWER',
+  'FOLLOWED_USER_ACTIVITY',
+  'FOLLOWED_STORE_ACTIVITY',
+  'FOLLOWED_CATEGORY_ACTIVITY',
   'FAV_AD_PRICE_CHANGED',
   'FAV_AD_SOLD',
   'PROMOTION',
@@ -80,6 +84,7 @@ export const NOTIFICATION_CATEGORY_TYPES = {
     'SERVICE_REQUEST_UPDATE',
     'APPOINTMENT_UPDATE',
   ],
+  following: ['NEW_FOLLOWER', 'FOLLOWED_USER_ACTIVITY', 'FOLLOWED_STORE_ACTIVITY', 'FOLLOWED_CATEGORY_ACTIVITY'],
   system: [
     'PROMOTION',
     'WEEKLY_AD_VIEWS_REPORT',
@@ -106,7 +111,7 @@ export const getNotificationsSchema = z.object({
      * تُحوَّل في الخدمة إلى قائمة types.
      */
     category: z
-      .enum(['messages', 'favorites', 'stores', 'services', 'system', 'sales'])
+      .enum(['messages', 'favorites', 'stores', 'services', 'following', 'system', 'sales'])
       .optional(),
   }),
 });

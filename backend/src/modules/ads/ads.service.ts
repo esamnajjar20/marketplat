@@ -30,7 +30,9 @@ import { notificationEvents } from '../notifications';
 import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
+import { followsService } from '../follows/follows.service';
 import { prisma } from '../../config/prisma';
+import { FollowTargetType } from '@prisma/client';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
@@ -307,6 +309,17 @@ export const adsService = {
       // so a failed activity insert can never fail an otherwise-
       // successful ad creation.
       activityService.record({ userId, ...activityTemplates.adCreated(ad.id, ad.title) });
+
+      void followsService.notifyActivityForTargets(
+        [
+          { targetType: FollowTargetType.USER, targetId: userId },
+          ...(ad.storeId ? [{ targetType: FollowTargetType.STORE, targetId: ad.storeId }] : []),
+          ...(ad.categoryId ? [{ targetType: FollowTargetType.CATEGORY, targetId: `AD:${ad.categoryId}` }] : []),
+        ],
+        'محتوى جديد ممن تتابعهم',
+        `${ad.title} أصبح متاحًا الآن`,
+        { targetType: FollowTargetType.USER, targetId: userId, contentType: 'AD', contentId: ad.id, categoryId: ad.categoryId, storeId: ad.storeId },
+      ).catch(() => undefined);
 
       // Fraud detection (item 12): scores the new ad against the
       // heuristic rules (rapid posting, suspicious price, off-platform

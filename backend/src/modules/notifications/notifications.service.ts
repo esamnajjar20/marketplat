@@ -39,6 +39,7 @@ type PrefKey =
   | 'myPromotions'
   | 'savedSearch'
   | 'storeUpdates'
+  | 'followUpdates'
   | 'serviceQuotes'
   | 'salesAlerts'
   | 'lowStockAlerts'
@@ -56,6 +57,7 @@ const DEFAULT_PREFS: Record<PrefKey, boolean> = {
   myPromotions: true,
   savedSearch: true,
   storeUpdates: true,
+  followUpdates: true,
   serviceQuotes: true,
   salesAlerts: true,
   lowStockAlerts: true,
@@ -559,9 +561,38 @@ export const notificationEvents = {
     })));
   },
 
-  /** conversations.service.ts's sendMessage calls this after a message
-   * is created — notifies the OTHER party in the thread, never the
-   * sender. */
+  /** Social follow: notify a user that another user followed them. */
+  onNewFollower: async (recipientUserId: string, followerUserId: string) => {
+    if (!(await userAllowsPref(recipientUserId, 'followUpdates'))) return null;
+    const follower = await prisma.user.findUnique({ where: { id: followerUserId }, select: { name: true } });
+    if (!follower) return null;
+    const title = 'متابع جديد';
+    const body = `${follower.name} بدأ بمتابعتك`;
+    return fanOutSameContentNotification(
+      [recipientUserId],
+      NotificationType.NEW_FOLLOWER,
+      { title, body, data: { followerId: followerUserId } },
+      `/profile/${followerUserId}`,
+      `follow-${followerUserId}`,
+      'followUpdates',
+    );
+  },
+
+  /** Social follow: shared activity notification for followers of a target. */
+  onFollowedActivity: async (
+    userIds: string[],
+    input: { title: string; body: string; data: Prisma.InputJsonValue; type?: NotificationType },
+  ) =>
+    fanOutSameContentNotification(
+      userIds,
+      input.type ?? NotificationType.FOLLOWED_USER_ACTIVITY,
+      input,
+      '/?feed=following',
+      'followed-activity',
+      'followUpdates',
+    ),
+
+  /** conversations.service.ts's sendMessage calls this after a message is created — notifies the OTHER party in the thread, never the sender. */
   onNewMessage: async (recipientUserId: string, conversationId: string, senderName: string) => {
     const conversationMute = await prisma.conversationUserSetting.findUnique({
       where: { conversationId_userId: { conversationId, userId: recipientUserId } },

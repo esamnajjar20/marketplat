@@ -29,6 +29,7 @@ type BooleanPrefKey =
   | 'myPromotions'
   | 'savedSearch'
   | 'storeUpdates'
+  | 'followUpdates'
   | 'serviceQuotes'
   | 'salesAlerts'
   | 'lowStockAlerts'
@@ -73,6 +74,7 @@ const GROUPS: {
         label: 'تحديثات المتاجر',
         desc: 'منتجات وعروض وإعادة توفّر من متاجر تتابعها',
       },
+      { key: 'followUpdates', label: 'تحديثات المتابعة', desc: 'عندما يبدأ شخص بمتابعتك أو ينشر شخص/متجر/فئة تتابعها محتوى جديدًا' },
       {
         key: 'myPromotions',
         label: 'عروضي',
@@ -128,6 +130,7 @@ const DEFAULT_PREFS: NotificationPreferences = {
   myPromotions: true,
   savedSearch: true,
   storeUpdates: true,
+  followUpdates: true,
   serviceQuotes: true,
   salesAlerts: true,
   lowStockAlerts: true,

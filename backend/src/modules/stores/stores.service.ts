@@ -1,9 +1,11 @@
 import { prisma } from '../../config/prisma';
+import { FollowTargetType } from '@prisma/client';
 import { StoreDetails, Prisma } from '@prisma/client';
 import { uploadStoreLogo, uploadStoreCover, deleteImage } from '../../config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
+import { followsRepository } from '../follows/follows.repository';
 import { storeReviewsRepository, StoreReviewWithRater } from './store-reviews.repository';
 import { promotionsRepository } from '../promotions/promotions.repository';
 import { productsRepository } from '../products/products.repository';
@@ -31,8 +33,8 @@ import { activityService, activityTemplates } from '../activity';
 import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { isOpenAt } from '../../shared/utils/marketTime';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 
@@ -499,20 +501,29 @@ updateStorePlan: async (
     if (existing) {
       try {
         await storeFollowersRepository.delete(userId, storeId);
+        await followsRepository.delete(userId, FollowTargetType.STORE, storeId);
       } catch (err) {
         if (!isPrismaError(err, 'P2025')) throw err;
       }
-      // Gap #10: fire-and-forget, see createStore's own comment above.
       activityService.record({ userId, ...activityTemplates.storeUnfollowed(store.id, store.name) });
       return { action: 'unfollowed' };
     }
 
     try {
       await storeFollowersRepository.create(userId, storeId);
+      try {
+        await followsRepository.create(userId, FollowTargetType.STORE, storeId);
+      } catch (err) {
+        if (!isPrismaError(err, 'P2002')) throw err;
+      }
     } catch (err) {
       if (!isPrismaError(err, 'P2002')) throw err;
+      try {
+        await followsRepository.create(userId, FollowTargetType.STORE, storeId);
+      } catch (syncErr) {
+        if (!isPrismaError(syncErr, 'P2002')) throw syncErr;
+      }
     }
-    // Gap #10: fire-and-forget, see createStore's own comment above.
     activityService.record({ userId, ...activityTemplates.storeFollowed(store.id, store.name) });
     return { action: 'followed' };
   },

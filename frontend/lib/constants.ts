@@ -35,6 +35,9 @@ export const ROUTES = {
   promoted:      '/promoted',
   category:      (slug: string) => `/categories/${slug}`,
   userProfile:   (id: string)   => `/profile/${id}`,
+  userFollowers: (id: string) => `/profile/${id}/followers`,
+  userFollowing: (id: string) => `/profile/${id}/following`,
+  following: '/following',
   sellerProfile: (id: string)   => `/sellers/${id}`,
   myAds:         '/activity?tab=ads',  // ACTIVITY-HUB-01
   favorites:     '/favorites',

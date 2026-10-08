@@ -1,6 +1,7 @@
 import { storesService, requireOwnStoreForProducts } from '../../src/modules/stores/stores.service';
 import { storesRepository } from '../../src/modules/stores/stores.repository';
 import { storeFollowersRepository } from '../../src/modules/stores/store-followers.repository';
+import { followsRepository } from '../../src/modules/follows/follows.repository';
 import { storeReviewsRepository } from '../../src/modules/stores/store-reviews.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { promotionsRepository } from '../../src/modules/promotions/promotions.repository';
@@ -27,6 +28,7 @@ const prismaKnownError = (code: string): Prisma.PrismaClientKnownRequestError =>
 
 jest.mock('../../src/modules/stores/stores.repository');
 jest.mock('../../src/modules/stores/store-followers.repository');
+jest.mock('../../src/modules/follows/follows.repository');
 jest.mock('../../src/modules/stores/store-reviews.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/shared/utils/storeLock');

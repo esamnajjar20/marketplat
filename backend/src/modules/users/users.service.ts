@@ -100,6 +100,10 @@ export const usersService = {
   getUserById: async (id: string): Promise<PublicUser> => {
     const user = await usersRepository.findPublicById(id);
     if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    const [followersCount, followingCount] = await Promise.all([
+      prisma.follow.count({ where: { targetType: 'USER', targetId: id } }),
+      prisma.follow.count({ where: { followerId: id, targetType: 'USER' } }),
+    ]);
     // SEC-LEAK-01: strip PII fields from the public profile projection.
     //   sellerProfile.paymentMethods → bank/jawwal/palpay account numbers
     //     ("بنك فلسطين 0598398815") — must never be exposed to anonymous
@@ -132,6 +136,7 @@ export const usersService = {
       avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       _count: user._count,
+      followStats: { followers: followersCount, following: followingCount },
       sellerProfile,
     };
   },

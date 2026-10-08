@@ -5,6 +5,7 @@ import { useCategoryItems } from '@/hooks/queries/useCategoryItems';
 import { iconFor, TYPE_LABEL, type SourceType } from '@/lib/categoryItems';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { ROUTES } from '@/lib/constants';
+import { CategoryFollowButton } from '@/components/categories/CategoryFollowButton';
 
 const SECTIONS: Array<{ type: SourceType; title: string; hint: string }> = [
   { type: 'ad', title: 'فئات الإعلانات', hint: 'بيع وشراء واستئجار بين الأفراد' },
@@ -66,6 +67,7 @@ export function CategoriesIndex() {
                       <Icon className="h-5 w-5" aria-hidden />
                     </span>
                     <span className="line-clamp-2 text-xs font-medium leading-tight">{item.nameAr}</span>
+                    <CategoryFollowButton categoryId={item.id} categoryType={item.type === 'ad' ? 'AD' : item.type === 'product' ? 'PRODUCT' : 'SERVICE'} />
                   </Link>
                 </li>
               );

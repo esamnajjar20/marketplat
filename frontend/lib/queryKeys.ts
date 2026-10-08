@@ -94,6 +94,24 @@ export const queryKeys = {
                                       ['users', id, 'ads', params ?? {}] as const,
   },
 
+  // ── Social follows ─────────────────────────────────────────────
+  follows: {
+    all: () => ['follows'] as const,
+    status: (type: string, id: string) => ['follows', 'status', type, id] as const,
+    my: (params?: object) => ['follows', 'me', params ?? {}] as const,
+    followers: (type: string, id: string, params?: object) => ['follows', 'followers', type, id, params ?? {}] as const,
+    following: (type: string, id: string, params?: object) => ['follows', 'following', type, id, params ?? {}] as const,
+    feed: (params?: object) => ['follows', 'feed', params ?? {}] as const,
+  },
+
+  // ── Stories ─────────────────────────────────────────────────────
+  stories: {
+    all: () => ['stories'] as const,
+    feed: () => ['stories', 'feed'] as const,
+    user: (id: string) => ['stories', 'user', id] as const,
+    viewers: (id: string) => ['stories', 'viewers', id] as const,
+  },
+
   // ── Sellers ────────────────────────────────────────────────────
   sellers: {
     detail:  (id: string) => ['sellers', id]        as const,

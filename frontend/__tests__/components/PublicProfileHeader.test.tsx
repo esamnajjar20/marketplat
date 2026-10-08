@@ -31,6 +31,14 @@ vi.mock('@/hooks/mutations/useBlockedUsersMutations', () => ({
   useToggleUserBlock: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
+vi.mock('@/hooks/queries/useFollows', () => ({
+  useFollowStatus: vi.fn(() => ({ data: false })),
+}));
+
+vi.mock('@/hooks/mutations/useFollowMutations', () => ({
+  useToggleFollow: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn((selector: (s: { isAuthenticated: boolean; user: unknown }) => unknown) =>
     selector({ isAuthenticated: false, user: null }),
@@ -56,6 +64,7 @@ function makeUser(overrides: Partial<PublicUser>): PublicUser {
     avatarUrl: null,
     createdAt: '2024-01-15T00:00:00.000Z',
     _count: { ads: 7 },
+    followStats: { followers: 0, following: 0 },
     sellerProfile: null,
     ...overrides,
   };

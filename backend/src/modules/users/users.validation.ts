@@ -93,6 +93,7 @@ export const updateNotificationPreferencesSchema = z.object({
     myPromotions: z.boolean().optional(),
     savedSearch: z.boolean().optional(),
     storeUpdates: z.boolean().optional(),
+    followUpdates: z.boolean().optional(),
     serviceQuotes: z.boolean().optional(),
     salesAlerts: z.boolean().optional(),
     lowStockAlerts: z.boolean().optional(),

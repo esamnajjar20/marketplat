@@ -157,7 +157,7 @@ model User {
   bio                         String?
   avatarUrl                   String?
   isActive                    Boolean                   @default(true)
-  notificationPreferences     Json                      @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true}")
+  notificationPreferences     Json                      @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true, \"followUpdates\": true}")
   salesCostTrackingEnabled    Boolean                   @default(true)
   createdAt                   DateTime                  @default(now())
   updatedAt                   DateTime                  @updatedAt
@@ -186,10 +186,13 @@ model User {
   requestsAsCustomer          Request[]                 @relation("RequestsAsCustomer")
   requestOffersMade           RequestOffer[]            @relation("RequestOffersAsOfferer")
   storeFollows                StoreFollower[]
+  followsGiven                Follow[]                  @relation("FollowFollower")
   storeReviewsGiven           StoreReview[]             @relation("StoreReviewsGiven")
   blocksMade                  UserBlock[]               @relation("BlocksMade")
   blocksReceived              UserBlock[]               @relation("BlocksReceived")
   activities                  UserActivity[]
+  stories                     Story[]
+  storyViews                  StoryView[]          @relation("StoryViewsByViewer")
   fraudSignals                FraudSignal[]
   sales                       SaleRecord[]             @relation("SellerSales")
   customers                   Customer[]               @relation("SellerCustomers")
@@ -1187,6 +1190,69 @@ model StoreCollectionProduct {
   @@map("store_collection_products")
 }
 
+enum StoryVisibility {
+  PUBLIC
+  FOLLOWERS
+}
+
+model Story {
+  id            String          @id @default(cuid())
+  userId        String
+  mediaUrl      String?
+  mediaPublicId String?
+  text          String?         @db.VarChar(500)
+  background    String?         @db.VarChar(40)
+  visibility    StoryVisibility @default(FOLLOWERS)
+  expiresAt     DateTime
+  createdAt     DateTime        @default(now())
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views         StoryView[]
+
+  @@index([userId, expiresAt, createdAt])
+  @@index([expiresAt])
+  @@map("stories")
+}
+
+model StoryView {
+  id       String   @id @default(cuid())
+  storyId  String
+  viewerId String
+  viewedAt DateTime @default(now())
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer   User     @relation("StoryViewsByViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@index([storyId, viewedAt])
+  @@index([viewerId, viewedAt])
+  @@map("story_views")
+}
+
+enum FollowTargetType {
+  USER
+  STORE
+  CATEGORY
+}
+
+// Social follow graph. The target is intentionally polymorphic because the
+// product has exactly three followable concepts: people, stores and
+// marketplace categories. Content (ads/products/services) is never followed
+// directly; it appears in the follower feed because it belongs to a followed
+// person/store/category.
+model Follow {
+  id         String          @id @default(cuid())
+  followerId String
+  targetType FollowTargetType
+  targetId   String
+  createdAt  DateTime        @default(now())
+
+  follower   User            @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([followerId, createdAt])
+  @@map("follows")
+}
+
 model StoreFollower {
   id        String       @id @default(cuid())
   userId    String
@@ -1601,6 +1667,10 @@ enum NotificationType {
   SALES_DAILY_SUMMARY
   SALES_SMART_INSIGHT
   NEW_MESSAGE
+  NEW_FOLLOWER
+  FOLLOWED_USER_ACTIVITY
+  FOLLOWED_STORE_ACTIVITY
+  FOLLOWED_CATEGORY_ACTIVITY
   FAV_AD_PRICE_CHANGED
   // Gap #15: fires when an ad a user favorited transitions to SOLD —
   // see ads.service.ts's updateAd (the same justSold block that already

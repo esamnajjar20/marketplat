@@ -161,7 +161,7 @@ const publicUserSelect = {
 // stores.repository.ts and SellerProfileWithAds in sellers.repository.ts.
 type PublicUserQueryResult = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;
 export type PublicSellerProfile = NonNullable<PublicUserQueryResult['sellerProfile']>;
-export type PublicUser = PublicUserQueryResult;
+export type PublicUser = PublicUserQueryResult & { followStats?: { followers: number; following: number } };
 
 export const usersRepository = {
   findById: async (id: string): Promise<SafeUser | null> =>

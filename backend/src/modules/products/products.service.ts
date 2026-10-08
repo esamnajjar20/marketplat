@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { FollowTargetType } from '@prisma/client';
 import { Product } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { productsRepository, ProductWithStore } from './products.repository';
@@ -23,6 +24,7 @@ import { withProductImagesLock, withStoreProductCreationLock } from '../../share
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { promotionsService, EffectivePrice } from '../promotions/promotions.service';
 import { fraudService } from '../fraud';
+import { followsService } from '../follows/follows.service';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
 
@@ -229,6 +231,13 @@ export const productsService = {
       .findUserIdsByStoreId(store.id)
       .then(followerIds => notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name))
       .catch(() => undefined);
+
+    void followsService.notifyActivityForTargets(
+      [{ targetType: FollowTargetType.CATEGORY, targetId: `PRODUCT:${product.categoryId}` }],
+      'منتج جديد',
+      `${product.name} أُضيف إلى متجر ${store.name}`,
+      { targetType: FollowTargetType.STORE, targetId: store.id, contentType: 'PRODUCT', contentId: product.id, categoryId: product.categoryId },
+    ).catch(() => undefined);
 
     // PLATFORM-WIDE-01: notify saved-search owners (type 'products')
     // whose criteria match this new product — same fire-and-forget

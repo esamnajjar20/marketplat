@@ -547,6 +547,17 @@ export const storeFollowRateLimit = rateLimit({
   message: msg('Too many requests, please try again later'),
 });
 
+// Social follow graph: one bounded limiter for user/store/category follows.
+export const followRateLimit = rateLimit({
+  keyGenerator: userOrIpKey,
+  windowMs: FIFTEEN_MIN_MS,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('follow'),
+  message: msg('Too many requests, please try again later'),
+});
+
 // Stores module: mirrors sellerRatingRateLimit — guards against bulk
 // fake reviews against a store.
 export const storeReviewRateLimit = rateLimit({

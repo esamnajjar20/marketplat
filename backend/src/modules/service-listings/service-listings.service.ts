@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { FollowTargetType } from '@prisma/client';
 import { ServiceListing } from '@prisma/client';
 import {
   serviceListingsRepository,
@@ -23,6 +24,7 @@ import { serviceTypesRepository } from '../service-types/service-types.repositor
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
+import { followsService } from '../follows/follows.service';
 import { savedSearchEvents } from '../saved-searches';
 import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
@@ -209,6 +211,16 @@ export const serviceListingsService = {
     // comment. Logged for `userId` (the acting caller), not
     // provider.id — activity rows are always keyed by the real user.
     activityService.record({ userId, ...activityTemplates.serviceCreated(listing.id, listing.title) });
+
+    void followsService.notifyActivityForTargets(
+      [
+        { targetType: FollowTargetType.USER, targetId: userId },
+        { targetType: FollowTargetType.CATEGORY, targetId: `SERVICE:${listing.categoryId}` },
+      ],
+      'خدمة جديدة',
+      `${listing.title} أصبحت متاحة الآن`,
+      { targetType: FollowTargetType.USER, targetId: userId, contentType: 'SERVICE', contentId: listing.id, categoryId: listing.categoryId },
+    ).catch(() => undefined);
 
     fraudService
       .scoreListing({
