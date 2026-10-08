@@ -108,6 +108,7 @@ export async function runWarmingPipeline(
   }
 
   pipelineInFlight = true;
+  let result: Awaited<ReturnType<typeof runWarmingEngine>> | undefined;
   try {
     const queueIdle = await waitForQueueReplayIdle();
     if (!queueIdle) return { ran: false };
@@ -129,7 +130,7 @@ export async function runWarmingPipeline(
     // W0-W3 + Cache W7: engine owns network budget + priority, storage
     // gates the phases. Network budget is still enforced by the engine;
     // storage budget decides how many phases run.
-    const result = await runWarmingEngine({
+    result = await runWarmingEngine({
       authenticated: options.authenticated === true && storageBudget === 'full',
       force: options.force === true,
     });
@@ -147,5 +148,5 @@ export async function runWarmingPipeline(
       void runWarmingPipeline({ authenticated: true });
     }
   }
-  return { ran: result.ran };
+  return { ran: result?.ran ?? false };
 }
