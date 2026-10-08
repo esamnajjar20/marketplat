@@ -108,7 +108,10 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
       const durationMs = Math.max(item.job.cost.durationMs, Date.now() - startedAt);
       used.requests += actualRequests;
       used.bytes += actualBytes;
-      used.durationMs += durationMs;
+      // Budget accounting uses the ESTIMATED cost so a slow job cannot
+      // starve every lower-priority job behind it. Actual duration is
+      // still recorded below for telemetry.
+      used.durationMs += item.job.cost.durationMs;
       recordWarmingJob({
         id: item.job.id,
         ok,
