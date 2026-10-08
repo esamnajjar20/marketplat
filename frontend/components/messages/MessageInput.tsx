@@ -1,13 +1,10 @@
 'use client';
-import { reportBackgroundFailure } from '../../lib/backgroundTask';
-
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
-import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Radio, Paperclip } from 'lucide-react';
+import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Paperclip } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import {
-  loadMessageDraft,
   saveMessageDraft,
   clearMessageDraft,
 } from '@/lib/messageUtils';
@@ -16,25 +13,24 @@ import { apiClient } from '@/api/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { RecordingTimer } from './RecordingTimer';
+import { MessageBodyEditor, type MessageBodyEditorHandle } from './MessageBodyEditor';
 
 interface Props {
   conversationId: string;
   disabled?: boolean;
 }
 
-const MAX_LENGTH = 2000;
 const QUICK_TEMPLATES = [
   'هل ما زال متوفراً؟',
   'ما آخر سعر؟',
   'أين مكان الاستلام؟',
   'ممكن صور إضافية؟',
 ] as const;
-const WARN_THRESHOLD = MAX_LENGTH * 0.9;
 
 export function MessageInput({ conversationId, disabled }: Props) {
   const [lastSendError, setLastSendError] = useState<string | null>(null);
-  const [body, setBody] = useState('');
-  const [draftReady, setDraftReady] = useState(false);
+  const [hasBody, setHasBody] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -42,84 +38,14 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const [uploadKind, setUploadKind] = useState<'image' | 'audio' | 'file' | null>(null);
   const [recording, setRecording] = useState(false);
   const cancelRecordingRef = useRef(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const recordingStartedAtRef = useRef<number | null>(null);
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const sendMessage = useSendMessage(conversationId);
   const queryClient = useQueryClient();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const attachmentRef = useRef<HTMLInputElement>(null);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const typingActive = useRef(false);
-
-  useEffect(() => {
-    setBody(loadMessageDraft(conversationId));
-    setDraftReady(true);
-    setImageFile(null);
-    setAttachmentFile(null);
-    // SW-MSG-PREVIEW-URL-LEAK-01 (second site): also revoke on
-    // conversation switch. Prior version unconditionally set the
-    // preview to null, orphaning a blob URL if the user had picked an
-    // image and then navigated to a different thread. Reachable by
-    // simply switching conversations mid-draft.
-    setImagePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-  }, [conversationId]);
-
-  useEffect(() => {
-    const onOfflineMessageEdit = (event: Event) => {
-      const detail = (event as CustomEvent<{ conversationId?: string; body?: string }>).detail;
-      if (!detail || detail.conversationId !== conversationId) return;
-      setBody(String(detail.body ?? ''));
-      setLastSendError(null);
-      window.setTimeout(() => textareaRef.current?.focus(), 0);
-    };
-    window.addEventListener('offline-message-edit', onOfflineMessageEdit);
-    return () => window.removeEventListener('offline-message-edit', onOfflineMessageEdit);
-  }, [conversationId]);
-
-  useEffect(() => {
-    if (!draftReady) return;
-    const t = window.setTimeout(() => saveMessageDraft(conversationId, body), 300);
-    return () => window.clearTimeout(t);
-  }, [body, conversationId, draftReady]);
-
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
-  }, [body]);
-
-  function signalTyping(isTyping: boolean) {
-    if (disabled) return;
-    typingActive.current = isTyping;
-    void conversationsApi.signalTyping(conversationId, isTyping).catch((error) => reportBackgroundFailure('frontend/components/messages/MessageInput.tsx', error));
-  }
-
-  function onBodyChange(value: string) {
-    setBody(value);
-    if (!value.trim()) {
-      if (typingActive.current) signalTyping(false);
-      return;
-    }
-    if (!typingActive.current) signalTyping(true);
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    typingTimer.current = setTimeout(() => signalTyping(false), 2000);
-  }
-
-  useEffect(() => {
-    return () => {
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-      if (typingActive.current) {
-        void conversationsApi.signalTyping(conversationId, false).catch((error) => reportBackgroundFailure('frontend/components/messages/MessageInput.tsx', error));
-      }
-    };
-  }, [conversationId]);
 
   // SW-MSG-PREVIEW-URL-LEAK-01 (unmount site): if the user leaves
   // /messages entirely while holding a picked image (back button,
@@ -147,26 +73,6 @@ export function MessageInput({ conversationId, disabled }: Props) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!recording) {
-      setRecordingSeconds(0);
-      recordingStartedAtRef.current = null;
-      return;
-    }
-    recordingStartedAtRef.current = Date.now();
-    const timer = window.setInterval(() => {
-      if (recordingStartedAtRef.current) {
-        setRecordingSeconds(Math.floor((Date.now() - recordingStartedAtRef.current) / 1000));
-      }
-    }, 250);
-    return () => window.clearInterval(timer);
-  }, [recording]);
-
-  function formatRecordingTime(seconds: number) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-  }
 
   function onPickImage(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -233,6 +139,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         setRecording(false);
+        setRecordingStartedAt(null);
         mediaRecorderRef.current = null;
         const wasCancelled = cancelRecordingRef.current;
         cancelRecordingRef.current = false;
@@ -243,7 +150,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         setUploadKind('audio');
         try {
           const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
-          const response = await conversationsApi.sendAudio(conversationId, file, body.trim());
+          const response = await conversationsApi.sendAudio(conversationId, file, bodyEditorRef.current?.getValue().trim() ?? '');
           const sentMessage = response.data.data;
           if (!sentMessage) throw new Error('Empty audio send response');
           // Audio is not covered by useSendMessage's optimistic mutation.
@@ -258,7 +165,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
               return { ...current, items: [...current.items, sentMessage] };
             },
           );
-          setBody('');
+          bodyEditorRef.current?.clear(); setHasBody(false);
           clearMessageDraft(conversationId);
           setLastSendError(null);
           void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
@@ -266,7 +173,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         } catch (err) {
           const parsed = parseApiError(err);
           if (parsed.queued) {
-            setBody('');
+            bodyEditorRef.current?.clear(); setHasBody(false);
             clearMessageDraft(conversationId);
             setLastSendError(null);
             void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
@@ -281,8 +188,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
         }
       };
       mediaRecorderRef.current = recorder;
+      setRecordingStartedAt(Date.now());
       setRecording(true);
-      setRecordingSeconds(0);
       recorder.start(250);
       window.setTimeout(() => {
         if (mediaRecorderRef.current === recorder && recorder.state === 'recording') {
@@ -302,22 +209,20 @@ export function MessageInput({ conversationId, disabled }: Props) {
         toast.error('تعذّر الوصول إلى الميكروفون. تحقق من إذن الميكروفون ثم حاول مرة أخرى.');
       }
       setRecording(false);
+      setRecordingStartedAt(null);
       mediaRecorderRef.current = null;
     }
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const trimmed = body.trim();
+    const trimmed = bodyEditorRef.current?.getValue().trim() ?? '';
     if ((!trimmed && !imageFile && !attachmentFile) || sendMessage.isPending || uploading || disabled) return;
-
-    if (typingActive.current) signalTyping(false);
-    if (typingTimer.current) clearTimeout(typingTimer.current);
 
     if (attachmentFile) {
       setUploading(true); setUploadKind('file');
-      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(['conversations','detail',conversationId,'messages',{limit:50}],(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); setBody(''); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void queryClient.invalidateQueries({queryKey:['conversations','detail',conversationId,'messages']}); }
-      catch(err){const parsed=parseApiError(err); if(parsed.queued){setBody('');clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);}else{setLastSendError(parsed.message);toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
+      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(['conversations','detail',conversationId,'messages',{limit:50}],(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void queryClient.invalidateQueries({queryKey:['conversations','detail',conversationId,'messages']}); }
+      catch(err){const parsed=parseApiError(err); if(parsed.queued){bodyEditorRef.current?.clear(); setHasBody(false);clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);}else{setLastSendError(parsed.message);toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
     }
 
     if (imageFile) {
@@ -334,7 +239,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         await apiClient.post(`/conversations/${conversationId}/messages/image`, form, {
           headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() },
         });
-        setBody('');
+        bodyEditorRef.current?.clear(); setHasBody(false);
         setLastSendError(null);
         clearMessageDraft(conversationId);
         clearImage();
@@ -350,7 +255,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         // (messages still lack server-side idempotency — see N2).
         const parsed = parseApiError(err);
         if (parsed.queued) {
-          setBody('');
+          bodyEditorRef.current?.clear(); setHasBody(false);
           setLastSendError(null);
           clearMessageDraft(conversationId);
           clearImage();
@@ -371,7 +276,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
       return;
     }
 
-    setBody('');
+    bodyEditorRef.current?.clear(); setHasBody(false);
     clearMessageDraft(conversationId);
     sendMessage.mutate(
       { body: trimmed },
@@ -379,7 +284,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         onError: (err) => {
           const parsed = parseApiError(err);
           if (!parsed.queued) {
-            setBody(trimmed);
+            bodyEditorRef.current?.setValue(trimmed); setHasBody(Boolean(trimmed));
             saveMessageDraft(conversationId, trimmed);
             setLastSendError(parsed.message || 'تعذّر الإرسال');
           }
@@ -392,15 +297,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
   /** Re-focus without forcing the soft keyboard to cycle closed/open. */
   function keepComposerFocus() {
-    const el = textareaRef.current;
+    const el = bodyEditorRef.current;
     if (!el) return;
     // If something else already took focus (e.g. file picker), don't steal it.
-    const active = document.activeElement;
-    if (active && active !== el && active !== document.body && !el.contains(active)) {
-      return;
-    }
-    // Synchronous focus keeps iOS/Android keyboard stable after form submit.
-    el.focus({ preventScroll: true });
+    // The editor owns the actual textarea and keeps focus stable.
+    el.focus();
   }
 
   if (disabled) {
@@ -414,9 +315,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
     );
   }
 
-  const nearLimit = body.length >= WARN_THRESHOLD;
   const canSend =
-    (Boolean(body.trim()) || Boolean(imageFile) || Boolean(attachmentFile)) && !sendMessage.isPending && !uploading && !recording;
+    (hasBody || Boolean(imageFile) || Boolean(attachmentFile)) && !sendMessage.isPending && !uploading && !recording;
 
   return (
     <div className="border-t border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/90 dark:bg-card/95">
@@ -445,7 +345,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         </div>
       )}
 
-      {!body.trim() && !imageFile && !attachmentFile && (
+      {!hasBody && !imageFile && !attachmentFile && (
         <div
           className="flex gap-2 overflow-x-auto px-3 pt-2.5 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
           role="group"
@@ -456,7 +356,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
               key={label}
               type="button"
               onClick={() => {
-                setBody(label);
+                bodyEditorRef.current?.setValue(label);
+                setHasBody(true);
                 keepComposerFocus();
               }}
               className="snap-start shrink-0 rounded-full border border-border/80 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors min-h-10 hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
@@ -478,7 +379,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             className="shrink-0 font-semibold underline-offset-2 hover:underline"
             onClick={() => {
               setLastSendError(null);
-              textareaRef.current?.form?.requestSubmit();
+              bodyEditorRef.current?.requestSubmit();
             }}
           >
             إعادة
@@ -529,17 +430,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
               <X className="h-4 w-4" />
             </button>
           )}
-          {recording && (
-            <div className="flex min-h-10 items-center gap-2 rounded-2xl border border-destructive/15 bg-destructive/5 px-2.5 text-xs font-medium tabular-nums text-destructive" aria-live="polite">
-              <Radio className="h-3.5 w-3.5 animate-pulse" aria-hidden />
-              <span className="flex items-end gap-0.5" aria-hidden>
-                <i className="h-2 w-0.5 rounded-full bg-current animate-pulse" />
-                <i className="h-3.5 w-0.5 rounded-full bg-current animate-pulse [animation-delay:120ms]" />
-                <i className="h-2.5 w-0.5 rounded-full bg-current animate-pulse [animation-delay:240ms]" />
-              </span>
-              <span>{formatRecordingTime(recordingSeconds)}</span>
-            </div>
-          )}
+          {recording && <RecordingTimer startedAt={recordingStartedAt} />}
           <button
             type="button"
             aria-label={recording ? 'إيقاف التسجيل الصوتي' : 'تسجيل رسالة صوتية'}
@@ -557,35 +448,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             {recording ? <Square className="relative h-4 w-4" fill="currentColor" /> : <Mic className="relative h-5 w-5 transition-transform group-hover:scale-110" />}
           </button>
           <div className="min-w-0 flex-1">
-            <textarea
-              ref={textareaRef}
-              value={body}
-              onChange={(e) => onBodyChange(e.target.value)}
-              onKeyDown={(e) => {
-                // On touch devices Enter often means newline; only submit on fine pointers (mouse/keyboard)
-                if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer: fine)').matches) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-              maxLength={MAX_LENGTH}
-              rows={1}
-              placeholder="اكتب رسالتك..."
-              className="w-full resize-none bg-transparent border-none outline-none px-2 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground max-h-32"
-              aria-label="نص الرسالة"
-            />
-            {nearLimit && (
-              <p
-                className={cn(
-                  'px-2 pb-1 text-2xs-tight text-end tabular-nums',
-                  body.length >= MAX_LENGTH
-                    ? 'font-medium text-destructive'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {body.length}/{MAX_LENGTH}
-              </p>
-            )}
+<MessageBodyEditor ref={bodyEditorRef} conversationId={conversationId} disabled={disabled} onContentChange={setHasBody} />
           </div>
 
           <button

@@ -1,35 +1,24 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { SafeImg } from '@/components/shared/ui/SafeImg';
-import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Check, CheckCheck, Clock, Trash2, Loader2, ShieldAlert, RotateCw, X as XIcon, Copy, Pin, Archive, Star } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Loader2, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
-import { classifyHttpConflict } from '@/lib/conflictResolver';
 import { useSetConversationFlags, useMessageMarkMutation } from '@/hooks/mutations/useConversationMutations';
 import {
-  messageDayLabel,
   sameCalendarDay,
   isTightFollowUp,
-  splitMessageBody,
 } from '@/lib/messageUtils';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { Button } from '@/components/shared/ui/Button';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '@/components/shared/ui/DropdownMenu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
-import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
 import { MessageMediaGallery } from './MessageMediaGallery';
-import { MediaDownloadButton } from './MediaDownloadButton';
 import { useConversation, useMessages, useConversationMedia } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { retryQueuedMessage, cancelQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
@@ -39,8 +28,9 @@ import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
 import { useUserPresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
-import { formatTime, formatRelativeTime } from '@/lib/formatters';
+import { formatRelativeTime } from '@/lib/formatters';
 import { getAvatarUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { ChatMessageRow, type DisplayMessage } from './ChatMessageRow';
 import { cn } from '@/lib/utils';
 import type { Conversation, Message } from '@/types/conversation.types';
 
@@ -63,16 +53,6 @@ function otherParty(conversation: Conversation, userId: string | undefined) {
  * queueId/lastError لا يُستخدَمان إلا لحالتَي queued/failed لتفعيل زر
  * إعادة المحاولة/الحذف.
  */
-type DisplayMessage = Message & {
-  clientStatus?: 'sending' | 'queued' | 'failed' | 'cancelled';
-  queueId?: number;
-  lastError?: { status: number; message?: string };
-  /** Offline image upload still in SW queue (no preview URL available). */
-  clientHasImage?: boolean;
-  clientHasAudio?: boolean;
-  clientHasFile?: boolean;
-  clientFileName?: string;
-};
 
 /**
  * ChatWindow — Epic 5, the thread view at /messages/:id. Replaces the
@@ -143,7 +123,7 @@ export function ChatWindow({ conversationId }: Props) {
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
   const [partyTyping, setPartyTyping] = useState(false);
   const { mutate: setFlags, isPending: flagsPending } = useSetConversationFlags();
-  const messageMarkMutation = useMessageMarkMutation(conversationId);
+  const { mutate: markMessage, isPending: markPending } = useMessageMarkMutation(conversationId);
   const { data: mediaItems = [], isLoading: mediaLoading } = useConversationMedia(conversationId, showMedia);
   const pendingQueued = usePendingMessages(conversationId);
 
@@ -243,14 +223,18 @@ export function ChatWindow({ conversationId }: Props) {
     ...queuedMessages,
   ];
 
-  function handleRetryQueued(queueId: number) {
+  const handleRetryQueued = useCallback((queueId: number) => {
     setRetryingQueueId(queueId);
     retryQueuedMessage(queueId).finally(() => setRetryingQueueId(null));
-  }
+  }, []);
 
-  function handleDiscardQueued(queueId: number) {
+  const handleCancelQueued = useCallback((queueId: number) => {
+    void cancelQueuedMessage(queueId);
+  }, []);
+
+  const handleDiscardQueued = useCallback((queueId: number) => {
     discardQueuedMessage(queueId);
-  }
+  }, []);
   // Whether another older cursor exists. The live window supplies the
   // first cursor; every subsequent click advances nextOlderCursor.
   const hasMoreOlder = Boolean(
@@ -397,61 +381,18 @@ export function ChatWindow({ conversationId }: Props) {
           : null)
     : null;
 
-  function renderQueuedActions(
-    message: DisplayMessage,
-    clientStatus: DisplayMessage['clientStatus'],
-  ) {
-    if ((clientStatus !== 'failed' && clientStatus !== 'cancelled') || message.queueId == null) return null;
-    const conflict = classifyHttpConflict(message.lastError?.status, message.lastError?.message);
-    const editMessage = () => {
-      window.dispatchEvent(new CustomEvent('offline-message-edit', {
-        detail: {
-          conversationId,
-          body: message.body === '📷' || message.body === '🎤 رسالة صوتية' ? '' : message.body,
-        },
-      }));
-      toast.message('المحتوى موجود في المحرر', {
-        description: 'عدّل النص ثم أرسل رسالة جديدة. الرسالة السابقة محفوظة حتى تقرر حذفها.',
-      });
-    };
-    return (
-      <div className="flex flex-wrap items-center gap-2 ms-1">
-        <button
-          type="button"
-          onClick={() => handleRetryQueued(message.queueId!)}
-          disabled={retryingQueueId === message.queueId || (clientStatus === 'failed' && conflict.isTerminal)}
-          className="flex items-center gap-0.5 text-2xs font-medium text-primary hover:underline disabled:opacity-50"
-          title={conflict.isTerminal ? conflict.message : 'إعادة الإرسال'}
-        >
-          <RotateCw className={cn('h-3 w-3', retryingQueueId === message.queueId && 'animate-spin')} />
-          إعادة الإرسال
-        </button>
-        <button type="button" onClick={editMessage} className="text-2xs font-medium text-primary hover:underline">
-          تعديل
-        </button>
-        {clientStatus === 'failed' ? (
-          <button
-            type="button"
-            onClick={() => {
-              void cancelQueuedMessage(message.queueId!);
-              toast.message('تم إيقاف الإرسال', { description: 'المحتوى محفوظ على جهازك ويمكنك إعادة إرساله لاحقًا.' });
-            }}
-            className="text-2xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            إلغاء الإرسال
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => handleDiscardQueued(message.queueId!)}
-            className="text-2xs font-medium text-muted-foreground hover:text-destructive"
-          >
-            حذف نهائي
-          </button>
-        )}
-      </div>
-    );
-  }
+  const handleMarkMessage = useCallback((input: { messageId: string; kind: 'star' | 'pin'; active: boolean }) => {
+    markMessage(input);
+  }, [markMessage]);
+
+  const handleEditQueued = useCallback((message: DisplayMessage) => {
+    window.dispatchEvent(new CustomEvent('offline-message-edit', {
+      detail: { conversationId, body: message.body === '📷' || message.body === '🎤 رسالة صوتية' ? '' : message.body },
+    }));
+    toast.message('المحتوى موجود في المحرر', {
+      description: 'عدّل النص ثم أرسل رسالة جديدة. الرسالة السابقة محفوظة حتى تقرر حذفها.',
+    });
+  }, [conversationId]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
@@ -638,238 +579,26 @@ export function ChatWindow({ conversationId }: Props) {
               </div>
             )}
             {messages.map((message, index) => {
-              const isMine = message.senderId === user?.id;
-              const isDeleted = Boolean(message.deletedAt);
-              const prev = index > 0 ? messages[index - 1] : null;
-              const showDay =
-                !prev || !sameCalendarDay(prev.createdAt, message.createdAt);
-              const tight = isTightFollowUp(prev, message);
-              // UX-FIX (perceived-latency): useSendMessage's onMutate
-              // (useConversationMutations.ts) writes a temporary message
-              // with a client-generated `optimistic-...` id straight into
-              // this same cache so it appears the instant "إرسال" is
-              // pressed, before the server has responded. Flagged here
-              // purely by id shape (no new field on Message itself) so
-              // it renders as "sending" (faded, clock icon, no delete
-              // menu — there's no real id to delete yet) instead of a
-              // confirmed sent/read message until the real one replaces
-              // it on refetch.
-              const isOptimistic = message.id.startsWith('optimistic-');
-              // FEAT-OFFLINE-MSG: a message sourced from usePendingMessages
-              // (id `queued-...`) has no real server id — same "not a real,
-              // persisted message yet" bucket as isOptimistic for the
-              // purposes of the delete-message menu below.
-              const clientStatus = message.clientStatus;
-              const isLocalOnly = isOptimistic || clientStatus === 'queued' || clientStatus === 'failed' || clientStatus === 'cancelled';
+              const previousMessage = index > 0 ? messages[index - 1] : null;
+              const showDay = !previousMessage || !sameCalendarDay(previousMessage.createdAt, message.createdAt);
+              const tight = isTightFollowUp(previousMessage, message);
               return (
-                <div key={message.id} className={cn('flex w-full flex-col', tight ? 'mt-0.5' : 'mt-0')}>
-                  {showDay && (
-                    <div className="my-3 flex justify-center">
-                      <span className="rounded-full border bg-card/90 px-3 py-0.5 text-2xs-tight font-medium text-muted-foreground shadow-sm">
-                        {messageDayLabel(message.createdAt)}
-                      </span>
-                    </div>
-                  )}
-                <div
-                  className={cn('group flex flex-col gap-1 max-w-[min(92%,28rem)] sm:max-w-[min(88%,32rem)]', isMine ? 'items-end self-end' : 'items-start self-start')}
-                >
-                  <div className="flex items-center gap-1">
-                    {isMine && !isDeleted && !isLocalOnly && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted shrink-0"
-                            aria-label="خيارات الرسالة"
-                          >
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {!isDeleted && (
-                            <>
-                              <DropdownMenuItem
-                                className="flex items-center gap-2 cursor-pointer"
-                                disabled={messageMarkMutation.isPending}
-                                onClick={() => messageMarkMutation.mutate({ messageId: message.id, kind: 'star', active: !message.isStarredByMe })}
-                              >
-                                <Star className={cn('h-4 w-4', message.isStarredByMe && 'fill-current')} />
-                                {message.isStarredByMe ? 'إلغاء التمييز' : 'تمييز الرسالة'}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="flex items-center gap-2 cursor-pointer"
-                                disabled={messageMarkMutation.isPending}
-                                onClick={() => messageMarkMutation.mutate({ messageId: message.id, kind: 'pin', active: !message.isPinned })}
-                              >
-                                <Pin className={cn('h-4 w-4', message.isPinned && 'fill-current')} />
-                                {message.isPinned ? 'إلغاء تثبيت الرسالة' : 'تثبيت الرسالة'}
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          <DropdownMenuItem
-                            className="flex items-center gap-2 cursor-pointer"
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(message.body);
-                                toast.success('تم نسخ الرسالة');
-                              } catch {
-                                toast.error('تعذّر النسخ');
-                              }
-                            }}
-                          >
-                            <Copy className="h-4 w-4" />
-                            نسخ
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
-                            onClick={() => setConfirmDeleteMessageId(message.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            حذف الرسالة
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                    <div
-                      className={cn(
-                        'rounded-2xl px-4 py-2.5 text-sm shadow-sm transition-opacity',
-                        // FIX BUG-XX: rounded-br-sm/rounded-bl-sm are physical
-                        // (bottom-right/bottom-left) in a dir="rtl" app
-                        // (app/layout.tsx), so the "pointed" corner sat on the
-                        // wrong side of the bubble. rounded-ee-sm/rounded-es-sm
-                        // are logical (bottom-end/bottom-start) and follow the
-                        // actual text direction instead.
-                        isDeleted
-                          ? 'bg-muted text-muted-foreground italic'
-                          : isMine
-                            ? 'rounded-ee-sm bg-primary text-primary-foreground shadow-xs'
-                            : 'rounded-es-sm border border-border/80 bg-card text-foreground shadow-xs',
-                        isOptimistic && 'opacity-60',
-                        clientStatus === 'queued' && 'opacity-100',
-                        clientStatus === 'failed' && 'opacity-80 ring-1 ring-destructive/40'
-                      )}
-                    >
-                      {!isDeleted && (message.isPinned || message.isStarredByMe) && (
-                        <div className={cn('mb-1.5 flex items-center gap-1 text-2xs', isMine ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
-                          {message.isPinned && <><Pin className="h-3 w-3" /> <span>مثبتة</span></>}
-                          {message.isPinned && message.isStarredByMe && <span>·</span>}
-                          {message.isStarredByMe && <><Star className="h-3 w-3 fill-current" /> <span>مميزة</span></>}
-                        </div>
-                      )}
-                      {!isDeleted && message.audioUrl && (
-                        <div className="mb-2">
-                          <VoiceMessagePlayer
-                            src={message.audioUrl}
-                            variant={isMine ? 'mine' : 'theirs'}
-                          />
-                          <MediaDownloadButton conversationId={conversationId} messageId={message.id} kind="audio" label="تحميل التسجيل" className="mt-1" />
-                        </div>
-                      )}
-                      {!isDeleted && message.imageUrl && (
-                        <a
-                          href={message.imageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mb-2 block overflow-hidden rounded-xl"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <SafeImg
-                            src={getThumbnailUrl(message.imageUrl, 480, 360)}
-                            alt="صورة مرفقة"
-                            className="max-h-56 max-w-full object-cover"
-                          />
-                        </a>
-                      )}
-                      {!isDeleted && message.fileUrl && (
-                        <div className="mb-2 flex max-w-[280px] items-center gap-3 rounded-xl border border-border/70 bg-black/5 p-3 dark:bg-white/5">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">📎</div>
-                          <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold" title={message.fileName ?? undefined}>{message.fileName ?? 'ملف مرفق'}</p>{message.fileSize ? <p className="text-2xs text-muted-foreground">{message.fileSize < 1048576 ? `${Math.round(message.fileSize / 1024)} KB` : `${(message.fileSize / 1048576).toFixed(1)} MB`}</p> : null}</div>
-                          <div className="flex shrink-0 items-center gap-1"><a href={message.fileUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg p-2 text-xs text-primary hover:bg-muted">فتح</a><MediaDownloadButton conversationId={conversationId} messageId={message.id} kind="file" fileName={message.fileName} label="تحميل" className="h-9 min-h-9 px-2" /></div>
-                        </div>
-                      )}
-                      {!isDeleted && !message.imageUrl && message.clientHasImage && (
-                        <div
-                          className="mb-2 flex h-28 max-w-[12rem] items-center justify-center rounded-xl bg-muted/80 text-2xl"
-                          aria-label="صورة بانتظار الإرسال"
-                        >
-                          📷
-                        </div>
-                      )}
-                      {!isDeleted && !message.fileUrl && message.clientHasFile && (
-                        <div className="mb-2 flex min-w-[12rem] items-center gap-2 rounded-xl bg-muted/80 px-3 py-2 text-sm"><span aria-hidden>📎</span><span className="truncate">{message.clientFileName ?? 'ملف'}</span></div>
-                      )}
-                      {!isDeleted && !message.audioUrl && message.clientHasAudio && (
-                        <div
-                          className="mb-2 flex min-w-[12rem] items-center gap-2 rounded-xl bg-muted/80 px-3 py-2 text-sm"
-                          aria-label="رسالة صوتية بانتظار الإرسال"
-                        >
-                          <span aria-hidden>🎤</span>
-                          <span>رسالة صوتية</span>
-                        </div>
-                      )}
-                      <p className="whitespace-pre-wrap break-words">
-                        {isDeleted
-                          ? 'تم حذف هذه الرسالة'
-                          : message.body && message.body !== '📷' && message.body !== '🎤 رسالة صوتية'
-                            ? splitMessageBody(message.body).map((part, i) =>
-                                part.type === 'link' && part.href ? (
-                                  <a
-                                    key={i}
-                                    href={part.href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={cn(
-                                      'underline underline-offset-2',
-                                      isMine ? 'text-primary-foreground/95' : 'text-primary',
-                                    )}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {part.value}
-                                  </a>
-                                ) : (
-                                  <span key={i}>{part.value}</span>
-                                ),
-                              )
-                            : null}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 px-1">
-                    <span className="text-2xs text-muted-foreground">
-                      {clientStatus === 'failed' ? 'تعذّر الإرسال' : clientStatus === 'cancelled' ? 'الإرسال ملغى — المحتوى محفوظ' : formatTime(message.createdAt)}
-                    </span>
-                    {isMine && !isDeleted && (
-                      isOptimistic || clientStatus === 'queued'
-                        ? <Clock className="h-3 w-3 text-muted-foreground" aria-label={clientStatus === 'queued' ? 'بانتظار الاتصال' : 'جارٍ الإرسال'} />
-                        : clientStatus === 'failed' || clientStatus === 'cancelled'
-                          ? <AlertTriangle className="h-3.5 w-3.5 text-destructive" aria-label="فشل الإرسال" />
-                          : message.readAt
-                            ? <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="تمت القراءة" />
-                            : <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="تم الإرسال" />
-                    )}
-                    {/* FEAT-OFFLINE-MSG: رسالة فشلت نهائيًا (4xx عند إعادة
-                        المحاولة، مثلًا حظر الطرف الآخر أثناء الانقطاع) —
-                        القرار (إعادة محاولة/حذف) يُترك للمستخدم صراحة بدل
-                        إسقاطها بصمت (انظر FIX CONFLICT-01 بـ sw.js). */}
-                    {renderQueuedActions(message, clientStatus)}
-                  {/* CHATWINDOW-LASTERROR-GUARD-01: only render the
-                      error line when lastError exists. Before this,
-                      a failed message with no lastError (rare but
-                      possible — the field is optional) went through
-                      classifyHttpConflict(undefined, undefined), which
-                      returns the 'network' kind, so the user saw a
-                      misleading 'لا يوجد اتصال' for what might have
-                      been a server-side rejection. `.status` below is
-                      accessed without `?.` because the guard above
-                      guarantees presence. */}
-                  {clientStatus === 'failed' && message.lastError && (
-                    <p className="px-1 text-2xs text-destructive/80">
-                      {classifyHttpConflict(message.lastError.status, message.lastError.message).message}
-                    </p>
-                  )}
-                </div>
-                </div>
-                </div>
+                <ChatMessageRow
+                  key={message.id}
+                  message={message}
+                  showDay={showDay}
+                  tight={tight}
+                  isMine={message.senderId === user?.id}
+                  conversationId={conversationId}
+                  isRetrying={retryingQueueId === message.queueId}
+                  markPending={markPending}
+                  onMarkMessage={handleMarkMessage}
+                  onDeleteRequest={setConfirmDeleteMessageId}
+                  onRetryQueued={handleRetryQueued}
+                  onDiscardQueued={handleDiscardQueued}
+                  onCancelQueued={handleCancelQueued}
+                  onEditQueued={handleEditQueued}
+                />
               );
             })}
           </>
