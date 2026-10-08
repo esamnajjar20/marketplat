@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ShieldAlert, CheckCheck, XCircle } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -18,7 +18,7 @@ type Row = {
   listing?: { id: string; title: string; provider?: { id: string; businessName: string; sellerProfile?: { userId: string; displayName: string } | null } | null } | null;
 };
 
-export function AdminServiceRequestDisputesTable() {
+export const AdminServiceRequestDisputesTable = memo(function AdminServiceRequestDisputesTable() {
   const { data, isLoading, isError, error, refetch } = useAdminServiceRequestDisputes({ page: 1, limit: 50 });
   const resolve = useAdminResolveServiceRequestDispute();
   const [target, setTarget] = useState<{ id: string; resolution: 'COMPLETED' | 'CANCELLED' } | null>(null);
@@ -35,7 +35,7 @@ export function AdminServiceRequestDisputesTable() {
           <thead className="bg-muted/50 text-start"><tr>
             <th className="p-3 font-medium">الطلب</th><th className="p-3 font-medium">الأطراف</th><th className="p-3 font-medium">سبب النزاع</th><th className="p-3 font-medium">التاريخ</th><th className="p-3" />
           </tr></thead>
-          <tbody>{items.map((r) => <tr key={r.id} className="border-t align-top">
+          <tbody>{items.map((r) => <tr key={r.id} className="border-t align-top [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
             <td className="p-3"><div className="font-medium">{r.listing?.title ?? '—'}</div><Badge variant="destructive" className="mt-1">قيد النزاع</Badge></td>
             <td className="p-3"><div>{r.customer?.name ?? '—'}</div><div className="text-xs text-muted-foreground">{r.listing?.provider?.businessName ?? '—'}</div></td>
             <td className="max-w-[320px] p-3 whitespace-pre-wrap text-muted-foreground">{r.disputeReason ?? '—'}</td>
@@ -53,4 +53,4 @@ export function AdminServiceRequestDisputesTable() {
       />
     </div>
   );
-}
+});

@@ -1,7 +1,7 @@
 'use client';
 
 import { adminPagination } from '@/lib/adminHubTabs';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Wrench, Pause, Trash2 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -18,7 +18,7 @@ import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
 
-export function AdminServiceListingsTable() {
+export const AdminServiceListingsTable = memo(function AdminServiceListingsTable() {
   const sp = useSearchParams();
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
@@ -143,7 +143,7 @@ export function AdminServiceListingsTable() {
             {rows.map((row) => {
               const provider = row.provider as { businessName?: string } | undefined;
               return (
-                <tr key={String(row.id)} className="hover:bg-muted/30">
+                <tr key={String(row.id)} className="hover:bg-muted/30 [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                   <td className="p-3 font-medium">{String(row.title)}</td>
                   <td className="p-3 text-muted-foreground">{provider?.businessName ?? '—'}</td>
                   <td className="p-3 tabular-nums">
@@ -240,4 +240,4 @@ export function AdminServiceListingsTable() {
       />
     </div>
   );
-}
+});

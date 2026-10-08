@@ -24,7 +24,7 @@
  * AdminSellersTable's verify vs. suspend.
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle2, Ban, RotateCcw, Search, Star } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
@@ -71,7 +71,7 @@ function isAdminStoreStatus(value: string | null): value is AdminStoreStatus {
 // lib/storeStatus.ts for why this is now the shared source of truth
 // (MyStoreCard used a coincidentally-identical local copy).
 
-export function AdminStoresTable() {
+export const AdminStoresTable = memo(function AdminStoresTable() {
   const sp     = useSearchParams();
   const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
@@ -358,7 +358,7 @@ export function AdminStoresTable() {
               {items.map((store) => {
                 const badge = { label: STORE_STATUS_LABELS[store.status], variant: STORE_STATUS_VARIANT[store.status] };
                 return (
-                  <tr key={store.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={store.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                     <td className="p-3">
                       <Checkbox
                         checked={selectedIds.has(store.id)}
@@ -510,4 +510,4 @@ export function AdminStoresTable() {
       />
     </div>
   );
-}
+});

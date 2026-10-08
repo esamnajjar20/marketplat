@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AlertTriangle, Eye } from 'lucide-react';
@@ -71,7 +71,7 @@ function formatDetailValue(value: unknown): string {
   return String(value);
 }
 
-export function AdminAuditLogsTable() {
+export const AdminAuditLogsTable = memo(function AdminAuditLogsTable() {
   const sp = useSearchParams();
   const router = useRouter();
 
@@ -418,4 +418,4 @@ export function AdminAuditLogsTable() {
       </Dialog>
     </div>
   );
-}
+});

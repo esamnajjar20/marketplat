@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClipboardList, Ban } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -32,7 +32,7 @@ type RequestRow = {
   _count?: { offers?: number };
 };
 
-export function AdminOpenRequestsTable() {
+export const AdminOpenRequestsTable = memo(function AdminOpenRequestsTable() {
   const sp = useSearchParams();
   // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
@@ -104,7 +104,7 @@ export function AdminOpenRequestsTable() {
             </thead>
             <tbody>
               {items.map((r) => (
-                <tr key={r.id} className="border-t">
+                <tr key={r.id} className="border-t [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                   <td className="p-3">
                     <div className="font-medium">{r.title}</div>
                     <div className="text-xs text-muted-foreground">
@@ -170,4 +170,4 @@ export function AdminOpenRequestsTable() {
       />
     </div>
   );
-}
+});

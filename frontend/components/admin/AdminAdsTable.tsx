@@ -3,7 +3,7 @@
 // double-click could fire the same batch twice.
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -34,7 +34,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 
-export function AdminAdsTable() {
+export const AdminAdsTable = memo(function AdminAdsTable() {
   const sp     = useSearchParams();
   const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
@@ -309,7 +309,7 @@ export function AdminAdsTable() {
               {items.map((ad) => {
                 const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 80, 60) : PLACEHOLDER_SVG;
                 return (
-                  <tr key={ad.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={ad.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                     <td className="p-3">
                       <Checkbox
                         checked={selectedIds.has(ad.id)}
@@ -432,4 +432,4 @@ export function AdminAdsTable() {
       />
     </div>
   );
-}
+});

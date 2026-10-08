@@ -1,7 +1,7 @@
 'use client';
 
 import { adminPagination } from '@/lib/adminHubTabs';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Package, Pause, Trash2 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -18,7 +18,7 @@ import { useAdminSetProductStatus } from '@/hooks/mutations/useAdminMutations';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
 
-export function AdminProductsTable() {
+export const AdminProductsTable = memo(function AdminProductsTable() {
   const sp = useSearchParams();
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
@@ -153,7 +153,7 @@ export function AdminProductsTable() {
             {rows.map((p) => {
               const store = p.store as { name?: string } | undefined;
               return (
-                <tr key={String(p.id)} className="hover:bg-muted/30">
+                <tr key={String(p.id)} className="hover:bg-muted/30 [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                   <td className="p-3 font-medium">{String(p.name)}</td>
                   <td className="p-3 text-muted-foreground">{store?.name ?? '—'}</td>
                   <td className="p-3 tabular-nums">{formatPrice(Number(p.price))}</td>
@@ -241,4 +241,4 @@ export function AdminProductsTable() {
       />
     </div>
   );
-}
+});

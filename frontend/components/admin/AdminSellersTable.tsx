@@ -17,7 +17,7 @@
  */
 
 import { adminPagination } from '@/lib/adminHubTabs';
-import { useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShieldOff, ShieldCheck, BadgeCheck, BadgeX, Star, Search } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
@@ -39,7 +39,7 @@ import {
 import { formatDate } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 
-export function AdminSellersTable() {
+export const AdminSellersTable = memo(function AdminSellersTable() {
   const sp     = useSearchParams();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
@@ -253,7 +253,7 @@ export function AdminSellersTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((seller) => (
-                <tr key={seller.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={seller.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                   <td className="p-3">
                     <Checkbox
                       checked={selectedIds.has(seller.id)}
@@ -390,4 +390,4 @@ export function AdminSellersTable() {
       />
     </div>
   );
-}
+});

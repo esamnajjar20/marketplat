@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, ExternalLink, Search } from 'lucide-react';
@@ -44,7 +44,7 @@ function targetHref(targetType: ReportTargetType, targetId: string): string {
   return ROUTES.adDetail(targetId);
 }
 
-export function AdminReportsTable() {
+export const AdminReportsTable = memo(function AdminReportsTable() {
   const sp     = useSearchParams();
   const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
@@ -318,7 +318,7 @@ export function AdminReportsTable() {
             </thead>
             <tbody className="divide-y">
               {items.map((report) => (
-                <tr key={report.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={report.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                   <td className="p-3">
                     {report.status === 'PENDING' && (
                       <Checkbox
@@ -427,4 +427,4 @@ export function AdminReportsTable() {
       />
     </div>
   );
-}
+});

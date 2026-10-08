@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ShieldOff, ShieldCheck, ChevronDown, Crown, ShieldAlert, User as UserIcon, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
@@ -66,7 +66,7 @@ const ROLE_ICON: Record<AssignableRole, typeof UserIcon> = {
 // anyone (see AssignableRole's own doc comment).
 const ASSIGNABLE_ROLES: AssignableRole[] = ['USER', 'MODERATOR', 'ADMIN'];
 
-export function AdminUsersTable() {
+export const AdminUsersTable = memo(function AdminUsersTable() {
   const sp     = useSearchParams();
   const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
@@ -373,7 +373,7 @@ export function AdminUsersTable() {
                 );
 
                 return (
-                  <tr key={user.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={user.id} className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                     <td className="p-3">
                       {canManageStatus && (
                         <Checkbox
@@ -544,4 +544,4 @@ export function AdminUsersTable() {
       />
     </div>
   );
-}
+});

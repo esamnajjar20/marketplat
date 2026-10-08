@@ -23,7 +23,7 @@
  */
 
 import { adminPagination } from '@/lib/adminHubTabs';
-import { Fragment, useState, useMemo } from 'react';
+import { memo, Fragment, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ExternalLink, ChevronDown, ChevronUp, ShieldCheck, Flag as FlagIcon } from 'lucide-react';
@@ -114,7 +114,7 @@ function AdSignalsPanel({ adId }: { adId: string }) {
   );
 }
 
-export function AdminFraudTable() {
+export const AdminFraudTable = memo(function AdminFraudTable() {
   const sp     = useSearchParams();
   // URL `?reviewed=false` is reserved for ops-queue deep links; wire when
   // the fraud list API supports a reviewed filter server-side.
@@ -209,7 +209,7 @@ export function AdminFraudTable() {
             <tbody className="divide-y">
               {items.map((ad) => (
                 <Fragment key={ad.id}>
-                  <tr className="hover:bg-muted/30 transition-colors">
+                  <tr className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
                     <td className="p-3 max-w-xs">
                       <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1 text-primary hover:underline text-xs">
@@ -320,4 +320,4 @@ export function AdminFraudTable() {
       </Dialog>
     </div>
   );
-}
+});
