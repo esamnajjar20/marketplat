@@ -64,6 +64,14 @@ export interface ParsedError {
    * English Zod message. See i18n/ar/fieldErrors.ts.
    */
   fieldErrors?: Record<string, string[]>;
+  /** Backend correlation identifier for support/debugging. */
+  requestId?: string;
+  /** Structured backend metadata; never parsed from the message string. */
+  meta?: ErrorMeta;
+  /** Retry-After value in seconds when supplied by the API. */
+  retryAfterSeconds?: number;
+  /** Number of safe-request retries already consumed by Axios. */
+  networkRetryCount?: number;
 }
 
 /** Backend rate-limit headers */
@@ -210,6 +218,12 @@ export function parseApiError(error: unknown): ParsedError {
     const code: string | undefined = typeof data?.code === 'string' ? data.code : undefined;
     const meta: ErrorMeta | undefined =
       data?.meta && typeof data.meta === 'object' ? (data.meta as ErrorMeta) : undefined;
+    const requestId = typeof data?.requestId === 'string' ? data.requestId : undefined;
+    const retryAfterHeader = headers[RETRY_AFTER_HEADER];
+    const retryAfterSeconds = retryAfterHeader != null
+      ? Number(Array.isArray(retryAfterHeader) ? retryAfterHeader[0] : retryAfterHeader)
+      : undefined;
+    const parsedRetryAfterSeconds = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : undefined;
 
     // Looked up from our own static Arabic dictionary — never derived from
     // the backend's English `message` text, so this can't reintroduce the
@@ -231,23 +245,23 @@ export function parseApiError(error: unknown): ParsedError {
 
     switch (status) {
       case 400:
-        return { message: codeMsg ?? backendMsg ?? 'البيانات المرسلة غير صحيحة', statusCode: 400, code, fieldErrors };
+        return { message: codeMsg ?? (code ? 'تعذّر معالجة الطلب' : backendMsg ?? 'البيانات المرسلة غير صحيحة'), statusCode: 400, code, fieldErrors, requestId, meta };
       case 401:
         // Deliberately never falls back to backendMsg — only a known code's
         // static Arabic translation, or the generic session-expired string.
         // A 401 body's English message may carry session/token internals
         // that must never reach the UI.
-        return { message: codeMsg ?? 'انتهت جلستك، يرجى تسجيل الدخول مجدداً', statusCode: 401, code };
+        return { message: codeMsg ?? 'انتهت جلستك، يرجى تسجيل الدخول مجدداً', statusCode: 401, code, requestId, meta };
       case 403:
-        return { message: codeMsg ?? backendMsg ?? 'لا تملك صلاحية لهذا الإجراء', statusCode: 403, code };
+        return { message: codeMsg ?? (code ? 'لا تملك صلاحية لهذا الإجراء' : backendMsg ?? 'لا تملك صلاحية لهذا الإجراء'), statusCode: 403, code, requestId, meta };
       case 404:
-        return { message: codeMsg ?? backendMsg ?? 'العنصر المطلوب غير موجود', statusCode: 404, code };
+        return { message: codeMsg ?? (code ? 'العنصر المطلوب غير موجود' : backendMsg ?? 'العنصر المطلوب غير موجود'), statusCode: 404, code, requestId, meta };
       case 409:
-        return { message: codeMsg ?? backendMsg ?? 'يوجد تعارض في البيانات', statusCode: 409, code };
+        return { message: codeMsg ?? (code ? 'يوجد تعارض في البيانات' : backendMsg ?? 'يوجد تعارض في البيانات'), statusCode: 409, code, requestId, meta };
       case 422:
-        return { message: codeMsg ?? backendMsg ?? 'تحقق من صحة البيانات المدخلة', statusCode: 422, code };
+        return { message: codeMsg ?? (code ? 'تحقق من صحة البيانات المدخلة' : backendMsg ?? 'تحقق من صحة البيانات المدخلة'), statusCode: 422, code, requestId, meta };
       case 429: {
-        if (codeMsg) return { message: codeMsg, statusCode: 429, code };
+        if (codeMsg) return { message: codeMsg, statusCode: 429, code, requestId, meta, retryAfterSeconds: parsedRetryAfterSeconds };
         const retryAfter = headers[RETRY_AFTER_HEADER];
         const parsed      = retryAfter ? Number(retryAfter) : NaN;
         const minutes    = Number.isFinite(parsed) ? Math.ceil(parsed / 60) : 15;
@@ -255,6 +269,9 @@ export function parseApiError(error: unknown): ParsedError {
           message:    `طلبات كثيرة جداً، يرجى المحاولة بعد ${minutes} دقيقة`,
           statusCode: 429,
           code,
+          requestId,
+          meta,
+          retryAfterSeconds: parsedRetryAfterSeconds,
         };
       }
       // FIX SEC-04: this used to only special-case `case 500` — status codes
@@ -281,12 +298,14 @@ export function parseApiError(error: unknown): ParsedError {
               'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
             statusCode: 500,
             code,
+            requestId,
+            meta,
           };
         }
-        return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: 500, code };
+        return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: 500, code, requestId, meta };
       default:
         if (!error.response) {
-          return { message: 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت', statusCode: 0 };
+          return { message: 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت', statusCode: 0, code: 'NETWORK_ERROR' };
         }
         if (status >= 500) {
           // FIX SW-NETWORK-MSG-01: 503 + NETWORK_ERROR من handleMutation
@@ -304,18 +323,29 @@ export function parseApiError(error: unknown): ParsedError {
                 'تعذّر الوصول للخادم. تحقق من الاتصال أو حاول مجددًا بعد لحظات.',
               statusCode: status,
               code,
+              requestId,
+              meta,
             };
           }
-          return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: status, code };
+          return { message: codeMsg ?? 'خطأ في الخادم، يرجى المحاولة لاحقاً', statusCode: status, code, requestId, meta };
         }
         // For unexpected non-5xx status codes, use backendMsg but still sanitised.
-        return { message: codeMsg ?? backendMsg ?? 'حدث خطأ غير متوقع', statusCode: status, code };
+        return { message: codeMsg ?? (code ? 'تعذّر تنفيذ الطلب' : backendMsg ?? 'حدث خطأ غير متوقع'), statusCode: status, code, requestId, meta };
     }
   }
 
   if (error instanceof Error) {
-    // SEC-FIX-03: cap generic Error messages too.
-    return { message: sanitiseMsg(error.message) || 'حدث خطأ غير متوقع', statusCode: 0 };
+    // Preserve known machine-readable codes from non-Axios errors (e.g.
+    // offline/Service Worker errors) without trusting arbitrary messages.
+    const candidateCode = 'code' in error && typeof (error as Error & { code?: unknown }).code === 'string'
+      ? (error as Error & { code: string }).code
+      : undefined;
+    const codeMessage = getErrorMessage(candidateCode);
+    return {
+      message: codeMessage ?? (sanitiseMsg(error.message) || 'حدث خطأ غير متوقع'),
+      statusCode: 0,
+      code: candidateCode,
+    };
   }
 
   return { message: 'حدث خطأ غير متوقع', statusCode: 0 };

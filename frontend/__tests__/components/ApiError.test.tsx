@@ -126,3 +126,22 @@ describe('Unauthorized', () => {
     expect(screen.getByRole('link', { name: 'إنشاء حساب' })).toHaveAttribute('href', '/register');
   });
 });
+
+describe('ApiError — unified network/service policy', () => {
+  it('renders a network-specific state for statusCode 0', () => {
+    render(<ApiError error={{ statusCode: 0, code: 'NETWORK_ERROR', message: 'network' }} />);
+    expect(screen.getByText('تعذّر الاتصال')).toBeInTheDocument();
+    expect(screen.getByText(/تحقق من اتصالك بالإنترنت/)).toBeInTheDocument();
+  });
+
+  it('renders a service-unavailable state for 503', () => {
+    render(<ApiError error={{ statusCode: 503, code: 'SERVICE_UNAVAILABLE', message: 'service down' }} />);
+    expect(screen.getByText('الخدمة غير متاحة مؤقتاً')).toBeInTheDocument();
+    expect(screen.getByText(/الخدمة غير متاحة مؤقتاً/)).toBeInTheDocument();
+  });
+
+  it('renders a conflict state for 409', () => {
+    render(<ApiError error={{ statusCode: 409, code: 'CONFLICT', message: 'conflict' }} />);
+    expect(screen.getByText('تعارض في البيانات')).toBeInTheDocument();
+  });
+});

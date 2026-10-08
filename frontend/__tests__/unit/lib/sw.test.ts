@@ -854,6 +854,23 @@ describe('sw.js — service worker logic', () => {
       expect(unchanged.status).toBe('pending');
     });
 
+    it('keeps 429 rate-limit responses retryable and honors Retry-After instead of marking them failed', async () => {
+      const entry = await seedOne();
+      ctx.setFetch(async () => new Response(JSON.stringify({ message: 'slow down' }), {
+        status: 429,
+        headers: { 'Retry-After': '30' },
+      }));
+
+      const before = Date.now();
+      const result = await ctx.sandbox.replayOne(entry, false);
+
+      expect(result).toBe('retryable-http');
+      const [updated] = await ctx.sandbox.getAllQueuedEntries();
+      expect(updated.status).toBe('pending');
+      expect(updated.lastError?.status).toBe(429);
+      expect(updated.retryNotBefore).toBeGreaterThanOrEqual(before + 29_000);
+    });
+
     it('returns "still-offline" and leaves the entry pending on an actual network failure', async () => {
       const entry = await seedOne();
       ctx.setFetch(async () => {

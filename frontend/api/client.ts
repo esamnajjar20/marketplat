@@ -47,8 +47,14 @@ import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { makeOfflineError } from '@/lib/offlineError';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
-import { recordRequestRetry, recordRequestStarted } from '@/lib/networkObservability';
+import { recordRequestErrorCode, recordRequestRetry, recordRequestStarted } from '@/lib/networkObservability';
 import { isNetworkFailure } from '@/lib/networkErrors';
+import {
+  getRetryDelayMs,
+  isRetryableHttpStatus,
+  isSafeHttpMethod,
+  parseRetryAfterMs,
+} from '@/lib/retryPolicy';
 
 export type BatchGetRequest = {
   url: string;
@@ -56,33 +62,11 @@ export type BatchGetRequest = {
 };
 
 const NETWORK_RETRY_MARKER = '_networkRetryCount';
-function getRetryDelayMs(attempt: number, retryAfterMs?: number): number {
-  if (typeof retryAfterMs === 'number' && Number.isFinite(retryAfterMs)) {
-    return Math.min(Math.max(retryAfterMs, 250), 15_000);
-  }
-  const base = Math.min(1_000 * 2 ** Math.max(0, attempt - 1), 4_000);
-  return Math.round(base * (0.75 + Math.random() * 0.5));
-}
 
-function isSafeMethod(method?: string): boolean {
-  return SAFE_METHODS.has((method ?? 'get').toLowerCase());
-}
-
-function isNetworkRetryableAxiosError(error: AxiosError): boolean {
-  if (axios.isCancel(error)) return false;
-  const status = error.response?.status;
-  if (status === 408 || status === 429 || status === 502 || status === 503 || status === 504) return true;
-  return isNetworkFailure(error);
-}
-
-function getRetryAfterMs(error: AxiosError): number | undefined {
-  const raw = error.response?.headers?.['retry-after'];
-  if (raw == null) return undefined;
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds)) return seconds * 1000;
-  const dateMs = Date.parse(String(value));
-  return Number.isFinite(dateMs) ? Math.max(0, dateMs - Date.now()) : undefined;
+function parseForRequest(error: unknown, config?: InternalAxiosRequestConfig & { [NETWORK_RETRY_MARKER]?: number }) {
+  const parsed = parseApiError(error);
+  const retryCount = Number(config?.[NETWORK_RETRY_MARKER] ?? 0);
+  return retryCount > 0 ? { ...parsed, networkRetryCount: retryCount } : parsed;
 }
 
 function supportsOfflineOperationId(method: string, url: string): boolean {
@@ -221,7 +205,7 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const policyTimeout = getNetworkPolicy().requestTimeoutMs;
     config.timeout = isAuthPath
       ? 20_000
-      : (policyTimeout > 0 ? policyTimeout : (isSafeMethod(method) ? 15_000 : 8_000));
+      : (policyTimeout > 0 ? policyTimeout : (isSafeHttpMethod(method) ? 15_000 : 8_000));
   }
 
   // PHASE-1 UX: sample RTT for connection quality indicator
@@ -533,6 +517,8 @@ apiClient.interceptors.response.use(
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const duration = typeof start === 'number' ? Math.max(0, now - start) : undefined;
       recordRequestFailure(duration, isNetworkFailure(error) ? 'network' : 'http');
+      const rawCode = (error.response?.data as { code?: unknown } | undefined)?.code;
+      if (typeof rawCode === 'string') recordRequestErrorCode(rawCode);
     }
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; [NETWORK_RETRY_MARKER]?: number }) | undefined;
 
@@ -540,15 +526,15 @@ apiClient.interceptors.response.use(
     // Mutations are intentionally excluded: a client-side timeout does not
     // prove that the server failed to commit the mutation. Supported create
     // flows already carry X-Offline-Op-Id for server-side idempotency.
-    if (original && isSafeMethod(original.method) && isNetworkRetryableAxiosError(error)) {
+    if (original && isSafeHttpMethod(original.method) && (isNetworkFailure(error) || isRetryableHttpStatus(error.response?.status))) {
       const policy = getNetworkPolicy();
       const maxRetries = policy.tier === 'very-slow' ? 1 : policy.tier === 'slow' ? 2 : policy.tier === 'fast' ? 2 : 1;
       const attempt = Number(original[NETWORK_RETRY_MARKER] ?? 0);
       if (attempt < maxRetries && !axios.isCancel(error)) {
         original[NETWORK_RETRY_MARKER] = attempt + 1;
         recordRequestRetry();
-        await new Promise<void>((resolve) => setTimeout(resolve, getRetryDelayMs(attempt + 1, getRetryAfterMs(error))));
-        if (original.signal?.aborted) return Promise.reject(parseApiError(error));
+        await new Promise<void>((resolve) => setTimeout(resolve, getRetryDelayMs(attempt + 1, parseRetryAfterMs(error.response?.headers?.['retry-after']))));
+        if (original.signal?.aborted) return Promise.reject(parseForRequest(error, original));
         return apiClient(original);
       }
     }
@@ -607,13 +593,13 @@ apiClient.interceptors.response.use(
       isRefreshCall ||
       isAuthEntryCall
     ) {
-      return Promise.reject(parseApiError(error));
+      return Promise.reject(parseForRequest(error, original));
     }
 
     // FIX REFRESH-QUEUE-LOGOUT: if the session was just ended, don't
     // even try /auth/refresh. See sessionRevoked's own comment.
     if (sessionRevoked) {
-      return Promise.reject(parseApiError(error));
+      return Promise.reject(parseForRequest(error, original));
     }
 
     // FIX AUTH-401-STORM-01: بلا accessToken والجهاز أوفلاين — لا تُحاول
@@ -624,7 +610,7 @@ apiClient.interceptors.response.use(
       typeof navigator !== 'undefined' &&
       navigator.onLine === false
     ) {
-      return Promise.reject(parseApiError(error));
+      return Promise.reject(parseForRequest(error, original));
     }
 
     if (isRefreshing) {
@@ -691,7 +677,7 @@ apiClient.interceptors.response.use(
       // device. Discard the refresh result and reject instead.
       if (sessionRevoked) {
         processQueue(new Error('Session ended during refresh'), null);
-        return Promise.reject(parseApiError(error));
+        return Promise.reject(parseForRequest(error, original));
       }
 
       const { accessToken: newAccess, expiresIn } = res.data.data!.tokens;
@@ -742,7 +728,7 @@ apiClient.interceptors.response.use(
           (refreshError as { response?: unknown }).response != null);
 
       if (offlineOrNoResponse) {
-        return Promise.reject(parseApiError(error));
+        return Promise.reject(parseForRequest(error, original));
       }
 
       // FIX REFRESH-QUEUE-LOGOUT: if the user already logged out while
@@ -750,7 +736,7 @@ apiClient.interceptors.response.use(
       // again or surface a "session expired" toast + hard redirect
       // they didn't ask for. Just reject.
       if (!useAuthStore.getState().isAuthenticated) {
-        return Promise.reject(parseApiError(error));
+        return Promise.reject(parseForRequest(error, original));
       }
 
       // SW-FIX-REFRESH-RACE: before treating this 401 as a session end,
@@ -786,7 +772,7 @@ apiClient.interceptors.response.use(
       try {
         const retryRes = await refreshSessionShared();
         if (sessionRevoked) {
-          return Promise.reject(parseApiError(error));
+          return Promise.reject(parseForRequest(error, original));
         }
         const { accessToken: retryAccess, expiresIn: retryExp } = retryRes.data.data!.tokens;
         useAuthStore.getState().setAccessToken(retryAccess);
@@ -836,7 +822,7 @@ apiClient.interceptors.response.use(
         }, 1200);
       }
 
-      return Promise.reject(parseApiError(error));
+      return Promise.reject(parseForRequest(error, original));
     } finally {
       isRefreshing = false;
     }

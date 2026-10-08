@@ -12,6 +12,7 @@ export type NetworkObservabilitySnapshot = {
     averageMs: number | null;
     lastMs: number | null;
     p95Ms: number | null;
+    errorsByCode: Record<string, number>;
   };
   uploads: {
     attempts: number;
@@ -43,7 +44,7 @@ const requestDurations: number[] = [];
 const listeners = new Set<() => void>();
 
 const state = {
-  requests: { total: 0, successful: 0, failed: 0, networkFailures: 0, httpFailures: 0, retries: 0 },
+  requests: { total: 0, successful: 0, failed: 0, networkFailures: 0, httpFailures: 0, retries: 0, errorsByCode: {} as Record<string, number> },
   uploads: { attempts: 0, successful: 0, failed: 0, lastFailureAt: null as number | null },
   queue: {
     drains: 0,
@@ -99,6 +100,14 @@ export function recordRequestCompleted(
     if (failureType === 'network') state.requests.networkFailures += 1;
     else if (failureType === 'http') state.requests.httpFailures += 1;
   }
+  notify();
+}
+
+export function recordRequestErrorCode(code: string | null | undefined): void {
+  if (!code || typeof code !== 'string') return;
+  const normalized = code.trim().slice(0, 100);
+  if (!normalized) return;
+  state.requests.errorsByCode[normalized] = (state.requests.errorsByCode[normalized] ?? 0) + 1;
   notify();
 }
 
@@ -170,6 +179,7 @@ export function getNetworkObservabilitySnapshot(): NetworkObservabilitySnapshot 
       averageMs: requestDurations.length ? totalMs / requestDurations.length : null,
       lastMs: requestDurations.at(-1) ?? null,
       p95Ms: percentile(requestDurations, 0.95),
+      errorsByCode: { ...state.requests.errorsByCode },
     },
     uploads: { ...state.uploads },
     queue: { ...state.queue },
@@ -184,7 +194,7 @@ export function subscribeNetworkObservability(listener: () => void): () => void 
 
 export function resetNetworkObservabilityForTests(): void {
   requestDurations.length = 0;
-  state.requests = { total: 0, successful: 0, failed: 0, networkFailures: 0, httpFailures: 0, retries: 0 };
+  state.requests = { total: 0, successful: 0, failed: 0, networkFailures: 0, httpFailures: 0, retries: 0, errorsByCode: {} };
   state.uploads = { attempts: 0, successful: 0, failed: 0, lastFailureAt: null };
   state.queue = {
     drains: 0,

@@ -1,21 +1,20 @@
 /**
- * ApiError — unified error display for API call failures.
+ * Unified API error presentation.
  *
- *   401 → Unauthorized
- *   403 → Forbidden
- *   404 → not-found
- *   500+ → server error
- *
- * visual alignment with EmptyState (icon well + hierarchy).
+ * The component intentionally consumes the parsed error contract instead of
+ * inspecting backend English messages. This keeps HTTP/code policy in one
+ * place and makes all pages render network, conflict, rate-limit and server
+ * failures consistently.
  */
 'use client';
 
-import { SearchX, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CloudOff, SearchX, ShieldAlert, WifiOff } from 'lucide-react';
 import { Unauthorized } from './Unauthorized';
 import { Forbidden } from './Forbidden';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import type { ParsedError } from '@/lib/errorParser';
+import { classifyError } from '@/lib/errorPolicy';
 
 interface ApiErrorProps {
   error: ParsedError | Error | unknown;
@@ -25,52 +24,89 @@ interface ApiErrorProps {
 
 function getStatusCode(error: unknown): number {
   if (error && typeof error === 'object') {
-    if ('statusCode' in error) return (error as { statusCode: number }).statusCode;
-    if ('status' in error) return (error as { status: number }).status;
+    if ('statusCode' in error && typeof (error as { statusCode?: unknown }).statusCode === 'number') {
+      return (error as { statusCode: number }).statusCode;
+    }
+    if ('status' in error && typeof (error as { status?: unknown }).status === 'number') {
+      return (error as { status: number }).status;
+    }
   }
   return 500;
 }
 
+function getCode(error: unknown): string | undefined {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code;
+    return typeof code === 'string' ? code : undefined;
+  }
+  return undefined;
+}
+
 function getMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as { message: string }).message);
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
   }
   return 'حدث خطأ غير متوقع.';
 }
 
 export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
   const statusCode = getStatusCode(error);
+  const code = getCode(error);
   const message = getMessage(error);
 
-  if (statusCode === 401) return <Unauthorized />;
-  if (statusCode === 403) return <Forbidden />;
+  const kind = classifyError({ statusCode, code, message });
+  if (kind === 'unauthorized') return <Unauthorized />;
+  if (kind === 'forbidden') return <Forbidden />;
 
-  const is404 = statusCode === 404;
-  const title = is404
-    ? 'غير موجود'
-    : statusCode >= 500
-      ? 'خطأ في الخادم'
-      : 'حدث خطأ ما';
+  const isNetwork = kind === 'network';
+  const is404 = kind === 'not-found';
+  const isConflict = kind === 'conflict';
+  const isRateLimited = kind === 'rate-limit';
+  const isUnavailable = kind === 'service-unavailable';
+  const isServer = kind === 'server';
 
-  const teamNote = 'تم إبلاغ فريقنا — حاول مرة أخرى بعد قليل.';
-  const description =
-    statusCode >= 500
-      ? message.includes('فريقنا') || message.includes('مرة أخرى')
-        ? message
-        : `${message} ${teamNote}`
-      : message;
+  const title = isNetwork
+    ? 'تعذّر الاتصال'
+    : is404
+      ? 'غير موجود'
+      : isConflict
+        ? 'تعارض في البيانات'
+        : isRateLimited
+          ? 'طلبات كثيرة جداً'
+          : isUnavailable
+            ? 'الخدمة غير متاحة مؤقتاً'
+            : isServer
+              ? 'خطأ في الخادم'
+              : statusCode >= 400
+                ? 'تعذّر تنفيذ الطلب'
+                : 'حدث خطأ ما';
+
+  const description = isNetwork
+    ? 'تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.'
+    : isRateLimited
+      ? message
+      : isUnavailable
+        ? 'الخدمة غير متاحة مؤقتاً. حاول مرة أخرى بعد قليل.'
+        : isServer
+          ? `${message} تم إبلاغ فريقنا.`
+          : message;
+
+  const icon = isNetwork
+    ? <WifiOff aria-hidden />
+    : is404
+      ? <SearchX aria-hidden />
+      : isUnavailable
+        ? <CloudOff aria-hidden />
+        : isConflict
+          ? <ShieldAlert aria-hidden />
+          : <AlertTriangle aria-hidden />;
 
   const content = (
     <EmptyState
       tone={is404 ? 'muted' : 'warning'}
       compact={variant === 'inline'}
-      icon={
-        is404 ? (
-          <SearchX aria-hidden />
-        ) : (
-          <AlertTriangle aria-hidden />
-        )
-      }
+      icon={icon}
       title={title}
       description={description}
       action={

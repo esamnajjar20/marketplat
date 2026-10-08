@@ -1913,14 +1913,41 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       return 'still-offline';
     }
 
-    if (response.status >= 400 && response.status < 500) {
-      let message;
-      try {
-        const data = await response.clone().json();
-        message = typeof data?.message === 'string' ? data.message : undefined;
-      } catch {
-        message = undefined;
+    let message;
+    try {
+      const data = await response.clone().json();
+      message = typeof data?.message === 'string' ? data.message : undefined;
+    } catch {
+      message = undefined;
+    }
+
+    // Retryable HTTP responses are not permanent queue failures. In
+    // particular, 429 used to enter the generic 4xx branch and become a
+    // terminal failure even though the server explicitly asked the client
+    // to slow down. Honor Retry-After when supplied, otherwise let the drain
+    // backoff increase from retryCount. 408 is also safe to replay here: the
+    // queued operation has an X-Offline-Op-Id on supported creates.
+    const retryableHttp = [408, 425, 429, 502, 503, 504].includes(response.status);
+    if (retryableHttp) {
+      const retryAfterRaw = response.headers.get('retry-after');
+      let retryAfterMs = 0;
+      if (retryAfterRaw) {
+        const seconds = Number(retryAfterRaw);
+        if (Number.isFinite(seconds)) {
+          retryAfterMs = Math.max(0, seconds * 1000);
+        } else {
+          const dateMs = Date.parse(retryAfterRaw);
+          if (Number.isFinite(dateMs)) retryAfterMs = Math.max(0, dateMs - Date.now());
+        }
       }
+      await markQueuedEntry(entry.id, {
+        lastError: { status: response.status, message },
+        ...(retryAfterMs > 0 ? { retryNotBefore: Date.now() + Math.min(retryAfterMs, 15 * 60_000) } : {}),
+      });
+      return 'retryable-http';
+    }
+
+    if (response.status >= 400 && response.status < 500) {
       await markQueuedEntry(entry.id, {
         status: 'failed',
         lastError: { status: response.status, message },
@@ -2204,9 +2231,11 @@ async function replayQueueImpl() {
       5 * 60_000,
     );
     const tooSoon = lastAttemptAt > 0 && now - lastAttemptAt < minGap;
+    const retryNotBefore = typeof entry.retryNotBefore === 'number' ? entry.retryNotBefore : 0;
+    const retryAfterGate = retryNotBefore > now;
     const orderSensitive = isOrderSensitiveQueueEntry(entry);
 
-    if (tooSoon) {
+    if (tooSoon || retryAfterGate) {
       if (orderSensitive || trulyOffline) break;
       continue; // try later items that may be eligible
     }
@@ -2246,7 +2275,7 @@ async function replayQueueImpl() {
     }
 
     const nextRetries = retries + 1;
-    const isServer = result === 'server-error';
+    const isServer = result === 'server-error' || result === 'retryable-http';
     const limit = isServer ? MAX_QUEUE_SERVER_RETRIES : MAX_QUEUE_RETRIES;
 
     if (nextRetries >= limit) {
@@ -2256,11 +2285,12 @@ async function replayQueueImpl() {
         retryCount: nextRetries,
         lastAttemptAt: now,
         lastError: {
-          status: isServer ? 500 : 0,
+          status: isServer ? (entry.lastError?.status ?? 500) : 0,
           message: isServer
-            ? 'فشل السيرفر بعد عدة محاولات — أعد المحاولة يدويًا أو احذف الطلب'
+            ? 'فشل الطلب بعد عدة محاولات — أعد المحاولة يدويًا أو احذف العملية'
             : 'تعذّر الإرسال بعد عدة محاولات — أعد المحاولة يدويًا أو احذف الطلب',
         },
+        retryNotBefore: 0,
       });
       await notifyClients({
         type: 'QUEUE_ITEM_FAILED',
@@ -2279,6 +2309,7 @@ async function replayQueueImpl() {
       retryCount: nextRetries,
       lastAttemptAt: now,
       lastSoftError: result,
+      retryNotBefore: result === 'retryable-http' ? (entry.retryNotBefore || 0) : 0,
     });
 
     // Real offline → stop entire drain.
@@ -2727,7 +2758,7 @@ self.addEventListener('message', (event) => {
         // REPLAY_QUEUE_NOW.
         const wasFailed = entry.status === 'failed';
         if (wasFailed) {
-          await markQueuedEntry(entry.id, { status: 'pending' });
+          await markQueuedEntry(entry.id, { status: 'pending', retryCount: 0, lastAttemptAt: 0, retryNotBefore: 0, lastSoftError: undefined, lastError: undefined });
         }
 
         if (replayQueueInFlight) {

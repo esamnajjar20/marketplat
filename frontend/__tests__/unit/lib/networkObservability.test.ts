@@ -6,6 +6,7 @@ import {
   recordQueueDrainStarted,
   recordRequestCompleted,
   recordRequestRetry,
+  recordRequestErrorCode,
   recordRequestStarted,
   recordUploadAttempt,
   recordUploadResult,
@@ -29,6 +30,9 @@ describe('networkObservability', () => {
     expect(snapshot.requests.networkFailures).toBe(0);
     expect(snapshot.requests.httpFailures).toBe(1);
     expect(snapshot.requests.retries).toBe(1);
+    recordRequestErrorCode('RATE_LIMIT_EXCEEDED');
+    recordRequestErrorCode('RATE_LIMIT_EXCEEDED');
+    expect(getNetworkObservabilitySnapshot().requests.errorsByCode).toEqual({ RATE_LIMIT_EXCEEDED: 2 });
     expect(snapshot.requests.averageMs).toBe(1500);
     expect(snapshot.requests.p95Ms).toBe(2100);
     expect(JSON.stringify(snapshot)).not.toContain('Authorization');

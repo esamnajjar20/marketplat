@@ -47,12 +47,12 @@ describe('makeQueryClient', () => {
 
   it('sets staleTime to 60 000 ms', () => {
     const qc = makeQueryClient();
-    expect(qc.getDefaultOptions().queries?.staleTime).toBe(60_000);
+    expect(qc.getDefaultOptions().queries?.staleTime).toBe(90_000);
   });
 
   it('sets gcTime to 5 minutes', () => {
     const qc = makeQueryClient();
-    expect(qc.getDefaultOptions().queries?.gcTime).toBe(5 * 60_000);
+    expect(qc.getDefaultOptions().queries?.gcTime).toBe(10 * 60_000);
   });
 
   it('sets refetchOnWindowFocus to false', () => {
@@ -148,9 +148,15 @@ describe('shouldRetry (via QueryClient defaultOptions)', () => {
     expect(retry(qc, 0, 422)).toBe(false);
   });
 
-  it('does NOT retry 429 (rate limit)', () => {
+  it('does retry 429 (rate limit) once when the query layer receives it directly', () => {
     const qc = makeQueryClient();
-    expect(retry(qc, 0, 429)).toBe(false);
+    expect(retry(qc, 0, 429)).toBe(true);
+    expect(retry(qc, 1, 429)).toBe(false);
+  });
+
+  it('does not stack a TanStack retry after Axios already consumed its network retry', () => {
+    const qc = makeQueryClient();
+    expect(getRetryFn(qc)!(0, { statusCode: 503, networkRetryCount: 1 })).toBe(false);
   });
 });
 

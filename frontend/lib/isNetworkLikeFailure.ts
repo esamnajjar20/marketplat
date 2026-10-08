@@ -6,10 +6,12 @@
  * لا يشمل 400/401/403/409 — تلك تحتاج تصحيح بيانات أو جلسة، لا مجرد إعادة إرسال.
  */
 import type { ParsedError } from '@/lib/errorParser';
+import { isNetworkError, isRetryableStatus } from '@/lib/errorPolicy';
 
 export function isNetworkLikeFailure(parsed: ParsedError): boolean {
   if (parsed.queued) return true;
   if (
+    isNetworkError(parsed) ||
     parsed.code === 'NETWORK_ERROR' ||
     parsed.code === 'OFFLINE_QUEUED' ||
     // FIX OFFLINE-QUEUE-RELIABILITY-01: SW refused to store body (quota / size)
@@ -21,14 +23,7 @@ export function isNetworkLikeFailure(parsed: ParsedError): boolean {
   // 0 = لا رد من السيرفر (انقطاع، DNS، CORS، timeout axios…)
   if (parsed.statusCode === 0) return true;
   // بوابات / مهلة / خدمة غير متاحة — ليست validation
-  if (
-    parsed.statusCode === 408 ||
-    parsed.statusCode === 502 ||
-    parsed.statusCode === 503 ||
-    parsed.statusCode === 504
-  ) {
-    return true;
-  }
+  if (isRetryableStatus(parsed.statusCode)) return true;
   return false;
 }
 

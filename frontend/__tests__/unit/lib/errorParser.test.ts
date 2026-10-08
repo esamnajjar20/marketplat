@@ -574,3 +574,28 @@ describe('getFieldError', () => {
     expect(getFieldError(parsed, 'title')).toBeUndefined();
   });
 });
+
+describe('structured error contract metadata', () => {
+  it('preserves requestId and meta for support/debugging', () => {
+    const err = makeAxiosError(409, 'Conflict', {}, undefined, 'CONFLICT');
+    err.response!.data = {
+      success: false,
+      message: 'Conflict',
+      statusCode: 409,
+      code: 'CONFLICT',
+      requestId: 'req-42',
+      meta: { resource: 'product' },
+    };
+    const parsed = parseApiError(err);
+    expect(parsed.requestId).toBe('req-42');
+    expect(parsed.meta).toEqual({ resource: 'product' });
+  });
+
+  it('returns a stable NETWORK_ERROR code for a request with no response', () => {
+    const err = makeAxiosError(0, 'Network Error');
+    err.response = undefined;
+    const parsed = parseApiError(err);
+    expect(parsed.statusCode).toBe(0);
+    expect(parsed.code).toBe('NETWORK_ERROR');
+  });
+});
