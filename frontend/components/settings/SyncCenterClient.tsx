@@ -58,23 +58,35 @@ export function SyncCenterClient() {
   const [salesDrafts, setSalesDrafts] = useState<SalesOfflineDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [loadWarning, setLoadWarning] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    let hadReadFailure = false;
+    const readOrFallback = async <T,>(read: () => Promise<T>, fallback: T): Promise<T> => {
+      try {
+        return await read();
+      } catch {
+        hadReadFailure = true;
+        return fallback;
+      }
+    };
     try {
       const [counts, failedList, draftList, salesList] = await Promise.all([
-        getQueuedRequestCounts().catch(() => ({ pending: 0, failed: 0 })),
-        listFailedRequests().catch(() => [] as QueuedRequestSummary[]),
+        readOrFallback(() => getQueuedRequestCounts(), { pending: 0, failed: 0 }),
+        readOrFallback(() => listFailedRequests(), [] as QueuedRequestSummary[]),
         // FIX AD-DRAFT-USER-SCOPE-01: مسودات صاحب الحساب الحالي فقط —
         // بدونها، مسودة حساب سابق على نفس الجهاز تظهر لحساب جديد.
-        listAdDrafts(userId).catch(() => [] as AdDraft[]),
-        listSalesDrafts(userId ?? '').catch(() => [] as SalesOfflineDraft[]),
+        readOrFallback(() => listAdDrafts(userId), [] as AdDraft[]),
+        readOrFallback(() => listSalesDrafts(userId ?? ''), [] as SalesOfflineDraft[]),
       ]);
       setPending(counts.pending);
       setFailed(counts.failed);
       setFailedItems(failedList);
       setDrafts(draftList);
       setSalesDrafts(salesList);
+      setLoadWarning(hadReadFailure);
     } finally {
       setLoading(false);
     }
@@ -108,13 +120,18 @@ export function SyncCenterClient() {
           duration: 8000,
         });
       } else {
-        toast.success('تمت المزامنة', {
-          description: 'لا توجد مسودات أو طلبات معلّقة.',
+        // requestQueueReplay only requests work from the Service Worker; it
+        // does not prove that every queued request has completed. Keep the
+        // user-facing message honest and let refreshed counts show the result.
+        toast.message('تم طلب المزامنة', {
+          description: 'يجري التحقق من حالة الطابور؛ لا يعني هذا اكتمال كل الطلبات.',
           duration: 5000,
         });
       }
+      setSyncNotice('تم طلب بدء المزامنة. سيُحدّث التطبيق حالة الطابور بعد وصول النتائج.');
       window.setTimeout(() => void refresh(), 1500);
     } catch {
+      setSyncNotice('تعذّر بدء المزامنة. تحقق من الاتصال ثم أعد المحاولة.');
       toast.error('تعذّر بدء المزامنة');
     } finally {
       setSyncing(false);
@@ -219,6 +236,16 @@ export function SyncCenterClient() {
         <p className="mt-1 text-sm text-muted-foreground">
           إدارة العمليات والمسودات التي تنتظر الاتصال. الحالة الآن: {lastLabel}
         </p>
+        {loadWarning ? (
+          <p role="alert" className="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-strong dark:text-warning">
+            تعذّرت قراءة جزء من بيانات المزامنة. قد تكون الأعداد المعروضة غير مكتملة؛ حدّث القائمة للمحاولة مجددًا.
+          </p>
+        ) : null}
+        {syncNotice ? (
+          <p role="status" aria-live="polite" className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            {syncNotice}
+          </p>
+        ) : null}
         {drafts[0]?.updatedAt ? (
           <OfflineFreshnessBadge
             className="mt-1"

@@ -31,9 +31,20 @@
     "perf:render-audit": "node scripts/render-audit.mjs",
     "perf:render-regression": "node scripts/render-regression-audit.mjs",
     "perf:query-invalidation-audit": "node scripts/query-invalidation-audit.mjs",
+    "hydration:regression-audit": "node scripts/hydration-regression-audit.mjs && node scripts/render-regression-audit.mjs",
     "perf:virtualization-audit": "node scripts/virtualization-audit.mjs",
     "offline:ux-audit": "node scripts/offline-ux-phases-3-4-audit.mjs",
-    "offline:ux-phases-5-6-audit": "node scripts/offline-ux-phases-5-6-audit.mjs"
+    "offline:ux-phases-5-6-audit": "node scripts/offline-ux-phases-5-6-audit.mjs",
+    "offline:inventory": "node scripts/offline-system-inventory.mjs --write",
+    "offline:phase1-audit": "node scripts/offline-system-inventory.mjs --write && node --test scripts/offline-phase1-guardrails.test.mjs",
+    "offline:phase2-audit": "node scripts/offline-phase12-audit.mjs",
+    "offline:phase3-audit": "node scripts/offline-phase3-storage-audit.mjs",
+    "offline:phase4-audit": "node scripts/offline-system-inventory.mjs --write && node --test scripts/offline-phase1-guardrails.test.mjs && node scripts/offline-phase12-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase4-lifecycle-audit.mjs && node --check public/sw.js",
+    "offline:phase5-audit": "node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
+    "offline:phase6-audit": "node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
+    "offline:phase7-audit": "node scripts/offline-phase7-warming-audit.mjs && node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
+    "offline:phase8-audit": "node scripts/offline-phase8-integration-audit.mjs && node scripts/offline-phase7-warming-audit.mjs && node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
+    "offline:phase8-test": "playwright test e2e/tests/offline-phase8.integration.spec.ts"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

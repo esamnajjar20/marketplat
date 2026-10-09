@@ -3,6 +3,8 @@
  * يُستخدم لجهات الدفع، البطاقات، وسجلات التنزيل، وأي بيانات جهاز-محلية.
  */
 
+import { safeStorageGet, safeStorageRemove, safeStorageSet, serializeStorageValue } from '@/lib/browserStorage';
+
 const PREFIX = 'marketplat:';
 const META_KEY = `${PREFIX}__meta`;
 
@@ -18,9 +20,17 @@ function readMeta(): Meta {
     return { schemaVersion: LOCAL_SCHEMA_VERSION, updatedAt: new Date().toISOString() };
   }
   try {
-    const raw = localStorage.getItem(META_KEY);
+    const raw = safeStorageGet(META_KEY);
     if (!raw) return { schemaVersion: 1, updatedAt: new Date().toISOString() };
-    return JSON.parse(raw) as Meta;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) {
+      return { schemaVersion: 1, updatedAt: new Date().toISOString() };
+    }
+    const meta = parsed as Partial<Meta>;
+    if (!Number.isInteger(meta.schemaVersion) || typeof meta.updatedAt !== 'string') {
+      return { schemaVersion: 1, updatedAt: new Date().toISOString() };
+    }
+    return { schemaVersion: meta.schemaVersion as number, updatedAt: meta.updatedAt };
   } catch {
     return { schemaVersion: 1, updatedAt: new Date().toISOString() };
   }
@@ -28,11 +38,8 @@ function readMeta(): Meta {
 
 function writeMeta(meta: Meta) {
   if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(META_KEY, JSON.stringify(meta));
-  } catch {
-    /* quota */
-  }
+  const serialized = serializeStorageValue(meta);
+  if (serialized !== null) safeStorageSet(META_KEY, serialized);
 }
 
 /**
@@ -44,18 +51,21 @@ let schemaEnsured = false;
 export function ensureLocalSchema(): void {
   if (typeof window === 'undefined') return;
   if (schemaEnsured) return;
-  schemaEnsured = true;
   const meta = readMeta();
-  if (meta.schemaVersion >= LOCAL_SCHEMA_VERSION) return;
+  if (meta.schemaVersion >= LOCAL_SCHEMA_VERSION) {
+    schemaEnsured = true;
+    return;
+  }
   // حجرات ترحيل مستقبلية هنا
   writeMeta({ schemaVersion: LOCAL_SCHEMA_VERSION, updatedAt: new Date().toISOString() });
+  schemaEnsured = true;
 }
 
 export function localGet<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
   ensureLocalSchema();
   try {
-    const raw = localStorage.getItem(PREFIX + key);
+    const raw = safeStorageGet(PREFIX + key);
     if (raw == null) return fallback;
     return JSON.parse(raw) as T;
   } catch {
@@ -67,7 +77,11 @@ export function localSet(key: string, value: unknown): boolean {
   if (typeof window === 'undefined') return false;
   ensureLocalSchema();
   try {
-    localStorage.setItem(PREFIX + key, JSON.stringify(value));
+    const serialized = serializeStorageValue(value);
+    if (serialized === null) return false;
+    if (!safeStorageSet(PREFIX + key, serialized)) {
+      throw new Error('Browser storage is unavailable or write failed');
+    }
     writeMeta({ schemaVersion: LOCAL_SCHEMA_VERSION, updatedAt: new Date().toISOString() });
     try {
       window.dispatchEvent(
@@ -107,7 +121,10 @@ export function localRemove(key: string): void {
   if (typeof window === 'undefined') return;
   ensureLocalSchema();
   try {
-    localStorage.removeItem(PREFIX + key);
+    if (!safeStorageRemove(PREFIX + key)) {
+      console.warn('[localStore] localRemove could not access browser storage for key:', key);
+      return;
+    }
     window.dispatchEvent(
       new CustomEvent('marketplat:local-change', { detail: { key } }),
     );
@@ -121,10 +138,12 @@ export function estimateLocalUsageBytes(): number {
   if (typeof window === 'undefined') return 0;
   let total = 0;
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
+    const storage = typeof window !== 'undefined' ? window.localStorage : null;
+    if (!storage) return 0;
+    for (let i = 0; i < storage.length; i++) {
+      const k = storage.key(i);
       if (!k?.startsWith(PREFIX)) continue;
-      total += (k.length + (localStorage.getItem(k)?.length ?? 0)) * 2;
+      total += (k.length + (safeStorageGet(k)?.length ?? 0)) * 2;
     }
   } catch {
     /* ignore */

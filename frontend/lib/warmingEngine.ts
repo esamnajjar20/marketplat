@@ -8,6 +8,7 @@ import { getWarmingJob, type WarmingJobId } from './warmingRegistry';
 import { recordWarmingJob } from './warmingTelemetry';
 import { WarmingPriorityQueue } from './warmingPriorityQueue';
 import { beginWarmingRuntimeBudget, getWarmingRuntimeBudgetState } from './warmingRuntimeBudget';
+import { getBackgroundWarmingBudget, shouldPauseBackgroundWarming } from './offlineStoragePressure';
 import { warmCoreBundle } from './offlineCoreBundle';
 import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from './offlineRouteShells';
 import { warmUserData } from './offlineWarmingUserData';
@@ -24,6 +25,8 @@ export interface WarmingEngineResult {
   budget: WarmingBudget;
 }
 
+// A live network downgrade should stop optional background work rather than
+// let a plan created on a better connection keep consuming bandwidth.
 function estimateFits(
   budget: WarmingBudget,
   used: { requests: number; bytes: number; durationMs: number },
@@ -74,7 +77,39 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
   const used = { requests: 0, bytes: 0, durationMs: 0 };
   const endRuntimeBudget = beginWarmingRuntimeBudget(budget);
   try {
-  for (const item of queue.drain()) {
+  const items = queue.drain();
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    // Array indexing is potentially undefined under noUncheckedIndexedAccess.
+    // A missing queue item is not executable and must never be dereferenced.
+    if (!item) continue;
+
+    // Network/storage can change while a pass is running. Re-check before each
+    // phase so a sudden drop to offline/Save-Data or critical quota pressure
+    // cannot cause the rest of the background queue to continue blindly.
+    const livePolicy = getNetworkPolicy();
+    const liveBudget = getWarmingBudget(livePolicy, mode);
+    const networkBudgetDowngraded =
+      liveBudget.maxRequests < budget.maxRequests ||
+      liveBudget.maxBytes < budget.maxBytes ||
+      liveBudget.maxConcurrency < budget.maxConcurrency;
+    const networkUnavailable =
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      livePolicy.tier === 'offline' ||
+      livePolicy.saveData ||
+      !livePolicy.allowBackgroundWarming ||
+      networkBudgetDowngraded;
+    const storageCritical = !options.force && (await shouldPauseBackgroundWarming());
+    const liveStorageBudget = options.force ? 'full' : await getBackgroundWarmingBudget();
+    if (networkUnavailable || storageCritical || liveStorageBudget === 'paused') {
+      skipped.push(...items.slice(index).map((remaining) => remaining.job.id));
+      break;
+    }
+    if (liveStorageBudget === 'public-only' && item.job.requiresAuth) {
+      skipped.push(item.job.id);
+      continue;
+    }
+
     if (!estimateFits(budget, used, item.job)) {
       skipped.push(item.job.id);
       continue;

@@ -5,8 +5,7 @@
  * الاستخدام: احفظ عند نجاح الشبكة، اقرأ كـ initialData / fallback عند الفشل.
  */
 
-import { localGet, localSet, localRemove } from '@/lib/localStore';
-import { isOfflineHardExpired } from '@/lib/offlineFreshness';
+import { clearOfflineEnvelope, getOfflineEnvelope, saveOfflineEnvelope } from '@/lib/offlineCacheEnvelope';
 import { OFFLINE_DATA_LIMITS } from '@/lib/offlineCachePolicy';
 
 export interface OfflineListEnvelope<T> {
@@ -29,11 +28,7 @@ export function saveOfflineList<T>(
   maxItems: number,
   userId?: string | null,
 ): void {
-  localSet(key(name), {
-    items: items.slice(0, maxItems),
-    savedAt: new Date().toISOString(),
-    userId: userId ?? null,
-  } satisfies OfflineListEnvelope<T>);
+  saveOfflineEnvelope(key(name), 'items', items.slice(0, maxItems), userId);
 }
 
 /** null إن لم يُحفظ شيء من قبل، أو كان محفوظًا لمستخدم آخر. */
@@ -41,20 +36,11 @@ export function getOfflineList<T>(
   name: string,
   userId?: string | null,
 ): OfflineListEnvelope<T> | null {
-  const data = localGet<OfflineListEnvelope<T>>(key(name), {
-    items: [],
-    savedAt: '',
-  });
-  if (!data.savedAt || isOfflineHardExpired(data.savedAt)) return null;
-  // T770 — same refusal logic as getOfflineJson above.
-  if (userId !== undefined && (data.userId ?? null) !== (userId ?? null)) {
-    return null;
-  }
-  return data;
+  return getOfflineEnvelope<T>(key(name), 'items', [], userId) as OfflineListEnvelope<T> | null;
 }
 
 export function clearOfflineList(name: string): void {
-  localRemove(key(name));
+  clearOfflineEnvelope(key(name));
 }
 
 /** مفاتيح معروفة — للمسح عند تسجيل الخروج. */

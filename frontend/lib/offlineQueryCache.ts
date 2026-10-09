@@ -1,10 +1,9 @@
 /** Safe public-query persistence for offline-first UI. Mutations and private/session data are never persisted. */
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
-import { CACHE_CONTRACT } from '@/lib/cache/cacheContract';
 
 export const OFFLINE_QUERY_CACHE_DB = 'marketplat-offline-query-cache-v1';
 export const OFFLINE_QUERY_CACHE_STORE = 'queries';
-export const OFFLINE_QUERY_MAX_ENTRY_BYTES = 20 * 1024;
+export const OFFLINE_QUERY_MAX_ENTRY_BYTES = 64 * 1024;
 export const OFFLINE_QUERY_MAX_ENTRIES = 500;
 export const OFFLINE_QUERY_MAX_TOTAL_BYTES = 5 * 1024 * 1024;
 export const OFFLINE_QUERY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -30,6 +29,22 @@ const isPersistedQuery = (record: PersistedRecord): record is PersistedQuery => 
     && 'data' in candidate;
 };
 
+
+export function isValidOfflineQueryCacheEntry(record: unknown, now = Date.now()): boolean {
+  try {
+    if (!isPersistedQuery(record as PersistedRecord)) return false;
+    const entry = record as PersistedQuery;
+    if (!isOfflinePersistableQueryKey(entry.queryKey) || entry.id !== keyIdentity(entry.queryKey)) return false;
+    if (entry.dataUpdatedAt > now + 60_000 || now - entry.dataUpdatedAt > OFFLINE_QUERY_MAX_AGE_MS) return false;
+    if (entry.savedAt > now + 60_000 || now - entry.savedAt > OFFLINE_QUERY_MAX_AGE_MS) return false;
+    const actualBytes = getOfflineQueryDataBytes(entry.data);
+    return actualBytes !== null && actualBytes === entry.bytes && actualBytes <= OFFLINE_QUERY_MAX_ENTRY_BYTES;
+  } catch {
+    // One corrupt IndexedDB record must not prevent restoring other valid entries.
+    return false;
+  }
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB unavailable'));
@@ -50,24 +65,74 @@ function stableJson(value: unknown): string {
   return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(',')}}`;
 }
 const keyIdentity = (key: QueryKey) => stableJson(key);
-const SAFE_QUERY_PREFIXES: QueryKey[] = Object.entries(CACHE_CONTRACT.domains)
-  .filter(([domain, config]) => config.scope === 'public' && domain !== 'search')
-  .flatMap(([, config]) => config.queryPrefixes as QueryKey[]);
+// Cache-contract prefixes are intentionally NOT sufficient here: keys such as
+// ['products', 'me', ...] share a broad prefix with public catalogue queries.
+// Persist only the exact public shapes this app actually uses.
+const PUBLIC_CHILD_KEYS = new Map<string, ReadonlySet<string>>([
+  ['ads', new Set(['list', 'detail', 'related', 'infinite'])],
+  ['products', new Set(['list', 'detail', 'infinite', 'promoted'])],
+  ['stores', new Set(['list', 'detail', 'infinite'])],
+  ['service-listings', new Set(['list', 'detail', 'infinite'])],
+  ['service-providers', new Set(['list'])],
+  ['categories', new Set(['slug'])],
+  ['product-categories', new Set(['slug'])],
+  ['service-categories', new Set(['slug'])],
+]);
+const EXACT_PUBLIC_ROOTS = new Set(['categories', 'product-categories', 'service-categories', 'service-types']);
+const PRIVATE_OR_CONTEXTUAL_PARAM = /^(?:q|query|search|term|lat|lng|latitude|longitude|location|coordinates|providerId|userId|ownerId|sellerId|storeOwnerId)$/i;
+
+function hasUnsafeQueryParams(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.entries(value as Record<string, unknown>).some(([key, param]) => {
+    if (!PRIVATE_OR_CONTEXTUAL_PARAM.test(key)) return false;
+    return param !== undefined && param !== null && param !== '';
+  });
+}
 
 export function isOfflinePersistableQueryKey(queryKey: QueryKey): boolean {
-  return Array.isArray(queryKey) && queryKey.length > 0 && SAFE_QUERY_PREFIXES.some((prefix) =>
-    prefix.length <= queryKey.length && prefix.every((part, index) => stableJson(part) === stableJson(queryKey[index])),
-  );
+  if (!Array.isArray(queryKey) || queryKey.length === 0 || typeof queryKey[0] !== 'string') return false;
+  const root = queryKey[0];
+  if (typeof root !== 'string') return false;
+  const child = queryKey[1];
+  const third = queryKey[2];
+  const fourth = queryKey[3];
+  if (root === 'home') {
+    // The legacy homepage payload is public; the home-feed variant includes a
+    // user identity and personalized rails, so it is deliberately not persisted.
+    return queryKey.length === 3 && child === 'page' && (third === null || typeof third === 'string');
+  }
+  if (EXACT_PUBLIC_ROOTS.has(root)) {
+    if (queryKey.length === 1) return true;
+    return queryKey.length === 3 && child === 'slug' && typeof third === 'string';
+  }
+  if (root === 'service-providers' && queryKey.length === 2 && typeof child === 'string'
+    && !new Set(['list', 'me', 'nearby', 'admin', 'stock', 'analytics']).has(child)) return true;
+  const children = PUBLIC_CHILD_KEYS.get(root);
+  if (!children || typeof child !== 'string' || !children.has(child)) return false;
+  if (child === 'detail' || child === 'related') return queryKey.length === 3 && typeof third === 'string' && third !== 'me' && third !== 'admin';
+  if (child === 'slug') return queryKey.length === 3 && typeof third === 'string';
+  if (child === 'promoted') return queryKey.length === 4 && third === 'infinite' && typeof fourth === 'number';
+  if (child === 'list' || child === 'infinite') {
+    return queryKey.length === 3 && !!third && typeof third === 'object' && !Array.isArray(third) && !hasUnsafeQueryParams(third);
+  }
+  return false;
+}
+
+export function getOfflineQueryDataBytes(data: unknown): number | null {
+  try {
+    const encoded = stableJson(data);
+    return new TextEncoder().encode(encoded).byteLength;
+  } catch {
+    return null;
+  }
 }
 
 export function selectPersistableQueries(queries: Array<{ queryKey: QueryKey; state: { data?: unknown; dataUpdatedAt: number } }>, now = Date.now()): PersistedQuery[] {
   const candidates: PersistedQuery[] = [];
   for (const query of queries) {
     if (query.state.data === undefined || !Number.isFinite(query.state.dataUpdatedAt) || query.state.dataUpdatedAt <= 0 || query.state.dataUpdatedAt > now + 60_000 || now - query.state.dataUpdatedAt > OFFLINE_QUERY_MAX_AGE_MS || !isOfflinePersistableQueryKey(query.queryKey)) continue;
-    let encoded: string;
-    try { encoded = stableJson(query.state.data); } catch { continue; }
-    const bytes = new TextEncoder().encode(encoded).byteLength;
-    if (bytes > OFFLINE_QUERY_MAX_ENTRY_BYTES) continue;
+    const bytes = getOfflineQueryDataBytes(query.state.data);
+    if (bytes === null || bytes > OFFLINE_QUERY_MAX_ENTRY_BYTES) continue;
     candidates.push({ id: keyIdentity(query.queryKey), queryKey: query.queryKey, data: query.state.data, dataUpdatedAt: query.state.dataUpdatedAt, savedAt: now, bytes });
   }
   return candidates.sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt).slice(0, OFFLINE_QUERY_MAX_ENTRIES);
@@ -79,7 +144,7 @@ export async function restoreOfflineQueryCache(queryClient: QueryClient): Promis
     db = await openDb();
     const records = await requestResult(db.transaction(OFFLINE_QUERY_CACHE_STORE, 'readonly').objectStore(OFFLINE_QUERY_CACHE_STORE).getAll() as IDBRequest<PersistedRecord[]>);
     const now = Date.now();
-    const entries = records.filter(isPersistedQuery).filter((entry) => entry.dataUpdatedAt <= now + 60_000 && now - entry.dataUpdatedAt <= OFFLINE_QUERY_MAX_AGE_MS && entry.bytes <= OFFLINE_QUERY_MAX_ENTRY_BYTES && isOfflinePersistableQueryKey(entry.queryKey)).sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt);
+    const entries = records.filter((record): record is PersistedQuery => isValidOfflineQueryCacheEntry(record, now) && isPersistedQuery(record)).sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt);
     let restored = 0;
     for (const entry of entries) {
       const current = queryClient.getQueryState(entry.queryKey);
@@ -95,7 +160,9 @@ export async function restoreOfflineQueryCache(queryClient: QueryClient): Promis
     const validIds = new Set(entries.map((entry) => entry.id));
     const cleanup = db.transaction(OFFLINE_QUERY_CACHE_STORE, 'readwrite');
     const store = cleanup.objectStore(OFFLINE_QUERY_CACHE_STORE);
-    for (const record of records) if (record.id !== '__meta__' && !validIds.has(record.id)) store.delete(record.id);
+    for (const record of records) {
+      if (record && typeof record.id === 'string' && record.id !== '__meta__' && !validIds.has(record.id)) store.delete(record.id);
+    }
     return restored;
   } catch { return 0; } finally { db?.close(); }
 }

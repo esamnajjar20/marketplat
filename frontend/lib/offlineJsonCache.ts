@@ -3,8 +3,7 @@
  * للداشبورد / المواعيد / آخر موقع / نتائج قريبة — ليس مصدر حقيقة.
  */
 
-import { localGet, localSet, localRemove } from '@/lib/localStore';
-import { isOfflineHardExpired } from '@/lib/offlineFreshness';
+import { clearOfflineEnvelope, getOfflineEnvelope, saveOfflineEnvelope } from '@/lib/offlineCacheEnvelope';
 
 export interface OfflineJsonEnvelope<T> {
   data: T;
@@ -34,34 +33,18 @@ export function saveOfflineJson<T>(
   data: T,
   userId?: string | null,
 ): void {
-  localSet(key(name), {
-    data,
-    savedAt: new Date().toISOString(),
-    userId: userId ?? null,
-  } satisfies OfflineJsonEnvelope<T>);
+  saveOfflineEnvelope(key(name), 'data', data, userId);
 }
 
 export function getOfflineJson<T>(
   name: string,
   userId?: string | null,
 ): OfflineJsonEnvelope<T> | null {
-  const env = localGet<OfflineJsonEnvelope<T>>(key(name), {
-    data: null as T,
-    savedAt: '',
-  });
-  if (!env.savedAt || isOfflineHardExpired(env.savedAt)) return null;
-  // T770 — refuse to serve another user's entry. Only enforced when
-  // the caller supplies a userId; callers that pass nothing keep the
-  // pre-T770 behavior (read whatever's there), which is correct for
-  // genuinely global slots.
-  if (userId !== undefined && (env.userId ?? null) !== (userId ?? null)) {
-    return null;
-  }
-  return env;
+  return getOfflineEnvelope<T>(key(name), 'data', null as T, userId) as OfflineJsonEnvelope<T> | null;
 }
 
 export function clearOfflineJson(name: string): void {
-  localRemove(key(name));
+  clearOfflineEnvelope(key(name));
 }
 
 export const OFFLINE_JSON_KEYS = {
