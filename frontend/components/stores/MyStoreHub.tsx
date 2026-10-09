@@ -92,12 +92,12 @@ function HubBody({ store }: { store: StoreDetails }) {
             </Button>
           )}
           <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link href={ROUTES.myStoreSettings}>
+            <Link prefetch={false} href={ROUTES.myStoreSettings}>
               <Settings2 className="h-3.5 w-3.5" /> الإعدادات
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link href={ROUTES.myStoreAnalytics}>
+            <Link prefetch={false} href={ROUTES.myStoreAnalytics}>
               <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
             </Link>
           </Button>
@@ -111,6 +111,7 @@ function HubBody({ store }: { store: StoreDetails }) {
           <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
           {attention.productsOutOfStock > 0 && (
             <Link
+              prefetch={false}
               href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}
               className="text-primary hover:underline"
             >
@@ -118,7 +119,7 @@ function HubBody({ store }: { store: StoreDetails }) {
             </Link>
           )}
           {attention.productsMissingImages > 0 && (
-            <Link href={ROUTES.myStoreProducts} className="text-primary hover:underline">
+            <Link prefetch={false} href={ROUTES.myStoreProducts} className="text-primary hover:underline">
               {attention.productsMissingImages} {storeLabels.product} بدون صور
             </Link>
           )}
@@ -129,37 +130,37 @@ function HubBody({ store }: { store: StoreDetails }) {
         <h2 className="text-sm font-semibold text-muted-foreground">إجراءات سريعة</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <Button asChild className="h-auto flex-col gap-1 py-3 font-semibold">
-            <Link href={ROUTES.myStoreProductCreate}>
+            <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
               <PackagePlus className="h-4 w-4" />
               {storeLabels.addProduct}
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStoreProducts}>
+            <Link prefetch={false} href={ROUTES.myStoreProducts}>
               <Package className="h-4 w-4" />
               {storeLabels.products}
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStoreInventory}>
+            <Link prefetch={false} href={ROUTES.myStoreInventory}>
               <Package className="h-4 w-4" />
               المخزون
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStoreMembers}>
+            <Link prefetch={false} href={ROUTES.myStoreMembers}>
               <Users className="h-4 w-4" />
               الأعضاء
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStorePromotions}>
+            <Link prefetch={false} href={ROUTES.myStorePromotions}>
               <Tag className="h-4 w-4" />
               العروض
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
-            <Link href={ROUTES.myStoreCollections}>
+            <Link prefetch={false} href={ROUTES.myStoreCollections}>
               <Layers className="h-4 w-4" />
               المجموعات
             </Link>

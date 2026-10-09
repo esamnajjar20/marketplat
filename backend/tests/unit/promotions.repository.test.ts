@@ -10,6 +10,7 @@ jest.mock('../../src/config/prisma', () => ({
       update: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      groupBy: jest.fn(),
     },
   },
 }));
@@ -36,6 +37,22 @@ describe('promotionsRepository', () => {
       await promotionsRepository.create(data);
 
       expect(prisma.promotion.create).toHaveBeenCalledWith({ data });
+    });
+  });
+
+  describe('getStoreAnalyticsSummary', () => {
+    it('aggregates counts and usage by status without loading full promotion rows', async () => {
+      (prisma.promotion.groupBy as jest.Mock).mockResolvedValue([]);
+
+      await promotionsRepository.getStoreAnalyticsSummary('store-1');
+
+      expect(prisma.promotion.groupBy).toHaveBeenCalledWith({
+        by: ['status'],
+        where: { storeId: 'store-1' },
+        _count: { _all: true },
+        _sum: { usageCount: true },
+      });
+      expect(prisma.promotion.findMany).not.toHaveBeenCalled();
     });
   });
 

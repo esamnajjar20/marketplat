@@ -68,13 +68,13 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
           <div className="flex flex-wrap gap-2">
             {publicProfileHref && (
               <Button variant="outline" size="sm" asChild className="gap-1.5">
-                <Link href={publicProfileHref}>
+                <Link prefetch={false} href={publicProfileHref}>
                   البروفايل العام <ExternalLink className="h-3.5 w-3.5" />
                 </Link>
               </Button>
             )}
             <Button variant="outline" size="sm" asChild>
-              <Link href={ROUTES.settings.serviceProvider}>الإعدادات</Link>
+              <Link prefetch={false} href={ROUTES.settings.serviceProvider}>الإعدادات</Link>
             </Button>
           </div>
         </div>
@@ -145,26 +145,26 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
-            <Link href={ROUTES.incomingServiceRequests}>
+            <Link prefetch={false} href={ROUTES.incomingServiceRequests}>
               <Inbox className="h-4 w-4" aria-hidden />
               الطلبات الواردة
               {pendingRequests > 0 && <Badge variant="secondary">{pendingRequests.toLocaleString('ar')}</Badge>}
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
-            <Link href={ROUTES.myServiceAppointments}>
+            <Link prefetch={false} href={ROUTES.myServiceAppointments}>
               <CalendarClock className="h-4 w-4" aria-hidden />
               المواعيد
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
-            <Link href={ROUTES.requests}>
+            <Link prefetch={false} href={ROUTES.requests}>
               <Radio className="h-4 w-4" aria-hidden />
               الطلبات المفتوحة
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
-            <Link href={ROUTES.myServiceProviderAnalytics}>
+            <Link prefetch={false} href={ROUTES.myServiceProviderAnalytics}>
               <BarChart3 className="h-4 w-4" aria-hidden />
               الإحصائيات
             </Link>

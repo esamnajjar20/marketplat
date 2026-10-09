@@ -53,6 +53,19 @@ export const promotionsRepository = {
   cancel: (id: string): Promise<Promotion> =>
     prisma.promotion.update({ where: { id }, data: { status: 'CANCELLED' } }),
 
+  /**
+   * Compact analytics read: aggregate promotions in the database instead of
+   * loading up to 500 full rows just to count active promotions and sum usage.
+   * Grouping by status bounds the result to the small PromotionStatus enum.
+   */
+  getStoreAnalyticsSummary: (storeId: string) =>
+    prisma.promotion.groupBy({
+      by: ['status'],
+      where: { storeId },
+      _count: { _all: true },
+      _sum: { usageCount: true },
+    }),
+
   findByStoreId: (storeId: string): Promise<Promotion[]> =>
     // bound the store-promotions query.
     // No real store approaches 500 promotions, but an unbounded

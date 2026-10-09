@@ -627,13 +627,13 @@ updateStorePlan: async (
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [followers, newFollowers7d, newFollowers30d, activeProducts, promotions, topProducts] =
+    const [followers, newFollowers7d, newFollowers30d, activeProducts, promotionSummary, topProducts] =
       await Promise.all([
         storeFollowersRepository.countByStoreId(store.id),
         storeFollowersRepository.countByStoreIdSince(store.id, since7d),
         storeFollowersRepository.countByStoreIdSince(store.id, since30d),
         storesRepository.countActiveProducts(store.id),
-        promotionsRepository.findByStoreId(store.id),
+        promotionsRepository.getStoreAnalyticsSummary(store.id),
         productsRepository.findTopByStoreId(store.id, 5),
       ]);
 
@@ -643,8 +643,8 @@ updateStorePlan: async (
       newFollowers7d,
       newFollowers30d,
       activeProducts,
-      activePromotions: promotions.filter(p => p.status === 'ACTIVE').length,
-      promotionUses: promotions.reduce((sum, p) => sum + p.usageCount, 0),
+      activePromotions: promotionSummary.find((row) => row.status === 'ACTIVE')?._count._all ?? 0,
+      promotionUses: promotionSummary.reduce((sum, row) => sum + (row._sum.usageCount ?? 0), 0),
       topProducts: topProducts.map(p => ({
         id: p.id,
         name: p.name,
