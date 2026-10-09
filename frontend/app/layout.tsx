@@ -189,7 +189,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // one element. Without this, React logs a hydration mismatch
     // warning on every load even though nothing is actually broken.
     <html lang="ar" dir="rtl" translate="no" suppressHydrationWarning>
-      <body className="notranslate" translate="no">
+      <body className="notranslate" translate="no" suppressHydrationWarning>
         {/* DESKTOP-AUDIT-02: first tab stop on every page, before any
             header/nav — see SkipLink's own doc comment. */}
         <SkipLink />
