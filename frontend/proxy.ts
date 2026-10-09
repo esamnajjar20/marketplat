@@ -195,6 +195,43 @@ function isTokenExpired(decoded: DecodedToken): boolean {
 // actual Content-Security-Policy response header here (replacing the
 // static one previously in next.config.ts) so script-src's nonce value
 // matches what was just minted.
+// CACHE-CONTROL-01: Next.js 16 App Router sends
+// `private, no-cache, no-store, max-age=0, must-revalidate` for every
+// dynamic route. Because RootLayout reads headers() for the CSP nonce,
+// every route is dynamic — so `no-store` was being applied to public
+// browse pages too, forcing a full HTML fetch on every navigation. On
+// Gaza's weak links that costs 30-50 KB per click with no 304
+// revalidation.
+//
+// Override the header only for known PUBLIC routes so their HTML is
+// cached (browser-only, private because of the nonce) and revalidated
+// via ETag. Auth-gated and stateful routes keep the Next.js default
+// and are never stored.
+const PUBLIC_HTML_EXACT = new Set<string>([
+  '/',
+  '/about',
+  '/privacy',
+  '/contact',
+  '/offline',
+]);
+
+const PUBLIC_HTML_PREFIXES = [
+  '/ads/',
+  '/products/',
+  '/stores/',
+  '/services/',
+  '/service-providers/',
+  '/requests/',
+  '/search',
+  '/sellers/',
+  '/categories/',
+];
+
+function isPublicHtmlRoute(pathname: string): boolean {
+  if (PUBLIC_HTML_EXACT.has(pathname)) return true;
+  return PUBLIC_HTML_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 function buildCsp(nonce: string, isDev: boolean): string {
   const apiOrigin = getRawApiUrl()?.trim() ?? '';
   return [
@@ -390,6 +427,15 @@ export function proxy(request: NextRequest) {
   );
   // Attach request ID for distributed tracing.
   response.headers.set('X-Request-Id', crypto.randomUUID());
+
+  // CACHE-CONTROL-01: override the Next.js default `no-store` for public
+  // HTML routes so browsers keep a copy and revalidate via ETag (304).
+  // Nonce is deployment-scoped (DEPLOYMENT-NONCE-01), so the HTML body
+  // is stable within a deployment.
+  if (isPublicHtmlRoute(request.nextUrl.pathname)) {
+    response.headers.set('Cache-Control', 'private, no-cache');
+  }
+
   return response;
 }
 

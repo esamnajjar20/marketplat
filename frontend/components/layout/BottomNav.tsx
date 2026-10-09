@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Compass, MessageCircle, Menu, Plus } from 'lucide-react';
@@ -76,8 +76,13 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  */
 export function BottomNav() {
   const pathname = usePathname();
-  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
-  const user = useAuthStore(selectHydratedUser);
+  // HYDRATION-SAFE: `mounted` becomes true only after the first commit,
+    // so the first client render matches the server (anonymous). Zustand
+    // persist rehydrates synchronously, so `isHydrated` alone is not enough.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isAuthenticated = mounted && useAuthStore(selectHydratedIsAuthenticated);
+  const user = mounted ? useAuthStore(selectHydratedUser) : null;
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);

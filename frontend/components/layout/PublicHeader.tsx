@@ -7,7 +7,7 @@
  * Responsive: collapses to a hamburger menu on mobile.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -39,7 +39,12 @@ interface Props {
 }
 
 export function PublicHeader({ showSearch = true }: Props = {}) {
-  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
+  // HYDRATION-SAFE: `mounted` becomes true only after the first commit,
+    // so the first client render matches the server (anonymous). Zustand
+    // persist rehydrates synchronously, so `isHydrated` alone is not enough.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isAuthenticated = mounted && useAuthStore(selectHydratedIsAuthenticated);
   const [createOpen, setCreateOpen] = useState(false);
   // FIX UI-REVIEW-SEARCH-DUP: /search renders its own SearchBox in a
   // dedicated brand band right below this header (see

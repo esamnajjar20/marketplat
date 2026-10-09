@@ -356,16 +356,15 @@ export const selectIsHydrated      = (s: AuthStore) => s.isHydrated;
  * HYDRATION-SAFE selectors — use these in headers / navs / any UI that
  * renders differently for logged-in vs anonymous users.
  *
- * Before this, components read selectIsAuthenticated / selectUser directly.
- * Server + first client render saw "anonymous". A moment later Zustand
- * rehydrated from localStorage and flipped them to "logged-in", and the
- * resulting link↔button swap landed inside React's hydration window —
- * producing React #418 on /ads, /products, /stores, and /admin.
+ * NOTE: zustand's persist middleware rehydrates from localStorage
+ * SYNCHRONOUSLY during store initialization. By the time React runs its
+ * first client render, `isHydrated` is already true even though the
+ * server render saw false — so gating on isHydrated alone is not enough
+ * to avoid the server↔client mismatch.
  *
- * These selectors return the "anonymous" shape until isHydrated is true,
- * which is set only after the persist middleware finishes. That makes the
- * first client render identical to the server render, so the swap happens
- * safely after hydration.
+ * Use these selectors TOGETHER with a `mounted` flag (useState false +
+ * useEffect true), so the first client render after hydration matches
+ * the server output exactly. After mount, the real values take over.
  */
 export const selectHydratedUser = (s: AuthStore) => (s.isHydrated ? s.user : null);
 export const selectHydratedIsAuthenticated = (s: AuthStore) =>

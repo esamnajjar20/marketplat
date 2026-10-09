@@ -246,8 +246,13 @@ export function MobileNav() {
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const closeMobileNav  = useUIStore(selectCloseMobileNav);
   const closeButtonRef  = useRef<HTMLButtonElement>(null);
-
-  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
+  // HYDRATION-SAFE: `mounted` gates the auth-dependent UI on this
+    // component's first commit so the first client render matches the
+    // server. Zustand persist rehydrates synchronously so isHydrated
+    // alone is not enough for SSR/client parity.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isAuthenticated = mounted && useAuthStore(selectHydratedIsAuthenticated);
   const isAdmin         = useAuthStore(selectIsAdmin);
   const user             = useAuthStore(selectHydratedUser);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
@@ -266,8 +271,11 @@ export function MobileNav() {
   // hydrated/committed) would still throw. Delaying the portal until
   // after mount is the standard pattern for this; the drawer is closed
   // by default anyway, so the one-render delay is invisible.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  //
+  // HYDRATION-SAFE-NOTE: the `mounted` state is declared near the top of
+  // this component (shared with the auth gate). Only `portalReady` is
+  // added here, for the second-stage gate that ensures the createPortal
+  // insertion lands after hydration has settled.
   // HYDRATION-SAFE-PORTAL: defer createPortal into document.body until
   // the main thread is idle. The DOM mutation trace showed the Portal
   // insert at t=2767ms landing inside React's hydration window (which
