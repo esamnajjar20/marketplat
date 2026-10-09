@@ -250,11 +250,16 @@ export function MobileNav() {
     // component's first commit so the first client render matches the
     // server. Zustand persist rehydrates synchronously so isHydrated
     // alone is not enough for SSR/client parity.
+  // HYDRATION-SAFE: hooks must run UNCONDITIONALLY (Rules of Hooks).
+  // The `mounted` gate is applied to the DERIVED values below, not to the
+  // hook calls themselves.
+  const isAuthenticatedRaw = useAuthStore(selectHydratedIsAuthenticated);
+  const isAdmin            = useAuthStore(selectIsAdmin);
+  const userRaw            = useAuthStore(selectHydratedUser);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const isAuthenticated = mounted && useAuthStore(selectHydratedIsAuthenticated);
-  const isAdmin         = useAuthStore(selectIsAdmin);
-  const user             = useAuthStore(selectHydratedUser);
+  const isAuthenticated = mounted && isAuthenticatedRaw;
+  const user = mounted ? userRaw : null;
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   // PARITY-FIX: same "isSuccess && data is the only positive signal"
   // gating ProtectedSidebar/ProtectedMobileNav use — loading, 404, and

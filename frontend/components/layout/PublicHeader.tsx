@@ -42,9 +42,13 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
   // HYDRATION-SAFE: `mounted` becomes true only after the first commit,
     // so the first client render matches the server (anonymous). Zustand
     // persist rehydrates synchronously, so `isHydrated` alone is not enough.
+  // HYDRATION-SAFE: hooks must run UNCONDITIONALLY (Rules of Hooks).
+  // The `mounted` gate is applied to the DERIVED value below, not to the
+  // hook call itself.
+  const isAuthenticatedRaw = useAuthStore(selectHydratedIsAuthenticated);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const isAuthenticated = mounted && useAuthStore(selectHydratedIsAuthenticated);
+  const isAuthenticated = mounted && isAuthenticatedRaw;
   const [createOpen, setCreateOpen] = useState(false);
   // FIX UI-REVIEW-SEARCH-DUP: /search renders its own SearchBox in a
   // dedicated brand band right below this header (see

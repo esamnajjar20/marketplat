@@ -79,10 +79,16 @@ export function BottomNav() {
   // HYDRATION-SAFE: `mounted` becomes true only after the first commit,
     // so the first client render matches the server (anonymous). Zustand
     // persist rehydrates synchronously, so `isHydrated` alone is not enough.
+  // HYDRATION-SAFE: hooks must run UNCONDITIONALLY (Rules of Hooks).
+  // The `mounted` gate is applied to the DERIVED values below, not to the
+  // hook calls themselves — otherwise React loses hook order tracking
+  // and throws a runtime TypeError.
+  const isAuthenticatedRaw = useAuthStore(selectHydratedIsAuthenticated);
+  const userRaw = useAuthStore(selectHydratedUser);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const isAuthenticated = mounted && useAuthStore(selectHydratedIsAuthenticated);
-  const user = mounted ? useAuthStore(selectHydratedUser) : null;
+  const isAuthenticated = mounted && isAuthenticatedRaw;
+  const user = mounted ? userRaw : null;
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
