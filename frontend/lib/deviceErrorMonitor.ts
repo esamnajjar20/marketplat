@@ -241,11 +241,11 @@ function installCapture(): void {
     const originalSetItem = Storage.prototype.setItem;
     const originalRemoveItem = Storage.prototype.removeItem;
     Storage.prototype.setItem = function(key: string, value: string) {
-      if (key.startsWith('marketplat:') && key !== DEVICE_ERRORS_KEY && key !== REPRODUCE_MODE_KEY) addBreadcrumb('storage', `set ${key.slice(0, 100)}`);
+      if (key.startsWith('marketplat:') && key !== DEVICE_ERRORS_KEY && key !== REPRODUCE_MODE_KEY && key !== 'marketplat:network-request-journal:v1') addBreadcrumb('storage', `set ${key.slice(0, 100)}`);
       return originalSetItem.call(this, key, value);
     };
     Storage.prototype.removeItem = function(key: string) {
-      if (key.startsWith('marketplat:') && key !== DEVICE_ERRORS_KEY && key !== REPRODUCE_MODE_KEY) addBreadcrumb('storage', `remove ${key.slice(0, 100)}`);
+      if (key.startsWith('marketplat:') && key !== DEVICE_ERRORS_KEY && key !== REPRODUCE_MODE_KEY && key !== 'marketplat:network-request-journal:v1') addBreadcrumb('storage', `remove ${key.slice(0, 100)}`);
       return originalRemoveItem.call(this, key);
     };
   } catch { /* restricted storage implementations */ }

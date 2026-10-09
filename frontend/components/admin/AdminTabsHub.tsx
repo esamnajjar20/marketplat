@@ -67,6 +67,7 @@ import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
 import { AdminSystemHealth } from '@/components/admin/AdminSystemHealth';
 import { AdminSystemTools } from '@/components/admin/AdminSystemTools';
 import { AdminDeviceErrorsPanel } from '@/components/admin/AdminDeviceErrorsPanel';
+import { AdminNetworkRequestsPanel } from '@/components/admin/AdminNetworkRequestsPanel';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 const AdminAnalyticsDashboard = dynamic(
@@ -281,6 +282,8 @@ function TabBody({ tab }: { tab: AdminTab }) {
       );
     case 'device-errors':
       return <AdminDeviceErrorsPanel />;
+    case 'network-requests':
+      return <AdminNetworkRequestsPanel />;
     case 'dashboard':
     default:
       return (
