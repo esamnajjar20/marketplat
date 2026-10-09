@@ -66,6 +66,7 @@ import { CreateServiceCategoryButton } from '@/components/admin/CreateServiceCat
 import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
 import { AdminSystemHealth } from '@/components/admin/AdminSystemHealth';
 import { AdminSystemTools } from '@/components/admin/AdminSystemTools';
+import { AdminDeviceErrorsPanel } from '@/components/admin/AdminDeviceErrorsPanel';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 const AdminAnalyticsDashboard = dynamic(
@@ -278,6 +279,8 @@ function TabBody({ tab }: { tab: AdminTab }) {
           </div>
         </div>
       );
+    case 'device-errors':
+      return <AdminDeviceErrorsPanel />;
     case 'dashboard':
     default:
       return (

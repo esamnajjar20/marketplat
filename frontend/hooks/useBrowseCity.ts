@@ -25,21 +25,21 @@ function matchKnownCity(value: string | undefined | null): string | undefined {
  * Effective homepage city filter:
  *   profile city (logged-in) → local browse city (guest chip) → undefined
  *
- * Guest city is read synchronously on first client render (lazy useState)
- * so useHomepage does not enable with city=undefined then immediately
- * re-key to city=X (abort → Network status 0 + double /home).
+ * The saved guest city is loaded after mount, never during the initial render.
+ * Reading localStorage in a lazy useState initializer made the server render
+ * without a city while the first browser render could include one, causing a
+ * hydration mismatch in BrowseCityHint on /products and other consumers.
+ * Query consumers should use isReady when they need to wait for this preference.
  */
 export function useBrowseCity() {
   const isHydrated = useAuthStore(selectIsHydrated);
   const rawProfileCity = useAuthStore((s) => s.user?.city);
   const profileCity = matchKnownCity(rawProfileCity);
 
-  const [guestPreference, setGuestPreference] = useState<string | typeof BROWSE_ALL_CITIES | undefined>(() => {
-    if (typeof window === 'undefined') return undefined;
-    const saved = readBrowseCity();
-    return saved === BROWSE_ALL_CITIES ? BROWSE_ALL_CITIES : matchKnownCity(saved);
-  });
-  const [guestReady, setGuestReady] = useState(() => typeof window !== 'undefined');
+  // Keep the server render and the browser's first hydration render identical.
+  // localStorage is intentionally read only inside the mount effect below.
+  const [guestPreference, setGuestPreference] = useState<string | typeof BROWSE_ALL_CITIES | undefined>(undefined);
+  const [guestReady, setGuestReady] = useState(false);
 
   useEffect(() => {
     const saved = readBrowseCity();

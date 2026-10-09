@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
@@ -17,6 +17,10 @@ export function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  // Recent-search history is browser-local state. Keep it out of render so
+  // the server and the browser's first hydration render never read different
+  // storage snapshots (the header search is present on browse pages only).
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   // use window.setTimeout's return type
   // (number) — global setTimeout's return type differs across lib configs.
   const blurTimerRef = useRef<number | null>(null);
@@ -24,10 +28,9 @@ export function SearchBar({ className }: { className?: string }) {
     if (blurTimerRef.current) window.clearTimeout(blurTimerRef.current);
   }, []);
 
-  const suggestions = useMemo(
-    () => (query.trim().length >= 1 ? suggestRecentSearches(query, 5) : suggestRecentSearches('', 5)),
-    [query],
-  );
+  useEffect(() => {
+    setSuggestions(suggestRecentSearches(query.trim(), 5));
+  }, [query]);
 
   function go(q: string) {
     const trimmed = q.trim();

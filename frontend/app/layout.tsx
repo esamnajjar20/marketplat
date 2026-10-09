@@ -42,7 +42,7 @@ import { headers }                    from 'next/headers';
 import { AppProviders }               from '@/providers/AppProviders';
 import { WebVitals }                  from '@/components/shared/WebVitals';
 import { ErudaDebug }                 from '@/components/debug/ErudaDebug';
-import { HydrationDiagnostics }       from '@/components/debug/HydrationDiagnostics';
+import { DeviceErrorCapture }         from '@/components/debug/DeviceErrorCapture';
 import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
 import {
@@ -196,7 +196,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AppProviders nonce={nonce}>
           <WebVitals />
           <ErudaDebug />
-          <HydrationDiagnostics />
+          <DeviceErrorCapture />
           <DeferredFonts />
         {children}
         </AppProviders>
