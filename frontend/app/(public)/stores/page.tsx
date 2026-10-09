@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import { Store } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { StoresGrid } from '@/components/stores/StoresGrid';
@@ -7,7 +6,9 @@ import { StoresFilters } from '@/components/stores/StoresFilters';
 import { StoresFiltersSheet } from '@/components/stores/StoresFiltersSheet';
 import { SearchSortBarWrapper } from '@/components/stores/SearchSortBarWrapper';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
-import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
+
+// @418-FIX: same pattern as /ads.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = buildMetadata({ title: 'المتاجر', path: '/stores' });
 
@@ -19,29 +20,15 @@ export default function StoresPage() {
       description="تصفح متاجر البائعين الموثّقين في سوق غزة"
       toolbar={
         <>
-          <Suspense>
-            <StoresFiltersSheet />
-          </Suspense>
+          <StoresFiltersSheet />
           <div className="min-w-0 flex-1 sm:flex-none sm:w-48 lg:ms-auto">
-            <Suspense>
-              <SearchSortBarWrapper />
-            </Suspense>
+            <SearchSortBarWrapper />
           </div>
         </>
       }
-      sidebar={
-        <Suspense>
-          <StoresFilters />
-        </Suspense>
-      }
+      sidebar={<StoresFilters />}
     >
-      <Suspense
-        fallback={
-          <PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز القائمة…" />
-        }
-      >
-        <StoresGrid />
-      </Suspense>
+      <StoresGrid />
     </ListPageShell>
   );
 }

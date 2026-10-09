@@ -1,13 +1,17 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import { ShoppingBag } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { ProductsGrid } from '@/components/stores/ProductsGrid';
 import { ProductsFilters } from '@/components/stores/ProductsFilters';
 import { ProductsFiltersSheet } from '@/components/stores/ProductsFiltersSheet';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
-import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 import { ProductSearchSortBarWrapper } from '@/components/stores/ProductSearchSortBarWrapper';
+
+// @418-FIX: same pattern as /ads — force-dynamic + no in-page Suspense.
+// useSearchParams() in the child components forced Next to wrap the
+// route in a Suspense boundary that streamed a fallback shell and then
+// hydrated against a different tree → React #418 args[]=HTML.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = buildMetadata({ title: 'المنتجات', path: '/products' });
 
@@ -19,23 +23,15 @@ export default function ProductsPage() {
       description="تصفح منتجات المتاجر في سوق غزة"
       toolbar={
         <>
-          <Suspense><ProductsFiltersSheet /></Suspense>
-          <div className="min-w-0 flex-1 sm:flex-none sm:w-48 lg:ms-auto"><Suspense><ProductSearchSortBarWrapper /></Suspense></div>
+          <ProductsFiltersSheet />
+          <div className="min-w-0 flex-1 sm:flex-none sm:w-48 lg:ms-auto">
+            <ProductSearchSortBarWrapper />
+          </div>
         </>
       }
-      sidebar={
-        <Suspense>
-          <ProductsFilters />
-        </Suspense>
-      }
+      sidebar={<ProductsFilters />}
     >
-      <Suspense
-        fallback={
-          <PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز القائمة…" />
-        }
-      >
-        <ProductsGrid />
-      </Suspense>
+      <ProductsGrid />
     </ListPageShell>
   );
 }

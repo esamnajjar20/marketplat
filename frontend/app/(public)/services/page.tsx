@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { LocateFixed, Wrench } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
@@ -8,8 +7,10 @@ import { ServiceCategoryFilter } from '@/components/services/ServiceCategoryFilt
 import { ServiceFiltersSheet } from '@/components/services/ServiceFiltersSheet';
 import { ServiceListingsGrid } from '@/components/services/ServiceListingsGrid';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
-import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 import { ServiceSearchSortBarWrapper } from '@/components/services/ServiceSearchSortBarWrapper';
+
+// @418-FIX: same pattern as /ads.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = buildMetadata({ title: 'الخدمات', path: '/services' });
 
@@ -30,23 +31,15 @@ export default function ServicesPage() {
       }
       toolbar={
         <>
-          <Suspense><ServiceFiltersSheet /></Suspense>
-          <div className="min-w-0 flex-1 sm:flex-none sm:w-48 lg:ms-auto"><Suspense><ServiceSearchSortBarWrapper /></Suspense></div>
+          <ServiceFiltersSheet />
+          <div className="min-w-0 flex-1 sm:flex-none sm:w-48 lg:ms-auto">
+            <ServiceSearchSortBarWrapper />
+          </div>
         </>
       }
-      sidebar={
-        <Suspense>
-          <ServiceCategoryFilter />
-        </Suspense>
-      }
+      sidebar={<ServiceCategoryFilter />}
     >
-      <Suspense
-        fallback={
-          <PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز الخدمات…" />
-        }
-      >
-        <ServiceListingsGrid />
-      </Suspense>
+      <ServiceListingsGrid />
     </ListPageShell>
   );
 }
