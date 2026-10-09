@@ -68,7 +68,7 @@ function toastWithUndo(message: string, onUndo: () => void) {
  * internally.
  */
 interface AdminToggleFieldConfig<TItem extends { id: string }, TArgs> {
-  /** The exact query key prefix this toggle patches, e.g. ['admin', 'ads']. */
+  /** The exact query key prefix this toggle patches, e.g. queryKeys.admin.adsRoot(). */
   queryKey: readonly unknown[];
   /** The field on the row item that carries the new boolean value. */
   itemField: keyof TItem;
@@ -137,7 +137,7 @@ function useAdminToggleField<TItem extends { id: string }, TArgs>(
 export function useAdminSetFeatured() {
   const queryClient = useQueryClient();
   return useAdminToggleField<AdminAd, { adId: string; value: boolean }>(queryClient, {
-    queryKey: ['admin', 'ads'],
+    queryKey: queryKeys.admin.adsRoot(),
     itemField: 'isFeatured',
     setField: (id, value) => adminApi.setFeatured(id, { isFeatured: value }),
     getId: (a) => a.adId,
@@ -150,7 +150,7 @@ export function useAdminSetFeatured() {
 export function useAdminSetPinned() {
   const queryClient = useQueryClient();
   return useAdminToggleField<AdminAd, { adId: string; value: boolean }>(queryClient, {
-    queryKey: ['admin', 'ads'],
+    queryKey: queryKeys.admin.adsRoot(),
     itemField: 'isPinned',
     setField: (id, value) => adminApi.setPinned(id, { isPinned: value }),
     getId: (a) => a.adId,
@@ -166,7 +166,7 @@ export function useAdminForceDeleteAd() {
     mutationFn: (adId: string) => adminApi.forceDeleteAd(adId),
     onSuccess: (_data, adId) => {
       queryClient.removeQueries({ queryKey: queryKeys.ads.detail(adId) });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.adsRoot() });
       toast.success('تم حذف الإعلان نهائياً');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -190,7 +190,7 @@ export function useAdminBulkSetFeatured() {
       adminApi.bulkSetFeatured(adIds, isFeatured).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('إعلان', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.adsRoot() }),
   });
 }
 
@@ -201,7 +201,7 @@ export function useAdminBulkSetPinned() {
       adminApi.bulkSetPinned(adIds, isPinned).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('إعلان', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.adsRoot() }),
   });
 }
 
@@ -218,14 +218,14 @@ export function useAdminBulkDeleteAds() {
       toastBulkResult('إعلان محذوف', result.meta.updatedCount, result.meta.failed);
     },
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'ads'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.adsRoot() }),
   });
 }
 
 export function useAdminToggleUserActive() {
   const queryClient = useQueryClient();
   return useAdminToggleField<AdminUser, { userId: string; isActive: boolean }>(queryClient, {
-    queryKey: ['admin', 'users'],
+    queryKey: queryKeys.admin.usersRoot(),
     itemField: 'isActive',
     setField: (id, value) => adminApi.toggleUserActive(id, { isActive: value }).then((r) => r.data.data),
     getId: (a) => a.userId,
@@ -250,7 +250,7 @@ export function useAdminBulkToggleUserActive() {
       adminApi.bulkToggleUserActive(userIds, isActive).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('مستخدم', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.usersRoot() }),
   });
 }
 
@@ -267,7 +267,7 @@ export function useAdminSetSellerVerified() {
     AdminSeller,
     { sellerProfileId: string; verified: boolean }
   >(queryClient, {
-    queryKey: ['admin', 'sellers'],
+    queryKey: queryKeys.admin.sellersRoot(),
     itemField: 'verified',
     setField: (id, value) =>
       adminApi.setSellerVerified(id, { verified: value }).then((r) => r.data.data),
@@ -290,7 +290,7 @@ export function useAdminSetSellerSuspended() {
     AdminSeller,
     { sellerProfileId: string; suspended: boolean; reason?: string }
   >(queryClient, {
-    queryKey: ['admin', 'sellers'],
+    queryKey: queryKeys.admin.sellersRoot(),
     itemField: 'suspended',
     // reason is preserved from the original args on the initial call
     // (the backend records why a seller was suspended); the undo
@@ -320,7 +320,7 @@ export function useAdminBulkSetSellerVerified() {
       adminApi.bulkSetSellerVerified(sellerProfileIds, verified).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('بائع', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.sellersRoot() }),
   });
 }
 
@@ -331,7 +331,7 @@ export function useAdminBulkSetSellerSuspended() {
       adminApi.bulkSetSellerSuspended(sellerProfileIds, suspended, reason).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('بائع', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.sellersRoot() }),
   });
 }
 
@@ -359,12 +359,12 @@ export function useAdminChangeRole() {
       adminApi.changeRole(userId, role).then((r) => r.data.data),
     onMutate: async ({ userId, role }) => {
       // T793-quad — same cancel-first requirement as the factory above.
-      await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.admin.usersRoot() });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminUser>>({
-        queryKey: ['admin', 'users'],
+        queryKey: queryKeys.admin.usersRoot(),
       });
       queryClient.setQueriesData<PaginatedResponse<AdminUser>>(
-        { queryKey: ['admin', 'users'] },
+        { queryKey: queryKeys.admin.usersRoot() },
         (old) => {
           if (!old?.items) return old;
           return { ...old, items: old.items.map((u) => u.id === userId ? { ...u, role } : u) };
@@ -386,7 +386,7 @@ export function useAdminChangeRole() {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.usersRoot() }),
   });
 }
 
@@ -408,9 +408,9 @@ export function useAdminUpdateStoreStatus() {
       // resolving after the optimistic write can't land a pre-toggle
       // status over it (which would also poison the undo path's
       // captured previousStatus).
-      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.admin.storesRoot() });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
-        queryKey: ['admin', 'stores'],
+        queryKey: queryKeys.admin.storesRoot(),
       });
       // FIX STORE-STATUS-UNDO: capture the store's status from the
       // snapshot BEFORE the optimistic write below overwrites it in
@@ -427,7 +427,7 @@ export function useAdminUpdateStoreStatus() {
         }
       }
       queryClient.setQueriesData<PaginatedResponse<AdminStore>>(
-        { queryKey: ['admin', 'stores'] },
+        { queryKey: queryKeys.admin.storesRoot() },
         (old) => {
           if (!old?.items) return old;
           return {
@@ -459,7 +459,7 @@ export function useAdminUpdateStoreStatus() {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.storesRoot() }),
   });
   return mutation;
 }
@@ -475,12 +475,12 @@ export function useAdminUpdateStorePlan() {
     onMutate: async ({ storeId, plan }) => {
       // T793-quad — same cancel-first requirement as the other admin
       // toggles in this file.
-      await queryClient.cancelQueries({ queryKey: ['admin', 'stores'] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.admin.storesRoot() });
       const snapshots = queryClient.getQueriesData<PaginatedResponse<AdminStore>>({
-        queryKey: ['admin', 'stores'],
+        queryKey: queryKeys.admin.storesRoot(),
       });
       queryClient.setQueriesData<PaginatedResponse<AdminStore>>(
-        { queryKey: ['admin', 'stores'] },
+        { queryKey: queryKeys.admin.storesRoot() },
         (old) => {
           if (!old?.items) return old;
           return {
@@ -503,7 +503,7 @@ export function useAdminUpdateStorePlan() {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.storesRoot() }),
   });
   return mutation;
 }
@@ -521,7 +521,7 @@ export function useAdminUpdateStoreType() {
     mutationFn: ({ storeId, storeTypeId }: { storeId: string; storeTypeId: string }) =>
       adminApi.updateStoreType(storeId, { storeTypeId }).then((r) => r.data.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.storesRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
       toast.success('تم تحديث نوع المتجر');
     },
@@ -536,7 +536,7 @@ export function useAdminBulkUpdateStoreStatus() {
       adminApi.bulkUpdateStoreStatus(storeIds, status, reason).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('متجر', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.storesRoot() }),
   });
 }
 
@@ -580,7 +580,7 @@ export function useAdminUpdateReportStatus() {
       adminApi.updateReportStatus(reportId, status).then((r) => r.data.data),
     onSuccess: (updated) => {
       if (updated) queryClient.setQueryData(queryKeys.admin.reportDetail(updated.id), updated);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.reportsRoot() });
       toast.success('تم تحديث حالة البلاغ');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -615,7 +615,7 @@ export function useAdminBulkUpdateReportStatus() {
     }) => adminApi.bulkUpdateReportStatus(reportIds, status).then((r) => r.data),
     onSuccess: (result) => toastBulkResult('بلاغ', result.meta.updatedCount, result.meta.failed),
     onError: (err) => toast.error(parseApiError(err).message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.reportsRoot() }),
   });
 }
 
@@ -635,7 +635,7 @@ export function useAdminClearFraudFlag() {
   return useMutation({
     mutationFn: (adId: string) => adminApi.clearAdFraudFlag(adId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'fraud'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.fraudRoot() });
       toast.success('تم إلغاء علامة الاحتيال عن الإعلان');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -649,7 +649,7 @@ export function useAdminManualFraudFlag() {
     mutationFn: ({ adId, payload }: { adId: string; payload: ManualFraudFlagPayload }) =>
       adminApi.manualFraudFlag(adId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'fraud'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.fraudRoot() });
       toast.success('تم وضع علامة احتيال على الإعلان');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -662,7 +662,7 @@ export function useAdminReviewFraudSignal() {
   return useMutation({
     mutationFn: (signalId: string) => adminApi.reviewFraudSignal(signalId).then((r) => r.data.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'fraud'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.fraudRoot() });
       toast.success('تم تأكيد مراجعة الإشارة');
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -675,7 +675,7 @@ export function useAdminSetProductStatus() {
     mutationFn: ({ id, status, reason }: { id: string; status: string; reason?: string }) =>
       adminApi.setProductStatus(id, { status, reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.productsRoot() });
       // FIX ADMIN-SILENT-FAIL: was missing both a success toast and an
       // onError handler, unlike every other admin mutation in this file.
       // A failed product approval (5xx, permission blip, network) looked
@@ -694,7 +694,7 @@ export function useAdminSetServiceListingStatus() {
     mutationFn: ({ id, status, reason }: { id: string; status: string; reason?: string }) =>
       adminApi.setServiceListingStatus(id, { status, reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'service-listings'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.serviceListingsRoot() });
       // FIX ADMIN-SILENT-FAIL: see useAdminSetProductStatus above.
       toast.success('تم تحديث حالة الخدمة');
     },
@@ -708,7 +708,7 @@ export function useAdminCancelOpenRequest() {
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       adminApi.cancelOpenRequest(id, { reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'open-requests'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.openRequestsRoot() });
       // FIX ADMIN-SILENT-FAIL: see useAdminSetProductStatus above.
       toast.success('تم إلغاء الطلب المفتوح');
     },
@@ -794,7 +794,7 @@ export function useAdminResolveServiceRequestDispute() {
     mutationFn: ({ id, resolution, note }: { id: string; resolution: 'COMPLETED' | 'CANCELLED'; note?: string }) =>
       adminApi.resolveServiceRequestDispute(id, { resolution, note }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'service-request-disputes'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.serviceRequestDisputesRoot() });
       toast.success('تم حل النزاع');
     },
     onError: (err) => toast.error(parseApiError(err).message),

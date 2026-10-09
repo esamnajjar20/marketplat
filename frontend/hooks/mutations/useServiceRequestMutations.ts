@@ -22,7 +22,7 @@ export function useCreateServiceRequest() {
     mutationFn: (payload: CreateServiceRequestPayload) =>
       serviceRequestsApi.create(payload).then((r) => r.data.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service-requests', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.mineRoot() });
       toast.success('تم إرسال طلبك بنجاح');
     },
     onError: toastMutationError,
@@ -44,8 +44,8 @@ export function useRespondToServiceRequest(id: string) {
       serviceRequestsApi.respond(id, payload).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.detail(id) });
-      queryClient.invalidateQueries({ queryKey: ['service-requests', 'me'] });
-      queryClient.invalidateQueries({ queryKey: ['service-requests', 'incoming'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.mineRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.incomingRoot() });
       toast.success('تم تحديث حالة الطلب');
     },
     onError: toastMutationError,

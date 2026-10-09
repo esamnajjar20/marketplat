@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
+import { invalidateServiceListingCaches } from '@/lib/queryInvalidation';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { toastMutationError } from '@/lib/mutationFeedback';
@@ -52,7 +53,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
     },
     onSuccess: () => {
       clearActiveOfflineDraftId();
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+      void invalidateServiceListingCaches(queryClient);
       toast.success('تم نشر الخدمة بنجاح');
       router.push(ROUTES.myServices);
     },
@@ -145,7 +146,7 @@ export function useUpdateServiceListing(listingId: string) {
       // Same reasoning as useUpdateAd's I-05 fix: invalidate the whole
       // ['service-listings'] prefix, not just detail+mine, so public
       // browse/search queries don't keep showing stale data.
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+      void invalidateServiceListingCaches(queryClient, listingId);
       toast.success('تم حفظ التعديلات');
       router.push(ROUTES.myServices);
     },
@@ -215,8 +216,8 @@ export function useAddServiceListingImages(onUploadProgress?: (percent: number) 
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
       serviceListingsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateServiceListingCaches(queryClient, variables.id);
     },
     onError: toastMutationError,
   });
@@ -232,8 +233,8 @@ export function useRemoveServiceListingImage() {
   return useMutation({
     mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
       serviceListingsApi.removeImage(id, imageUrl).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateServiceListingCaches(queryClient, variables.id);
     },
     onError: toastMutationError,
   });
@@ -249,8 +250,8 @@ export function useReorderServiceListingImages() {
   return useMutation({
     mutationFn: ({ id, images }: { id: string; images: string[] }) =>
       serviceListingsApi.reorderImages(id, images).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateServiceListingCaches(queryClient, variables.id);
     },
     onError: toastMutationError,
   });
@@ -261,8 +262,8 @@ export function useDeleteServiceListing() {
 
   return useMutation({
     mutationFn: (id: string) => serviceListingsApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() });
+    onSuccess: (_data, listingId) => {
+      void invalidateServiceListingCaches(queryClient, listingId);
       toast.success('تم حذف الخدمة');
     },
     onError: toastMutationError,
@@ -292,16 +293,23 @@ export function useToggleServiceListingStatus() {
       // T793 — same reasoning as useToggleProductStatus above.
       // cancelQueries must precede the optimistic write or an
       // in-flight refetch can overwrite it with the pre-toggle value.
-      await queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.all() });
-      const snapshots = queryClient.getQueriesData<PaginatedResponse<ServiceListing>>({
-        queryKey: queryKeys.serviceListings.all(),
-      });
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.listRoot() }),
+        queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.mineRoot() }),
+      ]);
+      const snapshots = [
+        ...queryClient.getQueriesData<PaginatedResponse<ServiceListing>>({ queryKey: queryKeys.serviceListings.listRoot() }),
+        ...queryClient.getQueriesData<PaginatedResponse<ServiceListing>>({ queryKey: queryKeys.serviceListings.mineRoot() }),
+      ];
+      const updateStatus = (old: PaginatedResponse<ServiceListing> | undefined) => {
+        if (!old?.items) return old;
+        return { ...old, items: old.items.map((listing) => (listing.id === id ? { ...listing, status } : listing)) };
+      };
       queryClient.setQueriesData<PaginatedResponse<ServiceListing>>(
-        { queryKey: queryKeys.serviceListings.all() },
-        (old) => {
-          if (!old?.items) return old;
-          return { ...old, items: old.items.map((l) => (l.id === id ? { ...l, status } : l)) };
-        },
+        { queryKey: queryKeys.serviceListings.listRoot() }, updateStatus,
+      );
+      queryClient.setQueriesData<PaginatedResponse<ServiceListing>>(
+        { queryKey: queryKeys.serviceListings.mineRoot() }, updateStatus,
       );
       return { snapshots };
     },
@@ -311,6 +319,6 @@ export function useToggleServiceListingStatus() {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.serviceListings.all() }),
+    onSettled: (_data, _error, variables) => invalidateServiceListingCaches(queryClient, variables?.id),
   });
 }

@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { productsApi } from '@/api/products.api';
 import { queryKeys } from '@/lib/queryKeys';
+import { invalidateProductBrowseCaches } from '@/lib/queryInvalidation';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { toastMutationError } from '@/lib/mutationFeedback';
@@ -48,7 +49,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
     },
     onSuccess: () => {
       clearActiveOfflineDraftId();
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      void invalidateProductBrowseCaches(queryClient, { includeStock: true });
       toast.success('تم إضافة المنتج بنجاح');
       router.push(ROUTES.myStoreProducts);
     },
@@ -137,9 +138,13 @@ export function useUpdateProduct(productId: string) {
         .update(productId, payload, operationIdRef.current)
         .then((r) => r.data.data);
     },
-    onSuccess: () => {
+    onSuccess: (_data, payload) => {
       clearActiveOfflineDraftId();
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      void invalidateProductBrowseCaches(queryClient, {
+        productId,
+        includeStock: true,
+        includeStockHistory: payload.stockQuantity !== undefined,
+      });
       toast.success('تم حفظ التعديلات');
       router.push(ROUTES.myStoreProducts);
     },
@@ -212,8 +217,8 @@ export function useAddProductImages(onUploadProgress?: (percent: number) => void
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
       productsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateProductBrowseCaches(queryClient, { productId: variables.id });
     },
     onError: toastMutationError,
   });
@@ -229,8 +234,8 @@ export function useRemoveProductImage() {
   return useMutation({
     mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
       productsApi.removeImage(id, imageUrl).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateProductBrowseCaches(queryClient, { productId: variables.id });
     },
     onError: toastMutationError,
   });
@@ -245,8 +250,8 @@ export function useReorderProductImages() {
   return useMutation({
     mutationFn: ({ id, images }: { id: string; images: string[] }) =>
       productsApi.reorderImages(id, images).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateProductBrowseCaches(queryClient, { productId: variables.id });
     },
     onError: toastMutationError,
   });
@@ -257,8 +262,8 @@ export function useDeleteProduct() {
 
   return useMutation({
     mutationFn: (id: string) => productsApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+    onSuccess: (_data, productId) => {
+      void invalidateProductBrowseCaches(queryClient, { productId, includeStock: true, includeStockHistory: true });
       toast.success('تم حذف المنتج');
     },
     onError: toastMutationError,
@@ -285,21 +290,26 @@ export function useToggleProductStatus() {
       // a visible flicker (PAUSED → ACTIVE → PAUSED once onSettled
       // invalidated). TanStack Query's own docs specify the correct
       // order: cancel first, then snapshot, then write.
-      await queryClient.cancelQueries({ queryKey: queryKeys.products.all() });
-      const snapshots = queryClient.getQueriesData<PaginatedResponse<Product>>({
-        queryKey: queryKeys.products.all(),
-      });
-      // setQueriesData targets a prefix key that can match several
-      // distinct cache shapes (.list()/.mine()/.detail());
-      // PaginatedResponse<Product> covers the list shapes this toggle
-      // actually touches; other matched shapes are left untouched via
-      // the `old?.items` guard below.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: queryKeys.products.listRoot() }),
+        queryClient.cancelQueries({ queryKey: queryKeys.products.mineRoot() }),
+      ]);
+      const snapshots = [
+        ...queryClient.getQueriesData<PaginatedResponse<Product>>({ queryKey: queryKeys.products.listRoot() }),
+        ...queryClient.getQueriesData<PaginatedResponse<Product>>({ queryKey: queryKeys.products.mineRoot() }),
+      ];
+      // Update only the paginated list and mine prefixes. Infinite and
+      // detail caches have different data shapes and are invalidated after
+      // the mutation settles instead of being needlessly cancelled here.
+      const updateStatus = (old: PaginatedResponse<Product> | undefined) => {
+        if (!old?.items) return old;
+        return { ...old, items: old.items.map((p) => (p.id === id ? { ...p, status } : p)) };
+      };
       queryClient.setQueriesData<PaginatedResponse<Product>>(
-        { queryKey: queryKeys.products.all() },
-        (old) => {
-          if (!old?.items) return old;
-          return { ...old, items: old.items.map((p) => (p.id === id ? { ...p, status } : p)) };
-        },
+        { queryKey: queryKeys.products.listRoot() }, updateStatus,
+      );
+      queryClient.setQueriesData<PaginatedResponse<Product>>(
+        { queryKey: queryKeys.products.mineRoot() }, updateStatus,
       );
       return { snapshots };
     },
@@ -309,6 +319,6 @@ export function useToggleProductStatus() {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
       toast.error(parseApiError(err).message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.products.all() }),
+    onSettled: (_data, _error, variables) => invalidateProductBrowseCaches(queryClient, { productId: variables?.id, includeStock: true }),
   });
 }

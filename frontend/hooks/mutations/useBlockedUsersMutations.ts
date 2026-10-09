@@ -27,7 +27,7 @@ export function useToggleUserBlock() {
         return idSet;
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.blockedUsers.all() });
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
       toast.success(data?.action === 'blocked' ? 'تم حظر المستخدم' : 'تم إلغاء حظر المستخدم');
     },
     onError: (err) => toast.error(parseApiError(err).message),

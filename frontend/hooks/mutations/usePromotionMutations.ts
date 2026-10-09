@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { promotionsApi } from '@/api/promotions.api';
 import { queryKeys } from '@/lib/queryKeys';
+import { invalidateProductBrowseCaches } from '@/lib/queryInvalidation';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import type { CreatePromotionPayload, UpdatePromotionPayload } from '@/types/promotion.types';
@@ -22,7 +23,7 @@ export function useCreatePromotion() {
       promotionsApi.create(payload).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.promotions.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      void invalidateProductBrowseCaches(queryClient, { includeAllDetails: true });
       toast.success('تم إنشاء العرض بنجاح');
     },
     onError: toastMutationError,
@@ -37,7 +38,7 @@ export function useUpdatePromotion(promotionId: string) {
       promotionsApi.update(promotionId, payload).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.promotions.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      void invalidateProductBrowseCaches(queryClient, { includeAllDetails: true });
       toast.success('تم حفظ التعديلات');
     },
     onError: toastMutationError,
@@ -51,7 +52,7 @@ export function useCancelPromotion() {
     mutationFn: (id: string) => promotionsApi.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.promotions.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all() });
+      void invalidateProductBrowseCaches(queryClient, { includeAllDetails: true });
       toast.success('تم إلغاء العرض');
     },
     onError: toastMutationError,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { serviceReviewsApi } from '@/api/service-reviews.api';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
@@ -23,12 +24,12 @@ export function useCreateServiceReview() {
     mutationFn: (payload: CreateServiceReviewPayload) =>
       serviceReviewsApi.create(payload).then((r) => r.data.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service-reviews'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceReviews.all() });
       // The reviewed request's own list entries don't change shape, but
       // re-fetching lets "already reviewed" UI state in
       // MyServiceRequestsList pick up immediately rather than waiting
       // for CACHE_TTL.serviceRequests to lapse.
-      queryClient.invalidateQueries({ queryKey: ['service-requests', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.mineRoot() });
       toast.success('تم إرسال تقييمك بنجاح');
     },
     onError: (err) => toast.error(parseApiError(err).message),

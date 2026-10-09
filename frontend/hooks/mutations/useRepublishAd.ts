@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { republishAd } from '@/api/ads-republish.api';
-import { queryKeys } from '@/lib/queryKeys';
+import { invalidateAdEntityCaches } from '@/lib/queryInvalidation';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 
@@ -29,9 +29,7 @@ export function useRepublishAd() {
       // already apply under FIX I-05 / I-05b — republish is a state
       // change on the ad row just like those, and every one of the
       // four should invalidate the same set.
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.detail(adId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
+      void invalidateAdEntityCaches(queryClient, adId);
       toast.success('تم إعادة نشر الإعلان');
     },
     onError: toastMutationError,

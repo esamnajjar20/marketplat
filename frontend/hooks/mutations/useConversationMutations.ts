@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { conversationsApi } from '@/api/conversations.api';
+import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { toast } from 'sonner';
@@ -25,7 +26,7 @@ export function useStartConversation() {
     mutationFn: (payload: StartConversationPayload) =>
       conversationsApi.start(payload).then((r) => r.data.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });
@@ -83,7 +84,7 @@ export function useSendMessage(conversationId: string) {
       if (!currentUser) return;
 
       await queryClient.cancelQueries({
-        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
 
       const optimisticMessage: Message = {
@@ -110,7 +111,7 @@ export function useSendMessage(conversationId: string) {
       // message appended, matching useMessages' own "oldest → newest"
       // ordering (it reverses the backend's newest-first response).
       const matches = queryClient.getQueriesData<PaginatedResponse<Message>>({
-        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
 
       const previous = matches.map(([key, data]) => [key, data] as const);
@@ -136,7 +137,7 @@ export function useSendMessage(conversationId: string) {
       if (!serverMessage) return;
       const optimisticId = context?.optimisticId;
       const matches = queryClient.getQueriesData<PaginatedResponse<Message>>({
-        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
       for (const [key, data] of matches) {
         if (!data?.items) continue;
@@ -162,7 +163,7 @@ export function useSendMessage(conversationId: string) {
       // readAt, etc.) the raw POST body may not carry. Inactive-only so
       // the visible list does not flash.
       void queryClient.invalidateQueries({
-        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
         refetchType: 'inactive',
       });
     },
@@ -183,9 +184,9 @@ export function useSendMessage(conversationId: string) {
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
     },
   });
 }
@@ -206,7 +207,7 @@ export function useDeleteMessage(conversationId: string) {
       conversationsApi.deleteMessage(conversationId, messageId).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['conversations', 'detail', conversationId, 'messages'],
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -228,8 +229,8 @@ export function useSetConversationFlags() {
       mutedUntil?: string | null;
     }) => conversationsApi.setFlags(id, flags).then((r) => r.data.data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
-      if (variables?.id) queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', variables.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+      if (variables?.id) queryClient.invalidateQueries({ queryKey: queryKeys.conversations.detail(variables.id) });
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });
@@ -247,8 +248,8 @@ export function useMessageMarkMutation(conversationId: string) {
       return conversationsApi.unstarMessage(conversationId, messageId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'media'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.media(conversationId) });
     },
     onError: (err) => toast.error(parseApiError(err).message),
   });
@@ -260,9 +261,9 @@ export function useDeleteConversation() {
   return useMutation({
     mutationFn: (id: string) => conversationsApi.deleteConversation(id).then((r) => r.data.data),
     onSuccess: (_data, id) => {
-      queryClient.removeQueries({ queryKey: ['conversations', 'detail', id] });
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
-      queryClient.invalidateQueries({ queryKey: ['conversations', 'unreadCount'] });
+      queryClient.removeQueries({ queryKey: queryKeys.conversations.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
       toast.success('تم حذف المحادثة من محادثاتك');
     },
     onError: (err) => toast.error(parseApiError(err).message),

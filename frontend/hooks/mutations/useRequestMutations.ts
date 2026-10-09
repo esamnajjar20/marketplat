@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { requestsApi, type CreateRequestBody, type SubmitOfferBody } from '@/api/requests.api';
 import { queryKeys } from '@/lib/queryKeys';
+import { invalidateRequestCaches } from '@/lib/queryInvalidation';
 import { ROUTES } from '@/lib/constants';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { parseApiError } from '@/lib/errorParser';
@@ -52,7 +53,7 @@ export function useCreateRequest() {
     },
     onSuccess: (created) => {
       clearActiveOfflineDraftId();
-      void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
+      void invalidateRequestCaches(qc, created?.id);
       toast.success('تم نشر طلبك');
       if (created?.id) router.push(ROUTES.request(created.id));
       else router.push(ROUTES.requests);
@@ -121,8 +122,8 @@ export function useCancelRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => requestsApi.cancel(id).then((r) => r.data.data),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
+    onSuccess: (_data, id) => {
+      void invalidateRequestCaches(qc, id);
       toast.success('تم إلغاء الطلب');
     },
     onError: toastMutationError,
@@ -136,7 +137,7 @@ export function useSubmitRequestOffer() {
       requestsApi.submitOffer(id, body).then((r) => r.data.data),
     onSuccess: (_data, { id }) => {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
-      void qc.invalidateQueries({ queryKey: queryKeys.requests.myOffers() });
+      void qc.invalidateQueries({ queryKey: queryKeys.requests.myOffersRoot() });
       toast.success('تم إرسال العرض');
     },
     onError: toastMutationError,
@@ -155,7 +156,7 @@ export function useWithdrawRequestOffer() {
       // showing on /my-offers until the page was reloaded or its own
       // staleTime lapsed. Both endpoints mutate the same list, both must
       // invalidate it.
-      void qc.invalidateQueries({ queryKey: queryKeys.requests.myOffers() });
+      void qc.invalidateQueries({ queryKey: queryKeys.requests.myOffersRoot() });
       toast.success('تم سحب العرض');
     },
     onError: toastMutationError,
@@ -170,7 +171,7 @@ export function useAcceptRequestOffer() {
       requestsApi.acceptOffer(id, offerId).then((r) => r.data.data),
     onSuccess: (data, { id }) => {
       void qc.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
-      void qc.invalidateQueries({ queryKey: queryKeys.requests.all() });
+      void invalidateRequestCaches(qc, id);
       const conversationId = (data as { conversationId?: string } | undefined)?.conversationId;
       if (conversationId) {
         toast.success('تم قبول العرض — جاري فتح المحادثة');

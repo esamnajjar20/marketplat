@@ -71,7 +71,7 @@ export function useToggleFavorite() {
     },
 
     onSettled: (_data, _error, adId) => {
-      queryClient.invalidateQueries({ queryKey: ['favorites', 'list'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.listRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.favorites.ids() });
       queryClient.invalidateQueries({ queryKey: queryKeys.favorites.check(adId) });
     },
@@ -102,7 +102,7 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
       // ['favorites','entity-list',type] refetch resolving between
       // the write and the (previously) late cancelQueries would
       // overwrite the optimistic Set.
-      await queryClient.cancelQueries({ queryKey: ['favorites', 'entity-list', type] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.favorites.entityListRoot(type) });
 
       const previousIds = queryClient.getQueryData<Set<string>>(
         queryKeys.favorites.entityIds(type),
@@ -133,7 +133,7 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
     },
 
     onSettled: (_data, _err, entityId) => {
-      queryClient.invalidateQueries({ queryKey: ['favorites', 'entity-list', type] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityListRoot(type) });
       queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityCheck(type, entityId) });
     },
   });

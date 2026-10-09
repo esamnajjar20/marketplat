@@ -22,7 +22,7 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: (id: string) => notificationsApi.markRead(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
   });
@@ -37,7 +37,7 @@ export function useMarkNotificationUnread() {
   return useMutation({
     mutationFn: (id: string) => notificationsApi.markUnread(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
   });
@@ -49,7 +49,7 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: () => notificationsApi.markAllRead().then((r) => r.data.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -62,7 +62,7 @@ export function useDeleteNotification() {
   return useMutation({
     mutationFn: (id: string) => notificationsApi.deleteOne(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
     onError: (err) => toast.error(parseApiError(err).message),
@@ -76,7 +76,7 @@ export function useDeleteAllReadNotifications() {
   return useMutation({
     mutationFn: () => notificationsApi.deleteAllRead().then((r) => r.data.data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
       const count = data?.count ?? 0;
       toast.success(count > 0 ? `تم حذف ${count} إشعاراً مقروءاً` : 'لا توجد إشعارات مقروءة');

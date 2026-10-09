@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { adjustProductStock } from '@/api/products-stock.api';
-import { queryKeys } from '@/lib/queryKeys';
+import { invalidateProductBrowseCaches } from '@/lib/queryInvalidation';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 
@@ -19,11 +19,8 @@ export function useAdjustProductStock() {
       stockQuantity: number | null;
       reason?: string;
     }) => adjustProductStock(id, stockQuantity, reason),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.products.mine() });
-      qc.invalidateQueries({ queryKey: queryKeys.products.all() });
-      qc.invalidateQueries({ queryKey: queryKeys.products.stockSummary() });
-      qc.invalidateQueries({ queryKey: ['products', 'stock', 'history'] });
+    onSuccess: (_data, variables) => {
+      void invalidateProductBrowseCaches(qc, { productId: variables.id, includeStock: true, includeStockHistory: true });
       toast.success('تم تحديث المخزون');
     },
     onError: toastMutationError,

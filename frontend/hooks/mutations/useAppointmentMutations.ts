@@ -26,10 +26,10 @@ export function useCreateAppointment() {
     mutationFn: (payload: CreateAppointmentPayload) =>
       appointmentsApi.create(payload).then((r) => r.data.data),
     onSuccess: (appointment) => {
-      queryClient.invalidateQueries({ queryKey: ['appointments', 'me'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.mineRoot() });
       if (appointment?.providerId) {
         queryClient.invalidateQueries({
-          queryKey: ['appointments', 'availability'],
+          queryKey: queryKeys.appointments.availabilityRoot(),
         });
       }
       // UX-01 FIX: the comment above always claimed this repeats
@@ -41,10 +41,10 @@ export function useCreateAppointment() {
       // Appointment; matching useRespondToServiceRequest's three keys.
       if (appointment?.requestId) {
         queryClient.invalidateQueries({
-          queryKey: ['service-requests', 'me'],
+          queryKey: queryKeys.serviceRequests.mineRoot(),
         });
         queryClient.invalidateQueries({
-          queryKey: ['service-requests', 'incoming'],
+          queryKey: queryKeys.serviceRequests.incomingRoot(),
         });
       }
       toast.success('تم حجز الموعد بنجاح');
@@ -66,8 +66,8 @@ export function useUpdateAppointmentStatus() {
     mutationFn: ({ id, payload }: { id: string; payload: UpdateAppointmentStatusPayload }) =>
       appointmentsApi.updateStatus(id, payload).then((r) => r.data.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.mine() });
-      queryClient.invalidateQueries({ queryKey: ['appointments', 'me'] });
+      // The root prefix covers every filtered/paginated appointment list.
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.mineRoot() });
       toast.success('تم تحديث حالة الموعد');
     },
     onError: toastMutationError,

@@ -7,10 +7,8 @@
  * image change because UpdateAdPayload excludes `images` and nothing
  * called the dedicated POST/DELETE /ads/:id/images endpoints.
  *
- * FIX I-05: useUpdateAd / useMarkAsSold now also invalidate ads.all()
- * (the ['ads'] prefix covering public list/search queries), not just
- * detail + mine. Previously a sold/edited ad could keep appearing as
- * available in already-cached public listings until staleTime expired.
+ * Cache invalidation is routed through queryInvalidation.ts so public
+ * collections are refreshed without staling unrelated entity details.
  *
  * Each hook below is imported directly by name, e.g.:
  *   import { useCreateAd, useUpdateAd } from '@/hooks/mutations/useAdMutations';
@@ -22,6 +20,7 @@ import { useRef }        from 'react';
 import { useRouter }     from 'next/navigation';
 import { adsApi }        from '@/api/ads.api';
 import { queryKeys }     from '@/lib/queryKeys';
+import { invalidateAdBrowseCaches, invalidateAdEntityCaches } from '@/lib/queryInvalidation';
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { toastMutationError } from '@/lib/mutationFeedback';
@@ -73,7 +72,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
     },
     onSuccess: (ad) => {
       clearActiveOfflineDraftId();
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
+      void invalidateAdBrowseCaches(queryClient);
       toast.success('تم نشر الإعلان بنجاح', {
         description: 'شاركه مع معارفك لزيادة المشاهدات. يمكنك تعديله لاحقاً من «إعلاناتي».',
         duration: 5000,
@@ -184,7 +183,7 @@ export function useUpdateAd(adId: string) {
     },
     onSuccess: (ad) => {
       clearActiveOfflineDraftId();
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
+      void invalidateAdEntityCaches(queryClient, adId);
       toast.success('تم حفظ التعديلات');
       if (ad) router.push(ROUTES.adDetail(ad.id));
     },
@@ -248,8 +247,7 @@ export function useDeleteAd() {
     mutationFn: (adId: string) => adsApi.delete(adId),
     onSuccess: (_data, adId) => {
       queryClient.removeQueries({ queryKey: queryKeys.ads.detail(adId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
+      void invalidateAdBrowseCaches(queryClient);
     },
     onError: toastMutationError,
   });
@@ -260,15 +258,8 @@ export function useMarkAsSold() {
 
   return useMutation({
     mutationFn: (adId: string) => adsApi.markAsSold(adId).then((r) => r.data.data),
-    onSuccess: (_data, _adId) => {
-      // FIX I-05: invalidate the whole ['ads'] prefix, not just detail+mine —
-      // but also invalidate detail/mine explicitly so a sold ad's own
-      // detail page and the seller's "my ads" list are always covered,
-      // even if a caller's mocked/spied queryClient only inspects exact
-      // invalidate() call arguments rather than resulting cache matches.
-      // ['ads'] already matches the detail cache; avoid a duplicate invalidation notification.
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.mine() });
+    onSuccess: (_data, adId) => {
+      void invalidateAdEntityCaches(queryClient, adId);
       toast.success('تم تعليم الإعلان كمباع');
     },
     onError: toastMutationError,
@@ -279,12 +270,8 @@ export function useMarkAsSold() {
  * FIX I-04: re-added — POST /ads/:id/images. Used by AdForm in edit mode
  * to upload newly-selected files after the PATCH /ads/:id call succeeds.
  *
- * FIX I-05b: only invalidated detail + mine, missing the same ['ads']
- * prefix (public list/search) invalidation that useUpdateAd/useMarkAsSold
- * right above already learned to do under FIX I-05. An ad's cover image
- * or gallery could change here but public listings kept showing the
- * stale image until staleTime expired. Now invalidates the whole prefix
- * like its siblings.
+ * Refreshes the public collections plus this ad's detail/related caches;
+ * unrelated detail pages are left fresh.
  */
 export function useAddAdImages(onUploadProgress?: (percent: number) => void) {
   const queryClient = useQueryClient();
@@ -292,8 +279,8 @@ export function useAddAdImages(onUploadProgress?: (percent: number) => void) {
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
       adsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateAdEntityCaches(queryClient, variables.id);
     },
     onError: toastMutationError,
   });
@@ -303,9 +290,8 @@ export function useAddAdImages(onUploadProgress?: (percent: number) => void) {
  * FIX I-04: re-added — DELETE /ads/:id/images. Used by AdForm in edit mode
  * to remove images the user marked for removal via onRemoveExisting.
  *
- * FIX I-05b: same fix as useAddAdImages above — invalidate the whole
- * ['ads'] prefix, not just detail+mine, so public list/search caches
- * don't keep serving a stale image set.
+ * Uses targeted collection and entity invalidation so public list/search
+ * caches update without marking every unrelated ad detail stale.
  */
 export function useRemoveAdImage() {
   const queryClient = useQueryClient();
@@ -313,8 +299,8 @@ export function useRemoveAdImage() {
   return useMutation({
     mutationFn: ({ id, imageUrl }: { id: string; imageUrl: string }) =>
       adsApi.removeImage(id, imageUrl).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateAdEntityCaches(queryClient, variables.id);
     },
     onError: toastMutationError,
   });
@@ -333,8 +319,8 @@ export function useReorderAdImages() {
   return useMutation({
     mutationFn: ({ id, images }: { id: string; images: string[] }) =>
       adsApi.reorderImages(id, images).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.ads.all() });
+    onSuccess: (_data, variables) => {
+      void invalidateAdEntityCaches(queryClient, variables.id);
     },
     onError: toastMutationError,
   });
