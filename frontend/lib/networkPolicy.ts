@@ -14,6 +14,7 @@ import {
   getConnectionQuality,
   type ConnectionQuality,
 } from './connectionQuality';
+import { subscribeNetworkLifecycle } from './networkLifecycle';
 
 export type NetworkTier = 'offline' | 'very-slow' | 'slow' | 'normal' | 'fast' | 'unknown';
 
@@ -234,20 +235,15 @@ export function getAdaptivePageSize(
 }
 
 export function subscribeNetworkPolicy(listener: () => void): () => void {
-  if (typeof window === 'undefined') return () => undefined;
-
-  const events = ['online', 'offline'];
-  for (const event of events) window.addEventListener(event, listener);
-
-  const conn = readConnection() as (NetworkInformationLike & EventTarget) | null;
-  if (conn && typeof conn.addEventListener === 'function') {
-    conn.addEventListener('change', listener);
-  }
-
-  return () => {
-    for (const event of events) window.removeEventListener(event, listener);
-    if (conn && typeof conn.removeEventListener === 'function') {
-      conn.removeEventListener('change', listener);
+  return subscribeNetworkLifecycle((event) => {
+    if (
+      event.type === 'online' ||
+      event.type === 'offline' ||
+      event.type === 'connection-change' ||
+      event.type === 'resume' ||
+      event.type === 'controller-change'
+    ) {
+      listener();
     }
-  };
+  });
 }
