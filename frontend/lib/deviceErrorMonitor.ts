@@ -152,6 +152,25 @@ export function clearDeviceErrors(): void {
   void getDb().then((db) => { try { db?.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).clear(); } catch { /* fallback */ } });
   dispatchUpdate();
 }
+/**
+ * HYDRATION-TRACE-01: pull the last 60 DOM mutations from the tracker
+ * installed by public/hydration-trace.js. The mutations that preceded
+ * the #418 identify the offending component — bodyChildElements only
+ * shows the aftermath.
+ */
+function hydrationMutationTrace(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const trace = (window as Window & { __hydrationTrace?: { snapshot?: () => unknown[] } }).__hydrationTrace;
+  if (!trace || typeof trace.snapshot !== 'function') return undefined;
+  try {
+    const events = trace.snapshot();
+    if (!Array.isArray(events) || events.length === 0) return undefined;
+    return JSON.stringify(events.slice(-60));
+  } catch {
+    return undefined;
+  }
+}
+
 function hydrationDomDetails(): string | undefined {
   if (typeof document === 'undefined') return undefined;
   const html = document.documentElement; const body = document.body;
@@ -270,7 +289,7 @@ function installCapture(): void {
       if (text.trim()) {
         addBreadcrumb('console', `${level}: ${text.slice(0, 120)}`);
         const isHydration = /hydration|hydrated|react error #?418|react error #?423|react error #?425/i.test(text);
-        recordDeviceError({ category: isHydration ? 'hydration' : 'console', severity: level === 'debug' ? 'debug' : level === 'warning' ? 'warning' : 'error', title: firstError instanceof Error ? `${firstError.name}: ${firstError.message}` : level === 'warning' ? 'تحذير من التطبيق' : level === 'debug' ? 'سجل تشخيصي (وضع إعادة الإنتاج)' : 'رسالة خطأ من التطبيق', message: text, stack: errorStack(firstError), details: isHydration ? hydrationDomDetails() : undefined });
+        recordDeviceError({ category: isHydration ? 'hydration' : 'console', severity: level === 'debug' ? 'debug' : level === 'warning' ? 'warning' : 'error', title: firstError instanceof Error ? `${firstError.name}: ${firstError.message}` : level === 'warning' ? 'تحذير من التطبيق' : level === 'debug' ? 'سجل تشخيصي (وضع إعادة الإنتاج)' : 'رسالة خطأ من التطبيق', message: text, stack: errorStack(firstError), details: isHydration ? JSON.stringify({ dom: hydrationDomDetails(), mutations: hydrationMutationTrace() }) : undefined });
       }
     } finally { isCapturingConsole = false; }
   };
