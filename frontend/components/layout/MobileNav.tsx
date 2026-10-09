@@ -268,6 +268,28 @@ export function MobileNav() {
   // by default anyway, so the one-render delay is invisible.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  // HYDRATION-SAFE-PORTAL: defer createPortal into document.body until
+  // the main thread is idle. The DOM mutation trace showed the Portal
+  // insert at t=2767ms landing inside React's hydration window (which
+  // runs until t=2810ms), producing #418 on /ads. Gating on a second
+  // 'portalReady' flag (requestIdleCallback, 2500ms timeout) makes the
+  // insert land after hydration has fully settled. The drawer starts
+  // closed anyway, so the extra delay is invisible.
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    const ric = (window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    }).requestIdleCallback;
+    if (typeof ric === 'function') {
+      const id = ric(() => setPortalReady(true), { timeout: 2500 });
+      return () => (window as unknown as {
+        cancelIdleCallback?: (id: number) => void;
+      }).cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(() => setPortalReady(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [mounted]);
 
   // UX-06 FIX: close on Escape
   useEffect(() => {
@@ -344,7 +366,7 @@ export function MobileNav() {
        * guards against calling document.body before the client has
        * hydrated (see the mounted state above).
        */}
-      {mounted && createPortal(
+      {portalReady && createPortal(
         <>
           {/* Backdrop */}
           {isMobileNavOpen && (

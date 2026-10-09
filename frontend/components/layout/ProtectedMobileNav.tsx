@@ -148,6 +148,28 @@ export function ProtectedMobileNav() {
   const drawerRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  // HYDRATION-SAFE-PORTAL: defer createPortal into document.body until
+  // the main thread is idle. The DOM mutation trace showed the Portal
+  // insert at t=2767ms landing inside React's hydration window (which
+  // runs until t=2810ms), producing #418 on /ads. Gating on a second
+  // 'portalReady' flag (requestIdleCallback, 2500ms timeout) makes the
+  // insert land after hydration has fully settled. The drawer starts
+  // closed anyway, so the extra delay is invisible.
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    const ric = (window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    }).requestIdleCallback;
+    if (typeof ric === 'function') {
+      const id = ric(() => setPortalReady(true), { timeout: 2500 });
+      return () => (window as unknown as {
+        cancelIdleCallback?: (id: number) => void;
+      }).cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(() => setPortalReady(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [mounted]);
   const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
   const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
   const { data: myStore } = useMyStore({ enabled: isSeller });
@@ -236,7 +258,7 @@ export function ProtectedMobileNav() {
         <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
       </button>
 
-      {mounted && createPortal(
+      {portalReady && createPortal(
         <>
       {isOpen && (
         <div
