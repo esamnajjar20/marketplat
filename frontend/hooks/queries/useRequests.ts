@@ -4,18 +4,8 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { requestsApi } from '@/api/requests.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { RequestOfferStatus, RequestType } from '@/types/request.types';
 
-export function useOpenRequests(params?: {
-  page?: number;
-  limit?: number;
-  type?: RequestType;
-  categoryId?: string;
-  serviceTypeId?: string;
-  city?: string;
-  q?: string;
-  sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
-}) {
+export function useOpenRequests(params?: Parameters<typeof requestsApi.getOpenFeed>[0]) {
   return useQuery({
     queryKey: queryKeys.requests.open(params),
     queryFn: async () => {
@@ -27,7 +17,7 @@ export function useOpenRequests(params?: {
   });
 }
 
-export function useMyRequests(params?: { page?: number; limit?: number; status?: string }) {
+export function useMyRequests(params?: Parameters<typeof requestsApi.getMyRequests>[0]) {
   return useQuery({
     queryKey: queryKeys.requests.mine(params),
     queryFn: async () => {
@@ -39,7 +29,7 @@ export function useMyRequests(params?: { page?: number; limit?: number; status?:
   });
 }
 
-export function useMyRequestOffers(params?: { page?: number; limit?: number; status?: RequestOfferStatus }) {
+export function useMyRequestOffers(params?: Parameters<typeof requestsApi.getMyOffers>[0]) {
   return useQuery({
     queryKey: queryKeys.requests.myOffers(params),
     queryFn: async () => {

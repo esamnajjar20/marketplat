@@ -1,10 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { homeFeedApi, homeFeedQueryKey, type HomeFeedPayload } from '@/api/home-feed.api';
+import { homeFeedApi, type HomeFeedPayload } from '@/api/home-feed.api';
 import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
+import { queryKeys } from '@/lib/queryKeys';
 
 /** The homepage's only network read. Every home section consumes this cache. */
 export function useHomeFeed() {
@@ -14,7 +15,7 @@ export function useHomeFeed() {
   const identity = userId ?? null;
 
   return useQuery({
-    queryKey: homeFeedQueryKey(city, identity, explicitAll),
+    queryKey: queryKeys.home.feed(city, identity, explicitAll),
     enabled: isHydrated && isReady,
     queryFn: async (): Promise<HomeFeedPayload> => {
       const payload = await homeFeedApi.get({ city, explicitAll }).then((response) => response.data.data);

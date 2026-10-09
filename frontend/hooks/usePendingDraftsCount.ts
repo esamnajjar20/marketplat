@@ -13,6 +13,7 @@ import { reportBackgroundFailure } from '../lib/backgroundTask';
  */
 import { useEffect, useState } from 'react';
 import { countPendingAdDrafts } from '@/lib/offlineAdDrafts';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 
 const DRAFTS_UPDATED_EVENT = 'offline-drafts:updated';
 
@@ -40,14 +41,16 @@ export function usePendingDraftsCount(userId: string | null | undefined): number
 
     navigator.serviceWorker?.addEventListener('message', onSwMessage);
     window.addEventListener(DRAFTS_UPDATED_EVENT, refresh);
-    window.addEventListener('online', refresh);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online') refresh();
+    });
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       cancelled = true;
       navigator.serviceWorker?.removeEventListener('message', onSwMessage);
       window.removeEventListener(DRAFTS_UPDATED_EVENT, refresh);
-      window.removeEventListener('online', refresh);
+      unsubscribeNetwork();
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [userId]);

@@ -19,7 +19,7 @@ export function useFollowStatus(targetType: FollowTargetType, targetId: string) 
   });
 }
 
-export function useMyFollowing(params?: { type?: FollowTargetType; page?: number; limit?: number }) {
+export function useMyFollowing(params?: Parameters<typeof followsApi.myFollowing>[0]) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
@@ -31,7 +31,7 @@ export function useMyFollowing(params?: { type?: FollowTargetType; page?: number
   });
 }
 
-export function useUserFollowers(id: string, params?: { page?: number; limit?: number }) {
+export function useUserFollowers(id: string, params?: Parameters<typeof followsApi.userFollowers>[1]) {
   return useQuery({
     queryKey: queryKeys.follows.followers('USER', id, params),
     queryFn: () => followsApi.userFollowers(id, params).then((r) => r.data.data),
@@ -40,7 +40,7 @@ export function useUserFollowers(id: string, params?: { page?: number; limit?: n
   });
 }
 
-export function useUserFollowing(id: string, params?: { page?: number; limit?: number }) {
+export function useUserFollowing(id: string, params?: Parameters<typeof followsApi.userFollowing>[1]) {
   return useQuery({
     queryKey: queryKeys.follows.following('USER', id, params),
     queryFn: () => followsApi.userFollowing(id, params).then((r) => r.data.data),
@@ -49,7 +49,7 @@ export function useUserFollowing(id: string, params?: { page?: number; limit?: n
   });
 }
 
-export function useFollowingFeed(params?: { page?: number; limit?: number }) {
+export function useFollowingFeed(params?: Parameters<typeof followsApi.feed>[0]) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   return useQuery({
     queryKey: queryKeys.follows.feed(params),

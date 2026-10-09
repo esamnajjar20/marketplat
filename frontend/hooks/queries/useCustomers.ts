@@ -1,7 +1,7 @@
 'use client';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { queryOptions, useQuery, keepPreviousData } from '@tanstack/react-query';
 import { customersApi } from '@/api/customers.api';
-import { queryKeys } from '@/lib/queryKeys';
+import { queryKeys, type CustomerListQueryParams } from '@/lib/queryKeys';
 import type { Customer } from '@/types/customer.types';
 
 interface PaginatedCustomers {
@@ -34,25 +34,32 @@ function normalize(raw: unknown): PaginatedCustomers {
 }
 
 export function useCustomerSummary() {
-  return useQuery({ queryKey: [...queryKeys.customers.all(), 'summary'], queryFn: () => customersApi.summary().then(r => r.data.data), staleTime: 30_000 });
+  return useQuery({ queryKey: queryKeys.customers.summary(), queryFn: () => customersApi.summary().then(r => r.data.data), staleTime: 30_000 });
 }
 
-export function useCustomers(params?: { page?: number; limit?: number; q?: string; dueOnly?: boolean }) {
-  return useQuery({
+export function customerListQueryOptions(params?: CustomerListQueryParams) {
+  return queryOptions<PaginatedCustomers, Error, PaginatedCustomers, ReturnType<typeof queryKeys.customers.list>>({
     queryKey: queryKeys.customers.list(params),
-    queryFn: () => customersApi.list(params).then((r) => normalize(r.data)),
+    queryFn: ({ queryKey }) => customersApi.list(queryKey[2]).then((r) => normalize(r.data)),
     placeholderData: keepPreviousData,
   });
 }
 
-export function useCustomerSearch(q: string, enabled = true) {
-  return useQuery({
+export function useCustomers(params?: CustomerListQueryParams) {
+  return useQuery(customerListQueryOptions(params));
+}
+
+export function customerSearchQueryOptions(q: string) {
+  return queryOptions({
     queryKey: queryKeys.customers.search(q),
-    queryFn: () => customersApi.search(q).then((r) => {
+    queryFn: ({ queryKey }) => customersApi.search(queryKey[2]).then((r) => {
       const raw = (r.data as unknown as { data?: Customer[] }).data;
       return Array.isArray(raw) ? raw : [];
     }),
-    enabled: enabled && q.trim().length >= 2,
     staleTime: 30_000,
   });
+}
+
+export function useCustomerSearch(q: string, enabled = true) {
+  return useQuery({ ...customerSearchQueryOptions(q), enabled: enabled && q.trim().length >= 2 });
 }

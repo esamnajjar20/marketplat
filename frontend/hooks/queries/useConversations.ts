@@ -95,7 +95,7 @@ export function useConversationMedia(conversationId: string, enabled = true) {
   const userId = useAuthStore(selectUser)?.id ?? null;
   const isOnline = useOnlineStatus();
   return useQuery({
-    queryKey: [...queryKeys.conversations.detail(conversationId), 'media'],
+    queryKey: queryKeys.conversations.media(conversationId),
     queryFn: async () => {
       try {
         const items = await conversationsApi.getMedia(conversationId, 100).then((r) => r.data.data ?? []);

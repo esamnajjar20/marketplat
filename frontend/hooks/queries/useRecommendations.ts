@@ -22,7 +22,7 @@
  */
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import type {
   GetRecommendationsParams,
   GetProductRecommendationsParams,
@@ -34,6 +34,7 @@ import type {
 import { recommendationsApi } from '@/api/recommendations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 
 export interface RecommendationQueryOptions {
   enabled?: boolean;
@@ -41,99 +42,86 @@ export interface RecommendationQueryOptions {
   scope?: 'guest' | 'user';
 }
 
-export function useRecommendations(
-  params?: GetRecommendationsParams,
-  options?: RecommendationQueryOptions,
-) {
-  return useQuery({
-    queryKey: queryKeys.recommendations.list(params, options?.scope),
-    queryFn: () => recommendationsApi.getRecommendations(params).then((r) => r.data.data ?? []),
-    staleTime: CACHE_TTL.recommendations,
-    enabled: options?.enabled ?? true,
-  });
-}
-
 /**
- * Product-context rail — see StoreProducts.tsx's own comment on why
- * the `?product=` deep link is this app's only "product detail"
- * moment (there is no dedicated /products/:id route yet). `enabled`
- * lets the caller gate this off until a product is actually
- * highlighted, same reasoning useRelatedAds(id) gates on a non-empty
- * id, generalized here to an explicit flag since the "is a product in
- * view" condition isn't as simple as "is the id string non-empty".
+ * Shared, typed query-option factories keep the cache key, API parameters,
+ * and result inference together. Components that prefetch can reuse the same
+ * options instead of rebuilding queryKey/queryFn pairs independently.
  */
-export function useProductRecommendations(
-  params?: GetProductRecommendationsParams,
-  options?: RecommendationQueryOptions
-) {
-  return useQuery({
-    queryKey: queryKeys.recommendations.products(params, options?.scope),
-    queryFn: () =>
-      recommendationsApi.getProductRecommendations(params).then((r) => r.data.data ?? []),
-    staleTime: CACHE_TTL.recommendations,
-    enabled: options?.enabled ?? true,
-  });
+export const recommendationQueryOptions = {
+  ads: (params?: GetRecommendationsParams, options?: RecommendationQueryOptions) =>
+    queryOptions({
+      queryKey: queryKeys.recommendations.list(params, options?.scope),
+      queryFn: () => recommendationsApi.getRecommendations(params).then((r) => r.data.data ?? []),
+      staleTime: CACHE_TTL.recommendations,
+      enabled: options?.enabled ?? true,
+    }),
+  products: (params?: GetProductRecommendationsParams, options?: RecommendationQueryOptions) =>
+    queryOptions({
+      queryKey: queryKeys.recommendations.products(params, options?.scope),
+      queryFn: () => recommendationsApi.getProductRecommendations(params).then((r) => r.data.data ?? []),
+      staleTime: CACHE_TTL.recommendations,
+      enabled: options?.enabled ?? true,
+    }),
+  services: (params?: GetServiceRecommendationsParams, options?: RecommendationQueryOptions) =>
+    queryOptions({
+      queryKey: queryKeys.recommendations.services(params, options?.scope),
+      queryFn: () => recommendationsApi.getServiceRecommendations(params).then((r) => r.data.data ?? []),
+      staleTime: CACHE_TTL.recommendations,
+      enabled: options?.enabled ?? true,
+    }),
+  stores: (params?: GetStoreRecommendationsParams, options?: RecommendationQueryOptions) =>
+    queryOptions({
+      queryKey: queryKeys.recommendations.stores(params, options?.scope),
+      queryFn: () => recommendationsApi.getStoreRecommendations(params).then((r) => r.data.data ?? []),
+      staleTime: CACHE_TTL.recommendations,
+    }),
+  providers: (params?: GetProviderRecommendationsParams, options?: RecommendationQueryOptions) =>
+    queryOptions({
+      queryKey: queryKeys.recommendations.providers(params, options?.scope),
+      queryFn: () => recommendationsApi.getProviderRecommendations(params).then((r) => r.data.data ?? []),
+      staleTime: CACHE_TTL.recommendations,
+      enabled: options?.enabled ?? true,
+    }),
+  mixed: (params?: GetMixedRecommendationsParams, options?: RecommendationQueryOptions) =>
+    queryOptions({
+      queryKey: queryKeys.recommendations.mixed(params, options?.scope),
+      queryFn: () => recommendationsApi.getMixedRecommendations(params).then((r) => r.data.data ?? { ads: null, products: null, services: null }),
+      staleTime: CACHE_TTL.recommendations,
+      enabled: options?.enabled ?? true,
+    }),
+};
+
+function withCallerScope(options: RecommendationQueryOptions | undefined, isAuthenticated: boolean): RecommendationQueryOptions {
+  return { ...options, scope: options?.scope ?? (isAuthenticated ? 'user' : 'guest') };
 }
 
-/** Service-listing-detail-page rail — always enabled, same shape as useRecommendations(). */
-export function useServiceRecommendations(
-  params?: GetServiceRecommendationsParams,
-  options?: RecommendationQueryOptions,
-) {
-  return useQuery({
-    queryKey: queryKeys.recommendations.services(params, options?.scope),
-    queryFn: () =>
-      recommendationsApi.getServiceRecommendations(params).then((r) => r.data.data ?? []),
-    staleTime: CACHE_TTL.recommendations,
-    enabled: options?.enabled ?? true,
-  });
+export function useRecommendations(params?: GetRecommendationsParams, options?: RecommendationQueryOptions) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(recommendationQueryOptions.ads(params, withCallerScope(options, isAuthenticated)));
 }
 
-/**
- * Store-detail-page rail. lat/lng are an optional ranking signal only
- * (see recommendations.api.ts's GetStoreRecommendationsParams) — never
- * mandatory, matching the backend's own `.refine` that only requires
- * lat/lng to be provided *together*, not at all. A caller with no
- * coordinates simply omits them; the query still fires.
- */
-export function useStoreRecommendations(params?: GetStoreRecommendationsParams) {
-  return useQuery({
-    queryKey: queryKeys.recommendations.stores(params),
-    queryFn: () =>
-      recommendationsApi.getStoreRecommendations(params).then((r) => r.data.data ?? []),
-    staleTime: CACHE_TTL.recommendations,
-  });
+export function useProductRecommendations(params?: GetProductRecommendationsParams, options?: RecommendationQueryOptions) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(recommendationQueryOptions.products(params, withCallerScope(options, isAuthenticated)));
 }
 
-export function useProviderRecommendations(
-  params?: GetProviderRecommendationsParams,
-  options?: RecommendationQueryOptions,
-) {
-  return useQuery({
-    queryKey: ['recommendations', 'providers', params, options?.scope],
-    queryFn: () =>
-      recommendationsApi.getProviderRecommendations(params).then((r) => r.data.data ?? []),
-    staleTime: CACHE_TTL.recommendations,
-    enabled: options?.enabled ?? true,
-  });
+export function useServiceRecommendations(params?: GetServiceRecommendationsParams, options?: RecommendationQueryOptions) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(recommendationQueryOptions.services(params, withCallerScope(options, isAuthenticated)));
 }
 
-/**
- * RECS-MIXED-01: the home shelf's three rails in ONE request (was 3).
- * Used for signed-in visitors, whose personalized shelf is not part of the
- * shared /home payload; guests keep reading the three seeded keys.
- */
-export function useMixedRecommendations(
-  params?: GetMixedRecommendationsParams,
-  options?: RecommendationQueryOptions,
-) {
-  return useQuery({
-    queryKey: queryKeys.recommendations.mixed(params, options?.scope),
-    queryFn: () =>
-      recommendationsApi
-        .getMixedRecommendations(params)
-        .then((r) => r.data.data ?? { ads: null, products: null, services: null }),
-    staleTime: CACHE_TTL.recommendations,
-    enabled: options?.enabled ?? true,
-  });
+export function useStoreRecommendations(params?: GetStoreRecommendationsParams, options?: RecommendationQueryOptions) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(recommendationQueryOptions.stores(params, withCallerScope(options, isAuthenticated)));
 }
+
+export function useProviderRecommendations(params?: GetProviderRecommendationsParams, options?: RecommendationQueryOptions) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(recommendationQueryOptions.providers(params, withCallerScope(options, isAuthenticated)));
+}
+
+export function useMixedRecommendations(params?: GetMixedRecommendationsParams, options?: RecommendationQueryOptions) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(recommendationQueryOptions.mixed(params, withCallerScope(options, isAuthenticated)));
+}
+

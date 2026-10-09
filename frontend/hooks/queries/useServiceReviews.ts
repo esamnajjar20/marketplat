@@ -13,7 +13,7 @@ import { CACHE_TTL } from '@/lib/constants';
  */
 export function useServiceReviewsForSeller(
   sellerProfileId: string,
-  params?: { page?: number; limit?: number }
+  params?: Parameters<typeof serviceReviewsApi.getForSeller>[1]
 ) {
   return useQuery({
     queryKey: queryKeys.serviceReviews.forSeller(sellerProfileId, params),

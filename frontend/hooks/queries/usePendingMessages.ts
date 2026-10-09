@@ -3,12 +3,14 @@ import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   listQueuedMessages,
   QUEUE_MESSAGE_EVENT_TYPES,
   type QueuedMessageEntry,
 } from '@/lib/offlineMessagesQueue';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 
 /**
  * FEAT-OFFLINE-MSG: رسائل هذه المحادثة الموجودة حاليًا بطابور الأوفلاين
@@ -42,22 +44,24 @@ export function usePendingMessages(conversationId: string): QueuedMessageEntry[]
       if (QUEUE_MESSAGE_EVENT_TYPES.includes(type)) {
         refresh();
         if (type === 'QUEUE_ITEM_SENT') {
-          void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
-          void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
-          void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'media'] });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.media(conversationId) });
         }
       }
     }
 
     navigator.serviceWorker?.addEventListener('message', onSwMessage);
     window.addEventListener(QUEUE_UPDATED_EVENT, refresh);
-    window.addEventListener('online', refresh);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online') refresh();
+    });
 
     return () => {
       cancelled = true;
       navigator.serviceWorker?.removeEventListener('message', onSwMessage);
       window.removeEventListener(QUEUE_UPDATED_EVENT, refresh);
-      window.removeEventListener('online', refresh);
+      unsubscribeNetwork();
     };
   }, [conversationId, queryClient]);
 

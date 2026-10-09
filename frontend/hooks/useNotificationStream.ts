@@ -12,6 +12,7 @@ import { API_BASE_URL } from '@/lib/constants';
 import { emitTypingEvent } from '@/lib/typingStore';
 import { useAuthStore, selectIsAuthenticated, selectAccessToken, selectUser } from '@/store/auth.store';
 import { queryKeys } from '@/lib/queryKeys';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 import type { Message } from '@/types/conversation.types';
 import type { NotificationData } from '@/types/notification.types';
 
@@ -80,7 +81,7 @@ function appendMessageToCaches(
   message: Message,
 ) {
   queryClient.setQueriesData<MessagesPage>(
-    { queryKey: ['conversations', 'detail', conversationId, 'messages'] },
+    { queryKey: queryKeys.conversations.messagesRoot(conversationId) },
     (old) => {
       if (!old?.items) return old;
       if (old.items.some((m) => m.id === message.id)) return old;
@@ -95,16 +96,22 @@ function appendMessageToCaches(
           (m.imageUrl || null) === (message.imageUrl || null);
         return !(sameBody && sameImage);
       });
+      // If this server event replaces an optimistic row, the optimistic
+      // send already incremented total; do not count the same message twice.
+      const replacedOptimistic = withoutOptimistic.length < old.items.length;
       return {
         ...old,
         items: [...withoutOptimistic, message],
         meta: old.meta
-          ? { ...old.meta, total: (old.meta.total ?? withoutOptimistic.length) + 1 }
+          ? {
+              ...old.meta,
+              total: Math.max(0, (old.meta.total ?? old.items.length) + (replacedOptimistic ? 0 : 1)),
+            }
           : old.meta,
       };
     },
   );
-  void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
 }
 
 function markDeletedInCaches(
@@ -114,7 +121,7 @@ function markDeletedInCaches(
   deletedAt: string,
 ) {
   queryClient.setQueriesData<MessagesPage>(
-    { queryKey: ['conversations', 'detail', conversationId, 'messages'] },
+    { queryKey: queryKeys.conversations.messagesRoot(conversationId) },
     (old) => {
       if (!old?.items) return old;
       return {
@@ -129,16 +136,20 @@ function markDeletedInCaches(
 
 /** Anything the stream may have dropped while we were disconnected → refetch from the API (source of truth). */
 function refetchAfterGap(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
-  void queryClient.invalidateQueries({ queryKey: ['conversations'] });
-  void queryClient.invalidateQueries({ queryKey: ['service-requests'] });
-  void queryClient.invalidateQueries({ queryKey: ['appointments'] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all() });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.all() });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all() });
 }
 
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 const SSE_HEARTBEAT_TIMEOUT_MS = 45_000;
+// A healthy stream should live longer than the ~30s idle limit observed on
+// some hosting paths. Short clean closes still need backoff; otherwise a 200
+// response followed by an immediate EOF reconnects forever at the base delay.
+const SSE_STABLE_CONNECTION_MS = 25_000;
 const SSE_LAST_EVENT_STORAGE_KEY = 'marketplat:sse:last-event-id';
 
 export function useNotificationStream(options?: Options) {
@@ -193,6 +204,7 @@ export function useNotificationStream(options?: Options) {
     }
     let everConnected = false;
     let failures = 0;
+    let connectionStartedAt = 0;
     const nextDelay = () =>
       Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** Math.min(failures, 5)) *
       (0.75 + Math.random() * 0.5); // jitter: don't reconnect a whole fleet in lockstep
@@ -231,7 +243,7 @@ export function useNotificationStream(options?: Options) {
         }
         setConnected(true);
         streamConnected = true;
-        failures = 0;
+        connectionStartedAt = Date.now();
         // Reconnect with no resume point (first drop before any id, or after a
         // server restart) cannot be replayed → refetch once to be safe.
         if (everConnected && !lastEventId) refetchAfterGap(queryClient);
@@ -310,7 +322,7 @@ export function useNotificationStream(options?: Options) {
                   isTyping: payload.isTyping,
                 });
               } else if (payload.type === 'notification') {
-                void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
                 void queryClient.invalidateQueries({
                   queryKey: queryKeys.notifications.unreadCount(),
                 });
@@ -323,8 +335,8 @@ export function useNotificationStream(options?: Options) {
                   payload.notificationType === 'SERVICE_REQUEST_UPDATE' ||
                   payload.notificationType === 'APPOINTMENT_UPDATE'
                 ) {
-                  void queryClient.invalidateQueries({ queryKey: ['service-requests'] });
-                  void queryClient.invalidateQueries({ queryKey: ['appointments'] });
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.all() });
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all() });
                 }
               }
 
@@ -344,19 +356,30 @@ export function useNotificationStream(options?: Options) {
         setConnected(false);
         streamConnected = false;
         if (!closed && !ac.signal.aborted) {
+          // Only reset the failure streak after a genuinely stable connection.
+          // A quick HTTP 200 followed by EOF/timeout is not a healthy session.
+          if (connectionStartedAt && Date.now() - connectionStartedAt >= SSE_STABLE_CONNECTION_MS) {
+            failures = 0;
+          }
           failures += 1;
           retryTimer = setTimeout(connect, nextDelay());
         }
+        connectionStartedAt = 0;
         return;
       }
       setConnected(false);
       streamConnected = false;
       if (!closed && !ac.signal.aborted) {
-        // FIX-F2-CLEANEND-01: a clean end is not a failure — do NOT grow the
-        // backoff. Render Free cuts idle SSE every ~30-60s; counting those as
-        // failures pushed every reconnect to the 30s cap within an hour.
+        // Some hosting paths close an SSE stream cleanly after a short idle
+        // window. Treat a short-lived clean EOF as a reconnect failure too,
+        // so we back off instead of creating repeated 1s/2s reconnect loops.
+        if (connectionStartedAt && Date.now() - connectionStartedAt >= SSE_STABLE_CONNECTION_MS) {
+          failures = 0;
+        }
+        failures += 1;
         retryTimer = setTimeout(connect, nextDelay());
       }
+      connectionStartedAt = 0;
     }
 
     const onOnline = () => {
@@ -365,12 +388,14 @@ export function useNotificationStream(options?: Options) {
         retryTimer = setTimeout(connect, 0);
       }
     };
-    window.addEventListener('online', onOnline);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online') onOnline();
+    });
 
     void connect();
 
     return () => {
-      window.removeEventListener('online', onOnline);
+      unsubscribeNetwork();
       closed = true;
       ac.abort();
       if (retryTimer) clearTimeout(retryTimer);

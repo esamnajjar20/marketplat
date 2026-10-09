@@ -199,7 +199,7 @@ export function useMyStoreAnalytics() {
 }
 
 /** GET /stores/me/followed — the caller's followed stores, paginated. */
-export function useMyFollowedStores(params?: { page?: number; limit?: number }) {
+export function useMyFollowedStores(params?: Parameters<typeof storesApi.getMyFollowedStores>[0]) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();

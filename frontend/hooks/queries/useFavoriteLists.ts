@@ -9,8 +9,9 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { CACHE_TTL } from '@/lib/constants';
+import { queryKeys } from '@/lib/queryKeys';
 
-export const favoriteListsQueryKey = ['favorites', 'lists'] as const;
+export const favoriteListsQueryKey = queryKeys.favorites.lists();
 
 export function useFavoriteLists() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -18,7 +19,7 @@ export function useFavoriteLists() {
   const isOnline = useOnlineStatus();
 
   return useQuery({
-    queryKey: favoriteListsQueryKey,
+    queryKey: queryKeys.favorites.lists(),
     queryFn: () => favoriteListsApi.list(),
     // FIX FAV-LISTS-TTL-CLEANUP-01: was CACHE_TTL.favorites ?? 60_000.
     // CACHE_TTL.favorites is a real constant; the ?? could only fire if

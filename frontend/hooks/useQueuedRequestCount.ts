@@ -4,6 +4,7 @@ import { reportBackgroundFailure } from '../lib/backgroundTask';
 import { useEffect, useState } from 'react';
 import { getQueuedRequestCount } from '@/lib/offlineQueue';
 import { useAuthStore } from '@/store/auth.store';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 
 /**
  * عدّاد "طلبات بالانتظار" كان يُقرأ فقط داخل صفحة
@@ -55,13 +56,15 @@ export function useQueuedRequestCount(): number {
 
     navigator.serviceWorker?.addEventListener('message', onSwMessage);
     window.addEventListener(QUEUE_UPDATED_EVENT, refresh);
-    window.addEventListener('online', refresh);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online') refresh();
+    });
 
     return () => {
       cancelled = true;
       navigator.serviceWorker?.removeEventListener('message', onSwMessage);
       window.removeEventListener(QUEUE_UPDATED_EVENT, refresh);
-      window.removeEventListener('online', refresh);
+      unsubscribeNetwork();
     };
   }, [userId]);
 

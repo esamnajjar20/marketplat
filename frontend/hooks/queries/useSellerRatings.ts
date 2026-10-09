@@ -15,7 +15,7 @@ import { CACHE_TTL } from '@/lib/constants';
  */
 export function useSellerRatings(
   sellerProfileId: string,
-  params?: { page?: number; limit?: number }
+  params?: Parameters<typeof sellersApi.getRatings>[1]
 ) {
   return useQuery({
     queryKey: queryKeys.sellers.ratings(sellerProfileId, params),

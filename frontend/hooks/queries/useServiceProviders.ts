@@ -156,7 +156,7 @@ export function useMyServiceProviderAnalytics(period: '7d' | '30d' | 'all' = 'al
   const isOnline = useOnlineStatus();
 
   return useQuery({
-    queryKey: [...queryKeys.serviceProviders.analytics(), period],
+    queryKey: queryKeys.serviceProviders.analyticsForPeriod(period),
     queryFn: () => serviceProvidersApi.getMyAnalytics(period).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated && (hasToken || !isOnline),

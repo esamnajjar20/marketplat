@@ -9,6 +9,10 @@ import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import type { HomepagePayload } from '@/api/home.api';
 import type { PaginationMeta } from '@/types/api.types';
+import type { AdSearchParams } from '@/types/ad.types';
+import type { ProductsQuery } from '@/types/product.types';
+import type { StoresQuery } from '@/types/store.types';
+import type { ServiceListingsQuery } from '@/types/service.types';
 
 type PageLike<T> = { items: T[]; meta: PaginationMeta };
 
@@ -17,10 +21,10 @@ type PageLike<T> = { items: T[]; meta: PaginationMeta };
  * Data-saver sections slice the seeded items locally, so a second
  * shorter-limit cache entry is unnecessary.
  */
-function seedListPage<T>(
+function seedListPage<T, P extends object>(
   queryClient: ReturnType<typeof useQueryClient>,
-  keyFactory: (params: Record<string, unknown>) => readonly unknown[],
-  baseParams: Record<string, unknown>,
+  keyFactory: (params: P) => readonly unknown[],
+  baseParams: P,
   page: PageLike<T> | null | undefined,
 ) {
   if (!page) return;
@@ -83,22 +87,15 @@ function seedHomeCaches(
     !city || source === 'city';
 
   if (adsForHome && canSeedLocationResult(adsForHome.source)) {
-    seedListPage(
-      queryClient,
-      (p) => queryKeys.ads.list(p),
-      {
-        limit: 6,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-        ...(city ? { city } : {}),
-      },
-      adsForHome,
-    );
+    const adsBase: AdSearchParams = {
+      limit: 6, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}),
+    };
+    seedListPage(queryClient, (p) => queryKeys.ads.list(p), adsBase, adsForHome);
   }
 
   if (!belowFold) return;
 
-  const productBase = {
+  const productBase: ProductsQuery = {
     limit: 8,
     sortBy: 'createdAt' as const,
     sortOrder: 'desc' as const,
@@ -110,29 +107,19 @@ function seedHomeCaches(
   }
 
   // Promotions are global (no city in key).
-  seedListPage(
-    queryClient,
-    (p) => queryKeys.products.list(p),
-    { limit: 8, sortBy: 'createdAt', sortOrder: 'desc', hasPromotion: true },
-    belowFold.promotedProducts,
-  );
+  const promotedProductsBase: ProductsQuery = { limit: 8, sortBy: 'createdAt', sortOrder: 'desc', hasPromotion: true };
+  seedListPage(queryClient, (p) => queryKeys.products.list(p), promotedProductsBase, belowFold.promotedProducts);
 
   if (belowFold.homeServices && canSeedLocationResult(belowFold.homeServices.source)) {
-    seedListPage(
-      queryClient,
-      (p) => queryKeys.serviceListings.list(p),
-      { limit: 8, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
-      belowFold.homeServices,
-    );
+    const servicesBase: ServiceListingsQuery = {
+      limit: 8, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}),
+    };
+    seedListPage(queryClient, (p) => queryKeys.serviceListings.list(p), servicesBase, belowFold.homeServices);
   }
 
   if (belowFold.featuredStores && canSeedLocationResult(belowFold.featuredStores.source)) {
-    seedListPage(
-      queryClient,
-      (p) => queryKeys.stores.list(p),
-      { limit: 6, ...(city ? { city } : {}) },
-      belowFold.featuredStores,
-    );
+    const storesBase: StoresQuery = { limit: 6, ...(city ? { city } : {}) };
+    seedListPage(queryClient, (p) => queryKeys.stores.list(p), storesBase, belowFold.featuredStores);
   }
 
   if (belowFold.nearbyProviders && canSeedLocationResult(belowFold.nearbyProviders.source)) {

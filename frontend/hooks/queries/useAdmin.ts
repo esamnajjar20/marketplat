@@ -25,7 +25,7 @@ import { adminApi }  from '@/api/admin.api';
 import { analyticsApi, type GetAnalyticsSummaryParams } from '@/api/analytics.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, ReportStatus, ReportTargetType, AdminGetFlaggedAdsParams, AdminGetFraudSignalsParams } from '@/types/admin.types';
+import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, AdminGetFlaggedAdsParams, AdminGetFraudSignalsParams } from '@/types/admin.types';
 
 /**
  * GET /admin/ads
@@ -96,12 +96,7 @@ export function useAdminStoreTypes() {
  * FIX Q-01: .then(r => r.data.data)
  * FIX C-08: adminApi.getReports calls GET /reports (not /admin/reports).
  */
-export function useAdminReports(params?: {
-  status?: ReportStatus;
-  targetType?: ReportTargetType;
-  page?:   number;
-  limit?:  number;
-}) {
+export function useAdminReports(params?: Parameters<typeof adminApi.getReports>[0]) {
   return useQuery({
     queryKey:        queryKeys.admin.reports(params),
     queryFn:         () => adminApi.getReports(params).then((r) => r.data.data),
@@ -202,7 +197,7 @@ export function useAdminAnalyticsSummary(params?: GetAnalyticsSummaryParams) {
   });
 }
 
-export function useAdminProducts(params?: { page?: number; limit?: number; status?: string; q?: string }) {
+export function useAdminProducts(params?: Parameters<typeof adminApi.getAdminProducts>[0]) {
   return useQuery({
     queryKey: queryKeys.admin.products(params),
     queryFn: () => adminApi.getAdminProducts(params).then((r) => r.data),
@@ -211,7 +206,7 @@ export function useAdminProducts(params?: { page?: number; limit?: number; statu
   });
 }
 
-export function useAdminServiceListings(params?: { page?: number; limit?: number; status?: string; q?: string }) {
+export function useAdminServiceListings(params?: Parameters<typeof adminApi.getAdminServiceListings>[0]) {
   return useQuery({
     queryKey: queryKeys.admin.serviceListings(params),
     queryFn: () => adminApi.getAdminServiceListings(params).then((r) => r.data),
@@ -222,20 +217,14 @@ export function useAdminServiceListings(params?: { page?: number; limit?: number
 
 export function useAdminServiceRequestDisputes(params?: { page?: number; limit?: number }) {
   return useQuery({
-    queryKey: ['admin', 'service-request-disputes', params],
+    queryKey: queryKeys.admin.serviceRequestDisputes(params),
     queryFn: () => adminApi.getServiceRequestDisputes(params).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
 }
 
-export function useAdminOpenRequests(params?: {
-  page?: number;
-  limit?: number;
-  status?: string;
-  type?: string;
-  q?: string;
-}) {
+export function useAdminOpenRequests(params?: Parameters<typeof adminApi.getAdminOpenRequests>[0]) {
   return useQuery({
     queryKey: queryKeys.admin.openRequests(params),
     queryFn: () => adminApi.getAdminOpenRequests(params).then((r) => r.data),

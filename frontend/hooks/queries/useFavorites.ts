@@ -101,7 +101,7 @@ function useFavoriteSetMembership(queryClient: ReturnType<typeof useQueryClient>
 }
 
 /** GET /favorites — paginated list of the user's favorited ads */
-export function useFavorites(params?: { page?: number; limit?: number; listId?: string }) {
+export function useFavorites(params?: Parameters<typeof favoritesApi.getAll>[0]) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
@@ -248,7 +248,7 @@ export function useIsFavorited(adId: string): boolean {
  */
 export function useFavoritesByType<T>(
   type: FavoriteEntityKind,
-  params?: { page?: number; limit?: number; listId?: string },
+  params?: Parameters<typeof favoritesApi.getAllByType>[1],
 ) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
