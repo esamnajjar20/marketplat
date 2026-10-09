@@ -43,6 +43,12 @@
  */
 import type { NextConfig } from 'next';
 
+// DEPLOYMENT-NONCE-01: stable, build-scoped CSP nonce. Must be identical
+// across every request within a deployment so cached HTML carries the same
+// nonce as the CSP header. Rotates on each build.
+import { randomBytes } from 'node:crypto';
+const BUILD_NONCE = randomBytes(16).toString('hex');
+
 const isDev  = process.env.NODE_ENV === 'development';
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -50,6 +56,12 @@ const isProd = process.env.NODE_ENV === 'production';
 const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? '';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  // DEPLOYMENT-NONCE-01: expose the build nonce so proxy.ts can reuse it
+  // for every request within this deployment (see proxy.ts for why).
+  env: {
+    NEXT_PUBLIC_BUILD_NONCE: BUILD_NONCE,
+  },
 
   // FIX D-18: standalone output bundles only the files actually needed
   // to run (a minimal node_modules subset + server code), which is what

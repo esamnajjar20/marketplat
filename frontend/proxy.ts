@@ -353,7 +353,22 @@ export function proxy(request: NextRequest) {
 
   // FIX SEC-06: per-request nonce for CSP script-src, replacing the
   // static 'unsafe-inline' that previously applied even in production.
-  const nonce = crypto.randomUUID().replace(/-/g, '');
+  // DEPLOYMENT-NONCE-01: same nonce across all requests within one
+  // deployment so cached HTML matches the CSP header. A per-request nonce
+  // breaks when Cloudflare (or any CDN) caches the HTML: the cached copy
+  // retains the old nonce while the CSP header carries a fresh one, and
+  // the browser then blocks the RSC streaming scripts ($RC) — which is
+  // exactly the trigger for React #418 args[]=HTML. The nonce need not be
+  // secret (it proves script origin, not caller identity), so a
+  // build-time constant is safe. It rotates on every deploy.
+  const deploymentSeed =
+    process.env.NEXT_PUBLIC_BUILD_NONCE ??
+    process.env.CF_VERSION_METADATA_ID ??
+    process.env.GITHUB_SHA ??
+    null;
+  const nonce = deploymentSeed
+    ? deploymentSeed.replace(/[^a-zA-Z0-9]/g, '').slice(0, 32).padEnd(32, '0')
+    : crypto.randomUUID().replace(/-/g, '');
   // SECURITY: NextResponse.next({ request: { headers } }) serializes
   // the full header set it's given into internal x-middleware-request-*
   // headers on the *response* so Next.js can reconstruct the request
