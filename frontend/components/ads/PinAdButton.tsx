@@ -3,6 +3,7 @@
 import { Pin, PinOff } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { invalidateAdEntityCaches } from '@/lib/queryInvalidation';
 import { apiClient } from '@/api/client';
 import { toast } from 'sonner';
 import { toastMutationError } from '@/lib/mutationFeedback';
@@ -22,7 +23,7 @@ export function PinAdButton({ adId, isPinned, className }: Props) {
         .patch<ApiResponse<unknown>>(`/ads/${adId}/pin`, { isPinned: next })
         .then((r) => r.data.data),
     onSuccess: (_data, next) => {
-      queryClient.invalidateQueries({ queryKey: ['ads'] });
+      void invalidateAdEntityCaches(queryClient, adId);
       toast.success(next ? 'تم تثبيت الإعلان' : 'تم إلغاء التثبيت');
     },
     // FIX OFFLINE-QUEUED-TOAST-01: كان onError يعرض toast.error بلا تمييز

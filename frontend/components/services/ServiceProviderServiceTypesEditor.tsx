@@ -9,11 +9,12 @@ import { serviceTypesApi } from '@/api/service-types.api';
 import { Button } from '@/components/shared/ui/Button';
 import { ServiceTypeFieldsForm } from './ServiceTypeFieldsForm';
 import type { ServiceProviderServiceTypeProfile } from '@/types/service.types';
+import { queryKeys } from '@/lib/queryKeys';
 
 export function ServiceProviderServiceTypesEditor() {
   const queryClient = useQueryClient();
-  const profiles = useQuery({ queryKey: ['my-service-provider-service-types'], queryFn: () => serviceProvidersApi.getMyServiceTypeProfiles().then(r => r.data.data) });
-  const allTypes = useQuery({ queryKey: ['service-types'], queryFn: () => serviceTypesApi.getAll().then(r => r.data.data) });
+  const profiles = useQuery({ queryKey: queryKeys.serviceProviders.myServiceTypes(), queryFn: () => serviceProvidersApi.getMyServiceTypeProfiles().then(r => r.data.data) });
+  const allTypes = useQuery({ queryKey: queryKeys.serviceTypes.all(), queryFn: () => serviceTypesApi.getAll().then(r => r.data.data) });
   const [drafts, setDrafts] = useState<Record<string, Record<string, unknown>>>({});
   const [savingTypeId, setSavingTypeId] = useState<string | null>(null);
   const save = useMutation({
@@ -21,7 +22,7 @@ export function ServiceProviderServiceTypesEditor() {
     onSuccess: (_result, variables) => {
       toast.success('تم حفظ بيانات التخصص');
       setSavingTypeId(null);
-      queryClient.invalidateQueries({ queryKey: ['my-service-provider-service-types'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.myServiceTypes() });
       setDrafts((current) => { const next = { ...current }; delete next[variables.serviceTypeId]; return next; });
     },
     onError: () => {

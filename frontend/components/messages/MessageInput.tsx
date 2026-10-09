@@ -9,6 +9,7 @@ import {
   clearMessageDraft,
 } from '@/lib/messageUtils';
 import { conversationsApi } from '@/api/conversations.api';
+import { queryKeys } from '@/lib/queryKeys';
 import { apiClient } from '@/api/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -158,7 +159,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
           // not appear to have produced an empty bubble while the polling
           // cycle catches up.
           queryClient.setQueryData(
-            ['conversations', 'detail', conversationId, 'messages', { limit: 50 }],
+            queryKeys.conversations.messages(conversationId, { limit: 50 }),
             (current: { items?: unknown[]; meta?: unknown } | undefined) => {
               if (!current || !Array.isArray(current.items)) return current;
               if (current.items.some((item: any) => item?.id === sentMessage.id)) return current;
@@ -168,16 +169,16 @@ export function MessageInput({ conversationId, disabled }: Props) {
           bodyEditorRef.current?.clear(); setHasBody(false);
           clearMessageDraft(conversationId);
           setLastSendError(null);
-          void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
-          void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
         } catch (err) {
           const parsed = parseApiError(err);
           if (parsed.queued) {
             bodyEditorRef.current?.clear(); setHasBody(false);
             clearMessageDraft(conversationId);
             setLastSendError(null);
-            void queryClient.invalidateQueries({ queryKey: ['conversations', 'detail', conversationId, 'messages'] });
-            void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
           } else {
             setLastSendError(parsed.message);
             toast.error(parsed.message);
@@ -221,7 +222,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
     if (attachmentFile) {
       setUploading(true); setUploadKind('file');
-      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(['conversations','detail',conversationId,'messages',{limit:50}],(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void queryClient.invalidateQueries({queryKey:['conversations','detail',conversationId,'messages']}); }
+      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
       catch(err){const parsed=parseApiError(err); if(parsed.queued){bodyEditorRef.current?.clear(); setHasBody(false);clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);}else{setLastSendError(parsed.message);toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
     }
 
@@ -244,9 +245,9 @@ export function MessageInput({ conversationId, disabled }: Props) {
         clearMessageDraft(conversationId);
         clearImage();
         void queryClient.invalidateQueries({
-          queryKey: ['conversations', 'detail', conversationId, 'messages'],
+          queryKey: queryKeys.conversations.messagesRoot(conversationId),
         });
-        void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
       } catch (err) {
         // FIX N3-IMG-OFFLINE-QUEUED: mirror the text-path behaviour —
         // SW returns 202 {queued:true} which the interceptor rejects as
@@ -260,9 +261,9 @@ export function MessageInput({ conversationId, disabled }: Props) {
           clearMessageDraft(conversationId);
           clearImage();
           void queryClient.invalidateQueries({
-            queryKey: ['conversations', 'detail', conversationId, 'messages'],
+            queryKey: queryKeys.conversations.messagesRoot(conversationId),
           });
-          void queryClient.invalidateQueries({ queryKey: ['conversations', 'me'] });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
         } else {
           setLastSendError(parsed.message);
           toast.error(parsed.message);

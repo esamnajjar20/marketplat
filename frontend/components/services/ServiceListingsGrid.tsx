@@ -22,6 +22,7 @@ import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTr
 import type { ServiceListingSortField } from '@/types/service.types';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { queryKeys } from '@/lib/queryKeys';
 
 export function ServiceListingsGrid() {
   const isOnline = useOnlineStatus();
@@ -44,7 +45,7 @@ export function ServiceListingsGrid() {
   const pageSize = getAdaptivePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
-    queryKey: ['service-listings', 'infinite', { search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder, pageSize }],
+    queryKey: queryKeys.serviceListings.infinite({ search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
     queryFn: ({ pageParam }) => serviceListingsApi.getAll({
       search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { queryKeys } from '@/lib/queryKeys';
 
 const PAGE_SIZE = 16;
 
@@ -24,7 +25,7 @@ export function PromotedPageClient() {
   const pageSize = getAdaptivePageSize(PAGE_SIZE, networkPolicy);
 
   const query = useInfiniteQuery({
-    queryKey: ['products', 'promoted', 'infinite', pageSize],
+    queryKey: queryKeys.products.promotedInfinite(pageSize),
     initialPageParam: 1,
     queryFn: ({ pageParam }) => productsApi.getAll({
       hasPromotion: true,

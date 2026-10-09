@@ -25,6 +25,7 @@ import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface Props {
   /**
@@ -99,7 +100,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
   const pageSize = getAdaptivePageSize(12, networkPolicy);
 
   const infiniteQuery = useInfiniteQuery({
-    queryKey: ['ads', 'infinite', isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, pageSize }],
+    queryKey: queryKeys.ads.infinite(isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
     queryFn: ({ pageParam }) => {
       if (isSearch) {

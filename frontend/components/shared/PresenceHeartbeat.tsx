@@ -9,6 +9,7 @@ import { usersApi } from '@/api/users.api';
 import { PRESENCE_HEARTBEAT_INTERVAL } from '@/lib/constants';
 import { canBackgroundPoll } from '@/lib/polling';
 import { getCsrfToken } from '@/lib/csrf';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 
 export function PresenceHeartbeat() {
@@ -57,14 +58,14 @@ export function PresenceHeartbeat() {
 
     sync();
     document.addEventListener('visibilitychange', sync);
-    window.addEventListener('online', sync);
-    window.addEventListener('offline', sync);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online' || event.type === 'offline' || event.type === 'resume') sync();
+    });
 
     return () => {
       stop();
       document.removeEventListener('visibilitychange', sync);
-      window.removeEventListener('online', sync);
-      window.removeEventListener('offline', sync);
+      unsubscribeNetwork();
     };
   }, [isAuthenticated]);
 

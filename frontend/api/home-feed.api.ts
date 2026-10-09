@@ -6,6 +6,7 @@ import type { Category } from '@/types/category.types';
 import type { ServiceCategory, ServiceListingWithProvider, ServiceProviderDetails } from '@/types/service.types';
 import type { StoreType, StoreWithSeller } from '@/types/store.types';
 import type { HomepageLocationSource } from './home.api';
+import { queryKeys } from '@/lib/queryKeys';
 
 export interface HomeFeedPayload {
   meta: {
@@ -49,12 +50,7 @@ export const homeFeedQueryKey = (
   city: string | undefined,
   userId: string | null,
   explicitAll: boolean,
-) => [
-  'home',
-  'feed',
-  explicitAll ? '__ALL__' : (city ?? null),
-  userId ?? 'guest',
-] as const;
+) => queryKeys.home.feed(city, userId, explicitAll);
 
 export const homeFeedApi = {
   get: (params: { city?: string; explicitAll?: boolean } = {}) =>

@@ -5,10 +5,11 @@ import { Layers3 } from 'lucide-react';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
+import { queryKeys } from '@/lib/queryKeys';
 
 export function ServiceListingMatches({ listingId }: { listingId: string }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['service-listing-matches', listingId],
+    queryKey: queryKeys.serviceListingMatches(listingId),
     queryFn: () => serviceListingsApi.getMatches(listingId, 8).then((r) => r.data.data ?? []),
     staleTime: 5 * 60_000,
   });

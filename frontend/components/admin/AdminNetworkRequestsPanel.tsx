@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, CheckCircle2, CircleAlert, Clipboard, Download, Filter, RefreshCw, Search, Trash2, Wifi, WifiOff, Clock3, ArrowDownToLine, ArrowUpRight } from 'lucide-react';
 import { clearNetworkRequests, getNetworkRequests, NETWORK_REQUESTS_EVENT, type NetworkRequestOutcome, type NetworkRequestRecord } from '@/lib/networkRequestMonitor';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 const outcomeLabel: Record<NetworkRequestOutcome, string> = {
   success: 'ناجح', 'http-error': 'خطأ HTTP', 'network-error': 'فشل اتصال', aborted: 'ملغى',
@@ -28,22 +29,16 @@ export function AdminNetworkRequestsPanel() {
   const [kind, setKind] = useState('all');
   const [onlyFailures, setOnlyFailures] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [online, setOnline] = useState(true);
+  const online = useOnlineStatus();
 
   const refresh = useCallback(() => setRecords(getNetworkRequests()), []);
   useEffect(() => {
     refresh();
-    setOnline(navigator.onLine);
-    const updateOnline = () => setOnline(navigator.onLine);
     window.addEventListener(NETWORK_REQUESTS_EVENT, refresh);
     window.addEventListener('storage', refresh);
-    window.addEventListener('online', updateOnline);
-    window.addEventListener('offline', updateOnline);
     return () => {
       window.removeEventListener(NETWORK_REQUESTS_EVENT, refresh);
       window.removeEventListener('storage', refresh);
-      window.removeEventListener('online', updateOnline);
-      window.removeEventListener('offline', updateOnline);
     };
   }, [refresh]);
 

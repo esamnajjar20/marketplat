@@ -15,6 +15,7 @@
  */
 
 import { useEffect } from 'react';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 import { requestQueueReplay, syncQueueNetworkHint } from '@/lib/offlineQueue';
 import { getNetworkPolicy, subscribeNetworkPolicy } from '@/lib/networkPolicy';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
@@ -207,8 +208,10 @@ export function OfflineBootstrap() {
         authenticated: useAuthStore.getState().isAuthenticated,
       });
     };
-    window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online') onOnline();
+    });
+    return unsubscribeNetwork;
   }, []);
 
   useEffect(() => {

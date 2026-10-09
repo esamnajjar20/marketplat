@@ -19,6 +19,7 @@ import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTr
 import type { StoreSortField } from '@/types/store.types';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { queryKeys } from '@/lib/queryKeys';
 
 /** GET /stores directory grid. Mirrors ServiceListingsGrid's layout/behaviour. */
 export function StoresGrid() {
@@ -36,7 +37,7 @@ export function StoresGrid() {
   const pageSize = getAdaptivePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
-    queryKey: ['stores', 'infinite', { search, city, sortBy, sortOrder, pageSize }],
+    queryKey: queryKeys.stores.infinite({ search, city, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
     queryFn: ({ pageParam }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,

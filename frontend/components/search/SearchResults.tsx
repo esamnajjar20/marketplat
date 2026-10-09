@@ -32,6 +32,7 @@ import { SearchResultsMap } from '@/components/map/SearchResultsMap';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Unified results grid — reads q/city/type/categoryId/sort/page
@@ -111,7 +112,7 @@ export function SearchResults() {
   const pageSize = getAdaptivePageSize(12, networkPolicy);
 
   const infiniteQuery = useInfiniteQuery({
-    queryKey: ['search', 'infinite', { q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort, lat, lng, radius: effectiveRadius, pageSize }],
+    queryKey: queryKeys.search.infinite({ q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort, lat, lng, radius: effectiveRadius, pageSize }),
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const params = {

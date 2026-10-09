@@ -47,7 +47,7 @@ export function MyAdsList() {
     if (existing) clearTimeout(existing);
 
     // Soft-hide from all my-ads list caches
-    queryClient.setQueriesData({ queryKey: ['ads', 'me'] }, (old: unknown) => {
+    queryClient.setQueriesData({ queryKey: queryKeys.ads.mineRoot() }, (old: unknown) => {
       if (!old || typeof old !== 'object') return old;
       const o = old as { items?: { id: string }[]; data?: { items?: { id: string }[] } };
       if (Array.isArray((o as { items?: unknown }).items)) {

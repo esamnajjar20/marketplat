@@ -21,6 +21,7 @@ import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
 import type { ProductSortField } from '@/types/product.types';
+import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * GET /products directory grid — mirrors StoresGrid's layout/behavior
@@ -55,7 +56,7 @@ export function ProductsGrid() {
   const pageSize = getAdaptivePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
-    queryKey: ['products', 'infinite', { search, city, sortBy, sortOrder, hasPromotion, pageSize }],
+    queryKey: queryKeys.products.infinite({ search, city, sortBy, sortOrder, hasPromotion, pageSize }),
     initialPageParam: 1,
     queryFn: ({ pageParam }) => productsApi.getAll({
       search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,

@@ -3,6 +3,7 @@ import { notFound }         from 'next/navigation';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { AdDetailSection }  from '@/components/ads/AdDetailSection';
 import { getQueryClient }   from '@/lib/queryClient';
+import { queryKeys }        from '@/lib/queryKeys';
 import { prefetchAdDetail as prefetchAd } from '@/lib/prefetch';
 import { buildAdMetadata }  from '@/lib/seo';
 import { headers }          from 'next/headers';
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const qc = getQueryClient();
   try {
     await prefetchAd(qc, id);
-    const ad = qc.getQueryData<{ title: string; description: string; images: string[]; price: string | null; city: string }>(['ads', 'detail', id]);
+    const ad = qc.getQueryData<{ title: string; description: string; images: string[]; price: string | null; city: string }>(queryKeys.ads.detail(id));
     if (!ad) return { title: 'الإعلان غير موجود' };
     return buildAdMetadata({ id, ...ad });
   } catch { return { title: 'الإعلان' }; }
@@ -32,7 +33,7 @@ export default async function AdDetailPage({ params }: Props) {
   // resolves it synchronously, so this adds no extra network call.
   // The Ad is typed as the full interface; missing optional fields
   // (sellerProfile, category, images) are handled by the builder.
-  const ad = qc.getQueryData<Ad>(['ads', 'detail', id]);
+  const ad = qc.getQueryData<Ad>(queryKeys.ads.detail(id));
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (

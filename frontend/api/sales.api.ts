@@ -1,20 +1,20 @@
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import { apiClient } from './client';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
-import type { CreateSalePayload, SaleRecord, SalesSummary, SalesDashboard, SalesReport, SalesSmartInsights } from '@/types/sale.types';
+import type { CreateSalePayload, SaleRecord, SalesSummary, SalesDashboard, SalesReport, SalesSmartInsights, SalesListQueryParams, SalesReportQueryParams } from '@/types/sale.types';
 
 export const salesApi = {
   // NOTE: GET /sales returns { data: { items, meta } } directly (see sales.controller list),
   // NOT a bare array + meta.pagination — so unwrapPaginated must NOT be used here
   // (it would nest { items, meta } inside items and the list would render empty).
-  list: (params?: Record<string, unknown>) =>
+  list: (params?: SalesListQueryParams) =>
     apiClient.get<ApiResponse<{ items: SaleRecord[]; meta: PaginationMeta }>>('/sales', { params }),
   getById: (id: string) => apiClient.get<ApiResponse<SaleRecord>>(`/sales/${id}`),
   create: (payload: CreateSalePayload, operationId?: string) => apiClient.post<ApiResponse<SaleRecord>>('/sales', payload, { headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined }),
   summary: (period: 'day' | 'week' | 'month' | 'year' = 'month') =>
     apiClient.get<ApiResponse<SalesSummary>>('/sales/summary', { params: { period } }),
   dashboard: () => apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard'),
-  report: (params?: { from?: string; to?: string; storeId?: string; status?: import('@/types/sale.types').SalePaymentStatus; limit?: number }) => apiClient.get<ApiResponse<SalesReport>>('/sales/reports', { params }),
+  report: (params?: SalesReportQueryParams) => apiClient.get<ApiResponse<SalesReport>>('/sales/reports', { params }),
   debtSummary: () => apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary'),
   debts: () => apiClient.get<ApiResponse<SaleRecord[]>>('/sales/debts'),
   addPayment: (id: string, payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/payments`, payload),

@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectUser, selectIsHydrated } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 import { usePendingDraftsCount } from '@/hooks/usePendingDraftsCount';
 import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
 import { getQueuedRequestCounts } from '@/lib/offlineQueue';
@@ -476,13 +477,13 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
     }
     window.addEventListener('offline-hub:prefs-changed', onPrefs);
     window.addEventListener('offline-hub:activity', onActivity);
-    window.addEventListener('online', onPrefs);
-    window.addEventListener('offline', onPrefs);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online' || event.type === 'offline' || event.type === 'connection-change') onPrefs();
+    });
     return () => {
       window.removeEventListener('offline-hub:prefs-changed', onPrefs);
       window.removeEventListener('offline-hub:activity', onActivity);
-      window.removeEventListener('online', onPrefs);
-      window.removeEventListener('offline', onPrefs);
+      unsubscribeNetwork();
     };
   }, [initialTab]);
 
@@ -500,12 +501,14 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
       if (event.data?.type === 'QUEUE_REPLAYED') refreshFailed();
     }
     window.addEventListener('offline-queue:queued', refreshFailed);
-    window.addEventListener('online', refreshFailed);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online') refreshFailed();
+    });
     navigator.serviceWorker?.addEventListener('message', onSwMessage);
     return () => {
       cancelled = true;
       window.removeEventListener('offline-queue:queued', refreshFailed);
-      window.removeEventListener('online', refreshFailed);
+      unsubscribeNetwork();
       navigator.serviceWorker?.removeEventListener('message', onSwMessage);
     };
   }, []);
