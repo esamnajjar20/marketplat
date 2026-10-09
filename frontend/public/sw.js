@@ -1751,7 +1751,7 @@ async function refreshAccessToken(sampleUrl) {
 async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReason) {
   // FIX SW-PROCESSING-01: علّم العنصر قيد المعالجة لتفادي retry متوازي
   // عبر RETRY_QUEUE_ITEM أثناء عمل replayQueue.
-  await markQueuedEntry(entry.id, { processing: true });
+  await markQueuedEntry(entry.id, { processing: true, processingStartedAt: Date.now() });
   try {
     // FIX SW-CSRF-REFRESH-CLASSIFY-01: never send an entry that needs a
     // CSRF token without one. Before this guard, freshCreds===null made
@@ -2002,7 +2002,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     return 'still-offline';
   } finally {
     // FIX SW-PROCESSING-01: أزل علم المعالجة دائماً.
-    try { await markQueuedEntry(entry.id, { processing: false }); } catch {}
+    try { await markQueuedEntry(entry.id, { processing: false, processingStartedAt: null }); } catch {}
   }
 }
 
@@ -2147,6 +2147,15 @@ function isOrderSensitiveQueueEntry(entry) {
 let replayQueueInFlight = false;
 let queueClearInFlight = false;
 const activeReplayControllers = new Set();
+// A worker can be terminated while a row is marked processing. Keep a lease
+// so a fresh worker can recover abandoned rows, while concurrent drains skip
+// work that is genuinely in flight. Legacy rows without a timestamp are stale.
+const QUEUE_PROCESSING_LEASE_MS = 2 * 60_000;
+function hasActiveProcessingLease(entry, now = Date.now()) {
+  if (!entry?.processing) return false;
+  const startedAt = entry.processingStartedAt;
+  return Number.isFinite(startedAt) && startedAt > 0 && now - startedAt < QUEUE_PROCESSING_LEASE_MS;
+}
 
 async function replayQueue() {
   if (queueClearInFlight || replayQueueInFlight) return;
@@ -2252,6 +2261,16 @@ async function replayQueueImpl() {
   for (const entry of entries) {
     if (processedEntries >= maxDrainEntries) break;
     if (entry.status === 'failed' || entry.status === 'cancelled') continue;
+
+    // Never replay a row that another drain is actively sending. Recover a
+    // stale lease left by a terminated worker; rows from older versions have
+    // no processingStartedAt and are therefore recoverable too.
+    if (hasActiveProcessingLease(entry)) continue;
+    if (entry.processing) {
+      await markQueuedEntry(entry.id, { processing: false, processingStartedAt: null });
+      entry.processing = false;
+      entry.processingStartedAt = null;
+    }
 
     const now = Date.now();
     const lastAttemptAt =
@@ -2678,6 +2697,23 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   const type = event.data && event.data.type;
 
+  if (type === 'GET_SW_STATUS') {
+    const status = {
+      type: 'SW_STATUS',
+      cacheVersion: CACHE_VERSION,
+      state: self.registration?.active ? 'active' : 'running',
+      timestamp: Date.now(),
+    };
+    // Prefer the request's MessagePort so callers can use a bounded request
+    // without adding a permanent global message listener.
+    const replyPort = event.ports && event.ports[0];
+    if (replyPort) replyPort.postMessage(status);
+    else if (event.source && typeof event.source.postMessage === 'function') {
+      event.source.postMessage(status);
+    }
+    return;
+  }
+
   if (type === 'SKIP_WAITING') {
     self.skipWaiting();
     return;
@@ -2837,7 +2873,13 @@ self.addEventListener('message', (event) => {
         if (!entry) return;
         if (!entry.ownerUserId || event.data.ownerUserId !== entry.ownerUserId) return;
         // FIX SW-PROCESSING-01: تجاوز إذا كانت replayQueue تعالج نفس العنصر
-        if (entry.processing) return;
+        if (hasActiveProcessingLease(entry)) return;
+        if (entry.processing) {
+          // Recover stale/legacy leases before explicit retry.
+          await markQueuedEntry(entry.id, { processing: false, processingStartedAt: null });
+          entry.processing = false;
+          entry.processingStartedAt = null;
+        }
 
         // T706 — flipping failed→pending BEFORE checking the drain lock.
         // If a drain is currently in flight, its replayQueueImpl() will

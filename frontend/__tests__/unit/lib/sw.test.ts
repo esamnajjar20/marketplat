@@ -1032,6 +1032,53 @@ describe('sw.js — service worker logic', () => {
       expect(statusByPath.c).toBe('pending'); // never attempted — queue stopped at "b"
     });
 
+    it('skips a row with a live processing lease to prevent duplicate replay', async () => {
+      await ctx.sandbox.queueRequestEntry({
+        url: 'https://example.com/api/v1/in-flight',
+        method: 'POST',
+        headers: {},
+        body: null,
+        queuedAt: 1,
+        operationId: 'stable-op-1',
+        processing: true,
+        processingStartedAt: Date.now(),
+      });
+      let fetchCalls = 0;
+      ctx.setFetch(async () => {
+        fetchCalls += 1;
+        return new Response('{}', { status: 200 });
+      });
+
+      await ctx.sandbox.replayQueue();
+
+      expect(fetchCalls).toBe(0);
+      const [entry] = await ctx.sandbox.getAllQueuedEntries();
+      expect(entry.status).toBe('pending');
+    });
+
+    it('recovers a stale or legacy processing marker and replays the row', async () => {
+      await ctx.sandbox.queueRequestEntry({
+        url: 'https://example.com/api/v1/stale-processing',
+        method: 'POST',
+        headers: {},
+        body: null,
+        queuedAt: 1,
+        operationId: 'stable-op-2',
+        processing: true,
+        // No processingStartedAt simulates a row written by an older SW.
+      });
+      let fetchCalls = 0;
+      ctx.setFetch(async () => {
+        fetchCalls += 1;
+        return new Response('{}', { status: 200 });
+      });
+
+      await ctx.sandbox.replayQueue();
+
+      expect(fetchCalls).toBe(1);
+      expect(await ctx.sandbox.getAllQueuedEntries()).toHaveLength(0);
+    });
+
     it('skips entries already marked "failed" without retrying them', async () => {
       await ctx.sandbox.queueRequestEntry({
         url: 'https://example.com/api/v1/already-failed',

@@ -78,3 +78,62 @@ export async function getActiveSW(
     );
   });
 }
+
+
+export interface ServiceWorkerStatus {
+  type: 'SW_STATUS';
+  cacheVersion: string;
+  state: 'active' | 'running';
+  timestamp: number;
+}
+
+/**
+ * Bounded health handshake with the active Service Worker. A missing, blocked,
+ * or stale worker returns null instead of leaving diagnostics/UI pending.
+ */
+export async function getServiceWorkerStatus(timeoutMs = 1_500): Promise<ServiceWorkerStatus | null> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator) || typeof MessageChannel === 'undefined') {
+    return null;
+  }
+
+  let registration: ServiceWorkerRegistration | null;
+  try {
+    registration = await getActiveSW(Math.min(timeoutMs, 1_500));
+  } catch {
+    return null;
+  }
+  const worker = registration?.active ?? navigator.serviceWorker.controller;
+  if (!worker) return null;
+
+  return new Promise<ServiceWorkerStatus | null>((resolve) => {
+    let settled = false;
+    const channel = new MessageChannel();
+    const finish = (status: ServiceWorkerStatus | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      channel.port1.close();
+      channel.port2.close();
+      resolve(status);
+    };
+    const timer = setTimeout(() => finish(null), Math.max(0, timeoutMs));
+    channel.port1.onmessage = (event: MessageEvent<unknown>) => {
+      const value = event.data as Partial<ServiceWorkerStatus> | null;
+      if (
+        value?.type === 'SW_STATUS' &&
+        typeof value.cacheVersion === 'string' &&
+        typeof value.timestamp === 'number' &&
+        (value.state === 'active' || value.state === 'running')
+      ) {
+        finish(value as ServiceWorkerStatus);
+      } else {
+        finish(null);
+      }
+    };
+    try {
+      worker.postMessage({ type: 'GET_SW_STATUS' }, [channel.port2]);
+    } catch {
+      finish(null);
+    }
+  });
+}
