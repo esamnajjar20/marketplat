@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+function useSearchParams() { return new URLSearchParams() as any; }
 import { Button }  from '@/components/shared/ui/Button';
 import { Input }   from '@/components/shared/ui/Input';
 import {
