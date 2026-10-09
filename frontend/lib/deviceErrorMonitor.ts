@@ -1,3 +1,4 @@
+import { subscribeNetworkLifecycle } from './networkLifecycle';
 /**
  * Device-local diagnostics that complement (not replace) Sentry.
  * Sensitive payloads, DOM text/HTML, form values and response bodies are never captured.
@@ -248,8 +249,16 @@ function installCapture(): void {
     recordDeviceError({ category: 'runtime', title: event.message || 'خطأ JavaScript غير معروف', message: event.error instanceof Error ? `${event.error.name}: ${event.error.message}` : (event.message || 'Unknown window error'), source: event.filename, line: event.lineno || undefined, column: event.colno || undefined, stack: errorStack(event.error) });
   }, true);
   window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => recordDeviceError({ category: 'promise', title: 'وعد (Promise) فشل دون معالجة', message: toReadable(event.reason), stack: errorStack(event.reason), details: event.reason instanceof Error ? undefined : toReadable(event.reason) }));
-  window.addEventListener('online', () => { addBreadcrumb('lifecycle', 'عاد الاتصال'); recordDeviceError({ category: 'connectivity', severity: 'warning', title: 'عاد الاتصال بالإنترنت', message: 'عاد المتصفح للإبلاغ عن اتصال متاح.' }); });
-  window.addEventListener('offline', () => { addBreadcrumb('lifecycle', 'انقطع الاتصال'); recordDeviceError({ category: 'connectivity', severity: 'network', title: 'انقطع الاتصال بالإنترنت', message: 'أبلغ المتصفح أن الجهاز أصبح دون اتصال.' }); });
+  // Share the application's single browser connectivity listener pair.
+  subscribeNetworkLifecycle((event) => {
+    if (event.type === 'online') {
+      addBreadcrumb('lifecycle', 'عاد الاتصال');
+      recordDeviceError({ category: 'connectivity', severity: 'warning', title: 'عاد الاتصال بالإنترنت', message: 'عاد المتصفح للإبلاغ عن اتصال متاح.' });
+    } else if (event.type === 'offline') {
+      addBreadcrumb('lifecycle', 'انقطع الاتصال');
+      recordDeviceError({ category: 'connectivity', severity: 'network', title: 'انقطع الاتصال بالإنترنت', message: 'أبلغ المتصفح أن الجهاز أصبح دون اتصال.' });
+    }
+  });
   addBreadcrumb('navigation', scrubRoute(window.location.href));
   window.addEventListener('popstate', () => addBreadcrumb('navigation', scrubRoute(window.location.href)));
   window.addEventListener('storage', (event) => {
