@@ -10,12 +10,23 @@ import { getAnalyticsConsent, setAnalyticsConsent, type AnalyticsConsent } from 
  * the visitor explicitly allows it. Rejecting it never blocks marketplace use.
  */
 export function AnalyticsConsentBanner() {
+  // HYDRATION-SAFE: render nothing on the server and nothing on the
+  // first client render. Before this fix the server always rendered
+  // <aside> (choice is null), but the moment useEffect read the
+  // persisted consent it removed the element — a DOM mutation that
+  // landed during React 19's hydration window and produced #418
+  // args[]=HTML. Gating on a mounted flag keeps the first render
+  // identical on both sides; the banner then appears (or stays hidden)
+  // entirely client-side after hydration.
+  const [mounted, setMounted] = useState(false);
   const [choice, setChoice] = useState<AnalyticsConsent | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     setChoice(getAnalyticsConsent());
   }, []);
 
+  if (!mounted) return null;
   if (choice) return null;
 
   return (
