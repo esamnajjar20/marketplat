@@ -22,7 +22,7 @@ import { CreateSheet } from './CreateSheet';
 import { Plus } from 'lucide-react';
 import { Button }         from '@/components/shared/ui/Button';
 import { ROUTES }         from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useAuthStore, selectHydratedIsAuthenticated } from '@/store/auth.store';
 
 interface Props {
   /**
@@ -39,7 +39,7 @@ interface Props {
 }
 
 export function PublicHeader({ showSearch = true }: Props = {}) {
-  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
   const [createOpen, setCreateOpen] = useState(false);
   // FIX UI-REVIEW-SEARCH-DUP: /search renders its own SearchBox in a
   // dedicated brand band right below this header (see

@@ -351,6 +351,25 @@ export const selectIsAdmin         = (s: AuthStore) =>
 export const selectIsAdminTier     = (s: AuthStore) =>
   s.user?.role === 'MODERATOR' || s.user?.role === 'ADMIN' || s.user?.role === 'SUPER_ADMIN';
 export const selectIsHydrated      = (s: AuthStore) => s.isHydrated;
+
+/**
+ * HYDRATION-SAFE selectors — use these in headers / navs / any UI that
+ * renders differently for logged-in vs anonymous users.
+ *
+ * Before this, components read selectIsAuthenticated / selectUser directly.
+ * Server + first client render saw "anonymous". A moment later Zustand
+ * rehydrated from localStorage and flipped them to "logged-in", and the
+ * resulting link↔button swap landed inside React's hydration window —
+ * producing React #418 on /ads, /products, /stores, and /admin.
+ *
+ * These selectors return the "anonymous" shape until isHydrated is true,
+ * which is set only after the persist middleware finishes. That makes the
+ * first client render identical to the server render, so the swap happens
+ * safely after hydration.
+ */
+export const selectHydratedUser = (s: AuthStore) => (s.isHydrated ? s.user : null);
+export const selectHydratedIsAuthenticated = (s: AuthStore) =>
+  s.isHydrated ? s.isAuthenticated : false;
 export const selectIsAuthResolving = (s: AuthStore) => s.isAuthResolving;
 
 // PERF-05: Action selectors — let mutation hooks subscribe to only the action

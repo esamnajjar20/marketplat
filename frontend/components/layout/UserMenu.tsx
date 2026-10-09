@@ -26,7 +26,7 @@ import Link from 'next/link';
 import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, Store, User } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
-import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
+import { useAuthStore, selectHydratedUser, selectIsAdmin } from '@/store/auth.store';
 import { useIsSeller } from '@/hooks/queries/useSellers';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
@@ -40,7 +40,7 @@ import {
 } from '@/components/shared/ui/DropdownMenu';
 
 export function UserMenu() {
-  const user      = useAuthStore(selectUser);
+  const user      = useAuthStore(selectHydratedUser);
   const isAdmin   = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending } = useLogout();
   const { isSeller, isLoaded: sellerLoaded } = useIsSeller();

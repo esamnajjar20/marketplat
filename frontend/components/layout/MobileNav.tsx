@@ -46,7 +46,7 @@ import {
   LogIn, UserPlus, LogOut, Sun, Moon, MonitorSmartphone, ChevronDown, ChevronLeft, User, Flag, Store,
 } from 'lucide-react';
 import { useUIStore, selectIsMobileNavOpen } from '@/store/ui.store';
-import { useAuthStore, selectIsAuthenticated, selectIsAdmin, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectHydratedIsAuthenticated, selectIsAdmin, selectHydratedUser } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { ROUTES } from '@/lib/constants';
 import { BROWSE_LINKS, SERVICES_GROUP, STORE_GROUP, settingsGroupFor, navChildIsActive, type NavDisclosureGroup } from '@/lib/navigation';
@@ -247,9 +247,9 @@ export function MobileNav() {
   const closeMobileNav  = useUIStore(selectCloseMobileNav);
   const closeButtonRef  = useRef<HTMLButtonElement>(null);
 
-  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
   const isAdmin         = useAuthStore(selectIsAdmin);
-  const user             = useAuthStore(selectUser);
+  const user             = useAuthStore(selectHydratedUser);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   // PARITY-FIX: same "isSuccess && data is the only positive signal"
   // gating ProtectedSidebar/ProtectedMobileNav use — loading, 404, and

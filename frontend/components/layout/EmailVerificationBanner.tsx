@@ -15,12 +15,12 @@
 
 import { useState } from 'react';
 import { MailWarning, X } from 'lucide-react';
-import { useAuthStore, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectHydratedUser } from '@/store/auth.store';
 import { useResendVerification } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/shared/ui/Button';
 
 export function EmailVerificationBanner() {
-  const user = useAuthStore(selectUser);
+  const user = useAuthStore(selectHydratedUser);
   const [dismissed, setDismissed] = useState(false);
   const resend = useResendVerification();
 

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Home, Compass, MessageCircle, Menu, Plus } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useUIStore } from '@/store/ui.store';
-import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectHydratedIsAuthenticated, selectHydratedUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { ExploreSheet } from '@/components/layout/ExploreSheet';
@@ -76,8 +76,8 @@ const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.t
  */
 export function BottomNav() {
   const pathname = usePathname();
-  const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  const user = useAuthStore(selectUser);
+  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
+  const user = useAuthStore(selectHydratedUser);
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);

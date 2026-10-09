@@ -8,11 +8,11 @@ import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useAuthStore, selectHydratedIsAuthenticated } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 
 export function MessagesLink({ className }: { className?: string }) {
-  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
   const { data: unread = 0 } = useUnreadConversationCount();
 
   if (!isAuthenticated) return null;
