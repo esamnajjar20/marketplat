@@ -19,6 +19,7 @@
 
 import { runWarmingEngine } from '@/lib/warmingEngine';
 import { getBackgroundWarmingBudget, shouldPauseBackgroundWarming } from '@/lib/offlineStoragePressure';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
 
 let pipelineInFlight = false;
 // WARM-PIPELINE-QUEUE-01: when a warm pass starts before auth has
@@ -138,7 +139,18 @@ export async function runWarmingPipeline(
       force: options.force === true,
     });
     if (result.skipped.length > 0) {
-      console.info('[warm-pipeline] budget skipped:', result.skipped.join(','));
+      const policy = getNetworkPolicy();
+      // Explain expected admission-control skips instead of emitting a vague
+      // warning that looks like an exception. Keep IDs and live policy together
+      // so production reports can distinguish network limits from storage.
+      console.info('[warm-pipeline] jobs skipped by adaptive budget', {
+        jobs: result.skipped,
+        tier: policy.tier,
+        saveData: policy.saveData,
+        allowBackgroundWarming: policy.allowBackgroundWarming,
+        maxRequests: result.budget.maxRequests,
+        maxBytes: result.budget.maxBytes,
+      });
     }
   } finally {
     pipelineInFlight = false;

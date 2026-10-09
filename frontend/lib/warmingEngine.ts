@@ -50,7 +50,7 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
   const policy = getNetworkPolicy();
   const mode = getWarmingMode();
   const plan = getWarmingPlan();
-  const budget = getWarmingBudget(policy, mode === 'off' ? 'fast' : mode);
+  const budget = getWarmingBudget(policy, mode === 'full' ? 'full' : 'fast');
   const completed: WarmingJobId[] = [];
   const skipped: WarmingJobId[] = [];
 
@@ -80,25 +80,34 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
   const items = queue.drain();
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
-    // Array indexing is potentially undefined under noUncheckedIndexedAccess.
-    // A missing queue item is not executable and must never be dereferenced.
+    // Array indexing is possibly undefined with noUncheckedIndexedAccess.
+    // A missing queue entry is not a runnable job and must not be dereferenced.
     if (!item) continue;
 
     // Network/storage can change while a pass is running. Re-check before each
     // phase so a sudden drop to offline/Save-Data or critical quota pressure
     // cannot cause the rest of the background queue to continue blindly.
     const livePolicy = getNetworkPolicy();
-    const liveBudget = getWarmingBudget(livePolicy, mode);
-    const networkBudgetDowngraded =
-      liveBudget.maxRequests < budget.maxRequests ||
-      liveBudget.maxBytes < budget.maxBytes ||
-      liveBudget.maxConcurrency < budget.maxConcurrency;
+    // A normal policy fluctuation (for example fast -> normal after the
+    // first connection sample) should shrink this pass, not cancel every job.
+    // The effective budget is the stricter of the initial and current policy.
+    const liveBudget = getWarmingBudget(livePolicy, mode === 'full' ? 'full' : 'fast');
+    const effectiveBudget: WarmingBudget = {
+      ...budget,
+      maxRequests: Math.min(budget.maxRequests, liveBudget.maxRequests),
+      maxBytes: Math.min(budget.maxBytes, liveBudget.maxBytes),
+      maxDurationMs: Math.min(budget.maxDurationMs, liveBudget.maxDurationMs),
+      maxConcurrency: Math.min(budget.maxConcurrency, liveBudget.maxConcurrency),
+      maxRouteCount: Math.min(budget.maxRouteCount, liveBudget.maxRouteCount),
+      maxPersonalRouteCount: Math.min(budget.maxPersonalRouteCount, liveBudget.maxPersonalRouteCount),
+      allowImages: budget.allowImages && liveBudget.allowImages,
+    };
     const networkUnavailable =
       (typeof navigator !== 'undefined' && !navigator.onLine) ||
       livePolicy.tier === 'offline' ||
       livePolicy.saveData ||
       !livePolicy.allowBackgroundWarming ||
-      networkBudgetDowngraded;
+      effectiveBudget.maxConcurrency === 0;
     const storageCritical = !options.force && (await shouldPauseBackgroundWarming());
     const liveStorageBudget = options.force ? 'full' : await getBackgroundWarmingBudget();
     if (networkUnavailable || storageCritical || liveStorageBudget === 'paused') {
@@ -110,7 +119,7 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
       continue;
     }
 
-    if (!estimateFits(budget, used, item.job)) {
+    if (!estimateFits(effectiveBudget, used, item.job)) {
       skipped.push(item.job.id);
       continue;
     }
