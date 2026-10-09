@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -22,7 +23,7 @@ import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useLongPress } from '@/hooks/ui/useLongPress';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { ShoppingBag, AlertTriangle } from 'lucide-react';
 import type { AdStatus } from '@/types/ad.types';
@@ -341,7 +342,7 @@ export function MyAdsList() {
                   <p className="text-primary font-bold text-sm">{formatPrice(ad.price)}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>
-                    <span>{formatRelativeTime(ad.createdAt)}</span>
+                    <span>{<HydrationSafeRelativeTime date={ad.createdAt} />}</span>
                   </div>
                 </div>
                 <div className={cn('flex flex-col gap-1 shrink-0', selectionMode && 'hidden')}>

@@ -1,11 +1,11 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import { memo } from 'react';
 import { Ban } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
-import { formatRelativeTime } from '@/lib/formatters';
 import { REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import type { RequestStatus, RequestType } from '@/types/request.types';
 type Row = { id:string; type:RequestType; title:string; city?:string|null; status:RequestStatus; createdAt:string; customer?:{name:string}|null; _count?:{offers?:number} };
 type Props={row:Row; onCancel:(id:string)=>void};
-export const AdminOpenRequestRow=memo(function AdminOpenRequestRow({row,onCancel}:Props){return <tr className="border-t [content-visibility:auto] [contain-intrinsic-size:auto_56px]"><td className="p-3"><div className="font-medium">{row.title}</div><div className="text-xs text-muted-foreground">{row.customer?.name??'—'}{row.city?` · ${row.city}`:''}</div></td><td className="p-3">{REQUEST_TYPE_LABEL[row.type]??row.type}</td><td className="p-3"><Badge variant={row.status==='OPEN'?'default':'secondary'}>{REQUEST_STATUS_LABEL[row.status]??row.status}</Badge></td><td className="p-3">{row._count?.offers??0}</td><td className="p-3 text-muted-foreground">{formatRelativeTime(row.createdAt)}</td><td className="p-3">{row.status==='OPEN'&&<Button size="sm" variant="outline" onClick={()=>onCancel(row.id)}><Ban className="me-1 h-3.5 w-3.5"/>إلغاء</Button>}</td></tr>});
+export const AdminOpenRequestRow=memo(function AdminOpenRequestRow({row,onCancel}:Props){return <tr className="border-t [content-visibility:auto] [contain-intrinsic-size:auto_56px]"><td className="p-3"><div className="font-medium">{row.title}</div><div className="text-xs text-muted-foreground">{row.customer?.name??'—'}{row.city?` · ${row.city}`:''}</div></td><td className="p-3">{REQUEST_TYPE_LABEL[row.type]??row.type}</td><td className="p-3"><Badge variant={row.status==='OPEN'?'default':'secondary'}>{REQUEST_STATUS_LABEL[row.status]??row.status}</Badge></td><td className="p-3">{row._count?.offers??0}</td><td className="p-3 text-muted-foreground">{<HydrationSafeRelativeTime date={row.createdAt} />}</td><td className="p-3">{row.status==='OPEN'&&<Button size="sm" variant="outline" onClick={()=>onCancel(row.id)}><Ban className="me-1 h-3.5 w-3.5"/>إلغاء</Button>}</td></tr>});

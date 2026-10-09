@@ -1,9 +1,10 @@
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import { memo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar } from 'lucide-react';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { AdListItem as AdListItemType } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
@@ -30,7 +31,7 @@ export const AdListItem = memo(function AdListItem({ ad, className }: Props) {
           <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{ad.city}</span>
           {ad.condition && <span>{CONDITION_LABELS[ad.condition] ?? ad.condition}</span>}
           <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{ad.views}</span>
-          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatRelativeTime(ad.createdAt)}</span>
+          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{<HydrationSafeRelativeTime date={ad.createdAt} />}</span>
         </div>
       </div>
     </Link>

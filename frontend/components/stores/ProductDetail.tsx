@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 /**
  * Public product detail — mirrors AdDetail structure so shoppers get
@@ -25,7 +26,7 @@ import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
-import { formatPrice, formatPhone, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice, formatPhone } from '@/lib/formatters';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -351,7 +352,7 @@ function MetaRow({ product }: { product: ProductWithFullStore }) {
         <Eye className="h-3.5 w-3.5" aria-hidden />
         {product.views} مشاهدة
       </span>
-      <span>{product.createdAt ? formatRelativeTime(product.createdAt) : ''}</span>
+      <span>{product.createdAt ? <HydrationSafeRelativeTime date={product.createdAt} /> : ''}</span>
     </div>
   );
 }

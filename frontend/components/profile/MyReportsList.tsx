@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -8,7 +9,6 @@ import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyReports } from '@/hooks/queries/useMyReports';
-import { formatRelativeTime } from '@/lib/formatters';
 import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/constants';
 import type { Report, ReportTargetType, ReportStatus } from '@/types/admin.types';
 
@@ -81,7 +81,7 @@ function MyReportRow({ report }: { report: Report }) {
             <ExternalLink className="h-3 w-3" />
             {report.ad?.title ? report.ad.title.slice(0, 40) : 'عرض التفاصيل'}
           </Link>
-          <p className="text-xs text-muted-foreground">{formatRelativeTime(report.createdAt)}</p>
+          <p className="text-xs text-muted-foreground">{<HydrationSafeRelativeTime date={report.createdAt} />}</p>
         </div>
       </div>
     </div>

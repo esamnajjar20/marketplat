@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -34,7 +35,7 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
+import { formatServicePrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ServiceListingStatus } from '@/types/service.types';
 
@@ -377,7 +378,7 @@ export function MyServiceListingsList() {
                       <Eye className="h-3 w-3" />
                       {listing.views}
                     </span>
-                    <span>{formatRelativeTime(listing.createdAt)}</span>
+                    <span>{<HydrationSafeRelativeTime date={listing.createdAt} />}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">

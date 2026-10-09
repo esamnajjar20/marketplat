@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import { Badge } from '@/components/shared/ui/Badge';
 import { ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -6,7 +7,6 @@ import { ApiError } from '@/components/shared/ApiError';
 import { useAdminFraudSignals } from '@/hooks/queries/useAdmin';
 import { useAdminReviewFraudSignal } from '@/hooks/mutations/useAdminMutations';
 import { parseApiError } from '@/lib/errorParser';
-import { formatRelativeTime } from '@/lib/formatters';
 import type { FraudSignalType } from '@/types/admin.types';
 const SIGNAL_TYPE_LABELS: Record<FraudSignalType,string>={RAPID_POSTING:'نشر متسارع',SUSPICIOUS_PRICE:'سعر مشبوه',SUSPICIOUS_CONTACT_PATTERN:'نمط تواصل مشبوه',SUSPICIOUS_KEYWORDS:'كلمات مشبوهة',DUPLICATE_LISTING:'إعلان مكرر',NEW_ACCOUNT_HIGH_ACTIVITY:'حساب جديد بنشاط مرتفع',MANUAL_ADMIN_FLAG:'علامة يدوية من الإدارة'};
 export function AdSignalsPanel({ adId }: { adId: string }) {
@@ -36,7 +36,7 @@ export function AdSignalsPanel({ adId }: { adId: string }) {
               {SIGNAL_TYPE_LABELS[signal.type] ?? signal.type}
             </Badge>
             <span className="text-xs text-muted-foreground shrink-0">وزن {signal.weight}</span>
-            <span className="text-xs text-muted-foreground truncate">{formatRelativeTime(signal.createdAt)}</span>
+            <span className="text-xs text-muted-foreground truncate">{<HydrationSafeRelativeTime date={signal.createdAt} />}</span>
           </div>
           {signal.reviewed ? (
             <Badge variant="outline" className="text-xs text-success shrink-0">تمت المراجعة</Badge>

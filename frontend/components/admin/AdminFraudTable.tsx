@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 // FIX FRAUD-FRAGMENT-KEY-01: the row + its expandable signals row were
 // wrapped in a keyless Fragment, so React saw an array of unkeyed
@@ -46,7 +47,7 @@ import {
   useAdminClearFraudFlag,
   useAdminManualFraudFlag,
 } from '@/hooks/mutations/useAdminMutations';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
 
@@ -108,7 +109,7 @@ export const AdminFraudTable = memo(function AdminFraudTable() {
                   <span>{ad.user?.name ?? '—'}</span>
                   <Badge variant={riskBadgeVariant(ad.riskScore)} className="text-xs">{ad.riskScore}</Badge>
                 </div>
-                <p className="text-2xs-tight text-muted-foreground">{formatRelativeTime(ad.createdAt)}</p>
+                <p className="text-2xs-tight text-muted-foreground">{<HydrationSafeRelativeTime date={ad.createdAt} />}</p>
               </div>
               <div className="flex flex-wrap justify-end gap-1 border-t border-border/60 pt-2">
                 <Button type="button" size="sm" variant="ghost" className="h-8"

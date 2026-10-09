@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -16,7 +17,6 @@ import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
 import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
-import { formatRelativeTime } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
   SERVICE_REQUEST_STATUS_LABELS,
@@ -253,7 +253,7 @@ export function IncomingServiceRequestsList() {
                   </div>
                   <p className="text-xs text-muted-foreground">من {request.customer.name}</p>
                   <p className="text-sm line-clamp-2">{request.details}</p>
-                  <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
+                  <p className="text-xs text-muted-foreground">{<HydrationSafeRelativeTime date={request.createdAt} />}</p>
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}

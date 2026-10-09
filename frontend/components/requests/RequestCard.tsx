@@ -1,9 +1,9 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import Link from 'next/link';
 import { MapPin, MessageSquare, Wallet, Clock } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
 import { REQUEST_STATUS_LABEL, REQUEST_STATUS_VARIANT, REQUEST_TYPE_LABEL, REQUEST_TYPE_VARIANT, formatRequestBudget, formatOffersCount, isRequestExpiringSoon } from '@/lib/requestStatus';
 import type { RequestListItem } from '@/types/request.types';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +39,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
           </div>
           <div className="flex min-h-5 items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
             {showCity && r.city && <span className="flex min-w-0 items-center gap-1 truncate"><MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />{r.city}</span>}
-            {showTime && r.createdAt && <span className="ms-auto shrink-0 whitespace-nowrap tabular-nums">{formatRelativeTime(r.createdAt)}</span>}
+            {showTime && r.createdAt && <span className="ms-auto shrink-0 whitespace-nowrap tabular-nums">{<HydrationSafeRelativeTime date={r.createdAt} />}</span>}
           </div>
         </div>
       </Link>

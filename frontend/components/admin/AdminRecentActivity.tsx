@@ -1,11 +1,11 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 // FIX RECENT-ACTIVITY-APIERROR-01: shared ApiError.
 
 import Link from 'next/link';
 import { useAdminAds } from '@/hooks/queries/useAdmin';
 import { ROUTES }      from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ApiError } from '@/components/shared/ApiError';
 import { parseApiError } from '@/lib/errorParser';
@@ -37,7 +37,7 @@ export function AdminRecentActivity() {
               className="text-sm font-medium hover:underline line-clamp-1">{ad.title}</Link>
             <p className="text-xs text-muted-foreground">{ad.user?.name ?? '—'}</p>
           </div>
-          <span className="text-xs text-muted-foreground shrink-0 ms-3">{formatRelativeTime(ad.createdAt)}</span>
+          <span className="text-xs text-muted-foreground shrink-0 ms-3">{<HydrationSafeRelativeTime date={ad.createdAt} />}</span>
         </div>
       ))}
     </div>

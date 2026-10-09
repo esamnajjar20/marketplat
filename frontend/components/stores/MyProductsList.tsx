@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -30,7 +31,7 @@ import { useDeleteProduct, useToggleProductStatus } from '@/hooks/mutations/useP
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
 import { myStoreTabHref } from '@/lib/myStoreHubTabs';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ProductAvailability, ProductStatus } from '@/types/product.types';
 
@@ -362,7 +363,7 @@ export function MyProductsList() {
                       <Eye className="h-3 w-3" />
                       {product.views}
                     </span>
-                    <span>{formatRelativeTime(product.createdAt)}</span>
+                    <span>{<HydrationSafeRelativeTime date={product.createdAt} />}</span>
                     {!product.images?.length && <span className="text-warning">بدون صور</span>}
                   </div>
                 </div>

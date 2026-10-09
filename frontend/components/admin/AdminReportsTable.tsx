@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -16,7 +17,6 @@ import { BulkActionBar } from '@/components/shared/admin/BulkActionBar';
 import { useAdminReports }   from '@/hooks/queries/useAdmin';
 import { useAdminUpdateReportStatus, useAdminBulkUpdateReportStatus } from '@/hooks/mutations/useAdminMutations';
 import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
 import { AdminReportRow } from '@/components/admin/AdminReportRow';
@@ -267,7 +267,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
                   </div>
                   {report.notes && <p className="line-clamp-2 text-xs text-muted-foreground">{report.notes}</p>}
                   <p className="text-2xs-tight text-muted-foreground">
-                    {report.user?.name ?? '—'} · {formatRelativeTime(report.createdAt)}
+                    {report.user?.name ?? '—'} · {<HydrationSafeRelativeTime date={report.createdAt} />}
                   </p>
                   <Link prefetch={false}
                     href={targetHref(report.targetType, report.targetId)}

@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -15,7 +16,7 @@ import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceR
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
   SERVICE_REQUEST_STATUS_LABELS,
@@ -148,7 +149,7 @@ export function MyServiceRequestsList() {
                       {request.agreedPrice ? '' : ' (سعر مبدئي)'}
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground">{formatRelativeTime(request.createdAt)}</p>
+                  <p className="text-xs text-muted-foreground">{<HydrationSafeRelativeTime date={request.createdAt} />}</p>
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}

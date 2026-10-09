@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -22,7 +23,6 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { cn } from '@/lib/utils';
 import { useMyActivity } from '@/hooks/queries/useActivity';
-import { formatRelativeTime } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
 import type { ActivityGroup, UserActivity } from '@/types/activity.types';
 
@@ -146,7 +146,7 @@ function ActivityRow({ activity }: { activity: GroupedActivity }) {
         {activity.description && (
           <p className="text-sm text-muted-foreground truncate">{activity.description}</p>
         )}
-        <p className="text-xs text-muted-foreground">{formatRelativeTime(activity.createdAt)}</p>
+        <p className="text-xs text-muted-foreground">{<HydrationSafeRelativeTime date={activity.createdAt} />}</p>
       </div>
     </div>
   );

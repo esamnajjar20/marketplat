@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 // FIX ADMIN-HEADER-USER-NULL-01: report.user accessed without optional
 // chain in the bell dropdown preview -- crashed the admin header when a
@@ -18,7 +19,6 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { ROUTES, REPORT_REASON_LABELS } from '@/lib/constants';
 import { useAdminStats, useAdminReports } from '@/hooks/queries/useAdmin';
-import { formatRelativeTime } from '@/lib/formatters';
 
 export function AdminHeader() {
   const user   = useAuthStore(selectUser);
@@ -143,7 +143,7 @@ export function AdminHeader() {
                           ? report.ad.title
                           : (report.user?.name ?? '—')}
                       </p>
-                      <p className="text-2xs text-muted-foreground">{formatRelativeTime(report.createdAt)}</p>
+                      <p className="text-2xs text-muted-foreground">{<HydrationSafeRelativeTime date={report.createdAt} />}</p>
                     </div>
                   </Link>
                 ))}

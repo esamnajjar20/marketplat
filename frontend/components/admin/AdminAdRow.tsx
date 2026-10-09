@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import { memo } from 'react';
 import Link from 'next/link';
 import { Star, Trash2, Pin } from 'lucide-react';
@@ -10,7 +11,7 @@ import { Tooltip } from '@/components/shared/ui/Tooltip';
 import type { AdminAd } from '@/types/admin.types';
 import { ROUTES, STATUS_LABELS } from '@/lib/constants';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 
 type Props = {
@@ -54,7 +55,7 @@ export const AdminAdRow = memo(function AdminAdRow({ ad, selected, pendingToggle
                         {STATUS_LABELS[ad.status] ?? ad.status}
                       </Badge>
                     </td>
-                    <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{formatRelativeTime(ad.createdAt)}</td>
+                    <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{<HydrationSafeRelativeTime date={ad.createdAt} />}</td>
                     <td className="p-3">
                       {/* FIX A11Y-01: title alone isn't reliably
                           announced by screen readers / has no keyboard

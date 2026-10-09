@@ -3,11 +3,14 @@
  */
 
 /** تسمية فاصل اليوم في المحادثة */
-export function messageDayLabel(iso: string, now = new Date()): string {
+export function messageDayLabel(iso: string, now: Date): string {
   const d = new Date(iso);
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startMsg = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diff = Math.round((startToday.getTime() - startMsg.getTime()) / 86_400_000);
+  const dayParts = (date: Date) => {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Gaza', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return Math.floor(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)) / 86_400_000);
+  };
+  const diff = dayParts(now) - dayParts(d);
   if (diff === 0) return 'اليوم';
   if (diff === 1) return 'أمس';
   return d.toLocaleDateString('ar-EG', {
@@ -15,6 +18,7 @@ export function messageDayLabel(iso: string, now = new Date()): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'Asia/Gaza',
   });
 }
 
@@ -22,9 +26,8 @@ export function sameCalendarDay(a: string, b: string): boolean {
   const da = new Date(a);
   const db = new Date(b);
   return (
-    da.getFullYear() === db.getFullYear() &&
-    da.getMonth() === db.getMonth() &&
-    da.getDate() === db.getDate()
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Gaza', year: 'numeric', month: '2-digit', day: '2-digit' }).format(da) ===
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Gaza', year: 'numeric', month: '2-digit', day: '2-digit' }).format(db)
   );
 }
 

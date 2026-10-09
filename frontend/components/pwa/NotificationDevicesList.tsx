@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 /**
  * قائمة الأجهزة المسجَّلة للإشعارات الخارجية (Web Push + FCM):
@@ -20,7 +21,6 @@ import {
   useRenameNotificationDevice,
 } from '@/hooks/mutations/useNotificationMutations';
 import { getThisDeviceFingerprint } from '@/lib/runtime/deviceFingerprint';
-import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { NotificationDevice } from '@/types/notification.types';
 
@@ -144,7 +144,7 @@ export function NotificationDevicesList() {
                       )}
                     </p>
                     <p className="text-2xs-tight text-muted-foreground">
-                      آخر نشاط {formatRelativeTime(d.lastSeenAt)}
+                      آخر نشاط {<HydrationSafeRelativeTime date={d.lastSeenAt} />}
                     </p>
                   </>
                 )}

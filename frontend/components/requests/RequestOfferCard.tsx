@@ -1,10 +1,11 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { ROUTES } from '@/lib/constants';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { REQUEST_OFFER_STATUS_LABEL, REQUEST_OFFER_STATUS_VARIANT, REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import { cn } from '@/lib/utils';
 import type { RequestOfferListItem } from '@/types/request.types';
@@ -40,7 +41,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
         ) : null}
         {offer.message && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{offer.message}</p>}
         <div className="mt-auto flex min-h-5 items-center gap-2 border-t border-border/40 pt-2 text-xs text-muted-foreground">
-          {offer.createdAt && <span className="whitespace-nowrap tabular-nums">{formatRelativeTime(offer.createdAt)}</span>}
+          {offer.createdAt && <span className="whitespace-nowrap tabular-nums">{<HydrationSafeRelativeTime date={offer.createdAt} />}</span>}
           {action && <div className="ms-auto shrink-0">{action}</div>}
         </div>
       </div>

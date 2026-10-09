@@ -1,10 +1,10 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { memo } from 'react';
 import Link from 'next/link';
 import { Circle, MailOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatRelativeTime } from '@/lib/formatters';
 import { hrefFor, iconFor, labelFor } from '@/lib/notificationMeta';
 import type { Notification } from '@/types/notification.types';
 
@@ -64,7 +64,7 @@ export const NotificationRow = memo(function NotificationRow({
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
             <span className="text-2xs-tight tabular-nums text-muted-foreground">
-              {formatRelativeTime(n.createdAt)}
+              {<HydrationSafeRelativeTime date={n.createdAt} />}
             </span>
             {unread && <span className="ms-1 h-2 w-2 rounded-full bg-primary" />}
           </div>

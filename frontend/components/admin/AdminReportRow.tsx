@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { memo } from 'react';
 import Link from 'next/link';
@@ -7,7 +8,6 @@ import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Checkbox } from '@/components/shared/ui/Checkbox';
 import { ROUTES, REPORT_REASON_LABELS } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
 import type { Report, ReportStatus } from '@/types/admin.types';
 
 const TARGET_TYPE_LABELS = {
@@ -75,7 +75,7 @@ export const AdminReportRow = memo(function AdminReportRow({
         </Link>
       </td>
       <td className="p-3 hidden sm:table-cell text-muted-foreground text-xs">{report.user?.name ?? '—'}</td>
-      <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{formatRelativeTime(report.createdAt)}</td>
+      <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{<HydrationSafeRelativeTime date={report.createdAt} />}</td>
       <td className="p-3">
         {report.status === 'PENDING' && (
           <div className="flex gap-1 justify-end">

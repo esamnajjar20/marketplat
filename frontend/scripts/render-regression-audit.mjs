@@ -30,6 +30,9 @@ for (const file of cards) {
 
 const chatRow = read('components/messages/ChatMessageRow.tsx');
 const chatWindow = read('components/messages/ChatWindow.tsx');
+const messageUtils = read('lib/messageUtils.ts');
+check(/useNowAfterMount\(true, message\.createdAt\)/.test(chatRow), 'ChatMessageRow: day separator must use the hydration-safe shared clock');
+check(/messageDayLabel\(iso: string, now: Date\)/.test(messageUtils), 'messageDayLabel: implicit current-time default can reintroduce hydration mismatch');
 check(/isRetrying:\s*boolean/.test(chatRow), 'ChatMessageRow: shared retryingQueueId prop returned');
 check(!/retryingQueueId\s*:/.test(chatRow), 'ChatMessageRow: retryingQueueId still exists in Props');
 check(/isRetrying=\{retryingQueueId === message\.queueId\}/.test(chatWindow), 'ChatWindow: retry state was not reduced to row-local boolean');

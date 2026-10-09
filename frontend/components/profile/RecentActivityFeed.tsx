@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import Link from 'next/link';
 import {
@@ -14,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useMyActivity } from '@/hooks/queries/useActivity';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import type { UserActivity } from '@/types/activity.types';
 
@@ -98,7 +98,7 @@ export function RecentActivityFeed() {
               <p className="text-sm font-medium truncate">{activity.title}</p>
               <p className="text-xs text-muted-foreground truncate">
                 {activity.description ? `${activity.description} · ` : ''}
-                {formatRelativeTime(activity.createdAt)}
+                {<HydrationSafeRelativeTime date={activity.createdAt} />}
               </p>
             </div>
           </>

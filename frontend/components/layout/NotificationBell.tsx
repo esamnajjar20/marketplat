@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -22,7 +23,6 @@ import {
   useMarkAllNotificationsRead,
 } from '@/hooks/mutations/useNotificationMutations';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/types/notification.types';
 import { hrefFor, iconFor, labelFor } from '@/lib/notificationMeta';
@@ -68,7 +68,7 @@ function NotificationRow({
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2">{notification.body}</p>
         <p className="text-2xs text-muted-foreground">
-          {formatRelativeTime(notification.createdAt)}
+          {<HydrationSafeRelativeTime date={notification.createdAt} />}
         </p>
       </div>
     </div>
@@ -173,7 +173,7 @@ function NotificationGroupRow({
         </div>
         <p className="text-xs text-muted-foreground line-clamp-1">{notifications[0]!.body}</p>
         <p className="text-2xs text-muted-foreground">
-          {formatRelativeTime(notifications[0]!.createdAt)}
+          {<HydrationSafeRelativeTime date={notifications[0]!.createdAt} />}
         </p>
       </div>
       <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />

@@ -1,10 +1,11 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Star, BadgeCheck, Eye } from 'lucide-react';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import {
   getListThumbnailUrl,
   getPlaceholderUrl,
@@ -139,7 +140,7 @@ export function UnifiedResultCard({ result, className }: Props) {
                   </span>
                 )}
                 <span className="font-medium tabular-nums">
-                  {formatRelativeTime(result.createdAt)}
+                  {<HydrationSafeRelativeTime date={result.createdAt} />}
                 </span>
               </span>
             </div>

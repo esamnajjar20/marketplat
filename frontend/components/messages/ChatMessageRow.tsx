@@ -3,6 +3,7 @@
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { messageDayLabel } from '@/lib/messageUtils';
+import { useNowAfterMount } from '@/components/shared/cards/cardParts';
 import { classifyHttpConflict } from '@/lib/conflictResolver';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { MessageMedia } from './MessageMedia';
@@ -29,6 +30,9 @@ interface Props {
 }
 
 export const ChatMessageRow = memo(function ChatMessageRow({ message, showDay, tight, isMine, conversationId, isRetrying, markPending, onMarkMessage, onDeleteRequest, onRetryQueued, onDiscardQueued, onCancelQueued, onEditQueued }: Props) {
+  // Keep the day separator identical during SSR and the first hydration render.
+  // The shared clock publishes the real client time only after mount.
+  const now = useNowAfterMount(true, message.createdAt);
   const isDeleted = Boolean(message.deletedAt);
   const isOptimistic = message.id.startsWith('optimistic-');
   const clientStatus = message.clientStatus;
@@ -36,7 +40,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({ message, showDay, t
 
   return (
     <div className={cn('[content-visibility:auto] [contain-intrinsic-size:auto_320px] flex w-full flex-col', tight ? 'mt-0.5' : 'mt-0')}>
-      {showDay && <div className="my-3 flex justify-center"><span className="rounded-full border bg-card/90 px-3 py-0.5 text-2xs-tight font-medium text-muted-foreground shadow-sm">{messageDayLabel(message.createdAt)}</span></div>}
+      {showDay && <div className="my-3 flex justify-center"><span className="rounded-full border bg-card/90 px-3 py-0.5 text-2xs-tight font-medium text-muted-foreground shadow-sm">{now === null ? '—' : messageDayLabel(message.createdAt, new Date(now))}</span></div>}
       <div className={cn('group flex flex-col gap-1 max-w-[min(92%,28rem)] sm:max-w-[min(88%,32rem)]', isMine ? 'items-end self-end' : 'items-start self-start')}>
         <div className="flex items-center gap-1">
           {isMine && !isDeleted && !isLocalOnly && <MessageActionsMenu message={message} markPending={markPending} onMarkMessage={onMarkMessage} onDeleteRequest={onDeleteRequest} />}
