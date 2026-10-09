@@ -229,7 +229,13 @@ const PUBLIC_HTML_PREFIXES = [
 
 function isPublicHtmlRoute(pathname: string): boolean {
   if (PUBLIC_HTML_EXACT.has(pathname)) return true;
-  return PUBLIC_HTML_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  // Match either the bare prefix (e.g. '/ads') or any subpath ('/ads/123').
+  // Entries in PUBLIC_HTML_PREFIXES end with '/', so a raw startsWith would
+  // fail for the top-level route itself.
+  return PUBLIC_HTML_PREFIXES.some((prefix) => {
+    const bare = prefix.replace(/\/$/, '');
+    return pathname === bare || pathname.startsWith(prefix);
+  });
 }
 
 function buildCsp(nonce: string, isDev: boolean): string {
