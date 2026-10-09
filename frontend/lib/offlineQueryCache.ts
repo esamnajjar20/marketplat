@@ -14,7 +14,21 @@ const SAVE_DEBOUNCE_MS = 250;
 interface PersistedQuery { id: string; queryKey: QueryKey; data: unknown; dataUpdatedAt: number; savedAt: number; bytes: number }
 interface PersistedMeta { id: '__meta__'; savedAt: number; bytes: number }
 type PersistedRecord = PersistedQuery | PersistedMeta;
-const isPersistedQuery = (record: PersistedRecord): record is PersistedQuery => record.id !== '__meta__' && 'queryKey' in record;
+const isPersistedQuery = (record: PersistedRecord): record is PersistedQuery => {
+  if (!record || typeof record !== 'object' || record.id === '__meta__' || !('queryKey' in record)) return false;
+  const candidate = record as Partial<PersistedQuery>;
+  return typeof candidate.id === 'string'
+    && Array.isArray(candidate.queryKey)
+    && typeof candidate.dataUpdatedAt === 'number'
+    && Number.isFinite(candidate.dataUpdatedAt)
+    && candidate.dataUpdatedAt > 0
+    && typeof candidate.savedAt === 'number'
+    && Number.isFinite(candidate.savedAt)
+    && typeof candidate.bytes === 'number'
+    && Number.isFinite(candidate.bytes)
+    && candidate.bytes >= 0
+    && 'data' in candidate;
+};
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -49,7 +63,7 @@ export function isOfflinePersistableQueryKey(queryKey: QueryKey): boolean {
 export function selectPersistableQueries(queries: Array<{ queryKey: QueryKey; state: { data?: unknown; dataUpdatedAt: number } }>, now = Date.now()): PersistedQuery[] {
   const candidates: PersistedQuery[] = [];
   for (const query of queries) {
-    if (query.state.data === undefined || !query.state.dataUpdatedAt || now - query.state.dataUpdatedAt > OFFLINE_QUERY_MAX_AGE_MS || !isOfflinePersistableQueryKey(query.queryKey)) continue;
+    if (query.state.data === undefined || !Number.isFinite(query.state.dataUpdatedAt) || query.state.dataUpdatedAt <= 0 || query.state.dataUpdatedAt > now + 60_000 || now - query.state.dataUpdatedAt > OFFLINE_QUERY_MAX_AGE_MS || !isOfflinePersistableQueryKey(query.queryKey)) continue;
     let encoded: string;
     try { encoded = stableJson(query.state.data); } catch { continue; }
     const bytes = new TextEncoder().encode(encoded).byteLength;
@@ -65,7 +79,7 @@ export async function restoreOfflineQueryCache(queryClient: QueryClient): Promis
     db = await openDb();
     const records = await requestResult(db.transaction(OFFLINE_QUERY_CACHE_STORE, 'readonly').objectStore(OFFLINE_QUERY_CACHE_STORE).getAll() as IDBRequest<PersistedRecord[]>);
     const now = Date.now();
-    const entries = records.filter(isPersistedQuery).filter((entry) => now - entry.dataUpdatedAt <= OFFLINE_QUERY_MAX_AGE_MS && isOfflinePersistableQueryKey(entry.queryKey)).sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt);
+    const entries = records.filter(isPersistedQuery).filter((entry) => entry.dataUpdatedAt <= now + 60_000 && now - entry.dataUpdatedAt <= OFFLINE_QUERY_MAX_AGE_MS && entry.bytes <= OFFLINE_QUERY_MAX_ENTRY_BYTES && isOfflinePersistableQueryKey(entry.queryKey)).sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt);
     let restored = 0;
     for (const entry of entries) {
       const current = queryClient.getQueryState(entry.queryKey);
@@ -110,8 +124,16 @@ export async function persistOfflineQueryCache(queryClient: QueryClient): Promis
 }
 export function getLastOfflineQueryCacheSavedAt(): number | null {
   if (typeof localStorage === 'undefined') return null;
-  const value = Number(localStorage.getItem(LAST_CACHE_AT_KEY));
-  return Number.isFinite(value) && value > 0 ? value : null;
+  try {
+    const raw = localStorage.getItem(LAST_CACHE_AT_KEY);
+    if (!raw) return null;
+    const value = Number(raw);
+    // Ignore corrupt/future markers (clock changes or manually edited storage).
+    return Number.isFinite(value) && value > 0 && value <= Date.now() + 60_000 ? value : null;
+  } catch {
+    // Storage can throw in privacy-restricted contexts; offline cache remains best-effort.
+    return null;
+  }
 }
 export async function clearOfflineQueryCache(): Promise<void> {
   let db: IDBDatabase | undefined;

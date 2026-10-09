@@ -231,7 +231,7 @@ export function NotificationsPage() {
             ? ` (آخر تحديث: ${new Date(dataUpdatedAt).toLocaleString('ar-EG', {
                 dateStyle: 'medium',
                 timeStyle: 'short',
-              })})`
+               timeZone: 'Asia/Gaza'})})`
             : ''}
           .
         </p>

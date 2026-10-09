@@ -24,6 +24,7 @@ import { CORE_ROUTES, PERSONAL_SHELL_ROUTES_ESSENTIAL } from '../../../lib/offli
 
 describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
   beforeEach(() => {
+    localStorage.clear();
     mode = 'fast';
     Object.defineProperty(globalThis, 'navigator', {
       value: { onLine: true },
@@ -46,6 +47,20 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
     // essentials survive the cut
     expect(pub).toEqual(expect.arrayContaining(['/offline', '/', '/ads', '/shared']));
     expect(per).toEqual(expect.arrayContaining(['/messages', '/ads/create']));
+  });
+
+  it('keeps baseline marketplace routes in the first public warming tranche despite usage signals', () => {
+    mode = 'fast';
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '2g', downlink: 0.05 } },
+      configurable: true,
+    });
+    localStorage.setItem('marketplat:navigation-usage:v1', JSON.stringify({
+      '/about': { count: 12, lastUsed: Date.now() },
+      '/contact': { count: 12, lastUsed: Date.now() },
+    }));
+    const routes = selectRoutesByPlan(getWarmingPlan(), [...CORE_ROUTES], 'public');
+    expect(routes.slice(0, 8)).toEqual(['/offline', '/', '/ads', '/products', '/search', '/requests', '/stores', '/services']);
   });
 
   it("the merged offline hub ('/offline') is always selected, first, on every tier", () => {

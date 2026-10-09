@@ -6,11 +6,11 @@ The browser QueryClient asynchronously restores recent public read-query snapsho
 
 ## Safety boundary
 
-The allowlist is derived from `lib/cache/cache-contract.json` domains with `scope: public`, excluding `search` because query keys may contain private search terms. Auth/profile, recommendations, seller/provider self data, admin data, notifications, conversations, messages, mutations and unknown query-key prefixes are not persisted. Logout clears the IndexedDB snapshot store and its freshness marker as defense in depth. IndexedDB is not encrypted and must not be treated as a secure store.
+The allowlist starts from `lib/cache/cache-contract.json` domains with `scope: public`, then applies a shape-aware query-key allowlist. This second check is required because broad invalidation prefixes such as `products` also match private sibling keys such as `products/me`. Search, owner-only branches, admin branches, stock/analytics data, and location-specific provider queries are excluded. Auth/profile, recommendations, seller/provider self data, admin data, notifications, conversations, messages, mutations and unknown query-key prefixes are not persisted. Logout clears the IndexedDB snapshot store and its freshness marker as defense in depth. IndexedDB is not encrypted and must not be treated as a secure store.
 
 ## Limits
 
-- Maximum entry: 20 KiB of serialized query data.
+- Maximum entry: 64 KiB of serialized query data.
 - Maximum records: 500.
 - Maximum aggregate data budget: 5 MiB.
 - Maximum age: 7 days.

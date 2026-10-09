@@ -145,6 +145,7 @@ export function DownloadStoreCatalogButton({
     const generatedAt = new Date().toLocaleString('ar-EG', {
       dateStyle: 'full',
       timeStyle: 'short',
+      timeZone: 'Asia/Gaza',
     });
 
     const cards = products

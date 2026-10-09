@@ -40,6 +40,9 @@ export function OfflineActionGate({
       <div
         className={cn(!online && disableWhenOffline && 'pointer-events-none opacity-60')}
         aria-disabled={!online && disableWhenOffline ? true : undefined}
+        // `pointer-events-none` alone does not prevent keyboard focus/activation.
+        // Native inert removes descendants from focus and interaction while offline.
+        inert={!online && disableWhenOffline}
       >
         {children}
       </div>

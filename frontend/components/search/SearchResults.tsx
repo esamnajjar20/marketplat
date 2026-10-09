@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
+import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
@@ -177,6 +178,10 @@ export function SearchResults() {
     // shares that same outer shape (rounded-xl border bg-card), so the
     // same skeleton fits here without introducing a new one.
     return (
+      <OfflineQueryFallback
+        title="لا توجد نسخة محفوظة من نتائج البحث"
+        description="لا تتوفر بيانات نتائج البحث المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+        fallback={
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         {/* UX-FIX: this grid sits in a 3-of-4-column <main> next to the
@@ -191,6 +196,8 @@ export function SearchResults() {
           {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       </div>
+        }
+      />
     );
   }
 

@@ -13,6 +13,8 @@ import { ServiceListingCard } from './ServiceListingCard';
 import { ROUTES } from '@/lib/constants';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { serviceListingsApi } from '@/api/service-listings.api';
@@ -22,6 +24,7 @@ import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
 
 export function ServiceListingsGrid() {
+  const isOnline = useOnlineStatus();
   const sp = useSearchParams();
 
   const search = sp.get('search') ?? undefined;
@@ -63,14 +66,30 @@ export function ServiceListingsGrid() {
 
   if (isLoading && !data) {
     return (
+      <OfflineQueryFallback
+        title="لا توجد نسخة محفوظة من الخدمات"
+        description="لا تتوفر بيانات الخدمات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+        fallback={
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         <div className={cn(LIST_SERVICE_GRID_CLASS)}>
           {Array.from({ length: 9 }).map((_, i) => <ServiceListingCardSkeleton key={i} />)}
         </div>
       </div>
+        }
+      />
     );
   }
+  if (isError && !isOnline) {
+    return (
+      <OfflineQueryFallback
+        fallback={null}
+        title="لا توجد نسخة محفوظة من الخدمات"
+        description="لا تتوفر بيانات الخدمات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+      />
+    );
+  }
+
   if (isError) {
     // UX-FIX P1-4: mirrors the same fix in SearchResults — a static red
     // line with no way to recover from a transient failure short of a

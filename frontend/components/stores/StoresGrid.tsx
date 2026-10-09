@@ -11,6 +11,7 @@ import { Search } from 'lucide-react';
 import { StoreCard } from './StoreCard';
 import { StoreCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { storesApi } from '@/api/stores.api';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -54,6 +55,10 @@ export function StoresGrid() {
 
   if (isLoading && !data) {
     return (
+      <OfflineQueryFallback
+        title="لا توجد نسخة محفوظة من المتاجر"
+        description="لا تتوفر بيانات المتاجر المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+        fallback={
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         {/* DESKTOP-AUDIT-05: capped at md:grid-cols-2 with no lg/xl/2xl
@@ -67,6 +72,8 @@ export function StoresGrid() {
           {Array.from({ length: 6 }).map((_, i) => <StoreCardSkeleton key={i} />)}
         </div>
       </div>
+        }
+      />
     );
   }
   if (isError) {

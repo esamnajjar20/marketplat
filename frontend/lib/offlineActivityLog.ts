@@ -85,6 +85,7 @@ export function formatActivityTime(at: number): string {
       minute: '2-digit',
       day: 'numeric',
       month: 'short',
+      timeZone: 'Asia/Gaza',
     });
   } catch {
     return '';

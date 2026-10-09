@@ -27,7 +27,7 @@ export function SaleCard({ sale }: { sale: SaleRecord }) {
         {costSettings?.enabled !== false && sale.costPrice != null ? <div><div className="text-muted-foreground">الربح</div><strong>{profit.toFixed(2)} ₪</strong></div> : null}
       </div>
       <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => window.location.assign(`/account/sales/${sale.id}/receipt`)}>الإيصال</Button>{Number(sale.dueAmount) > 0 ? <Button size="sm" onClick={() => setPay(true)}>إضافة دفعة</Button> : null}{sale.entityType !== 'FREE' && sale.quantity > 0 && Number(sale.returns?.reduce((sum, r) => sum + (r as { quantity?: number }).quantity!, 0) ?? 0) < sale.quantity ? <Button size="sm" variant="outline" onClick={() => setRet(true)}>تسجيل مرتجع</Button> : null}</div>
-      <div className="mt-3 text-xs text-muted-foreground">{new Date(sale.soldAt).toLocaleString('ar-PS')}</div>
+      <div className="mt-3 text-xs text-muted-foreground">{new Date(sale.soldAt).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })}</div>
     </article>
     <AddPaymentDialog sale={sale} open={pay} onOpenChange={setPay}/><ReturnSaleDialog sale={sale} open={ret} onOpenChange={setRet}/>
   </>;

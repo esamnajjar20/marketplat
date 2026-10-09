@@ -41,7 +41,7 @@ if (contract.includes("id: 'my-store'")) fail('my-store is duplicated in user wa
 else pass('user warming avoids self/profile duplicates');
 
 const pipeline = read('lib/offlineWarmingPipeline.ts');
-if (!pipeline.includes('return { ran: pipelineRan };')) fail('pipeline does not return the engine result');
+if (!pipeline.includes('return { ran: result?.ran ?? false };')) fail('pipeline does not return the engine result');
 if (pipeline.includes('warmCoreBundle(') || pipeline.includes('warmRouteShellsAtomic(')) fail('pipeline directly invokes phase functions instead of the engine');
 else pass('pipeline has a single engine entry point');
 

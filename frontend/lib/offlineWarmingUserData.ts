@@ -199,6 +199,7 @@ async function warmOneEndpoint(
   path: string,
   cache: Cache,
   timeoutMs: number,
+  expectedUserId: string,
 ): Promise<WarmOneResult> {
   const fullUrl = `${API_BASE_URL}${path}`;
   const usedSession = !!useAuthStore.getState().accessToken;
@@ -233,7 +234,12 @@ async function warmOneEndpoint(
     // FIX WARM-LOGOUT-RACE-01: logout may have run clearSensitiveLocalData()
     // while this request was in flight. Writing now would resurrect the
     // previous user's data after the wipe.
-    if (usedSession && !useAuthStore.getState().isAuthenticated) {
+    // Account switching is not equivalent to logout: isAuthenticated may
+    // remain true while another user becomes active. Never write a response
+    // fetched under the previous account into its offline cache after scope
+    // changes (and never resurrect that account's cache after logout).
+    if (getCurrentOfflineUserId() !== expectedUserId
+      || (usedSession && !useAuthStore.getState().isAuthenticated)) {
       return { ok: false, status: 0 };
     }
 
@@ -328,7 +334,7 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
               if (isWarmingCancelled()) return;
               const next = queue.shift();
               if (!next) return;
-              const r = await warmOneEndpoint(next.path, cache, timeoutMs);
+              const r = await warmOneEndpoint(next.path, cache, timeoutMs, userId);
               // FIX WARM-PROGRESS-HONEST-01: count only endpoints that
               // actually landed (or legitimately don't apply → 404).
               if (r.ok) completed += 1;

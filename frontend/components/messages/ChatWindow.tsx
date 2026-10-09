@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -28,7 +29,6 @@ import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
 import { useUserPresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/formatters';
 import { getAvatarUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { ChatMessageRow, type DisplayMessage } from './ChatMessageRow';
 import { cn } from '@/lib/utils';
@@ -497,7 +497,7 @@ export function ChatWindow({ conversationId }: Props) {
             {isPartyOnline ? (
               <p className="text-xs text-online line-clamp-1">متصل الآن</p>
             ) : partyPresence.lastSeenAt ? (
-              <p className="text-xs text-muted-foreground line-clamp-1">آخر ظهور {formatRelativeTime(partyPresence.lastSeenAt)}</p>
+              <p className="text-xs text-muted-foreground line-clamp-1">آخر ظهور {<HydrationSafeRelativeTime date={partyPresence.lastSeenAt} />}</p>
             ) : null}
           </div>
         </Link>

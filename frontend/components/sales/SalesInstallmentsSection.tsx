@@ -21,7 +21,7 @@ function InstallmentRow({ row, onPay }: { row: Installment; onPay: (id: string, 
   return (
     <article className="rounded-xl border bg-card p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div><strong>{row.sale?.customer?.name ?? row.sale?.buyerName ?? 'عميل'}</strong><p className="text-sm text-muted-foreground">قسط {row.installmentNo} · استحقاق {new Date(row.dueDate).toLocaleDateString('ar-PS')}</p></div>
+        <div><strong>{row.sale?.customer?.name ?? row.sale?.buyerName ?? 'عميل'}</strong><p className="text-sm text-muted-foreground">قسط {row.installmentNo} · استحقاق {new Date(row.dueDate).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' })}</p></div>
         <strong>{Math.max(0, remaining).toFixed(2)} ₪</strong>
       </div>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">

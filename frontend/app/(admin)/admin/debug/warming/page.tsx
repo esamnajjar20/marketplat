@@ -270,7 +270,7 @@ export default function WarmingDebugPage() {
         <div>
           <h1 className="text-lg font-semibold">تشخيص warming</h1>
           <p className="text-xs text-muted-foreground">
-            آخر تحديث: {new Date(report.generatedAt).toLocaleTimeString('ar')}{' '}
+            آخر تحديث: {new Date(report.generatedAt).toLocaleTimeString('ar', { timeZone: 'Asia/Gaza' })}{' '}
             — يُحدَّث تلقائياً كل 10 ثوانٍ
           </p>
         </div>

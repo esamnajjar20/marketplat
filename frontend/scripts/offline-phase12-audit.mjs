@@ -1,0 +1,22 @@
+/** Static guardrails for offline UX phases 1-2. No dependencies required. */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const checks = [];
+const pass = (name) => checks.push({ name, ok: true });
+const fail = (name) => checks.push({ name, ok: false });
+const cache = read('lib/offlineQueryCache.ts');
+const tests = read('__tests__/unit/lib/offlineQueryCache.test.ts');
+const providers = read('providers/AppProviders.tsx');
+const contract = JSON.parse(read('lib/cache/cache-contract.json'));
+if (providers.includes('restoreOfflineQueryCache(queryClient)') && providers.includes('subscribeOfflineQueryCache(queryClient)')) pass('query cache restore and persistence are connected to root provider'); else fail('query cache lifecycle is not connected to root provider');
+if (cache.includes('PUBLIC_CHILD_KEYS') && cache.includes("child !== 'me'") && cache.includes("child !== 'nearby'") && cache.includes("queryKey[1] === 'page'")) pass('persistence applies shape-aware public key allowlist'); else fail('persistence allowlist is too broad');
+if (cache.includes('actualBytes === entry.bytes') && cache.includes('actualBytes <= OFFLINE_QUERY_MAX_ENTRY_BYTES')) pass('restored records are checked against actual serialized size'); else fail('restored record size validation is missing');
+if (cache.includes('OFFLINE_QUERY_MAX_ENTRY_BYTES = 64 * 1024')) pass('per-query cache budget is 64 KiB'); else fail('per-query cache budget is not updated');
+if (tests.includes("['products', 'me', {}]") && tests.includes("['service-providers', 'me']") && tests.includes("['categories', 'admin', 'all']")) pass('regression tests cover private/admin sibling query keys'); else fail('private/admin key regression tests are missing');
+if (contract.domains.productList && contract.domains.adsList && contract.domains.home) pass('canonical cache contract includes primary marketplace domains'); else fail('primary cache domains missing from contract');
+for (const item of checks) console.log(`[offline-phase12] ${item.ok ? 'PASS' : 'FAIL'} ${item.name}`);
+if (checks.some((item) => !item.ok)) process.exit(1);
+console.log(`[offline-phase12] PASS ${checks.length} checks`);

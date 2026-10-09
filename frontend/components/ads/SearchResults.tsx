@@ -1,5 +1,7 @@
 'use client';
 
+import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
@@ -43,6 +45,7 @@ interface Props {
 }
 
 export function SearchResults({ categorySlug }: Props = {}) {
+  const isOnline = useOnlineStatus();
   const sp   = useSearchParams();
   const router = useRouter();
   // FIX ADS-PAGE-01: mirrors BUG-06 below (SearchFilters.tsx/
@@ -123,6 +126,10 @@ export function SearchResults({ categorySlug }: Props = {}) {
 
   if (isLoading && !data) {
     return (
+      <OfflineQueryFallback
+        title="لا توجد نسخة محفوظة من الإعلانات"
+        description="لا تتوفر بيانات الإعلانات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+        fallback={
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         {view === 'grid' ? (
@@ -135,8 +142,20 @@ export function SearchResults({ categorySlug }: Props = {}) {
           </div>
         )}
       </div>
+        }
+      />
     );
   }
+  if (isError && !isOnline) {
+    return (
+      <OfflineQueryFallback
+        fallback={null}
+        title="لا توجد نسخة محفوظة من الإعلانات"
+        description="لا تتوفر بيانات الإعلانات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+      />
+    );
+  }
+
   if (isError) {
     // UX-FIX P1-4: previously just a static line of red text with no way
     // to recover short of a full page reload, even on a transient network

@@ -18,6 +18,15 @@ describe('offline query cache safety and limits', () => {
     ], now);
     expect(rows).toHaveLength(1); expect(rows[0]?.queryKey).toEqual(['products', { page: 1 }]);
   });
+  it('rejects timestamps from the future instead of persisting clock-skewed data', () => {
+    const now = 1_800_000_000_000;
+    const rows = selectPersistableQueries([
+      { queryKey: ['products', { page: 1 }], state: { data: ['future'], dataUpdatedAt: now + 60_001 } },
+      { queryKey: ['products', { page: 2 }], state: { data: ['small-skew'], dataUpdatedAt: now + 30_000 } },
+    ], now);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.queryKey).toEqual(['products', { page: 2 }]);
+  });
   it('uses stable identities despite object property order', () => {
     const now = 1_800_000_000_000;
     const rows = selectPersistableQueries([

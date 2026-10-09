@@ -60,7 +60,7 @@ export function formatOfflineSavedAt(savedAt: string | null | undefined): string
     if (mins < 60) return `آخر تحديث: منذ ${mins} دقيقة`;
     const hours = Math.floor(mins / 60);
     if (hours < 48) return `آخر تحديث: منذ ${hours} ساعة`;
-    return `آخر تحديث: ${new Date(savedAt).toLocaleString('ar')}`;
+    return `آخر تحديث: ${new Date(savedAt).toLocaleString('ar', { timeZone: 'Asia/Gaza' })}`;
   } catch {
     return '';
   }

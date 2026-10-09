@@ -187,7 +187,7 @@ export function AdminAnalyticsDashboard() {
               const h = (n: number) => `${Math.max(n > 0 ? 2 : 0, (n / maxCount) * 100)}%`;
               return (
                 <div key={date} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-                  <div className="w-full flex items-end gap-px h-36" title={`${new Date(date).toLocaleDateString('ar')}: إعلانات ${formatNumber(ad)} · منتجات ${formatNumber(product)} · خدمات ${formatNumber(service)}`}>
+                  <div className="w-full flex items-end gap-px h-36" title={`${new Date(date).toLocaleDateString('ar', { timeZone: 'Asia/Gaza' })}: إعلانات ${formatNumber(ad)} · منتجات ${formatNumber(product)} · خدمات ${formatNumber(service)}`}>
                     <div className="flex-1 bg-primary/70 rounded-t-sm" style={{ height: h(ad) }} />
                     <div className="flex-1 bg-chart-1/80 rounded-t-sm" style={{ height: h(product) }} />
                     <div className="flex-1 bg-chart-2/80 rounded-t-sm" style={{ height: h(service) }} />

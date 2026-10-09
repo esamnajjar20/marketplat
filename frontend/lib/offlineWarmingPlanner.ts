@@ -100,6 +100,24 @@ const PRIORITY_ROUTES = [
 export const PINNED_OFFLINE_ROUTES = ['/offline'] as const;
 
 /**
+ * Routes that must remain in the first automatic public warming tranche.
+ * Navigation telemetry may improve coverage after these essentials, but a
+ * frequently visited low-priority utility must not displace the basic browse
+ * experience on a weak/unknown connection. The pinned /offline hub remains
+ * outside the route budget.
+ */
+export const PROTECTED_PUBLIC_WARMING_ROUTES = [
+  '/',
+  '/ads',
+  '/products',
+  '/search',
+  '/requests',
+  '/stores',
+  '/services',
+  '/shared',
+] as const;
+
+/**
  * FIX WARM-LIGHT-01: route budgets are PER LIST and per tier.
  *
  * Before, one number (25 / 20) was applied to the public list (18 routes)
@@ -276,15 +294,27 @@ export function selectRoutesByPlan(
   const adaptive = getWarmingBudget(getNetworkPolicy(), warmingMode === 'full' ? 'full' : 'fast');
   const adaptiveBudget = kind === 'public' ? adaptive.maxRouteCount : adaptive.maxPersonalRouteCount;
 
+  const chooseWithinBudget = (budget: number): string[] => {
+    if (kind !== 'public' || budget <= 0) return ordered.slice(0, budget);
+
+    // Reserve the first public tranche for baseline marketplace usefulness.
+    // Only the remaining slots are personalized by visit frequency/recency.
+    const protectedRoutes = PROTECTED_PUBLIC_WARMING_ROUTES.filter((route) => inInput.has(route));
+    const protectedSelected = protectedRoutes.slice(0, budget);
+    const selectedSet = new Set<string>(protectedSelected);
+    const personalized = ordered.filter((route) => !selectedSet.has(route));
+    return [...protectedSelected, ...personalized.slice(0, Math.max(0, budget - protectedSelected.length))];
+  };
+
   switch (plan.tier) {
     case 'critical':
     case 'core': {
       const staticBudget = ROUTE_BUDGETS[plan.tier][kind];
-      return [...pinned, ...ordered.slice(0, Math.min(staticBudget, adaptiveBudget))];
+      return [...pinned, ...chooseWithinBudget(Math.min(staticBudget, adaptiveBudget))];
     }
     case 'full':
     default:
-      return [...pinned, ...ordered.slice(0, adaptiveBudget)];
+      return [...pinned, ...chooseWithinBudget(adaptiveBudget)];
   }
 }
 

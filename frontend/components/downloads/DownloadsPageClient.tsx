@@ -26,7 +26,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString('ar-EG', {
     dateStyle: 'medium',
     timeStyle: 'short',
-  });
+   timeZone: 'Asia/Gaza'});
 }
 
 export function DownloadsPageClient() {

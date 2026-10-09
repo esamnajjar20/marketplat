@@ -6,6 +6,8 @@ import { Search } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductCardSkeleton } from '@/components/shared/skeletons';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
@@ -34,6 +36,7 @@ import type { ProductSortField } from '@/types/product.types';
  * this same treatment since it's already scoped to one store's page.
  */
 export function ProductsGrid() {
+  const isOnline = useOnlineStatus();
   const sp = useSearchParams();
 
   const search = sp.get('search') ?? undefined;
@@ -68,12 +71,28 @@ export function ProductsGrid() {
 
   if (isLoading && !data) {
     return (
+      <OfflineQueryFallback
+        title="لا توجد نسخة محفوظة من المنتجات"
+        description="لا تتوفر بيانات المنتجات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+        fallback={
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
         <div className={cn(LIST_CARD_GRID_CLASS)}>
           {Array.from({ length: 12 }).map((_, i) => <ProductCardSkeleton key={i} />)}
         </div>
       </div>
+        }
+      />
+    );
+  }
+
+  if (isError && !isOnline) {
+    return (
+      <OfflineQueryFallback
+        fallback={null}
+        title="لا توجد نسخة محفوظة من المنتجات"
+        description="لا تتوفر بيانات المنتجات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+      />
     );
   }
 

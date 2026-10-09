@@ -381,7 +381,7 @@ export function MyStoreInventory() {
                   <p className="text-xs text-muted-foreground">
                     {movement.reason === 'INITIAL_STOCK' ? 'رصيد افتتاحي' : 'تعديل يدوي'}
                     {' · '}
-                    {new Date(movement.createdAt).toLocaleString('ar')}
+                    {new Date(movement.createdAt).toLocaleString('ar', { timeZone: 'Asia/Gaza' })}
                   </p>
                 </div>
                 <div className="text-end tabular-nums">

@@ -31,7 +31,9 @@
     "perf:render-audit": "node scripts/render-audit.mjs",
     "perf:render-regression": "node scripts/render-regression-audit.mjs",
     "perf:query-invalidation-audit": "node scripts/query-invalidation-audit.mjs",
-    "perf:virtualization-audit": "node scripts/virtualization-audit.mjs"
+    "perf:virtualization-audit": "node scripts/virtualization-audit.mjs",
+    "offline:ux-audit": "node scripts/offline-ux-phases-3-4-audit.mjs",
+    "offline:ux-phases-5-6-audit": "node scripts/offline-ux-phases-5-6-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

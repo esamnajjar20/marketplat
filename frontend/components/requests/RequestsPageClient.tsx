@@ -23,6 +23,7 @@ import {
   type RequestSort,
 } from '@/components/requests/RequestFilters';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
+import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import { cn } from '@/lib/utils';
@@ -200,10 +201,19 @@ export function RequestsPageClient() {
 
         <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} />
 
-        {isLoading && !data ? <RequestListSkeleton /> : null}
+        {isLoading && !data ? (
+          <OfflineQueryFallback
+            title="لا توجد نسخة محفوظة من الطلبات"
+            description="لا تتوفر الطلبات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
+            fallback={<RequestListSkeleton />}
+          />
+        ) : null}
 
         {isError ? (
-          <EmptyState
+          <OfflineQueryFallback
+            title="تعذّر تحميل الطلبات دون اتصال"
+            description="لا توجد نسخة محفوظة من هذه الطلبات على الجهاز. اتصل بالإنترنت ثم أعد المحاولة."
+            fallback={<EmptyState
             title="تعذّر تحميل الطلبات"
             description="تحقق من الاتصال ثم أعد المحاولة."
             action={
@@ -211,6 +221,7 @@ export function RequestsPageClient() {
                 إعادة المحاولة
               </Button>
             }
+          />}
           />
         ) : null}
 

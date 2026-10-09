@@ -74,6 +74,17 @@ export function parsePrice(price: string | null | undefined): number | null {
 // ── Date / time ───────────────────────────────────────────────────
 
 const RTF = new Intl.RelativeTimeFormat('ar', { numeric: 'auto' });
+const GAZA_DATE_PARTS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Gaza', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+function gazaDayNumber(date: Date): number {
+  const parts = Object.fromEntries(GAZA_DATE_PARTS.formatToParts(date).map((part) => [part.type, part.value]));
+  return Math.floor(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)) / 86_400_000);
+}
+function gazaCalendarParts(date: Date): { year: number; month: number; day: number } {
+  const parts = Object.fromEntries(GAZA_DATE_PARTS.formatToParts(date).map((part) => [part.type, part.value]));
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) };
+}
 
 const THRESHOLDS: [number, Intl.RelativeTimeFormatUnit][] = [
   [60,           'second'],
@@ -128,24 +139,25 @@ export function formatRelativeTimeShort(dateStr: string, now = Date.now()): stri
   if (diffSec < 3_600) return `${Math.floor(diffSec / 60)}د`;
 
   const nowDate = new Date(now);
-  const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const daysAgo = Math.round((dayStart(nowDate) - dayStart(date)) / 86_400_000);
+  const nowCalendar = gazaCalendarParts(nowDate);
+  const dateCalendar = gazaCalendarParts(date);
+  const daysAgo = gazaDayNumber(nowDate) - gazaDayNumber(date);
 
   if (daysAgo === 0) {
     return new Intl.DateTimeFormat('ar-PS', {
-      hour: 'numeric', minute: '2-digit', numberingSystem: 'latn',
+      hour: 'numeric', minute: '2-digit', numberingSystem: 'latn', timeZone: 'Asia/Gaza',
     }).format(date);
   }
   if (daysAgo === 1) return 'أمس';
   if (daysAgo < 7) {
-    return new Intl.DateTimeFormat('ar-PS', { weekday: 'long' }).format(date);
+    return new Intl.DateTimeFormat('ar-PS', { weekday: 'long', timeZone: 'Asia/Gaza' }).format(date);
   }
-  if (date.getFullYear() === nowDate.getFullYear()) {
-    return new Intl.DateTimeFormat('ar-PS', { day: 'numeric', month: 'long' }).format(date);
+  if (dateCalendar.year === nowCalendar.year) {
+    return new Intl.DateTimeFormat('ar-PS', { day: 'numeric', month: 'long', timeZone: 'Asia/Gaza' }).format(date);
   }
-  const dd = String(date.getDate()).padStart(2, '0');
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const yy = String(date.getFullYear()).slice(-2);
+  const dd = String(dateCalendar.day).padStart(2, '0');
+  const mm = String(dateCalendar.month).padStart(2, '0');
+  const yy = String(dateCalendar.year).slice(-2);
   return `${dd}/${mm}/${yy}`;
 }
 
@@ -160,6 +172,7 @@ export function formatDate(dateStr: string): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'Asia/Gaza',
   }).format(d);
 }
 
@@ -177,6 +190,7 @@ export function formatTime(dateStr: string): string {
     hour: 'numeric',
     minute: '2-digit',
     numberingSystem: 'latn',
+    timeZone: 'Asia/Gaza',
   }).format(d);
 }
 

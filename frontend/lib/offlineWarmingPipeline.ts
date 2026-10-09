@@ -125,7 +125,10 @@ export async function runWarmingPipeline(
     lastPipelineStartedAt = Date.now();
     if (options.authenticated) lastPipelineAuthenticated = true;
 
-    if (!online) return { ran: false };
+    // Re-check the live connection after waiting for queue replay/storage.
+    // `online` is only a snapshot from function entry and may be stale after
+    // a long wait or a connection drop.
+    if (!navigator.onLine) return { ran: false };
 
     // W0-W3 + Cache W7: engine owns network budget + priority, storage
     // gates the phases. Network budget is still enforced by the engine;

@@ -1,4 +1,5 @@
 'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -17,7 +18,6 @@ import {
   formatOffersCount,
   isRequestExpiringSoon,
 } from '@/lib/requestStatus';
-import { formatRelativeTime } from '@/lib/formatters';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
@@ -129,12 +129,12 @@ export default function RequestDetailPage() {
         </h1>
 
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          {request.createdAt && <span>نُشر {formatRelativeTime(request.createdAt)}</span>}
+          {request.createdAt && <span>نُشر {<HydrationSafeRelativeTime date={request.createdAt} />}</span>}
           {request.customer?.name && <span>· {request.customer.name}</span>}
           {request.expiresAt && (
             <span className="inline-flex items-center gap-1">
               <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-              ينتهي {new Date(request.expiresAt).toLocaleDateString('ar')}
+              ينتهي {new Date(request.expiresAt).toLocaleDateString('ar', { timeZone: 'Asia/Gaza' })}
             </span>
           )}
           {request.status === 'OPEN' && (

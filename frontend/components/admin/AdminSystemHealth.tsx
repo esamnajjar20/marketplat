@@ -77,9 +77,9 @@ export function AdminSystemHealth() {
         <p className="text-sm text-muted-foreground">
           آخر فحص:{' '}
           {data.checkedAt
-            ? new Date(data.checkedAt).toLocaleString('ar')
+            ? new Date(data.checkedAt).toLocaleString('ar', { timeZone: 'Asia/Gaza' })
             : dataUpdatedAt
-              ? new Date(dataUpdatedAt).toLocaleString('ar')
+              ? new Date(dataUpdatedAt).toLocaleString('ar', { timeZone: 'Asia/Gaza' })
               : '—'}
         </p>
         <Button
