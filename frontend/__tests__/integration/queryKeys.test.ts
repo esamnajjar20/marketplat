@@ -277,9 +277,168 @@ describe('queryKeys.recommendations', () => {
     ).toEqual(['recommendations', 'store', { limit: 6, excludeStoreId: 'store-1', lat: 31.5, lng: 34.4 }]);
   });
 
+
+  it('service recommendations include serviceTypeId in cache identity', () => {
+    expect(queryKeys.recommendations.services({ serviceTypeId: 'plumbing', city: 'غزة' })).toEqual([
+      'recommendations', 'service', { serviceTypeId: 'plumbing', city: 'غزة' },
+    ]);
+  });
+
+  it('provider recommendation params are canonical when omitted', () => {
+    expect(queryKeys.recommendations.providers()).toEqual(['recommendations', 'providers', {}]);
+  });
+
   it('different excludeProductId values produce different product keys', () => {
     const a = JSON.stringify(queryKeys.recommendations.products({ excludeProductId: 'p1' }));
     const b = JSON.stringify(queryKeys.recommendations.products({ excludeProductId: 'p2' }));
     expect(a).not.toBe(b);
+  });
+});
+
+// ── Centralized infinite-query and legacy key families ─────────────
+
+describe('sales query key parameter contracts', () => {
+  it('preserves only supported sales list parameters in the cache identity', () => {
+    expect(queryKeys.sales.list({ page: 2, limit: 12, status: 'PAID', entityType: 'PRODUCT' })).toEqual([
+      'sales', 'list', { page: 2, limit: 12, status: 'PAID', entityType: 'PRODUCT' },
+    ]);
+  });
+
+  it('includes report filters in the report cache identity', () => {
+    expect(queryKeys.sales.report({ from: '2026-10-01', to: '2026-10-09', status: 'UNPAID' })).toEqual([
+      'sales', 'report', { from: '2026-10-01', to: '2026-10-09', status: 'UNPAID' },
+    ]);
+  });
+});
+
+describe('queryKeys centralized query families', () => {
+  it('preserves established infinite-query key shapes', () => {
+    expect(queryKeys.ads.infinite('browse', { city: 'غزة', pageSize: 12 })).toEqual([
+      'ads', 'infinite', 'browse', { city: 'غزة', pageSize: 12 },
+    ]);
+    expect(queryKeys.stores.infinite({ city: 'رفح', pageSize: 12 })).toEqual([
+      'stores', 'infinite', { city: 'رفح', pageSize: 12 },
+    ]);
+    expect(queryKeys.products.infinite({ hasPromotion: true, pageSize: 12 })).toEqual([
+      'products', 'infinite', { hasPromotion: true, pageSize: 12 },
+    ]);
+    expect(queryKeys.serviceListings.infinite({ serviceTypeId: 'repair', pageSize: 12 })).toEqual([
+      'service-listings', 'infinite', { serviceTypeId: 'repair', pageSize: 12 },
+    ]);
+    expect(queryKeys.search.infinite({ q: 'حاسوب', pageSize: 12 })).toEqual([
+      'search', 'infinite', { q: 'حاسوب', pageSize: 12 },
+    ]);
+  });
+
+  it('keeps message-prefix keys compatible with parameterized message queries', () => {
+    const prefix = queryKeys.conversations.messagesRoot('conversation-1');
+    const exact = queryKeys.conversations.messages('conversation-1', { limit: 50 });
+    expect(prefix).toEqual(['conversations', 'detail', 'conversation-1', 'messages']);
+    expect(exact.slice(0, prefix.length)).toEqual(prefix);
+  });
+
+  it('provides centralized keys for previously inline query families', () => {
+    expect(queryKeys.recommendations.providers({ city: 'غزة' }, 'user')).toEqual([
+      'recommendations', 'providers', { city: 'غزة' }, 'user',
+    ]);
+    expect(queryKeys.admin.serviceRequestDisputes({ page: 2, limit: 20 })).toEqual([
+      'admin', 'service-request-disputes', { page: 2, limit: 20 },
+    ]);
+    expect(queryKeys.sales.receipt('sale-1')).toEqual(['sales', 'receipt', 'sale-1']);
+    expect(queryKeys.serviceListingMatches('listing-1')).toEqual(['service-listing-matches', 'listing-1']);
+    expect(queryKeys.publicStoreSalesStats('store-slug')).toEqual(['public-store-sales-stats', 'store-slug']);
+    expect(queryKeys.serviceProviders.myServiceTypes()).toEqual(['my-service-provider-service-types']);
+  });
+
+  it('provides root prefixes without changing parameterized admin keys', () => {
+    expect(queryKeys.admin.adsRoot()).toEqual(['admin', 'ads']);
+    expect(queryKeys.admin.ads({ page: 1 }).slice(0, 2)).toEqual(queryKeys.admin.adsRoot());
+    expect(queryKeys.admin.usersRoot()).toEqual(['admin', 'users']);
+    expect(queryKeys.admin.sellersRoot()).toEqual(['admin', 'sellers']);
+    expect(queryKeys.admin.storesRoot()).toEqual(['admin', 'stores']);
+  });
+});
+
+// ── Keys migrated from helper modules into the central factory ────
+
+describe('queryKeys home and favorites', () => {
+  it('home.feed isolates city, explicit-all mode, and user identity', () => {
+    expect(queryKeys.home.feed(undefined, null, false)).toEqual(['home', 'feed', null, 'guest']);
+    expect(queryKeys.home.feed('غزة', 'user-1', false)).toEqual(['home', 'feed', 'غزة', 'user-1']);
+    expect(queryKeys.home.feed(undefined, 'user-1', true)).toEqual(['home', 'feed', '__ALL__', 'user-1']);
+    expect(queryKeys.home.feed(undefined, 'user-1', false)).not.toEqual(queryKeys.home.feed(undefined, 'user-2', false));
+  });
+
+  it('favorites.lists is distinct from the favorites item list and ids set', () => {
+    expect(queryKeys.favorites.lists()).toEqual(['favorites', 'lists']);
+    expect(queryKeys.favorites.lists()).not.toEqual(queryKeys.favorites.all());
+    expect(queryKeys.favorites.lists()).not.toEqual(queryKeys.favorites.ids());
+  });
+});
+
+
+// ── Canonical invalidation prefixes (Phase 3) ─────────────────────
+describe('canonical invalidation prefixes', () => {
+  it('exposes roots that cover every query variant in a domain', () => {
+    expect(queryKeys.ads.mineRoot()).toEqual(['ads', 'me']);
+    expect(queryKeys.conversations.mineRoot()).toEqual(['conversations', 'me']);
+    expect(queryKeys.conversations.mine()).toEqual(['conversations', 'me', {}]);
+    expect(queryKeys.appointments.mineRoot()).toEqual(['appointments', 'me']);
+    expect(queryKeys.appointments.mine()).toEqual(['appointments', 'me', {}]);
+    expect(queryKeys.notifications.mineRoot()).toEqual(['notifications', 'me']);
+    expect(queryKeys.notifications.mine()).toEqual(['notifications', 'me', {}]);
+    expect(queryKeys.serviceReviews.all()).toEqual(['service-reviews']);
+  });
+
+  it('exposes stable roots for admin and stock history invalidation', () => {
+    expect(queryKeys.admin.reportsRoot()).toEqual(['admin', 'reports']);
+    expect(queryKeys.admin.reports()).toEqual(['admin', 'reports', {}]);
+    expect(queryKeys.admin.fraudRoot()).toEqual(['admin', 'fraud']);
+    expect(queryKeys.admin.productsRoot()).toEqual(['admin', 'products']);
+    expect(queryKeys.admin.serviceListingsRoot()).toEqual(['admin', 'service-listings']);
+    expect(queryKeys.admin.openRequestsRoot()).toEqual(['admin', 'open-requests']);
+    expect(queryKeys.admin.serviceRequestDisputesRoot()).toEqual(['admin', 'service-request-disputes']);
+    expect(queryKeys.products.stockHistoryRoot()).toEqual(['products', 'stock', 'history']);
+  });
+
+  it('keeps favorite list and entity list prefixes separate', () => {
+    expect(queryKeys.favorites.listRoot()).toEqual(['favorites', 'list']);
+    expect(queryKeys.favorites.entityListRoot('PRODUCT')).toEqual(['favorites', 'entity-list', 'product']);
+    expect(queryKeys.favorites.listRoot()).not.toEqual(queryKeys.favorites.entityListRoot('PRODUCT'));
+  });
+});
+
+
+// ── Invalidation prefixes (Phase 3) ───────────────────────────────
+
+describe('queryKeys invalidation roots', () => {
+  it('conversation root helpers cover every parameterized list/message variant', () => {
+    const root = queryKeys.conversations.mineRoot();
+    const list = queryKeys.conversations.mine({ page: 2 });
+    expect(list.slice(0, root.length)).toEqual(root);
+    expect(queryKeys.conversations.messages('c-1', { limit: 50 }).slice(0, queryKeys.conversations.messagesRoot('c-1').length))
+      .toEqual(queryKeys.conversations.messagesRoot('c-1'));
+  });
+
+  it('domain roots are stable prefixes, not parameterized cache entries', () => {
+    expect(queryKeys.notifications.mineRoot()).toEqual(['notifications', 'me']);
+    expect(queryKeys.serviceReviews.all()).toEqual(['service-reviews']);
+    expect(queryKeys.appointments.mineRoot()).toEqual(['appointments', 'me']);
+    expect(queryKeys.products.stockHistoryRoot()).toEqual(['products', 'stock', 'history']);
+  });
+
+  it('admin mutation roots cover all filtered query variants', () => {
+    const cases = [
+      [queryKeys.admin.reportsRoot(), queryKeys.admin.reports({ status: 'OPEN', page: 2 })],
+      [queryKeys.admin.fraudRoot(), queryKeys.admin.fraudAds({ page: 2 })],
+      [queryKeys.admin.productsRoot(), queryKeys.admin.products({ page: 2 })],
+      [queryKeys.admin.serviceListingsRoot(), queryKeys.admin.serviceListings({ page: 2 })],
+      [queryKeys.admin.openRequestsRoot(), queryKeys.admin.openRequests({ page: 2 })],
+      [queryKeys.admin.serviceRequestDisputesRoot(), queryKeys.admin.serviceRequestDisputes({ page: 2 })],
+    ] as const;
+
+    for (const [root, key] of cases) {
+      expect(key.slice(0, root.length)).toEqual(root);
+    }
   });
 });

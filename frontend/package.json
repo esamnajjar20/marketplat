@@ -43,11 +43,14 @@
     "offline:phase5-audit": "node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
     "offline:phase6-audit": "node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
     "offline:phase7-audit": "node scripts/offline-phase7-warming-audit.mjs && node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
-    "offline:phase8-audit": "node scripts/offline-phase8-integration-audit.mjs && node scripts/offline-phase7-warming-audit.mjs && node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
+    "offline:phase8-audit": "node scripts/offline-system-inventory.mjs --write && node scripts/offline-phase8-integration-audit.mjs && node scripts/offline-phase7-warming-audit.mjs && node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
     "offline:phase8-test": "playwright test e2e/tests/offline-phase8.integration.spec.ts",
     "device-errors:audit": "node scripts/device-error-monitor-audit.mjs",
     "hydration:offline-cache-audit": "node scripts/hydration-offline-cache-audit.mjs",
-    "network:request-audit": "node scripts/network-request-monitor-audit.mjs"
+    "network:request-audit": "node scripts/network-request-monitor-audit.mjs",
+    "query-keys:audit": "node scripts/query-key-audit.cjs && node scripts/query-invalidation-factory-audit.cjs && node scripts/query-key-types-audit.cjs",
+    "query-keys:types-audit": "node scripts/query-key-types-audit.cjs",
+    "query-keys:verify": "npm run query-keys:audit && vitest run __tests__/integration/queryKeys.test.ts __tests__/integration/queryOptions.test.ts __tests__/integration/queryKeyCacheSemantics.test.ts __tests__/integration/queryInvalidationSemantics.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

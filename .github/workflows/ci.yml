@@ -187,6 +187,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
+      # Dedicated guardrail for query-key identity, cache-prefix semantics,
+      # and factory usage. Keep this separate so regressions are easy to spot.
+      - name: Query key architecture tests
+        run: npm run query-keys:verify
+
       - name: Security audit (high severity)
         run: npm audit --audit-level=high
         continue-on-error: true
