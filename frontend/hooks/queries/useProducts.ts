@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { productsApi } from '@/api/products.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -62,12 +63,16 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
     params?.minPrice === undefined &&
     params?.maxPrice === undefined &&
     params?.hasPromotion === undefined;
-  const cached = isBaseBrowse
-    ? getOfflineList<ProductWithStore>(OFFLINE_LIST_KEYS.productsBrowse)
-    : null;
+  const queryKey = queryKeys.products.list(params);
+  useOfflineListSeed<ProductWithStore, ProductsPage>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.productsBrowse,
+    enabled: isBaseBrowse && (options?.enabled ?? true),
+    mapItems: offlinePage,
+  });
 
   return useQuery({
-    queryKey: queryKeys.products.list(params),
+    queryKey,
     queryFn: async (): Promise<ProductsPage> => {
       try {
         const data = (await productsApi.getAll(params).then((r) => r.data.data)) as ProductsPage;
@@ -90,12 +95,6 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
     staleTime: CACHE_TTL.adsList,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
-    ...(cached?.items?.length
-      ? {
-          initialData: offlinePage(cached.items),
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 

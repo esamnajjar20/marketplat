@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/notifications.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -24,11 +24,9 @@ import { offlineMeta } from '@/lib/apiPagination';
  * GET /notifications — powers NotificationsDropdown's list.
  *
  * OFFLINE: للطلب غير المُصفّى (بدون unreadOnly، وهو ما تعرضه صفحة
- * الإشعارات وتبني منه تبويب "غير مقروء" محليًا) تُبذَر بأحدث نسخة محفوظة
- * في notificationsCache.ts كـ initialData — فتظهر فورًا حتى بدون اتصال —
- * وتُحدَّث هذه النسخة المحلية تلقائيًا كلما نجح طلب جديد من الخادم. عند
- * عودة الاتصال يُعاد الجلب تلقائيًا (refetchOnReconnect الافتراضي في
- * TanStack Query) فتتحدّث القائمة والنسخة المحلية معًا.
+ * الإشعارات وتبني منه تبويب "غير مقروء" محليًا) تُبذَر أحدث نسخة محفوظة
+ * بعد أول render في المتصفح، حتى تبقى HTML الخادم وأول render للعميل
+ * متطابقين. وتُحدَّث النسخة المحلية تلقائيًا كلما نجح طلب جديد من الخادم.
  */
 export function useMyNotifications(params?: NotificationsQuery, options?: { enabled?: boolean }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -47,21 +45,34 @@ export function useMyNotifications(params?: NotificationsQuery, options?: { enab
     !params?.unreadOnly &&
     !params?.type &&
     !params?.category;
-  const cached = isBaseView ? getNotificationsCache() : null;
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.notifications.mine(params);
+  const queryKeyJson = JSON.stringify(queryKey);
+
+  // Hydration-safe offline seed: the browser-only notification snapshot is
+  // applied after the first render, never as render-time initialData.
+  useEffect(() => {
+    if (!isBaseView) return;
+    let stableKey: readonly unknown[];
+    try { stableKey = JSON.parse(queryKeyJson) as readonly unknown[]; } catch { return; }
+    if (queryClient.getQueryData(stableKey) !== undefined) return;
+    const cached = getNotificationsCache();
+    if (!cached?.items.length) return;
+    const savedAt = Date.parse(cached.savedAt);
+    queryClient.setQueryData(
+      stableKey,
+      { items: cached.items, meta: offlineMeta(cached.items.length) },
+      { updatedAt: Number.isFinite(savedAt) && savedAt > 0 ? savedAt : Date.now() },
+    );
+  }, [isBaseView, queryClient, queryKeyJson]);
 
   const query = useQuery({
-    queryKey: queryKeys.notifications.mine(params),
+    queryKey,
     queryFn: () => notificationsApi.getMine(params).then((r) => r.data.data),
     staleTime: CACHE_TTL.notifications,
     // SSE updates the inbox; poll is a slow backup, paused when hidden/offline.
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
     enabled: (options?.enabled ?? true) && isAuthenticated && (hasToken || !isOnline),
-    ...(cached && cached.items.length > 0
-      ? {
-          initialData: { items: cached.items, meta: offlineMeta(cached.items.length) },
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 
   useEffect(() => {
@@ -74,26 +85,38 @@ export function useMyNotifications(params?: NotificationsQuery, options?: { enab
 }
 
 /** GET /notifications/unread-count — powers NotificationBell's badge.
- * OFFLINE: نفس منطق useMyNotifications — تُبذَر من آخر عدد محفوظ محليًا،
- * وتُحدَّث النسخة المحلية كلما نجح طلب جديد. */
+ * OFFLINE: تُبذَر من آخر عدد محفوظ محليًا بعد أول render، وتُحدَّث النسخة
+ * المحلية كلما نجح طلب جديد. */
 export function useUnreadNotificationCount() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const cached = getNotificationsCache();
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.notifications.unreadCount();
+  const queryKeyJson = JSON.stringify(queryKey);
+
+  // Keep the first SSR/client render deterministic while retaining offline
+  // badge availability as soon as hydration has completed.
+  useEffect(() => {
+    let stableKey: readonly unknown[];
+    try { stableKey = JSON.parse(queryKeyJson) as readonly unknown[]; } catch { return; }
+    if (queryClient.getQueryData(stableKey) !== undefined) return;
+    const cached = getNotificationsCache();
+    if (!cached || typeof cached.unreadCount !== 'number') return;
+    const savedAt = Date.parse(cached.savedAt);
+    queryClient.setQueryData(
+      stableKey,
+      cached.unreadCount,
+      { updatedAt: Number.isFinite(savedAt) && savedAt > 0 ? savedAt : Date.now() },
+    );
+  }, [queryClient, queryKeyJson]);
 
   const query = useQuery({
-    queryKey: queryKeys.notifications.unreadCount(),
+    queryKey,
     queryFn: () => notificationsApi.getUnreadCount().then((r) => r.data.data?.count ?? 0),
     staleTime: CACHE_TTL.notifications,
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
     enabled: isAuthenticated && (hasToken || !isOnline),
-      ...(cached && typeof cached.unreadCount === 'number'
-      ? {
-          initialData: cached.unreadCount,
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 
   useEffect(() => {

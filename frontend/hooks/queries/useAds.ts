@@ -12,6 +12,7 @@
 'use client';
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { adsApi }    from '@/api/ads.api';
 // API-INT-08 FIX: usersApi was imported dynamically inside the queryFn.
 // There is no circular dependency between useAds.ts and users.api.ts —
@@ -119,13 +120,16 @@ export function useAds(
     params?.limit === undefined &&
     !hasRealFilter &&
     !hasNonDefaultSort;
-  // Memoize offline read: getOfflineList does JSON.parse — avoid per-render cost.
-  const cached = isBaseBrowse
-    ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse)
-    : null;
+  const queryKey = queryKeys.ads.list(params);
+  useOfflineListSeed<AdListItem, { items: AdListItem[]; meta: ReturnType<typeof offlineMeta> }>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.adsBrowse,
+    enabled: isBaseBrowse && options?.enabled !== false,
+    mapItems: (items) => ({ items, meta: offlineMeta(items.length) }),
+  });
 
   return useQuery({
-    queryKey:         queryKeys.ads.list(params),
+    queryKey,
     queryFn: async () => {
       try {
         const data = await adsApi.getAll(params).then((r) => r.data.data);
@@ -150,15 +154,6 @@ export function useAds(
     placeholderData:  keepPreviousData,
     staleTime:        CACHE_TTL.adsList,
     enabled:          options?.enabled,
-    ...(cached && cached.items.length > 0
-      ? {
-          initialData: {
-            items: cached.items,
-            meta: offlineMeta(cached.items.length),
-          },
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 
@@ -215,7 +210,6 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
   const isBase =
     (!params?.page || params.page === 1) &&
     params?.status === undefined;
-  const cached = isBase ? getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds, userId) : null;
 
   return useQuery({
     queryKey:        queryKeys.ads.mine(params),
@@ -244,15 +238,6 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.myAds,
     enabled:         options?.enabled ?? true,
-    ...(cached && cached.items.length > 0
-      ? {
-          initialData: {
-            items: cached.items,
-            meta: offlineMeta(cached.items.length),
-          },
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 

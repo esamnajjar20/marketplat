@@ -4,6 +4,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { categoriesApi } from '@/api/categories.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -17,10 +18,16 @@ import {
 
 /** All categories (tree structure). Cached for 1 hour + offline snapshot. */
 export function useCategories(options?: { enabled?: boolean }) {
-  const cached = getOfflineList<Category>(OFFLINE_LIST_KEYS.categories);
+  const queryKey = queryKeys.categories.all();
+  useOfflineListSeed<Category, Category[]>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.categories,
+    enabled: options?.enabled ?? true,
+    mapItems: (items) => items,
+  });
 
   return useQuery({
-    queryKey: queryKeys.categories.all(),
+    queryKey,
     queryFn: async (): Promise<Category[]> => {
       try {
         const data = await categoriesApi.getAll().then((r) => r.data.data);
@@ -40,12 +47,6 @@ export function useCategories(options?: { enabled?: boolean }) {
     },
     staleTime: CACHE_TTL.categories,
     enabled: options?.enabled ?? true,
-    ...(cached?.items?.length
-      ? {
-          initialData: cached.items,
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 

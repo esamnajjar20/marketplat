@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { apiClient } from '@/api/client';
 import type { ApiResponse } from '@/types/api.types';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -33,10 +34,15 @@ interface RankRow {
 const MEDAL = { gold: '🥇', silver: '🥈', bronze: '🥉' } as const;
 
 export function SellersRankingList({ limit = 20 }: { limit?: number }) {
-  const cached = getOfflineList<RankRow>(OFFLINE_LIST_KEYS.sellersRanking);
+  const queryKey = ['sellers', 'ranking', limit] as const;
+  useOfflineListSeed<RankRow, RankRow[]>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.sellersRanking,
+    mapItems: (items) => items,
+  });
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['sellers', 'ranking', limit],
+    queryKey,
     queryFn: async () => {
       try {
         const rows =
@@ -55,12 +61,6 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
         throw err;
       }
     },
-    ...(cached && cached.items.length > 0
-      ? {
-          initialData: cached.items,
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 
   if (isLoading) {

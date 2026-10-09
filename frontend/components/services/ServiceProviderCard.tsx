@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,12 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
  */
 export const ServiceProviderCard = memo(function ServiceProviderCard({ provider, className }: Props) {
   const avatar = getAvatarUrl(provider.logoUrl ?? '', 96);
-  const userCity = useAuthStore((s) => s.user?.city ?? null);
+  const persistedUserCity = useAuthStore((s) => s.user?.city ?? null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  // Zustand persist may restore user.city from localStorage before the first
+  // browser render; do not let that client-only value change server HTML.
+  const userCity = mounted ? persistedUserCity : null;
 
   const distanceLabel = formatDistanceKm(provider.distanceKm);
   const sharedCity =

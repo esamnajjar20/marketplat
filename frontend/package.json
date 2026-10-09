@@ -45,7 +45,8 @@
     "offline:phase7-audit": "node scripts/offline-phase7-warming-audit.mjs && node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
     "offline:phase8-audit": "node scripts/offline-phase8-integration-audit.mjs && node scripts/offline-phase7-warming-audit.mjs && node scripts/offline-phase6-ux-audit.mjs && node scripts/offline-phase5-queue-audit.mjs && node --check public/sw.js && node scripts/offline-phase4-lifecycle-audit.mjs && node scripts/offline-phase3-storage-audit.mjs && node scripts/offline-phase12-audit.mjs && node --test scripts/offline-phase1-guardrails.test.mjs",
     "offline:phase8-test": "playwright test e2e/tests/offline-phase8.integration.spec.ts",
-    "device-errors:audit": "node scripts/device-error-monitor-audit.mjs"
+    "device-errors:audit": "node scripts/device-error-monitor-audit.mjs",
+    "hydration:offline-cache-audit": "node scripts/hydration-offline-cache-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

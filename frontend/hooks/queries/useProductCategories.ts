@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { productCategoriesApi } from '@/api/product-categories.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -19,10 +20,16 @@ import {
  * required-field validation blocked submit with no way to satisfy it
  * (the exact "لازم فئة واصلا مش مبين فئات" report). */
 export function useProductCategories(options?: { enabled?: boolean }) {
-  const cached = getOfflineList<unknown>(OFFLINE_LIST_KEYS.productCategories);
+  const queryKey = queryKeys.productCategories.all();
+  useOfflineListSeed<unknown, unknown[]>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.productCategories,
+    enabled: options?.enabled ?? true,
+    mapItems: (items) => items as never,
+  });
 
   return useQuery({
-    queryKey: queryKeys.productCategories.all(),
+    queryKey,
     queryFn: async () => {
       try {
         const data = await productCategoriesApi.getAll().then((r) => r.data.data);
@@ -42,12 +49,6 @@ export function useProductCategories(options?: { enabled?: boolean }) {
     },
     staleTime: CACHE_TTL.categories,
     enabled: options?.enabled ?? true,
-    ...(cached?.items?.length
-      ? {
-          initialData: cached.items as never,
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 

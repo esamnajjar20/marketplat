@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -59,12 +60,16 @@ export function useServiceListings(
   const isBaseBrowse = isUnfilteredFirstPage(params, {
     nonFilterFields: ['page', 'limit'],
   });
-  const cached = isBaseBrowse
-    ? getOfflineList<ServiceListingWithProvider>(OFFLINE_LIST_KEYS.servicesBrowse)
-    : null;
+  const queryKey = queryKeys.serviceListings.list(params);
+  useOfflineListSeed<ServiceListingWithProvider, ServicesPage>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.servicesBrowse,
+    enabled: isBaseBrowse && (options?.enabled ?? true),
+    mapItems: offlinePage,
+  });
 
   return useQuery({
-    queryKey: queryKeys.serviceListings.list(params),
+    queryKey,
     queryFn: async (): Promise<ServicesPage> => {
       try {
         const data = (await serviceListingsApi
@@ -91,12 +96,6 @@ export function useServiceListings(
     staleTime: CACHE_TTL.adsList,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
-    ...(cached?.items?.length
-      ? {
-          initialData: offlinePage(cached.items),
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 

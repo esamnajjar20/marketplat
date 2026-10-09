@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { serviceCategoriesApi } from '@/api/service-categories.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -16,10 +17,16 @@ import {
  * same offline snapshot handling as
  * useProductCategories (and as useCategories already had). */
 export function useServiceCategories(options?: { enabled?: boolean }) {
-  const cached = getOfflineList<unknown>(OFFLINE_LIST_KEYS.serviceCategories);
+  const queryKey = queryKeys.serviceCategories.all();
+  useOfflineListSeed<unknown, unknown[]>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.serviceCategories,
+    enabled: options?.enabled ?? true,
+    mapItems: (items) => items as never,
+  });
 
   return useQuery({
-    queryKey: queryKeys.serviceCategories.all(),
+    queryKey,
     queryFn: async () => {
       try {
         const data = await serviceCategoriesApi.getAll().then((r) => r.data.data);
@@ -39,12 +46,6 @@ export function useServiceCategories(options?: { enabled?: boolean }) {
     },
     staleTime: CACHE_TTL.categories,
     enabled: options?.enabled ?? true,
-    ...(cached?.items?.length
-      ? {
-          initialData: cached.items as never,
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 

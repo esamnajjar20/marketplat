@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -53,12 +54,19 @@ export function useStores(
   const isBaseBrowse = isUnfilteredFirstPage(params, {
     nonFilterFields: ['page', 'limit'],
   });
-  const cached = isBaseBrowse
-    ? getOfflineList<StoreWithSeller>(OFFLINE_LIST_KEYS.storesBrowse)
-    : null;
+  const queryKey = queryKeys.stores.list(params);
+  useOfflineListSeed<StoreWithSeller, Awaited<ReturnType<typeof storesApi.getAll>>['data']['data']>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.storesBrowse,
+    enabled: isBaseBrowse && (options?.enabled ?? true),
+    mapItems: (items: StoreWithSeller[]) => ({
+      items,
+      meta: { total: items.length, page: 1, limit: items.length || 1, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+    }),
+  });
 
   return useQuery({
-    queryKey: queryKeys.stores.list(params),
+    queryKey,
     queryFn: async () => {
       try {
         const data = await storesApi.getAll(params).then((r) => r.data.data);
@@ -93,22 +101,6 @@ export function useStores(
     staleTime: CACHE_TTL.adsList,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
-    ...(cached?.items?.length
-      ? {
-          initialData: {
-            items: cached.items,
-            meta: {
-              total: cached.items.length,
-              page: 1,
-              limit: cached.items.length || 1,
-              totalPages: 1,
-              hasNextPage: false,
-              hasPrevPage: false,
-            },
-          },
-          initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
-        }
-      : {}),
   });
 }
 
