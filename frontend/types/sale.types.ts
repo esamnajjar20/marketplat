@@ -1,5 +1,26 @@
 export type SaleEntityType = 'PRODUCT' | 'AD' | 'SERVICE' | 'FREE';
 export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'UNPAID' | 'OVERDUE';
+
+/** Query parameters shared by GET /sales and its query-cache identity. */
+export interface SalesListQueryParams {
+  page?: number;
+  limit?: number;
+  status?: SalePaymentStatus;
+  entityType?: SaleEntityType;
+  customerId?: string;
+  storeId?: string;
+  from?: string;
+  to?: string;
+}
+
+/** Query parameters shared by GET /sales/reports and its cache identity. */
+export interface SalesReportQueryParams {
+  from?: string;
+  to?: string;
+  storeId?: string;
+  status?: SalePaymentStatus;
+  limit?: number;
+}
 export type SaleTransferMethod = 'CASH' | 'JAWWAL_PAY' | 'BANK_PALESTINE' | 'PALPAY' | 'CARD' | 'OTHER';
 
 export interface SaleCustomer {
