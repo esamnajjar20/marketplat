@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
 import { UserMenu }       from './UserMenu';
@@ -76,8 +76,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
   // only; every other public route keeps it (there is no hero SearchBox
   // anywhere else).
   const isHomePage = pathname === '/';
-  const searchParams = useSearchParams();
-  const isAdsBrowseActive = onSearchPage && (searchParams.get('type') ?? 'all') === 'ads';
+  // @418-FIX: useSearchParams() here wrapped every public route in
+  // a Suspense boundary; Next streamed the loading shell and then
+  // hydrated against a different tree — React #418 args[]=HTML on
+  // every public page. Read ?type=ads after mount so the first
+  // client render matches the server exactly.
+  const [isAdsBrowseActive, setIsAdsBrowseActive] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setIsAdsBrowseActive(onSearchPage && (params.get("type") ?? "all") === "ads");
+  }, [onSearchPage]);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const navItemClass = (active: boolean) =>
     active
