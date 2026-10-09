@@ -491,7 +491,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # يبني فقط (بدون push) مع كاش طبقات عبر GitHub Actions cache —
       # يسرّع البناءات المتكررة بشكل كبير خصوصًا لطبقة npm ci الثقيلة،
