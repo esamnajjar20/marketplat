@@ -221,10 +221,12 @@ export const queryKeys = {
 
   stores: {
     all:      ()                => ['stores'] as const,
+    listRoot: ()                => ['stores', 'list'] as const,
     list:     (params?: StoresQuery) => ['stores', 'list', params ?? {}] as const,
     detail:   (id: string)      => ['stores', 'detail', id] as const,
     me:       ()                => ['stores', 'me'] as const,
     followed: (params?: Parameters<typeof storesApi.getMyFollowedStores>[0]) => ['stores', 'followed', params ?? {}] as const,
+    infiniteRoot: ()           => ['stores', 'infinite'] as const,
     infinite: (params?: Omit<StoresQuery, 'page' | 'limit' | 'type'> & { pageSize?: number }) => ['stores', 'infinite', params ?? {}] as const,
     // FIX BUG-03: mirrors queryKeys.favorites.ids() — a single cached
     // Set<string> of followed store ids, populated by useMyFollowedStores
@@ -411,6 +413,7 @@ export const queryKeys = {
 
   // ── Home (aggregated above-the-fold homepage payload) ────────────
   home: {
+    pageRoot: () => ['home', 'page'] as const,
     page: (city?: string) => ['home', 'page', city ?? null] as const,
     feed: (city: string | undefined, userId: string | null, explicitAll: boolean) =>
       ['home', 'feed', explicitAll ? '__ALL__' : (city ?? null), userId ?? 'guest'] as const,

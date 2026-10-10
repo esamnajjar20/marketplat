@@ -150,15 +150,46 @@ function flush(): void {
   send(batch);
 }
 
+function stopFlushTimer(): void {
+  if (flushTimer !== null) {
+    clearInterval(flushTimer);
+    flushTimer = null;
+  }
+}
+
+function syncFlushTimer(): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  // Analytics is best-effort: do not wake the radio every 5s while the app
+  // is backgrounded or after consent has been withdrawn. Hidden/pagehide
+  // handlers flush once; the periodic timer resumes only on a visible tab.
+  if (!hasAnalyticsConsent() || document.visibilityState !== 'visible') {
+    stopFlushTimer();
+    return;
+  }
+  if (flushTimer === null) flushTimer = setInterval(flush, FLUSH_INTERVAL_MS);
+}
+
+let flushLifecycleInstalled = false;
 function ensureFlushLifecycle(): void {
-  if (typeof window === 'undefined' || flushTimer) return;
+  if (typeof window === 'undefined' || typeof document === 'undefined' || flushLifecycleInstalled) return;
+  flushLifecycleInstalled = true;
 
-  flushTimer = setInterval(flush, FLUSH_INTERVAL_MS);
-
-  document.addEventListener('visibilitychange', () => {
+  const onVisibilityChange = () => {
     if (document.visibilityState === 'hidden') flush();
-  });
+    syncFlushTimer();
+  };
+  const onConsentChange = () => {
+    if (!hasAnalyticsConsent()) {
+      // Do not retain events collected under a previously granted consent.
+      queue.length = 0;
+    }
+    syncFlushTimer();
+  };
+
+  document.addEventListener('visibilitychange', onVisibilityChange);
   window.addEventListener('pagehide', flush);
+  window.addEventListener('marketplat:analytics-consent', onConsentChange);
+  syncFlushTimer();
 }
 
 /**

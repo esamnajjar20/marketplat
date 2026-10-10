@@ -81,3 +81,18 @@ export function getQueryClient(): QueryClient {
   }
   return browserQueryClient;
 }
+
+/**
+ * Cancel active queries before removing their cache entries. `clear()` alone
+ * removes cached Query objects but does not express cancellation to observers
+ * or abort-aware queryFns. Call this at session boundaries before wiping data.
+ */
+export async function cancelAndClearQueryClient(
+  client: QueryClient = getQueryClient(),
+): Promise<void> {
+  try {
+    await client.cancelQueries();
+  } finally {
+    client.clear();
+  }
+}

@@ -27,7 +27,8 @@ import { clearOfflineQueue } from '@/lib/offlineQueue';
 import { clearCatalogDownloads } from '@/lib/downloadStorage';
 import { clearAllSalesDrafts } from '@/lib/sales-offline/salesDraftStore';
 import { clearSavedPaymentMethods } from '@/lib/paymentStorage';
-import { getQueryClient } from '@/lib/queryClient';
+import { cancelAndClearQueryClient } from '@/lib/queryClient';
+import { abortSessionRequests } from '@/lib/sessionRequestRegistry';
 import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
 import { clearConversationMediaStore } from '@/lib/conversationMediaStore';
 import { clearAppBadge } from '@/lib/appBadge';
@@ -149,7 +150,20 @@ async function clearUnversionedOfflineBuckets(): Promise<void> {
   }
 }
 
+// Monotonic fence for asynchronous auth/bootstrap work. Any in-flight task
+// captures the current version and must check it before committing results.
+// Increment synchronously (before the first await) so logout/account-end wins
+// even while the remaining storage cleanup is still running.
+let sessionCleanupVersion = 0;
+
+export function getSessionCleanupVersion(): number {
+  return sessionCleanupVersion;
+}
+
 export async function clearSensitiveLocalData(): Promise<void> {
+  sessionCleanupVersion += 1;
+  // Abort network requests synchronously before clearing any user-scoped cache.
+  abortSessionRequests();
   // FIX REFRESH-QUEUE-LOGOUT: reject any requests currently parked in
   // api/client.ts's refresh queue. Their retry would ship the revoked
   // access token to the server, get another 401, and re-enter the
@@ -171,9 +185,11 @@ export async function clearSensitiveLocalData(): Promise<void> {
   // وغيرها من User A. استخدام clear() (وليس invalidate) — لأن
   // invalidation يُبقي البيانات القديمة كـ placeholder بينما يُحدّث.
   try {
-    getQueryClient().clear();
+    // Abort-aware queryFns receive TanStack's AbortSignal; cancel first so
+    // active observers revert and their network work can stop before clear.
+    await cancelAndClearQueryClient();
   } catch (err) {
-    console.warn('[auth-cleanup] queryClient.clear() failed:', err);
+    console.warn('[auth-cleanup] query cancellation/cache clear failed:', err);
   }
   try {
     const { clearOfflineQueryCache } = await import('@/lib/offlineQueryCache');
