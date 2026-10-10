@@ -118,7 +118,7 @@ export function RecentActivityFeed() {
           </div>
         );
       })}
-      <Link href={ROUTES.activity} className="block text-center text-sm text-primary hover:underline pt-1">
+      <Link href={ROUTES.activity} prefetch={false} className="block text-center text-sm text-primary hover:underline pt-1">
         عرض سجل النشاط كاملاً
       </Link>
     </div>

@@ -134,7 +134,7 @@ export function UserMenu() {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.activity} className="flex items-center gap-2 cursor-pointer">
+          <Link href={ROUTES.activity} prefetch={false} className="flex items-center gap-2 cursor-pointer">
             <History className="h-4 w-4" />
             نشاطي
           </Link>
