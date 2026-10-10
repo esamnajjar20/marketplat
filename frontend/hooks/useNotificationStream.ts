@@ -389,7 +389,7 @@ export function useNotificationStream(options?: Options) {
       }
     };
     const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
-      if (event.type === 'online') onOnline();
+      if (event.type === 'online' || event.type === 'resume') onOnline();
     });
 
     void connect();
