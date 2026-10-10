@@ -45,7 +45,7 @@ const MAX_SAVED_SEARCHES_PER_USER = 20;
  * so `q` behaves the same way GET /ads?search= already does, instead
  * of a stricter, literal-only rule unique to saved searches.
  */
-function matchesAdFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolean {
+export function matchesAdFilters(ad: AdWithAuthor, filters: SavedSearchFilters): boolean {
   if (filters.q && !matchesSearchQuery([ad.title, ad.description], filters.q)) return false;
   if (filters.city && ad.city.toLowerCase() !== filters.city.toLowerCase()) return false;
   if (filters.categoryId && ad.categoryId !== filters.categoryId) return false;
@@ -246,7 +246,7 @@ export const savedSearchEvents = {
  * defaulting to 'ads' for rows saved before this field existed — same
  * default the validation schema applies on write, kept here too since
  * pre-existing DB rows were never re-validated/migrated. */
-function savedSearchType(s: SavedSearch): 'ads' | 'products' | 'services' {
+export function savedSearchType(s: SavedSearch): 'ads' | 'products' | 'services' {
   const filters = s.filters as unknown as SavedSearchFilters;
   return filters.type ?? 'ads';
 }

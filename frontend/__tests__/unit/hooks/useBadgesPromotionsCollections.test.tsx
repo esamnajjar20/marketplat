@@ -8,6 +8,7 @@ import { useMyCollections, useCollection, usePublicCollections, useCollectionPro
 import { badgesApi } from '@/api/badges.api';
 import { promotionsApi } from '@/api/promotions.api';
 import { collectionsApi } from '@/api/collections.api';
+import { useAuthStore } from '@/store/auth.store';
 vi.mock('@/api/badges.api', () => ({ badgesApi: { getStoreBadges: vi.fn(), getProviderBadges: vi.fn() } }));
 vi.mock('@/api/promotions.api', () => ({ promotionsApi: { getMine: vi.fn(), getById: vi.fn() } }));
 vi.mock('@/api/collections.api', () => ({ collectionsApi: { getMine: vi.fn(), getById: vi.fn(), getPublicCollections: vi.fn(), getPublicCollectionProducts: vi.fn() } }));
@@ -15,7 +16,11 @@ function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // useMyCollections is a private endpoint; tests model a verified session.
+  useAuthStore.setState({ isAuthenticated: true, accessToken: 'test-access-token', isAuthResolving: false });
+});
 describe('badges/promotions/collections queries', () => {
   it('loads store badges and related queries', async () => {
     (badgesApi.getStoreBadges as any).mockResolvedValue({ data: { data: [{ id: 'b1' }] } });

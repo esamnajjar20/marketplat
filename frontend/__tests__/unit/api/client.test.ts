@@ -101,6 +101,31 @@ describe('api/client.ts — request interceptor', () => {
     expect(capturedAuthHeader).toBeNull();
   });
 
+  it('rejects a late response after the active account changes', async () => {
+    setAuthenticatedState('user-1-token');
+    let releaseResponse: (() => void) | undefined;
+    getMswServer()?.use(
+      http.get(PROTECTED_URL, async () => {
+        await new Promise<void>((resolve) => { releaseResponse = resolve; });
+        return HttpResponse.json({ success: true, data: { id: 'user-1' } });
+      }),
+    );
+
+    const pending = apiClient.get('/users/me');
+    // Wait until MSW has received the request before switching accounts.
+    for (let attempt = 0; attempt < 20 && !releaseResponse; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(releaseResponse).toBeDefined();
+    useAuthStore.getState().setAuth(
+      { id: 'user-2', name: 'Sara', email: 'b@example.com', role: 'USER' },
+      { accessToken: 'user-2-token' },
+    );
+    releaseResponse?.();
+
+    await expect(pending).rejects.toMatchObject({ code: 'ERR_CANCELED' });
+  });
+
   // FIX BUG-IMG-CONTENTTYPE-01: apiClient's instance-level default
   // ('Content-Type: application/json', set at axios.create() above)
   // was silently surviving FormData uploads, so the browser never got

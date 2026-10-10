@@ -59,6 +59,19 @@ describe('prefetchOnIntent', () => {
     expect(work).not.toHaveBeenCalled();
   });
 
+  it('releases a queued key when the network gate closes so it can retry immediately', async () => {
+    const work = vi.fn().mockResolvedValue(undefined);
+    onIntentPrefetch('retry-after-policy-change', work);
+    getNetworkPolicy.mockReturnValue({ allowPrefetch: false, maxPrefetchConcurrency: 0 });
+
+    await vi.advanceTimersByTimeAsync(2000);
+    getNetworkPolicy.mockReturnValue({ allowPrefetch: true, maxPrefetchConcurrency: 1 });
+    onIntentPrefetch('retry-after-policy-change', work);
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(work).toHaveBeenCalledTimes(1);
+  });
+
   it('limits concurrent prefetch work according to the network policy', async () => {
     getNetworkPolicy.mockReturnValue({ allowPrefetch: true, maxPrefetchConcurrency: 1 });
     let release!: () => void;

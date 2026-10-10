@@ -1508,9 +1508,16 @@ function openQueueDb() {
  * ضمنيًا/غير موجود سابقًا: كل عنصر بالطابور كان "معلّقًا" حتى يُحذف عند
  * نجاح أو فشل نهائي، بلا تمييز). لا يُكسر أي مستهلك قديم للطابور — عنصر
  * بلا status يُعامَل كـ pending أيضًا (انظر الفحص أدناه). */
-async function queueRequestEntry(entry) {
+async function queueRequestEntry(entry, lifecycleVersion = queueLifecycleVersion) {
   const db = await openQueueDb();
   return new Promise((resolve, reject) => {
+    // Check AFTER the asynchronous DB open and immediately before creating
+    // the write transaction. If CLEAR_QUEUE began while openQueueDb awaited,
+    // a request from the previous session must not resurrect itself afterward.
+    if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) {
+      reject(Object.assign(new Error('Queue lifecycle changed before enqueue'), { code: 'QUEUE_LIFECYCLE_CHANGED' }));
+      return;
+    }
     const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
     tx.objectStore(QUEUE_STORE_NAME).add({ status: 'pending', ...entry });
     tx.oncomplete = () => resolve();
@@ -1748,7 +1755,8 @@ async function refreshAccessToken(sampleUrl) {
   return { ok: true, accessToken, csrfToken: typeof csrfToken === 'string' ? csrfToken : null };
 }
 
-async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReason) {
+async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReason, lifecycleVersion = queueLifecycleVersion) {
+  if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
   // FIX SW-PROCESSING-01: علّم العنصر قيد المعالجة لتفادي retry متوازي
   // عبر RETRY_QUEUE_ITEM أثناء عمل replayQueue.
   await markQueuedEntry(entry.id, { processing: true, processingStartedAt: Date.now() });
@@ -1806,7 +1814,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         authorization: `Bearer ${freshCreds.accessToken}`,
       };
     }
-    if (queueClearInFlight) return 'still-offline';
+    if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
     // Defense-in-depth for shared devices: the queue records the user id
     // from the access token at enqueue time, without storing the token. If
     // a stale row survives an account switch, never send it as the new user.
@@ -1814,6 +1822,28 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     const queuedOwner =
       entry.ownerUserId || decodeAccessTokenUserId(entry.headers?.authorization);
     const currentOwner = freshCreds ? decodeAccessTokenUserId(freshCreds.accessToken) : null;
+    // Unsafe rows with no recorded owner are ambiguous: replaying them while
+    // another account is active would silently attribute the guest/legacy
+    // operation to that account. Keep them for explicit recovery instead.
+    if (isUnsafeMethod(entry.method) && currentOwner && !queuedOwner) {
+      await markQueuedEntry(entry.id, {
+        status: 'failed',
+        needsRecovery: true,
+        lastError: {
+          status: 409,
+          message: 'تعذّر التحقق من الحساب الذي أنشأ هذه العملية؛ لن تُرسل بجلسة حساب آخر.',
+        },
+      });
+      await notifyClients({
+        type: 'QUEUE_ITEM_FAILED',
+        id: entry.id,
+        url: entry.url,
+        status: 409,
+        message: 'تعذّر التحقق من الحساب الذي أنشأ هذه العملية؛ لن تُرسل بجلسة حساب آخر.',
+        operationId: entry.operationId || null,
+      });
+      return 'failed';
+    }
     if (entry.needsAuth && !queuedOwner) {
       await markQueuedEntry(entry.id, {
         status: 'failed',
@@ -1869,6 +1899,10 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       activeReplayControllers.delete(replayController);
     }
 
+    // A logout/account switch may have aborted the request while it was on
+    // the wire. Ignore its result even if the fetch implementation resolved.
+    if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
+
     if (response.ok) {
       await deleteQueuedEntry(entry.id);
       await notifyClients({
@@ -1914,7 +1948,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         if (updatedEntry) {
           // Pass 'ok' as the reason — we just successfully refreshed,
           // so any needsCsrf guard must see valid creds and NOT trigger.
-          return replayOne(updatedEntry, true, fresh, 'ok');
+          return replayOne(updatedEntry, true, fresh, 'ok', lifecycleVersion);
         }
       }
       // FIX SW-REFRESH-NETWORK-NOT-FAILED-01: distinguish refresh
@@ -2146,6 +2180,9 @@ function isOrderSensitiveQueueEntry(entry) {
 // قبل حذفها → POSTs مكررة لنفس الإعلان/الرسالة.
 let replayQueueInFlight = false;
 let queueClearInFlight = false;
+// Session/queue fence: any drain started before CLEAR_QUEUE must never send
+// another queued mutation or commit a response after the clear begins.
+let queueLifecycleVersion = 0;
 const activeReplayControllers = new Set();
 // A worker can be terminated while a row is marked processing. Keep a lease
 // so a fresh worker can recover abandoned rows, while concurrent drains skip
@@ -2160,10 +2197,11 @@ function hasActiveProcessingLease(entry, now = Date.now()) {
 async function replayQueue() {
   if (queueClearInFlight || replayQueueInFlight) return;
   replayQueueInFlight = true;
+  const lifecycleVersion = queueLifecycleVersion;
   const startedAt = Date.now();
   await notifyClients({ type: 'QUEUE_DRAIN_STARTED', startedAt });
   try {
-    const result = await replayQueueImpl();
+    const result = await replayQueueImpl(lifecycleVersion);
     await notifyClients({
       type: 'QUEUE_DRAIN_FINISHED',
       startedAt,
@@ -2196,10 +2234,11 @@ async function pruneFailedEntries(maxFailed = 50) {
   }
 }
 
-async function replayQueueImpl() {
+async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
   const metrics = { processed: 0, sent: 0, failed: 0, stillOffline: false };
   // FIX SW-PRUNE-FAILED: نظّف العناصر الفاشلة القديمة قبل المعالجة.
   await pruneFailedEntries(50);
+  if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return metrics;
 
   let entries;
   try {
@@ -2207,6 +2246,8 @@ async function replayQueueImpl() {
   } catch {
     return metrics;
   }
+
+  if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return metrics;
 
   // FIX QUEUE-CSRF-STALE-01: if ANY live entry was queued with a CSRF
   // token (needsCsrf), obtain fresh credentials ONCE for this entire
@@ -2227,6 +2268,7 @@ async function replayQueueImpl() {
   );
   if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
     const r = await refreshAccessToken(entries[0].url);
+    if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return metrics;
     if (r && r.ok) {
       freshCreds = r;
     } else {
@@ -2259,6 +2301,7 @@ async function replayQueueImpl() {
   let processedEntries = 0;
 
   for (const entry of entries) {
+    if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) break;
     if (processedEntries >= maxDrainEntries) break;
     if (entry.status === 'failed' || entry.status === 'cancelled') continue;
 
@@ -2292,7 +2335,7 @@ async function replayQueueImpl() {
 
     processedEntries += 1;
     metrics.processed += 1;
-    const result = await replayOne(entry, false, freshCreds, refreshReason);
+    const result = await replayOne(entry, false, freshCreds, refreshReason, lifecycleVersion);
 
     if (result === 'sent' || result === 'failed') {
       if (result === 'sent') metrics.sent += 1;
@@ -2416,6 +2459,10 @@ function isAnalyticsBeacon(url) {
 }
 
 async function handleMutation(request) {
+  // Bind this request to the queue/session lifecycle at entry. A network
+  // failure may resolve after logout cleanup; that stale request must not
+  // enqueue itself into the next user's queue.
+  const enqueueLifecycleVersion = queueLifecycleVersion;
   // FIX ANALYTICS-QUEUE-RACE-01: bypass queue entirely for the public
   // analytics beacon. Transparent network pass-through when online;
   // Response.error() when offline (the client's sendBeacon wrapper
@@ -2527,6 +2574,20 @@ async function handleMutation(request) {
 
     try {
       const priority = inferQueuePriority(requestForQueue.url, requestForQueue.method);
+      if (queueClearInFlight || enqueueLifecycleVersion !== queueLifecycleVersion) {
+        return new Response(
+          JSON.stringify({
+            queued: false,
+            code: 'QUEUE_SESSION_CHANGED',
+            message: 'تغيّرت الجلسة أثناء حفظ العملية؛ لم تُحفظ لإعادة الإرسال بحساب آخر.',
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      // Authenticated operations must retain an owner. An unsafe operation
+      // created without an owner must not later inherit whichever account
+      // happens to be active when the queue is replayed.
       const entry = {
         url: requestForQueue.url,
         method: requestForQueue.method,
@@ -2543,21 +2604,25 @@ async function handleMutation(request) {
       // PHASE-4: merge offline analytics beacons into one queue row
       const coalesced = await tryCoalesceAnalyticsEntry(entry);
       if (!coalesced) {
-        await queueRequestEntry(entry);
+        await queueRequestEntry(entry, enqueueLifecycleVersion);
       }
     } catch (storeErr) {
       // FIX OFFLINE-QUEUE-RELIABILITY-01: كان Response.error() صامتًا —
       // الواجهة ما تعرف تحفظ مسودة بسياق "طابور فشل"، والمستخدم يظن
       // أن العملية اختفت. 503 + code واضح → isNetworkLikeFailure + onError.
+      const lifecycleChanged =
+        storeErr?.code === 'QUEUE_LIFECYCLE_CHANGED' ||
+        queueClearInFlight || enqueueLifecycleVersion !== queueLifecycleVersion;
       console.warn('[SW] queueRequestEntry failed:', storeErr && storeErr.message);
       return new Response(
         JSON.stringify({
           queued: false,
-          code: 'QUEUE_STORE_FAILED',
-          message:
-            'تعذّر حفظ العملية في طابور الأوفلاين — حُفظت مسودة محلية إن أمكن وستُرفع عند عودة الاتصال.',
+          code: lifecycleChanged ? 'QUEUE_SESSION_CHANGED' : 'QUEUE_STORE_FAILED',
+          message: lifecycleChanged
+            ? 'تغيّرت الجلسة أثناء حفظ العملية؛ لم تُحفظ لإعادة الإرسال بحساب آخر.'
+            : 'تعذّر حفظ العملية في طابور الأوفلاين — حُفظت مسودة محلية إن أمكن وستُرفع عند عودة الاتصال.',
         }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } },
+        { status: lifecycleChanged ? 409 : 503, headers: { 'Content-Type': 'application/json' } },
       );
     }
 
@@ -2837,6 +2902,10 @@ self.addEventListener('message', (event) => {
   if (type === 'CLEAR_QUEUE') {
     event.waitUntil(
       (async () => {
+        // Invalidate every snapshot/drain immediately, before awaiting IDB.
+        // This closes the race where an old drain continued to the next row
+        // after CLEAR_QUEUE had deleted the queue and released its lock.
+        queueLifecycleVersion += 1;
         queueClearInFlight = true;
         // Abort mutations currently on the wire before deleting their
         // IndexedDB rows. Logout must not race a replay and let an old

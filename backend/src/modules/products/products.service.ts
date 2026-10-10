@@ -151,6 +151,10 @@ export const productsService = {
     const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'products')));
 
     let product: Product;
+    // A concurrent replay can reach the unique index after both requests
+    // uploaded images. Only the request that inserted the row may emit
+    // create-only notifications/activity/fraud scoring.
+    let createdNew = true;
     try {
       // the count check above and the insert below are now
       // serialized per-store via withStoreProductCreationLock (same
@@ -215,6 +219,8 @@ export const productsService = {
         const existing = await prisma.product.findUnique({ where: { offlineOperationId } });
         if (existing && existing.storeId === store.id) {
           product = existing;
+          createdNew = false;
+          await cleanupUploadedImages(uploads.map(u => u.publicId));
         } else {
           await cleanupUploadedImages(uploads.map(u => u.publicId));
           throw error;
@@ -225,47 +231,50 @@ export const productsService = {
       }
     }
 
-    // Fire-and-forget fan-out to everyone following this store — a
-    // notification failing here must never fail product creation, same
-    // convention as every other notificationEvents caller.
-    storeFollowersRepository
-      .findUserIdsByStoreId(store.id)
-      .then(followerIds => notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name))
-      .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+    if (createdNew) {
+      // Fire-and-forget fan-out to everyone following this store — a
+      // notification failing here must never fail product creation, same
+      // convention as every other notificationEvents caller.
+      storeFollowersRepository
+        .findUserIdsByStoreId(store.id)
+        .then(followerIds => notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name))
+        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
 
-    void followsService.notifyActivityForTargets(
-      [{ targetType: FollowTargetType.CATEGORY, targetId: `PRODUCT:${product.categoryId}` }],
-      'منتج جديد',
-      `${product.name} أُضيف إلى متجر ${store.name}`,
-      { targetType: FollowTargetType.STORE, targetId: store.id, contentType: 'PRODUCT', contentId: product.id, categoryId: product.categoryId },
-    ).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+      void followsService.notifyActivityForTargets(
+        [{ targetType: FollowTargetType.CATEGORY, targetId: `PRODUCT:${product.categoryId}` }],
+        'منتج جديد',
+        `${product.name} أُضيف إلى متجر ${store.name}`,
+        { targetType: FollowTargetType.STORE, targetId: store.id, contentType: 'PRODUCT', contentId: product.id, categoryId: product.categoryId },
+      ).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
 
-    // PLATFORM-WIDE-01: notify saved-search owners (type 'products')
-    // whose criteria match this new product — same fire-and-forget
-    // contract as ads.service.ts's createAd -> savedSearchEvents
-    // .onAdCreated call, for the same reason: a matching failure must
-    // never fail product creation itself.
-    savedSearchEvents.onProductCreated(product, userId).catch((err) =>
-      logger.error('Failed to process saved-search matches for new product', { err, productId: product.id })
-    );
+      // PLATFORM-WIDE-01: notify saved-search owners (type 'products')
+      // whose criteria match this new product — same fire-and-forget
+      // contract as ads.service.ts's createAd -> savedSearchEvents
+      // .onAdCreated call, for the same reason: a matching failure must
+      // never fail product creation itself.
+      savedSearchEvents.onProductCreated(product, userId).catch((err) =>
+        logger.error('Failed to process saved-search matches for new product', { err, productId: product.id })
+      );
 
-    // Gap #10: fire-and-forget, same contract as activityService
-    // .record()'s own doc comment — never awaited, never fails product
-    // creation. Logged for `userId` (the store owner), not store.id.
-    activityService.record({ userId, ...activityTemplates.productCreated(product.id, product.name) });
+      // Gap #10: fire-and-forget, same contract as activityService
+      // .record()'s own doc comment — never awaited, never fails product
+      // creation. Logged for `userId` (the store owner), not store.id.
+      activityService.record({ userId, ...activityTemplates.productCreated(product.id, product.name) });
 
-    // Fraud scoring (content heuristics) — fire-and-forget, same contract as ads.service scoreAd
-    fraudService
-      .scoreListing({
-        entityType: 'PRODUCT',
-        id: product.id,
-        userId,
-        title: product.name,
-        description: product.description ?? '',
-        price: product.price != null ? Number(product.price) : null,
-        categoryId: product.categoryId,
-      })
-      .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+      // Fraud scoring (content heuristics) — fire-and-forget, same contract as ads.service scoreAd
+      fraudService
+        .scoreListing({
+          entityType: 'PRODUCT',
+          id: product.id,
+          userId,
+          title: product.name,
+          description: product.description ?? '',
+          price: product.price != null ? Number(product.price) : null,
+          categoryId: product.categoryId,
+        })
+        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+
+    }
 
     return product;
   },

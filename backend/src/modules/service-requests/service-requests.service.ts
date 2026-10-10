@@ -186,6 +186,9 @@ export const serviceRequestsService = {
     }
 
     let request: ServiceRequest;
+    // A P2002 replay means another request already committed this operation.
+    // Return its row, but do not emit creation side effects a second time.
+    let createdNew = true;
     try {
       request = await prisma.$transaction(async tx =>
         serviceRequestsRepository.create(tx, customerId, input.listingId, {
@@ -203,27 +206,33 @@ export const serviceRequestsService = {
         (err as { code?: string }).code === 'P2002'
       ) {
         const existing = await prisma.serviceRequest.findUnique({ where: { offlineOperationId } });
-        if (existing && existing.customerId === customerId) return existing;
+        if (existing && existing.customerId === customerId) {
+          request = existing;
+          createdNew = false;
+        } else {
+          throw err;
+        }
+      } else {
+        throw err;
       }
-      throw err;
     }
 
-    // Gap #10: fire-and-forget, see activityService.record()'s own doc
-    // comment. Logged for `customerId` (the requester), not the
-    // provider — a request is the customer's own action.
-    activityService.record({
-      userId: customerId,
-      ...activityTemplates.serviceRequestCreated(request.id, listing.title),
-    });
+    if (createdNew) {
+      // Gap #10: fire-and-forget, see activityService.record()'s own doc
+      // comment. Logged for `customerId` (the requester), not the provider.
+      activityService.record({
+        userId: customerId,
+        ...activityTemplates.serviceRequestCreated(request.id, listing.title),
+      });
 
-    // Fire-and-forget: tell the provider a request arrived. `provider`
-    // can be null only if the listing's provider row vanished mid-flight.
-    if (provider) {
-      notificationEvents
-        .onServiceRequestCreated(provider.sellerProfile.userId, request.id, listing.title, customerId)
-        .catch((err) =>
-          logger.error('Failed to create SERVICE_REQUEST_NEW notification', { err, requestId: request.id })
-        );
+      // Fire-and-forget: notify the provider only for the winning insert.
+      if (provider) {
+        notificationEvents
+          .onServiceRequestCreated(provider.sellerProfile.userId, request.id, listing.title, customerId)
+          .catch((err) =>
+            logger.error('Failed to create SERVICE_REQUEST_NEW notification', { err, requestId: request.id })
+          );
+      }
     }
 
     return request;

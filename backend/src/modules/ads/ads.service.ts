@@ -29,10 +29,10 @@ import { sellersService } from '../sellers/sellers.service';
 import { requireStoreAccess } from '../stores/store-members.service';
 import { favoritesRepository } from '../favorites/favorites.repository';
 import { notificationEvents } from '../notifications';
-import { savedSearchEvents } from '../saved-searches';
+import { matchesAdFilters, savedSearchType } from '../saved-searches/saved-searches.service';
+import type { SavedSearchFilters } from '../saved-searches/saved-searches.validation';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
-import { followsService } from '../follows/follows.service';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
@@ -206,6 +206,9 @@ export const adsService = {
     }
 
     let ad: AdWithAuthor;
+    // Distinguish a winning insert from a concurrent idempotent replay so
+    // create-only side effects are emitted once per persisted operation.
+    let createdNew = true;
     try {
       ad = await withUserAdCreationLock(userId, async () => {
         const activeCount = await adsRepository.countActiveByUserId(userId);
@@ -255,6 +258,93 @@ export const adsService = {
             },
           });
           await sellersRepository.incrementStatsOnAdCreated(tx, sellerProfile.id);
+          // Transactional Outbox (batch 32): the personal activity record is
+          // committed atomically with the ad, so a process crash after commit
+          // cannot silently lose this timeline event. The unique key also
+          // protects the enqueue path from replay.
+          await tx.outboxEvent.create({
+            data: {
+              eventType: 'USER_ACTIVITY_RECORD',
+              aggregateType: 'AD',
+              aggregateId: created.id,
+              ownerUserId: userId,
+              idempotencyKey: `user-activity:ad-created:${created.id}`,
+              payload: {
+                userId,
+                type: 'AD_CREATED',
+                title: 'تم نشر إعلان جديد',
+                description: created.title,
+                entityType: 'AD',
+                entityId: created.id,
+              },
+            },
+          });
+          // Match saved searches and persist their notification intent in the
+          // same transaction as the ad. This replaces the former post-commit
+          // fire-and-forget matcher, which could silently lose alerts on crash.
+          const savedSearches = await tx.savedSearch.findMany({
+            orderBy: { createdAt: 'asc' },
+            take: 5000,
+          });
+          if (savedSearches.length === 5000) {
+            logger.warn('Saved-search outbox matching reached its 5000-row ceiling; older searches were matched first', {
+              adId: created.id,
+            });
+          }
+          const matchingSavedSearches = savedSearches.filter((search) =>
+            search.userId !== created.userId && savedSearchType(search) === 'ads' &&
+            matchesAdFilters(created, search.filters as unknown as SavedSearchFilters)
+          );
+          if (matchingSavedSearches.length > 0) {
+            await tx.outboxEvent.create({
+              data: {
+                eventType: 'SAVED_SEARCH_MATCH_NOTIFICATION',
+                aggregateType: 'AD',
+                aggregateId: created.id,
+                ownerUserId: userId,
+                idempotencyKey: `saved-search-match:ad-created:${created.id}`,
+                payload: {
+                  adId: created.id,
+                  adTitle: created.title,
+                  matches: matchingSavedSearches.map((search) => ({
+                    userId: search.userId,
+                    savedSearchId: search.id,
+                    label: search.label,
+                  })),
+                },
+              },
+            });
+          }
+          // Durable follower-notification intent is committed atomically with
+          // the ad. The worker persists recipient rows and acknowledges this
+          // event in one transaction; push/SSE are best-effort after commit.
+          await tx.outboxEvent.create({
+            data: {
+              eventType: 'FOLLOWED_ACTIVITY_NOTIFICATION',
+              aggregateType: 'AD',
+              aggregateId: created.id,
+              ownerUserId: userId,
+              idempotencyKey: `followed-activity:ad-created:${created.id}`,
+              payload: {
+                targets: [
+                  { targetType: FollowTargetType.USER, targetId: userId },
+                  ...(created.storeId ? [{ targetType: FollowTargetType.STORE, targetId: created.storeId }] : []),
+                  ...(created.categoryId ? [{ targetType: FollowTargetType.CATEGORY, targetId: `AD:${created.categoryId}` }] : []),
+                ],
+                title: 'محتوى جديد ممن تتابعهم',
+                body: `${created.title} أصبح متاحًا الآن`,
+                type: 'FOLLOWED_USER_ACTIVITY',
+                data: {
+                  targetType: 'USER',
+                  targetId: userId,
+                  contentType: 'AD',
+                  contentId: created.id,
+                  categoryId: created.categoryId,
+                  storeId: created.storeId,
+                },
+              },
+            },
+          });
           return created;
         });
       });
@@ -285,6 +375,8 @@ export const adsService = {
         });
         if (existing && existing.userId === userId) {
           ad = existing as AdWithAuthor;
+          createdNew = false;
+          await cleanupUploadedImages(uploads.map(upload => upload.publicId));
         } else {
           throw err;
         }
@@ -292,80 +384,63 @@ export const adsService = {
         throw err;
       }
     }
-      // FIX AUDIT-V4-06: invalidate cached listings — a newly created
-      // active ad must appear in /ads results immediately, not after
-      // up to 30s of TTL expiry.
-      await bumpAdsCacheVersion();
+      if (createdNew) {
+        // FIX AUDIT-V4-06: invalidate cached listings — a newly created
+        // active ad must appear in /ads results immediately, not after
+        // up to 30s of TTL expiry.
+        await bumpAdsCacheVersion();
 
-      // Notify saved-search owners whose criteria match this new ad.
-      // Fire-and-forget, same contract as onFavoritedAdPriceChanged
-      // above (and conversations.service.ts's onNewMessage): a
-      // notification failure must never fail ad creation itself, so
-      // this runs after the transaction has already committed and is
-      // not awaited inline with it.
-      savedSearchEvents.onAdCreated(ad).catch((err) =>
-        logger.error('Failed to process saved-search matches for new ad', { err, adId: ad.id })
-      );
+        // Saved-search alerts are now delivered by the transactional outbox worker.
 
-      // Gap #10: personal activity timeline entry. Fire-and-forget per
-      // activityService.record()'s own contract — never awaited here,
-      // so a failed activity insert can never fail an otherwise-
-      // successful ad creation.
-      activityService.record({ userId, ...activityTemplates.adCreated(ad.id, ad.title) });
+        // The AD_CREATED activity is now emitted by the transactional outbox
+        // worker; do not also write it here or the timeline would double-log.
 
-      void followsService.notifyActivityForTargets(
-        [
-          { targetType: FollowTargetType.USER, targetId: userId },
-          ...(ad.storeId ? [{ targetType: FollowTargetType.STORE, targetId: ad.storeId }] : []),
-          ...(ad.categoryId ? [{ targetType: FollowTargetType.CATEGORY, targetId: `AD:${ad.categoryId}` }] : []),
-        ],
-        'محتوى جديد ممن تتابعهم',
-        `${ad.title} أصبح متاحًا الآن`,
-        { targetType: FollowTargetType.USER, targetId: userId, contentType: 'AD', contentId: ad.id, categoryId: ad.categoryId, storeId: ad.storeId },
-      ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
+        // Follow notifications are delivered by the durable outbox worker.
 
-      // Fraud detection (item 12): scores the new ad against the
-      // heuristic rules (rapid posting, suspicious price, off-platform
-      // contact patterns, duplicate listings, ...) and auto-flags it
-      // for admin review if the combined riskScore crosses the
-      // configured threshold. Fire-and-forget, same contract as
-      // savedSearchEvents.onAdCreated above — scoring must never fail
-      // or delay ad creation itself.
-      //
-      // FIX M-012: previously a transient failure here (the .catch
-      // below) just logged and vanished — the ad would then never be
-      // fraud-scored at all, silently bypassing the entire fraud
-      // detection system for that ad with no trace it happened. Now
-      // also persists a FailedBackgroundTask record with enough
-      // payload to retry the scoring later, so these failures show up
-      // in a queryable "needs manual review" list instead of only a
-      // log line.
-      fraudService
-        .scoreAd({
-          id: ad.id,
-          userId,
-          title: ad.title,
-          description: ad.description,
-          city: ad.city,
-          price: ad.price ? Number(ad.price) : null,
-          categoryId: ad.categoryId,
-        })
-        .catch((err) => {
-          logger.error('Fraud scoring failed to run for new ad', { err, adId: ad.id });
-          recordFailedTask(
-            'FRAUD_SCORE_AD',
-            {
-              adId: ad.id,
-              userId,
-              title: ad.title,
-              description: ad.description,
-              city: ad.city,
-              price: ad.price ? Number(ad.price) : null,
-              categoryId: ad.categoryId,
-            },
-            err
-          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
-        });
+        // Fraud detection (item 12): scores the new ad against the
+        // heuristic rules (rapid posting, suspicious price, off-platform
+        // contact patterns, duplicate listings, ...) and auto-flags it
+        // for admin review if the combined riskScore crosses the
+        // configured threshold. Fire-and-forget, same contract as
+        // savedSearchEvents.onAdCreated above — scoring must never fail
+        // or delay ad creation itself.
+        //
+        // FIX M-012: previously a transient failure here (the .catch
+        // below) just logged and vanished — the ad would then never be
+        // fraud-scored at all, silently bypassing the entire fraud
+        // detection system for that ad with no trace it happened. Now
+        // also persists a FailedBackgroundTask record with enough
+        // payload to retry the scoring later, so these failures show up
+        // in a queryable "needs manual review" list instead of only a
+        // log line.
+        fraudService
+          .scoreAd({
+            id: ad.id,
+            userId,
+            title: ad.title,
+            description: ad.description,
+            city: ad.city,
+            price: ad.price ? Number(ad.price) : null,
+            categoryId: ad.categoryId,
+          })
+          .catch((err) => {
+            logger.error('Fraud scoring failed to run for new ad', { err, adId: ad.id });
+            recordFailedTask(
+              'FRAUD_SCORE_AD',
+              {
+                adId: ad.id,
+                userId,
+                title: ad.title,
+                description: ad.description,
+                city: ad.city,
+                price: ad.price ? Number(ad.price) : null,
+                categoryId: ad.categoryId,
+              },
+              err
+            ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
+          });
+
+      }
 
       return ad;
     } catch (error) {

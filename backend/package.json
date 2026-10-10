@@ -54,7 +54,9 @@
     "report:sales-debt-reminder": "ts-node-dev --transpile-only --exit-child src/scripts/debtReminder.ts",
     "report:weekly-sales-report": "ts-node-dev --transpile-only --exit-child src/scripts/weeklySalesReport.ts",
     "cron:sales-notifications": "ts-node-dev --transpile-only --exit-child src/scripts/runSalesNotificationJobs.ts",
-    "postinstall": "prisma generate || true"
+    "postinstall": "prisma generate || true",
+    "worker:outbox": "ts-node-dev --transpile-only --exit-child src/scripts/runOutboxWorker.ts",
+    "worker:outbox:prod": "node dist/scripts/runOutboxWorker.js"
   },
   "lint-staged": {
     "src/**/*.ts": [

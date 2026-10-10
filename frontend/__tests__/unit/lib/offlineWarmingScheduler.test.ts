@@ -123,6 +123,63 @@ describe('offlineWarmingScheduler', () => {
     expect(runWarmingPipeline).toHaveBeenCalledTimes(1);
   });
 
+  it('re-checks visibility after the idle callback has been queued', async () => {
+    let idleCallback: (() => void) | undefined;
+    const originalRequestIdle = Object.getOwnPropertyDescriptor(window, 'requestIdleCallback');
+    const originalCancelIdle = Object.getOwnPropertyDescriptor(window, 'cancelIdleCallback');
+    const requestIdle = vi.fn((cb: () => void) => {
+      idleCallback = cb;
+      return 41;
+    });
+    const cancelIdle = vi.fn();
+    Object.defineProperty(window, 'requestIdleCallback', { value: requestIdle, configurable: true });
+    Object.defineProperty(window, 'cancelIdleCallback', { value: cancelIdle, configurable: true });
+
+    scheduleWarming('mount', { authenticated: false });
+    await vi.advanceTimersByTimeAsync(TRIGGER_DELAY_MS.mount);
+    expect(requestIdle).toHaveBeenCalledTimes(1);
+
+    setVisibility('hidden');
+    idleCallback?.();
+    expect(runWarmingPipeline).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    scheduleWarming('visible', { authenticated: false });
+    await vi.advanceTimersByTimeAsync(TRIGGER_DELAY_MS.visible);
+    idleCallback?.();
+    expect(runWarmingPipeline).toHaveBeenCalledTimes(1);
+
+    if (originalRequestIdle) Object.defineProperty(window, 'requestIdleCallback', originalRequestIdle);
+    else Reflect.deleteProperty(window, 'requestIdleCallback');
+    if (originalCancelIdle) Object.defineProperty(window, 'cancelIdleCallback', originalCancelIdle);
+    else Reflect.deleteProperty(window, 'cancelIdleCallback');
+  });
+
+  it('cancels a queued idle callback when scheduled warming is cancelled', async () => {
+    let idleCallback: (() => void) | undefined;
+    const originalRequestIdle = Object.getOwnPropertyDescriptor(window, 'requestIdleCallback');
+    const originalCancelIdle = Object.getOwnPropertyDescriptor(window, 'cancelIdleCallback');
+    const requestIdle = vi.fn((cb: () => void) => {
+      idleCallback = cb;
+      return 42;
+    });
+    const cancelIdle = vi.fn();
+    Object.defineProperty(window, 'requestIdleCallback', { value: requestIdle, configurable: true });
+    Object.defineProperty(window, 'cancelIdleCallback', { value: cancelIdle, configurable: true });
+
+    scheduleWarming('mount', { authenticated: false });
+    await vi.advanceTimersByTimeAsync(TRIGGER_DELAY_MS.mount);
+    cancelScheduledWarming();
+    idleCallback?.();
+
+    expect(cancelIdle).toHaveBeenCalledWith(42);
+    expect(runWarmingPipeline).not.toHaveBeenCalled();
+    if (originalRequestIdle) Object.defineProperty(window, 'requestIdleCallback', originalRequestIdle);
+    else Reflect.deleteProperty(window, 'requestIdleCallback');
+    if (originalCancelIdle) Object.defineProperty(window, 'cancelIdleCallback', originalCancelIdle);
+    else Reflect.deleteProperty(window, 'cancelIdleCallback');
+  });
+
   it('cancelScheduledWarming drops the armed run', async () => {
     scheduleWarming('mount', { authenticated: false });
     cancelScheduledWarming();

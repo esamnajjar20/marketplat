@@ -145,6 +145,8 @@ export const serviceListingsService = {
     const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'service-listings')));
 
     let listing: ServiceListing;
+    // Only the request that wins the unique insert should publish create side effects.
+    let createdNew = true;
     try {
       listing = await prisma.$transaction(async tx => {
         const lockedCategory = await serviceCategoriesRepository.lockForListingCreation(tx, input.categoryId);
@@ -196,6 +198,8 @@ export const serviceListingsService = {
         const existing = await prisma.serviceListing.findUnique({ where: { offlineOperationId } });
         if (existing && existing.providerId === provider.id) {
           listing = existing;
+          createdNew = false;
+          await cleanupUploadedImages(uploads.map(u => u.publicId));
         } else {
           await cleanupUploadedImages(uploads.map(u => u.publicId));
           throw error;
@@ -208,44 +212,47 @@ export const serviceListingsService = {
       }
     }
 
-    // Gap #10: fire-and-forget, see activityService.record()'s own doc
-    // comment. Logged for `userId` (the acting caller), not
-    // provider.id — activity rows are always keyed by the real user.
-    activityService.record({ userId, ...activityTemplates.serviceCreated(listing.id, listing.title) });
+    if (createdNew) {
+      // Gap #10: fire-and-forget, see activityService.record()'s own doc
+      // comment. Logged for `userId` (the acting caller), not
+      // provider.id — activity rows are always keyed by the real user.
+      activityService.record({ userId, ...activityTemplates.serviceCreated(listing.id, listing.title) });
 
-    void followsService.notifyActivityForTargets(
-      [
-        { targetType: FollowTargetType.USER, targetId: userId },
-        { targetType: FollowTargetType.CATEGORY, targetId: `SERVICE:${listing.categoryId}` },
-      ],
-      'خدمة جديدة',
-      `${listing.title} أصبحت متاحة الآن`,
-      { targetType: FollowTargetType.USER, targetId: userId, contentType: 'SERVICE', contentId: listing.id, categoryId: listing.categoryId },
-    ).catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
+      void followsService.notifyActivityForTargets(
+        [
+          { targetType: FollowTargetType.USER, targetId: userId },
+          { targetType: FollowTargetType.CATEGORY, targetId: `SERVICE:${listing.categoryId}` },
+        ],
+        'خدمة جديدة',
+        `${listing.title} أصبحت متاحة الآن`,
+        { targetType: FollowTargetType.USER, targetId: userId, contentType: 'SERVICE', contentId: listing.id, categoryId: listing.categoryId },
+      ).catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
 
-    fraudService
-      .scoreListing({
-        entityType: 'SERVICE_LISTING',
-        id: listing.id,
-        userId,
-        title: listing.title,
-        description: listing.description ?? '',
-        price: listing.price != null ? Number(listing.price) : null,
-        categoryId: listing.categoryId,
-      })
-      .catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
+      fraudService
+        .scoreListing({
+          entityType: 'SERVICE_LISTING',
+          id: listing.id,
+          userId,
+          title: listing.title,
+          description: listing.description ?? '',
+          price: listing.price != null ? Number(listing.price) : null,
+          categoryId: listing.categoryId,
+        })
+        .catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
 
-    // PLATFORM-WIDE-01: notify saved-search owners (type 'services')
-    // whose criteria match this new listing — same fire-and-forget
-    // contract as ads.service.ts's createAd -> savedSearchEvents
-    // .onAdCreated / products.service.ts's createProduct ->
-    // .onProductCreated.
-    savedSearchEvents.onServiceListingCreated(listing, userId).catch((err) =>
-      logger.error('Failed to process saved-search matches for new service listing', {
-        err,
-        listingId: listing.id,
-      })
-    );
+      // PLATFORM-WIDE-01: notify saved-search owners (type 'services')
+      // whose criteria match this new listing — same fire-and-forget
+      // contract as ads.service.ts's createAd -> savedSearchEvents
+      // .onAdCreated / products.service.ts's createProduct ->
+      // .onProductCreated.
+      savedSearchEvents.onServiceListingCreated(listing, userId).catch((err) =>
+        logger.error('Failed to process saved-search matches for new service listing', {
+          err,
+          listingId: listing.id,
+        })
+      );
+
+    }
 
     return listing;
   },

@@ -190,3 +190,28 @@ describe('getQueryClient', () => {
     expect(getQueryClient()).toBeInstanceOf(QueryClient);
   });
 });
+
+
+describe('cancelAndClearQueryClient', () => {
+  it('cancels signal-aware queryFns before clearing cached queries', async () => {
+    const { cancelAndClearQueryClient } = await import('@/lib/queryClient');
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let capturedSignal: AbortSignal | undefined;
+    let started!: () => void;
+    const queryStarted = new Promise<void>((resolve) => { started = resolve; });
+
+    void qc.fetchQuery({
+      queryKey: ['private', 'in-flight'],
+      queryFn: ({ signal }) => new Promise<never>((_resolve, reject) => {
+        capturedSignal = signal;
+        started();
+        signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+      }),
+    }).catch(() => undefined);
+
+    await queryStarted;
+    await cancelAndClearQueryClient(qc);
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(qc.getQueryCache().getAll()).toHaveLength(0);
+  });
+});

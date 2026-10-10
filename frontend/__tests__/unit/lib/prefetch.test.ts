@@ -34,6 +34,7 @@ import {
   dehydrateClient,
 } from '@/lib/prefetch';
 import { queryKeys } from '@/lib/queryKeys';
+import { CACHE_TTL } from '@/lib/constants';
 
 function jsonResponse(body: unknown, init?: { status?: number }) {
   return {
@@ -66,6 +67,8 @@ describe('prefetch helpers', () => {
 
       const cached = qc.getQueryData(queryKeys.categories.all());
       expect(cached).toEqual(categories);
+      expect(qc.getQueryCache().find({ queryKey: queryKeys.categories.all() })?.options.staleTime)
+        .toBe(CACHE_TTL.categories);
       vi.unstubAllGlobals();
     });
 
@@ -170,6 +173,8 @@ describe('prefetch helpers', () => {
 
       const cached = qc.getQueryData(queryKeys.ads.list({ page: 1 }));
       expect(cached).toEqual({ items: ads, meta: pagination });
+      expect(qc.getQueryCache().find({ queryKey: queryKeys.ads.list({ page: 1 }) })?.options.staleTime)
+        .toBe(CACHE_TTL.adsList);
       vi.unstubAllGlobals();
     });
 
@@ -201,6 +206,8 @@ describe('prefetch helpers', () => {
 
       const cached = qc.getQueryData(queryKeys.ads.detail('ad-1'));
       expect(cached).toEqual(ad);
+      expect(qc.getQueryCache().find({ queryKey: queryKeys.ads.detail('ad-1') })?.options.staleTime)
+        .toBe(CACHE_TTL.adDetail);
       vi.unstubAllGlobals();
     });
 

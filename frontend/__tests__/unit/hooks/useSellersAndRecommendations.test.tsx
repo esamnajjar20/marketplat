@@ -41,6 +41,16 @@ beforeEach(() => {
 });
 
 describe('useRecommendations', () => {
+  it('does not request recommendations while auth restoration is unresolved', async () => {
+    useAuthStore.getState()._setAuthResolving(true);
+
+    renderHook(() => useRecommendations(), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(recommendationsApi.getRecommendations).not.toHaveBeenCalled();
+
+    useAuthStore.getState().setAuthResolved();
+    await waitFor(() => expect(recommendationsApi.getRecommendations).toHaveBeenCalledTimes(1));
+  });
   it('fires without params and returns the unwrapped list', async () => {
     (recommendationsApi.getRecommendations as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: [{ id: 'ad-1' }] },
