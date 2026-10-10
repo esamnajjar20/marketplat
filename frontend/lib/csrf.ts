@@ -44,17 +44,35 @@ import { useAuthStore } from '@/store/auth.store';
  * still work even before any store value is populated.
  */
 export function getCsrfToken(): string | null {
-  if (typeof document === 'undefined') return null; // SSR — nothing to read yet
+  if (typeof document === 'undefined') return null; // SSR
 
-  // CROSS-ORIGIN-CSRF-FIX: primary source — see this file's header
-  // comment. Plain ES import (not require() — see client.ts's own
-  // FIX NEXT15-01 comment on why require() breaks @/* alias
-  // resolution under Next.js 15). No circular-dependency risk here:
-  // auth.store.ts does not import this module.
-  const storeToken = useAuthStore.getState().csrfToken;
-  if (storeToken) return storeToken;
-
-  // Fallback: same-origin deployments where the cookie is directly readable.
+  // SAME-ORIGIN-CSRF-PRIORITY (2026-10-10): the API is now served from
+  // the same origin as the app (Workers + /api/* rewrites), so the
+  // csrfToken cookie the backend sets on login/register/refresh IS
+  // directly readable via document.cookie here.
+  //
+  // Read the cookie FIRST — it is always the freshest value:
+  //   - The browser updates the cookie from Set-Cookie the instant
+  //     the response HEADERS arrive.
+  //   - The in-memory store only updates after the response BODY is
+  //     parsed (client.ts -> setCsrfToken).
+  //   - A request that fires between those two moments (presence
+  //     heartbeat, SSE re-auth, any mutation) would otherwise attach
+  //     the stale store value as X-CSRF-Token while the browser sends
+  //     the new cookie -> cookieToken !== headerToken -> the backend's
+  //     csrf.middleware.ts rejects with 403 "Invalid or missing CSRF
+  //     token". This was the root cause of the intermittent
+  //     PATCH /users/me/presence 403s after /auth/refresh.
+  //
+  // The store stays as a fallback for the brief window before the
+  // first Set-Cookie of a session (initial hydration) — auth.store.ts's
+  // setCsrfToken fills it from the login/register/refresh JSON body.
   const match = document.cookie.match(/(?:^|; )csrfToken=([^;]*)/);
-  return match?.[1] !== undefined ? decodeURIComponent(match[1]) : null;
+  const cookieToken = match?.[1];
+  if (cookieToken !== undefined && cookieToken.length > 0) {
+    return decodeURIComponent(cookieToken);
+  }
+
+  const storeToken = useAuthStore.getState().csrfToken;
+  return storeToken ?? null;
 }
