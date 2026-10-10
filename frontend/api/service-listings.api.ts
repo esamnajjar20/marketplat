@@ -13,6 +13,7 @@
  *     ads.api.ts's addImages()/removeImage() exactly.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { ApiResponse } from '@/types/api.types';
@@ -26,7 +27,7 @@ import type {
 
 export const serviceListingsApi = {
   /** GET /service-listings — public browse/search, paginated. */
-  getAll: (params?: ServiceListingsQuery) => {
+  getAll: (params?: ServiceListingsQuery, config?: AxiosRequestConfig) => {
     const requestParams = params
       ? {
           ...params,
@@ -36,19 +37,19 @@ export const serviceListingsApi = {
         }
       : params;
     return apiClient
-      .get<ApiResponse<ServiceListingWithProvider[]>>('/service-listings', { params: requestParams })
+      .get<ApiResponse<ServiceListingWithProvider[]>>('/service-listings', { ...config, params: requestParams })
       .then((r) => unwrapPaginated<ServiceListingWithProvider>(r));
   },
 
   /** GET /service-listings/me — caller's own listings, paginated. */
-  getMine: (params?: ServiceListingsQuery) =>
+  getMine: (params?: ServiceListingsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceListing[]>>('/service-listings/me', { params })
+      .get<ApiResponse<ServiceListing[]>>('/service-listings/me', { ...config, params })
       .then((r) => unwrapPaginated<ServiceListing>(r)),
 
   /** GET /service-listings/:id — public detail. */
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`, config),
 
   /**
    * POST /service-listings — multipart/form-data, same field-append

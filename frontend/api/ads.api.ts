@@ -11,6 +11,7 @@
  *   via unwrapPaginated — see lib/apiPagination.ts for the full story.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type {
@@ -25,9 +26,9 @@ import type { ApiResponse } from '@/types/api.types';
 
 export const adsApi = {
   /** GET /ads — paginated + filtered list */
-  getAll: (params?: AdSearchParams) =>
+  getAll: (params?: AdSearchParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdListItem[]>>('/ads', { params })
+      .get<ApiResponse<AdListItem[]>>('/ads', { ...config, params })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /**
@@ -35,14 +36,14 @@ export const adsApi = {
    * FIX API-02: uses 'q' as the required search term (backend searchAdsSchema).
    * Spread AdSearchQuery so sortBy/sortOrder/city/etc are also sent.
    */
-  searchAds: (params: AdSearchQuery) =>
+  searchAds: (params: AdSearchQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdListItem[]>>('/ads/search', { params })
+      .get<ApiResponse<AdListItem[]>>('/ads/search', { ...config, params })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /** GET /ads/:id — full detail */
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<Ad>>(`/ads/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<Ad>>(`/ads/${id}`, config),
 
   /**
    * GET /ads/:id/related — similar listings.
@@ -55,16 +56,16 @@ export const adsApi = {
    * bare array, silently falling through to `[]` every time — the
    * "related ads" section was empty on every single ad detail page.
    */
-  getRelated: (id: string) =>
-    apiClient.get<ApiResponse<AdListItem[]>>(`/ads/${id}/related`),
+  getRelated: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<AdListItem[]>>(`/ads/${id}/related`, config),
 
   /**
    * GET /ads/me — current user's ads.
    * FIX C-06: was '/ads/my' — correct endpoint is '/ads/me'.
    */
-  getMyAds: (params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>) =>
+  getMyAds: (params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdListItem[]>>('/ads/me', { params })
+      .get<ApiResponse<AdListItem[]>>('/ads/me', { ...config, params })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /**
@@ -72,13 +73,13 @@ export const adsApi = {
    * (active/sold ads, total views, favorites count). Not paginated —
    * bare object response, no unwrapPaginated needed.
    */
-  getMyStats: () =>
+  getMyStats: (config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<{
       activeAds: number;
       soldAds: number;
       totalViews: number;
       favoritesCount: number;
-    }>>('/ads/me/stats'),
+    }>>('/ads/me/stats', config),
 
   /**
    * POST /ads — create new ad (multipart/form-data).

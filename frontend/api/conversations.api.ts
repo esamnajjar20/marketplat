@@ -2,6 +2,7 @@
  * Conversations API — maps to backend /api/v1/conversations/*.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
@@ -16,26 +17,26 @@ import type {
 } from '@/types/conversation.types';
 
 export const conversationsApi = {
-  getMine: (params?: ConversationsQuery) =>
+  getMine: (params?: ConversationsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ConversationListItem[]>>('/conversations', { params })
+      .get<ApiResponse<ConversationListItem[]>>('/conversations', { ...config, params })
       .then((r) => unwrapPaginated<ConversationListItem>(r)),
 
-  getUnreadCount: () =>
-    apiClient.get<ApiResponse<{ count: number }>>('/conversations/unread-count'),
+  getUnreadCount: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<{ count: number }>>('/conversations/unread-count', config),
 
   start: (payload: StartConversationPayload) =>
     apiClient.post<ApiResponse<Conversation>>('/conversations', payload),
 
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`, config),
 
-  getMedia: (id: string, limit = 200) =>
-    apiClient.get<ApiResponse<Message[]>>(`/conversations/${id}/messages/media`, { params: { limit }}),
+  getMedia: (id: string, limit = 200, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<Message[]>>(`/conversations/${id}/messages/media`, { ...config, params: { limit }}),
 
-  getMessages: (id: string, params?: MessagesQuery) =>
+  getMessages: (id: string, params?: MessagesQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<Message[]>>(`/conversations/${id}/messages`, { params })
+      .get<ApiResponse<Message[]>>(`/conversations/${id}/messages`, { ...config, params })
       .then((r) => unwrapPaginated<Message>(r)),
 
   sendMessage: (id: string, payload: SendMessagePayload) =>

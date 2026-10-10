@@ -13,6 +13,7 @@
  *     ads.api.ts's addImages()/removeImage() exactly.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { ApiResponse } from '@/types/api.types';
@@ -27,20 +28,20 @@ import type {
 
 export const productsApi = {
   /** GET /products — public browse/search, paginated. */
-  getAll: (params?: ProductsQuery) =>
+  getAll: (params?: ProductsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ProductWithStore[]>>('/products', { params })
+      .get<ApiResponse<ProductWithStore[]>>('/products', { ...config, params })
       .then((r) => unwrapPaginated<ProductWithStore>(r)),
 
   /** GET /products/me — caller's own products (owner-only, my-store page), paginated. */
-  getMine: (params?: ProductsQuery) =>
+  getMine: (params?: ProductsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<Product[]>>('/products/me', { params })
+      .get<ApiResponse<Product[]>>('/products/me', { ...config, params })
       .then((r) => unwrapPaginated<Product>(r)),
 
   /** GET /products/:id — public detail. */
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<ProductWithFullStore>>(`/products/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<ProductWithFullStore>>(`/products/${id}`, config),
 
   /**
    * POST /products — multipart/form-data, same field-append pattern as

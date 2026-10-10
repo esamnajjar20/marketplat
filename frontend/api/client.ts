@@ -32,6 +32,7 @@ import { recordRequestFailure, recordRequestTiming, recordRequestSuccess } from 
 import { getNetworkPolicy } from '@/lib/networkPolicy';
 import axios, {
   AxiosError,
+  CanceledError,
   type AxiosInstance,
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
@@ -44,7 +45,8 @@ import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE
 import { getCsrfToken } from '@/lib/csrf';
 import { toast } from 'sonner';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
-import { clearSensitiveLocalData } from '@/lib/authCleanup';
+import { clearSensitiveLocalData, getSessionCleanupVersion } from '@/lib/authCleanup';
+import { registerSessionRequest } from '@/lib/sessionRequestRegistry';
 import { makeOfflineError } from '@/lib/offlineError';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { recordRequestErrorCode, recordRequestRetry, recordRequestStarted } from '@/lib/networkObservability';
@@ -78,6 +80,10 @@ function supportsOfflineOperationId(method: string, url: string): boolean {
     /^\/ads$/.test(path) ||
     /^\/products$/.test(path) ||
     /^\/service-listings$/.test(path) ||
+    // These create endpoints enforce X-Offline-Op-Id in the backend.
+    // Keep them in this boundary allowlist so callers that do not pass an
+    // explicit id still get one stable key on the Axios config/replay path.
+    /^\/requests$/.test(path) ||
     /^\/service-requests$/.test(path) ||
     /^\/sales$/.test(path) ||
     /^\/conversations\/[^/]+\/messages(?:\/(?:file|audio))?$/.test(path)
@@ -109,6 +115,31 @@ const SAFE_METHODS = new Set(['get', 'head', 'options']);
 
 const inflightGetRequests = new Map<string, Promise<unknown>>();
 
+// Capture the session boundary at dispatch time. Late responses from a prior
+// login/logout cycle must never be consumed by the current UI or trigger refresh.
+type SessionBoundConfig = AxiosRequestConfig & {
+  __sessionCleanupVersion?: number;
+  __sessionUserId?: string | null;
+  __sessionAbortCleanup?: () => void;
+};
+
+function isStaleSessionRequest(config?: AxiosRequestConfig): boolean {
+  if (!config) return false;
+  const bound = config as SessionBoundConfig;
+  if (typeof bound.__sessionCleanupVersion === 'number' &&
+      bound.__sessionCleanupVersion !== getSessionCleanupVersion()) return true;
+  if (typeof bound.__sessionUserId !== 'undefined' &&
+      bound.__sessionUserId !== (useAuthStore.getState().user?.id ?? null)) return true;
+  return false;
+}
+
+function releaseSessionRequest(config?: AxiosRequestConfig): void {
+  const bound = config as SessionBoundConfig | undefined;
+  bound?.__sessionAbortCleanup?.();
+  if (bound) bound.__sessionAbortCleanup = undefined;
+}
+
+
 function stableValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stableValue);
   if (value && typeof value === 'object') {
@@ -123,7 +154,7 @@ function stableValue(value: unknown): unknown {
 
 function getDedupKey(url: string, config?: AxiosRequestConfig): string {
   const userId = useAuthStore.getState().user?.id ?? 'anonymous';
-  return `${userId}|${url}|${JSON.stringify(stableValue(config?.params ?? null))}|${config?.responseType ?? 'json'}`;
+  return `${userId}|session:${getSessionCleanupVersion()}|${url}|${JSON.stringify(stableValue(config?.params ?? null))}|${config?.responseType ?? 'json'}`;
 }
 
 const rawGet = apiClient.get.bind(apiClient);
@@ -150,6 +181,10 @@ apiClient.get = ((url: string, config?: AxiosRequestConfig) => {
 // ── Request interceptor — attach access token + CSRF token ────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   recordRequestStarted();
+  const boundConfig = config as SessionBoundConfig;
+  boundConfig.__sessionCleanupVersion = getSessionCleanupVersion();
+  boundConfig.__sessionUserId = useAuthStore.getState().user?.id ?? null;
+
   const method = (config.method ?? 'get').toLowerCase();
 
   // FIX OFFLINE-FAST-FAIL: when navigator.onLine is definitively
@@ -266,6 +301,21 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
+
+  // Wrap (rather than replace semantically) a caller's signal so session
+  // cleanup can abort every request while React Query/callers can still abort
+  // their own request independently.
+  const callerSignal = config.signal;
+  const sessionController = new AbortController();
+  const abortFromCaller = () => sessionController.abort();
+  if (callerSignal?.aborted) sessionController.abort();
+  else callerSignal?.addEventListener?.('abort', abortFromCaller, { once: true });
+  const unregister = registerSessionRequest(sessionController);
+  boundConfig.__sessionAbortCleanup = () => {
+    unregister();
+    callerSignal?.removeEventListener?.('abort', abortFromCaller);
+  };
+  config.signal = sessionController.signal;
 
   return config;
 });
@@ -468,6 +518,12 @@ export async function refreshSessionShared() {
 
 apiClient.interceptors.response.use(
   (response) => {
+    releaseSessionRequest(response.config);
+    if (isStaleSessionRequest(response.config)) {
+      // This response belongs to an earlier session/account. Treat it as a
+      // cancellation so query/mutation consumers cannot commit stale data.
+      return Promise.reject(new CanceledError('Response belongs to a previous session'));
+    }
     try {
       const start = (response.config as { metadata?: { start?: number } }).metadata?.start;
       if (typeof start === 'number') {
@@ -520,6 +576,16 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
+    const failedConfig = error.config as SessionBoundConfig | undefined;
+    releaseSessionRequest(failedConfig);
+    if (axios.isCancel(error)) {
+      return Promise.reject(error);
+    }
+    if (isStaleSessionRequest(failedConfig)) {
+      // In particular, don't let a late 401 from the previous account start
+      // /auth/refresh or trigger the session-expired redirect.
+      return Promise.reject(new CanceledError('Request belongs to a previous session'));
+    }
     if ((error as { code?: string } | undefined)?.code !== 'OFFLINE_QUEUED') {
       const start = (error.config as { metadata?: { start?: number } } | undefined)?.metadata?.start;
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();

@@ -14,6 +14,7 @@ import type { ApiResponse } from '@/types/api.types';
  *     field tells the caller which way it went.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   StoreDetails,
@@ -39,13 +40,13 @@ export const storesApi = {
     ),
 
   /** GET /stores — public directory, paginated. FEATURED-plan stores sort first server-side. */
-  getAll: (params?: StoresQuery) =>
+  getAll: (params?: StoresQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreWithSeller[]>>('/stores', { params })
+      .get<ApiResponse<StoreWithSeller[]>>('/stores', { ...config, params })
       .then((r) => unwrapPaginated<StoreWithSeller>(r)),
 
   /** GET /stores/me — the caller's own store. 404 if none yet. */
-  getMyStore: () => apiClient.get<ApiResponse<StoreDetails>>('/stores/me'),
+  getMyStore: (config?: AxiosRequestConfig) => apiClient.get<ApiResponse<StoreDetails>>('/stores/me', config),
 
   /** PATCH /stores/me — partial update. */
   updateMyStore: (payload: UpdateStorePayload) =>
@@ -68,23 +69,23 @@ export const storesApi = {
   },
 
   /** GET /stores/me/followed — the caller's followed stores, paginated. */
-  getMyFollowedStores: (params?: { page?: number; limit?: number }) =>
+  getMyFollowedStores: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreFollowerWithStore[]>>('/stores/me/followed', { params })
+      .get<ApiResponse<StoreFollowerWithStore[]>>('/stores/me/followed', { ...config, params })
       .then((r) => unwrapPaginated<StoreFollowerWithStore>(r)),
 
   /** GET /stores/me/analytics — owner-only. See StoreAnalytics's doc
    * comment for why orders/revenue/conversion aren't in this response. */
-  getMyStoreAnalytics: () =>
-    apiClient.get<ApiResponse<StoreAnalytics>>('/stores/me/analytics'),
+  getMyStoreAnalytics: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<StoreAnalytics>>('/stores/me/analytics', config),
 
   /** POST /stores — one-time store creation (requires an existing SellerProfile). */
   create: (payload: CreateStorePayload) =>
     apiClient.post<ApiResponse<StoreDetails>>('/stores', payload),
 
   /** GET /stores/:id — public store page, no auth required. */
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<StoreWithSellerAndCounts>>(`/stores/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<StoreWithSellerAndCounts>>(`/stores/${id}`, config),
 
   /** PATCH /stores/:id/status — admin-only approve/block. */
   updateStatus: (id: string, payload: UpdateStoreStatusPayload) =>

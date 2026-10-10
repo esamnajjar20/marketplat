@@ -5,8 +5,8 @@
  *   shape via unwrapPaginated — see lib/apiPagination.ts.
  */
 import { apiClient } from './client';
-import { unwrapPaginated } from '@/lib/apiPagination';
 import type { AxiosRequestConfig } from 'axios';
+import { unwrapPaginated } from '@/lib/apiPagination';
 import type { User, PublicUser, UpdateProfilePayload, NotificationPreferences } from '@/types/user.types';
 import type { AdListItem } from '@/types/ad.types';
 import type { ApiResponse } from '@/types/api.types';
@@ -108,9 +108,9 @@ export const usersApi = {
   getById: (id: string) =>
     apiClient.get<ApiResponse<PublicUser>>(`/users/${id}`),
 
-  getUserAds: (id: string, params?: { page?: number; limit?: number }) =>
+  getUserAds: (id: string, params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdListItem[]>>(`/users/${id}/ads`, { params })
+      .get<ApiResponse<AdListItem[]>>(`/users/${id}/ads`, { ...config, params })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /**

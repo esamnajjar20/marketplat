@@ -52,8 +52,8 @@ export const authApi = {
   refresh: (config?: AxiosRequestConfig) =>
     apiClient.post<ApiResponse<RefreshResponseData>>('/auth/refresh', undefined, config),
 
-  getSessions: () =>
-    apiClient.get<ApiResponse<SessionInfo[]>>('/auth/sessions'),
+  getSessions: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<SessionInfo[]>>('/auth/sessions', config),
 
   revokeSession: (sessionId: string) =>
     apiClient.delete<ApiResponse<null>>(`/auth/sessions/${sessionId}`),

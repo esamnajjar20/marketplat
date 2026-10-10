@@ -4,6 +4,7 @@
  * not a Role, so there is no separate "become seller" role-change call.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
@@ -22,16 +23,16 @@ export const sellersApi = {
     apiClient.post<ApiResponse<SellerProfile>>('/sellers/me/profile', payload),
 
   /** GET /sellers/me/profile — the caller's own seller profile. 404 if none yet. */
-  getMyProfile: () =>
-    apiClient.get<ApiResponse<SellerProfile>>('/sellers/me/profile'),
+  getMyProfile: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<SellerProfile>>('/sellers/me/profile', config),
 
   /** PATCH /sellers/me/profile — update displayName / bio / avatarUrl. */
   updateMyProfile: (payload: UpdateSellerProfilePayload) =>
     apiClient.patch<ApiResponse<SellerProfile>>('/sellers/me/profile', payload),
 
   /** GET /sellers/me/attention — lightweight dashboard task counters. */
-  getMyAttention: () =>
-    apiClient.get<ApiResponse<SellerAttention>>('/sellers/me/attention'),
+  getMyAttention: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<SellerAttention>>('/sellers/me/attention', config),
 
   /** POST /sellers/me/profile/verification-request — moves the
    *  caller's own profile to verificationStatus PENDING for admin
@@ -40,8 +41,8 @@ export const sellersApi = {
     apiClient.post<ApiResponse<SellerProfile>>('/sellers/me/profile/verification-request'),
 
   /** GET /sellers/:id — public seller page, no authentication required. */
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<SellerProfileWithAds>>(`/sellers/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<SellerProfileWithAds>>(`/sellers/${id}`, config),
 
   /** POST /sellers/:id/ratings — rate a seller (requires login). */
   createRating: (sellerProfileId: string, payload: CreateSellerRatingPayload) =>

@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { mediaApi } from './media.api';
 import type { ApiResponse } from '@/types/api.types';
 import type {
@@ -40,15 +41,15 @@ export const requestsApi = {
     q?: string;
     /** Server-side sort — newest | expiring | budget_high | fewest_offers */
     sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
-  }) => apiClient.get<ApiResponse<RequestListItem[]>>('/requests', { params }),
+  }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<RequestListItem[]>>('/requests', { ...config, params }),
 
-  getMyRequests: (params?: { page?: number; limit?: number; status?: string }) =>
-    apiClient.get<ApiResponse<RequestListItem[]>>('/requests/me', { params }),
+  getMyRequests: (params?: { page?: number; limit?: number; status?: string }, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<RequestListItem[]>>('/requests/me', { ...config, params }),
 
-  getMyOffers: (params?: { page?: number; limit?: number; status?: RequestOfferStatus }) =>
-    apiClient.get<ApiResponse<RequestOfferListItem[]>>('/requests/offers/me', { params }),
+  getMyOffers: (params?: { page?: number; limit?: number; status?: RequestOfferStatus }, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<RequestOfferListItem[]>>('/requests/offers/me', { ...config, params }),
 
-  getById: (id: string) => apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`, config),
 
   create: (body: CreateRequestBody, operationId?: string) =>
     // FIX REQ-OPID-01: X-Offline-Op-Id matches the header that sw.js's

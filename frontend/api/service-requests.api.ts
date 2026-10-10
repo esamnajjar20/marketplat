@@ -9,6 +9,7 @@
  *     separate accept/reject endpoints.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
@@ -24,19 +25,19 @@ export const serviceRequestsApi = {
     apiClient.post<ApiResponse<ServiceRequest>>('/service-requests', payload),
 
   /** GET /service-requests/:id */
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<ServiceRequest>>(`/service-requests/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceRequest>>(`/service-requests/${id}`, config),
 
   /** GET /service-requests/me — caller's requests as customer, paginated. */
-  getMineAsCustomer: (params?: ServiceRequestsQuery) =>
+  getMineAsCustomer: (params?: ServiceRequestsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceRequest[]>>('/service-requests/me', { params })
+      .get<ApiResponse<ServiceRequest[]>>('/service-requests/me', { ...config, params })
       .then((r) => unwrapPaginated<ServiceRequest>(r)),
 
   /** GET /service-requests/incoming — caller's requests as provider, paginated. */
-  getIncomingAsProvider: (params?: ServiceRequestsQuery) =>
+  getIncomingAsProvider: (params?: ServiceRequestsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceRequest[]>>('/service-requests/incoming', { params })
+      .get<ApiResponse<ServiceRequest[]>>('/service-requests/incoming', { ...config, params })
       .then((r) => unwrapPaginated<ServiceRequest>(r)),
 
   /** PATCH /service-requests/:id/respond — action-driven state transition. */

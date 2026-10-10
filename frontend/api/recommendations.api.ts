@@ -15,6 +15,7 @@
  * preserving getRecommendations()'s exact existing contract/callers.
  */
 import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
 import type { AdListItem } from '@/types/ad.types';
 import type { ProductWithStore } from '@/types/product.types';
 import type { ServiceListingWithProvider, ServiceProviderDetails } from '@/types/service.types';
@@ -84,31 +85,36 @@ export interface MixedRecommendations {
 }
 
 export const recommendationsApi = {
-  getRecommendations: (params?: GetRecommendationsParams) =>
-    apiClient.get<ApiResponse<AdListItem[]>>('/recommendations', { params }),
+  getRecommendations: (params?: GetRecommendationsParams, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<AdListItem[]>>('/recommendations', { ...config, params }),
 
-  getProductRecommendations: (params?: GetProductRecommendationsParams) =>
+  getProductRecommendations: (params?: GetProductRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ProductWithStore[]>>('/recommendations', {
+      ...config,
       params: { ...params, type: 'product' },
     }),
 
-  getServiceRecommendations: (params?: GetServiceRecommendationsParams) =>
+  getServiceRecommendations: (params?: GetServiceRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ServiceListingWithProvider[]>>('/recommendations', {
+      ...config,
       params: { ...params, type: 'service' },
     }),
 
-  getStoreRecommendations: (params?: GetStoreRecommendationsParams) =>
+  getStoreRecommendations: (params?: GetStoreRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<StoreWithSeller[]>>('/recommendations', {
+      ...config,
       params: { ...params, type: 'store' },
     }),
 
-  getProviderRecommendations: (params?: GetProviderRecommendationsParams) =>
+  getProviderRecommendations: (params?: GetProviderRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ServiceProviderDetails[]>>('/recommendations', {
+      ...config,
       params: { ...params, type: 'provider' },
     }),
 
-  getMixedRecommendations: (params?: GetMixedRecommendationsParams) =>
+  getMixedRecommendations: (params?: GetMixedRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<MixedRecommendations>>('/recommendations', {
+      ...config,
       params: { ...params, type: 'mixed' },
     }),
 };
