@@ -14,8 +14,8 @@ export function useStoryFeed() {
   return useQuery({
     queryKey: queryKeys.stories.feed(),
     queryFn: () => storiesApi.feed().then((r) => r.data.data),
-    staleTime: 20_000,
-    enabled: authenticated && (hasToken || !online),
+    staleTime: 60_000,
+    enabled: authenticated && hasToken && online,
   });
 }
 
