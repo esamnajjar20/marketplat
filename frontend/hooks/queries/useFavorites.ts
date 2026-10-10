@@ -34,6 +34,7 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
+import { getOfflineFavoriteIntent } from '@/lib/offlineFavoriteIntents';
 
 
 // Shared reactive bridge for favorite-id Sets. A card must subscribe to the
@@ -247,6 +248,19 @@ export function useIsFavorited(adId: string): boolean {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => queryKeys.favorites.ids(), []);
+  useEffect(() => {
+    if (!isAuthenticated || !adId) return;
+    let active = true;
+    void getOfflineFavoriteIntent(useAuthStore.getState().user?.id ?? null, 'AD', adId).then((intent) => {
+      if (!active || !intent) return;
+      queryClient.setQueryData<Set<string>>(queryKey, (prev) => {
+        const next = new Set(prev ?? []);
+        if (intent.desired) next.add(adId); else next.delete(adId);
+        return next;
+      });
+    }).catch((error) => console.warn('[offline-favorites] local override read failed', error));
+    return () => { active = false; };
+  }, [isAuthenticated, adId, queryClient, queryKey]);
   return useFavoriteSetMembership(queryClient, queryKey, adId, isAuthenticated);
 }
 
@@ -376,5 +390,18 @@ export function useIsEntityFavorited(type: FavoriteEntityKind, entityId: string)
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => queryKeys.favorites.entityIds(type), [type]);
+  useEffect(() => {
+    if (!isAuthenticated || !entityId) return;
+    let active = true;
+    void getOfflineFavoriteIntent(useAuthStore.getState().user?.id ?? null, type, entityId).then((intent) => {
+      if (!active || !intent) return;
+      queryClient.setQueryData<Set<string>>(queryKey, (prev) => {
+        const next = new Set(prev ?? []);
+        if (intent.desired) next.add(entityId); else next.delete(entityId);
+        return next;
+      });
+    }).catch((error) => console.warn('[offline-favorites] local override read failed', error));
+    return () => { active = false; };
+  }, [isAuthenticated, entityId, type, queryClient, queryKey]);
   return useFavoriteSetMembership(queryClient, queryKey, entityId, isAuthenticated);
 }

@@ -47,13 +47,12 @@ export const AdCard = memo(function AdCard({ ad, context = 'public', className, 
   const showCity = context !== 'store' && context !== 'owner';
   // جدول العرض: الوقت في public/favorites/featured/owner فقط
   const showSeller = context === 'favorites' || context === 'catalog';
-  // القاعدة 7: يُخفى في owner فقط، ويُعطَّل عند offline
+  // Hide in owner context only; offline changes are persisted as desired-state intents.
   const showHeart = context !== 'owner';
   const sellerName = ad.store?.id ? ad.store.name : ad.user.name;
 
   function handleFavoriteClick(e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation();
-    if (!isOnline) return;
     if (!isAuth) { toast.error('سجّل الدخول لحفظ الإعلان'); router.push(`${ROUTES.login}?from=${encodeURIComponent(detailHref)}`); return; }
     if (!isFavorited) setPopKey((k) => k + 1);
     toggleFavorite.mutate(ad.id);
@@ -91,7 +90,7 @@ export const AdCard = memo(function AdCard({ ad, context = 'public', className, 
           </div>
         </div>
       </Link>
-      {showHeart && <button type="button" onClick={handleFavoriteClick} disabled={toggleFavorite.isPending || !isOnline} aria-label={isFavorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} aria-pressed={isFavorited} className={cn(CARD_HEART_BUTTON_BASE, CARD_HEART_BUTTON_BG, 'absolute end-2 top-2 z-20 h-9 w-9', HIT_AREA)}><Heart key={popKey} className={cn('h-4 w-4', popKey > 0 && 'motion-safe:animate-heart-pop', isFavorited ? CARD_HEART_ICON_FILLED : CARD_HEART_ICON_OUTLINE)} /></button>}
+      {showHeart && <button type="button" onClick={handleFavoriteClick} disabled={toggleFavorite.isPending} aria-label={isFavorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} aria-pressed={isFavorited} className={cn(CARD_HEART_BUTTON_BASE, CARD_HEART_BUTTON_BG, 'absolute end-2 top-2 z-20 h-9 w-9', HIT_AREA)}><Heart key={popKey} className={cn('h-4 w-4', popKey > 0 && 'motion-safe:animate-heart-pop', isFavorited ? CARD_HEART_ICON_FILLED : CARD_HEART_ICON_OUTLINE)} /></button>}
     </article>
   );
 });

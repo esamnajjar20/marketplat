@@ -19,6 +19,7 @@ import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 import { requestQueueReplay, syncQueueNetworkHint } from '@/lib/offlineQueue';
 import { getNetworkPolicy, subscribeNetworkPolicy } from '@/lib/networkPolicy';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
+import { syncOfflineFavoriteIntents } from '@/lib/offlineFavoriteIntents';
 import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { setQueueReplayInFlight } from '@/lib/offlineWarmingPipeline';
@@ -93,9 +94,13 @@ function replayThenPublishDrafts(): void {
             console.warn('[offline] syncPendingOfflineDrafts failed:', err);
           })
           .finally(() => {
-            void syncPendingSales(useAuthStore.getState().user?.id ?? null)
-              .catch((err) => console.warn('[offline] sales sync failed:', err))
-              .finally(() => setQueueReplayInFlight(false));
+            void syncOfflineFavoriteIntents(useAuthStore.getState().user?.id ?? null)
+              .catch((err) => console.warn('[offline] favorites sync failed:', err))
+              .finally(() => {
+                void syncPendingSales(useAuthStore.getState().user?.id ?? null)
+                  .catch((err) => console.warn('[offline] sales sync failed:', err))
+                  .finally(() => setQueueReplayInFlight(false));
+              });
           });
       }, 1500);
     });

@@ -18,16 +18,28 @@ import { toast }         from 'sonner';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
 import { runSerializedMutation } from '@/lib/serialMutationQueue';
 import { getSessionCleanupVersion } from '@/lib/authCleanup';
+import { useAuthStore } from '@/store/auth.store';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
+import { saveOfflineFavoriteIntent } from '@/lib/offlineFavoriteIntents';
 
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: ['favorite-toggle', 'ad'],
-    mutationFn: (adId: string) =>
-      runSerializedMutation(JSON.stringify(['favorite', getSessionCleanupVersion(), 'ad', adId]), () =>
+    mutationFn: async (adId: string) => {
+      const userId = useAuthStore.getState().user?.id;
+      const desired = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids())?.has(adId) ?? false;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        if (!userId) throw new Error('سجّل الدخول لحفظ المفضلة');
+        await saveOfflineFavoriteIntent(userId, 'AD', adId, desired);
+        toast.message('حُفظ تغيير المفضلة على الجهاز', { description: 'ستتم مزامنته تلقائيًا عند عودة الإنترنت.' });
+        return { action: desired ? 'added' as const : 'removed' as const, offlinePending: true };
+      }
+      return runSerializedMutation(JSON.stringify(['favorite', getSessionCleanupVersion(), 'ad', adId]), () =>
         favoritesApi.toggle(adId).then((r) => r.data.data),
-      ),
+      );
+    },
 
     onMutate: async (adId: string) => {
       // T793-bis — cancelQueries MUST precede the snapshot + write.
@@ -62,28 +74,34 @@ export function useToggleFavorite() {
       return undefined;
     },
 
-    onError: (err, _adId) => {
+    onError: async (err, adId) => {
       const parsed = parseApiError(err);
-      // FEAT-OFFLINE-FAVORITES: a queued mutation (sw.js's offline
-      // mutation queue — see client.ts's OFFLINE_QUEUED rejection) is
-      // not a real failure, it's the SW faithfully promising to send
-      // this exact toggle once connectivity returns. Rolling back the
-      // optimistic Set here would visually undo the user's tap while
-      // the request is still pending, not failed — exactly the
-      // "toggle offline, sync later" behaviour the app is supposed to
-      // give (❤️ → محليًا فورًا → Offline: يدخل Queue، لا يُلغى).
+      if (isNetworkLikeFailure(parsed)) {
+        const userId = useAuthStore.getState().user?.id;
+        const desired = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids())?.has(adId) ?? false;
+        if (userId) {
+          try {
+            await saveOfflineFavoriteIntent(userId, 'AD', adId, desired);
+            toast.message('حُفظ تغيير المفضلة على الجهاز', { description: 'ستتم مزامنته تلقائيًا عند عودة الإنترنت.' });
+            return;
+          } catch (saveError) { console.warn('[offline-favorites] persist failed', saveError); }
+        }
+      }
+      // A failed network call is converted to a per-user desired-state intent above.
+      // Never queue a blind toggle: replaying it twice could undo the user's choice.
       // A historical rollback is unsafe when newer clicks for the same ID
       // already changed the optimistic state. The last pending mutation
       // reconciles with the server in onSettled instead.
       toast.error(parsed.message);
     },
 
-    onSettled: (_data, error, adId) => {
+    onSettled: (data, error, adId) => {
+      if (data && 'offlinePending' in data && data.offlinePending) return;
       // isMutating includes the mutation currently settling. Defer invalidation
       // until the last ad toggle finishes to avoid intermediate responses
       // overwriting a newer optimistic state. Keep queued offline toggles local.
       const parsed = error ? parseApiError(error) : null;
-      if (parsed?.queued) return;
+      if (parsed?.queued || (parsed && isNetworkLikeFailure(parsed))) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.check(adId) });
       if (queryClient.isMutating({ mutationKey: ['favorite-toggle', 'ad'] }) > 1) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.listRoot() });
@@ -108,10 +126,19 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
 
   return useMutation({
     mutationKey: ['favorite-toggle', type],
-    mutationFn: (entityId: string) =>
-      runSerializedMutation(JSON.stringify(['favorite', getSessionCleanupVersion(), type, entityId]), () =>
+    mutationFn: async (entityId: string) => {
+      const userId = useAuthStore.getState().user?.id;
+      const desired = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds(type))?.has(entityId) ?? false;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        if (!userId) throw new Error('سجّل الدخول لحفظ المفضلة');
+        await saveOfflineFavoriteIntent(userId, type, entityId, desired);
+        toast.message('حُفظ تغيير المفضلة على الجهاز', { description: 'ستتم مزامنته تلقائيًا عند عودة الإنترنت.' });
+        return { action: desired ? 'added' as const : 'removed' as const, offlinePending: true };
+      }
+      return runSerializedMutation(JSON.stringify(['favorite', getSessionCleanupVersion(), type, entityId]), () =>
         favoritesApi.toggleEntity(type, entityId).then((r) => r.data.data),
-      ),
+      );
+    },
 
     onMutate: async (entityId: string) => {
       // T793-bis — same cancel-first requirement as useToggleFavorite
@@ -140,8 +167,19 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
       return undefined;
     },
 
-    onError: (err, _entityId) => {
+    onError: async (err, entityId) => {
       const parsed = parseApiError(err);
+      if (isNetworkLikeFailure(parsed)) {
+        const userId = useAuthStore.getState().user?.id;
+        const desired = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds(type))?.has(entityId) ?? false;
+        if (userId) {
+          try {
+            await saveOfflineFavoriteIntent(userId, type, entityId, desired);
+            toast.message('حُفظ تغيير المفضلة على الجهاز', { description: 'ستتم مزامنته تلقائيًا عند عودة الإنترنت.' });
+            return;
+          } catch (saveError) { console.warn('[offline-favorites] persist failed', saveError); }
+        }
+      }
       // FEAT-OFFLINE-FAVORITES: same reasoning as useToggleFavorite's
       // onError above — a queued offline mutation isn't a real
       // failure, so don't undo the optimistic toggle for it.
@@ -150,9 +188,10 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
       toast.error(parsed.message);
     },
 
-    onSettled: (_data, error, entityId) => {
+    onSettled: (data, error, entityId) => {
+      if (data && 'offlinePending' in data && data.offlinePending) return;
       const parsed = error ? parseApiError(error) : null;
-      if (parsed?.queued) return;
+      if (parsed?.queued || (parsed && isNetworkLikeFailure(parsed))) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityCheck(type, entityId) });
       if (queryClient.isMutating({ mutationKey: ['favorite-toggle', type] }) > 1) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityListRoot(type) });

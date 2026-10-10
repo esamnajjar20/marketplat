@@ -5,6 +5,10 @@ import { appointmentsApi } from '@/api/appointments.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
+import { parseApiError } from '@/lib/errorParser';
+import { useAuthStore } from '@/store/auth.store';
+import { saveOfflineAppointmentDraft } from '@/lib/offlineAppointmentDrafts';
 import type {
   CreateAppointmentPayload,
   UpdateAppointmentStatusPayload,
@@ -21,6 +25,7 @@ import type {
  */
 export function useCreateAppointment() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
 
   return useMutation({
     mutationFn: (payload: CreateAppointmentPayload) =>
@@ -49,7 +54,19 @@ export function useCreateAppointment() {
       }
       toast.success('تم حجز الموعد بنجاح');
     },
-    onError: toastMutationError,
+    onError: async (error, payload) => {
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const parsed = parseApiError(error);
+      if (offline || isNetworkLikeFailure(parsed)) {
+        if (!userId) { toast.error('سجّل الدخول قبل حفظ طلب الموعد أوفلاين'); return; }
+        try {
+          await saveOfflineAppointmentDraft(userId, payload);
+          toast.message('حُفظ طلب الموعد على الجهاز', { description: 'لم يتأكد الحجز بعد. عند عودة الإنترنت افتح مركز المزامنة وأعد التحقق من الموعد ثم أرسله.', duration: 9000 });
+          return;
+        } catch (saveError) { console.error('[offline-appointments] draft save failed', saveError); }
+      }
+      toastMutationError(error);
+    },
   });
 }
 

@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useIsEntityFavorited, useFavoriteEntityCheck } from '@/hooks/queries/useFavorites';
 import { useToggleFavoriteEntity } from '@/hooks/mutations/useFavoriteMutations';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
 import { CARD_HEART_BUTTON_BASE, CARD_HEART_BUTTON_BG, CARD_HEART_ICON_FILLED, CARD_HEART_ICON_OUTLINE } from '@/components/shared/cards/cardTokens';
 
@@ -51,8 +50,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
   useFavoriteEntityCheck(entityType, entityId, warm);
   const isFavorited = useIsEntityFavorited(entityType, entityId);
   const toggleFavorite = useToggleFavoriteEntity(entityType);
-  // القاعدة 7: offline يُعطَّل ولا يُخفى
-  const isOnline = useOnlineStatus();
+  // Offline taps persist a desired-state intent locally and sync when online.
   const isCard = variant === 'card';
 
   const [popKey, setPopKey] = useState(0);
@@ -72,7 +70,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
       }
       return;
     }
-    if (toggleFavorite.isPending || !isOnline) return; // prevent duplicate requests
+    if (toggleFavorite.isPending) return; // avoid duplicate taps while the mutation is running
     if (!isFavorited) setPopKey((k) => k + 1);
     toggleFavorite.mutate(entityId);
   }
@@ -89,7 +87,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
       <button
         type="button"
         onClick={handleClick}
-        disabled={toggleFavorite.isPending || !isOnline}
+        disabled={toggleFavorite.isPending}
         aria-label={textLabel}
         aria-pressed={isFavorited}
         className={cn(
@@ -115,7 +113,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
     <button
       type="button"
       onClick={handleClick}
-      disabled={toggleFavorite.isPending || !isOnline}
+      disabled={toggleFavorite.isPending}
       aria-label={textLabel}
       aria-pressed={isFavorited}
       title={textLabel}

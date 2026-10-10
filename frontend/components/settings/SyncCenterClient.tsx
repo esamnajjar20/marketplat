@@ -47,6 +47,9 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { listSalesDrafts, type SalesOfflineDraft } from '@/lib/sales-offline/salesDraftStore';
 import { resolveSalesConflict } from '@/lib/sales-offline/salesSync';
+import { appointmentsApi } from '@/api/appointments.api';
+import { deleteOfflineAppointmentDraft, listOfflineAppointmentDrafts, updateOfflineAppointmentDraft, type OfflineAppointmentDraft } from '@/lib/offlineAppointmentDrafts';
+import { listOfflineFavoriteIntents, removeOfflineFavoriteIntent, syncOfflineFavoriteIntents, type OfflineFavoriteIntent } from '@/lib/offlineFavoriteIntents';
 
 export function SyncCenterClient() {
   const isOnline = useOnlineStatus();
@@ -56,6 +59,8 @@ export function SyncCenterClient() {
   const [failedItems, setFailedItems] = useState<QueuedRequestSummary[]>([]);
   const [drafts, setDrafts] = useState<AdDraft[]>([]);
   const [salesDrafts, setSalesDrafts] = useState<SalesOfflineDraft[]>([]);
+  const [appointmentDrafts, setAppointmentDrafts] = useState<OfflineAppointmentDraft[]>([]);
+  const [favoriteIntents, setFavoriteIntents] = useState<OfflineFavoriteIntent[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [loadWarning, setLoadWarning] = useState(false);
@@ -73,19 +78,23 @@ export function SyncCenterClient() {
       }
     };
     try {
-      const [counts, failedList, draftList, salesList] = await Promise.all([
+      const [counts, failedList, draftList, salesList, appointmentList, favoriteList] = await Promise.all([
         readOrFallback(() => getQueuedRequestCounts(), { pending: 0, failed: 0 }),
         readOrFallback(() => listFailedRequests(), [] as QueuedRequestSummary[]),
         // FIX AD-DRAFT-USER-SCOPE-01: مسودات صاحب الحساب الحالي فقط —
         // بدونها، مسودة حساب سابق على نفس الجهاز تظهر لحساب جديد.
         readOrFallback(() => listAdDrafts(userId), [] as AdDraft[]),
         readOrFallback(() => listSalesDrafts(userId ?? ''), [] as SalesOfflineDraft[]),
+        readOrFallback(() => listOfflineAppointmentDrafts(userId), [] as OfflineAppointmentDraft[]),
+        readOrFallback(() => listOfflineFavoriteIntents(userId), [] as OfflineFavoriteIntent[]),
       ]);
       setPending(counts.pending);
       setFailed(counts.failed);
       setFailedItems(failedList);
       setDrafts(draftList);
       setSalesDrafts(salesList);
+      setAppointmentDrafts(appointmentList);
+      setFavoriteIntents(favoriteList);
       setLoadWarning(hadReadFailure);
     } finally {
       setLoading(false);
@@ -94,6 +103,13 @@ export function SyncCenterClient() {
 
   useEffect(() => {
     void refresh();
+    const onLocalUpdate = () => { void refresh(); };
+    window.addEventListener('offline-appointment-drafts:updated', onLocalUpdate);
+    window.addEventListener('offline-favorite-intents:updated', onLocalUpdate);
+    return () => {
+      window.removeEventListener('offline-appointment-drafts:updated', onLocalUpdate);
+      window.removeEventListener('offline-favorite-intents:updated', onLocalUpdate);
+    };
   }, [refresh, isOnline]);
 
   async function handleSyncNow() {
@@ -110,6 +126,10 @@ export function SyncCenterClient() {
         userId,
         includeFailed: true,
       });
+      const favoriteResult = await syncOfflineFavoriteIntents(userId);
+      if (favoriteResult.synced > 0 || favoriteResult.failed > 0) {
+        toast.message(`المفضلة: تمت مزامنة ${favoriteResult.synced}، تعذّر ${favoriteResult.failed}`);
+      }
       if (draftResult.sent > 0 || draftResult.failed > 0) {
         toastDraftPublishResult(draftResult);
       } else if (draftResult.skipped > 0) {
@@ -168,6 +188,10 @@ export function SyncCenterClient() {
   }
 
   async function handleRetryDraft(draft: AdDraft) {
+    if (draft.publishFilesIncomplete) {
+      toast.error('بعض المرفقات لم تُحفظ على الجهاز', { description: 'افتح المسودة وأعد إرفاق الصور الناقصة ثم احفظها قبل إعادة المحاولة.' });
+      return;
+    }
     try {
       await saveAdDraft({
         ...draft,
@@ -215,6 +239,54 @@ export function SyncCenterClient() {
     } catch {
       toast.error('تعذّر حذف المسودة');
     }
+  }
+
+  async function handleRetryAppointmentDraft(draft: OfflineAppointmentDraft) {
+    if (!isOnline) { toast.error('اتصل بالإنترنت أولًا لإعادة التحقق من الموعد'); return; }
+    try {
+      // Resolve an ambiguous earlier response first: if the server committed
+      // the appointment but the response was lost, do not create it twice.
+      const existing = await appointmentsApi.getMine({
+        from: draft.payload.scheduledStart,
+        to: draft.payload.scheduledEnd,
+        limit: 100,
+      });
+      const alreadyCreated = existing.data.data?.items?.some((item) =>
+        new Date(item.scheduledStart).getTime() === new Date(draft.payload.scheduledStart).getTime() &&
+        new Date(item.scheduledEnd).getTime() === new Date(draft.payload.scheduledEnd).getTime() &&
+        (draft.payload.requestId ? item.requestId === draft.payload.requestId : item.requestId == null),
+      );
+      if (alreadyCreated) {
+        await deleteOfflineAppointmentDraft(draft.id);
+        toast.success('الموعد موجود بالفعل على الخادم');
+        await refresh();
+        return;
+      }
+      // The server rechecks working hours and overlapping bookings atomically.
+      await appointmentsApi.create(draft.payload);
+      await deleteOfflineAppointmentDraft(draft.id);
+      toast.success('أكد الخادم الموعد بنجاح');
+      await refresh();
+    } catch (error) {
+      const parsed = getErrorMessage((error as { code?: string })?.code ?? '') ?? (error instanceof Error ? error.message : 'تعذّر تأكيد الموعد');
+      await updateOfflineAppointmentDraft(draft.id, { status: 'failed', lastError: parsed });
+      toast.error('لم يتم تأكيد الموعد', { description: `${parsed}. لم نعد إرساله تلقائيًا لتجنب حجز مكرر إذا كان رد الخادم قد انقطع.` });
+      await refresh();
+    }
+  }
+
+  async function handleDeleteAppointmentDraft(id: string) {
+    await deleteOfflineAppointmentDraft(id);
+    await refresh();
+    toast.message('حُذف طلب الموعد المحفوظ محليًا');
+  }
+
+  async function handleDiscardFavoriteIntent(key: string) {
+    try {
+      await removeOfflineFavoriteIntent(key);
+      await refresh();
+      toast.message('أُلغي تغيير المفضلة المعلّق');
+    } catch { toast.error('تعذّر إلغاء تغيير المفضلة'); }
   }
 
   const lastLabel = isOnline ? 'متصل' : 'غير متصل';
@@ -310,6 +382,30 @@ export function SyncCenterClient() {
           <Link href={ROUTES.offline.drafts}>مركز المسودات</Link>
         </Button>
       </div>
+
+      <section className="space-y-2">
+        <h2 className="flex items-center gap-2 text-base font-semibold"><FileText className="h-4 w-4" />تغييرات المفضلة المعلّقة</h2>
+        {favoriteIntents.length === 0 ? <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">لا توجد تغييرات مفضلة بانتظار المزامنة.</p> : (
+          <ul className="divide-y rounded-xl border">
+            {favoriteIntents.map((intent) => <li key={intent.key} className="flex flex-wrap items-center justify-between gap-3 p-3">
+              <div className="min-w-0 text-sm"><p className="font-medium">{intent.desired ? 'إضافة إلى المفضلة' : 'إزالة من المفضلة'} · {intent.type === 'AD' ? 'إعلان' : intent.type === 'PRODUCT' ? 'منتج' : intent.type === 'STORE' ? 'متجر' : 'خدمة'}</p><p className="text-xs text-muted-foreground">معرّف العنصر: {intent.entityId} · محفوظ محليًا</p></div>
+              <Button variant="ghost" size="sm" onClick={() => void handleDiscardFavoriteIntent(intent.key)}>إلغاء التغيير</Button>
+            </li>)}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="flex items-center gap-2 text-base font-semibold"><FileText className="h-4 w-4" />طلبات مواعيد غير مؤكدة</h2>
+        {appointmentDrafts.length === 0 ? <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">لا توجد طلبات مواعيد محفوظة محليًا.</p> : (
+          <ul className="divide-y rounded-xl border">
+            {appointmentDrafts.map((draft) => <li key={draft.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+              <div className="min-w-0 text-sm"><p className="font-medium">{new Date(draft.payload.scheduledStart).toLocaleString('ar')}</p><p className="text-xs text-warning-strong">طلب محفوظ محليًا — الحجز غير مؤكد حتى يوافق الخادم.</p>{draft.lastError ? <p className="text-xs text-destructive">{draft.lastError}</p> : null}</div>
+              <div className="flex gap-2"><Button size="sm" onClick={() => void handleRetryAppointmentDraft(draft)} disabled={!isOnline}>إعادة التحقق والإرسال</Button><Button variant="ghost" size="sm" onClick={() => void handleDeleteAppointmentDraft(draft.id)}>حذف</Button></div>
+            </li>)}
+          </ul>
+        )}
+      </section>
 
       {/* مسودات محفوظة محليًا (إعلان / منتج / خدمة) */}
       <section className="space-y-2">
