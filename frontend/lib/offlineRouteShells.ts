@@ -966,6 +966,17 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
       if (result.ok) {
         completedThisPass += 1;
         liveUrls.push(...result.urls.map(toPath));
+      } else if (prior?.chunks?.length) {
+        // WARM-FAILED-ROUTE-KEEP-01: a failed refresh must not make the
+        // previous route assets look orphaned. The old HTML remains in
+        // STATIC_CACHE when warmRouteAtomic fails; include its recorded
+        // dependencies in this pass's live set so a build-change sweep
+        // cannot delete chunks that are still needed by that offline copy.
+        // Only retain the previous manifest when its HTML is still cached.
+        const previousHtml = await staticCache.match(route);
+        if (previousHtml) {
+          liveUrls.push(...prior.chunks.map(toPath));
+        }
       }
       reportProgress('routes', {
         active: true,
@@ -1338,25 +1349,26 @@ export function getKnownRoutes(): Array<{ route: string; personal: boolean }> {
 export async function retrySinglePublicRoute(route: string): Promise<boolean> {
   if (typeof window === 'undefined' || typeof caches === 'undefined') return false;
 
-  // Clear the prior entry so warmRouteAtomic doesn't read stale state
-  // and, more importantly, so a fresh failure replaces a stale success.
+  // Keep the previous snapshot while attempting the refresh. The atomic
+  // warmer does not need the snapshot entry (MAX_SAFE_INTEGER bypasses the
+  // visit-wins check); deleting it first could orphan dependencies if the
+  // refresh fails while the old HTML remains cached.
   const snap = await readSnapshot();
-  if (snap) {
-    delete snap.routes[route];
-    await writeSnapshot(snap);
-  }
-
+  const prior = snap?.routes[route];
   const staticCache = await caches.open(STATIC_CACHE);
   const stagingCache = await caches.open(STAGING_CACHE);
   // Manual retry is an explicit user request → always replace (VISIT-WINS-01 bypass).
   const result = await warmRouteAtomic(route, staticCache, stagingCache, Number.MAX_SAFE_INTEGER);
+  const previousHtmlStillCached = !result.ok && Boolean(await staticCache.match(route));
 
   await patchRouteStatus(route, {
     status: result.ok ? 'complete' : 'failed',
-    chunks: result.urls.map(toPath),
-    attempts: 1,
+    // Preserve dependencies of a still-cached old shell on failure. A later
+    // orphan sweep must not delete assets that this offline copy still needs.
+    chunks: result.ok ? result.urls.map(toPath) : previousHtmlStillCached ? (prior?.chunks ?? []) : [],
+    attempts: result.ok ? 0 : (prior?.attempts ?? 0) + 1,
     lastAttempt: Date.now(),
-    warmedAt: result.ok ? Date.now() : undefined,
+    warmedAt: result.ok ? Date.now() : prior?.warmedAt,
     lastError: result.ok ? undefined : result.error,
   });
 
@@ -1370,12 +1382,11 @@ export async function retrySinglePublicRoute(route: string): Promise<boolean> {
 export async function retrySinglePersonalRoute(route: string): Promise<boolean> {
   if (typeof window === 'undefined' || typeof caches === 'undefined') return false;
 
+  // As for public routes, retain the previous manifest until the atomic
+  // refresh finishes so failed retries cannot orphan a still-cached shell.
   const snap = await readSnapshot();
-  if (snap) {
-    delete snap.routes[`personal:${route}`];
-    await writeSnapshot(snap);
-  }
-
+  const key = `personal:${route}`;
+  const prior = snap?.routes[key];
   const staticCache = await caches.open(STATIC_CACHE);
   const personalCache = await caches.open(PERSONAL_SHELL_CACHE);
   const stagingCache = await caches.open(STAGING_CACHE);
@@ -1387,13 +1398,14 @@ export async function retrySinglePersonalRoute(route: string): Promise<boolean> 
     stagingCache,
     Number.MAX_SAFE_INTEGER,
   );
+  const previousHtmlStillCached = !result.ok && Boolean(await personalCache.match(route));
 
-  await patchRouteStatus(`personal:${route}`, {
+  await patchRouteStatus(key, {
     status: result.ok ? 'complete' : 'failed',
-    chunks: result.urls.map(toPath),
-    attempts: 1,
+    chunks: result.ok ? result.urls.map(toPath) : previousHtmlStillCached ? (prior?.chunks ?? []) : [],
+    attempts: result.ok ? 0 : (prior?.attempts ?? 0) + 1,
     lastAttempt: Date.now(),
-    warmedAt: result.ok ? Date.now() : undefined,
+    warmedAt: result.ok ? Date.now() : prior?.warmedAt,
     lastError: result.ok ? undefined : result.error,
   });
 
@@ -1418,13 +1430,23 @@ export async function clearSingleRouteCache(
 
   let removed = 0;
 
-  // 1. Delete every recorded chunk (may be in STATIC_CACHE either way).
-  const chunkCache = personal ? await caches.open(STATIC_CACHE) : cache;
+  // 1. Delete only chunks that no other cached route in the snapshot uses.
+  // Next.js chunks are commonly shared across routes; deleting a chunk from
+  // one route must not break another route that remains available offline.
+  const chunkCache = await caches.open(STATIC_CACHE);
+  const sharedChunks = new Set<string>();
+  if (snap) {
+    for (const [otherKey, otherMeta] of Object.entries(snap.routes)) {
+      if (otherKey === key) continue;
+      for (const otherChunk of otherMeta.chunks ?? []) sharedChunks.add(toPath(otherChunk));
+    }
+  }
   if (meta?.chunks) {
     for (const rawUrl of meta.chunks) {
-      // Snapshot stores paths; skip the route itself (handled below).
-      const u = rawUrl === route ? null : rawUrl;
-      if (!u) continue;
+      // Snapshot stores paths; skip the route and RSC shell (handled below).
+      const u = toPath(rawUrl);
+      if (u === route || u === toPath(rscShellKey(route))) continue;
+      if (sharedChunks.has(u)) continue;
       const ok = await chunkCache.delete(u);
       if (ok) removed += 1;
     }

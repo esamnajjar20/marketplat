@@ -76,6 +76,10 @@ export function OfflineControlClient() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const online = useOnlineStatus();
+  // Read navigator.onLine at action time as well as rendering a subscribed
+  // status. The React snapshot can lag briefly behind a just-fired offline event.
+  const isOnlineAtActionBoundary = () =>
+    typeof navigator === 'undefined' ? online : navigator.onLine;
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [progress, setProgress] = useState<AggregatedProgress | null>(null);
@@ -172,6 +176,12 @@ export function OfflineControlClient() {
   }
 
   async function handleStartNow() {
+    // Re-check at the action boundary: the button may have been enabled
+    // immediately before a connectivity transition.
+    if (!isOnlineAtActionBoundary()) {
+      toast.error('لا يمكن بدء تجهيز الصفحات دون اتصال بالإنترنت');
+      return;
+    }
     if (mode === 'off') {
       toast.error('اختر «سريع» أو «كامل» أولاً');
       return;
@@ -187,7 +197,11 @@ export function OfflineControlClient() {
       if (isWarmingCancelled()) {
         toast.info('أُلغي التسخين');
       } else if (!ran) {
-        toast.info('التسخين يعمل بالفعل في الخلفية — حاول بعد قليل');
+        if (!isOnlineAtActionBoundary()) {
+          toast.error('انقطع الاتصال قبل بدء التسخين؛ لم يبدأ تجهيز الصفحات');
+        } else {
+          toast.info('التسخين يعمل بالفعل في الخلفية — حاول بعد قليل');
+        }
       } else {
         toast.success('انتهى التسخين');
       }
@@ -206,13 +220,18 @@ export function OfflineControlClient() {
   }
 
   async function handleResumeRemaining() {
+    // Do not begin cache maintenance from a stale enabled-button state.
+    if (!isOnlineAtActionBoundary()) {
+      toast.error('اتصل بالإنترنت قبل استكمال الصفحات الناقصة');
+      return;
+    }
     setBusy('resume');
     try {
       const snap = await readSnapshot();
       const routes = getKnownRoutes();
       let cleared = 0;
       for (const { route, personal } of routes) {
-        if (isWarmingCancelled()) break;
+        if (isWarmingCancelled() || !isOnlineAtActionBoundary()) break;
         const key = personal ? 'personal:' + route : route;
         const status = snap?.routes?.[key]?.status;
         if (status !== 'complete') {
@@ -220,14 +239,17 @@ export function OfflineControlClient() {
           cleared += 1;
         }
       }
+      let pipelineRan = false;
       if (!isWarmingCancelled()) {
-        await runWarmingPipelineLocal();
+        pipelineRan = await runWarmingPipelineLocal();
       }
       await readSnapshotLive();
       if (isWarmingCancelled()) {
         toast.info('أُلغي الاستئناف بعد مسح ' + cleared + ' صفحة');
+      } else if (!pipelineRan) {
+        toast.warning('لم يبدأ التسخين؛ تحقق من الاتصال أو انتظر انتهاء عملية تسخين أخرى. تم مسح ' + cleared + ' صفحة ناقصة');
       } else {
-        toast.success('استؤنف — ' + cleared + ' صفحة ناقصة');
+        toast.success('بدأ استكمال التسخين — ' + cleared + ' صفحة ناقصة');
       }
     } catch (err) {
       console.warn('[offline] resume failed:', err);
@@ -243,21 +265,31 @@ export function OfflineControlClient() {
   }
 
   async function performFullReset() {
+    // The confirmation dialog can remain open while connectivity changes.
+    if (!isOnlineAtActionBoundary()) {
+      toast.error('اتصل بالإنترنت قبل إعادة تجهيز الصفحات من الصفر');
+      return;
+    }
     setBusy('reset');
     try {
       const routes = getKnownRoutes();
       for (const { route, personal } of routes) {
-        if (isWarmingCancelled()) break;
+        // A connection can disappear after the confirmation dialog closes.
+        // Stop further destructive work rather than clearing every remaining shell.
+        if (isWarmingCancelled() || !isOnlineAtActionBoundary()) break;
         await clearSingleRouteCache(route, personal);
       }
+      let pipelineRan = false;
       if (!isWarmingCancelled()) {
-        await runWarmingPipelineLocal();
+        pipelineRan = await runWarmingPipelineLocal();
       }
       await readSnapshotLive();
       if (isWarmingCancelled()) {
         toast.info('أُلغي إعادة التحميل');
+      } else if (!pipelineRan) {
+        toast.error('تم مسح بعض الكاش، لكن لم يبدأ التسخين. اتصل بالإنترنت ثم أعد التجهيز.');
       } else {
-        toast.success('أُعيد التحميل من الصفر');
+        toast.success('بدأت إعادة التجهيز؛ قد تبقى صفحات غير مكتملة حتى انتهاء التسخين');
       }
     } catch (err) {
       console.warn('[offline] full reset failed:', err);

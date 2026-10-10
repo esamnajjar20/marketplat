@@ -11,11 +11,15 @@ test.describe('offline connectivity lifecycle', () => {
 
     await expect(page.getByText('متصل', { exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await context.setOffline(true);
-    await expect(page.getByText('بدون نت', { exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('أنت غير متصل حالياً', { exact: true })).toBeVisible();
+    try {
+      await context.setOffline(true);
+      await expect(page.getByText('بدون نت', { exact: true })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText('أنت غير متصل حالياً', { exact: true })).toBeVisible();
+    } finally {
+      // Never leak offline emulation into later tests if an assertion times out.
+      await context.setOffline(false);
+    }
 
-    await context.setOffline(false);
     await expect(page.getByText('متصل', { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 });

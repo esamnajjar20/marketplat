@@ -37,16 +37,19 @@ test.describe('offline phase 8 integration', () => {
     await expect(page.getByText('متصل', { exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
-  test('the offline hub renders a useful local surface when optional API calls fail', async ({ page }) => {
-    await page.goto('/offline?tab=warming');
-    await expect(page.getByRole('heading', { name: 'جاهزية التطبيق بدون نت' })).toBeVisible();
-
-    // Browser integration check: simulate an unavailable API after the page
-    // is rendered, without blocking the app shell or its local controls.
+  test('the products listing exposes its error state when its API request fails', async ({ page }) => {
+    // The warming tab is intentionally local-only and makes no API request;
+    // testing API failure there was vacuous. Exercise a real API-driven page
+    // and assert that the route was intercepted and the failure is visible.
+    let interceptedApiRequests = 0;
     await page.route('**/api/**', async (route) => {
+      interceptedApiRequests += 1;
       await route.abort('failed');
     });
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'جاهزية التطبيق بدون نت' })).toBeVisible({ timeout: 15_000 });
+
+    await page.goto('/products');
+    await expect(page.getByRole('heading', { name: 'المنتجات' })).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => interceptedApiRequests, { timeout: 10_000 }).toBeGreaterThan(0);
+    await expect(page.getByText('حدث خطأ أثناء تحميل المنتجات')).toBeVisible({ timeout: 10_000 });
   });
 });
