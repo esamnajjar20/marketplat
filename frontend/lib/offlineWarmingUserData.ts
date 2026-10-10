@@ -64,28 +64,39 @@ export function getUserDataCacheName(userId: string): string {
  * جلب الـ13 مسارًا (+5 طلبات self-warm) حتى لو جُلبت قبل ثوانٍ.
  *
  *   volatile — تتغير بسرعة (رسائل، إشعارات، عدّادات، لوحة التحكم، إعلاناتي)
+ *   medium   — بيانات قوائم العمل/المبيعات؛ نافذة 30 دقيقة لتقليل الطلبات
  *   stable   — تتغير نادرًا (الهوية، ملفات البائع/المتجر/الخدمة، التصنيفات)
  *
  * على الشبكات الضعيفة (critical) تُضرب المدد ×3 لتوفير الباقة.
  */
-export type UserDataGroup = 'volatile' | 'stable';
+export type UserDataGroup = 'volatile' | 'medium' | 'stable';
 
 export const USER_DATA_TTL_MS: Record<UserDataGroup, number> = {
   volatile: 10 * 60 * 1000,
+  medium: 30 * 60 * 1000,
   stable: 2 * 60 * 60 * 1000,
 };
+
+const MEDIUM_TTL_ENDPOINT_IDS = new Set([
+  'my-products', 'my-services', 'my-requests', 'my-request-offers',
+  'service-requests-customer', 'service-requests-incoming', 'sales-list',
+  'sales-summary-month', 'sales-debt-summary', 'sales-installments-upcoming',
+  'sales-installments-overdue', 'sales-cost-settings', 'sales-cost-products',
+]);
 const CRITICAL_TTL_MULTIPLIER = 3;
 
 /**
  * Endpoints warmed per user, in priority order (what people open offline
  * most first — a pass cut short by a bad link still got the best ones).
- * Each entry becomes one fetch + one cache.put. Keep this list small.
+ * Each entry becomes one fetch + one cache.put. Keep this list bounded and freshness-gated.
  */
 export const USER_DATA_ENDPOINTS: ReadonlyArray<{ path: string; group: UserDataGroup }> = USER_WARMING_QUERIES.map((entry) => ({
   path: entry.path,
   group: ['me', 'my-store', 'my-provider', 'my-seller-profile', 'product-categories'].includes(entry.id)
     ? 'stable'
-    : 'volatile',
+    : MEDIUM_TTL_ENDPOINT_IDS.has(entry.id)
+      ? 'medium'
+      : 'volatile',
 }));
 
 interface FreshEntry {
@@ -283,7 +294,8 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
   // may hit the network before the plan says warming is allowed.
   if (isWarmingDisabled(plan)) return;
 
-  const userId = useAuthStore.getState().user?.id ?? 'anon';
+  const userId = useAuthStore.getState().user?.id ?? warmUserId;
+  if (userId !== warmUserId) return;
   const critical = plan.tier === 'critical';
 
   await runUnderWarmingLock(async () => {

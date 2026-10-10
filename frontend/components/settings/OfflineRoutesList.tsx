@@ -31,15 +31,17 @@ import { cn } from '@/lib/utils';
 import { useLongPress } from '@/hooks/ui/useLongPress';
 import {
   getKnownRoutes,
+  getCachedRouteEntries,
   retrySinglePublicRoute,
   retrySinglePersonalRoute,
   clearSingleRouteCache,
   retryAllFailedRoutes,
+  inspectRouteCaches,
 } from '@/lib/offlineRouteShells';
 import { readSnapshot, type RouteWarmingMeta } from '@/lib/offlineWarmingState';
 
 type Filter = 'all' | 'complete' | 'failed' | 'pending';
-type Status = 'complete' | 'failed' | 'pending' | 'missing';
+type Status = 'complete' | 'failed' | 'pending' | 'missing' | 'incomplete';
 
 interface Row {
   route: string;
@@ -82,6 +84,8 @@ function statusPill(status: Status) {
       return { label: 'بالانتظار', cls: 'bg-warning/10 text-warning-strong border-warning/30', Icon: Clock };
     case 'missing':
       return { label: 'لم يبدأ', cls: 'bg-muted text-muted-foreground border-border', Icon: MinusCircle };
+    case 'incomplete':
+      return { label: 'ناقص ملفات', cls: 'bg-warning/10 text-warning-strong border-warning/30', Icon: AlertTriangle };
   }
 }
 
@@ -128,18 +132,44 @@ export function OfflineRoutesList() {
 
   const refresh = useCallback(async () => {
     const snap = await readSnapshot();
-    const routes = getKnownRoutes();
+    const routeMap = new Map<string, { route: string; personal: boolean }>();
+    for (const item of getKnownRoutes()) routeMap.set(`${item.personal ? 'personal:' : 'public:'}${item.route}`, item);
+    for (const item of await getCachedRouteEntries()) {
+      routeMap.set(`${item.personal ? 'personal:' : 'public:'}${item.route}`, item);
+    }
+    const routes = [...routeMap.values()];
+    const audits = await inspectRouteCaches(routes.map(({ route, personal }) => {
+      const snapshotKey = personal ? `personal:${route}` : route;
+      return { route, personal, recordedAssets: snap?.routes?.[snapshotKey]?.chunks ?? [] };
+    }));
     const next: Row[] = routes.map(({ route, personal }) => {
       const key = personal ? 'personal:' + route : route;
+      const auditKey = `${personal ? 'personal:' : 'public:'}${route}`;
       const meta: RouteWarmingMeta | undefined = snap?.routes?.[key];
+      // A persisted "complete" marker is only historical metadata. The UI
+      // must verify the HTML and every referenced JS/CSS file in live caches.
+      const audit = audits.get(auditKey) ?? {
+        htmlPresent: false, complete: false, missingAssets: [], checkedAssets: 0,
+      };
+      let status: Status;
+      if (audit.complete && audit.htmlPresent) status = 'complete';
+      else if (meta?.status === 'failed' && !audit.htmlPresent) status = 'failed';
+      else if (audit.htmlPresent) status = 'incomplete';
+      else if (meta?.status === 'pending') status = 'pending';
+      else if (meta?.status === 'failed') status = 'failed';
+      else status = 'missing';
       return {
         route,
         personal,
-        status: (meta?.status ?? 'missing') as Status,
-        chunks: meta?.chunks?.length ?? 0,
+        status,
+        chunks: Math.max(audit.checkedAssets, meta?.chunks?.filter((item) => /\/_next\/static\//.test(item)).length ?? 0),
         attempts: meta?.attempts ?? 0,
         warmedAt: meta?.warmedAt ?? 0,
-        lastError: meta?.lastError ?? null,
+        lastError: audit.htmlPresent && !audit.complete
+          ? audit.missingAssets.length
+            ? `missing-assets:${audit.missingAssets.length}`
+            : 'no-verifiable-assets'
+          : meta?.lastError ?? null,
       };
     });
     setRows(next);
@@ -147,7 +177,7 @@ export function OfflineRoutesList() {
 
   useEffect(() => {
     void refresh();
-    const id = window.setInterval(() => void refresh(), 5_000);
+    const id = window.setInterval(() => void refresh(), 15_000);
     return () => window.clearInterval(id);
   }, [refresh]);
 
@@ -217,7 +247,7 @@ export function OfflineRoutesList() {
     switch (filter) {
       case 'complete': list = rows.filter((r) => r.status === 'complete'); break;
       case 'failed':   list = rows.filter((r) => r.status === 'failed'); break;
-      case 'pending':  list = rows.filter((r) => r.status === 'pending' || r.status === 'missing'); break;
+      case 'pending':  list = rows.filter((r) => r.status === 'pending' || r.status === 'missing' || r.status === 'incomplete'); break;
       case 'all':
       default:         list = rows;
     }
@@ -238,7 +268,7 @@ export function OfflineRoutesList() {
     all: rows.length,
     complete: rows.filter((r) => r.status === 'complete').length,
     failed: rows.filter((r) => r.status === 'failed').length,
-    pending: rows.filter((r) => r.status === 'pending' || r.status === 'missing').length,
+    pending: rows.filter((r) => r.status === 'pending' || r.status === 'missing' || r.status === 'incomplete').length,
   }), [rows]);
 
   // SIZE-ACTIONS-01: aggregate size across all routes that have a

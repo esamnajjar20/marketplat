@@ -72,6 +72,22 @@ export const USER_WARMING_QUERIES: readonly WarmingQueryContract[] = [
   { id: 'conversations', path: '/conversations?limit=20', queryKey: queryKeys.conversations.mine({ limit: 20 }), consumer: 'react-query', scope: 'user' },
   { id: 'notifications', path: '/notifications?limit=20', queryKey: queryKeys.notifications.mine({ limit: 20 }), consumer: 'react-query', scope: 'user' },
   { id: 'my-ads', path: '/ads/me?page=1&limit=20', queryKey: queryKeys.ads.mine({ page: 1, limit: 20 }), consumer: 'react-query', scope: 'user' },
+  // Cache-only private snapshots for the other first-party hubs. These use
+  // exact API URL shapes and a medium freshness window to avoid turning every
+  // warm tick into a burst of personal-data requests.
+  { id: 'my-products', path: '/products/me?page=1&limit=10', consumer: 'cache-only', scope: 'user' },
+  { id: 'my-services', path: '/service-listings/me?page=1&limit=10', consumer: 'cache-only', scope: 'user' },
+  { id: 'my-requests', path: '/requests/me?page=1&limit=20', consumer: 'cache-only', scope: 'user' },
+  { id: 'my-request-offers', path: '/requests/offers/me?page=1&limit=20', consumer: 'cache-only', scope: 'user' },
+  { id: 'service-requests-customer', path: '/service-requests/me?page=1&limit=10', consumer: 'cache-only', scope: 'user' },
+  { id: 'service-requests-incoming', path: '/service-requests/incoming?page=1&limit=10', consumer: 'cache-only', scope: 'user' },
+  { id: 'sales-list', path: '/sales?page=1&limit=12', consumer: 'cache-only', scope: 'user' },
+  { id: 'sales-summary-month', path: '/sales/summary?period=month', consumer: 'cache-only', scope: 'user' },
+  { id: 'sales-debt-summary', path: '/sales/debts/summary', consumer: 'cache-only', scope: 'user' },
+  { id: 'sales-installments-upcoming', path: '/sales/installments/upcoming', consumer: 'cache-only', scope: 'user' },
+  { id: 'sales-installments-overdue', path: '/sales/installments/overdue', consumer: 'cache-only', scope: 'user' },
+  { id: 'sales-cost-settings', path: '/sales/cost-settings', consumer: 'cache-only', scope: 'user' },
+  { id: 'sales-cost-products', path: '/sales/cost-products', consumer: 'cache-only', scope: 'user' },
   { id: 'favorites', path: '/favorites?page=1&limit=20', queryKey: queryKeys.favorites.all({ page: 1, limit: 20 }), consumer: 'react-query', scope: 'user' },
   { id: 'my-ad-stats', path: '/ads/me/stats', queryKey: queryKeys.ads.myStats(), consumer: 'react-query', scope: 'user' },
   { id: 'seller-attention', path: '/sellers/me/attention', queryKey: queryKeys.sellers.attention(), consumer: 'react-query', scope: 'user' },

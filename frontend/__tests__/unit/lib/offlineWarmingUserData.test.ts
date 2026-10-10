@@ -86,6 +86,15 @@ describe('pickDueEndpoints', () => {
     expect(critical).toHaveLength(0);
   });
 
+  it('uses a bounded 30-minute freshness window for private business and sales snapshots', () => {
+    const sales = USER_DATA_ENDPOINTS.find((entry) => entry.path === '/sales?page=1&limit=12');
+    expect(sales?.group).toBe('medium');
+    const due = pickDueEndpoints(freshMapFor(USER_DATA_TTL_MS.medium + 1), {
+      now: NOW, force: false, critical: false, hasCachedBody: allPresent,
+    });
+    expect(due.some((entry) => entry.path === '/sales?page=1&limit=12')).toBe(true);
+  });
+
   it('force ignores every freshness window', () => {
     const due = pickDueEndpoints(freshMapFor(1), {
       now: NOW, force: true, critical: false, hasCachedBody: allPresent,

@@ -110,7 +110,7 @@ const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v49';
+const CACHE_VERSION = 'v50';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -217,6 +217,51 @@ const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 700;
 /** FIX CACHE-PERSONAL-SHELL: كان بلا حد — ينمو مع كل زيارة محمية.
  * 300 مدخل يكفي لـ ~100 صفحة (HTML + RSC + chunks). */
 const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 300;
+
+// Shells whose markup is release-bound and stable during ordinary use.
+// They are not refreshed by the periodic warmer, and cache trimming keeps
+// them plus their initial JS/CSS dependencies ahead of disposable entries.
+// Keep in sync with lib/offlineRouteShells.ts's permanent route allowlists.
+const PERMANENT_PUBLIC_SHELL_PATHS = new Set(['/offline', '/about', '/contact', '/privacy', '/terms']);
+const PERMANENT_PERSONAL_SHELL_PATHS = new Set([
+  '/ads/create', '/my-store/products/new', '/my-services/new', '/requests/new', '/complete-profile',
+]);
+
+function pathnameOfCacheKey(request) {
+  try { return new URL(typeof request === 'string' ? request : request.url, self.location.origin).pathname; }
+  catch { return ''; }
+}
+
+function isPermanentShellKey(request, cacheName) {
+  const pathname = pathnameOfCacheKey(request);
+  if (cacheName === PERSONAL_SHELL_CACHE) return PERMANENT_PERSONAL_SHELL_PATHS.has(pathname);
+  if (cacheName === STATIC_CACHE) return PERMANENT_PUBLIC_SHELL_PATHS.has(pathname);
+  return false;
+}
+
+async function collectPermanentShellAssets() {
+  const assets = new Set();
+  const cacheSpecs = [
+    [STATIC_CACHE, PERMANENT_PUBLIC_SHELL_PATHS],
+    [PERSONAL_SHELL_CACHE, PERMANENT_PERSONAL_SHELL_PATHS],
+  ];
+  await Promise.all(cacheSpecs.map(async ([cacheName, paths]) => {
+    try {
+      const cache = await caches.open(cacheName);
+      const keys = await cache.keys();
+      await Promise.all(keys.map(async (key) => {
+        if (!paths.has(pathnameOfCacheKey(key))) return;
+        const response = await cache.match(key);
+        if (!response || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) return;
+        const html = await response.clone().text();
+        for (const match of html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:[?][^"']*)?["']/g)) {
+          if (match[1]) assets.add(new URL(match[1], self.location.origin).href);
+        }
+      }));
+    } catch { /* a missing cache must not break normal trimming */ }
+  }));
+  return assets;
+}
 
 const OFFLINE_URL = '/offline';
 const READ_BATCH_PATH = '/api/v1/batch';
@@ -570,8 +615,27 @@ function hubDocumentKey(request, url) {
   return request;
 }
 
-function rscShellKey(pathname) {
-  return `${pathname}?__offline_rsc_shell`;
+function rscShellKey(input) {
+  let url;
+  try {
+    url = input instanceof URL ? input : new URL(String(input), self.location.origin);
+  } catch {
+    return `${String(input).split('?')[0]}?__offline_rsc_shell`;
+  }
+
+  // Next.js appends a changing `_rsc` token to every RSC request. Remove only
+  // that transport parameter; keep application query parameters because some
+  // Server Components (notably /search?q=...) render query-dependent content.
+  // Hub tabs are resolved client-side, so every tab shares the warmed shell.
+  const params = new URLSearchParams(url.search);
+  params.delete('_rsc');
+  params.delete('__offline_rsc_shell');
+  if (HUB_PATHS.has(url.pathname)) {
+    return `${url.pathname}?__offline_rsc_shell`;
+  }
+  params.sort();
+  const query = params.toString();
+  return `${url.pathname}?${query ? `${query}&` : ''}__offline_rsc_shell`;
 }
 
 /** FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01: نطاق محدود عمدًا — /messages،
@@ -606,6 +670,10 @@ function isPersonalShellRoute(url) {
     // عبر useMySellerProfile بعد الـhydration — لا بيانات مستخدم مُخصَّصة
     // مخبوزة بالـHTML/RSC نفسه.
     '/ads/create',
+    // The complete-profile page is a static Server Component shell; its form
+    // and account state are client-rendered after hydration. It is also in the
+    // personal warming list, so it must be readable from PERSONAL_SHELL_CACHE.
+    '/complete-profile',
     // SETTINGS/MY-STORE/MY-SERVICES-HUB-01 + OFFLINE-HUB-01: the old sub-pages
     // (/settings/security, /my-store/products, …) are 307 redirects into the hub
     // routes below; the prefix checks further down still cover any stray
@@ -668,15 +736,39 @@ async function stripVaryAndClone(response) {
   });
 }
 
+/** Migrate legacy HTML entries whose Vary header can make hard-navigation
+ * cache.match fail. Only HTML route documents are considered; RSC streams,
+ * API payloads, static assets, and auth routes are deliberately untouched. */
+async function normalizeExistingHtmlCache(cacheName) {
+  try {
+    const cache = await caches.open(cacheName);
+    const requests = await cache.keys();
+    for (const request of requests) {
+      let url;
+      try { url = new URL(request.url); } catch { continue; }
+      if (url.origin !== self.location.origin || url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) continue;
+      if (url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell')) continue;
+      if (/\.[a-z0-9]{2,8}$/i.test(url.pathname)) continue;
+      const response = await cache.match(request);
+      if (!response || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) continue;
+      if (!response.headers.has('Vary')) continue;
+      await cache.put(request, await stripVaryAndClone(response));
+    }
+  } catch {
+    // A migration failure must never prevent the app from starting.
+  }
+}
+
 /** FIX SW-TRIM-ORDER-01: يكتب رد مع ترويسة X-SW-Cached-At صريحة (طابع
  * زمني الآن) قبل التخزين — مصدر الحقيقة الوحيد اللي trimCache يعتمد
  * عليه للترتيب، بدل الوثوق بترتيب caches.keys() غير المضمون بالمواصفة.
  * يُستخدم فقط لكاشات تُقلَّم فعليًا (API_CACHE وIMAGE_CACHE) — لا داعي
  * له لـ STATIC_CACHE/CORE_CACHE/PERSONAL_SHELL_CACHE/SAVED_ADS_CACHE
  * (لا تُقلَّم تلقائيًا أصلًا). */
-async function putTimestamped(cache, request, response) {
+async function putTimestamped(cache, request, response, cacheSource) {
   const headers = new Headers(response.headers);
   headers.set('X-SW-Cached-At', String(Date.now()));
+  if (cacheSource) headers.set('X-SW-Cache-Source', cacheSource);
   const body = await response.blob();
   const stamped = new Response(body, {
     status: response.status,
@@ -684,6 +776,120 @@ async function putTimestamped(cache, request, response) {
     headers,
   });
   await cache.put(request, stamped);
+}
+
+/**
+ * A Next.js client-side navigation normally fetches only an RSC payload, not
+ * a full document. Save a matching HTML document and its initial JS/CSS too,
+ * otherwise the route can look visited while a hard offline open still fails.
+ * Only called for real RSC navigations (never prefetch), and only for public
+ * routes or the explicitly approved personal-shell allowlist.
+ */
+function isUsableStaticAssetResponse(assetUrl, response) {
+  if (!response || !response.ok || !isSameOriginResponse(response)) return false;
+  let pathname = assetUrl;
+  try { pathname = new URL(assetUrl, self.location.origin).pathname; } catch { /* use input */ }
+  const contentType = (response.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+  if (/\.css$/i.test(pathname)) return contentType === 'text/css';
+  if (/\.js$/i.test(pathname)) return contentType.includes('javascript') || contentType.includes('ecmascript');
+  return false;
+}
+
+async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
+  try {
+    const docUrl = new URL(url.href);
+    // Remove only Next's transport token without re-serializing the other
+    // query parameters; their exact encoding/order can be part of the cache key.
+    const rawParts = docUrl.search.slice(1).split('&').filter(Boolean);
+    const keptParts = rawParts.filter((part) => {
+      const rawKey = part.split('=')[0];
+      try {
+        return decodeURIComponent(rawKey.replace(/\+/g, ' ')) !== '_rsc';
+      } catch {
+        return rawKey !== '_rsc';
+      }
+    });
+    docUrl.search = keptParts.length ? `?${keptParts.join('&')}` : '';
+
+    const response = documentResponse
+      ? documentResponse.clone()
+      : await fetch(docUrl.href, {
+          credentials: 'same-origin',
+          headers: { Accept: 'text/html' },
+        });
+    if (
+      !response.ok ||
+      response.redirected ||
+      !isSameOriginResponse(response) ||
+      !response.headers.get('content-type')?.toLowerCase().includes('text/html')
+    ) return;
+
+    const html = await response.clone().text();
+    const assetUrls = [...new Set(Array.from(
+      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+    )
+      .map((match) => match[1])
+      .filter((value) => typeof value === 'string' && value.length > 0))];
+    if (assetUrls.length === 0) return;
+
+    const staticCache = await caches.open(STATIC_CACHE);
+    const missing = [];
+    const alreadyCached = [];
+    for (const assetUrl of assetUrls) {
+      const existing = await staticCache.match(assetUrl);
+      if (isUsableStaticAssetResponse(assetUrl, existing)) alreadyCached.push({ assetUrl, asset: existing });
+      else {
+        if (existing) await staticCache.delete(assetUrl);
+        missing.push(assetUrl);
+      }
+    }
+
+    // Fetch a small bounded batch at a time. Commit the HTML only if all
+    // initial assets are available; otherwise do not publish a false-ready shell.
+    const downloaded = [];
+    for (let i = 0; i < missing.length; i += 4) {
+      const batch = await Promise.all(missing.slice(i, i + 4).map(async (assetUrl) => {
+        const asset = await fetch(assetUrl, { credentials: 'same-origin' });
+        if (!isUsableStaticAssetResponse(assetUrl, asset)) throw new Error(`asset-invalid-${asset.status}`);
+        return { assetUrl, asset };
+      }));
+      downloaded.push(...batch);
+    }
+
+    // Refresh timestamps for reused chunks as well. Static-cache eviction is
+    // LRU-like; otherwise an old shared chunk could be evicted immediately
+    // after a new page shell that depends on it was saved.
+    for (const item of [...alreadyCached, ...downloaded]) {
+      await putTimestamped(staticCache, item.assetUrl, item.asset, 'visit-asset');
+    }
+    const cacheKey = HUB_PATHS.has(docUrl.pathname) && docUrl.search
+      ? docUrl.pathname
+      : docUrl.href;
+    await putTimestamped(htmlCache, cacheKey, await stripVaryAndClone(response), 'visit');
+    // Verify the committed document and every initial dependency after Cache Storage writes.
+    const committedHtml = await htmlCache.match(cacheKey);
+    if (!committedHtml || !committedHtml.headers.get('content-type')?.toLowerCase().includes('text/html')) return;
+    for (const assetUrl of assetUrls) {
+      const committedAsset = await staticCache.match(assetUrl);
+      if (!isUsableStaticAssetResponse(assetUrl, committedAsset)) {
+        await htmlCache.delete(cacheKey);
+        return;
+      }
+    }
+    await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+    if (htmlCacheName === PERSONAL_SHELL_CACHE) {
+      await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+    }
+  } catch {
+    // Best-effort background work; the online navigation itself still succeeds.
+  }
+}
+
+function isRealRscNavigation(request) {
+  if (!isRscShellRequest(request)) return false;
+  const prefetch = request.headers.get('Next-Router-Prefetch');
+  const purpose = request.headers.get('Purpose') || request.headers.get('Sec-Purpose') || '';
+  return prefetch !== '1' && !/prefetch/i.test(purpose);
 }
 
 /** FIX SW-RSC-OFFLINE-01: OFFLINE_URL was pre-cached once, at install
@@ -784,21 +990,21 @@ async function staleWhileRevalidate(event, request, cacheKey) {
  */
 async function verifyCachedChunks(cachedResponse, cache) {
   try {
+    if (!cachedResponse.headers.get('content-type')?.toLowerCase().includes('text/html')) return false;
     const html = await cachedResponse.clone().text();
     const chunkUrls = Array.from(
-      html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
-    ).map((m) => m[1]);
-    if (chunkUrls.length === 0) return true;
+      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+    )
+      .map((match) => match[1])
+      .filter((value) => typeof value === 'string' && value.length > 0);
+    if (chunkUrls.length === 0) return false;
     for (const url of chunkUrls) {
       const hit = await cache.match(url);
-      if (!hit) return false;
+      if (!isUsableStaticAssetResponse(url, hit)) return false;
     }
     return true;
   } catch {
-    // Parse/read failure → err on the side of serving. Worst case the
-    // user sees the previous ChunkLoadError behavior; best case the
-    // page works. Never block on our own bug.
-    return true;
+    return false;
   }
 }
 
@@ -827,6 +1033,7 @@ async function verifyCachedChunks(cachedResponse, cache) {
  * الخلل كان فقط بمستند الـ HTML/RSC الذي *يشير* لتلك الأسماء، وهو بالضبط
  * ما تعالجه هذه الدالة. */
 async function networkFirstPage(event, request, cacheKey) {
+  const url = new URL(request.url);
   const cache = await caches.open(STATIC_CACHE);
   // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
@@ -837,17 +1044,23 @@ async function networkFirstPage(event, request, cacheKey) {
   try {
     const response = await withNetworkTimeout(fetchPromise, navigateTimeout);
     if (response && response.ok && isSameOriginResponse(response)) {
-      const toStore = isRscShellRequest(request)
-        ? await stripVaryAndClone(response.clone())
-        : response.clone();
-      // event.waitUntil (لا await مباشر): لا داعي لتأخير الرد للمستخدم
-      // بانتظار كتابة الكاش — نفس نمط handleProtectedPage/networkFirstApi.
-      // FIX SW-MEMORY-01: putTimestamped + trim بدل cache.put.
-      event.waitUntil(
-        putTimestamped(cache, cacheKey, toStore).then(() =>
-          trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES),
-        ),
-      );
+      const isHtmlVisit = request.mode === 'navigate' &&
+        (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+      if (isHtmlVisit) {
+        // Do not publish HTML until its initial JS/CSS has been verified and
+        // committed by cacheVisitedDocumentShell.
+        event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE));
+      } else {
+        const toStore = await stripVaryAndClone(response.clone());
+        event.waitUntil(
+          putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined).then(() =>
+            trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES),
+          ),
+        );
+        if (isRealRscNavigation(request)) {
+          event.waitUntil(cacheVisitedDocumentShell(url, cache, undefined, STATIC_CACHE));
+        }
+      }
     }
     return response;
   } catch (err) {
@@ -858,11 +1071,16 @@ async function networkFirstPage(event, request, cacheKey) {
         fetchPromise
           .then(async (response) => {
             if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
-              const toStore = isRscShellRequest(request)
-                ? await stripVaryAndClone(response.clone())
-                : response.clone();
-              await putTimestamped(cache, cacheKey, toStore);
-              await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+              const isHtmlVisit = request.mode === 'navigate' &&
+                (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+              if (isHtmlVisit) {
+                await cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE);
+              } else {
+                const toStore = await stripVaryAndClone(response.clone());
+                await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
+                if (isRealRscNavigation(request)) await cacheVisitedDocumentShell(url, cache, undefined, STATIC_CACHE);
+                await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+              }
             }
           })
           .catch(() => {}),
@@ -934,7 +1152,7 @@ const protectedNavGeneration = new Map();
 
 async function handleProtectedPage(event, request, url) {
   const useShellCache = isPersonalShellRoute(url);
-  const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : hubDocumentKey(request, url);
+  const cacheKey = isRscShellRequest(request) ? rscShellKey(url) : hubDocumentKey(request, url);
 
   const myGeneration = (protectedNavGeneration.get(url.pathname) || 0) + 1;
   protectedNavGeneration.set(url.pathname, myGeneration);
@@ -962,12 +1180,19 @@ async function handleProtectedPage(event, request, url) {
     // staleWhileRevalidate وnetworkFirstPage.
     if (useShellCache && response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
       const cache = await caches.open(PERSONAL_SHELL_CACHE);
-      const toStore = isRscShellRequest(request)
-        ? await stripVaryAndClone(response.clone())
-        : response.clone();
-      // FIX CACHE-PERSONAL-SHELL: trim بعد الكتابة.
-      await putTimestamped(cache, cacheKey, toStore);
-      await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+      const isHtmlVisit = request.mode === 'navigate' &&
+        (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+      if (isHtmlVisit) {
+        // The document is published only after all initial dependencies exist.
+        event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE));
+      } else {
+        const toStore = await stripVaryAndClone(response.clone());
+        await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
+        await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+        if (isRealRscNavigation(request)) {
+          event.waitUntil(cacheVisitedDocumentShell(url, cache, undefined, PERSONAL_SHELL_CACHE));
+        }
+      }
     }
     return response;
   } catch (err) {
@@ -981,11 +1206,16 @@ async function handleProtectedPage(event, request, url) {
             .then(async (response) => {
               if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
                 const cache = await caches.open(PERSONAL_SHELL_CACHE);
-                const toStore = isRscShellRequest(request)
-                  ? await stripVaryAndClone(response.clone())
-                  : response.clone();
-                await putTimestamped(cache, cacheKey, toStore);
-                await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+                const isHtmlVisit = request.mode === 'navigate' &&
+                  (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+                if (isHtmlVisit) {
+                  await cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE);
+                } else {
+                  const toStore = await stripVaryAndClone(response.clone());
+                  await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
+                  if (isRealRscNavigation(request)) await cacheVisitedDocumentShell(url, cache, undefined, PERSONAL_SHELL_CACHE);
+                  await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+                }
               }
             })
             .catch(() => {}),
@@ -1063,7 +1293,7 @@ async function handlePageRequest(event, request, url) {
   }
   // FIX SW-NAV-NETFIRST-01: كان staleWhileRevalidate — انظر تعليق
   // networkFirstPage أعلاه للسبب الكامل.
-  const cacheKey = isRscShellRequest(request) ? rscShellKey(url.pathname) : request;
+  const cacheKey = isRscShellRequest(request) ? rscShellKey(url) : hubDocumentKey(request, url);
   return networkFirstPage(event, request, cacheKey);
 }
 
@@ -1244,7 +1474,9 @@ function inferCacheTier(cacheName, request) {
   if (cacheName.includes('api')) return 15;
   if (cacheName.includes('static')) {
     try {
-      const path = new URL(request.url).pathname;
+      const parsedRequestUrl = new URL(request.url);
+      if (parsedRequestUrl.searchParams.has('__offline_rsc_shell')) return 8;
+      const path = parsedRequestUrl.pathname;
       if (path === '/offline' || path === '/') return 100;
       // SW-SMART-CACHE-REFINE-01: 40 -> 45. Chunks are shared across
       // routes (framework, vendor, main-app), so raising them slightly
@@ -1351,6 +1583,7 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
   }
 
   const now = Date.now();
+  const permanentAssets = cacheName === STATIC_CACHE ? await collectPermanentShellAssets() : new Set();
   const entries = await Promise.all(
     keys.map(async (key) => {
       const res = await cache.match(key);
@@ -1362,13 +1595,25 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
       const parsed = lenRaw ? Number(lenRaw) : NaN;
       const size = Number.isFinite(parsed) && parsed > 0 ? parsed : MISSING_LEN_ESTIMATE;
       const tier = inferCacheTier(cacheName, key);
+      const source = res && res.headers.get('X-SW-Cache-Source');
+      const contentType = (res && res.headers.get('content-type') || '').toLowerCase();
+      // Real visits outrank warm-only shells; their initial chunks outrank the
+      // visited HTML so trimming cannot leave a cached page with missing assets.
+      // The finite bonus still allows the oldest visited entries to be evicted
+      // when the hard entry/byte cap is genuinely exceeded.
+      const permanentShell = isPermanentShellKey(key, cacheName);
+      const permanentAsset = cacheName === STATIC_CACHE && permanentAssets.has(new URL(key.url).href);
+      const permanentBonus = permanentShell ? 1_000_000_000 : permanentAsset ? 900_000_000 : 0;
+      const visitBonus = contentType.includes('text/html') && source === 'visit'
+        ? 100000
+        : source === 'visit-asset' ? 160000 : 0;
       const ageHours = ts > 0 ? (now - ts) / 3_600_000 : 9999;
       const sizeKB = Number.isFinite(size) && size > 0 ? size / 1024 : 0;
       // score: higher = keep longer. Tier dominates; age and size break
       // ties within a tier and gently nudge across adjacent ones.
       // SW-TTL-TIERED-01: weighted age penalty — see AGE_WEIGHT above.
       const score =
-        tier * 1000 - ageHours * ageWeightFor(tier) - sizeKB / 100;
+        permanentBonus + visitBonus + tier * 1000 - ageHours * ageWeightFor(tier) - sizeKB / 100;
       return { key, ts, size: Number.isFinite(size) ? size : 0, score };
     }),
   );
@@ -2458,7 +2703,32 @@ function isAnalyticsBeacon(url) {
   return url.pathname === '/api/v1/analytics/events';
 }
 
+function isOfflineMutationQueueAllowed(request) {
+  try {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = String(request.method || 'POST').toUpperCase();
+    if (!path.startsWith('/api/v1/')) return false;
+    if (/\/(auth|payments|checkout|appointments)(?:\/|$)/i.test(path)) return false;
+    if (/\/(analytics|presence|heartbeat|csrf)(?:\/|$)/i.test(path)) return false;
+    // Toggle semantics are not idempotent. Favorites use a separate desired-state outbox.
+    if (/\/favorites(?:\/|$)/i.test(path)) return false;
+    const opId = request.headers.get('x-offline-op-id');
+    if (/\/(messages|conversations)\/[^/]+\/messages(?:\/(?:image|file|audio))?$/i.test(path)) return Boolean(opId);
+    if (/\/sales$/i.test(path)) return method === 'POST' && Boolean(opId);
+    // Exact create endpoints only. Edit flows use local draft publishers;
+    // deletes/status transitions are not replayed blindly.
+    if (/\/(ads|products|service-listings|requests|service-requests)$/i.test(path)) {
+      return method === 'POST' && Boolean(opId);
+    }
+    return false;
+  } catch { return false; }
+}
+
 async function handleMutation(request) {
+  // Unknown/sensitive operations fail fast instead of being replayed blindly.
+  // Their feature-specific hooks may preserve a local draft where supported.
+  if (!isOfflineMutationQueueAllowed(request)) return fetch(request);
   // Bind this request to the queue/session lifecycle at entry. A network
   // failure may resolve after logout cleanup; that stale request must not
   // enqueue itself into the next user's queue.
@@ -2754,6 +3024,12 @@ self.addEventListener('activate', (event) => {
       } catch {
         // لا تمنع التفعيل.
       }
+      // Preserve existing cache entries, but normalize legacy HTML Vary
+      // headers so a saved route can be matched by a hard navigation offline.
+      await Promise.all([
+        normalizeExistingHtmlCache(STATIC_CACHE),
+        normalizeExistingHtmlCache(PERSONAL_SHELL_CACHE),
+      ]);
       await self.clients.claim();
     })(),
   );

@@ -148,6 +148,39 @@ const STATIC_CACHE = STATIC_CACHE_NAME;
 // "network unavailable". warmRouteShells's normal path fetches the
 // HTML, extracts every _next/static asset, and caches them — same
 // treatment '/', '/products', etc. already get.
+/**
+ * Shells whose structure changes only with an application release, not with
+ * ordinary user activity. They are warmed once per cache version, repaired
+ * if incomplete, and refreshed on an explicit manual force or a real online
+ * visit. Dynamic API data remains governed by its own cache/freshness policy.
+ *
+ * Keep this allowlist deliberately small: item-specific edit pages and hubs
+ * containing frequently changing records must not be pinned as immutable.
+ */
+export const PERMANENT_PUBLIC_SHELL_ROUTES = [
+  '/offline',
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
+] as const;
+
+export const PERMANENT_PERSONAL_SHELL_ROUTES = [
+  '/ads/create',
+  '/my-store/products/new',
+  '/my-services/new',
+  '/requests/new',
+  '/complete-profile',
+] as const;
+
+export function isPermanentShellRoute(route: string, personal = false): boolean {
+  const pathname = route.split('?')[0] || '/';
+  const routes: readonly string[] = personal
+    ? PERMANENT_PERSONAL_SHELL_ROUTES
+    : PERMANENT_PUBLIC_SHELL_ROUTES;
+  return routes.includes(pathname);
+}
+
 export const CORE_ROUTES = [
   // FIX WARM-PRIORITY-MARKETPLACE-01 + WARM-MIN-20-01: public browse first
   '/offline',
@@ -247,10 +280,30 @@ const PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE_NAME;
  * يُعامَل كـ ts=0 فيُحذف أولاً عند تجاوز الحد. بدون هذا، كل ما يُخزّنه
  * warmRouteShells/warmPersonalShells كان يُحذف فور تجاوز MAX_STATIC_ENTRIES.
  */
-async function putTimestamped(cache: Cache, request: string, response: Response): Promise<boolean> {
+function isUsableStaticAssetResponse(url: string, response: Response | undefined): boolean {
+  if (!response || !response.ok) return false;
+  let pathname = url;
+  try { pathname = new URL(url, typeof window === 'undefined' ? 'https://offline.invalid' : window.location.origin).pathname; } catch { /* use input */ }
+  const contentType = ((response.headers.get('content-type') ?? '').split(';')[0] ?? '').trim().toLowerCase();
+  if (/\.css$/i.test(pathname)) return contentType === 'text/css';
+  if (/\.js$/i.test(pathname)) return contentType.includes('javascript') || contentType.includes('ecmascript');
+  return false;
+}
+
+async function putTimestamped(
+  cache: Cache,
+  request: string,
+  response: Response,
+  cacheSource?: 'visit' | 'warm' | 'warm-asset',
+): Promise<boolean> {
   try {
     const headers = new Headers(response.headers);
+    // Route shells must be matchable by a later hard-navigation request.
+    // Next.js may attach RSC/router-state Vary headers to HTML responses;
+    // preserving them can make Cache.match miss even when the URL exists.
+    headers.delete('Vary');
     headers.set('X-SW-Cached-At', String(Date.now()));
+    if (cacheSource) headers.set('X-SW-Cache-Source', cacheSource);
     const body = await response.blob();
     const stamped = new Response(body, {
       status: response.status,
@@ -515,12 +568,25 @@ export async function settlePool<T, R>(
 // main-app-*, and the shared framework chunks all appear in both).
 
 
-/** يجب مطابقة sw.js's rscShellKey() بالضبط — مفتاح كاش ثابت منفصل عن URL
- * الطلب الحرفي، لأن طلبات RSC الفعلية تحمل query param `_rsc=<hash>`
- * متغيّر ورأس Vary يمنعان مطابقة Cache API الحرفية (انظر تعليق PHASE-3-B
- * في public/sw.js لتفصيل كامل للمشكلة والحل). */
+/** يجب أن تطابق sw.js's rscShellKey() حرفيًا.
+ * نزيل `_rsc` المتغير فقط، ونحافظ على query params الخاصة بالتطبيق لأن بعض
+ * صفحات Server Components (مثل /search?q=...) يتغير محتواها حسبها. مسارات
+ * الـ hubs تقرأ التبويب من جهة العميل، لذا تتشارك shell واحدًا. */
 function rscShellKey(path: string): string {
-  return `${path}?__offline_rsc_shell`;
+  let url: URL;
+  try {
+    url = new URL(path, 'https://marketplat.invalid');
+  } catch {
+    return `${path.split('?')[0]}?__offline_rsc_shell`;
+  }
+  const hubPaths = new Set(['/offline', '/my-store', '/my-services', '/settings', '/activity']);
+  const params = new URLSearchParams(url.search);
+  params.delete('_rsc');
+  params.delete('__offline_rsc_shell');
+  if (hubPaths.has(url.pathname)) return `${url.pathname}?__offline_rsc_shell`;
+  params.sort();
+  const query = params.toString();
+  return `${url.pathname}?${query ? `${query}&` : ''}__offline_rsc_shell`;
 }
 
 // VISIT-WINS-01 — warming is a fallback, the user's own visit is the truth.
@@ -533,14 +599,14 @@ function rscShellKey(path: string): string {
 // re-fetched anyway, and a warm write could land on top of the copy the user
 // had just seen.
 //
-// Rules now:
+// Rules:
 //   1. A cached copy written by a visit AFTER the last warming of that route
-//      (cachedAt > warmedAt) is a "visit copy". Warming never overwrites a
-//      visit copy that is still inside ROUTE_REFRESH_AFTER_MS.
+//      (cachedAt > warmedAt) wins, regardless of age. The user explicitly
+//      opened that version; background warming must not replace it.
 //   2. A route's freshness = the newer of (last warming, last cached write),
-//      so a route the user opened an hour ago is not re-fetched by warming.
-//   3. Warming still runs for routes that were never visited or whose copy
-//      has aged out, so offline availability is unchanged.
+//      so recently opened routes are skipped by background warming.
+//   3. If a cached document is incomplete, the warmer repairs missing assets
+//      while preserving the HTML copy whenever possible.
 async function cachedAtOf(cache: Cache, key: string): Promise<number> {
   try {
     const hit = await cache.match(key);
@@ -552,12 +618,12 @@ async function cachedAtOf(cache: Cache, key: string): Promise<number> {
   }
 }
 
-/** True when the cached copy is a still-fresh copy written by a visit
- * after the last warming pass — warming must leave it alone. */
+/** True when a cached copy was written by a user visit after the last
+ * warming pass — preserve it while verifying/repairing its dependencies. */
 function isFreshVisitCopy(cachedAt: number, warmedAt: number | undefined): boolean {
-  if (!cachedAt) return false;
-  if (Date.now() - cachedAt > ROUTE_REFRESH_AFTER_MS) return false;
-  return cachedAt > (warmedAt ?? 0);
+  // Any actual user visit newer than the last warming wins. Do not discard
+  // it merely because it is old: it is still the last version the user saw.
+  return cachedAt > 0 && cachedAt > (warmedAt ?? 0);
 }
 
 /** Freshness clock of a route: newest of last warming and last cache write. */
@@ -608,13 +674,22 @@ async function warmRouteAtomic(
 ): Promise<WarmResult> {
   const stagedPaths: string[] = [];
   try {
-    // 1. Fetch the route HTML.
-    const htmlRes = await fetchWithTimeout(route, { credentials: 'same-origin' });
-    if (!htmlRes.ok || htmlRes.redirected) {
+    // 1. Prefer a real user-visited copy. A visit is the freshest content the
+    // user actually saw, so warming must not refetch/replace it. We still
+    // verify and repair its required assets below before calling it complete.
+    const existingHtml = await staticCache.match(route);
+    const existingVisitAt = await cachedAtOf(staticCache, route);
+    const keepVisitedCopy = Boolean(existingHtml && (isFreshVisitCopy(existingVisitAt, priorWarmedAt) || (!existingVisitAt && !priorWarmedAt)));
+    const htmlRes = keepVisitedCopy
+      ? existingHtml!
+      : await fetchWithTimeout(route, { credentials: 'same-origin' });
+    if (!htmlRes.ok || htmlRes.redirected || !htmlRes.headers.get('content-type')?.toLowerCase().includes('text/html')) {
       return {
         ok: false,
         urls: [],
-        error: `html-${htmlRes.status}${htmlRes.redirected ? '-redirected' : ''}`,
+        error: !htmlRes.ok
+          ? `html-${htmlRes.status}${htmlRes.redirected ? '-redirected' : ''}`
+          : 'html-content-type-invalid',
       };
     }
     const htmlLength = Number(htmlRes.headers.get('content-length'));
@@ -623,7 +698,7 @@ async function warmRouteAtomic(
     // 2. Extract every _next/static asset the HTML references.
     const html = await htmlRes.clone().text();
     const htmlChunkUrls = Array.from(
-      html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
     )
       .map((m) => m[1])
       .filter((u): u is string => Boolean(u));
@@ -632,17 +707,21 @@ async function warmRouteAtomic(
     // the source of truth; manifest assets are an additive safety net.
     const manifestChunkUrls = await getExpectedRouteAssets(route);
     const chunkUrls = [...new Set([...htmlChunkUrls, ...manifestChunkUrls])];
+    if (chunkUrls.length === 0) {
+      return { ok: false, urls: [], error: 'html-has-no-verifiable-next-assets' };
+    }
 
     // 3. Stage every chunk. Skip ones already in STATIC_CACHE from an
     //    earlier pass — they are already live.
     const stageResults = await settlePool(chunkUrls, CHUNK_FETCH_CONCURRENCY, async (url) => {
       const alreadyLive = await staticCache.match(url);
-      if (alreadyLive) return { url, skipped: true };
+      if (isUsableStaticAssetResponse(url, alreadyLive)) return { url, skipped: true };
+      if (alreadyLive) await staticCache.delete(url);
       const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
-      if (!res.ok) throw new Error(`chunk-${res.status}`);
+      if (!isUsableStaticAssetResponse(url, res)) throw new Error(`chunk-invalid-${url}`);
       const length = Number(res.headers.get('content-length'));
       if (Number.isFinite(length) && length > 0) recordWarmingTransfer(route, length);
-      await putTimestamped(stagingCache, url, res);
+      await putTimestamped(stagingCache, url, res, 'warm-asset');
       stagedPaths.push(url);
       return { url, skipped: false };
     });
@@ -683,15 +762,41 @@ async function warmRouteAtomic(
     //    they saw — keep it. Chunks above were verified either way, so the
     //    route stays offline-complete.
     const visitAt = await cachedAtOf(staticCache, route);
-    if (isFreshVisitCopy(visitAt, priorWarmedAt)) {
+    const keepLatestVisit = keepVisitedCopy || isFreshVisitCopy(visitAt, priorWarmedAt);
+    if (!keepLatestVisit) {
+      const storedHtml = await putTimestamped(staticCache, route, htmlRes, 'warm');
+      if (!storedHtml || !(await staticCache.match(route))) {
+        return { ok: false, urls: [], error: 'html-cache-write-failed' };
+      }
+    }
+
+    // Verify after promotion/commit. Never publish a successful status based
+    // only on the fact that fetches returned; Cache Storage may reject writes.
+    const committedHtml = await staticCache.match(route);
+    if (!committedHtml) return { ok: false, urls: [], error: 'html-cache-missing' };
+    const committedHtmlText = await committedHtml.clone().text();
+    const committedAssets = Array.from(
+      committedHtmlText.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+    )
+      .map((match) => match[1])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+    const requiredAfterCommit = new Set([...chunkUrls, ...committedAssets]);
+    const missingAfterCommit: string[] = [];
+    for (const url of requiredAfterCommit) {
+      if (!isUsableStaticAssetResponse(url, await staticCache.match(url))) missingAfterCommit.push(url);
+    }
+    if (missingAfterCommit.length) {
+      return { ok: false, urls: [], error: `assets-missing-after-commit-${missingAfterCommit.length}` };
+    }
+
+    if (keepLatestVisit) {
       recordWarmedRoute(route);
       return {
         ok: true,
         urls: [route, ...chunkUrls, rscShellKey(route)],
-        keptVisitAt: visitAt,
+        keptVisitAt: visitAt || existingVisitAt,
       };
     }
-    await putTimestamped(staticCache, route, htmlRes);
 
     // 7. RSC shell — best effort. Its absence degrades offline SPA
     //    navigation to a hard navigation (which lands on the now-cached
@@ -916,9 +1021,12 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
       // VISIT-WINS-01: a page the user opened recently is already fresh —
       // measure staleness from the newer of (last warming, last cache write).
       const cachedAt = await cachedAtOf(staticCache, route);
+      const cacheAudit = await inspectRouteCache(route, false, prior?.chunks ?? []);
+      const permanentShell = isPermanentShellRoute(route, false);
       const isStale =
         force ||
-        (prior?.status === 'complete' &&
+        !cacheAudit.complete ||
+        (!permanentShell && prior?.status === 'complete' &&
           (!prior.warmedAt ||
             Date.now() - routeFreshAt(prior.warmedAt, cachedAt) > ROUTE_REFRESH_AFTER_MS));
       if (!isStale && prior?.status === 'complete' && prior.chunks.length > 0) {
@@ -1045,18 +1153,25 @@ async function warmPersonalRouteAtomic(
 ): Promise<WarmResult> {
   const stagedPaths: string[] = [];
   try {
-    const htmlRes = await fetchWithTimeout(route, { credentials: 'same-origin' });
-    if (!htmlRes.ok || htmlRes.redirected) {
+    const existingHtml = await personalCache.match(route);
+    const existingVisitAt = await cachedAtOf(personalCache, route);
+    const keepVisitedCopy = Boolean(existingHtml && (isFreshVisitCopy(existingVisitAt, priorWarmedAt) || (!existingVisitAt && !priorWarmedAt)));
+    const htmlRes = keepVisitedCopy
+      ? existingHtml!
+      : await fetchWithTimeout(route, { credentials: 'same-origin' });
+    if (!htmlRes.ok || htmlRes.redirected || !htmlRes.headers.get('content-type')?.toLowerCase().includes('text/html')) {
       return {
         ok: false,
         urls: [],
-        error: `html-${htmlRes.status}${htmlRes.redirected ? '-redirected' : ''}`,
+        error: !htmlRes.ok
+          ? `html-${htmlRes.status}${htmlRes.redirected ? '-redirected' : ''}`
+          : 'html-content-type-invalid',
       };
     }
 
     const html = await htmlRes.clone().text();
     const htmlChunkUrls = Array.from(
-      html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
     )
       .map((m) => m[1])
       .filter((u): u is string => Boolean(u));
@@ -1065,13 +1180,17 @@ async function warmPersonalRouteAtomic(
     // the source of truth; manifest assets are an additive safety net.
     const manifestChunkUrls = await getExpectedRouteAssets(route);
     const chunkUrls = [...new Set([...htmlChunkUrls, ...manifestChunkUrls])];
+    if (chunkUrls.length === 0) {
+      return { ok: false, urls: [], error: 'personal-html-has-no-verifiable-next-assets' };
+    }
 
     await settlePool(chunkUrls, CHUNK_FETCH_CONCURRENCY, async (url) => {
       const alreadyLive = await staticCache.match(url);
-      if (alreadyLive) return;
+      if (isUsableStaticAssetResponse(url, alreadyLive)) return;
+      if (alreadyLive) await staticCache.delete(url);
       const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
-      if (!res.ok) throw new Error(`chunk-${res.status}`);
-      await putTimestamped(stagingCache, url, res);
+      if (!isUsableStaticAssetResponse(url, res)) throw new Error(`chunk-invalid-${url}`);
+      await putTimestamped(stagingCache, url, res, 'warm-asset');
       stagedPaths.push(url);
     });
 
@@ -1099,10 +1218,33 @@ async function warmPersonalRouteAtomic(
     // VISIT-WINS-01: same rule as warmRouteAtomic — never replace a copy
     // the user's own visit wrote after the last warming.
     const visitAt = await cachedAtOf(personalCache, route);
-    if (isFreshVisitCopy(visitAt, priorWarmedAt)) {
-      return { ok: true, urls: [route, ...chunkUrls], keptVisitAt: visitAt };
+    const keepLatestVisit = keepVisitedCopy || isFreshVisitCopy(visitAt, priorWarmedAt);
+    if (!keepLatestVisit) {
+      const storedHtml = await putTimestamped(personalCache, route, htmlRes, 'warm');
+      if (!storedHtml || !(await personalCache.match(route))) {
+        return { ok: false, urls: [], error: 'personal-html-cache-write-failed' };
+      }
     }
-    await putTimestamped(personalCache, route, htmlRes);
+
+    const committedHtml = await personalCache.match(route);
+    if (!committedHtml) return { ok: false, urls: [], error: 'personal-html-cache-missing' };
+    const committedHtmlText = await committedHtml.clone().text();
+    const committedAssets = Array.from(
+      committedHtmlText.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+    )
+      .map((match) => match[1])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+    const requiredAfterCommit = new Set([...chunkUrls, ...committedAssets]);
+    const missingAfterCommit: string[] = [];
+    for (const url of requiredAfterCommit) {
+      if (!isUsableStaticAssetResponse(url, await staticCache.match(url))) missingAfterCommit.push(url);
+    }
+    if (missingAfterCommit.length) {
+      return { ok: false, urls: [], error: `personal-assets-missing-after-commit-${missingAfterCommit.length}` };
+    }
+    if (keepLatestVisit) {
+      return { ok: true, urls: [route, ...chunkUrls], keptVisitAt: visitAt || existingVisitAt };
+    }
 
     try {
       const rscRes = await fetchWithTimeout(route, {
@@ -1246,15 +1388,17 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
 
       // VISIT-WINS-01: freshness = newer of (last warming, last cache write).
       const cachedAt = await cachedAtOf(personalCache, route);
+      const cacheAudit = await inspectRouteCache(route, true, prior?.chunks ?? []);
+      const permanentShell = isPermanentShellRoute(route, true);
       const isStale =
         force ||
-        (prior?.status === 'complete' &&
+        !cacheAudit.complete ||
+        (!permanentShell && prior?.status === 'complete' &&
           (!prior.warmedAt ||
             Date.now() - routeFreshAt(prior.warmedAt, cachedAt) > ROUTE_REFRESH_AFTER_MS));
-      if (!isStale && prior?.status === 'complete') {
-        // Sanity: logout wipes PERSONAL_SHELL_CACHE but not IndexedDB.
-        const htmlHit = await personalCache.match(route);
-        if (htmlHit) continue;
+      if (!isStale && prior?.status === 'complete' && cacheAudit.htmlPresent) {
+        // A cache hit is trusted only after its referenced assets are verified.
+        continue;
       }
 
       // FIX WARM-BACKOFF-01: backoff is a FAILURE penalty. It used to be
@@ -1342,6 +1486,169 @@ export function getKnownRoutes(): Array<{ route: string; personal: boolean }> {
   return out;
 }
 
+/** Include actual HTML documents visited by the user, not only predeclared warm routes. */
+export async function getCachedRouteEntries(): Promise<Array<{ route: string; personal: boolean }>> {
+  if (typeof caches === 'undefined' || typeof window === 'undefined') return [];
+  const found = new Map<string, { route: string; personal: boolean }>();
+  const excluded = ['/login', '/register', '/forgot-password', '/reset-password'];
+  const inspect = async (cacheName: string, personal: boolean) => {
+    try {
+      const cache = await caches.open(cacheName);
+      for (const request of await cache.keys()) {
+        const url = new URL(request.url);
+        if (url.origin !== window.location.origin) continue;
+        if (url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) continue;
+        if (url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell')) continue;
+        if (excluded.some((prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`))) continue;
+        if (/\.[a-z0-9]{2,8}$/i.test(url.pathname)) continue;
+        const response = await cache.match(request);
+        if (!response?.headers.get('content-type')?.toLowerCase().includes('text/html')) continue;
+        // Keep the exact application query encoding used by Cache Storage.
+        // Transport-only RSC parameters were excluded above.
+        const route = url.pathname + url.search;
+        const key = `${personal ? 'personal:' : 'public:'}${route}`;
+        found.set(key, { route, personal });
+      }
+    } catch {
+      // A missing cache is normal before first install/warm.
+    }
+  };
+  await Promise.all([
+    inspect(STATIC_CACHE, false),
+    inspect(PERSONAL_SHELL_CACHE, true),
+  ]);
+  return [...found.values()];
+}
+
+export interface RouteCacheAudit {
+  htmlPresent: boolean;
+  complete: boolean;
+  missingAssets: string[];
+  checkedAssets: number;
+}
+
+export interface RouteCacheInspectionInput {
+  route: string;
+  personal: boolean;
+  recordedAssets?: readonly string[];
+}
+
+/** Batch inspection: enumerate cache keys once for all visible routes. */
+export async function inspectRouteCaches(
+  entries: readonly RouteCacheInspectionInput[],
+): Promise<Map<string, RouteCacheAudit>> {
+  const result = new Map<string, RouteCacheAudit>();
+  const unavailable = (): RouteCacheAudit => ({
+    htmlPresent: false, complete: false, missingAssets: [], checkedAssets: 0,
+  });
+  if (typeof caches === 'undefined' || typeof window === 'undefined') {
+    for (const entry of entries) result.set(`${entry.personal ? 'personal:' : 'public:'}${entry.route}`, unavailable());
+    return result;
+  }
+  try {
+    const staticCache = await caches.open(STATIC_CACHE);
+    const personalCache = await caches.open(PERSONAL_SHELL_CACHE);
+    const assetValidity = new Map<string, Promise<boolean>>();
+    const isAssetCached = (url: string): Promise<boolean> => {
+      let check = assetValidity.get(url);
+      if (!check) {
+        check = staticCache.match(url).then((response) => isUsableStaticAssetResponse(url, response)).catch(() => false);
+        assetValidity.set(url, check);
+      }
+      return check;
+    };
+    await Promise.all(entries.map(async (entry) => {
+      const key = `${entry.personal ? 'personal:' : 'public:'}${entry.route}`;
+      try {
+        const shellCache = entry.personal ? personalCache : staticCache;
+        const html = await shellCache.match(entry.route);
+        if (!html || !html.headers.get('content-type')?.toLowerCase().includes('text/html')) {
+          result.set(key, unavailable());
+          return;
+        }
+        const body = await html.clone().text();
+        const fromHtml = Array.from(
+          body.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+        )
+          .map((match) => match[1])
+          .filter((value): value is string => typeof value === 'string' && value.length > 0);
+        const normalizePath = (value: string) => {
+          try { return new URL(value, window.location.origin).href; } catch { return value; }
+        };
+        const assetUrls = new Set<string>([
+          ...fromHtml.map(normalizePath),
+          ...(entry.recordedAssets ?? [])
+            .filter((value) => /\/_next\/static\//.test(value))
+            .map(normalizePath),
+        ]);
+        const missingAssets = (await Promise.all([...assetUrls].map(async (url) =>
+          await isAssetCached(url) ? null : url,
+        ))).filter((url): url is string => typeof url === 'string');
+        result.set(key, {
+          htmlPresent: true,
+          complete: assetUrls.size > 0 && missingAssets.length === 0,
+          missingAssets,
+          checkedAssets: assetUrls.size,
+        });
+      } catch {
+        result.set(key, unavailable());
+      }
+    }));
+  } catch {
+    for (const entry of entries) result.set(`${entry.personal ? 'personal:' : 'public:'}${entry.route}`, unavailable());
+  }
+  return result;
+}
+
+/**
+ * Inspect real Cache Storage rather than trusting the IndexedDB progress
+ * marker. This is the source of truth for the "available offline" UI.
+ */
+export async function inspectRouteCache(
+  route: string,
+  personal = false,
+  recordedAssets: readonly string[] = [],
+): Promise<RouteCacheAudit> {
+  if (typeof caches === 'undefined' || typeof window === 'undefined') {
+    return { htmlPresent: false, complete: false, missingAssets: [], checkedAssets: 0 };
+  }
+  try {
+    const shellCache = await caches.open(personal ? PERSONAL_SHELL_CACHE : STATIC_CACHE);
+    const staticCache = await caches.open(STATIC_CACHE);
+    const html = await shellCache.match(route);
+    if (!html || !html.headers.get('content-type')?.toLowerCase().includes('text/html')) {
+      return { htmlPresent: false, complete: false, missingAssets: [], checkedAssets: 0 };
+    }
+    const body = await html.clone().text();
+    const fromHtml = Array.from(
+      body.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+    )
+      .map((match) => match[1])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+    const normalizePath = (value: string) => {
+      try { return new URL(value, window.location.origin).href; } catch { return value; }
+    };
+    const assetUrls = new Set<string>([
+      ...fromHtml.map(normalizePath),
+      ...recordedAssets
+        .filter((value) => /\/_next\/static\//.test(value))
+        .map(normalizePath),
+    ]);
+    const missingAssets: string[] = [];
+    for (const url of assetUrls) {
+      if (!isUsableStaticAssetResponse(url, await staticCache.match(url))) missingAssets.push(url);
+    }
+    return {
+      htmlPresent: true,
+      complete: assetUrls.size > 0 && missingAssets.length === 0,
+      missingAssets,
+      checkedAssets: assetUrls.size,
+    };
+  } catch {
+    return { htmlPresent: false, complete: false, missingAssets: [], checkedAssets: 0 };
+  }
+}
+
 /**
  * Retry ONE public route. Clears its snapshot entry, re-warms it
  * atomically, writes the new status. Returns whether it succeeded.
@@ -1427,45 +1734,87 @@ export async function clearSingleRouteCache(
   const meta = snap?.routes[key];
   const cacheName = personal ? PERSONAL_SHELL_CACHE : STATIC_CACHE;
   const cache = await caches.open(cacheName);
-
-  let removed = 0;
-
-  // 1. Delete only chunks that no other cached route in the snapshot uses.
-  // Next.js chunks are commonly shared across routes; deleting a chunk from
-  // one route must not break another route that remains available offline.
   const chunkCache = await caches.open(STATIC_CACHE);
+  const hubDocumentRoutes = new Set(['/my-store', '/my-services', '/settings', '/activity', '/offline']);
+  const routeUrl = new URL(route, window.location.origin);
+  const routePath = routeUrl.pathname + routeUrl.search;
+  const baseHubRoute = hubDocumentRoutes.has(routeUrl.pathname) ? routeUrl.pathname : null;
+  const targetRouteKeys = new Set([routePath, ...(baseHubRoute ? [baseHubRoute] : [])]);
+  const assetPath = (value: string): string => {
+    try { return new URL(value, window.location.origin).pathname; } catch { return toPath(value); }
+  };
+  const isStaticAssetPath = (value: string): boolean =>
+    value.startsWith('/_next/static/') && /\.(?:js|css)$/i.test(value);
+
+  // Collect this route's dependencies from both the snapshot and its actual
+  // cached HTML. This also covers pages visited by the user that were never
+  // part of the predefined warming manifest.
+  const targetAssets = new Set<string>();
+  for (const rawUrl of meta?.chunks ?? []) {
+    const normalized = assetPath(rawUrl);
+    if (isStaticAssetPath(normalized)) targetAssets.add(normalized);
+  }
+  const targetHtml = await cache.match(route) ?? (baseHubRoute ? await cache.match(baseHubRoute) : undefined);
+  if (targetHtml?.headers.get('content-type')?.toLowerCase().includes('text/html')) {
+    const body = await targetHtml.clone().text().catch(() => '');
+    for (const match of body.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)) {
+      const value = match[1];
+      if (typeof value === 'string') targetAssets.add(assetPath(value));
+    }
+  }
+
+  // Snapshot metadata can be stale or incomplete. Protect any dependency
+  // referenced by another cached HTML shell in either public or personal
+  // storage before deleting the target route's assets.
   const sharedChunks = new Set<string>();
   if (snap) {
     for (const [otherKey, otherMeta] of Object.entries(snap.routes)) {
-      if (otherKey === key) continue;
-      for (const otherChunk of otherMeta.chunks ?? []) sharedChunks.add(toPath(otherChunk));
+      if (otherKey === key || (baseHubRoute && (otherKey === baseHubRoute || otherKey === `personal:${baseHubRoute}`))) continue;
+      for (const otherChunk of otherMeta.chunks ?? []) {
+        const normalized = assetPath(otherChunk);
+        if (isStaticAssetPath(normalized)) sharedChunks.add(normalized);
+      }
     }
   }
-  if (meta?.chunks) {
-    for (const rawUrl of meta.chunks) {
-      // Snapshot stores paths; skip the route and RSC shell (handled below).
-      const u = toPath(rawUrl);
-      if (u === route || u === toPath(rscShellKey(route))) continue;
-      if (sharedChunks.has(u)) continue;
-      const ok = await chunkCache.delete(u);
-      if (ok) removed += 1;
+  for (const otherCacheName of new Set([STATIC_CACHE, PERSONAL_SHELL_CACHE])) {
+    const otherCache = await caches.open(otherCacheName);
+    for (const request of await otherCache.keys()) {
+      let url: URL;
+      try { url = new URL(request.url); } catch { continue; }
+      if (url.origin !== window.location.origin) continue;
+      if (url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) continue;
+      if (url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell')) continue;
+      if (/\.[a-z0-9]{2,8}$/i.test(url.pathname)) continue;
+      const otherRoute = url.pathname + url.search;
+      if (otherCacheName === cacheName && targetRouteKeys.has(otherRoute)) continue;
+      const response = await otherCache.match(request);
+      if (!response?.headers.get('content-type')?.toLowerCase().includes('text/html')) continue;
+      const body = await response.clone().text().catch(() => '');
+      for (const match of body.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)) {
+        const value = match[1];
+        if (typeof value === 'string') sharedChunks.add(assetPath(value));
+      }
     }
   }
 
-  // 2. Delete the HTML entry (from PERSONAL_SHELL_CACHE for personal,
-  //    STATIC_CACHE for public).
+  let removed = 0;
+  for (const asset of targetAssets) {
+    if (sharedChunks.has(asset)) continue;
+    if (await chunkCache.delete(asset)) removed += 1;
+  }
+
+  // Delete the exact route and, for client-side hubs, its shared base shell.
+  for (const routeKey of targetRouteKeys) {
+    try { if (await cache.delete(routeKey)) removed += 1; } catch { /* noop */ }
+  }
   try {
-    if (await cache.delete(route)) removed += 1;
+    const rscKey = rscShellKey(route);
+    if (await cache.delete(rscKey)) removed += 1;
   } catch { /* noop */ }
 
-  // 3. Delete the RSC shell.
-  try {
-    if (await cache.delete(rscShellKey(route))) removed += 1;
-  } catch { /* noop */ }
-
-  // 4. Clear the snapshot entry.
   if (snap) {
     delete snap.routes[key];
+    if (baseHubRoute) delete snap.routes[personal ? `personal:${baseHubRoute}` : baseHubRoute];
     await writeSnapshot(snap);
   }
 

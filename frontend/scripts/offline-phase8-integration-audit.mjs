@@ -28,7 +28,7 @@ check('Playwright uses production build/start by default', config.includes('npm 
 check('service worker contains a navigation fallback to the offline URL', sw.includes('const OFFLINE_URL = \'/offline\'') && sw.includes('cache.match(OFFLINE_URL)'));
 const routeShells = read('lib/offlineRouteShells.ts');
 check('failed route refresh preserves cached dependency URLs from orphan sweeping', routeShells.includes('WARM-FAILED-ROUTE-KEEP-01') && routeShells.includes('const previousHtml = await staticCache.match(route)') && routeShells.includes('liveUrls.push(...prior.chunks.map(toPath))'));
-check('single-route cache clearing preserves chunks referenced by other cached routes', routeShells.includes('const sharedChunks = new Set<string>()') && routeShells.includes('if (sharedChunks.has(u)) continue;'));
+check('single-route cache clearing preserves chunks referenced by other cached routes', routeShells.includes('const sharedChunks = new Set<string>()') && routeShells.includes('if (sharedChunks.has(asset)) continue;') && routeShells.includes('new Set([STATIC_CACHE, PERSONAL_SHELL_CACHE])'));
 check('failed manual retry preserves old shell dependency metadata when old HTML remains cached', routeShells.includes('previousHtmlStillCached') && routeShells.includes('prior?.chunks ?? []') && !routeShells.includes('delete snap.routes[route]'));
 
 for (const item of checks) console.log(`[offline-phase8] ${item.ok ? 'PASS' : 'FAIL'} ${item.name}`);

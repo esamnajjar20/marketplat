@@ -43,7 +43,7 @@ import {
 import { readSnapshot, clearSnapshot } from '@/lib/offlineWarmingState';
 import {
   requestWarmingCancel, resetWarmingCancel, isWarmingCancelled,
-  getKnownRoutes, clearSingleRouteCache,
+  getKnownRoutes, getCachedRouteEntries, clearSingleRouteCache, inspectRouteCaches,
 } from '@/lib/offlineRouteShells';
 import { runWarmingPipeline } from '@/lib/offlineWarmingPipeline';
 import {
@@ -102,29 +102,36 @@ export function OfflineControlClient() {
   const readSnapshotLive = useCallback(async () => {
     try {
       const s = await readSnapshot();
-      if (!s) {
-        setSnapshot({ publicComplete: 0, personalComplete: 0, lastWarmedAt: 0, liveUrlsCount: 0 });
-        return;
-      }
-      const routes = s.routes || {};
+      // Cache Storage is authoritative even when the optional warming
+      // snapshot was lost or reset.
+      const routes = s?.routes || {};
       let pubComplete = 0;
       let personalComplete = 0;
       let lastWarmedAt = 0;
-      for (const [key, meta] of Object.entries(routes)) {
-        const isPersonal = key.startsWith('personal:');
-        if (meta?.status === 'complete') {
-          if (isPersonal) personalComplete += 1;
-          else pubComplete += 1;
-        }
-        if (meta?.warmedAt && meta.warmedAt > lastWarmedAt) {
-          lastWarmedAt = meta.warmedAt;
-        }
+      const routeMap = new Map<string, { route: string; personal: boolean }>();
+      for (const item of getKnownRoutes()) routeMap.set(`${item.personal ? 'personal:' : 'public:'}${item.route}`, item);
+      for (const item of await getCachedRouteEntries()) {
+        routeMap.set(`${item.personal ? 'personal:' : 'public:'}${item.route}`, item);
+      }
+      const known = [...routeMap.values()];
+      const cacheAudits = await inspectRouteCaches(known.map(({ route, personal }) => {
+        const key = personal ? `personal:${route}` : route;
+        return { route, personal, recordedAssets: routes[key]?.chunks ?? [] };
+      }));
+      for (const { route, personal } of known) {
+        const key = personal ? `personal:${route}` : route;
+        const meta = routes[key];
+        if (meta?.warmedAt && meta.warmedAt > lastWarmedAt) lastWarmedAt = meta.warmedAt;
+        const audit = cacheAudits.get(`${personal ? 'personal:' : 'public:'}${route}`);
+        if (!audit?.complete || !audit.htmlPresent) continue;
+        if (personal) personalComplete += 1;
+        else pubComplete += 1;
       }
       setSnapshot({
         publicComplete: pubComplete,
         personalComplete,
         lastWarmedAt,
-        liveUrlsCount: s.liveUrls.length,
+        liveUrlsCount: s?.liveUrls?.length ?? 0,
       });
     } catch { /* IndexedDB unavailable */ }
   }, []);

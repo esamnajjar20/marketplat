@@ -50,7 +50,10 @@
     "network:request-audit": "node scripts/network-request-monitor-audit.mjs",
     "query-keys:audit": "node scripts/query-key-audit.cjs && node scripts/query-invalidation-factory-audit.cjs && node scripts/query-key-types-audit.cjs",
     "query-keys:types-audit": "node scripts/query-key-types-audit.cjs",
-    "query-keys:verify": "npm run query-keys:audit && vitest run __tests__/integration/queryKeys.test.ts __tests__/integration/queryOptions.test.ts __tests__/integration/queryKeyCacheSemantics.test.ts __tests__/integration/queryInvalidationSemantics.test.ts"
+    "query-keys:verify": "npm run query-keys:audit && vitest run __tests__/integration/queryKeys.test.ts __tests__/integration/queryOptions.test.ts __tests__/integration/queryKeyCacheSemantics.test.ts __tests__/integration/queryInvalidationSemantics.test.ts",
+    "offline:cache-truth-audit": "node scripts/offline-cache-truth-audit.mjs && node --check public/sw.js",
+    "offline:pinned-shells-audit": "node scripts/offline-pinned-shells-audit.mjs && node --check public/sw.js",
+    "offline:mutation-policy-audit": "node scripts/offline-mutation-policy-audit.mjs && node --check public/sw.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
