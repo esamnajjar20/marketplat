@@ -27,6 +27,10 @@ import {
  * so we inspect the normalized statusCode/networkRetryCount shape.
  */
 function shouldRetry(failureCount: number, error: unknown): boolean {
+  // OFFLINE-NORETRY-01: never retry while offline.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return false;
+  }
   if (failureCount >= MAX_QUERY_RETRIES) return false;
   // Axios already performs one safe-request retry. Do not stack a second
   // identical retry when that marker is present; non-Axios query errors still
@@ -47,6 +51,7 @@ export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
+        networkMode:          'offlineFirst',  // OFFLINE-FIRST-01 — no queryFn while offline
         staleTime:            CLIENT_CACHE_DEFAULTS.staleTime,  // SLOW-NET phase1 — keep cached UI stable on slow links
         // LOAD-SPEED-01: avoid refetch storms on remount while data is fresh
         gcTime:               CLIENT_CACHE_DEFAULTS.gcTime,
@@ -54,6 +59,10 @@ export function makeQueryClient() {
         retryDelay,   // API-INT-04 FIX: smart retry
         refetchOnWindowFocus: false,
         refetchOnMount: (query) => {
+          // OFFLINE-FIRST-01: nothing to refetch when we have no network.
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            return false;
+          }
           // QueryOptions typing varies by TanStack version — read safely
           const opts = query.options as { staleTime?: number | typeof Infinity };
           const staleMs = typeof opts.staleTime === 'number' ? opts.staleTime : CLIENT_CACHE_DEFAULTS.staleTime;
