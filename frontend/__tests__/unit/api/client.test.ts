@@ -86,6 +86,26 @@ describe('api/client.ts — request interceptor', () => {
     expect(capturedAuthHeader).toBe('Bearer valid-access-token');
   });
 
+  it('does not reject a mutation before the Service Worker can queue it when navigator reports offline', async () => {
+    const originalOnLine = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    let requestReachedTransport = false;
+    getMswServer()?.use(
+      http.patch(`${API_BASE_URL}/ads/ad-offline`, async ({ request }) => {
+        requestReachedTransport = true;
+        expect(await request.json()).toEqual({ title: 'edited offline' });
+        return HttpResponse.json({ success: true, data: { id: 'ad-offline' } });
+      }),
+    );
+
+    try {
+      await apiClient.patch('/ads/ad-offline', { title: 'edited offline' });
+      expect(requestReachedTransport).toBe(true);
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: originalOnLine });
+    }
+  });
+
   it('sends no Authorization header when logged out', async () => {
     let capturedAuthHeader: string | null = 'not-checked-yet';
 

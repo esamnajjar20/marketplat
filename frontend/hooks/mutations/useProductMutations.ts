@@ -69,6 +69,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
             compressedFiles.length > 0
               ? await bestEffortCompressPreviews(compressedFiles)
               : [];
+          const publishFiles = compressedFiles.length ? await filesToPublishFiles(compressedFiles) : [];
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -99,9 +100,8 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
             operationId: operationIdRef.current,
             userId,
             images,
-            publishFiles: compressedFiles.length
-              ? await filesToPublishFiles(compressedFiles)
-              : undefined,
+            publishFiles: publishFiles.length ? publishFiles : undefined,
+            publishFilesIncomplete: publishFiles.length !== compressedFiles.length || compressedFiles.length !== files.length,
             publishRetryCount: 0,
           });
           if (offline || parsed.queued) {

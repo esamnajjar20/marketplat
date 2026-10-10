@@ -1,5 +1,7 @@
 import { getActiveSW } from '@/lib/swReady';
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
+import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { isOfflineMutationQueueAllowed } from '@/lib/offlineMutationPolicy';
 /**
  * واجهة الصفحة (لا الـ Service Worker) لطابور الطلبات غير المرسلة.
  *
@@ -63,6 +65,136 @@ interface RawQueueEntry {
   lastError?: { status: number; message?: string };
   operationId?: string | null;
   ownerUserId?: string | null;
+}
+
+const MAX_PAGE_QUEUE_BODY_BYTES = 6 * 1024 * 1024;
+const PAGE_QUEUE_STRIP_HEADERS = new Set([
+  'authorization', 'x-csrf-token', 'content-length', 'host', 'connection',
+  'keep-alive', 'transfer-encoding', 'te', 'trailer', 'upgrade',
+  'proxy-connection', 'accept-encoding',
+]);
+
+export type OfflineMutationFallbackInput = {
+  url: string;
+  method: string;
+  headers: Record<string, unknown>;
+  body: unknown;
+  ownerUserId: string | null;
+  needsAuth: boolean;
+  needsCsrf: boolean;
+  operationId?: string | null;
+};
+
+/**
+ * Last-resort durable enqueue for mutations when the request never reached a
+ * controlling Service Worker (first-load/update races, blocked SW, or a SW
+ * queue-storage failure). It writes the exact same IndexedDB schema consumed
+ * by public/sw.js. Normal production requests are still queued by the SW;
+ * callers must invoke this only after a network failure or QUEUE_STORE_FAILED.
+ *
+ * Multipart is serialized through Request.blob() so the generated boundary in
+ * Content-Type matches the persisted bytes. Bearer and CSRF tokens are never
+ * persisted; replay obtains fresh credentials from the SW.
+ */
+export async function enqueueOfflineMutationFallback(
+  input: OfflineMutationFallbackInput,
+): Promise<{ queued: boolean; reason?: string; operationId?: string }> {
+  const method = input.method.toUpperCase();
+  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return { queued: false, reason: 'safe-method' };
+  if (!input.ownerUserId || getCurrentOfflineUserId() !== input.ownerUserId) {
+    return { queued: false, reason: 'missing-or-stale-owner' };
+  }
+
+  let url: URL;
+  try { url = new URL(input.url, window.location.origin); }
+  catch { return { queued: false, reason: 'invalid-url' }; }
+  if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/v1/')) {
+    return { queued: false, reason: 'outside-same-origin-api' };
+  }
+  if (!isOfflineMutationQueueAllowed({ url: url.href, method, operationId: input.operationId })) {
+    return { queued: false, reason: 'endpoint-not-explicitly-queueable' };
+  }
+  if (
+    url.pathname.includes('/auth/') || url.pathname.includes('/csrf') ||
+    url.pathname.endsWith('/users/me/presence') ||
+    url.pathname.endsWith('/analytics/events') || url.pathname.endsWith('/batch')
+  ) return { queued: false, reason: 'non-queueable-endpoint' };
+
+  let headers: Headers;
+  try { headers = new Headers(input.headers as HeadersInit); }
+  catch { headers = new Headers(); }
+  const needsAuth = input.needsAuth || headers.has('authorization');
+  const needsCsrf = input.needsCsrf || headers.has('x-csrf-token') || !['GET', 'HEAD', 'OPTIONS'].includes(method);
+  const safeHeaders: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    if (PAGE_QUEUE_STRIP_HEADERS.has(key.toLowerCase())) return;
+    safeHeaders[key] = value;
+  });
+
+  let body: Blob | string | null = null;
+  try {
+    if (input.body instanceof FormData) {
+      const request = new Request(url, { method, headers, body: input.body });
+      body = await request.blob();
+      const contentType = request.headers.get('content-type');
+      if (contentType) safeHeaders['content-type'] = contentType;
+    } else if (input.body instanceof Blob) {
+      body = input.body;
+    } else if (input.body instanceof ArrayBuffer) {
+      body = new Blob([input.body], { type: headers.get('content-type') || 'application/octet-stream' });
+    } else if (input.body instanceof URLSearchParams) {
+      body = input.body.toString();
+      safeHeaders['content-type'] ||= 'application/x-www-form-urlencoded;charset=UTF-8';
+    } else if (typeof input.body === 'string') {
+      body = input.body;
+    } else if (input.body !== undefined && input.body !== null) {
+      body = JSON.stringify(input.body);
+      safeHeaders['content-type'] ||= 'application/json';
+    }
+  } catch (error) {
+    console.warn('[queue] could not serialize mutation body for fallback:', error);
+    return { queued: false, reason: 'body-serialization-failed' };
+  }
+
+  const bodyBytes = typeof body === 'string' ? new Blob([body]).size : body?.size ?? 0;
+  if (bodyBytes > MAX_PAGE_QUEUE_BODY_BYTES) {
+    return { queued: false, reason: 'body-too-large' };
+  }
+
+  const operationId = input.operationId || newOfflineOperationId();
+  const db = await openQueueDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).add({
+        status: 'pending',
+        url: url.href,
+        method,
+        headers: safeHeaders,
+        body,
+        queuedAt: Date.now(),
+        operationId,
+        ownerUserId: input.ownerUserId,
+        needsAuth,
+        needsCsrf,
+        priority: /messages|conversations/.test(url.pathname) ? 'critical' : 'normal',
+        retryCount: 0,
+        pageFallback: true,
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('queue fallback transaction failed'));
+      tx.onabort = () => reject(tx.error ?? new Error('queue fallback transaction aborted'));
+    });
+  } finally {
+    db.close();
+  }
+
+  // Best effort: if an active worker exists, ask it to drain now. The row is
+  // durable even when Background Sync is unavailable (notably iOS Safari).
+  try {
+    void requestQueueReplay();
+  } catch { /* queued row remains durable for the next online/visible event */ }
+  return { queued: true, operationId };
 }
 
 function openQueueDb(): Promise<IDBDatabase> {

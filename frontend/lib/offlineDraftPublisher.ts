@@ -362,7 +362,7 @@ export async function syncPendingOfflineDrafts(options?: {
       const candidates = drafts.filter((d) => {
         if (d.status === 'pending_sync') return true;
         if (d.status === 'failed' && includeFailed) {
-          return (d.publishRetryCount ?? 0) < MAX_AUTO_RETRIES;
+          return !d.publishFilesIncomplete && (d.publishRetryCount ?? 0) < MAX_AUTO_RETRIES;
         }
         return false;
       });
@@ -385,25 +385,16 @@ export async function syncPendingOfflineDrafts(options?: {
           // Otherwise: fall through and send from the draft.
         }
 
-        // FIX OFFLINE-QUEUE-RELIABILITY-01: منتج/خدمة بلا publishFiles كانت
-        // تُتخطّى بصمت إلى الأبد. الآن نعلّمها failed برسالة واضحة حتى
-        // يظهر للمستخدم في مركز المزامنة ويستطيع إعادة المحاولة بعد إضافة صور.
-        const kind = draft.kind ?? 'ad';
-        if (
-          draft.mode === 'create' &&
-          (kind === 'product' || kind === 'service') &&
-          !(draft.publishFiles && draft.publishFiles.length > 0)
-        ) {
+        // Never publish if local storage skipped any selected attachment; otherwise the listing
+        // would silently lose photos. Image-free products/services remain valid.
+        if (draft.publishFilesIncomplete) {
           try {
             await saveAdDraft({
               ...draft,
               status: 'failed',
-              lastError:
-                'الصور غير متوفرة محليًا لإعادة الرفع — افتح المسودة وأعد إرفاق الصور ثم زامن.',
+              lastError: 'لم تُحفظ كل المرفقات على الجهاز بسبب حدود الحجم. افتح المسودة وأعد إرفاق الصور الناقصة قبل النشر.',
             });
-          } catch (e) {
-            console.warn('[draft-publisher] mark missing-images failed:', e);
-          }
+          } catch (e) { console.warn('[draft-publisher] mark incomplete attachments failed:', e); }
           result.failed += 1;
           continue;
         }

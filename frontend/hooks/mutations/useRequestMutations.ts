@@ -64,6 +64,8 @@ export function useCreateRequest() {
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const { files, ...body } = input;
+          const compressedFiles = files?.length ? await bestEffortCompressPublish(files) : [];
+          const publishFiles = compressedFiles.length ? await filesToPublishFiles(compressedFiles) : [];
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -93,10 +95,8 @@ export function useCreateRequest() {
             // Publisher can retry the image upload + create as one unit
             // when connectivity returns. Same publishFiles mechanism that
             // ads/products/services already use.
-            publishFiles:
-              files && files.length > 0
-              ? await filesToPublishFiles(await bestEffortCompressPublish(files))
-              : undefined,
+            publishFiles: publishFiles.length ? publishFiles : undefined,
+            publishFilesIncomplete: publishFiles.length !== compressedFiles.length || compressedFiles.length !== (files?.length ?? 0),
             publishRetryCount: 0,
           });
           if (offline || parsed.queued) {

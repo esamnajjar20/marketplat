@@ -219,6 +219,8 @@ export interface AdDraft {
    * من المسودة عند عودة النت (مسار احتياطي مستقل عن طابور الـ SW).
    */
   publishFiles?: AdDraftPublishFile[];
+  /** True when some selected files could not be persisted locally; never auto-publish an incomplete attachment set. */
+  publishFilesIncomplete?: boolean;
   /** عدد محاولات النشر التلقائي من المسودة — سقف لتجنّب حلقة لا نهائية. */
   publishRetryCount?: number;
 }
@@ -346,6 +348,7 @@ export async function saveAdDraft(
     userId?: string | null;
     images?: AdDraftPreviewImage[];
     publishFiles?: AdDraftPublishFile[];
+    publishFilesIncomplete?: boolean;
     publishRetryCount?: number;
   },
 ): Promise<AdDraft> {
@@ -461,6 +464,9 @@ export async function saveAdDraft(
       input.publishFiles !== undefined
         ? input.publishFiles.slice(0, MAX_PUBLISH_FILES)
         : existing?.publishFiles,
+    publishFilesIncomplete: input.publishFilesIncomplete !== undefined
+      ? input.publishFilesIncomplete
+      : existing?.publishFilesIncomplete,
     publishRetryCount:
       input.publishRetryCount !== undefined
         ? input.publishRetryCount

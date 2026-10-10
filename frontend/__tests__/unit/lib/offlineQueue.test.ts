@@ -20,6 +20,7 @@ import {
   retryFailedRequest,
   discardFailedRequest,
   requestQueueReplay,
+  enqueueOfflineMutationFallback,
 } from '@/lib/offlineQueue';
 
 interface FakeIDBRequest {
@@ -103,6 +104,73 @@ describe('offlineQueue', () => {
       writable: true,
     });
     window.localStorage.removeItem('marketplace-auth');
+  });
+
+  describe('enqueueOfflineMutationFallback', () => {
+    const baseInput = {
+      url: '/api/v1/ads/ad-1',
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer never-store-this' },
+      body: JSON.stringify({ title: 'edited offline' }),
+      ownerUserId: 'user-a',
+      needsAuth: true,
+      needsCsrf: true,
+    };
+
+    it('refuses to queue work owned by a different account', async () => {
+      await expect(enqueueOfflineMutationFallback({ ...baseInput, ownerUserId: 'user-b' }))
+        .resolves.toMatchObject({ queued: false, reason: 'missing-or-stale-owner' });
+    });
+
+    it('persists an owned mutation without persisting live auth or CSRF tokens', async () => {
+      const stored: Array<Record<string, unknown>> = [];
+      const tx: Record<string, unknown> = {
+        objectStore: () => ({ add: (entry: Record<string, unknown>) => { stored.push(entry); return {}; } }),
+        oncomplete: null,
+        onerror: null,
+        onabort: null,
+      };
+      const db = {
+        objectStoreNames: { contains: () => true },
+        transaction: () => {
+          queueMicrotask(() => (tx.oncomplete as (() => void) | null)?.());
+          return tx;
+        },
+        close: vi.fn(),
+      };
+      const openReq: FakeIDBRequest = { result: db, error: null, onsuccess: null, onerror: null, onupgradeneeded: null };
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: { open: vi.fn(() => { scheduleSuccess(openReq); return openReq; }) },
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(enqueueOfflineMutationFallback(baseInput)).resolves.toMatchObject({ queued: true });
+      expect(stored).toHaveLength(1);
+      expect(stored[0]).toMatchObject({ status: 'pending', ownerUserId: 'user-a', method: 'PATCH' });
+      const storedHeaders = stored[0]?.headers as Record<string, string>;
+      expect(storedHeaders.authorization).toBeUndefined();
+      expect(storedHeaders['x-csrf-token']).toBeUndefined();
+      expect(stored[0]?.body).toBe(baseInput.body);
+    });
+
+    it('does not queue authentication, presence, analytics, or batch transport calls', async () => {
+      for (const url of [
+        '/api/v1/auth/login',
+        '/api/v1/users/me/presence',
+        '/api/v1/analytics/events',
+        '/api/v1/batch',
+      ]) {
+        await expect(enqueueOfflineMutationFallback({ ...baseInput, url }))
+          .resolves.toMatchObject({ queued: false, reason: 'non-queueable-endpoint' });
+      }
+    });
+
+    it('rejects bodies beyond the documented queue budget instead of claiming they were saved', async () => {
+      const oversized = new Blob([new Uint8Array(6 * 1024 * 1024 + 1)]);
+      await expect(enqueueOfflineMutationFallback({ ...baseInput, body: oversized }))
+        .resolves.toMatchObject({ queued: false, reason: 'body-too-large' });
+    });
   });
 
   describe('getQueuedRequestCount', () => {

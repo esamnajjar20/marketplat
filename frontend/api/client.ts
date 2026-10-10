@@ -47,7 +47,7 @@ import { toast } from 'sonner';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
 import { clearSensitiveLocalData, getSessionCleanupVersion } from '@/lib/authCleanup';
 import { registerSessionRequest } from '@/lib/sessionRequestRegistry';
-import { makeOfflineError } from '@/lib/offlineError';
+import { enqueueOfflineMutationFallback } from '@/lib/offlineQueue';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { recordRequestErrorCode, recordRequestRetry, recordRequestStarted } from '@/lib/networkObservability';
 import { isNetworkFailure } from '@/lib/networkErrors';
@@ -86,7 +86,7 @@ function supportsOfflineOperationId(method: string, url: string): boolean {
     /^\/requests$/.test(path) ||
     /^\/service-requests$/.test(path) ||
     /^\/sales$/.test(path) ||
-    /^\/conversations\/[^/]+\/messages(?:\/(?:file|audio))?$/.test(path)
+    /^\/conversations\/[^/]+\/messages(?:\/(?:image|file|audio))?$/.test(path)
   );
 }
 
@@ -187,27 +187,15 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   const method = (config.method ?? 'get').toLowerCase();
 
-  // FIX OFFLINE-FAST-FAIL: when navigator.onLine is definitively
-  // false, reject state-changing requests immediately instead of
-  // waiting up to 15s for axios's own timeout. On several mobile
-  // network stacks (Android/Chrome behind Gaza carrier NATs
-  // especially), an offline POST doesn't fail fast — the request
-  // just hangs until axios's timeout fires. That's exactly the
-  // "يطول كثير وهو يحاول يحفظ" symptom: the user waits 15s of
-  // nothing before the onError path finally runs and shows the
-  // "محفوظ محليًا" toast. Throwing here drops that to ~0ms.
-  //
-  // Safe methods (GET/HEAD/OPTIONS) are NOT touched: an offline GET
-  // should still fall through so the SW's cache strategy can serve
-  // a cached response if one exists. Only the mutations the SW
-  // can't help with get the fast-fail.
-  if (
-    !SAFE_METHODS.has(method) &&
-    typeof navigator !== 'undefined' &&
-    navigator.onLine === false
-  ) {
-    throw makeOfflineError();
-  }
+  // OFFLINE-FIRST MUTATIONS: never reject a write merely because
+  // navigator.onLine is false. The browser's Service Worker owns the
+  // durable IndexedDB outbox and must receive the request so it can
+  // persist the exact method, URL, body, and account scope. Rejecting
+  // here bypassed the outbox entirely: edits, favorites, sales actions,
+  // and message sends could fail before the Service Worker saw them.
+  // When offline, SW handleMutation responds with 202 { queued: true };
+  // the response interceptor below converts that into OFFLINE_QUEUED,
+  // preventing UI code from falsely claiming the server already changed.
 
   // FIX MUTATION-TIMEOUT-01: cap state-changing requests at 8s instead
   // of the global 15s. On Gaza mobile networks (this app's target
@@ -596,6 +584,56 @@ apiClient.interceptors.response.use(
     }
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; [NETWORK_RETRY_MARKER]?: number }) | undefined;
 
+    // Last-resort outbox path for a mutation that failed before a controlling
+    // Service Worker could return its normal 202 { queued: true } response.
+    // This is deliberately after OFFLINE_QUEUED/stale-session checks and only
+    // runs for transport failures or the SW's explicit queue-storage failure;
+    // ordinary validation/permission errors are never converted into queued work.
+    const methodForFallback = (original?.method ?? 'get').toLowerCase();
+    const responseCode = (error.response?.data as { code?: unknown } | undefined)?.code;
+    const queueFallbackEligible = Boolean(
+      original &&
+      !SAFE_METHODS.has(methodForFallback) &&
+      (isNetworkFailure(error) || (error.response?.status === 503 && responseCode === 'QUEUE_STORE_FAILED')) &&
+      responseCode !== 'QUEUE_BODY_TOO_LARGE' &&
+      !original.url?.includes('/auth/')
+    );
+    if (queueFallbackEligible && original) {
+      const userId = useAuthStore.getState().user?.id ?? null;
+      try {
+        const headerObject = typeof original.headers?.toJSON === 'function'
+          ? original.headers.toJSON()
+          : { ...(original.headers as unknown as Record<string, unknown>) };
+        const operationHeader = String(
+          headerObject['X-Offline-Op-Id'] ?? headerObject['x-offline-op-id'] ?? '',
+        ) || null;
+        const queued = await enqueueOfflineMutationFallback({
+          url: apiClient.getUri(original),
+          method: methodForFallback,
+          headers: headerObject,
+          body: original.data,
+          ownerUserId: userId,
+          needsAuth: Boolean(useAuthStore.getState().accessToken),
+          needsCsrf: !SAFE_METHODS.has(methodForFallback),
+          operationId: operationHeader,
+        });
+        if (queued.queued) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent(QUEUE_UPDATED_EVENT));
+          }
+          return Promise.reject({
+            message: 'تعذّر الوصول إلى الشبكة؛ حُفظت العملية محليًا وستُرسل عند عودة الاتصال.',
+            statusCode: 202,
+            code: 'OFFLINE_QUEUED',
+            queued: true,
+            operationId: queued.operationId,
+          });
+        }
+      } catch (queueError) {
+        console.warn('[queue] page-side mutation fallback failed:', queueError);
+      }
+    }
+
     // Phase 2: automatically retry only safe/idempotent HTTP methods.
     // Mutations are intentionally excluded: a client-side timeout does not
     // prove that the server failed to commit the mutation. Supported create
@@ -654,14 +692,9 @@ apiClient.interceptors.response.use(
 
     if (
       (error.response?.status !== 401 && !isCsrfRejection) ||
-      // FIX OFFLINE-FAST-FAIL-CRASH: makeOfflineError() (thrown
-      // from the request interceptor) is a plain ParsedError
-      // object, not an AxiosError — axios passes it through with
-      // no .config. Reading original._retry on undefined works
-      // today only because the first clause already short-circuits
-      // to `true` for those rejections. Guard explicitly so a
-      // future reorder of these conditions can't turn a network
-      // failure into a TypeError inside the interceptor.
+      // Some synthetic/cancelled errors do not carry Axios config.
+      // Keep the guard explicit so refresh handling never dereferences
+      // an absent request config.
       !original ||
       original._retry ||
       isRefreshCall ||

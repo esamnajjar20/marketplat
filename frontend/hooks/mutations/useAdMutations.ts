@@ -114,6 +114,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
             compressedFiles.length > 0
               ? await bestEffortCompressPreviews(compressedFiles)
               : [];
+          const publishFiles = compressedFiles.length ? await filesToPublishFiles(compressedFiles) : [];
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -145,9 +146,8 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
             images,
             // FIX OFFLINE-DRAFT-PUBLISH-01: حفظ الصور الأصلية لإعادة النشر
             // من المسودة لو طابور الـ SW لم يعترض الطلب.
-            publishFiles: compressedFiles.length
-              ? await filesToPublishFiles(compressedFiles)
-              : undefined,
+            publishFiles: publishFiles.length ? publishFiles : undefined,
+            publishFilesIncomplete: publishFiles.length !== compressedFiles.length || compressedFiles.length !== files.length,
             publishRetryCount: 0,
           });
           if (offline || parsed.queued) {

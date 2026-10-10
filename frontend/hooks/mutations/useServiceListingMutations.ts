@@ -72,6 +72,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
             compressedFiles.length > 0
               ? await bestEffortCompressPreviews(compressedFiles)
               : [];
+          const publishFiles = compressedFiles.length ? await filesToPublishFiles(compressedFiles) : [];
           await saveAdDraft({
             id: getActiveOfflineDraftId() ?? undefined,
             mode: 'create',
@@ -101,9 +102,8 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
             operationId: operationIdRef.current,
             userId,
             images,
-            publishFiles: compressedFiles.length
-              ? await filesToPublishFiles(compressedFiles)
-              : undefined,
+            publishFiles: publishFiles.length ? publishFiles : undefined,
+            publishFilesIncomplete: publishFiles.length !== compressedFiles.length || compressedFiles.length !== files.length,
             publishRetryCount: 0,
           });
           if (offline || parsed.queued) {
