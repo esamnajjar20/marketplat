@@ -601,8 +601,7 @@ const HUB_PATHS = new Set([
   '/my-services',
   '/settings',
   '/activity',
-  '/offline',
-]);
+  ]);
 
 function hubDocumentKey(request, url) {
   if (
@@ -744,15 +743,20 @@ async function normalizeExistingHtmlCache(cacheName) {
     const cache = await caches.open(cacheName);
     const requests = await cache.keys();
     for (const request of requests) {
-      let url;
-      try { url = new URL(request.url); } catch { continue; }
-      if (url.origin !== self.location.origin || url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) continue;
-      if (url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell')) continue;
-      if (/\.[a-z0-9]{2,8}$/i.test(url.pathname)) continue;
-      const response = await cache.match(request);
-      if (!response || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) continue;
-      if (!response.headers.has('Vary')) continue;
-      await cache.put(request, await stripVaryAndClone(response));
+      try {
+        let url;
+        try { url = new URL(request.url); } catch { continue; }
+        if (url.origin !== self.location.origin || url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) continue;
+        if (url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell')) continue;
+        if (/\.[a-z0-9]{2,8}$/i.test(url.pathname)) continue;
+        const response = await cache.match(request);
+        if (!response || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) continue;
+        if (!response.headers.has('Vary')) continue;
+        await cache.put(request, await stripVaryAndClone(response));
+      } catch {
+        // One corrupted entry must not abort migration for the rest.
+        continue;
+      }
     }
   } catch {
     // A migration failure must never prevent the app from starting.
@@ -2946,7 +2950,7 @@ self.addEventListener('install', (event) => {
         // يشير لـ_next/static، ونخزّنه بنفس STATIC_CACHE أيضًا.
         const html = await response.clone().text();
         const assetUrls = Array.from(
-          html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.(?:js|css))"/g),
+          html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
         )
           .map((match) => match[1])
           .filter((url) => Boolean(url));
