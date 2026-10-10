@@ -33,9 +33,9 @@ export function useMyConversations(params?: ConversationsQuery) {
 
   return useQuery({
     queryKey: queryKeys.conversations.mine(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await conversationsApi.getMine(params).then((r) => r.data.data);
+        const data = await conversationsApi.getMine(params, { signal }).then((r) => r.data.data);
         // احفظ دائمًا عند نجاح الشبكة — بما فيها القائمة الفارغة —
         // حتى لا تبقى محادثات محذوفة ظاهرة أوفلاين (FIX OFFLINE-MSG-EMPTY-01).
         if (data?.items) {
@@ -45,6 +45,7 @@ export function useMyConversations(params?: ConversationsQuery) {
         }
         return data;
       } catch (err) {
+        if (signal.aborted) throw err;
         const cached = await getConversationsList(userId);
         if (cached.length > 0) {
           return { items: cached, meta: offlineMeta(cached.length) };
@@ -68,10 +69,11 @@ export function useConversation(id: string) {
 
   return useQuery({
     queryKey: queryKeys.conversations.detail(id),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        return await conversationsApi.getById(id).then((r) => r.data.data);
+        return await conversationsApi.getById(id, { signal }).then((r) => r.data.data);
       } catch (err) {
+        if (signal.aborted) throw err;
         // FIX MSG-STORE-USER-PASS-CONV-DETAIL-01: userId passed so the
         // store's read-side user check actually runs.
         const list = await getConversationsList(userId);
@@ -96,15 +98,16 @@ export function useConversationMedia(conversationId: string, enabled = true) {
   const isOnline = useOnlineStatus();
   return useQuery({
     queryKey: queryKeys.conversations.media(conversationId),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const items = await conversationsApi.getMedia(conversationId, 100).then((r) => r.data.data ?? []);
+        const items = await conversationsApi.getMedia(conversationId, 100, { signal }).then((r) => r.data.data ?? []);
         if (userId) {
           void saveConversationMedia(userId, conversationId, items).catch((error) => reportBackgroundFailure('frontend/hooks/queries/useConversations.ts', error));
           void cacheConversationMediaBlobs(userId, conversationId, items).catch((error) => reportBackgroundFailure('frontend/hooks/queries/useConversations.ts', error));
         }
         return items;
       } catch (error) {
+        if (signal.aborted) throw error;
         if (userId) {
           const cached = await getConversationMedia(userId, conversationId).catch(() => []);
           if (cached.length) return cached;
@@ -126,10 +129,10 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
 
   return useQuery({
     queryKey: queryKeys.conversations.messages(conversationId, params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const data = await conversationsApi
-          .getMessages(conversationId, params)
+          .getMessages(conversationId, params, { signal })
           .then((r) => {
             const payload = r.data.data ?? {
               items: [],
@@ -144,6 +147,7 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
         }
         return data;
       } catch (err) {
+        if (signal.aborted) throw err;
         // FIX MSG-STORE-USER-PASS-MESSAGES-GET-01: userId passed to the
         // read so the store's read-side user check actually runs.
         const cached = await getMessagesForConversation(conversationId, userId);
@@ -168,16 +172,17 @@ export function useUnreadConversationCount() {
 
   return useQuery({
     queryKey: queryKeys.conversations.unreadCount(),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const count = await conversationsApi
-          .getUnreadCount()
+          .getUnreadCount({ signal })
           .then((r) => r.data.data?.count ?? 0);
         // FIX MSG-STORE-USER-PASS-UNREAD-SAVE-01: userId passed so the
         // store's write-side user check actually runs.
         void saveUnreadConversationCount(count, userId);
         return count;
       } catch (err) {
+        if (signal.aborted) throw err;
         // FIX MSG-STORE-USER-PASS-UNREAD-GET-01: userId passed on read too.
         const cached = await getUnreadConversationCount(userId);
         if (cached != null) return cached;

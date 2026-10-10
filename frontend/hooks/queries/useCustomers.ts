@@ -40,7 +40,7 @@ export function useCustomerSummary() {
 export function customerListQueryOptions(params?: CustomerListQueryParams) {
   return queryOptions<PaginatedCustomers, Error, PaginatedCustomers, ReturnType<typeof queryKeys.customers.list>>({
     queryKey: queryKeys.customers.list(params),
-    queryFn: ({ queryKey }) => customersApi.list(queryKey[2]).then((r) => normalize(r.data)),
+    queryFn: ({ signal }) => customersApi.list(params, { signal }).then((r) => normalize(r.data)),
     placeholderData: keepPreviousData,
   });
 }
@@ -52,7 +52,7 @@ export function useCustomers(params?: CustomerListQueryParams) {
 export function customerSearchQueryOptions(q: string) {
   return queryOptions({
     queryKey: queryKeys.customers.search(q),
-    queryFn: ({ queryKey }) => customersApi.search(queryKey[2]).then((r) => {
+    queryFn: ({ signal }) => customersApi.search(q, { signal }).then((r) => {
       const raw = (r.data as unknown as { data?: Customer[] }).data;
       return Array.isArray(raw) ? raw : [];
     }),

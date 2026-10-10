@@ -28,6 +28,7 @@ import {
 } from '@/store/auth.store';
 import { CACHE_TTL } from '@/lib/constants';
 import type { AdSearchParams, AdSearchQuery, AdListItem } from '@/types/ad.types';
+import type { PaginationMeta } from '@/types/api.types';
 import { offlineMeta } from '@/lib/apiPagination';
 import {
   getOfflineList,
@@ -36,6 +37,8 @@ import {
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 
+
+type AdsPage = { items: AdListItem[]; meta: PaginationMeta };
 
 /** GET /ads — paginated + filtered list */
 /**
@@ -128,11 +131,11 @@ export function useAds(
     mapItems: (items) => ({ items, meta: offlineMeta(items.length) }),
   });
 
-  return useQuery({
+  return useQuery<AdsPage>({
     queryKey,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await adsApi.getAll(params).then((r) => r.data.data);
+        const data = await adsApi.getAll(params, { signal }).then((r) => r.data.data as AdsPage);
         if (isBaseBrowse && data?.items) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.adsBrowse,
@@ -142,6 +145,7 @@ export function useAds(
         }
         return data;
       } catch (err) {
+        if (signal.aborted || (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: unknown }).code === 'ERR_CANCELED')) throw err;
         if (isBaseBrowse) {
           const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.adsBrowse);
           if (local) {
@@ -159,9 +163,9 @@ export function useAds(
 
 /** GET /ads/search?q=... — full-text search */
 export function useSearchAds(params: AdSearchQuery) {
-  return useQuery({
+  return useQuery<AdsPage>({
     queryKey:        queryKeys.ads.search(params),
-    queryFn:         () => adsApi.searchAds(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adsApi.searchAds(params, { signal }).then((r) => r.data.data as AdsPage),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adsList,
     // API-INT-06 FIX: params.q could be undefined at runtime even though
@@ -181,7 +185,7 @@ export function useSearchAds(params: AdSearchQuery) {
 export function useAd(id: string) {
   return useQuery({
     queryKey:  queryKeys.ads.detail(id),
-    queryFn:   () => adsApi.getById(id).then((r) => r.data.data),
+    queryFn:   ({ signal }) => adsApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adDetail,
     enabled:   Boolean(id),
   });
@@ -191,7 +195,7 @@ export function useAd(id: string) {
 export function useRelatedAds(id: string) {
   return useQuery({
     queryKey:  queryKeys.ads.related(id),
-    queryFn:   () => adsApi.getRelated(id).then((r) => r.data.data ?? []),
+    queryFn:   ({ signal }) => adsApi.getRelated(id, { signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.adsList,             // FIX Q-03: unified staleTime
     enabled:   Boolean(id),
   });
@@ -213,9 +217,9 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
 
   return useQuery({
     queryKey:        queryKeys.ads.mine(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await adsApi.getMyAds(params).then((r) => r.data.data);
+        const data = await adsApi.getMyAds(params, { signal }).then((r) => r.data.data);
         if (isBase && data?.items) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.myAds,
@@ -226,6 +230,7 @@ export function useMyAds(params?: Pick<AdSearchParams, 'page' | 'limit' | 'statu
         }
         return data;
       } catch (err) {
+        if (signal.aborted || (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: unknown }).code === 'ERR_CANCELED')) throw err;
         if (isBase) {
           const local = getOfflineList<AdListItem>(OFFLINE_LIST_KEYS.myAds, userId);
           if (local) {
@@ -256,7 +261,7 @@ export function useMyAdStats() {
 
   return useQuery({
     queryKey:  queryKeys.ads.myStats(),
-    queryFn:   () => adsApi.getMyStats().then((r) => r.data.data),
+    queryFn:   ({ signal }) => adsApi.getMyStats({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.myAds,
     // FIX AUTH-401-STORM: never fire without a real access token.
     enabled: isAuthenticated && hasToken,
@@ -268,7 +273,7 @@ export function useUserAds(userId: string, params?: { page?: number; limit?: num
   return useQuery({
     queryKey:  queryKeys.users.ads(userId, params),
     // API-INT-08 FIX: replaced dynamic import() with static usersApi import above.
-    queryFn:   () => usersApi.getUserAds(userId, params).then((r) => r.data.data),
+    queryFn:   ({ signal }) => usersApi.getUserAds(userId, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adsList,
     enabled:   Boolean(userId),
   });

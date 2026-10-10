@@ -8,8 +8,8 @@ import { CACHE_TTL } from '@/lib/constants';
 export function useOpenRequests(params?: Parameters<typeof requestsApi.getOpenFeed>[0]) {
   return useQuery({
     queryKey: queryKeys.requests.open(params),
-    queryFn: async () => {
-      const res = await requestsApi.getOpenFeed(params);
+    queryFn: async ({ signal }) => {
+      const res = await requestsApi.getOpenFeed(params, { signal });
       return res.data;
     },
     staleTime: CACHE_TTL.adsList,
@@ -20,8 +20,8 @@ export function useOpenRequests(params?: Parameters<typeof requestsApi.getOpenFe
 export function useMyRequests(params?: Parameters<typeof requestsApi.getMyRequests>[0]) {
   return useQuery({
     queryKey: queryKeys.requests.mine(params),
-    queryFn: async () => {
-      const res = await requestsApi.getMyRequests(params);
+    queryFn: async ({ signal }) => {
+      const res = await requestsApi.getMyRequests(params, { signal });
       return res.data;
     },
     staleTime: CACHE_TTL.myAds,
@@ -32,8 +32,8 @@ export function useMyRequests(params?: Parameters<typeof requestsApi.getMyReques
 export function useMyRequestOffers(params?: Parameters<typeof requestsApi.getMyOffers>[0]) {
   return useQuery({
     queryKey: queryKeys.requests.myOffers(params),
-    queryFn: async () => {
-      const res = await requestsApi.getMyOffers(params);
+    queryFn: async ({ signal }) => {
+      const res = await requestsApi.getMyOffers(params, { signal });
       return res.data;
     },
     staleTime: CACHE_TTL.myAds,
@@ -44,8 +44,8 @@ export function useMyRequestOffers(params?: Parameters<typeof requestsApi.getMyO
 export function useRequestDetail(id: string) {
   return useQuery({
     queryKey: queryKeys.requests.detail(id),
-    queryFn: async () => {
-      const res = await requestsApi.getById(id);
+    queryFn: async ({ signal }) => {
+      const res = await requestsApi.getById(id, { signal });
       return res.data.data;
     },
     enabled: Boolean(id),

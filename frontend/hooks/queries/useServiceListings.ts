@@ -6,7 +6,8 @@ import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
-import type { ServiceListingsQuery, ServiceListingWithProvider } from '@/types/service.types';
+import type { ServiceListingsQuery, ServiceListing, ServiceListingWithProvider } from '@/types/service.types';
+import type { PaginationMeta } from '@/types/api.types';
 import {
   getOfflineList,
   saveOfflineList,
@@ -14,17 +15,8 @@ import {
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 
-type ServicesPage = {
-  items: ServiceListingWithProvider[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
-};
+type ServicesPage = { items: ServiceListingWithProvider[]; meta: PaginationMeta };
+type MyServicesPage = { items: ServiceListing[]; meta: PaginationMeta };
 
 function offlinePage(items: ServiceListingWithProvider[]): ServicesPage {
   return {
@@ -68,12 +60,12 @@ export function useServiceListings(
     mapItems: offlinePage,
   });
 
-  return useQuery({
+  return useQuery<ServicesPage>({
     queryKey,
-    queryFn: async (): Promise<ServicesPage> => {
+    queryFn: async ({ signal }): Promise<ServicesPage> => {
       try {
         const data = (await serviceListingsApi
-          .getAll(params)
+          .getAll(params, { signal })
           .then((r) => r.data.data)) as ServicesPage;
         if (isBaseBrowse && Array.isArray(data?.items)) {
           saveOfflineList(
@@ -84,6 +76,8 @@ export function useServiceListings(
         }
         return data;
       } catch (err) {
+        // Do not turn TanStack Query cancellation into an offline-cache success.
+        if (signal.aborted) throw err;
         if (isBaseBrowse) {
           const local = getOfflineList<ServiceListingWithProvider>(
             OFFLINE_LIST_KEYS.servicesBrowse,
@@ -103,7 +97,7 @@ export function useServiceListings(
 export function useServiceListing(id: string) {
   return useQuery({
     queryKey: queryKeys.serviceListings.detail(id),
-    queryFn: () => serviceListingsApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceListingsApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adDetail,
     enabled: Boolean(id),
   });
@@ -114,9 +108,9 @@ export function useMyServiceListings(
   params?: ServiceListingsQuery,
   options?: { enabled?: boolean },
 ) {
-  return useQuery({
+  return useQuery<MyServicesPage>({
     queryKey: queryKeys.serviceListings.mine(params),
-    queryFn: () => serviceListingsApi.getMine(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceListingsApi.getMine(params, { signal }).then((r) => r.data.data as MyServicesPage),
     staleTime: CACHE_TTL.myAds,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,

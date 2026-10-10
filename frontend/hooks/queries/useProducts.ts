@@ -5,7 +5,8 @@ import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { productsApi } from '@/api/products.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import type { ProductsQuery, ProductWithStore } from '@/types/product.types';
+import type { ProductsQuery, Product, ProductWithStore } from '@/types/product.types';
+import type { PaginationMeta } from '@/types/api.types';
 import {
   getOfflineList,
   saveOfflineList,
@@ -13,17 +14,8 @@ import {
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 
-type ProductsPage = {
-  items: ProductWithStore[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
-};
+type ProductsPage = { items: ProductWithStore[]; meta: PaginationMeta };
+type MyProductsPage = { items: Product[]; meta: PaginationMeta };
 
 function offlinePage(items: ProductWithStore[]): ProductsPage {
   return {
@@ -71,11 +63,11 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
     mapItems: offlinePage,
   });
 
-  return useQuery({
+  return useQuery<ProductsPage>({
     queryKey,
-    queryFn: async (): Promise<ProductsPage> => {
+    queryFn: async ({ signal }): Promise<ProductsPage> => {
       try {
-        const data = (await productsApi.getAll(params).then((r) => r.data.data)) as ProductsPage;
+        const data = (await productsApi.getAll(params, { signal }).then((r) => r.data.data)) as ProductsPage;
         if (isBaseBrowse && Array.isArray(data?.items)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.productsBrowse,
@@ -85,6 +77,7 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
         }
         return data;
       } catch (err) {
+        if (signal.aborted || (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: unknown }).code === 'ERR_CANCELED')) throw err;
         if (isBaseBrowse) {
           const local = getOfflineList<ProductWithStore>(OFFLINE_LIST_KEYS.productsBrowse);
           if (local) return offlinePage(local.items);
@@ -102,7 +95,7 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
 export function useProduct(id: string) {
   return useQuery({
     queryKey: queryKeys.products.detail(id),
-    queryFn: () => productsApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => productsApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adDetail,
     enabled: Boolean(id),
   });
@@ -110,9 +103,9 @@ export function useProduct(id: string) {
 
 /** GET /products/me — caller's own products (my-store products tab). */
 export function useMyProducts(params?: ProductsQuery, options?: { enabled?: boolean }) {
-  return useQuery({
+  return useQuery<MyProductsPage>({
     queryKey: queryKeys.products.mine(params),
-    queryFn: () => productsApi.getMine(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => productsApi.getMine(params, { signal }).then((r) => r.data.data as MyProductsPage),
     staleTime: CACHE_TTL.myAds,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,

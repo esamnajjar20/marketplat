@@ -68,9 +68,9 @@ export function useStores(
 
   return useQuery({
     queryKey,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await storesApi.getAll(params).then((r) => r.data.data);
+        const data = await storesApi.getAll(params, { signal }).then((r) => r.data.data);
         if (isBaseBrowse && Array.isArray(data?.items)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.storesBrowse,
@@ -108,7 +108,7 @@ export function useStores(
 export function useStore(id: string) {
   return useQuery({
     queryKey: queryKeys.stores.detail(id),
-    queryFn: () => storesApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => storesApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(id),
   });
@@ -139,9 +139,9 @@ export function useMyStore(options?: { enabled?: boolean }) {
 
   const query = useQuery({
     queryKey: queryKeys.stores.me(),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await storesApi.getMyStore().then((r) => r.data.data);
+        const data = await storesApi.getMyStore({ signal }).then((r) => r.data.data);
         if (data) saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data, userId);
         return data;
       } catch (err) {
@@ -193,7 +193,7 @@ export function useMyStoreAnalytics() {
 
   return useQuery({
     queryKey: queryKeys.stores.analytics(),
-    queryFn: () => storesApi.getMyStoreAnalytics().then((r) => r.data.data),
+    queryFn: ({ signal }) => storesApi.getMyStoreAnalytics({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,
@@ -209,26 +209,26 @@ export function useMyFollowedStores(params?: Parameters<typeof storesApi.getMyFo
 
   const query = useQuery({
     queryKey: queryKeys.stores.followed(params),
-    queryFn: () => storesApi.getMyFollowedStores(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => storesApi.getMyFollowedStores(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
 
-  // FIX BUG-03: mirrors useFavorites' H-05/API-INT-07 fix exactly — merge
-  // this page's followed store ids into the shared followedIds() Set as a
-  // pure side effect after the query settles, so useIsFollowingStore()
-  // below has something to read reactively without a per-store network
-  // call (there's no GET /stores/:id/follow-status endpoint).
+  // Only the canonical membership query (limit: 100, used by
+  // useIsFollowingStore) may write the shared membership Set. Paginated
+  // screens can contain just one slice; merging those slices forever meant
+  // an ID removed on the server could remain in the Set after a refetch.
+  // The canonical result is authoritative for the bounded membership cache,
+  // so replace rather than union it whenever that query refreshes.
   useEffect(() => {
     const data = query.data;
-    if (!data) return;
+    if (!data || params?.limit !== 100) return;
 
-    queryClient.setQueryData<Set<string>>(queryKeys.stores.followedIds(), (prev) => {
-      const idSet = new Set(prev ?? []);
-      data.items.forEach((row) => idSet.add(row.storeId));
-      return idSet;
-    });
-  }, [query.data, queryClient]);
+    queryClient.setQueryData<Set<string>>(
+      queryKeys.stores.followedIds(),
+      new Set(data.items.map((row) => row.storeId)),
+    );
+  }, [query.data, queryClient, params?.limit]);
 
   return query;
 }

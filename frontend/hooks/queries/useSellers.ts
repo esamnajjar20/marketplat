@@ -24,7 +24,7 @@ import {
 export function useSellerProfile(id: string) {
   return useQuery({
     queryKey: queryKeys.sellers.detail(id),
-    queryFn: () => sellersApi.getById(id).then(r => r.data.data),
+    queryFn: ({ signal }) => sellersApi.getById(id, { signal }).then(r => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(id),
   });
@@ -68,12 +68,13 @@ export function useMySellerProfile() {
 
   return useQuery({
     queryKey: queryKeys.sellers.me(),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await sellersApi.getMyProfile().then(r => r.data.data);
+        const data = await sellersApi.getMyProfile({ signal }).then(r => r.data.data);
         if (data) saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data, userId);
         return data;
       } catch (err) {
+        if (signal.aborted) throw err;
         const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
         if (isNetworkFailure) {
           const cached = getOfflineJson<SellerProfile>(OFFLINE_JSON_KEYS.sellerProfileSelf, userId);
@@ -165,10 +166,10 @@ export function useMyAttention() {
 
   return useQuery<SellerAttention>({
     queryKey: queryKeys.sellers.attention(),
-    queryFn: async (): Promise<SellerAttention> => {
+    queryFn: async ({ signal }): Promise<SellerAttention> => {
       try {
         const data = await sellersApi
-          .getMyAttention()
+          .getMyAttention({ signal })
           .then((r) => r.data.data);
 
         if (data) {
@@ -178,6 +179,7 @@ export function useMyAttention() {
         if (!data) throw new Error('Seller attention response is empty');
         return data;
       } catch (err) {
+        if (signal.aborted) throw err;
         const local = getOfflineJson<SellerAttention>(
           OFFLINE_JSON_KEYS.dashboardAttention,
           userId,

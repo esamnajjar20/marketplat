@@ -24,6 +24,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { adminApi }  from '@/api/admin.api';
 import { analyticsApi, type GetAnalyticsSummaryParams } from '@/api/analytics.api';
 import { queryKeys } from '@/lib/queryKeys';
+import { pollingInterval } from '@/lib/polling';
 import { CACHE_TTL } from '@/lib/constants';
 import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, AdminGetFlaggedAdsParams, AdminGetFraudSignalsParams } from '@/types/admin.types';
 
@@ -96,12 +97,16 @@ export function useAdminStoreTypes() {
  * FIX Q-01: .then(r => r.data.data)
  * FIX C-08: adminApi.getReports calls GET /reports (not /admin/reports).
  */
-export function useAdminReports(params?: Parameters<typeof adminApi.getReports>[0]) {
+export function useAdminReports(
+  params?: Parameters<typeof adminApi.getReports>[0],
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey:        queryKeys.admin.reports(params),
     queryFn:         () => adminApi.getReports(params).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
+    enabled:         options?.enabled ?? true,
   });
 }
 
@@ -144,7 +149,10 @@ export function useAdminOpsQueue() {
     queryKey: queryKeys.admin.opsQueue(),
     queryFn: () => adminApi.getOpsQueue().then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
-    refetchInterval: 60_000,
+    // Respect visibility/online policy: do not poll admin counters in a
+    // hidden tab or while offline. These are operational summaries, not
+    // a real-time transport, so the regular 60s cadence is sufficient.
+    refetchInterval: () => pollingInterval(60_000, 1),
   });
 }
 
@@ -246,7 +254,10 @@ export function useAdminSystemHealth() {
     queryKey: queryKeys.admin.systemHealth(),
     queryFn: () => adminApi.getSystemHealth().then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
-    refetchInterval: 60_000,
+    // Respect visibility/online policy: do not poll admin counters in a
+    // hidden tab or while offline. These are operational summaries, not
+    // a real-time transport, so the regular 60s cadence is sufficient.
+    refetchInterval: () => pollingInterval(60_000, 1),
   });
 }
 

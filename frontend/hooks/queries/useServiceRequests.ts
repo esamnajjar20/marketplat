@@ -20,7 +20,7 @@ export function useServiceRequest(id: string) {
 
   return useQuery({
     queryKey: queryKeys.serviceRequests.detail(id),
-    queryFn: () => serviceRequestsApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceRequestsApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.serviceRequests,
     enabled: isAuthenticated && Boolean(id) && (hasToken || !isOnline),
   });
@@ -34,7 +34,7 @@ export function useMyServiceRequests(params?: ServiceRequestsQuery) {
 
   return useQuery({
     queryKey: queryKeys.serviceRequests.mine(params),
-    queryFn: () => serviceRequestsApi.getMineAsCustomer(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceRequestsApi.getMineAsCustomer(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.serviceRequests,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
@@ -48,7 +48,7 @@ export function useIncomingServiceRequests(params?: ServiceRequestsQuery) {
 
   return useQuery({
     queryKey: queryKeys.serviceRequests.incoming(params),
-    queryFn: () => serviceRequestsApi.getIncomingAsProvider(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceRequestsApi.getIncomingAsProvider(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.serviceRequests,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });

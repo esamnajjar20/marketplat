@@ -42,7 +42,7 @@ export function useMe() {
 
   const query = useQuery({
     queryKey: queryKeys.auth.me(),
-    queryFn: () => usersApi.getMe().then((r) => r.data.data),
+    queryFn: ({ signal }) => usersApi.getMe({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.userProfile,
     // FIX AUTH-401-STORM-01: لا تطلب API بلا access token حقيقي.
     enabled: isAuthenticated && hasToken,
@@ -63,7 +63,7 @@ export function useSessions() {
 
   return useQuery({
     queryKey: queryKeys.auth.sessions(),
-    queryFn: () => authApi.getSessions().then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => authApi.getSessions({ signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sessions,
     enabled: isAuthenticated && hasToken,
   });

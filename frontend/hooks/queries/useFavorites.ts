@@ -110,7 +110,7 @@ export function useFavorites(params?: Parameters<typeof favoritesApi.getAll>[0])
   const query = useQuery({
     queryKey: queryKeys.favorites.all(params),
     // API-INT-07 FIX: pure queryFn — no side effects.
-    queryFn:  () => favoritesApi.getAll(params).then((r) => r.data.data),
+    queryFn:  ({ signal }) => favoritesApi.getAll(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
     enabled:   isAuthenticated && (hasToken || !isOnline),
   });
@@ -183,7 +183,7 @@ export function useFavoriteCheck(adId: string) {
 
   const query = useQuery({
     queryKey: queryKeys.favorites.check(adId),
-    queryFn:  () => favoritesApi.check(adId),
+    queryFn:  ({ signal }) => favoritesApi.check(adId, { signal }),
     staleTime: CACHE_TTL.favorites,
     enabled:   isAuthenticated && Boolean(adId) && (hasToken || !isOnline),
   });
@@ -192,13 +192,25 @@ export function useFavoriteCheck(adId: string) {
   // in useEffect on the settled result, not in queryFn itself.
   useEffect(() => {
     if (query.data === undefined) return;
-    if (!query.data) return; // false: nothing to add, and don't risk
-                              // clobbering a concurrent optimistic add.
+
+    // A negative server check is authoritative unless a toggle for this
+    // exact ad is still pending. Without the delete branch, a stale positive
+    // ID could survive indefinitely after the user unfavorited the ad on
+    // another device/session. The mutation guard preserves a newer local tap.
+    const hasPendingToggle = queryClient.getMutationCache().getAll().some((mutation) =>
+      mutation.state.status === 'pending' &&
+      mutation.options.mutationKey?.[0] === 'favorite-toggle' &&
+      mutation.options.mutationKey?.[1] === 'ad' &&
+      mutation.state.variables === adId,
+    );
+    if (hasPendingToggle) return;
 
     queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (prev) => {
-      const idSet = new Set(prev ?? []);
-      idSet.add(adId);
-      return idSet;
+      const next = new Set(prev ?? []);
+      if (query.data) next.add(adId);
+      else next.delete(adId);
+      if (prev && prev.size === next.size && [...prev].every((id) => next.has(id))) return prev;
+      return next;
     });
   }, [query.data, adId, queryClient]);
 
@@ -257,7 +269,7 @@ export function useFavoritesByType<T>(
 
   const query = useQuery({
     queryKey: queryKeys.favorites.entityList(type, params),
-    queryFn:  () => favoritesApi.getAllByType<T>(type, params).then((r) => r.data.data),
+    queryFn:  ({ signal }) => favoritesApi.getAllByType<T>(type, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
     enabled:   isAuthenticated && (hasToken || !isOnline),
   });
@@ -310,19 +322,30 @@ export function useFavoriteEntityCheck(
 
   const query = useQuery({
     queryKey: queryKeys.favorites.entityCheck(type, entityId),
-    queryFn:  () => favoritesApi.checkEntity(type, entityId),
+    queryFn:  ({ signal }) => favoritesApi.checkEntity(type, entityId, { signal }),
     staleTime: CACHE_TTL.favorites,
     enabled:   isAuthenticated && Boolean(entityId) && enabled && (hasToken || !isOnline),
   });
 
   useEffect(() => {
     if (query.data === undefined) return;
-    if (!query.data) return; // false: nothing to add, don't clobber a concurrent optimistic add.
+
+    // Keep entity favorite Sets in sync with authoritative negative checks,
+    // but never let a background check undo a local toggle still in flight.
+    const hasPendingToggle = queryClient.getMutationCache().getAll().some((mutation) =>
+      mutation.state.status === 'pending' &&
+      mutation.options.mutationKey?.[0] === 'favorite-toggle' &&
+      mutation.options.mutationKey?.[1] === type &&
+      mutation.state.variables === entityId,
+    );
+    if (hasPendingToggle) return;
 
     queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds(type), (prev) => {
-      const idSet = new Set(prev ?? []);
-      idSet.add(entityId);
-      return idSet;
+      const next = new Set(prev ?? []);
+      if (query.data) next.add(entityId);
+      else next.delete(entityId);
+      if (prev && prev.size === next.size && [...prev].every((id) => next.has(id))) return prev;
+      return next;
     });
   }, [query.data, type, entityId, queryClient]);
 

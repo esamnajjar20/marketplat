@@ -26,11 +26,12 @@ import type { SearchQuery } from '@/types/search.types';
 export function useSearch(params?: SearchQuery) {
   return useQuery({
     queryKey: queryKeys.search.unified(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const r = await searchApi.search(params);
+        const r = await searchApi.search(params, { signal });
         return r.data.data;
       } catch (err) {
+        if (signal.aborted || (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: unknown }).code === 'ERR_CANCELED')) throw err;
         const offline = await searchOffline(params ?? {}).catch(() => null);
         if (offline?.hasBundle) {
           return { items: offline.items, meta: offline.meta };
@@ -53,7 +54,7 @@ export function useSearch(params?: SearchQuery) {
 export function useSearchSuggestions(q: string) {
   return useQuery({
     queryKey:  queryKeys.search.suggestions(q),
-    queryFn:   () => searchApi.suggest({ q }).then((r) => r.data.data?.suggestions ?? []),
+    queryFn:   ({ signal }) => searchApi.suggest({ q }, { signal }).then((r) => r.data.data?.suggestions ?? []),
     staleTime: CACHE_TTL.searchSuggestions,
     enabled:   q.trim().length >= 2,
   });

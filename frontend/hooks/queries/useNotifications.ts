@@ -68,7 +68,7 @@ export function useMyNotifications(params?: NotificationsQuery, options?: { enab
 
   const query = useQuery({
     queryKey,
-    queryFn: () => notificationsApi.getMine(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => notificationsApi.getMine(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.notifications,
     // SSE updates the inbox; poll is a slow backup, paused when hidden/offline.
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
@@ -113,7 +113,7 @@ export function useUnreadNotificationCount() {
 
   const query = useQuery({
     queryKey,
-    queryFn: () => notificationsApi.getUnreadCount().then((r) => r.data.data?.count ?? 0),
+    queryFn: ({ signal }) => notificationsApi.getUnreadCount({ signal }).then((r) => r.data.data?.count ?? 0),
     staleTime: CACHE_TTL.notifications,
     refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
     enabled: isAuthenticated && (hasToken || !isOnline),
