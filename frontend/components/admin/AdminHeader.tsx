@@ -6,6 +6,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 // report's reporter record was missing.
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { LogOut, Bell, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button }      from '@/components/shared/ui/Button';
 import {
@@ -18,12 +19,15 @@ import {
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
 import { ROUTES, REPORT_REASON_LABELS } from '@/lib/constants';
-import { useAdminStats, useAdminReports } from '@/hooks/queries/useAdmin';
+import { useAdminOpsQueue, useAdminReports } from '@/hooks/queries/useAdmin';
 
 export function AdminHeader() {
   const user   = useAuthStore(selectUser);
-  const { data: stats } = useAdminStats();
-  const openReports = stats?.openReports ?? 0;
+  const [previewOpen, setPreviewOpen] = useState(false);
+  // The sidebar already needs the live queue badge. Reuse that query instead
+  // of fetching the entire admin stats payload on every admin tab.
+  const { data: queue } = useAdminOpsQueue();
+  const openReports = queue?.openReports ?? 0;
 
   // FIX P2-12: the bell only ever linked straight to /admin/reports
   // with no way to see what's actually pending before committing to a
@@ -31,7 +35,10 @@ export function AdminHeader() {
   // reports the reports page itself would show first (default sort is
   // createdAt desc), reusing useAdminReports — no new endpoint needed.
   // Only fetches when there's actually something to preview.
-  const { data: recentReportsPage } = useAdminReports({ status: 'PENDING', limit: 5 });
+  const { data: recentReportsPage } = useAdminReports(
+    { status: 'PENDING', limit: 5 },
+    { enabled: previewOpen },
+  );
   const recentReports = recentReportsPage?.items ?? [];
 
   /**
@@ -99,7 +106,7 @@ export function AdminHeader() {
          * latest pending reports so an admin can judge urgency before
          * committing to the full reports page.
          */}
-        <DropdownMenu>
+        <DropdownMenu open={previewOpen} onOpenChange={setPreviewOpen}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-lg" aria-label={`الإشعارات — ${openReports} بلاغ بانتظار المراجعة`}>
               <Bell className="h-4 w-4" />

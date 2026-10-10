@@ -60,23 +60,56 @@ interface Pending {
 let pending: Pending | null = null;
 let timer: number | null = null;
 let loadListener: (() => void) | null = null;
+let idleHandle: number | null = null;
+let idleHandleIsCallback = false;
+let scheduleGeneration = 0;
 
 const RATE_LIMITED: ReadonlySet<WarmTrigger> = new Set(['online', 'visible', 'tick']);
 
+function cancelIdleStart(): void {
+  if (idleHandle === null || typeof window === 'undefined') return;
+  if (idleHandleIsCallback) {
+    const cancelIdle = (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+    cancelIdle?.(idleHandle);
+  } else {
+    window.clearTimeout(idleHandle);
+  }
+  idleHandle = null;
+  idleHandleIsCallback = false;
+}
+
 function runWhenIdle(cb: () => void): void {
+  cancelIdleStart();
+  const generation = scheduleGeneration;
+  const guardedCallback = () => {
+    idleHandle = null;
+    idleHandleIsCallback = false;
+    if (generation !== scheduleGeneration) return;
+    cb();
+  };
   const ric = (window as Window & {
     requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number;
   }).requestIdleCallback;
   if (typeof ric === 'function') {
-    ric(cb, { timeout: 5_000 });
+    idleHandleIsCallback = true;
+    idleHandle = ric(guardedCallback, { timeout: 5_000 });
   } else {
-    window.setTimeout(cb, 0);
+    idleHandleIsCallback = false;
+    idleHandle = window.setTimeout(guardedCallback, 0);
   }
 }
 
 function start(): void {
+  // Idle callbacks can run after a tab was backgrounded or connectivity
+  // changed. Re-check at the last responsible moment, before consuming the
+  // pending job, so a later visible/online trigger can resume it.
+  if (!pending) return;
+  if (document.visibilityState === 'hidden') return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  const policy = getNetworkPolicy();
+  if (policy.tier === 'offline' || !policy.allowBackgroundWarming) return;
+
   const job = pending;
-  if (!job) return;
   pending = null;
   void runWarmingPipeline({
     authenticated: job.authenticated,
@@ -142,6 +175,8 @@ export function scheduleWarming(
 
 /** Drop any armed/pending run (component unmount). */
 export function cancelScheduledWarming(): void {
+  scheduleGeneration += 1;
+  cancelIdleStart();
   if (timer !== null && typeof window !== 'undefined') window.clearTimeout(timer);
   timer = null;
   pending = null;

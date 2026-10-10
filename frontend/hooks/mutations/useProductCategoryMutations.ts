@@ -83,6 +83,7 @@ export function useToggleProductCategoryActive() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['product-category-active'],
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       productCategoriesApi.update(id, { isActive }).then((r) => r.data.data),
     onMutate: async ({ id, isActive }) => {
@@ -108,7 +109,16 @@ export function useToggleProductCategoryActive() {
         });
         return old.map(patchOne);
       });
-      return { snapshot };
+      const findPreviousActive = (categories: ProductCategory[] | undefined): boolean | undefined => {
+        if (!categories) return undefined;
+        for (const category of categories) {
+          if (category.id === id) return category.isActive;
+          const nested = findPreviousActive(category.children);
+          if (nested !== undefined) return nested;
+        }
+        return undefined;
+      };
+      return { snapshot, previousActive: findPreviousActive(snapshot) };
     },
     onSuccess: (_data, { isActive }) =>
       toast.success(isActive ? 'تم تفعيل الفئة' : 'تم إخفاء الفئة'),
@@ -121,8 +131,25 @@ export function useToggleProductCategoryActive() {
       // toggling a category while offline saw the checkbox flip
       // back to its old state immediately, then flip again once
       // the SW replay actually landed — pure noise.
-      if (!parsed.queued && context?.snapshot) {
-        queryClient.setQueryData(queryKeys.productCategories.adminAll(), context.snapshot);
+      const anotherToggleForSameCategoryIsPending = queryClient.isMutating({
+        predicate: (mutation) =>
+          mutation.options.mutationKey?.[0] === 'product-category-active' &&
+          (mutation.state.variables as { id?: string } | undefined)?.id === _vars.id,
+      }) > 1;
+      if (!parsed.queued && !anotherToggleForSameCategoryIsPending && context?.previousActive !== undefined) {
+        // Roll back only the category this mutation touched. Restoring the
+        // entire tree snapshot can erase optimistic changes to other categories
+        // when two admin toggles are in flight at the same time.
+        const key = queryKeys.productCategories.adminAll();
+        queryClient.setQueryData<ProductCategory[]>(key, (current) => {
+          if (!current) return current;
+          const restoreOne = (category: ProductCategory): ProductCategory => ({
+            ...category,
+            ...(category.id === _vars.id ? { isActive: context.previousActive } : {}),
+            children: category.children?.map(restoreOne),
+          });
+          return current.map(restoreOne);
+        });
       }
       toast.error(parsed.message);
     },

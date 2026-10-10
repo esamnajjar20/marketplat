@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { invalidateProductBrowseCaches } from '@/lib/queryInvalidation';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
-import type { CreatePromotionPayload, UpdatePromotionPayload } from '@/types/promotion.types';
+import type { CreatePromotionPayload, Promotion, UpdatePromotionPayload } from '@/types/promotion.types';
 
 // PROMO-1: every mutation here also invalidates queryKeys.products —
 // a promotion directly changes its product's effectivePrice (see
@@ -21,9 +21,11 @@ export function useCreatePromotion() {
   return useMutation({
     mutationFn: (payload: CreatePromotionPayload) =>
       promotionsApi.create(payload).then((r) => r.data.data),
-    onSuccess: () => {
+    onSuccess: (promotion) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.promotions.all() });
-      void invalidateProductBrowseCaches(queryClient, { includeAllDetails: true });
+      void invalidateProductBrowseCaches(queryClient, promotion?.productId
+        ? { productId: promotion.productId }
+        : { includeAllDetails: true });
       toast.success('تم إنشاء العرض بنجاح');
     },
     onError: toastMutationError,
@@ -36,9 +38,11 @@ export function useUpdatePromotion(promotionId: string) {
   return useMutation({
     mutationFn: (payload: UpdatePromotionPayload) =>
       promotionsApi.update(promotionId, payload).then((r) => r.data.data),
-    onSuccess: () => {
+    onSuccess: (promotion) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.promotions.all() });
-      void invalidateProductBrowseCaches(queryClient, { includeAllDetails: true });
+      void invalidateProductBrowseCaches(queryClient, promotion?.productId
+        ? { productId: promotion.productId }
+        : { includeAllDetails: true });
       toast.success('تم حفظ التعديلات');
     },
     onError: toastMutationError,
@@ -50,9 +54,16 @@ export function useCancelPromotion() {
 
   return useMutation({
     mutationFn: (id: string) => promotionsApi.cancel(id),
-    onSuccess: () => {
+    onSuccess: (_data, promotionId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.promotions.all() });
-      void invalidateProductBrowseCaches(queryClient, { includeAllDetails: true });
+      const detail = queryClient.getQueryData<Promotion>(queryKeys.promotions.detail(promotionId));
+      const mine = queryClient.getQueryData<Promotion[]>(queryKeys.promotions.mine());
+      const productId = detail?.productId ?? mine?.find((promotion) => promotion.id === promotionId)?.productId;
+      // DELETE/cancel returns no promotion body. Narrow when cached metadata
+      // identifies the product; retain the safe broad fallback if it does not.
+      void invalidateProductBrowseCaches(queryClient, productId
+        ? { productId }
+        : { includeAllDetails: true });
       toast.success('تم إلغاء العرض');
     },
     onError: toastMutationError,

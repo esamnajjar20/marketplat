@@ -16,13 +16,18 @@ import { queryKeys }     from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { toast }         from 'sonner';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
+import { runSerializedMutation } from '@/lib/serialMutationQueue';
+import { getSessionCleanupVersion } from '@/lib/authCleanup';
 
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['favorite-toggle', 'ad'],
     mutationFn: (adId: string) =>
-      favoritesApi.toggle(adId).then((r) => r.data.data),
+      runSerializedMutation(JSON.stringify(['favorite', getSessionCleanupVersion(), 'ad', adId]), () =>
+        favoritesApi.toggle(adId).then((r) => r.data.data),
+      ),
 
     onMutate: async (adId: string) => {
       // T793-bis — cancelQueries MUST precede the snapshot + write.
@@ -37,24 +42,27 @@ export function useToggleFavorite() {
       // the cache synchronously right after it — the justification
       // was incorrect.
       await queryClient.cancelQueries({ queryKey: queryKeys.favorites.all() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.favorites.check(adId) });
       await queryClient.cancelQueries({ queryKey: queryKeys.favorites.ids() });
 
       const previousIds = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids());
+      const wasFavorite = previousIds?.has(adId) ?? false;
+      const optimisticFavorite = !wasFavorite;
 
       queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (old) => {
         const next = new Set(old ?? []);
-        if (next.has(adId)) {
-          next.delete(adId);
-        } else {
-          next.add(adId);
-        }
+        if (optimisticFavorite) next.add(adId);
+        else next.delete(adId);
         return next;
       });
 
-      return { previousIds };
+      // No rollback snapshot is retained: a toggle's prior state can already
+      // be obsolete by the time its request fails. Reconcile after the last
+      // pending toggle instead of restoring historical state.
+      return undefined;
     },
 
-    onError: (err, _adId, context) => {
+    onError: (err, _adId) => {
       const parsed = parseApiError(err);
       // FEAT-OFFLINE-FAVORITES: a queued mutation (sw.js's offline
       // mutation queue — see client.ts's OFFLINE_QUEUED rejection) is
@@ -64,16 +72,22 @@ export function useToggleFavorite() {
       // the request is still pending, not failed — exactly the
       // "toggle offline, sync later" behaviour the app is supposed to
       // give (❤️ → محليًا فورًا → Offline: يدخل Queue، لا يُلغى).
-      if (!parsed.queued && context?.previousIds !== undefined) {
-        queryClient.setQueryData(queryKeys.favorites.ids(), context.previousIds);
-      }
+      // A historical rollback is unsafe when newer clicks for the same ID
+      // already changed the optimistic state. The last pending mutation
+      // reconciles with the server in onSettled instead.
       toast.error(parsed.message);
     },
 
-    onSettled: (_data, _error, adId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.listRoot() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.ids() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.check(adId) });
+    onSettled: (_data, error, adId) => {
+      // isMutating includes the mutation currently settling. Defer invalidation
+      // until the last ad toggle finishes to avoid intermediate responses
+      // overwriting a newer optimistic state. Keep queued offline toggles local.
+      const parsed = error ? parseApiError(error) : null;
+      if (parsed?.queued) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.check(adId) });
+      if (queryClient.isMutating({ mutationKey: ['favorite-toggle', 'ad'] }) > 1) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.listRoot() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.ids() });
     },
   });
 }
@@ -93,8 +107,11 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['favorite-toggle', type],
     mutationFn: (entityId: string) =>
-      favoritesApi.toggleEntity(type, entityId).then((r) => r.data.data),
+      runSerializedMutation(JSON.stringify(['favorite', getSessionCleanupVersion(), type, entityId]), () =>
+        favoritesApi.toggleEntity(type, entityId).then((r) => r.data.data),
+      ),
 
     onMutate: async (entityId: string) => {
       // T793-bis — same cancel-first requirement as useToggleFavorite
@@ -103,38 +120,42 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
       // the write and the (previously) late cancelQueries would
       // overwrite the optimistic Set.
       await queryClient.cancelQueries({ queryKey: queryKeys.favorites.entityListRoot(type) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.favorites.entityCheck(type, entityId) });
 
       const previousIds = queryClient.getQueryData<Set<string>>(
         queryKeys.favorites.entityIds(type),
       );
+      const wasFavorite = previousIds?.has(entityId) ?? false;
+      const optimisticFavorite = !wasFavorite;
 
       queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds(type), (old) => {
         const next = new Set(old ?? []);
-        if (next.has(entityId)) {
-          next.delete(entityId);
-        } else {
-          next.add(entityId);
-        }
+        if (optimisticFavorite) next.add(entityId);
+        else next.delete(entityId);
         return next;
       });
 
-      return { previousIds };
+      // Avoid retaining a stale rollback snapshot for a non-idempotent toggle.
+      // The final pending mutation reconciles the cache with server state.
+      return undefined;
     },
 
-    onError: (err, _entityId, context) => {
+    onError: (err, _entityId) => {
       const parsed = parseApiError(err);
       // FEAT-OFFLINE-FAVORITES: same reasoning as useToggleFavorite's
       // onError above — a queued offline mutation isn't a real
       // failure, so don't undo the optimistic toggle for it.
-      if (!parsed.queued && context?.previousIds !== undefined) {
-        queryClient.setQueryData(queryKeys.favorites.entityIds(type), context.previousIds);
-      }
+      // Toggle snapshots can be stale when the same entity has newer pending
+      // clicks. Reconcile once the final mutation in this type settles.
       toast.error(parsed.message);
     },
 
-    onSettled: (_data, _err, entityId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityListRoot(type) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityCheck(type, entityId) });
+    onSettled: (_data, error, entityId) => {
+      const parsed = error ? parseApiError(error) : null;
+      if (parsed?.queued) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityCheck(type, entityId) });
+      if (queryClient.isMutating({ mutationKey: ['favorite-toggle', type] }) > 1) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.favorites.entityListRoot(type) });
     },
   });
 }

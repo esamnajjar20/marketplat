@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
+import { invalidateStoreProfileCaches } from '@/lib/queryInvalidation';
 import { parseApiError } from '@/lib/errorParser';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
@@ -34,12 +35,11 @@ export function useUpdateStore() {
   return useMutation({
     mutationFn: (payload: UpdateStorePayload) =>
       storesApi.updateMyStore(payload).then((r) => r.data.data),
-    onSuccess: () => {
-      // Invalidate the whole ['stores'] prefix, not just 'me' — the
-      // public directory/detail queries shouldn't keep showing stale
-      // data after an owner edits their store. Same reasoning as
-      // useUpdateServiceListing's I-05 fix.
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+    onSuccess: (store) => {
+      // Invalidate only profile-dependent collections and the known detail;
+      // analytics, member lists and follow membership are unaffected by edits.
+      void invalidateStoreProfileCaches(queryClient, store?.id);
+      if (store) queryClient.setQueryData(queryKeys.stores.me(), store);
       toast.success('تم حفظ التعديلات');
     },
     onError: toastMutationError,
@@ -64,10 +64,9 @@ export function useUploadStoreLogo() {
       });
       return promise;
     },
-    onSuccess: () => {
-      // Same as useUpdateStore — invalidate the whole ['stores'] prefix
-      // so the public store page picks up the new logo too.
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+    onSuccess: (store) => {
+      void invalidateStoreProfileCaches(queryClient, store?.id);
+      if (store) queryClient.setQueryData(queryKeys.stores.me(), store);
     },
   });
 }
@@ -86,10 +85,9 @@ export function useUploadStoreCover() {
       });
       return promise;
     },
-    onSuccess: () => {
-      // Same as useUpdateStore — invalidate the whole ['stores'] prefix
-      // so the public store page picks up the new cover photo too.
-      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+    onSuccess: (store) => {
+      void invalidateStoreProfileCaches(queryClient, store?.id);
+      if (store) queryClient.setQueryData(queryKeys.stores.me(), store);
     },
   });
 }

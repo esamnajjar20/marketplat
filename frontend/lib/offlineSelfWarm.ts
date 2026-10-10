@@ -40,30 +40,86 @@ import { saveOfflineJson, OFFLINE_JSON_KEYS } from '@/lib/offlineJsonCache';
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 import { productCategoriesApi } from '@/api/product-categories.api';
 import { serviceCategoriesApi } from '@/api/service-categories.api';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
+import { getWarmingMode } from '@/lib/warmingPreferences';
+import { CACHE_TTL } from '@/lib/constants';
 import {
   saveOfflineList,
   OFFLINE_LIST_KEYS,
   OFFLINE_LIST_LIMITS,
 } from '@/lib/offlineListCache';
 
+const inFlightByUser = new Map<string, Promise<void>>();
+
+function hasFreshQueryData(
+  queryClient: QueryClient,
+  queryKey: readonly unknown[],
+  staleTimeMs: number,
+): boolean {
+  const state = queryClient.getQueryState(queryKey);
+  return Boolean(
+    state &&
+    state.data !== undefined &&
+    Date.now() - state.dataUpdatedAt < staleTimeMs,
+  );
+}
+
 export async function warmSelfDataForOffline(
   queryClient: QueryClient,
   userId: string | null | undefined,
 ): Promise<void> {
-  await Promise.allSettled([
+  if (!userId || typeof window === 'undefined') return;
+  // Background warming is optional. Respect explicit user preference and
+  // the shared network policy before starting any requests.
+  if (getWarmingMode() === 'off' || !getNetworkPolicy().allowBackgroundWarming) return;
+
+  const existing = inFlightByUser.get(userId);
+  if (existing) return existing;
+
+  const run = Promise.allSettled([
     (async () => {
+      const queryKey = queryKeys.sellers.me();
+      const cached = queryClient.getQueryData(queryKey);
+      if (
+        cached !== undefined &&
+        hasFreshQueryData(queryClient, queryKey, CACHE_TTL.sellerProfile) &&
+        getCurrentOfflineUserId() === userId
+      ) {
+        if (cached) saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, cached, userId);
+        return;
+      }
       const data = await sellersApi.getMyProfile().then((r) => r.data.data);
       if (!data || getCurrentOfflineUserId() !== userId) return;
       saveOfflineJson(OFFLINE_JSON_KEYS.sellerProfileSelf, data, userId);
       queryClient.setQueryData(queryKeys.sellers.me(), data);
     })(),
     (async () => {
+      const queryKey = queryKeys.stores.me();
+      const cached = queryClient.getQueryData(queryKey);
+      if (
+        cached !== undefined &&
+        hasFreshQueryData(queryClient, queryKey, CACHE_TTL.sellerProfile) &&
+        getCurrentOfflineUserId() === userId
+      ) {
+        if (cached) saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, cached, userId);
+        return;
+      }
       const data = await storesApi.getMyStore().then((r) => r.data.data);
       if (!data || getCurrentOfflineUserId() !== userId) return;
       saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data, userId);
       queryClient.setQueryData(queryKeys.stores.me(), data);
     })(),
     (async () => {
+      const queryKey = queryKeys.serviceProviders.me();
+      const cached = queryClient.getQueryData(queryKey);
+      if (
+        cached !== undefined &&
+        hasFreshQueryData(queryClient, queryKey, CACHE_TTL.sellerProfile) &&
+        getCurrentOfflineUserId() === userId
+      ) {
+        if (cached) saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, cached, userId);
+        return;
+      }
       const data = await serviceProvidersApi.getMyProvider().then((r) => r.data.data);
       if (!data || getCurrentOfflineUserId() !== userId) return;
       saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data, userId);
@@ -76,6 +132,19 @@ export async function warmSelfDataForOffline(
     // rendering empty and blocking submit. Best-effort like the three
     // above — a failure here just falls back to live fetch later.
     (async () => {
+      const queryKey = queryKeys.productCategories.all();
+      const cached = queryClient.getQueryData<unknown[]>(queryKey);
+      if (
+        Array.isArray(cached) &&
+        hasFreshQueryData(queryClient, queryKey, CACHE_TTL.categories)
+      ) {
+        saveOfflineList(
+          OFFLINE_LIST_KEYS.productCategories,
+          cached,
+          OFFLINE_LIST_LIMITS.productCategories,
+        );
+        return;
+      }
       const data = await productCategoriesApi.getAll().then((r) => r.data.data);
       if (!Array.isArray(data) || data.length === 0 || getCurrentOfflineUserId() !== userId) return;
       saveOfflineList(
@@ -86,6 +155,19 @@ export async function warmSelfDataForOffline(
       queryClient.setQueryData(queryKeys.productCategories.all(), data);
     })(),
     (async () => {
+      const queryKey = queryKeys.serviceCategories.all();
+      const cached = queryClient.getQueryData<unknown[]>(queryKey);
+      if (
+        Array.isArray(cached) &&
+        hasFreshQueryData(queryClient, queryKey, CACHE_TTL.categories)
+      ) {
+        saveOfflineList(
+          OFFLINE_LIST_KEYS.serviceCategories,
+          cached,
+          OFFLINE_LIST_LIMITS.serviceCategories,
+        );
+        return;
+      }
       const data = await serviceCategoriesApi.getAll().then((r) => r.data.data);
       if (!Array.isArray(data) || data.length === 0 || getCurrentOfflineUserId() !== userId) return;
       saveOfflineList(
@@ -95,5 +177,9 @@ export async function warmSelfDataForOffline(
       );
       queryClient.setQueryData(queryKeys.serviceCategories.all(), data);
     })(),
-  ]);
+  ]).then(() => undefined).finally(() => {
+    if (inFlightByUser.get(userId) === run) inFlightByUser.delete(userId);
+  });
+  inFlightByUser.set(userId, run);
+  return run;
 }

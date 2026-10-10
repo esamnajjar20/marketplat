@@ -20,8 +20,7 @@ import {
   clearActiveOfflineDraftId,
 } from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
-import type { CreateProductPayload, UpdateProductPayload, Product } from '@/types/product.types';
-import type { PaginatedResponse } from '@/types/api.types';
+import type { CreateProductPayload, UpdateProductPayload } from '@/types/product.types';
 
 
 /**
@@ -276,6 +275,41 @@ export function useDeleteProduct() {
  * looking at, same shape as useToggleServiceListingStatus (optimistic
  * update + rollback on error).
  */
+function updateProductStatusInCache<T>(value: T, productId: string, status: 'ACTIVE' | 'PAUSED'): T {
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const updated = updateProductStatusInCache(item, productId, status);
+      if (updated !== item) changed = true;
+      return updated;
+    });
+    return (changed ? next : value) as T;
+  }
+  if (value === null || typeof value !== 'object') return value;
+
+  const record = value as Record<string, unknown>;
+  const matches = record.id === productId && record.status !== status;
+  let changed = matches;
+  const next: Record<string, unknown> = { ...record };
+  for (const [key, child] of Object.entries(record)) {
+    const updated = updateProductStatusInCache(child, productId, status);
+    if (updated !== child) {
+      changed = true;
+      next[key] = updated;
+    }
+  }
+  // Product detail/list/infinite/promoted caches all carry the product ID
+  // somewhere in their payload. Preserve references for unrelated cache data.
+  if (!changed) return value;
+  if (matches) next.status = status;
+  return next as T;
+}
+
+function isProductBrowseCacheKey(key: readonly unknown[]): boolean {
+  return key[0] === 'products' &&
+    ['list', 'infinite', 'promoted', 'me', 'detail'].includes(String(key[1] ?? ''));
+}
+
 export function useToggleProductStatus() {
   const queryClient = useQueryClient();
 
@@ -290,27 +324,16 @@ export function useToggleProductStatus() {
       // a visible flicker (PAUSED → ACTIVE → PAUSED once onSettled
       // invalidated). TanStack Query's own docs specify the correct
       // order: cancel first, then snapshot, then write.
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: queryKeys.products.listRoot() }),
-        queryClient.cancelQueries({ queryKey: queryKeys.products.mineRoot() }),
-      ]);
-      const snapshots = [
-        ...queryClient.getQueriesData<PaginatedResponse<Product>>({ queryKey: queryKeys.products.listRoot() }),
-        ...queryClient.getQueriesData<PaginatedResponse<Product>>({ queryKey: queryKeys.products.mineRoot() }),
-      ];
-      // Update only the paginated list and mine prefixes. Infinite and
-      // detail caches have different data shapes and are invalidated after
-      // the mutation settles instead of being needlessly cancelled here.
-      const updateStatus = (old: PaginatedResponse<Product> | undefined) => {
-        if (!old?.items) return old;
-        return { ...old, items: old.items.map((p) => (p.id === id ? { ...p, status } : p)) };
-      };
-      queryClient.setQueriesData<PaginatedResponse<Product>>(
-        { queryKey: queryKeys.products.listRoot() }, updateStatus,
-      );
-      queryClient.setQueriesData<PaginatedResponse<Product>>(
-        { queryKey: queryKeys.products.mineRoot() }, updateStatus,
-      );
+      // A status toggle affects public lists, infinite/promoted rails, the
+      // owner's list, and the exact detail. Cancel all product requests first
+      // so an older in-flight response cannot overwrite the optimistic state.
+      await queryClient.cancelQueries({ queryKey: queryKeys.products.all() });
+      const snapshots = queryClient
+        .getQueriesData<unknown>({ queryKey: queryKeys.products.all() })
+        .filter(([key]) => isProductBrowseCacheKey(key));
+      for (const [key, data] of snapshots) {
+        queryClient.setQueryData(key, updateProductStatusInCache(data, id, status));
+      }
       return { snapshots };
     },
     onSuccess: (_data, { status }) =>

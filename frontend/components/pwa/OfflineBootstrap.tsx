@@ -143,7 +143,11 @@ export function OfflineBootstrap() {
 
     const PERIODIC_QUEUE_MS = 5 * 60 * 1000;
     const periodicId = window.setInterval(() => {
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.onLine &&
+        document.visibilityState === 'visible'
+      ) {
         replayThenPublishDrafts();
       }
     }, PERIODIC_QUEUE_MS);

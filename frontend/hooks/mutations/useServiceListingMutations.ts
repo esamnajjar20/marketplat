@@ -23,9 +23,7 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
 import type {
   CreateServiceListingPayload,
   UpdateServiceListingPayload,
-  ServiceListing,
 } from '@/types/service.types';
-import type { PaginatedResponse } from '@/types/api.types';
 
 
 /**
@@ -283,40 +281,100 @@ export function useDeleteServiceListing() {
  * looking at. Optimistic update mirrors
  * useToggleServiceCategoryActive's pattern in useServiceCategoryMutations.ts.
  */
+function findServiceListingStatusInCache(value: unknown, listingId: string): 'ACTIVE' | 'PAUSED' | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findServiceListingStatusInCache(item, listingId);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (value === null || typeof value !== 'object') return undefined;
+  const record = value as Record<string, unknown>;
+  if (record.id === listingId && (record.status === 'ACTIVE' || record.status === 'PAUSED')) return record.status;
+  for (const child of Object.values(record)) {
+    const found = findServiceListingStatusInCache(child, listingId);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function updateServiceListingStatusInCache<T>(value: T, listingId: string, status: 'ACTIVE' | 'PAUSED'): T {
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const updated = updateServiceListingStatusInCache(item, listingId, status);
+      if (updated !== item) changed = true;
+      return updated;
+    });
+    return (changed ? next : value) as T;
+  }
+  if (value === null || typeof value !== 'object') return value;
+
+  const record = value as Record<string, unknown>;
+  const matches = record.id === listingId && record.status !== status;
+  let changed = matches;
+  const next: Record<string, unknown> = { ...record };
+  for (const [key, child] of Object.entries(record)) {
+    const updated = updateServiceListingStatusInCache(child, listingId, status);
+    if (updated !== child) {
+      changed = true;
+      next[key] = updated;
+    }
+  }
+  if (!changed) return value;
+  if (matches) next.status = status;
+  return next as T;
+}
+
+function isServiceListingBrowseCacheKey(key: readonly unknown[]): boolean {
+  return key[0] === 'service-listings' &&
+    ['list', 'infinite', 'me', 'detail'].includes(String(key[1] ?? ''));
+}
+
 export function useToggleServiceListingStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['service-listing-status'],
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'PAUSED' }) =>
       serviceListingsApi.update(id, { status }).then((r) => r.data.data),
     onMutate: async ({ id, status }) => {
-      // T793 — same reasoning as useToggleProductStatus above.
-      // cancelQueries must precede the optimistic write or an
-      // in-flight refetch can overwrite it with the pre-toggle value.
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.listRoot() }),
-        queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.mineRoot() }),
-      ]);
-      const snapshots = [
-        ...queryClient.getQueriesData<PaginatedResponse<ServiceListing>>({ queryKey: queryKeys.serviceListings.listRoot() }),
-        ...queryClient.getQueriesData<PaginatedResponse<ServiceListing>>({ queryKey: queryKeys.serviceListings.mineRoot() }),
-      ];
-      const updateStatus = (old: PaginatedResponse<ServiceListing> | undefined) => {
-        if (!old?.items) return old;
-        return { ...old, items: old.items.map((listing) => (listing.id === id ? { ...listing, status } : listing)) };
-      };
-      queryClient.setQueriesData<PaginatedResponse<ServiceListing>>(
-        { queryKey: queryKeys.serviceListings.listRoot() }, updateStatus,
-      );
-      queryClient.setQueriesData<PaginatedResponse<ServiceListing>>(
-        { queryKey: queryKeys.serviceListings.mineRoot() }, updateStatus,
-      );
-      return { snapshots };
+      // Cancel every service-listing request before touching cache so a stale
+      // list, infinite page, or detail response cannot overwrite the toggle.
+      await queryClient.cancelQueries({ queryKey: queryKeys.serviceListings.all() });
+      const snapshots = queryClient
+        .getQueriesData<unknown>({ queryKey: queryKeys.serviceListings.all() })
+        .filter(([key]) => isServiceListingBrowseCacheKey(key));
+      for (const [key, data] of snapshots) {
+        queryClient.setQueryData(key, updateServiceListingStatusInCache(data, id, status));
+      }
+      const previousStatus = snapshots
+        .map(([, data]) => data)
+        .map((data) => findServiceListingStatusInCache(data, id))
+        .find((value): value is 'ACTIVE' | 'PAUSED' => value !== undefined);
+      return { previousStatus };
     },
     onSuccess: (_data, { status }) =>
       toast.success(status === 'PAUSED' ? 'تم إيقاف الخدمة مؤقتاً' : 'تمت إعادة تفعيل الخدمة'),
-    onError: (err, _vars, context) => {
-      context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    onError: (err, variables, context) => {
+      const anotherToggleForSameListingIsPending = queryClient.isMutating({
+        predicate: (mutation) =>
+          mutation.options.mutationKey?.[0] === 'service-listing-status' &&
+          (mutation.state.variables as { id?: string } | undefined)?.id === variables.id,
+      }) > 1;
+      // Restore only the failed listing's previous status. Replacing whole
+      // paginated snapshots here could discard concurrent optimistic changes
+      // to other listings in the same cached page.
+      if (!anotherToggleForSameListingIsPending && context?.previousStatus !== undefined) {
+        // Roll back only this listing in every affected cache; restoring full
+        // snapshots could erase unrelated concurrent cache updates.
+        const caches = queryClient.getQueriesData<unknown>({ queryKey: queryKeys.serviceListings.all() })
+          .filter(([key]) => isServiceListingBrowseCacheKey(key));
+        for (const [key, data] of caches) {
+          queryClient.setQueryData(key, updateServiceListingStatusInCache(data, variables.id, context.previousStatus));
+        }
+      }
       toast.error(parseApiError(err).message);
     },
     onSettled: (_data, _error, variables) => invalidateServiceListingCaches(queryClient, variables?.id),

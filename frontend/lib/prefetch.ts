@@ -160,9 +160,18 @@ function fetchAdDetailDeduped(id: string): Promise<Ad> {
 
   const promise = fetchAdDetailCached(id);
   adDetailPromises.set(id, promise);
-  void promise.finally(() => {
-    setTimeout(() => adDetailPromises.delete(id), 0);
-  });
+
+  // Do not attach a bare `finally()` here: it creates a second promise that
+  // rejects when the fetch rejects, and ignoring that derived promise can
+  // surface an unhandled-rejection warning even when the caller handles the
+  // original promise. Use both settlement branches and keep the short
+  // post-settlement window for duplicate calls in the same render turn.
+  const release = () => {
+    setTimeout(() => {
+      if (adDetailPromises.get(id) === promise) adDetailPromises.delete(id);
+    }, 0);
+  };
+  void promise.then(release, release);
   return promise;
 }
 

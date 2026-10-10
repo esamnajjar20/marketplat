@@ -76,6 +76,7 @@ import { STATIC_CACHE_NAME, PERSONAL_SHELL_CACHE_NAME } from '@/lib/cacheVersion
 import { getExpectedRouteAssets } from './warmingManifest';
 import { recordWarmedRoute, recordWarmingTransfer } from './warmingTelemetry';
 import { reserveWarmingRequest, recordWarmingRuntimeBytes } from './warmingRuntimeBudget';
+import { abortActiveWarmingRequests } from './offlineWarmingAbort';
 
 // PROXY-WARMING: transient staging area for atomic per-route warming.
 // Deliberately NOT versioned — sw.js's activate handler deletes any
@@ -802,7 +803,12 @@ export async function warmPersonalShells(): Promise<void> {
 // WARMING-CANCEL-01: user-triggered abort from /settings/offline.
 // The warming loops check this flag at the top of each iteration.
 let warmingCancelled = false;
-export function requestWarmingCancel(): void { warmingCancelled = true; }
+export function requestWarmingCancel(): void {
+  warmingCancelled = true;
+  // Stop in-flight personal-data fetches as well as preventing the next
+  // worker iteration from dequeuing another endpoint.
+  abortActiveWarmingRequests();
+}
 export function resetWarmingCancel(): void { warmingCancelled = false; }
 export function isWarmingCancelled(): boolean { return warmingCancelled; }
 

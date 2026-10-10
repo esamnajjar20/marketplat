@@ -343,9 +343,9 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
               try {
                 const favData = await queryClient.fetchQuery({
                   queryKey: queryKeys.favorites.all({ page: 1 }),
-                  queryFn: () =>
+                  queryFn: ({ signal }) =>
                     favoritesApi
-                      .getAll({ page: 1 })
+                      .getAll({ page: 1 }, { signal })
                       .then((r) => r.data.data),
                   staleTime: CACHE_TTL.favorites,
                 });

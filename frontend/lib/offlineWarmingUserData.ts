@@ -42,6 +42,7 @@ import { reportProgress } from './warmingProgress';
 import { runUnderWarmingLock } from './offlineWarmingCoordinator';
 import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
 import { isWarmingCancelled } from './offlineRouteShells';
+import { registerWarmingController } from './offlineWarmingAbort';
 import { useAuthStore } from '@/store/auth.store';
 import { SW_CACHE_VERSION, userDataCacheName, USER_DATA_CACHE_PREFIX } from '@/lib/cacheVersion';
 // Single source: the prefix lives in lib/cacheVersion.ts, next to
@@ -207,6 +208,7 @@ async function warmOneEndpoint(
   // (20s / 45s) used to cover the whole sequential pass, so on a slow link
   // the tail endpoints were aborted on every run and never landed.
   const controller = new AbortController();
+  const unregisterController = registerWarmingController(controller);
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   const signal = controller.signal;
   try {
@@ -256,6 +258,7 @@ async function warmOneEndpoint(
     return { ok: false, status: 0 };
   } finally {
     window.clearTimeout(timer);
+    unregisterController();
   }
 }
 
@@ -335,6 +338,9 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
               const next = queue.shift();
               if (!next) return;
               const r = await warmOneEndpoint(next.path, cache, timeoutMs, userId);
+              // Cancellation aborts the active fetch; don't process a late
+              // completion or mark it fresh after the user has stopped warming.
+              if (isWarmingCancelled() || getCurrentOfflineUserId() !== userId) return;
               // FIX WARM-PROGRESS-HONEST-01: count only endpoints that
               // actually landed (or legitimately don't apply → 404).
               if (r.ok) completed += 1;
@@ -347,7 +353,11 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
       await Promise.all(workers);
     } finally {
       // Only persist markers for the account that is still signed in.
-      if ((useAuthStore.getState().user?.id ?? 'anon') === userId) {
+      if (
+        !isWarmingCancelled() &&
+        getCurrentOfflineUserId() === userId &&
+        (useAuthStore.getState().user?.id ?? 'anon') === userId
+      ) {
         writeFreshMap(userId, map);
       }
       reportProgress('userdata', { active: false, completed, total });

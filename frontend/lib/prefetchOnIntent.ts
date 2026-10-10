@@ -69,10 +69,22 @@ export function onIntentPrefetch(key: string, work: () => void | Promise<void>) 
   runWhenIdle(() => {
     // Re-check all network gates after the idle delay. A user can move from
     // Wi-Fi to a metered/slow mobile connection while this callback waits.
-    if (!canPrefetch()) return;
+    // If the gate closes while queued, release this reservation immediately:
+    // otherwise the key is suppressed for the full cooldown despite no work
+    // having started.
+    const releaseReservation = () => {
+      if (scheduled.get(key) === now) scheduled.delete(key);
+    };
+    if (!canPrefetch()) {
+      releaseReservation();
+      return;
+    }
 
     const currentPolicy = getNetworkPolicy();
-    if (activePrefetches >= currentPolicy.maxPrefetchConcurrency) return;
+    if (activePrefetches >= currentPolicy.maxPrefetchConcurrency) {
+      releaseReservation();
+      return;
+    }
 
     activePrefetches += 1;
     void Promise.resolve(work())
