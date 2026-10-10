@@ -19,6 +19,8 @@ import { presence } from '../../shared/utils/presence';
 import { notificationsService } from '../notifications/notifications.service';
 import { conversationsService } from '../conversations/conversations.service';
 import { sellersService } from '../sellers/sellers.service';
+import { storesService } from '../stores/stores.service';
+import { serviceProvidersService } from '../service-providers/service-providers.service';
 import { favoritesService } from '../favorites/favorites.service';
 import { bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 
@@ -67,6 +69,8 @@ export const usersService = {
       sellerAttention,
       adStats,
       favorites,
+      store,
+      serviceProvider,
     ] = await Promise.all([
       soft(() => notificationsService.getUnreadCount(userId)),
       soft(async () => (await conversationsService.getUnreadCount(userId)).count),
@@ -77,6 +81,8 @@ export const usersService = {
       soft(() => sellersService.getMyAttention(userId)),
       soft(() => adsService.getMyStats(userId)),
       soft(() => favoritesService.getMyFavorites(userId, { page: 1, limit: 20 })),
+      soft(() => storesService.getMyStore(userId)),
+      soft(() => serviceProvidersService.getMyServiceProvider(userId)),
     ]);
 
     return {
@@ -88,6 +94,8 @@ export const usersService = {
       sellerAttention,
       adStats,
       favorites,
+      store,
+      serviceProvider,
     };
   },
 

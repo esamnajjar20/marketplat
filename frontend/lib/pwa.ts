@@ -47,6 +47,27 @@ async function getReadySW(): Promise<ServiceWorkerRegistration | null> {
   }
 }
 
+// Coalesce duplicate subscription registrations triggered by overlapping
+// login hydration / PWA lifecycle callbacks. The server remains the source
+// of truth; this only suppresses concurrent identical POSTs in this tab.
+const pushRegistrationInFlight = new Map<string, Promise<void>>();
+
+async function registerPushSubscriptionOnce(subscription: PushSubscription): Promise<void> {
+  const endpoint = subscription.endpoint;
+  const existing = pushRegistrationInFlight.get(endpoint);
+  if (existing) return existing;
+
+  const request = apiClient.post('/notifications/push-subscriptions', subscription.toJSON())
+    .then(() => undefined)
+    .finally(() => {
+      if (pushRegistrationInFlight.get(endpoint) === request) {
+        pushRegistrationInFlight.delete(endpoint);
+      }
+    });
+  pushRegistrationInFlight.set(endpoint, request);
+  return request;
+}
+
 let waitingUpdateListeners: SwUpdateListener[] = [];
 
 /** بعد تفعيل تحديث بنجاح: لا تُظهر طلب تحديث جديد فورًا (عالق waiting أو sw.js غير مستقر). */
@@ -443,7 +464,7 @@ export async function subscribeToPush(): Promise<boolean> {
   });
 
   try {
-    await apiClient.post('/notifications/push-subscriptions', subscription.toJSON());
+    await registerPushSubscriptionOnce(subscription);
     return true;
   } catch (err) {
     // لو فشل حفظ الاشتراك في الباك-إند يبقى المتصفح مشتركًا دون أن يعرف الخادم —
@@ -496,7 +517,7 @@ export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscr
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
       try {
-        await apiClient.post('/notifications/push-subscriptions', subscription.toJSON());
+        await registerPushSubscriptionOnce(subscription);
         return 'subscribed';
       } catch {
         await subscription.unsubscribe().catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error));
@@ -505,7 +526,7 @@ export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscr
     }
 
     try {
-      await apiClient.post('/notifications/push-subscriptions', subscription.toJSON());
+      await registerPushSubscriptionOnce(subscription);
       return 'synced';
     } catch {
       return 'skipped';

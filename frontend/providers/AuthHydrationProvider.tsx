@@ -253,6 +253,12 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         if (bootstrap.sellerProfile !== undefined) {
           queryClient.setQueryData(queryKeys.sellers.me(), bootstrap.sellerProfile);
         }
+        if (bootstrap.store != null) {
+          queryClient.setQueryData(queryKeys.stores.me(), bootstrap.store);
+        }
+        if (bootstrap.serviceProvider != null) {
+          queryClient.setQueryData(queryKeys.serviceProviders.me(), bootstrap.serviceProvider);
+        }
         if (bootstrap.sellerAttention) {
           queryClient.setQueryData(
             queryKeys.sellers.attention(),

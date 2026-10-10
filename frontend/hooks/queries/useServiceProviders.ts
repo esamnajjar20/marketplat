@@ -10,6 +10,7 @@ import {
   useAuthStore,
   selectIsAuthenticated,
   selectHasAccessToken,
+  selectIsAuthResolving,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { NearbyServiceProvidersParams, ServiceProvidersQuery, ServiceProviderDetails } from '@/types/service.types';
@@ -69,6 +70,7 @@ export function useServiceProvider(id: string) {
  */
 export function useMyServiceProvider() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
   // T770 — user-scoped.
@@ -91,7 +93,7 @@ export function useMyServiceProvider() {
       }
     },
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: isAuthenticated && (hasToken || !isOnline),
+    enabled: isAuthenticated && (hasToken || !isOnline) && !isAuthResolving,
     retry: false,
   });
 }

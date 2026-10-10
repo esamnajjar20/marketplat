@@ -16,6 +16,7 @@ import {
   useAuthStore,
   selectIsAuthenticated,
   selectHasAccessToken,
+  selectIsAuthResolving,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
@@ -130,6 +131,7 @@ export function useStore(id: string) {
  */
 export function useMyStore(options?: { enabled?: boolean }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
   // T770 — user-scoped.
@@ -152,7 +154,7 @@ export function useMyStore(options?: { enabled?: boolean }) {
       }
     },
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: (options?.enabled ?? true) && isAuthenticated && (hasToken || !isOnline),
+    enabled: (options?.enabled ?? true) && isAuthenticated && (hasToken || !isOnline) && !isAuthResolving,
     retry: false,
   });
 

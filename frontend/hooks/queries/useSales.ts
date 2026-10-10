@@ -8,7 +8,23 @@ import type { SalesPage } from '@/types/sale.types';
 export function salesListQueryOptions(params?: SalesListQueryParams) {
   return queryOptions<SalesPage, Error, SalesPage, ReturnType<typeof queryKeys.sales.list>>({
     queryKey: queryKeys.sales.list(params),
-    queryFn: ({ queryKey }) => salesApi.list(queryKey[2]).then((r) => r.data.data as SalesPage),
+    // Keep the request tied to the same params used to build this key.
+    // Avoid positional queryKey[2] access: a key layout change should not
+    // silently send a different request than the cache identity describes.
+    queryFn: async () => {
+      const response = await salesApi.list(params);
+      const data: unknown = response.data.data;
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        !Array.isArray((data as { items?: unknown }).items) ||
+        !(data as { meta?: unknown }).meta ||
+        typeof (data as { meta?: unknown }).meta !== 'object'
+      ) {
+        throw new Error('Invalid sales list response: expected items and pagination metadata.');
+      }
+      return data as SalesPage;
+    },
     placeholderData: keepPreviousData,
   });
 }

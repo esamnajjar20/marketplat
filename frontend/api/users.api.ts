@@ -53,6 +53,13 @@ export interface UserBootstrapPayload {
       hasPrevPage: boolean;
     };
   } | null;
+  /** Store owned by this user, or null if they don't own one. Seeded to
+   *  queryKeys.stores.me() by AuthHydrationProvider so useMyStore reads
+   *  cache instead of racing the bootstrap on first protected render. */
+  store: import('@/types/store.types').StoreDetails | null;
+  /** Service-provider profile, or null if not a provider. Same seeding
+   *  contract as `store` above, for queryKeys.serviceProviders.me(). */
+  serviceProvider: import('@/types/service.types').ServiceProviderDetails | null;
 }
 
 export const usersApi = {

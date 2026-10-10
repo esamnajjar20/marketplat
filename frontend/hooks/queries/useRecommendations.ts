@@ -34,7 +34,7 @@ import type {
 import { recommendationsApi } from '@/api/recommendations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useAuthStore, selectIsAuthenticated, selectIsAuthResolving } from '@/store/auth.store';
 
 export interface RecommendationQueryOptions {
   enabled?: boolean;
@@ -91,37 +91,54 @@ export const recommendationQueryOptions = {
     }),
 };
 
-function withCallerScope(options: RecommendationQueryOptions | undefined, isAuthenticated: boolean): RecommendationQueryOptions {
-  return { ...options, scope: options?.scope ?? (isAuthenticated ? 'user' : 'guest') };
+function withCallerScope(
+  options: RecommendationQueryOptions | undefined,
+  isAuthenticated: boolean,
+  isAuthResolving: boolean,
+): RecommendationQueryOptions {
+  return {
+    ...options,
+    // Don't issue a guest query while cookie-backed auth is still being
+    // restored. Once auth settles, the query starts with the correct scope
+    // instead of fetching guest recommendations and immediately refetching.
+    enabled: (options?.enabled ?? true) && !isAuthResolving,
+    scope: options?.scope ?? (isAuthenticated ? 'user' : 'guest'),
+  };
 }
 
 export function useRecommendations(params?: GetRecommendationsParams, options?: RecommendationQueryOptions) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(recommendationQueryOptions.ads(params, withCallerScope(options, isAuthenticated)));
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  return useQuery(recommendationQueryOptions.ads(params, withCallerScope(options, isAuthenticated, isAuthResolving)));
 }
 
 export function useProductRecommendations(params?: GetProductRecommendationsParams, options?: RecommendationQueryOptions) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(recommendationQueryOptions.products(params, withCallerScope(options, isAuthenticated)));
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  return useQuery(recommendationQueryOptions.products(params, withCallerScope(options, isAuthenticated, isAuthResolving)));
 }
 
 export function useServiceRecommendations(params?: GetServiceRecommendationsParams, options?: RecommendationQueryOptions) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(recommendationQueryOptions.services(params, withCallerScope(options, isAuthenticated)));
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  return useQuery(recommendationQueryOptions.services(params, withCallerScope(options, isAuthenticated, isAuthResolving)));
 }
 
 export function useStoreRecommendations(params?: GetStoreRecommendationsParams, options?: RecommendationQueryOptions) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(recommendationQueryOptions.stores(params, withCallerScope(options, isAuthenticated)));
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  return useQuery(recommendationQueryOptions.stores(params, withCallerScope(options, isAuthenticated, isAuthResolving)));
 }
 
 export function useProviderRecommendations(params?: GetProviderRecommendationsParams, options?: RecommendationQueryOptions) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(recommendationQueryOptions.providers(params, withCallerScope(options, isAuthenticated)));
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  return useQuery(recommendationQueryOptions.providers(params, withCallerScope(options, isAuthenticated, isAuthResolving)));
 }
 
 export function useMixedRecommendations(params?: GetMixedRecommendationsParams, options?: RecommendationQueryOptions) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(recommendationQueryOptions.mixed(params, withCallerScope(options, isAuthenticated)));
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  return useQuery(recommendationQueryOptions.mixed(params, withCallerScope(options, isAuthenticated, isAuthResolving)));
 }
 

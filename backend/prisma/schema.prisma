@@ -1012,6 +1012,8 @@ model StoreMember {
   invitedBy User         @relation("StoreMemberInvites", fields: [invitedById], references: [id], onDelete: Restrict)
 
   @@index([storeId, status])
+  // Supports paginated team listing filtered by store/status and sorted by createdAt.
+  @@index([storeId, status, createdAt])
   @@index([userId, status])
   @@map("store_members")
 }
@@ -1131,6 +1133,9 @@ model Promotion {
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([storeId, status])
+  // Supports the seller-facing history query (storeId + createdAt DESC)
+  // without sorting the full promotion history on every page visit.
+  @@index([storeId, createdAt])
   @@index([productId, startsAt, endsAt])
   @@map("promotions")
 }

@@ -10,6 +10,7 @@ import {
   useAuthStore,
   selectIsAuthenticated,
   selectHasAccessToken,
+  selectIsAuthResolving,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { SellerAttention, SellerProfile } from '@/types/seller.types';
@@ -57,6 +58,7 @@ export function useSellerProfile(id: string) {
  */
 export function useMySellerProfile() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
   // T770 — see offlineJsonCache.ts's envelope comment. Passed on both
@@ -92,7 +94,7 @@ export function useMySellerProfile() {
     // useSellerMutations still triggers an update after edits.
     refetchOnMount: false,
     // FIX AUTH-401-STORM: require real token (or offline cache path).
-    enabled: isAuthenticated && (hasToken || !isOnline),
+    enabled: isAuthenticated && (hasToken || !isOnline) && !isAuthResolving,
     retry: false,
   });
 }
