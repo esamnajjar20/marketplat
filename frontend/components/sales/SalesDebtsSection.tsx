@@ -3,9 +3,11 @@
 import { useDebts } from '@/hooks/queries/useDebts';
 import { useDebtSummary } from '@/hooks/queries/useSales';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 export function SalesDebtsSection() {
-  const query = useDebts();
+  const [page, setPage] = useState(1);
+  const query = useDebts({ page, limit: 20 });
   const summary = useDebtSummary();
 
   return (
@@ -17,9 +19,9 @@ export function SalesDebtsSection() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[['إجمالي الدين', summary.data?.totalDue ?? 0], ['متأخر', summary.data?.overdueDue ?? 0], ['مستحق اليوم', summary.data?.dueToday ?? 0], ['عدد المدينين', summary.data?.debtorCount ?? 0]].map(([label,value]) => <div key={String(label)} className="rounded-xl border bg-card p-4"><span className="text-xs text-muted-foreground">{label}</span><strong className="mt-1 block">{label === 'عدد المدينين' ? value : `${Number(value).toFixed(2)} ₪`}</strong></div>)}</div>
       {query.isLoading ? <div className="py-12 text-center text-muted-foreground">جارٍ تحميل الديون…</div> :
        query.isError ? <div className="py-12 text-center text-destructive">تعذر تحميل الديون.</div> :
-       !query.data?.length ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">لا توجد ديون مستحقة.</div> :
+       !query.data?.rows?.length ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">لا توجد ديون مستحقة.</div> :
        <div className="grid gap-3 md:grid-cols-2">
-         {query.data.map((sale) => {
+         {query.data.rows.map((sale) => {
            const text = `مرحبًا ${sale.buyerName}، تذكير بوجود مبلغ مستحق قدره ${Number(sale.dueAmount).toFixed(2)} ₪ على الفاتورة ${sale.invoiceNumber ?? ''}.`;
            const href = sale.buyerPhone
              ? `https://wa.me/${sale.buyerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
@@ -38,6 +40,15 @@ export function SalesDebtsSection() {
            );
          })}
        </div>}
+      {query.data && query.data.totalPages > 1 && (
+        <nav className="flex items-center justify-between gap-3" aria-label="صفحات الديون">
+          <span className="text-sm text-muted-foreground">صفحة {query.data.page} من {query.data.totalPages} · {query.data.totalCount} دينًا</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={!query.data.hasPrevPage || query.isFetching} onClick={() => setPage((current) => Math.max(1, current - 1))}>السابق</Button>
+            <Button variant="outline" size="sm" disabled={!query.data.hasNextPage || query.isFetching} onClick={() => setPage((current) => current + 1)}>التالي</Button>
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

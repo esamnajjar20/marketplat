@@ -51,6 +51,66 @@ describe('Sales integration flow', () => {
     expect(Number(customer.totalSpent)).toBe(20);
   });
 
+
+  it('rejects a product sale when requested quantity exceeds available stock', async () => {
+    const { user, store } = await sellerStore();
+    const product = await createProduct(store.id);
+    const res = await request(app).post('/api/v1/sales').set('Authorization', `Bearer ${user.accessToken}`).send({
+      entityType: 'PRODUCT', entityId: product.id, storeId: store.id, entityTitle: product.name,
+      quantity: 11, unitPrice: 10, buyerName: 'Stock Boundary Buyer', paidAmount: 0,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error?.code ?? res.body.code).toBe('INSUFFICIENT_STOCK');
+    const fresh = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(fresh.stockQuantity).toBe(10);
+    expect(await prisma.saleRecord.count({ where: { sellerId: user.id, buyerName: 'Stock Boundary Buyer' } })).toBe(0);
+  });
+
+  it('serializes concurrent payments so the sale cannot be overpaid', async () => {
+    const { user } = await sellerStore();
+    const created = await request(app).post('/api/v1/sales').set('Authorization', `Bearer ${user.accessToken}`).send({
+      entityType: 'FREE', entityTitle: 'Concurrent Payment Sale', quantity: 1, unitPrice: 20,
+      buyerName: 'Concurrent Payment Buyer', paidAmount: 0,
+    });
+    expect(created.status).toBe(201);
+    const saleId = created.body.data.id;
+    const auth = { Authorization: `Bearer ${user.accessToken}` };
+    const attempts = await Promise.all([
+      request(app).post(`/api/v1/sales/${saleId}/payments`).set(auth).send({ amount: 15, method: 'CASH' }),
+      request(app).post(`/api/v1/sales/${saleId}/payments`).set(auth).send({ amount: 15, method: 'CASH' }),
+    ]);
+    expect(attempts.filter(r => r.status >= 200 && r.status < 300)).toHaveLength(1);
+    expect(attempts.filter(r => r.status === 400)).toHaveLength(1);
+    const sale = await prisma.saleRecord.findUniqueOrThrow({ where: { id: saleId }, include: { payments: true } });
+    expect(Number(sale.paidAmount)).toBe(15);
+    expect(Number(sale.dueAmount)).toBe(5);
+    expect(sale.payments).toHaveLength(1);
+  });
+
+  it('serializes concurrent returns so returned quantity cannot exceed sold quantity', async () => {
+    const { user, store } = await sellerStore();
+    const product = await createProduct(store.id);
+    const created = await request(app).post('/api/v1/sales').set('Authorization', `Bearer ${user.accessToken}`).send({
+      entityType: 'PRODUCT', entityId: product.id, storeId: store.id, entityTitle: product.name,
+      quantity: 1, unitPrice: 10, buyerName: 'Concurrent Return Buyer', paidAmount: 10,
+      payment: { amount: 10, method: 'CASH' },
+    });
+    expect(created.status).toBe(201);
+    const saleId = created.body.data.id;
+    const auth = { Authorization: `Bearer ${user.accessToken}` };
+    const payload = { quantity: 1, refundAmount: 10, reason: 'WRONG_ITEM', restockedToInventory: true };
+    const attempts = await Promise.all([
+      request(app).post(`/api/v1/sales/${saleId}/return`).set(auth).send(payload),
+      request(app).post(`/api/v1/sales/${saleId}/return`).set(auth).send(payload),
+    ]);
+    expect(attempts.filter(r => r.status >= 200 && r.status < 300)).toHaveLength(1);
+    expect(attempts.filter(r => r.status === 400)).toHaveLength(1);
+    const sale = await prisma.saleRecord.findUniqueOrThrow({ where: { id: saleId }, include: { items: true, returns: true } });
+    expect(sale.items[0].returnedQuantity).toBe(1);
+    expect(sale.returns).toHaveLength(1);
+    expect(Number(sale.refundedAmount)).toBe(10);
+  });
+
   it('records a full return and restores stock/refunded amount', async () => {
     const { user, store } = await sellerStore();
     const product = await createProduct(store.id);
@@ -70,6 +130,32 @@ describe('Sales integration flow', () => {
     expect(fresh.stockQuantity).toBe(10);
     expect(Number(sale.refundedAmount)).toBe(20);
     expect(sale.returns).toHaveLength(1);
+  });
+
+  it('deletes a partially returned sale and restores only the remaining quantity', async () => {
+    const { user, store } = await sellerStore();
+    const product = await createProduct(store.id);
+    const auth = { Authorization: `Bearer ${user.accessToken}` };
+    const created = await request(app).post('/api/v1/sales').set(auth).send({
+      entityType: 'PRODUCT', entityId: product.id, storeId: store.id, entityTitle: product.name,
+      quantity: 3, unitPrice: 10, buyerName: 'Delete After Return Buyer', paidAmount: 30,
+      payment: { amount: 30, method: 'CASH' },
+    });
+    expect(created.status).toBe(201);
+    const saleId = created.body.data.id;
+
+    const returned = await request(app).post(`/api/v1/sales/${saleId}/return`).set(auth).send({
+      quantity: 1, refundAmount: 10, reason: 'WRONG_ITEM', restockedToInventory: true,
+    });
+    expect(returned.status).toBe(200);
+    const stockAfterReturn = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(stockAfterReturn.stockQuantity).toBe(8);
+
+    const deleted = await request(app).delete(`/api/v1/sales/${saleId}`).set(auth);
+    expect(deleted.status).toBe(200);
+    const stockAfterDelete = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(stockAfterDelete.stockQuantity).toBe(10);
+    expect(await prisma.saleRecord.findUnique({ where: { id: saleId } })).toBeNull();
   });
 
   it('creates a multi-product POS sale and decrements each product independently', async () => {

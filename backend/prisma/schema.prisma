@@ -2118,7 +2118,8 @@ model SaleRecord {
   dueDate            DateTime?
   note               String?
   internalNote       String?
-  offlineOperationId String?           @unique
+  // Idempotency is scoped to the seller; avoid a second global unique constraint.
+  offlineOperationId String?
   soldAt             DateTime          @default(now())
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -2223,7 +2224,6 @@ model SaleInstallment {
   sale          SaleRecord        @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@unique([saleId, installmentNo])
-  @@index([saleId, installmentNo])
   @@index([dueDate, status])
   @@map("sale_installments")
 }
@@ -2306,7 +2306,6 @@ model SalesStatsCache {
   seller         User          @relation("SellerSalesStats", fields: [sellerId], references: [id], onDelete: Cascade)
   store          StoreDetails? @relation(fields: [storeId], references: [id], onDelete: SetNull)
 
-  @@index([storeId])
   @@map("sales_stats_cache")
 }
 

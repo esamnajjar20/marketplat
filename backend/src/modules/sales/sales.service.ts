@@ -67,17 +67,43 @@ const resolveCustomer = async (tx: Prisma.TransactionClient, sellerId: string, i
 };
 
 const recomputeCustomer = async (tx: Prisma.TransactionClient, sellerId: string, customerId: string) => {
-  const rows = await tx.saleRecord.findMany({ where: { sellerId, customerId }, select: { totalPrice: true, refundedAmount: true, dueAmount: true, soldAt: true } });
-  const first = rows.reduce<Date | null>((min, r) => !min || r.soldAt < min ? r.soldAt : min, null);
-  const last = rows.reduce<Date | null>((max, r) => !max || r.soldAt > max ? r.soldAt : max, null);
-  await tx.customer.update({ where: { id: customerId }, data: { totalSpent: rows.reduce((s, r) => s + Number(r.totalPrice) - Number(r.refundedAmount), 0), totalDue: rows.reduce((s, r) => s + Number(r.dueAmount), 0), purchaseCount: rows.length, firstPurchaseAt: first, lastPurchaseAt: last } });
+  // Aggregate in PostgreSQL instead of materializing every historical sale for this customer.
+  const aggregate = await tx.saleRecord.aggregate({
+    where: { sellerId, customerId },
+    _sum: { totalPrice: true, refundedAmount: true, dueAmount: true },
+    _count: { _all: true },
+    _min: { soldAt: true },
+    _max: { soldAt: true },
+  });
+  const totalSpent = Number(aggregate._sum.totalPrice ?? 0) - Number(aggregate._sum.refundedAmount ?? 0);
+  const totalDue = Number(aggregate._sum.dueAmount ?? 0);
+  await tx.customer.update({
+    where: { id: customerId },
+    data: {
+      totalSpent,
+      totalDue,
+      purchaseCount: aggregate._count._all,
+      firstPurchaseAt: aggregate._min.soldAt,
+      lastPurchaseAt: aggregate._max.soldAt,
+    },
+  });
 };
 
 const lockProduct = async (tx: Prisma.TransactionClient, productId: string) => {
-  const rows = await tx.$queryRaw<Array<{ id: string; storeId: string; stockQuantity: number | null }>>(Prisma.sql`SELECT "id", "storeId", "stockQuantity" FROM "products" WHERE "id" = ${productId} FOR UPDATE`);
+  const rows = await tx.$queryRaw<Array<{ id: string; storeId: string; stockQuantity: number | null; status: string }>>(Prisma.sql`SELECT "id", "storeId", "stockQuantity", "status" FROM "products" WHERE "id" = ${productId} FOR UPDATE`);
   const product = rows[0];
-  if (!product) throw new NotFoundError('Product not found.', 'PRODUCT_NOT_FOUND');
+  if (!product || product.status === 'DELETED') throw new NotFoundError('Product not found.', 'PRODUCT_NOT_FOUND');
   return product;
+};
+
+// Serialize payment and return mutations for a sale. Reading the sale only after
+// acquiring this row lock prevents concurrent requests from validating stale totals.
+const lockSaleForUpdate = async (tx: Prisma.TransactionClient, saleId: string) => {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT "id" FROM "sale_records" WHERE "id" = ${saleId} FOR UPDATE`);
+  if (!rows.length) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+  const sale = await tx.saleRecord.findUnique({ where: { id: saleId }, include: { items: true } });
+  if (!sale) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+  return sale;
 };
 
 const preparePosItems = async (userId: string, input: CreateSaleInput) => {
@@ -205,7 +231,11 @@ export const salesService = {
       });
 
       if (pos) {
-        for (const item of pos.items) {
+        // Acquire product row locks in a stable order. Two carts containing the
+        // same products in different UI orders would otherwise lock rows in
+        // opposite orders and could deadlock under concurrent checkout.
+        const itemsForStockMutation = [...pos.items].sort((a, b) => a.productId.localeCompare(b.productId));
+        for (const item of itemsForStockMutation) {
           const product = await lockProduct(tx, item.productId);
           if (product.storeId !== item.storeId) throw new ConflictError('Product store changed during sale.', 'PRODUCT_STORE_CHANGED');
           const previous = product.stockQuantity;
@@ -240,6 +270,9 @@ export const salesService = {
         const product = await lockProduct(tx, input.entityId);
         if (product.storeId !== entity.storeId) throw new ConflictError('Product store changed during sale.', 'PRODUCT_STORE_CHANGED');
         const previous = product.stockQuantity;
+        if (previous !== null && input.quantity > previous) {
+          throw new BadRequestError('Insufficient stock for this product.', 'INSUFFICIENT_STOCK');
+        }
         const next = previous === null ? null : previous - input.quantity;
         const movement = await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: previous, newQuantity: next, delta: -input.quantity, reason: `SALE:${sale.id}` } });
         await tx.saleRecord.update({ where: { id: sale.id }, data: { stockMovementId: movement.id } });
@@ -276,8 +309,13 @@ export const salesService = {
   },
 
   remove: async (userId: string, id: string) => {
-    const sale = await salesService.getById(userId, id);
-    return prisma.$transaction(async tx => {
+    // Keep the pre-transaction lookup for the usual authorization/error path,
+    // then re-read under the sale row lock to serialize deletion with payments
+    // and returns. All these operations lock the sale before any product row.
+    const existingSale = await salesService.getById(userId, id);
+    await prisma.$transaction(async tx => {
+      const sale = await lockSaleForUpdate(tx, id);
+      if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
       for (const item of sale.items) {
         if (item.entityType !== 'PRODUCT' || !item.productId) continue;
         const product = await lockProduct(tx, item.productId);
@@ -291,12 +329,16 @@ export const salesService = {
       await salesRepository.delete(tx, sale.id);
       if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
     });
+    // This cache aggregates sale count and net revenue; deletion changes both.
+    await refreshSalesStatsCache(userId, existingSale.storeId);
   },
 
   addPayment: async (userId: string, id: string, input: AddPaymentInput) => {
-    const sale = await salesService.getById(userId, id);
-    if (input.amount > Number(sale.dueAmount)) throw new BadRequestError('Payment exceeds the remaining due amount.', 'PAYMENT_EXCEEDS_DUE');
+    await salesService.getById(userId, id); // authorization check before entering the transaction
     return prisma.$transaction(async tx => {
+      const sale = await lockSaleForUpdate(tx, id);
+      if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+      if (input.amount > Number(sale.dueAmount)) throw new BadRequestError('Payment exceeds the remaining due amount.', 'PAYMENT_EXCEEDS_DUE');
       await salesRepository.addPayment(tx, { sale: { connect: { id } }, amount: input.amount, method: input.method, transferRef: input.transferRef, paidAt: input.paidAt, note: input.note });
       const paid = roundMoney(Number(sale.paidAmount) + input.amount);
       const due = roundMoney(Math.max(Number(sale.totalPrice) - Number(sale.refundedAmount) - paid, 0));
@@ -308,14 +350,15 @@ export const salesService = {
   },
 
   addReturn: async (userId: string, id: string, input: ReturnSaleInput) => {
-    const sale = await salesService.getById(userId, id);
-    const item = input.itemId ? sale.items.find(i => i.id === input.itemId) : sale.items.length === 1 ? sale.items[0] : null;
-    if (!item) throw new BadRequestError('itemId is required when returning from a multi-item sale.', 'RETURN_ITEM_REQUIRED');
-    const alreadyReturned = item.returnedQuantity;
-    if (alreadyReturned + input.quantity > item.quantity) throw new BadRequestError('Returned quantity exceeds sold quantity.', 'RETURN_QUANTITY_EXCEEDED');
-    const remainingRefundable = roundMoney(Number(sale.totalPrice) - Number(sale.refundedAmount));
-    if (input.refundAmount > remainingRefundable) throw new BadRequestError('Refund exceeds the remaining sale value.', 'REFUND_EXCEEDS_SALE');
+    const existingSale = await salesService.getById(userId, id); // authorization check before entering the transaction
     return prisma.$transaction(async tx => {
+      const sale = await lockSaleForUpdate(tx, id);
+      if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+      const item = input.itemId ? sale.items.find(i => i.id === input.itemId) : sale.items.length === 1 ? sale.items[0] : null;
+      if (!item) throw new BadRequestError('itemId is required when returning from a multi-item sale.', 'RETURN_ITEM_REQUIRED');
+      if (item.returnedQuantity + input.quantity > item.quantity) throw new BadRequestError('Returned quantity exceeds sold quantity.', 'RETURN_QUANTITY_EXCEEDED');
+      const remainingRefundable = roundMoney(Number(sale.totalPrice) - Number(sale.refundedAmount));
+      if (input.refundAmount > remainingRefundable) throw new BadRequestError('Refund exceeds the remaining sale value.', 'REFUND_EXCEEDS_SALE');
       let movementId: string | undefined;
       if (input.restockedToInventory && item.entityType === 'PRODUCT' && item.productId) {
         const product = await lockProduct(tx, item.productId);
@@ -334,6 +377,10 @@ export const salesService = {
       await tx.saleRecord.update({ where: { id }, data: { refundedAmount: refunded, dueAmount: due, paymentStatus: status } });
       if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
       return salesRepository.findByIdTx(tx, id);
+    }).then(async updatedSale => {
+      // Returns change refundedAmount, which is part of cached net revenue.
+      await refreshSalesStatsCache(userId, existingSale.storeId);
+      return updatedSale;
     });
   },
   summary: async (userId: string, period: 'day' | 'week' | 'month' | 'year') => {
@@ -347,16 +394,19 @@ export const salesService = {
   },
 
   chart: async (userId: string, from: Date, to: Date, period: 'day'|'week'|'month'|'year' = 'day') => {
-    const rows = await salesRepository.chart(userId, from, to);
-    const buckets = new Map<string, { revenue: number; paid: number; due: number; count: number }>();
-    const bucketKey = (date: Date) => {
-      if (period === 'month') return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`;
-      if (period === 'year') return String(date.getUTCFullYear());
-      if (period === 'week') { const d = new Date(date); const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() - day + 1); return d.toISOString().slice(0,10); }
-      return date.toISOString().slice(0,10);
-    };
-    for (const row of rows) { const key=bucketKey(row.soldAt); const b=buckets.get(key)??{revenue:0,paid:0,due:0,count:0}; b.revenue += Number(row.totalPrice)-Number(row.refundedAmount); b.paid += Number(row.paidAmount); b.due += Number(row.dueAmount); b.count += 1; buckets.set(key,b); }
-    return [...buckets.entries()].sort(([a],[b])=>a.localeCompare(b)).slice(-30).map(([date,values])=>({date,...values}));
+    const rows = await salesRepository.chart(userId, from, to, period);
+    // The repository returns one row per UTC bucket, with totals computed by PostgreSQL.
+    return rows.slice(-30).map(row => ({
+      date: period === 'year'
+        ? String(row.date.getUTCFullYear())
+        : period === 'month'
+          ? `${row.date.getUTCFullYear()}-${String(row.date.getUTCMonth() + 1).padStart(2, '0')}`
+          : row.date.toISOString().slice(0, 10),
+      revenue: roundMoney(Number(row.revenue)),
+      paid: roundMoney(Number(row.paid)),
+      due: roundMoney(Number(row.due)),
+      count: Number(row.count),
+    }));
   },
 
   compare: async (userId: string, period: 'week' | 'month' | 'year') => {
@@ -388,21 +438,39 @@ export const salesService = {
   },
   report: async (userId: string, query: import('./sales.validation').ReportQuery) => {
     const where: Prisma.SaleRecordWhereInput = { sellerId: userId, ...(query.storeId ? { storeId: query.storeId } : {}), ...(query.status ? { paymentStatus: query.status } : {}), ...(query.from || query.to ? { soldAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}) };
-    const sales = await prisma.saleRecord.findMany({ where, orderBy: [{ soldAt: 'desc' }, { id: 'desc' }], take: query.limit, select: { id: true, invoiceNumber: true, soldAt: true, buyerName: true, buyerPhone: true, entityTitle: true, totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true, paymentStatus: true, currency: true, store: { select: { name: true } }, items: { select: { title: true, quantity: true, returnedQuantity: true, unitPrice: true, lineTotal: true, costPrice: true } } } });
+    const [sales, totalCount] = await Promise.all([
+      prisma.saleRecord.findMany({ where, orderBy: [{ soldAt: 'desc' }, { id: 'desc' }], take: query.limit, select: { id: true, invoiceNumber: true, soldAt: true, buyerName: true, buyerPhone: true, entityTitle: true, totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true, paymentStatus: true, currency: true, store: { select: { name: true } }, items: { select: { title: true, quantity: true, returnedQuantity: true, unitPrice: true, lineTotal: true, costPrice: true } } } }),
+      prisma.saleRecord.count({ where }),
+    ]);
     const rows = sales.map(sale => {
       const cost = sale.items.reduce((sum, item) => sum + (item.costPrice === null ? 0 : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)), 0);
       const revenue = Number(sale.totalPrice) - Number(sale.refundedAmount);
       return { id: sale.id, invoiceNumber: sale.invoiceNumber, soldAt: sale.soldAt, buyerName: sale.buyerName, buyerPhone: sale.buyerPhone, storeName: sale.store?.name ?? null, title: sale.entityTitle, quantity: sale.items.reduce((sum, item) => sum + Math.max(item.quantity - item.returnedQuantity, 0), 0), revenue: roundMoney(revenue), cost: roundMoney(cost), profit: roundMoney(revenue - cost), paid: roundMoney(Number(sale.paidAmount)), due: roundMoney(Number(sale.dueAmount)), refunded: roundMoney(Number(sale.refundedAmount)), status: sale.paymentStatus, currency: sale.currency };
     });
-    return { rows, count: rows.length, totals: rows.reduce((a, r) => ({ revenue: roundMoney(a.revenue+r.revenue), cost: roundMoney(a.cost+r.cost), profit: roundMoney(a.profit+r.profit), paid: roundMoney(a.paid+r.paid), due: roundMoney(a.due+r.due), refunded: roundMoney(a.refunded+r.refunded) }), { revenue:0,cost:0,profit:0,paid:0,due:0,refunded:0 }) };
+    return { rows, count: rows.length, totalCount, hasMore: totalCount > rows.length, totals: rows.reduce((a, r) => ({ revenue: roundMoney(a.revenue+r.revenue), cost: roundMoney(a.cost+r.cost), profit: roundMoney(a.profit+r.profit), paid: roundMoney(a.paid+r.paid), due: roundMoney(a.due+r.due), refunded: roundMoney(a.refunded+r.refunded) }), { revenue:0,cost:0,profit:0,paid:0,due:0,refunded:0 }) };
   },
   debtSummary: async (userId: string) => {
     const now = new Date();
-    const rows = await prisma.saleRecord.findMany({ where: { sellerId: userId, dueAmount: { gt: 0 }, paymentStatus: { in: ['PARTIAL', 'UNPAID', 'OVERDUE'] } }, select: { dueAmount: true, dueDate: true } });
-    const totalDue = rows.reduce((s, r) => s + Number(r.dueAmount), 0);
-    const overdueDue = rows.filter(r => r.dueDate && r.dueDate < now).reduce((s, r) => s + Number(r.dueAmount), 0);
-    const dueToday = rows.filter(r => r.dueDate && r.dueDate.toDateString() === now.toDateString()).reduce((s, r) => s + Number(r.dueAmount), 0);
-    return { totalDue: roundMoney(totalDue), overdueDue: roundMoney(overdueDue), dueToday: roundMoney(dueToday), debtorCount: rows.length };
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const baseWhere: Prisma.SaleRecordWhereInput = {
+      sellerId: userId,
+      dueAmount: { gt: 0 },
+      paymentStatus: { in: ['PARTIAL', 'UNPAID', 'OVERDUE'] },
+    };
+    // Aggregate totals in the database; avoid transferring every outstanding debt to Node.
+    const [allDebts, overdue, dueToday] = await Promise.all([
+      prisma.saleRecord.aggregate({ where: baseWhere, _sum: { dueAmount: true }, _count: { _all: true } }),
+      prisma.saleRecord.aggregate({ where: { ...baseWhere, dueDate: { lt: now } }, _sum: { dueAmount: true } }),
+      prisma.saleRecord.aggregate({ where: { ...baseWhere, dueDate: { gte: todayStart, lt: tomorrowStart } }, _sum: { dueAmount: true } }),
+    ]);
+    return {
+      totalDue: roundMoney(Number(allDebts._sum.dueAmount ?? 0)),
+      overdueDue: roundMoney(Number(overdue._sum.dueAmount ?? 0)),
+      dueToday: roundMoney(Number(dueToday._sum.dueAmount ?? 0)),
+      debtorCount: allDebts._count._all,
+    };
   },
-  debts: (userId: string) => salesRepository.debts(userId),
+  debts: (userId: string, page = 1, limit = 20) => salesRepository.debts(userId, page, limit),
 };

@@ -5,6 +5,7 @@ import { salesInsightsService } from './salesInsights.service';
 import { createSaleSchema, updateSaleSchema, saleIdSchema, listSalesSchema, addPaymentSchema, returnSaleSchema, statsPeriodSchema, compareSchema, topSchema, updateCostSettingsSchema, updateProductCostSchema, reportQuerySchema } from './sales.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { paginationQuerySchema } from '../../shared/utils/pagination';
 
 export const salesController = {
   costSettings: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales cost settings fetched', await salesService.getCostSettings(user.userId))); } catch (e) { next(e); } },
@@ -26,7 +27,7 @@ export const salesController = {
   dashboard: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales dashboard fetched', await salesService.dashboard(user.userId))); } catch (e) { next(e); } },
   report: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const { query } = reportQuerySchema.parse({ query: req.query }); res.json(successResponse('Sales report fetched', await salesService.report(user.userId, query))); } catch (e) { next(e); } },
   debtSummary: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Debt summary fetched', await salesService.debtSummary(user.userId))); } catch (e) { next(e); } },
-  debts: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales debts fetched', await salesService.debts(user.userId))); } catch (e) { next(e); } },
+  debts: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); const query = paginationQuerySchema.parse(req.query); res.json(successResponse('Sales debts fetched', await salesService.debts(user.userId, query.page ?? 1, query.limit ?? 20))); } catch (e) { next(e); } },
   automationRun: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales automation completed', await salesAutomationService.run(user.userId))); } catch (e) { next(e); } },
   smartInsights: async (req: Request, res: Response, next: NextFunction) => { try { const user = requireUser(req); res.json(successResponse('Sales smart insights fetched', await salesInsightsService.get(user.userId))); } catch (e) { next(e); } },
 };

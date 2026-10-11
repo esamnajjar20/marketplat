@@ -37,8 +37,24 @@ export const installmentsService = {
       const due = Math.max(Number(sale.totalPrice) - salePaid, 0);
       await tx.saleRecord.update({ where: { id: sale.id }, data: { paidAmount: salePaid, dueAmount: due, paymentStatus: due <= 0 ? 'PAID' : sale.dueDate && sale.dueDate < new Date() ? 'OVERDUE' : 'PARTIAL' } });
       if (sale.customerId) {
-        const rows = await tx.saleRecord.findMany({ where: { sellerId, customerId: sale.customerId }, select: { totalPrice: true, refundedAmount: true, dueAmount: true, soldAt: true } });
-        await tx.customer.update({ where: { id: sale.customerId }, data: { totalSpent: rows.reduce((s,r)=>s+Number(r.totalPrice)-Number(r.refundedAmount),0), totalDue: rows.reduce((s,r)=>s+Number(r.dueAmount),0), purchaseCount: rows.length, firstPurchaseAt: rows.reduce<Date|null>((m,r)=>!m||r.soldAt<m?r.soldAt:m,null), lastPurchaseAt: rows.reduce<Date|null>((m,r)=>!m||r.soldAt>m?r.soldAt:m,null) } });
+        // Keep customer aggregates in PostgreSQL; avoid loading the customer's full sales history.
+        const aggregate = await tx.saleRecord.aggregate({
+          where: { sellerId, customerId: sale.customerId },
+          _sum: { totalPrice: true, refundedAmount: true, dueAmount: true },
+          _count: { _all: true },
+          _min: { soldAt: true },
+          _max: { soldAt: true },
+        });
+        await tx.customer.update({
+          where: { id: sale.customerId },
+          data: {
+            totalSpent: Number(aggregate._sum.totalPrice ?? 0) - Number(aggregate._sum.refundedAmount ?? 0),
+            totalDue: Number(aggregate._sum.dueAmount ?? 0),
+            purchaseCount: aggregate._count._all,
+            firstPurchaseAt: aggregate._min.soldAt,
+            lastPurchaseAt: aggregate._max.soldAt,
+          },
+        });
       }
       return updated;
     });

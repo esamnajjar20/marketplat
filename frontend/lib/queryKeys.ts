@@ -133,7 +133,7 @@ export const queryKeys = {
     detail: (id: string) => ['sales', 'detail', id] as const,
     summary: (period?: string) => ['sales', 'summary', period ?? 'month'] as const,
     chart: (period?: string) => period === undefined ? ['sales', 'chart'] as const : ['sales', 'chart', period] as const,
-    debts: () => ['sales', 'debts'] as const,
+    debts: (page = 1, limit = 20) => ['sales', 'debts', { page, limit }] as const,
     debtSummary: () => ['sales', 'debts', 'summary'] as const,
     compare: (period: string) => ['sales', 'compare', period] as const,
     costSettings: () => ['sales', 'cost-settings'] as const,
