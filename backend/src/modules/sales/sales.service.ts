@@ -21,7 +21,15 @@ const computeStatus = (total: number, paid: number, dueDate?: Date | null): Sale
 };
 
 const ensureEntityOwnership = async (userId: string, input: CreateSaleInput) => {
-  if (input.entityType === 'FREE') return { storeId: input.storeId ?? null, costPrice: input.costPrice ?? null, imageUrl: input.entityImageUrl ?? null };
+  if (input.entityType === 'FREE') {
+    // A caller-supplied storeId is still a tenant boundary even for manual
+    // (FREE) sales. Resolve and authorize it before persisting the relation;
+    // use the canonical store ID returned by the access gate, not raw input.
+    const storeId = input.storeId
+      ? (await requireStoreAccess(userId, input.storeId, 'manageProducts')).store.id
+      : null;
+    return { storeId, costPrice: input.costPrice ?? null, imageUrl: input.entityImageUrl ?? null };
+  }
 
   if (!input.entityId) throw new BadRequestError('entityId is required for this sale type.', 'SALE_ENTITY_ID_REQUIRED');
 
@@ -67,6 +75,14 @@ const resolveCustomer = async (tx: Prisma.TransactionClient, sellerId: string, i
 };
 
 const recomputeCustomer = async (tx: Prisma.TransactionClient, sellerId: string, customerId: string) => {
+  // Serialize aggregate refreshes for a customer, even when concurrent transactions
+  // mutate different sales belonging to that same customer. Under READ COMMITTED,
+  // the aggregate below then observes transactions that committed while this lock waited.
+  const lockedCustomer = await tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`SELECT "id" FROM "sales_customers" WHERE "id" = ${customerId} AND "sellerId" = ${sellerId} FOR UPDATE`,
+  );
+  if (!lockedCustomer.length) return;
+
   // Aggregate in PostgreSQL instead of materializing every historical sale for this customer.
   const aggregate = await tx.saleRecord.aggregate({
     where: { sellerId, customerId },
@@ -101,7 +117,10 @@ const lockProduct = async (tx: Prisma.TransactionClient, productId: string) => {
 const lockSaleForUpdate = async (tx: Prisma.TransactionClient, saleId: string) => {
   const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT "id" FROM "sale_records" WHERE "id" = ${saleId} FOR UPDATE`);
   if (!rows.length) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
-  const sale = await tx.saleRecord.findUnique({ where: { id: saleId }, include: { items: true } });
+  const sale = await tx.saleRecord.findUnique({
+    where: { id: saleId },
+    include: { items: { include: { returns: { select: { quantity: true, refundAmount: true, restockedToInventory: true } } } } },
+  });
   if (!sale) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
   return sale;
 };
@@ -130,22 +149,11 @@ const preparePosItems = async (userId: string, input: CreateSaleInput) => {
   return { items: prepared, storeId: storeId!, total: roundMoney(prepared.reduce((s, item) => s + item.lineTotal, 0)), quantity: prepared.reduce((s, item) => s + item.quantity, 0) };
 };
 
-const refreshSalesStatsCache = async (sellerId: string, storeId: string | null) => {
-  if (!storeId) return;
-  try {
-    const [aggregate, seller] = await Promise.all([
-      prisma.saleRecord.aggregate({ where: { sellerId, storeId }, _count: { id: true }, _sum: { totalPrice: true, refundedAmount: true } }),
-      prisma.sellerProfile.findUnique({ where: { userId: sellerId }, select: { verified: true, averageRating: true, totalRatings: true } }),
-    ]);
-    await prisma.salesStatsCache.upsert({
-      where: { sellerId },
-      create: { sellerId, storeId, totalSales: aggregate._count.id, totalRevenue: Number(aggregate._sum.totalPrice ?? 0) - Number(aggregate._sum.refundedAmount ?? 0), averageRating: seller?.averageRating ?? null, reviewCount: seller?.totalRatings ?? 0, verifiedSeller: seller?.verified ?? false },
-      update: { storeId, totalSales: aggregate._count.id, totalRevenue: Number(aggregate._sum.totalPrice ?? 0) - Number(aggregate._sum.refundedAmount ?? 0), averageRating: seller?.averageRating ?? null, reviewCount: seller?.totalRatings ?? 0, verifiedSeller: seller?.verified ?? false },
-    });
-  } catch {
-    // Cache failure must never fail an already committed sale.
-  }
-};
+// Public sales statistics are currently calculated directly by
+// modules/sales/public-stats.controller.ts. Do not maintain the legacy
+// SalesStatsCache row until a read path is implemented; its former writes were
+// write-only, added post-commit database work, and silently swallowed failures.
+
 
 export const salesService = {
   getCostSettings: async (userId: string) => {
@@ -282,9 +290,6 @@ export const salesService = {
 
       if (customer) await recomputeCustomer(tx, userId, customer.id);
       return salesRepository.findByIdTx(tx, sale.id);
-    }).then(async created => {
-      await refreshSalesStatsCache(userId, entity.storeId);
-      return created;
     }).catch(async error => {
       if (offlineOperationId && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const existing = await prisma.saleRecord.findFirst({ where: { sellerId: userId, offlineOperationId } });
@@ -302,24 +307,53 @@ export const salesService = {
   },
 
   update: async (userId: string, id: string, input: UpdateSaleInput) => {
-    const sale = await salesService.getById(userId, id);
-    const dueDate = input.dueDate === undefined ? sale.dueDate : input.dueDate;
-    const netTotal = Number(sale.totalPrice) - Number(sale.refundedAmount);
-    return salesRepository.update(sale.id, { ...input, paymentStatus: computeStatus(netTotal, Number(sale.paidAmount), dueDate), dueAmount: roundMoney(Math.max(netTotal - Number(sale.paidAmount), 0)) });
+    // Serialize edits with payments, returns and deletion. Computing derived
+    // payment fields from a pre-transaction snapshot could otherwise overwrite
+    // a payment/return committed while this edit was waiting to write.
+    await salesService.getById(userId, id); // preserve the usual not-found path
+    return prisma.$transaction(async tx => {
+      const sale = await lockSaleForUpdate(tx, id);
+      if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+      const dueDate = input.dueDate === undefined ? sale.dueDate : input.dueDate;
+      const netTotal = Number(sale.totalPrice) - Number(sale.refundedAmount);
+      await tx.saleRecord.update({
+        where: { id: sale.id },
+        data: {
+          ...input,
+          paymentStatus: computeStatus(netTotal, Number(sale.paidAmount), dueDate),
+          dueAmount: roundMoney(Math.max(netTotal - Number(sale.paidAmount), 0)),
+        },
+      });
+      // Customer purchase boundaries are derived from soldAt. If a sale date
+      // is edited, recompute these aggregates in the same transaction so the
+      // customer's first/last purchase dates cannot remain stale.
+      if (sale.customerId && input.soldAt !== undefined) {
+        await recomputeCustomer(tx, userId, sale.customerId);
+      }
+      return salesRepository.findByIdTx(tx, sale.id);
+    });
   },
 
   remove: async (userId: string, id: string) => {
     // Keep the pre-transaction lookup for the usual authorization/error path,
     // then re-read under the sale row lock to serialize deletion with payments
     // and returns. All these operations lock the sale before any product row.
-    const existingSale = await salesService.getById(userId, id);
+    await salesService.getById(userId, id);
     await prisma.$transaction(async tx => {
       const sale = await lockSaleForUpdate(tx, id);
       if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
       for (const item of sale.items) {
         if (item.entityType !== 'PRODUCT' || !item.productId) continue;
         const product = await lockProduct(tx, item.productId);
-        const restoreQty = Math.max(item.quantity - item.returnedQuantity, 0);
+        // A returned quantity may already have been added back to inventory, but
+        // returns marked restockedToInventory=false were never restored. On sale
+        // deletion, restore every sold unit except units already restocked by a
+        // return, rather than subtracting all returned quantities blindly.
+        const alreadyRestocked = (item.returns ?? []).reduce(
+          (sum, returned) => sum + (returned.restockedToInventory ? returned.quantity : 0),
+          0,
+        );
+        const restoreQty = Math.max(item.quantity - alreadyRestocked, 0);
         if (product.stockQuantity !== null && restoreQty > 0) {
           const next = product.stockQuantity + restoreQty;
           await tx.stockMovement.create({ data: { productId: product.id, storeId: product.storeId, changedByUserId: userId, previousQuantity: product.stockQuantity, newQuantity: next, delta: restoreQty, reason: `SALE_DELETE:${sale.id}:${item.id}` } });
@@ -329,8 +363,6 @@ export const salesService = {
       await salesRepository.delete(tx, sale.id);
       if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
     });
-    // This cache aggregates sale count and net revenue; deletion changes both.
-    await refreshSalesStatsCache(userId, existingSale.storeId);
   },
 
   addPayment: async (userId: string, id: string, input: AddPaymentInput) => {
@@ -350,7 +382,7 @@ export const salesService = {
   },
 
   addReturn: async (userId: string, id: string, input: ReturnSaleInput) => {
-    const existingSale = await salesService.getById(userId, id); // authorization check before entering the transaction
+    await salesService.getById(userId, id); // authorization check before entering the transaction
     return prisma.$transaction(async tx => {
       const sale = await lockSaleForUpdate(tx, id);
       if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
@@ -359,6 +391,24 @@ export const salesService = {
       if (item.returnedQuantity + input.quantity > item.quantity) throw new BadRequestError('Returned quantity exceeds sold quantity.', 'RETURN_QUANTITY_EXCEEDED');
       const remainingRefundable = roundMoney(Number(sale.totalPrice) - Number(sale.refundedAmount));
       if (input.refundAmount > remainingRefundable) throw new BadRequestError('Refund exceeds the remaining sale value.', 'REFUND_EXCEEDS_SALE');
+
+      // Bound refunds by the sold value of the quantity being returned, not only
+      // by the remaining total sale value. Use lineTotal so POS discounts are
+      // respected. The cumulative ceiling grows with cumulative returned units,
+      // preventing a single-unit return from refunding the whole multi-unit line.
+      const priorItemRefunds = roundMoney((item.returns ?? []).reduce(
+        (sum, returned) => sum + Number(returned.refundAmount ?? 0),
+        0,
+      ));
+      const cumulativeReturnedQuantity = item.returnedQuantity + input.quantity;
+      const cumulativeItemRefundCeiling = roundMoney(
+        Number(item.lineTotal) * cumulativeReturnedQuantity / item.quantity,
+      );
+      const remainingItemRefundable = roundMoney(Math.max(cumulativeItemRefundCeiling - priorItemRefunds, 0));
+      if (input.refundAmount > remainingItemRefundable) {
+        throw new BadRequestError('Refund exceeds the refundable value of the returned item quantity.', 'REFUND_EXCEEDS_ITEM_VALUE');
+      }
+
       let movementId: string | undefined;
       if (input.restockedToInventory && item.entityType === 'PRODUCT' && item.productId) {
         const product = await lockProduct(tx, item.productId);
@@ -377,10 +427,6 @@ export const salesService = {
       await tx.saleRecord.update({ where: { id }, data: { refundedAmount: refunded, dueAmount: due, paymentStatus: status } });
       if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
       return salesRepository.findByIdTx(tx, id);
-    }).then(async updatedSale => {
-      // Returns change refundedAmount, which is part of cached net revenue.
-      await refreshSalesStatsCache(userId, existingSale.storeId);
-      return updatedSale;
     });
   },
   summary: async (userId: string, period: 'day' | 'week' | 'month' | 'year') => {

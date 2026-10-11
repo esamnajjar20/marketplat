@@ -153,7 +153,7 @@ export const notificationsRepository = {
     };
 
     const [notifications, total] = await Promise.all([
-      prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.notification.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
       prisma.notification.count({ where }),
     ]);
     return { notifications, total };

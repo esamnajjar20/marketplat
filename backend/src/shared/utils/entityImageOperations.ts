@@ -95,6 +95,12 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
         // this is the authoritative check (same D-10 race this guards
         // against in ads.service.ts).
         const fresh = await findActiveOrThrow(entityId);
+        // Ownership may have changed while this request waited for the lock.
+        // Re-authorize against the same fresh row used for the mutation; the
+        // pre-lock check alone is not sufficient for tenant isolation.
+        if (!ownerCheck(fresh)) {
+          throw new ForbiddenError(`You do not own this ${entityLabel}.`, notOwnedCode);
+        }
         if (fresh.images.length + files.length > maxImages) {
           throw new BadRequestError(`A ${entityLabel} can have at most ${maxImages} images`);
         }
@@ -167,6 +173,9 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
         // factory carried a copy of the pre-, so both
         // consumers (products and service-listings) were affected.
         const fresh = await findActiveOrThrow(entityId);
+        if (!ownerCheck(fresh)) {
+          throw new ForbiddenError(`You do not own this ${entityLabel}.`, notOwnedCode);
+        }
         if (!fresh.images.includes(imageUrl)) {
           throw new BadRequestError(`Image not found in this ${entityLabel}`);
         }
@@ -238,6 +247,9 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
         // have gained/lost an image between the check above and
         // acquiring the lock.
         const fresh = await findActiveOrThrow(entityId);
+        if (!ownerCheck(fresh)) {
+          throw new ForbiddenError(`You do not own this ${entityLabel}.`, notOwnedCode);
+        }
         const freshSorted = [...fresh.images].sort();
         const stillSamePermutation =
           freshSorted.length === proposedSorted.length &&

@@ -178,11 +178,21 @@ export const followsService = {
     body: string,
     data: Prisma.InputJsonValue,
   ) {
-    const ids = new Set<string>();
+    // Batch follower lookups by target type. The old loop issued one query
+    // per target, so publishing an activity for N targets caused N sequential
+    // database round trips. At most one query per target type is needed.
+    const targetIdsByType = new Map<FollowTargetType, Set<string>>();
     for (const target of targets) {
-      const followerIds = await followsRepository.findFollowerIds(target.targetType, [target.targetId]);
-      followerIds.forEach((id) => ids.add(id));
+      const targetIds = targetIdsByType.get(target.targetType) ?? new Set<string>();
+      targetIds.add(target.targetId);
+      targetIdsByType.set(target.targetType, targetIds);
     }
+    const followerGroups = await Promise.all(
+      Array.from(targetIdsByType, ([targetType, targetIds]) =>
+        followsRepository.findFollowerIds(targetType, Array.from(targetIds))
+      )
+    );
+    const ids = new Set(followerGroups.flat());
     if (!ids.size) return { count: 0 };
     const uniqueTypes = new Set(targets.map((target) => target.targetType));
     const type: NotificationType = uniqueTypes.size === 1

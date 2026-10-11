@@ -36,7 +36,7 @@ export const blockedUsersRepository = {
       prisma.userBlock.findMany({
         where,
         include: { blocked: { select: { id: true, name: true, avatarUrl: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),

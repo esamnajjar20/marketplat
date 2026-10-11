@@ -66,7 +66,7 @@ export const activityRepository = {
     };
 
     const [activities, total] = await Promise.all([
-      prisma.userActivity.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.userActivity.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
       prisma.userActivity.count({ where }),
     ]);
     return { activities, total };

@@ -40,7 +40,16 @@ export function fakeRedisModule(): { redis: Record<string, jest.Mock>; __store: 
       keys.forEach(key => store.delete(key));
       return keys.length;
     }),
-    eval: jest.fn(async (_script: string, _numKeys: number, key: string, token: string) => {
+    eval: jest.fn(async (script: string, numKeys: number, ...args: unknown[]) => {
+      if (script.includes('SWR_WRITE_IF_GENERATION_CURRENT')) {
+        const [hardGenKey, softGenKey, valueKey, hardToken, softToken, serialized, ttl] = args.map(String);
+        if (live(hardGenKey)?.value !== hardToken) return 0;
+        if (softToken !== '' && live(softGenKey)?.value !== softToken) return 0;
+        store.set(valueKey, { value: serialized, expiresAt: Date.now() + Number(ttl) * 1000 });
+        return 1;
+      }
+      // Existing compare-and-delete script used for refresh-lock release.
+      const [key, token] = args.map(String);
       const entry = live(key);
       if (entry && entry.value === token) {
         store.delete(key);

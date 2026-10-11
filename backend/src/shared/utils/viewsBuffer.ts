@@ -15,6 +15,9 @@ const FLUSH_INTERVAL = 60_000; // flush to DB every 60 seconds
 // only matters as a fallback under real Redis instability.
 const VIEWS_BUFFER_TTL_SECONDS = 24 * 60 * 60;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
+let flushInFlight: Promise<void> | null = null;
+const MAX_KEYS_PER_FLUSH_BATCH = 100;
+const MAX_CONCURRENT_DB_UPDATES = 20;
 
 // Atomic GETDEL per key — avoids losing views that arrive between read and delete
 const FLUSH_VIEWS_SCRIPT = `
@@ -68,59 +71,52 @@ export const viewsBuffer = {
    * Called on a timer and on graceful shutdown.
    */
   flush: async (): Promise<void> => {
-    try {
-      // Scan for all buffered keys
-      const keys = await scanKeys(`${VIEWS_PREFIX}*`);
-      if (keys.length === 0) return;
+    // setInterval does not wait for an async callback. Reuse the active
+    // flush promise so a slow database cannot trigger overlapping drains.
+    if (flushInFlight) return flushInFlight;
 
-      const rawCounts = (await (redis as RedisEval).eval(
-        FLUSH_VIEWS_SCRIPT,
-        keys.length,
-        ...keys
-      )) as (string | null)[];
+    const task = (async (): Promise<void> => {
+      try {
+        let cursor = '0';
+        let totalAds = 0;
+        let totalViews = 0;
 
-      const updates = keys
-        .map((key, i) => {
-          const adId = key.replace(VIEWS_PREFIX, '');
-          const count = parseInt(rawCounts[i] || '0', 10);
-          return { adId, count };
-        })
-        .filter(({ count }) => count > 0);
+        // Process SCAN results incrementally instead of retaining every key
+        // and sending an unbounded Lua/SQL burst when the keyspace is large.
+        do {
+          const [nextCursor, keys] = await (redis as any).scan(
+            cursor, 'MATCH', `${VIEWS_PREFIX}*`, 'COUNT', MAX_KEYS_PER_FLUSH_BATCH
+          ) as [string, string[]];
+          cursor = nextCursor;
+          if (keys.length === 0) continue;
 
-      if (updates.length > 0) {
-        await Promise.all(
-          updates.map(({ adId, count }) =>
-            prisma.ad
-              .updateMany({
-                where: { id: adId, status: { not: 'DELETED' } },
-                data: { views: { increment: count } },
-              })
-              .catch(async (err) => {
-                // Previously `.catch(() => {})` — completely silent.
-                // Two things were wrong with that:
-                //
-                //  1. The `where: { id, status: { not: 'DELETED' } }`
-                //     clause means an ad being deleted matches 0 rows
-                //     WITHOUT throwing — updateMany returns
-                //     `{count: 0}`. So the catch never fired for that
-                //     case anyway; it only fired for real DB errors
-                //     (connection blips, timeouts). Swallowing those
-                //     silently lost the view count for that ad with no
-                //     trace anywhere.
-                //  2. There's no retry path — GETDEL in
-                //     FLUSH_VIEWS_SCRIPT already removed the counter,
-                //     so if the DB write fails the increment is gone.
-                //
-                // Restore the count to the buffer (INCRBY adds to
-                // whatever accumulated in the meantime — a few extra
-                // views arriving between our GETDEL and this restore
-                // are counted correctly, not double-counted). The
-                // subsequent EXPIRE restores the key's TTL — INCRBY
-                // on a non-existent key creates it with no TTL.
-                logger.warn(
-                  'Views update failed — restoring buffer count for retry',
-                  { adId, count, err },
-                );
+          const rawCounts = (await (redis as RedisEval).eval(
+            FLUSH_VIEWS_SCRIPT,
+            keys.length,
+            ...keys
+          )) as (string | null)[];
+
+          const updates = keys
+            .map((key, i) => ({
+              adId: key.slice(VIEWS_PREFIX.length),
+              count: parseInt(rawCounts[i] || '0', 10),
+            }))
+            .filter(({ count }) => count > 0);
+
+          // Bound database concurrency; each failed write restores its
+          // counter, including views that arrived after the atomic GETDEL.
+          for (let offset = 0; offset < updates.length; offset += MAX_CONCURRENT_DB_UPDATES) {
+            const batch = updates.slice(offset, offset + MAX_CONCURRENT_DB_UPDATES);
+            await Promise.all(batch.map(async ({ adId, count }) => {
+              try {
+                await prisma.ad.updateMany({
+                  where: { id: adId, status: { not: 'DELETED' } },
+                  data: { views: { increment: count } },
+                });
+                totalAds++;
+                totalViews += count;
+              } catch (err) {
+                logger.warn('Views update failed — restoring buffer count for retry', { adId, count, err });
                 try {
                   await redis.incrby(`${VIEWS_PREFIX}${adId}`, count);
                   await redis.expire(`${VIEWS_PREFIX}${adId}`, VIEWS_BUFFER_TTL_SECONDS);
@@ -130,15 +126,24 @@ export const viewsBuffer = {
                     { adId, count, restoreErr },
                   );
                 }
-              })
-          )
-        );
-        logger.debug(
-          `Views flushed: ${updates.length} ads, ${updates.reduce((a, b) => a + b.count, 0)} total views`
-        );
+              }
+            }));
+          }
+        } while (cursor !== '0');
+
+        if (totalAds > 0) {
+          logger.debug(`Views flushed: ${totalAds} ads, ${totalViews} total views`);
+        }
+      } catch (err) {
+        logger.error('Views buffer flush failed', err);
       }
-    } catch (err) {
-      logger.error('Views buffer flush failed', err);
+    })();
+
+    flushInFlight = task;
+    try {
+      await task;
+    } finally {
+      if (flushInFlight === task) flushInFlight = null;
     }
   },
 
@@ -163,16 +168,4 @@ export const viewsBuffer = {
 
 interface RedisEval {
   eval(script: string, numKeys: number, ...args: string[]): Promise<unknown>;
-}
-
-// Helper: scan all Redis keys matching a pattern
-async function scanKeys(pattern: string): Promise<string[]> {
-  const keys: string[] = [];
-  let cursor = '0';
-  do {
-    const [nextCursor, batch] = await (redis as any).scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-    cursor = nextCursor;
-    keys.push(...batch);
-  } while (cursor !== '0');
-  return keys;
 }

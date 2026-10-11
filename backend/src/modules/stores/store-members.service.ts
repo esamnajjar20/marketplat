@@ -98,6 +98,25 @@ export const requireStoreAccess = async (
 ): Promise<StoreAccess> => {
   const store = await resolveStore(storeIdOrSlug);
 
+  // A capability check represents a write/manage operation. Keep read-only
+  // access (for example, listing a store's team) available, but do not let
+  // owners or staff continue managing a store after an administrator blocks
+  // it or suspends its owning seller. Product writes already enforce these
+  // conditions in requireStoreAccessForProducts; this central gate also
+  // protects ads, sales, promotions, collections and member management.
+  if (capability && store.status === 'BLOCKED') {
+    throw new ForbiddenError('This store is blocked and cannot be managed.', 'STORE_BLOCKED');
+  }
+  if (capability) {
+    const ownerProfile = await sellersRepository.findById(store.sellerProfileId);
+    if (ownerProfile?.suspended) {
+      throw new ForbiddenError(
+        "This store's owner account is suspended.",
+        'STORE_OWNER_SUSPENDED'
+      );
+    }
+  }
+
   if (await isStoreOwner(userId, store)) {
     return { kind: 'owner', store };
   }
@@ -350,11 +369,15 @@ export const storeMembersService = {
     }
 
     const isSelf = member.userId === actorUserId;
-    const owner = await isStoreOwner(actorUserId, store);
+    // Leaving a store is always allowed, including while the store is
+    // blocked. Removing somebody else is a management action and must pass
+    // the same blocked-store / suspended-owner / capability gate as invites
+    // and role changes.
+    const access = isSelf ? null : await requireStoreAccess(actorUserId, store.id, 'manageMembers');
+    const owner = access?.kind === 'owner';
 
     if (!isSelf && !owner) {
-      const actorMember = await storeMembersRepository.findActive(store.id, actorUserId);
-      if (!actorMember || actorMember.role !== 'MANAGER') {
+      if (access?.kind !== 'member' || access.role !== 'MANAGER') {
         throw new ForbiddenError(
           'You cannot remove this member.',
           'STORE_ACCESS_DENIED'

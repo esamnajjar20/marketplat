@@ -91,7 +91,7 @@ export const appointmentsRepository = {
     };
 
     const [appointments, total] = await Promise.all([
-      prisma.appointment.findMany({ where, include: appointmentPublicInclude, orderBy: { scheduledStart: 'asc' }, skip, take }),
+      prisma.appointment.findMany({ where, include: appointmentPublicInclude, orderBy: [{ scheduledStart: 'asc' }, { id: 'asc' }], skip, take }),
       prisma.appointment.count({ where }),
     ]);
     return { appointments, total };

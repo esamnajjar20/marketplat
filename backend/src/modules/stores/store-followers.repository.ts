@@ -29,7 +29,7 @@ export const storeFollowersRepository = {
       prisma.storeFollower.findMany({
         where,
         include: { store: { include: { sellerProfile: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),

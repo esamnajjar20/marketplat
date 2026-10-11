@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { runChildJob } from './childJobRunner';
 
 const TIME_ZONE = 'Asia/Gaza';
 
@@ -67,21 +67,6 @@ function isDue(job: Job, now: ReturnType<typeof getGazaTime>): boolean {
   return true;
 }
 
-function runJob(name: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn('npm', ['run', name], {
-      stdio: 'inherit',
-      env: process.env,
-    });
-
-    child.on('error', reject);
-    child.on('exit', (code, signal) => {
-      if (code === 0) return resolve();
-      reject(new Error(`Cron job ${name} failed with ${signal ?? `exit code ${code}`}`));
-    });
-  });
-}
-
 async function main(): Promise<void> {
   const now = getGazaTime();
   const dueJobs = JOBS.filter((job) => isDue(job, now));
@@ -94,7 +79,7 @@ async function main(): Promise<void> {
   console.log(`[cron] Due jobs: ${dueJobs.map((job) => job.name).join(', ')}`);
 
   for (const job of dueJobs) {
-    await runJob(job.name);
+    await runChildJob(job.name);
   }
 }
 

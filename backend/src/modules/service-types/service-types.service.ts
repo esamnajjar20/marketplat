@@ -6,6 +6,8 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { serviceTypesRepository } from './service-types.repository';
+import { invalidateServiceCategoriesCache } from '../service-categories/service-categories.service';
+import { hidePublicEntities } from '../../shared/utils/publicListCache';
 import { CreateServiceTypeFieldInput, CreateServiceTypeInput, UpdateServiceTypeFieldInput, UpdateServiceTypeInput, validateServiceTypeFieldDefinition, validateServiceTypeCapabilitiesDefinition } from './service-types.validation';
 export { validateServiceTypeFieldDefinition, validateServiceTypeCapabilitiesDefinition } from './service-types.validation';
 
@@ -37,6 +39,16 @@ export function validateServiceTypeCapabilities(serviceType: { capabilities: unk
 
 async function invalidate(): Promise<void> {
   try { await redis.del(CACHE_KEY); } catch { logger.warn('Service types cache invalidation failed'); }
+
+  // Service-list responses embed service-type labels, capabilities,
+  // presentation and active fields. Service-category trees embed the
+  // service type's name/icon. Invalidate both dependent caches after the
+  // write; hard generation invalidation also invalidates the homepage,
+  // whose service rail is assembled from the cached service-list endpoint.
+  await Promise.all([
+    invalidateServiceCategoriesCache(),
+    hidePublicEntities('service-listings'),
+  ]);
 }
 
 export async function validateServiceTypeAttributes(

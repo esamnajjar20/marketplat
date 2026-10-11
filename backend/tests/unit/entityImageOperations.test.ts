@@ -72,6 +72,16 @@ describe('createEntityImageOperations', () => {
     ).rejects.toBeInstanceOf(BadRequestError);
   });
 
+  it('addImages rechecks ownership after acquiring the lock', async () => {
+    const ownerCheck = jest.fn().mockReturnValueOnce(true).mockReturnValueOnce(false);
+    await expect(
+      ops.addImages('e1', ownerCheck, [{ buffer: Buffer.from('x') } as any]),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(ownerCheck).toHaveBeenCalledTimes(2);
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(repository.addImages).not.toHaveBeenCalled();
+  });
+
   it('addImages uploads and persists under lock', async () => {
     repository.addImages.mockResolvedValue({ ...entity, images: [...entity.images, 'https://cdn/x.jpg'] });
     const result = await ops.addImages('e1', () => true, [
@@ -114,6 +124,15 @@ describe('createEntityImageOperations', () => {
     ).rejects.toBeInstanceOf(BadRequestError);
   });
 
+  it('removeImage rechecks ownership after acquiring the lock', async () => {
+    const ownerCheck = jest.fn().mockReturnValueOnce(true).mockReturnValueOnce(false);
+    await expect(
+      ops.removeImage('e1', ownerCheck, 'https://cdn/a.jpg'),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(ownerCheck).toHaveBeenCalledTimes(2);
+    expect(repository.removeImage).not.toHaveBeenCalled();
+  });
+
   it('removeImage deletes from storage and repository', async () => {
     repository.removeImage.mockResolvedValue({ ...entity, images: ['https://cdn/b.jpg'] });
     await ops.removeImage('e1', () => true, 'https://cdn/a.jpg');
@@ -130,6 +149,15 @@ describe('createEntityImageOperations', () => {
     const result = await ops.reorderImages('e1', () => true, [...entity.images]);
     expect(repository.reorderImages).not.toHaveBeenCalled();
     expect(result.images).toEqual(entity.images);
+  });
+
+  it('reorderImages rechecks ownership after acquiring the lock', async () => {
+    const ownerCheck = jest.fn().mockReturnValueOnce(true).mockReturnValueOnce(false);
+    await expect(
+      ops.reorderImages('e1', ownerCheck, ['https://cdn/b.jpg', 'https://cdn/a.jpg']),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(ownerCheck).toHaveBeenCalledTimes(2);
+    expect(repository.reorderImages).not.toHaveBeenCalled();
   });
 
   it('reorderImages persists a real reorder', async () => {

@@ -126,13 +126,20 @@ async function canManageAd(
   userRole: string
 ): Promise<boolean> {
   if (userRole === ROLES.ADMIN) return true;
-  if (ad.userId === userId) return true;
-  if (!ad.storeId) return false;
+  // Personal ads remain manageable by their creator. Store-backed ads must
+  // pass the store capability gate even when the creator is making the
+  // request, otherwise a creator could keep editing an ad after the store
+  // is blocked, its owner is suspended, or the creator's membership is
+  // revoked.
+  if (!ad.storeId) return ad.userId === userId;
   try {
     await requireStoreAccess(userId, ad.storeId, 'manageAds');
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // Only an authorization/lookup denial means "cannot manage". Infrastructure
+    // failures (DB/Redis) must surface as 5xx instead of a misleading 403.
+    if (error instanceof ForbiddenError || error instanceof NotFoundError) return false;
+    throw error;
   }
 }
 
@@ -791,6 +798,11 @@ export const adsService = {
       // this is the authoritative check.
       const freshAd = await adsRepository.findById(adId);
       if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      // Store membership/capabilities can change while waiting for the image
+      // lock. Re-authorize against the fresh row before any upload or write.
+      if (!(await canManageAd(freshAd, userId, userRole))) {
+        throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
+      }
       if (freshAd.images.length + files.length > MAX_IMAGES_PER_ENTITY) {
         throw new BadRequestError(`An ad can have a maximum of ${MAX_IMAGES_PER_ENTITY} images`);
       }
@@ -860,6 +872,9 @@ export const adsService = {
       const freshAd = await adsRepository.findById(adId);
       if (!freshAd || freshAd.status === 'DELETED') {
         throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      }
+      if (!(await canManageAd(freshAd, userId, userRole))) {
+        throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
       }
       if (!freshAd.images.includes(imageUrl)) {
         throw new BadRequestError('Image not found in this ad');
@@ -933,6 +948,9 @@ export const adsService = {
     return withAdImagesLock(adId, async () => {
       const freshAd = await adsRepository.findById(adId);
       if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      if (!(await canManageAd(freshAd, userId, userRole))) {
+        throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
+      }
       const freshSorted = [...freshAd.images].sort();
       const stillSamePermutation =
         freshSorted.length === proposedSorted.length &&

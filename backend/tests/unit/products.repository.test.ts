@@ -106,18 +106,18 @@ describe('productsRepository', () => {
   describe('update / softDelete', () => {
     it('update passes through the given partial data', async () => {
       (prisma.product.update as jest.Mock).mockResolvedValue({});
-      await productsRepository.update('product-1', { name: 'New name', price: 99 });
+      await productsRepository.update('product-1', 'store-1', { name: 'New name', price: 99 });
       expect(prisma.product.update).toHaveBeenCalledWith({
-        where: { id: 'product-1' },
+        where: { id: 'product-1', storeId: 'store-1' },
         data: { name: 'New name', price: 99 },
       });
     });
 
     it('softDelete sets status to DELETED', async () => {
       (prisma.product.update as jest.Mock).mockResolvedValue({});
-      await productsRepository.softDelete('product-1');
+      await productsRepository.softDelete('product-1', 'store-1');
       expect(prisma.product.update).toHaveBeenCalledWith({
-        where: { id: 'product-1' },
+        where: { id: 'product-1', storeId: 'store-1' },
         data: { status: 'DELETED' },
       });
     });

@@ -72,6 +72,40 @@ describe('config/env — REDIS_PASSWORD production requirement', () => {
     expect(env.redis.password).toBe('a-real-redis-password');
   });
 
+  it('fails startup when production REDIS_PASSWORD contains only whitespace', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.REDIS_PASSWORD = '   \n\t ';
+    jest.resetModules();
+
+    await expect(import('../../src/config/env')).rejects.toThrow(
+      /Invalid environment variables.*REDIS_PASSWORD/,
+    );
+  });
+
+  it('rejects the documented example JWT secrets in production', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.REDIS_PASSWORD = 'a-real-redis-password';
+    process.env.JWT_SECRET = 'your-super-secret-jwt-key-min-32-characters';
+    process.env.JWT_REFRESH_SECRET = 'another-distinct-real-secret-that-is-long-enough';
+    jest.resetModules();
+
+    await expect(import('../../src/config/env')).rejects.toThrow(
+      /Invalid environment variables.*JWT_SECRET/,
+    );
+  });
+
+  it('requires distinct access and refresh JWT secrets in production', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.REDIS_PASSWORD = 'a-real-redis-password';
+    process.env.JWT_SECRET = 'same-secret-value-that-is-long-enough-123';
+    process.env.JWT_REFRESH_SECRET = process.env.JWT_SECRET;
+    jest.resetModules();
+
+    await expect(import('../../src/config/env')).rejects.toThrow(
+      /Invalid environment variables.*JWT_REFRESH_SECRET/,
+    );
+  });
+
   it('starts normally in development with no REDIS_PASSWORD (unauthenticated local Redis still allowed)', async () => {
     process.env.NODE_ENV = 'development';
     delete process.env.REDIS_PASSWORD;
@@ -171,6 +205,19 @@ describe('config/env — CLOUDINARY_* production requirement', () => {
     expect(env.cloudinary.cloudName).toBe('test-cloud-name');
   });
 
+  it('fails startup when a production Cloudinary credential contains only whitespace', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.REDIS_PASSWORD = 'a-real-redis-password';
+    process.env.CLOUDINARY_CLOUD_NAME = '   ';
+    process.env.CLOUDINARY_API_KEY = 'test-api-key';
+    process.env.CLOUDINARY_API_SECRET = 'test-api-secret';
+    jest.resetModules();
+
+    await expect(import('../../src/config/env')).rejects.toThrow(
+      /Invalid environment variables.*CLOUDINARY_CLOUD_NAME/,
+    );
+  });
+
   it('starts normally in development with no CLOUDINARY_* vars set (local/no-upload workflow still allowed)', async () => {
     process.env.NODE_ENV = 'development';
     delete process.env.CLOUDINARY_CLOUD_NAME;
@@ -191,5 +238,16 @@ describe('config/env — CLOUDINARY_* production requirement', () => {
 
     const { env } = await import('../../src/config/env');
     expect(env.cloudinary.cloudName).toBeFalsy();
+  });
+
+  it('does not report Cloudinary as configured when credentials are whitespace-only', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.CLOUDINARY_CLOUD_NAME = '   ';
+    process.env.CLOUDINARY_API_KEY = '\t';
+    process.env.CLOUDINARY_API_SECRET = '  ';
+    jest.resetModules();
+
+    const { env } = await import('../../src/config/env');
+    expect(env.cloudinary.isConfigured).toBe(false);
   });
 });

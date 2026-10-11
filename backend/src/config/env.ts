@@ -414,7 +414,10 @@ const envSchema = z.object({
 // at startup (same place JWT_SECRET/DATABASE_URL failures surface),
 // not silently at connection time.
 const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
-  if (data.NODE_ENV === 'production' && !data.REDIS_PASSWORD) {
+  // Validate the normalized value that config/redis.ts will actually use.
+  // A whitespace-only value is truthy before trim(), but becomes undefined
+  // in env.redis.password below and silently disables Redis AUTH.
+  if (data.NODE_ENV === 'production' && !data.REDIS_PASSWORD?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['REDIS_PASSWORD'],
@@ -437,7 +440,9 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
   // misconfiguration, not a valid opt-out.
   if (
     data.NODE_ENV === 'production' &&
-    (!data.CLOUDINARY_CLOUD_NAME || !data.CLOUDINARY_API_KEY || !data.CLOUDINARY_API_SECRET)
+    (!data.CLOUDINARY_CLOUD_NAME?.trim() ||
+      !data.CLOUDINARY_API_KEY?.trim() ||
+      !data.CLOUDINARY_API_SECRET?.trim())
   ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -465,6 +470,43 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
       path: ['DISABLE_RATE_LIMIT'],
       message: 'DISABLE_RATE_LIMIT must not be true when NODE_ENV=production',
     });
+  }
+
+  // The example JWT values in .env.example satisfy the generic 32-character
+  // length rule. If copied unchanged into production, they are publicly
+  // known signing keys. Also reject whitespace-only effective secrets and
+  // a shared access/refresh secret, which defeats key separation.
+  if (data.NODE_ENV === 'production') {
+    const accessSecret = data.JWT_SECRET.trim();
+    const refreshSecret = data.JWT_REFRESH_SECRET.trim();
+    const exampleSecrets = new Set([
+      'your-super-secret-jwt-key-min-32-characters',
+      'your-super-secret-refresh-key-min-32-characters',
+    ]);
+
+    if (accessSecret.length < 32 || exampleSecrets.has(accessSecret)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['JWT_SECRET'],
+        message: 'JWT_SECRET must be a non-placeholder secret of at least 32 non-whitespace characters in production',
+      });
+    }
+
+    if (refreshSecret.length < 32 || exampleSecrets.has(refreshSecret)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['JWT_REFRESH_SECRET'],
+        message: 'JWT_REFRESH_SECRET must be a non-placeholder secret of at least 32 non-whitespace characters in production',
+      });
+    }
+
+    if (accessSecret === refreshSecret) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['JWT_REFRESH_SECRET'],
+        message: 'JWT_SECRET and JWT_REFRESH_SECRET must be different in production',
+      });
+    }
   }
 });
 
@@ -607,7 +649,9 @@ export const env = {
     // swallowed into a generic "Image upload failed" (see cloudinary.ts).
     // This flag lets index.ts fail loudly at startup instead.
     isConfigured: Boolean(
-      _env.CLOUDINARY_CLOUD_NAME && _env.CLOUDINARY_API_KEY && _env.CLOUDINARY_API_SECRET
+      (_env.CLOUDINARY_CLOUD_NAME || '').trim() &&
+      (_env.CLOUDINARY_API_KEY || '').trim() &&
+      (_env.CLOUDINARY_API_SECRET || '').trim()
     ),
   },
   // same isConfigured pattern as email.isConfigured

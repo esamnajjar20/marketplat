@@ -11,8 +11,12 @@ import { AdCreationLockedError } from '../../src/shared/utils/adLock';
 import { ROLES } from '../../src/shared/constants/roles';
 import { createTestUser } from '../helpers/auth.helper';
 import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
+import { requireStoreAccess } from '../../src/modules/stores/store-members.service';
 
 jest.mock('../../src/modules/ads/ads.repository');
+jest.mock('../../src/modules/stores/store-members.service', () => ({
+  requireStoreAccess: jest.fn(),
+}));
 jest.mock('../../src/modules/favorites/favorites.repository', () => ({
   favoritesRepository: {
     countByUserId: jest.fn(),
@@ -499,6 +503,26 @@ describe('AdsService', () => {
 
       expect(result.status).toBe('SOLD');
       expect(adsRepository.update).toHaveBeenCalledWith('ad-1', { status: 'SOLD' });
+    });
+
+    it('requires current store access even when the caller originally created a store-backed ad', async () => {
+      (adsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAd, storeId: 'store-1' });
+      (requireStoreAccess as jest.Mock).mockRejectedValue(new ForbiddenError('Store blocked'));
+
+      await expect(
+        adsService.updateAd('ad-1', 'user-1', ROLES.USER, { title: 'Changed title' })
+      ).rejects.toThrow(ForbiddenError);
+      expect(requireStoreAccess).toHaveBeenCalledWith('user-1', 'store-1', 'manageAds');
+      expect(adsRepository.update).not.toHaveBeenCalled();
+    });
+    it('surfaces infrastructure failures instead of reporting them as a permission denial', async () => {
+      (adsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAd, storeId: 'store-1' });
+      (requireStoreAccess as jest.Mock).mockRejectedValue(new Error('database unavailable'));
+
+      await expect(
+        adsService.updateAd('ad-1', 'user-1', ROLES.USER, { title: 'Changed title' })
+      ).rejects.toThrow('database unavailable');
+      expect(adsRepository.update).not.toHaveBeenCalled();
     });
   });
 

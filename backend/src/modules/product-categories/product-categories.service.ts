@@ -10,6 +10,8 @@ import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
+import { bumpPublicListCache } from '../../shared/utils/publicListCache';
+import { invalidateHomeCache } from '../home/home.cache.keys';
 
 // versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
@@ -20,8 +22,17 @@ const invalidateProductCategoriesCache = async (): Promise<void> => {
   try {
     await redis.del(PRODUCT_CATEGORIES_CACHE_KEY);
   } catch {
-    // silent fail — cache miss is acceptable
+    // The dependent generations below still need to advance if this key
+    // cannot be deleted; the category-tree key will expire by TTL.
+    logger.warn('Product categories cache invalidation failed');
   }
+
+  // Public product list payloads embed category id/name/nameAr. Deleting
+  // only the category-tree key leaves cached product cards with stale labels.
+  await bumpPublicListCache('products');
+  // The homepage has its own assembled payload and does not automatically
+  // observe the product-list soft generation bump.
+  await invalidateHomeCache();
 };
 
 export const productCategoriesService = {

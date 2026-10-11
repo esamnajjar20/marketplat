@@ -1,5 +1,6 @@
 import { bumpGeneration } from '../../shared/utils/swrCache';
-import { invalidateHomeCache } from '../home/home.cache.keys';
+import { HOME_GEN_KEY, invalidateHomeCache } from '../home/home.cache.keys';
+import { logger } from '../../shared/utils/logger';
 
 /**
  * Generation keys + invalidation helpers for the GET /ads list cache.
@@ -26,8 +27,12 @@ export async function bumpAdsCacheVersion(): Promise<void> {
  * Hard invalidation: an ad must stop appearing NOW. Every cached list entry
  * becomes unusable and the next read rebuilds synchronously from the DB.
  */
-export async function bumpAdsCacheHard(): Promise<void> {
-  await bumpGeneration(ADS_GEN_HARD_KEY);
+export async function bumpAdsCacheHard(): Promise<boolean> {
+  const ok = await bumpGeneration(ADS_GEN_HARD_KEY, { retryDependentGenKeys: [HOME_GEN_KEY] });
+  if (!ok) {
+    logger.error('Ads hard cache invalidation failed; removed or unavailable ads may remain in cached lists until hard TTL');
+  }
+  return ok;
 }
 
 /**
@@ -42,6 +47,13 @@ export async function bumpAdsCacheHard(): Promise<void> {
  * lingering is not.
  */
 export async function bumpAdsCacheVersionAndHome(): Promise<void> {
-  await bumpAdsCacheHard();
+  const adsInvalidated = await bumpAdsCacheHard();
+  if (!adsInvalidated) {
+    // Do not trigger homepage listeners/re-warming from a potentially stale ad-list
+    // cache. Keeping the old homepage until TTL is safer than republishing removed ads
+    // under a new homepage generation while Redis invalidation is failing.
+    logger.error('Homepage invalidation skipped because ad-list hard invalidation failed; avoid rewarming homepage from stale ad cache');
+    return;
+  }
   await invalidateHomeCache();
 }

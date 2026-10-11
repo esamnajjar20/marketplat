@@ -55,6 +55,7 @@ const BUFFER_TTL_SECONDS = 24 * 60 * 60;
 const MAX_DRAIN_ITERATIONS = 100;
 
 let flushTimer: ReturnType<typeof setInterval> | null = null;
+let flushInFlight: Promise<void> | null = null;
 
 export const activityBuffer = {
   /**
@@ -112,81 +113,95 @@ export const activityBuffer = {
    * mirroring viewsBuffer.stopFlushTimer()'s final-flush convention).
    */
   flush: async (): Promise<void> => {
-    try {
-      // ioredis reflects Redis 6.2+'s LPOP key count form directly:
-      // lpop(key, count) removes and returns up to `count` elements
-      // from the head in one round trip, or null if the key doesn't
-      // exist / is empty — no separate LRANGE+LTRIM pair needed (which
-      // would also be non-atomic across two calls).
-      const raw = await redis.lpop(BUFFER_KEY, MAX_BATCH_PER_FLUSH);
-      if (!raw || raw.length === 0) return;
-
-      let parseFailures = 0;
-      const entries = raw
-        .map((item) => {
-          try {
-            return JSON.parse(item) as CreateActivityInput & { createdAt: string };
-          } catch {
-            parseFailures++;
-            return null;
-          }
-        })
-        .filter((entry): entry is CreateActivityInput & { createdAt: string } => entry !== null);
-
-      if (parseFailures > 0) {
-        // Previously silent — a corrupted buffer entry would just vanish
-        // from the batch. Logged so a bad writer (or a Redis value
-        // tampered with) is visible instead of silently reducing the
-        // flushed row count.
-        logger.warn('Activity buffer: dropped unparseable entries', { parseFailures });
-      }
-
-      if (entries.length === 0) return;
-
+    // setInterval callbacks may overlap when Redis/Postgres is slow. Share
+    // one in-flight drain promise across timer and shutdown callers.
+    if (flushInFlight) return flushInFlight;
+    const task = (async (): Promise<void> => {
       try {
-        // T452 — skipDuplicates:true is the actual guard. If a prior
-        // createMany committed but its response was lost, the entries
-        // re-pushed by the failed-attempt branch below will carry the
-        // same idempotencyKey values and be silently skipped here,
-        // rather than inserted a second time. Requires the unique
-        // index on UserActivity.idempotencyKey (migration
-        // 20260923120001_add_user_activity_idempotency_key).
-        await prisma.userActivity.createMany({
-          data: entries.map(({ createdAt, ...rest }) => ({
-            ...rest,
-            createdAt: new Date(createdAt),
-          })),
-          skipDuplicates: true,
-        });
-        logger.debug(`Activity buffer flushed: ${entries.length} rows`);
-      } catch (createErr) {
-        // CRITICAL: LPOP already removed these from Redis. If we just
-        // log-and-return (the previous behavior) they are gone forever
-        // — no retry, no record. Re-push them to the head of the list
-        // so the next tick retries the same batch (createMany is a
-        // single SQL statement — all-or-nothing — so this can never
-        // produce duplicates of rows that actually committed).
-        //
-        // LPUSH with multiple args prepends each in turn, so passing
-        // the popped array reversed restores the original head order
-        // ([a,b,c] popped → LPUSH c b a → [a,b,c,...rest]).
-        try {
-          await redis.lpush(BUFFER_KEY, ...entries.map((e) =>
-            JSON.stringify({ ...e, createdAt: new Date(e.createdAt).toISOString() })
-          ).reverse());
-          logger.warn('Activity buffer flush failed — entries re-pushed for retry', {
-            count: entries.length,
-            err: createErr,
-          });
-        } catch (repushErr) {
-          logger.error(
-            'Activity buffer flush failed AND re-push failed — entries lost',
-            { count: entries.length, createErr, repushErr },
-          );
+        // ioredis reflects Redis 6.2+'s LPOP key count form directly:
+        // lpop(key, count) removes and returns up to `count` elements
+        // from the head in one round trip, or null if the key doesn't
+        // exist / is empty — no separate LRANGE+LTRIM pair needed (which
+        // would also be non-atomic across two calls).
+        const raw = await redis.lpop(BUFFER_KEY, MAX_BATCH_PER_FLUSH);
+        if (!raw || raw.length === 0) return;
+
+        let parseFailures = 0;
+        const entries = raw
+          .map((item) => {
+            try {
+              return JSON.parse(item) as CreateActivityInput & { createdAt: string };
+            } catch {
+              parseFailures++;
+              return null;
+            }
+          })
+          .filter((entry): entry is CreateActivityInput & { createdAt: string } => entry !== null);
+
+        if (parseFailures > 0) {
+          // Previously silent — a corrupted buffer entry would just vanish
+          // from the batch. Logged so a bad writer (or a Redis value
+          // tampered with) is visible instead of silently reducing the
+          // flushed row count.
+          logger.warn('Activity buffer: dropped unparseable entries', { parseFailures });
         }
+
+        if (entries.length === 0) return;
+
+        try {
+          // T452 — skipDuplicates:true is the actual guard. If a prior
+          // createMany committed but its response was lost, the entries
+          // re-pushed by the failed-attempt branch below will carry the
+          // same idempotencyKey values and be silently skipped here,
+          // rather than inserted a second time. Requires the unique
+          // index on UserActivity.idempotencyKey (migration
+          // 20260923120001_add_user_activity_idempotency_key).
+          await prisma.userActivity.createMany({
+            data: entries.map(({ createdAt, ...rest }) => ({
+              ...rest,
+              createdAt: new Date(createdAt),
+            })),
+            skipDuplicates: true,
+          });
+          logger.debug(`Activity buffer flushed: ${entries.length} rows`);
+        } catch (createErr) {
+          // CRITICAL: LPOP already removed these from Redis. If we just
+          // log-and-return (the previous behavior) they are gone forever
+          // — no retry, no record. Re-push them to the head of the list
+          // so the next tick retries the same batch (createMany is a
+          // single SQL statement — all-or-nothing — so this can never
+          // produce duplicates of rows that actually committed).
+          //
+          // LPUSH with multiple args prepends each in turn, so passing
+          // the popped array reversed restores the original head order
+          // ([a,b,c] popped → LPUSH c b a → [a,b,c,...rest]).
+          try {
+            await redis.lpush(BUFFER_KEY, ...entries.map((e) =>
+              JSON.stringify({ ...e, createdAt: new Date(e.createdAt).toISOString() })
+            ).reverse());
+            // LPOP may have removed the last list item and its TTL. LPUSH
+            // recreates the list without an expiry, so restore the safety TTL.
+            await redis.expire(BUFFER_KEY, BUFFER_TTL_SECONDS);
+            logger.warn('Activity buffer flush failed — entries re-pushed for retry', {
+              count: entries.length,
+              err: createErr,
+            });
+          } catch (repushErr) {
+            logger.error(
+              'Activity buffer flush failed during re-push/TTL restore — inspect buffered entries',
+              { count: entries.length, createErr, repushErr },
+            );
+          }
+        }
+      } catch (err) {
+        logger.error('Activity buffer flush failed (pre-DB stage)', err);
       }
-    } catch (err) {
-      logger.error('Activity buffer flush failed (pre-DB stage)', err);
+    })();
+    flushInFlight = task;
+    try {
+      await task;
+    } finally {
+      if (flushInFlight === task) flushInFlight = null;
     }
   },
 

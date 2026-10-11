@@ -53,13 +53,15 @@ export const onHomeInvalidated = (listener: InvalidationListener): (() => void) 
  * a generation token; envelopes stamped with the old token are ignored by
  * readers no matter when they were written.
  *
- * Best-effort: never throws. If Redis is unreachable the entries simply age
- * out (soft TTL ~30-40s).
+ * Best-effort: never throws. If Redis is unreachable, the generation bump can fail;
+ * in that case the existing entry may remain readable until its HARD TTL expires.
+ * Do not describe this as bounded by the soft TTL: stale-while-revalidate does not
+ * invalidate an entry when the generation write itself fails.
  */
 export async function invalidateHomeCache(): Promise<void> {
   const ok = await bumpGeneration(HOME_GEN_KEY);
   if (!ok) {
-    logger.warn('Failed to invalidate home cache — stale homepage possible for up to ~40s');
+    logger.error('Failed to invalidate home cache — hard invalidation did not complete; stale homepage data may remain until the cache hard TTL expires');
     return;
   }
   for (const listener of listeners) {

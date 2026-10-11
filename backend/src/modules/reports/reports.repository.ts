@@ -80,7 +80,7 @@ export const reportsRepository = {
       prisma.report.findMany({
         where,
         include: reportWithDetails,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),
@@ -106,7 +106,7 @@ export const reportsRepository = {
       prisma.report.findMany({
         where,
         include: reportWithDetails,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),

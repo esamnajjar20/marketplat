@@ -16,7 +16,7 @@ import { serviceTypesRepository } from '../service-types/service-types.repositor
 const SERVICE_CATEGORIES_CACHE_KEY = 'service_categories:all:v2';
 const SERVICE_CATEGORIES_TTL = 60 * 60; // 1 hour — same as categories, rarely changes
 
-const invalidateServiceCategoriesCache = async (): Promise<void> => {
+export const invalidateServiceCategoriesCache = async (): Promise<void> => {
   try {
     await redis.del(SERVICE_CATEGORIES_CACHE_KEY);
   } catch {

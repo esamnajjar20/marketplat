@@ -1448,10 +1448,40 @@ model Notification {
   readAt         DateTime?
   createdAt      DateTime         @default(now())
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushDispatches NotificationPushDispatch[]
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+
+
+// Durable post-commit handoff for push notifications created by the transactional
+// outbox. This records dispatch intent atomically with the notification row, so a
+// worker crash after acknowledging the source event cannot silently skip handoff.
+model NotificationPushDispatch {
+  id             String        @id @default(cuid())
+  notificationId String        @unique
+  userId         String
+  payload        Json
+  idempotencyKey String        @unique
+  createdAt      DateTime      @default(now())
+  availableAt    DateTime      @default(now())
+  attempts       Int           @default(0)
+  lockedAt       DateTime?
+  lockedBy       String?
+  processedAt    DateTime?
+  deadLetterAt   DateTime?
+  lastError      String?       @db.VarChar(1000)
+  targetsSeededAt DateTime?
+  notification   Notification  @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  deliveryTargets NotificationPushDeliveryTarget[]
+
+  @@index([processedAt, availableAt, createdAt])
+  @@index([deadLetterAt, processedAt])
+  @@index([lockedAt])
+  @@map("notification_push_dispatches")
 }
 
 // FIX PWA-PUSH-01: persists the browser PushSubscription objects created
@@ -1469,6 +1499,31 @@ model Notification {
 // re-subscribing the same browser (e.g. after clearing the permission
 // and re-granting it) sends the same endpoint again and should update
 // the existing row rather than create a duplicate.
+// Per-installation delivery ledger. targetId is the opaque database row id,
+// never the endpoint URL or FCM token. Provider acceptance is recorded per target
+// so a transient failure on one device does not resend to devices already marked SENT.
+model NotificationPushDeliveryTarget {
+  id          String   @id @default(cuid())
+  dispatchId  String
+  channel     String   @db.VarChar(16) // 'WEB_PUSH' | 'FCM'
+  targetId    String
+  status      String   @default("PENDING") @db.VarChar(16) // PENDING | SENT | GONE | FAILED
+  attempts    Int      @default(0)
+  availableAt DateTime @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?  @db.VarChar(120)
+  processedAt DateTime?
+  lastError   String?  @db.VarChar(1000)
+  createdAt   DateTime @default(now())
+  dispatch    NotificationPushDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+
+  @@unique([dispatchId, channel, targetId])
+  @@index([dispatchId, status, availableAt])
+  @@index([status, availableAt])
+  @@index([status, lockedAt])
+  @@map("notification_push_delivery_targets")
+}
+
 model PushSubscription {
   id         String   @id @default(cuid())
   userId     String
@@ -2366,9 +2421,22 @@ model OutboxEvent {
   lockedAt       DateTime?
   lockedBy       String?
   processedAt    DateTime?
+  deadLetterAt   DateTime?
   lastError      String?   @db.VarChar(1000)
 
   @@index([processedAt, availableAt, createdAt])
+  @@index([deadLetterAt, processedAt])
   @@index([lockedAt])
   @@map("outbox_events")
+}
+
+
+// Compact permanent ledger: keeps outbox idempotency keys reserved after old
+// processed event payload rows are pruned by the outbox worker. The insert
+// trigger is installed by the corresponding SQL migration.
+model OutboxEventIdempotency {
+  idempotencyKey String   @id
+  recordedAt     DateTime @default(now())
+
+  @@map("outbox_event_idempotency")
 }

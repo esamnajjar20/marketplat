@@ -465,6 +465,28 @@ describe('productsService', () => {
       ).rejects.toThrow(BadRequestError);
     });
 
+    it('rejects a category belonging to a different store type on update', async () => {
+      (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
+      (productsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'product-1',
+        storeId: 'store-1',
+        price: '100',
+        discountPrice: null,
+        wholesalePrice: null,
+        wholesaleMinQty: null,
+      });
+      (productCategoriesRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'cat-other-type',
+        isActive: true,
+        storeTypeId: 'st_other',
+      });
+
+      await expect(
+        productsService.updateProduct('user-1', 'product-1', { categoryId: 'cat-other-type' })
+      ).rejects.toThrow(BadRequestError);
+      expect(productsRepository.update).not.toHaveBeenCalled();
+    });
+
     it('skips category validation when categoryId is not part of the update', async () => {
       (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productsRepository.findById as jest.Mock).mockResolvedValue({
@@ -584,7 +606,7 @@ describe('productsService', () => {
 
       await productsService.deleteProduct('user-1', 'product-1');
 
-      expect(productsRepository.softDelete).toHaveBeenCalledWith('product-1');
+      expect(productsRepository.softDelete).toHaveBeenCalledWith('product-1', 'store-1');
       expect(deleteImage).toHaveBeenCalledWith('pub-a');
       expect(deleteImage).toHaveBeenCalledWith('pub-b');
     });

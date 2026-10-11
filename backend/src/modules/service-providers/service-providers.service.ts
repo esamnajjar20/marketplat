@@ -24,7 +24,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { withServiceProviderCreationLock } from '../../shared/utils/serviceProviderLock';
 import { getPaginationParams, PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
-import { cachedPublicList, bumpPublicListCache } from '../../shared/utils/publicListCache';
+import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { validateServiceProviderAttributes } from '../service-types/service-types.service';
 
@@ -137,7 +137,7 @@ export const serviceProvidersService = {
       throw new ConflictError('You already have a service provider profile.', 'SERVICE_PROVIDER_ALREADY_EXISTS');
     }
 
-    return withServiceProviderCreationLock(sellerProfile.id, async () => {
+    const created = await withServiceProviderCreationLock(sellerProfile.id, async () => {
       const stillExisting = await serviceProvidersRepository.findBySellerProfileId(
         sellerProfile.id
       );
@@ -169,6 +169,11 @@ export const serviceProvidersService = {
         throw error;
       }
     });
+    // The public directory is cached independently from the provider write.
+    // Soft-bump after commit so a newly created, available provider can appear
+    // without waiting for the ordinary cache TTL.
+    await bumpPublicListCache('service-providers');
+    return created;
   },
 
   getMyServiceTypeProfiles: async (userId: string) => {
@@ -227,7 +232,14 @@ export const serviceProvidersService = {
     if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     const updated = await serviceProvidersRepository.update(details.id, input);
-    await bumpPublicListCache('service-providers');
+    // UNAVAILABLE providers are excluded from the public directory. Treat this
+    // transition as a hard hide, not a soft edit, so a cached page cannot keep
+    // advertising the provider while a stale refresh is pending.
+    if (updated.availabilityStatus === 'UNAVAILABLE') {
+      await hidePublicEntities('service-providers');
+    } else {
+      await bumpPublicListCache('service-providers');
+    }
     return updated;
   },
 

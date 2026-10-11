@@ -93,10 +93,19 @@ export const storiesService = {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, isActive: true } });
     if (!user?.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     const rows = await storiesRepository.listActiveForUser(userId);
-    const visible: any[] = [];
-    for (const story of rows) {
-      if (await canView(story, viewerId)) visible.push(story);
-    }
+    // Every row belongs to the same author, so the follow relationship is
+    // identical for all private stories. Resolve it once instead of issuing
+    // one SELECT per story (N+1). Public stories and the owner's own stories
+    // remain visible without a follow lookup.
+    const followsAuthor = Boolean(
+      viewerId && viewerId !== userId &&
+      await followsService.status(viewerId, FollowTargetType.USER, userId)
+    );
+    const visible = rows.filter((story) =>
+      story.visibility === StoryVisibility.PUBLIC ||
+      story.userId === viewerId ||
+      followsAuthor
+    );
     if (!viewerId) return visible.map((story) => shapeStory({ ...story, views: [] }, ''));
     const viewed = await prisma.storyView.findMany({ where: { viewerId, storyId: { in: visible.map((r) => r.id) } }, select: { storyId: true } });
     const viewedIds = new Set(viewed.map((v) => v.storyId));

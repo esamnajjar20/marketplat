@@ -1047,16 +1047,24 @@ export const authService = {
     // and is allowed to also write the new password. The loser's
     // updateMany matches zero rows and is rejected here — no password
     // update happens for it at all.
-    const claim = await prisma.passwordResetToken.updateMany({
-      where: { token, used: false },
-      data: { used: true },
+    // Claim the token and change the password in one database transaction.
+    // The expiry predicate is repeated in the atomic claim: a token can expire
+    // while password hashing runs, and the earlier read alone must not grant
+    // a reset after its deadline. The transaction also prevents a DB failure
+    // during the user update from consuming the token without changing the
+    // password (or changing the password while leaving the token reusable).
+    await prisma.$transaction(async (tx) => {
+      const claim = await tx.passwordResetToken.updateMany({
+        where: { token, used: false, expiresAt: { gt: new Date() } },
+        data: { used: true },
+      });
+
+      if (claim.count === 0) {
+        throw new BadRequestError('Password reset link is invalid or has expired', 'INVALID_RESET_TOKEN');
+      }
+
+      await tx.user.update({ where: { id: record.userId }, data: { passwordHash } });
     });
-
-    if (claim.count === 0) {
-      throw new BadRequestError('Password reset link is invalid or has expired', 'INVALID_RESET_TOKEN');
-    }
-
-    await prisma.user.update({ where: { id: record.userId }, data: { passwordHash } });
 
     // BUGFIX P0-02: tokenStore.deleteAllSessions did not exist (would throw
     // a TypeError at runtime on every successful password reset).

@@ -60,6 +60,12 @@ const CODE_BY_STATUS: Record<number, string> = {
   422: ErrorCode.UNPROCESSABLE_ENTITY,
   429: ErrorCode.RATE_LIMIT_EXCEEDED,
   503: ErrorCode.SERVICE_UNAVAILABLE,
+  // Body-parser / Express request errors are client faults, not internal
+  // incidents. Keep the existing stable BAD_REQUEST code for statuses
+  // without a dedicated public error code.
+  408: ErrorCode.BAD_REQUEST,
+  413: ErrorCode.BAD_REQUEST,
+  415: ErrorCode.BAD_REQUEST,
 };
 
 export const errorMiddleware = (
@@ -86,7 +92,7 @@ export const errorMiddleware = (
   if (rawStatus && rawStatus >= 400 && rawStatus < 600) {
     const code =
       CODE_BY_STATUS[rawStatus] ??
-      (rawStatus === 400 ? ErrorCode.BAD_REQUEST : ErrorCode.INTERNAL_ERROR);
+      (rawStatus < 500 ? ErrorCode.BAD_REQUEST : ErrorCode.INTERNAL_ERROR);
     const safeMessage =
       rawStatus >= 500
         ? rawStatus === 503
@@ -106,7 +112,13 @@ export const errorMiddleware = (
                     ? 'Request could not be processed.'
                     : rawStatus === 429
                       ? 'Too many requests.'
-                      : 'Request could not be processed.';
+                      : rawStatus === 413
+                        ? 'Request payload is too large.'
+                        : rawStatus === 415
+                          ? 'Unsupported media type.'
+                          : rawStatus === 408
+                            ? 'Request timed out.'
+                            : 'Request could not be processed.';
     res.locals.errorCode = code;
     res.status(rawStatus).json(buildApiErrorBody(req, rawStatus, code, safeMessage));
     return;

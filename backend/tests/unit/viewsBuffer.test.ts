@@ -53,4 +53,18 @@ describe('viewsBuffer', () => {
       data: { views: { increment: 3 } },
     });
   });
+  it('does not start a second flush while the first scan is still pending', async () => {
+    let resolveScan!: (value: [string, string[]]) => void;
+    const scan = jest.spyOn(redis as any, 'scan').mockReturnValue(
+      new Promise<[string, string[]]>((resolve) => { resolveScan = resolve; })
+    );
+
+    const first = viewsBuffer.flush();
+    const second = viewsBuffer.flush();
+    expect(scan).toHaveBeenCalledTimes(1);
+
+    resolveScan(['0', []]);
+    await Promise.all([first, second]);
+  });
+
 });

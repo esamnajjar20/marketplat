@@ -378,6 +378,15 @@ export const productsService = {
       if (!category || !category.isActive) {
         throw new BadRequestError('Invalid or inactive product category.');
       }
+      // Keep update semantics aligned with createProduct: global categories
+      // (storeTypeId=null) are allowed, but a category owned by another
+      // store type must never be attached to this store's product.
+      if (category.storeTypeId && category.storeTypeId !== store.storeTypeId) {
+        throw new BadRequestError(
+          'This product category is not available for this store type.',
+          'PRODUCT_CATEGORY_STORE_TYPE_MISMATCH',
+        );
+      }
     }
 
     const patch = { ...input };
@@ -435,7 +444,7 @@ export const productsService = {
           patch,
           'MANUAL_ADJUSTMENT',
         )
-      : await productsRepository.update(id, patch);
+      : await productsRepository.update(id, store.id, patch);
     // Edits (incl. stock/availability): soft invalidation (stale once, then
     // refreshed). A status change away from ACTIVE must hide the product now.
     if (patch.status && patch.status !== 'ACTIVE') {
@@ -540,7 +549,7 @@ export const productsService = {
       throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
     }
 
-    await productsRepository.softDelete(id);
+    await productsRepository.softDelete(id, store.id);
     await hidePublicEntities('products');
 
     await Promise.all(

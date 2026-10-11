@@ -363,7 +363,7 @@ export const serviceListingsRepository = {
     };
 
     const [listings, total] = await Promise.all([
-      prisma.serviceListing.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.serviceListing.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
       prisma.serviceListing.count({ where }),
     ]);
 

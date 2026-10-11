@@ -10,6 +10,7 @@ import { resetCacheGuard } from '../../src/shared/utils/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
+jest.mock('../../src/config/prisma', () => ({ prisma: { outboxEvent: { create: jest.fn().mockResolvedValue({ id: 'outbox-1' }) } } }));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
@@ -98,6 +99,38 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
     const result = await swrGetWithStatus(options);
     expect(result.status).toBe('miss'); // old-generation envelope is ignored
     expect(result.value.v).toBe('REMOVED');
+  });
+
+  it('RACE: an old build cannot overwrite a newer generation cache envelope', async () => {
+    let releaseOldBuild!: (value: Payload) => void;
+    let signalOldBuildStarted!: () => void;
+    const oldBuildStarted = new Promise<void>(resolve => { signalOldBuildStarted = resolve; });
+    const oldBuild = new Promise<Payload>(resolve => { releaseOldBuild = resolve; });
+    let buildCount = 0;
+    const { options } = setup({
+      build: async () => {
+        buildCount += 1;
+        if (buildCount === 1) {
+          signalOldBuildStarted();
+          return oldBuild;
+        }
+        return { v: 'NEW' };
+      },
+    });
+
+    const firstRequest = swrGet(options);
+    await oldBuildStarted;
+    await bumpGeneration('gen:hard');
+    expect(await swrGet(options)).toEqual({ v: 'NEW' });
+
+    // The old request completes last. Its write must be rejected atomically,
+    // not overwrite the already-published new-generation envelope.
+    releaseOldBuild({ v: 'OLD' });
+    await firstRequest;
+    const result = await swrGetWithStatus(options);
+    expect(result.status).toBe('hit');
+    expect(result.value).toEqual({ v: 'NEW' });
+    expect(buildCount).toBe(2);
   });
 
   it('a request after an invalidation does not join a pre-invalidation in-flight build', async () => {
@@ -272,5 +305,9 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
       .mockRejectedValueOnce(new Error('redis down'))
       .mockRejectedValueOnce(new Error('redis down'));
     await expect(bumpGeneration('gen:hard')).resolves.toBe(false);
+    const { prisma } = require('../../src/config/prisma');
+    expect(prisma.outboxEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ eventType: 'CACHE_GENERATION_BUMP', aggregateId: 'gen:hard' }),
+    }));
   });
 });

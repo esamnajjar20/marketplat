@@ -57,7 +57,8 @@ export const getPaginationParams = (
 ): PaginationParams => {
   const rawPage = typeof pageOrInput === 'object' ? pageOrInput.page : pageOrInput;
   const rawLimit = typeof pageOrInput === 'object' ? pageOrInput.limit : limit;
-  const page = Math.max(1, rawPage ?? 1);
+  // Keep offset pagination bounded even for internal callers that bypass the Zod schema.
+  const page = Math.min(1000, Math.max(1, rawPage ?? 1));
   const normalizedLimit = Math.min(100, Math.max(1, rawLimit ?? 20));
 
   return {

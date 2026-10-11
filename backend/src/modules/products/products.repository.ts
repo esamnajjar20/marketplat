@@ -148,6 +148,7 @@ export const productsRepository = {
 
   update: (
     id: string,
+    storeId: string,
     data: Partial<{
       categoryId: string;
       name: string;
@@ -163,7 +164,7 @@ export const productsRepository = {
       status: ProductStatus;
       attributes: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
     }>
-  ): Promise<Product> => prisma.product.update({ where: { id }, data }),
+  ): Promise<Product> => prisma.product.update({ where: { id, storeId }, data }),
 
   updateWithStockMovement: async (
     id: string,
@@ -189,7 +190,7 @@ export const productsRepository = {
     const current = await tx.product.findUnique({ where: { id } });
     if (!current || current.storeId !== storeId) throw new Error('PRODUCT_NOT_FOUND');
 
-    const updated = await tx.product.update({ where: { id }, data });
+    const updated = await tx.product.update({ where: { id, storeId }, data });
     if (data.stockQuantity !== undefined && current.stockQuantity !== updated.stockQuantity) {
       const previousQuantity = current.stockQuantity;
       const newQuantity = updated.stockQuantity;
@@ -268,8 +269,8 @@ export const productsRepository = {
   // Soft delete, same convention as ads/service-listings — keeps
   // historical references (e.g. conversations about this product)
   // intact rather than a hard row removal.
-  softDelete: (id: string): Promise<Product> =>
-    prisma.product.update({ where: { id }, data: { status: 'DELETED' } }),
+  softDelete: (id: string, storeId: string): Promise<Product> =>
+    prisma.product.update({ where: { id, storeId }, data: { status: 'DELETED' } }),
 
   // Mirrors ads.repository.ts's addImages exactly: atomic array append
   // via raw SQL (no SELECT + UPDATE race), with existing images always
@@ -462,7 +463,7 @@ export const productsRepository = {
     };
 
     const [products, total] = await Promise.all([
-      prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.product.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
       prisma.product.count({ where }),
     ]);
 

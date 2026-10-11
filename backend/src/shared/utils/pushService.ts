@@ -284,6 +284,21 @@ export const pushService = {
   quietHoursDecision: (userId: string, urgent?: boolean): Promise<QuietHoursDecision> =>
     loadQuietHoursDecision(userId, urgent),
 
+  /** Durable outbox helper: resolve a single current subscription by opaque row id. */
+  sendToSubscriptionForOutbox: async (
+    subscriptionId: string,
+    userId: string,
+    payload: PushPayload,
+  ): Promise<'sent' | 'gone' | 'transient' | 'failed' | 'unconfigured' | 'missing'> => {
+    const subscription = await pushSubscriptionsRepository.findByIdForUser(subscriptionId, userId);
+    if (!subscription) return 'missing';
+    return pushService.sendToSubscription({
+      endpoint: subscription.endpoint,
+      p256dh: subscription.p256dh,
+      auth: subscription.auth,
+    }, payload);
+  },
+
   /**
    * The pre-delivery path (FCM + every Web Push subscription of the
    * user, inline, one retry per device). Used when the queue is disabled or

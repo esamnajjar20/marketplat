@@ -52,7 +52,13 @@ BACKUP_VOLUME_PATH="${1:-/var/lib/docker/volumes/classifieds-backend_db_backups/
 POSTGRES_DB_NAME="${POSTGRES_DB:-classifieds_db}"
 THROWAWAY_CONTAINER_NAME="classifieds-restore-verify-$$"
 THROWAWAY_DB_PASSWORD="restore-verify-throwaway-password"
-POSTGRES_IMAGE_TAG="15-alpine" # must match the real db service's image tag in docker-compose.yml
+# Default restore image. The actual major is derived from the dump header below
+# (restoring a dump made by a newer pg_dump/server into an older major can fail
+# on unknown settings such as transaction_timeout). Override with
+# RESTORE_POSTGRES_IMAGE_TAG to force a specific tag.
+POSTGRES_IMAGE_TAG="${RESTORE_POSTGRES_IMAGE_TAG:-15-alpine}"
+RESTORE_SQL_FILE="${TMPDIR:-/tmp}/restore-verify-$$.sql"
+RESTORE_LOG_FILE="${TMPDIR:-/tmp}/restore-verify-$$.log"
 
 # Tables this app's schema.prisma actually defines (@@map names) — the
 # restore is considered structurally sound only if ALL of these exist
@@ -78,6 +84,7 @@ fail() {
 cleanup() {
   log "Cleaning up throwaway container..."
   docker rm -f "$THROWAWAY_CONTAINER_NAME" > /dev/null 2>&1 || true
+  rm -f "$RESTORE_SQL_FILE" "$RESTORE_LOG_FILE"
 }
 trap cleanup EXIT INT TERM
 
@@ -117,6 +124,31 @@ if [ "$BACKUP_AGE_HOURS" -gt 48 ]; then
   log "WARNING: latest backup is over 48h old — if SCHEDULE is @daily (the docker-compose.yml default), this likely means db_backup has been failing silently. Investigate before treating this restore test as reassuring."
 fi
 
+# ── Step 1b: validate + decompress the dump, pick matching Postgres major ──
+# Validate gzip separately before restore. POSIX sh does not guarantee
+# pipefail, so `gunzip | docker exec psql` can otherwise report success
+# when decompression fails after psql has accepted a partial stream.
+if ! gzip -t "$LATEST_BACKUP"; then
+  fail "Backup is not a complete valid gzip stream: $LATEST_BACKUP"
+fi
+if ! gunzip -c "$LATEST_BACKUP" > "$RESTORE_SQL_FILE"; then
+  fail "Could not decompress backup into a temporary SQL file"
+fi
+if ! head -n 5 "$RESTORE_SQL_FILE" | grep -q 'PostgreSQL database dump'; then
+  fail "Decompressed file does not have the expected PostgreSQL plain-SQL dump header"
+fi
+if [ -z "${RESTORE_POSTGRES_IMAGE_TAG:-}" ]; then
+  # Header line: "-- Dumped from database version 17.2 (...)". Restoring into the
+  # same major as the SOURCE server avoids false failures from newer settings.
+  DUMP_SERVER_MAJOR="$(head -n 20 "$RESTORE_SQL_FILE" | sed -n 's/^-- Dumped from database version \([0-9][0-9]*\).*/\1/p' | head -n 1)"
+  if [ -n "$DUMP_SERVER_MAJOR" ]; then
+    POSTGRES_IMAGE_TAG="${DUMP_SERVER_MAJOR}-alpine"
+    log "Dump was taken from PostgreSQL major $DUMP_SERVER_MAJOR; restoring into postgres:$POSTGRES_IMAGE_TAG"
+  else
+    log "WARNING: could not read source server version from dump header; using postgres:$POSTGRES_IMAGE_TAG"
+  fi
+fi
+
 # ── Step 2: spin up a disposable Postgres container ────────────────
 log "Starting throwaway Postgres container ($THROWAWAY_CONTAINER_NAME)..."
 
@@ -139,20 +171,18 @@ done
 # ── Step 3: restore the dump ────────────────────────────────────────
 log "Restoring $LATEST_BACKUP into the throwaway container..."
 
-if ! gunzip -c "$LATEST_BACKUP" | docker exec -i "$THROWAWAY_CONTAINER_NAME" psql -U postgres -d "$POSTGRES_DB_NAME" > /tmp/restore-verify-output.log 2>&1; then
+# ON_ERROR_STOP makes psql fail on the first SQL error; use a per-run log
+# path so concurrent/manual invocations do not overwrite each other's evidence.
+if ! docker exec -i "$THROWAWAY_CONTAINER_NAME" psql -v ON_ERROR_STOP=1 -U postgres -d "$POSTGRES_DB_NAME" < "$RESTORE_SQL_FILE" > "$RESTORE_LOG_FILE" 2>&1; then
   log "--- restore output (last 40 lines) ---"
-  tail -n 40 /tmp/restore-verify-output.log
-  fail "psql restore command exited non-zero — see output above. This is exactly the failure mode this script exists to catch before an actual incident does."
+  tail -n 40 "$RESTORE_LOG_FILE"
+  fail "psql restore command exited non-zero — see output above."
 fi
 
-# psql (unlike pg_restore with a custom-format dump) doesn't always
-# exit non-zero on every kind of in-file error — grep the output for
-# ERROR lines too, since a dump can "complete" while individual
-# statements inside it silently failed.
-if grep -qi "^psql:.*ERROR" /tmp/restore-verify-output.log; then
+if grep -qi '^psql:.*ERROR' "$RESTORE_LOG_FILE"; then
   log "--- errors found in restore output ---"
-  grep -i "^psql:.*ERROR" /tmp/restore-verify-output.log
-  fail "Restore completed but the output contains ERROR lines — a dump that 'runs' without every statement actually succeeding is not a verified-good backup."
+  grep -i '^psql:.*ERROR' "$RESTORE_LOG_FILE"
+  fail "Restore output contains ERROR lines."
 fi
 
 log "Restore command completed with no errors in the output."

@@ -1,4 +1,4 @@
-import { requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
+import { requireStoreAccess, requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
 import { storeMembersRepository } from '../../src/modules/stores/store-members.repository';
 import { storesRepository } from '../../src/modules/stores/stores.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
@@ -102,5 +102,26 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
     (storeMembersRepository.findActiveByUserId as jest.Mock).mockResolvedValue([]);
 
     await expect(requireStoreAccessForProducts(userId)).rejects.toMatchObject({ code: 'STORE_REQUIRED' });
+  });
+
+  it('blocks capability writes to a BLOCKED store for owners and members', async () => {
+    (storesRepository.findById as jest.Mock).mockResolvedValue({ ...store, status: 'BLOCKED' });
+    (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
+
+    await expect(requireStoreAccess(userId, store.id, 'manageAds')).rejects.toMatchObject({ code: 'STORE_BLOCKED' });
+  });
+
+  it('blocks capability writes when the owning seller is suspended', async () => {
+    (sellersRepository.findById as jest.Mock).mockResolvedValue({ id: 'owner-seller', suspended: true });
+    (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
+
+    await expect(requireStoreAccess(userId, store.id, 'manageAds')).rejects.toMatchObject({ code: 'STORE_OWNER_SUSPENDED' });
+  });
+
+  it('keeps read-only access to the member list available for a blocked store', async () => {
+    (storesRepository.findById as jest.Mock).mockResolvedValue({ ...store, status: 'BLOCKED' });
+    (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
+
+    await expect(requireStoreAccess(userId, store.id)).resolves.toMatchObject({ kind: 'member', store: { status: 'BLOCKED' } });
   });
 });

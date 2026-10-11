@@ -21,6 +21,26 @@ const mockNext: NextFunction = jest.fn();
 describe('errorMiddleware', () => {
   beforeEach(() => jest.clearAllMocks());
 
+
+  it.each([
+    { status: 408, message: 'Request timed out.' },
+    { status: 413, message: 'Request payload is too large.' },
+    { status: 415, message: 'Unsupported media type.' },
+  ])('classifies raw client request status $status as a client error', ({ status, message }) => {
+    const res = mockRes();
+    const raw = Object.assign(new Error('internal parser details must not leak'), { status });
+    errorMiddleware(raw, mockReq('req-client-error') as Request, res as Response, mockNext);
+    expect(res.status).toHaveBeenCalledWith(status);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      statusCode: status,
+      code: 'BAD_REQUEST',
+      requestId: 'req-client-error',
+      message,
+    }));
+    expect(res.json).not.toHaveBeenCalledWith(expect.objectContaining({ message: 'internal parser details must not leak' }));
+  });
+
   it('handles ZodError with field errors', () => {
     const res = mockRes();
     let zodErr: ZodError;

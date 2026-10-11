@@ -23,7 +23,7 @@ export const followsRepository = {
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.FollowWhereInput = { followerId, ...(targetType ? { targetType } : {}) };
     const [items, total] = await Promise.all([
-      prisma.follow.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.follow.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
       prisma.follow.count({ where }),
     ]);
     return { items, total };
@@ -39,7 +39,7 @@ export const followsRepository = {
     const { skip, take } = getPaginationParams(page, limit);
     const where = { targetType, targetId };
     const [items, total] = await Promise.all([
-      prisma.follow.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      prisma.follow.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
       prisma.follow.count({ where }),
     ]);
     return { items, total };

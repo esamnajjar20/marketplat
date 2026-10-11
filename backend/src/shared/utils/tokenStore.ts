@@ -1,4 +1,5 @@
 import { redis } from '../../config/redis';
+import { env } from '../../config/env';
 import { hashToken } from './refreshLock';
 import { logger } from './logger';
 import type Redis from 'ioredis';
@@ -24,7 +25,8 @@ const ACCOUNT_LOCKED_PREFIX = 'account_locked:';
 // "Cross-worker blacklist L1 invalidation" block below.
 const INVALIDATION_CHANNEL = 'blacklist:invalidate';
 
-const REFRESH_TTL = 7 * 24 * 60 * 60;
+// Keep Redis session retention aligned with the JWT and cookie expiry.
+const REFRESH_TTL = env.jwt.refreshExpiresInSeconds;
 export const MAX_SESSIONS_PER_USER = 10;
 
 const _lastSeenLocal = new Map<string, number>();

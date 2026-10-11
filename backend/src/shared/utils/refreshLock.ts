@@ -1,7 +1,9 @@
 import { redis } from '../../config/redis';
+import { env } from '../../config/env';
 import crypto from 'crypto';
 
-const REFRESH_TTL = 7 * 24 * 60 * 60;
+// The stored refresh-token hash must live as long as the configured JWT.
+const REFRESH_TTL = env.jwt.refreshExpiresInSeconds;
 
 export const hashToken = (token: string): string =>
   crypto.createHash('sha256').update(token).digest('hex');

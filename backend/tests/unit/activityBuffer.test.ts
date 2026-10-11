@@ -58,7 +58,7 @@ describe('activityBuffer', () => {
 
       await activityBuffer.push(input);
 
-      expect(create).toHaveBeenCalledWith({ data: input });
+      expect(create).toHaveBeenCalledWith({ data: { ...input, idempotencyKey: expect.any(String) } });
     });
   });
 
@@ -85,7 +85,37 @@ describe('activityBuffer', () => {
             createdAt: new Date(entry.createdAt),
           },
         ],
+        skipDuplicates: true,
       });
+    });
+
+
+    it('does not overlap drains while a previous LPOP is pending', async () => {
+      let resolveLpop!: (value: string[] | null) => void;
+      const lpop = jest.spyOn(redis, 'lpop').mockReturnValue(
+        new Promise<string[] | null>((resolve) => { resolveLpop = resolve; }) as any
+      );
+
+      const first = activityBuffer.flush();
+      const second = activityBuffer.flush();
+      expect(lpop).toHaveBeenCalledTimes(1);
+
+      resolveLpop(null);
+      await Promise.all([first, second]);
+    });
+
+    it('restores the safety TTL when a failed batch is re-pushed', async () => {
+      const entry = { ...input, idempotencyKey: 'idem-1', createdAt: '2026-08-08T00:00:00.000Z' };
+      jest.spyOn(redis, 'lpop').mockResolvedValue([JSON.stringify(entry)] as any);
+      const lpush = jest.spyOn(redis, 'lpush').mockResolvedValue(1 as any);
+      const expire = jest.spyOn(redis, 'expire').mockResolvedValue(1 as any);
+      const prisma = await import('../../src/config/prisma');
+      jest.spyOn(prisma.prisma.userActivity, 'createMany').mockRejectedValue(new Error('db down'));
+
+      await activityBuffer.flush();
+
+      expect(lpush).toHaveBeenCalledWith('activity_buffer:pending', expect.any(String));
+      expect(expire).toHaveBeenCalledWith('activity_buffer:pending', 24 * 60 * 60);
     });
 
     it('does nothing when the buffer is empty', async () => {

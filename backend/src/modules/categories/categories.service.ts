@@ -6,6 +6,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 
 // versioned key. Warmup/cache-aside never
 // overwrite an existing key, so a deploy that changes the payload shape would
@@ -18,8 +19,14 @@ const invalidateCategoriesCache = async (): Promise<void> => {
   try {
     await redis.del(CATEGORIES_CACHE_KEY);
   } catch {
-    // silent fail — cache miss is acceptable
+    // The dependent ads generation must still advance; this key will expire
+    // by TTL if Redis cannot delete it now.
+    logger.warn('Categories cache invalidation failed');
   }
+
+  // Ad list responses embed category labels, and the homepage embeds ads.
+  // Clearing only the category tree left those independent caches stale.
+  await bumpAdsCacheVersionAndHome();
 };
 
 export const categoriesService = {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import * as redisConfig from '../../config/redis';
+import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { guardedCache, withCacheTimeout } from './cacheGuard';
 import { cacheMetrics } from './cacheMetrics';
@@ -89,8 +90,44 @@ const inflight = new Map<string, Promise<unknown>>();
 
 const newToken = (): string => randomUUID();
 
+/** Persist a failed generation bump so the outbox worker can retry after Redis recovers. */
+async function enqueueGenerationRetry(
+  genKey: string,
+  retryRequiredGenKeys: readonly string[] = [],
+  retryDependentGenKeys: readonly string[] = [],
+): Promise<void> {
+  try {
+    await prisma.outboxEvent.create({
+      data: {
+        eventType: 'CACHE_GENERATION_BUMP',
+        aggregateType: 'cache-generation',
+        aggregateId: genKey,
+        payload: {
+          genKey,
+          retryRequiredGenKeys: [...new Set(retryRequiredGenKeys.filter((key) => key !== genKey))],
+          retryDependentGenKeys: [...new Set(retryDependentGenKeys)],
+        },
+        idempotencyKey: `cache-generation-bump:${randomUUID()}`,
+      },
+    });
+    logger.warn('[swr] failed generation bump persisted to outbox for retry', { genKey });
+  } catch (error) {
+    // If both Redis and the database are unavailable, durable recovery cannot be
+    // promised. Keep this failure explicit rather than pretending invalidation succeeded.
+    logger.error('[swr] could not persist failed generation bump; stale data may remain until hard TTL', { genKey, error });
+  }
+}
+
 /** Overwrites a generation token. Best-effort, one retry, never throws. */
-export async function bumpGeneration(genKey: string): Promise<boolean> {
+export async function bumpGeneration(
+  genKey: string,
+  options: {
+    persistRetry?: boolean;
+    retryRequiredGenKeys?: readonly string[];
+    retryDependentGenKeys?: readonly string[];
+  } = {},
+): Promise<boolean> {
+  const persistRetry = options.persistRetry ?? true;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       // Timeout only (no circuit breaker): an invalidation must still be
@@ -100,7 +137,8 @@ export async function bumpGeneration(genKey: string): Promise<boolean> {
       return true;
     } catch (error) {
       if (attempt === 1) {
-        logger.warn(`[swr] failed to bump generation "${genKey}" — stale reads possible until soft TTL`, error);
+        logger.error(`[swr] generation bump failed for "${genKey}" — invalidation is not guaranteed; stale data may remain until the entry hard TTL expires`, error);
+        if (persistRetry) await enqueueGenerationRetry(genKey, options.retryRequiredGenKeys, options.retryDependentGenKeys);
       }
     }
   }
@@ -153,6 +191,12 @@ function classify<T>(
   return softMatches && Date.now() < envelope.softExpiresAt ? 'fresh' : 'stale';
 }
 
+const WRITE_IF_GENERATION_CURRENT_LUA = `-- SWR_WRITE_IF_GENERATION_CURRENT
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+if ARGV[2] ~= '' and redis.call('GET', KEYS[2]) ~= ARGV[2] then return 0 end
+redis.call('SET', KEYS[3], ARGV[3], 'EX', ARGV[4])
+return 1`;
+
 async function writeEnvelope<T>(o: SwrOptions<T>, state: CacheState, payload: T): Promise<void> {
   try {
     const now = Date.now();
@@ -163,7 +207,20 @@ async function writeEnvelope<T>(o: SwrOptions<T>, state: CacheState, payload: T)
       ...(state.soft !== null && { soft: state.soft }),
       payload,
     };
-    await guardedCache(() => cacheClient().set(o.key, JSON.stringify(envelope), 'EX', o.hardTtlSec));
+    // Compare generation tokens and write atomically. Merely stamping the
+    // envelope prevents stale reads, but an old build could still overwrite a
+    // newer generation's valid envelope and force an avoidable cache miss.
+    await guardedCache(() => cacheClient().eval(
+      WRITE_IF_GENERATION_CURRENT_LUA,
+      3,
+      o.hardGenKey,
+      o.softGenKey ?? o.hardGenKey,
+      o.key,
+      state.hard,
+      state.soft ?? '',
+      JSON.stringify(envelope),
+      String(o.hardTtlSec),
+    ));
   } catch (error) {
     logger.warn(`[swr:${o.name}] cache write failed`, error);
   }

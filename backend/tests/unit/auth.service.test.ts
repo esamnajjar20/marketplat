@@ -177,15 +177,40 @@ describe('AuthService', () => {
       } as any);
       jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 1 } as any);
       jest.spyOn(prisma.user, 'update').mockResolvedValue(mockUser as any);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => callback(prisma) as any);
       (tokenStore.deleteAllRefreshTokens as jest.Mock).mockResolvedValue(undefined);
 
       await authService.resetPassword('valid-token', 'newPassword123');
 
       expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith({
-        where: { token: 'valid-token', used: false },
+        where: expect.objectContaining({
+          token: 'valid-token',
+          used: false,
+          expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+        }),
         data: { used: true },
       });
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: mockUser.id },
+        data: { passwordHash: expect.any(String) },
+      });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(tokenStore.deleteAllRefreshTokens).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it('does not update the password when the token expires before the atomic claim', async () => {
+      jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
+        token: 'racing-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
+        user: mockUser,
+      } as any);
+      jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 0 } as any);
+      const userUpdate = jest.spyOn(prisma.user, 'update').mockResolvedValue(mockUser as any);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => callback(prisma) as any);
+
+      await expect(authService.resetPassword('racing-token', 'newPassword123'))
+        .rejects.toThrow('Password reset link is invalid or has expired');
+      expect(userUpdate).not.toHaveBeenCalled();
+      expect(tokenStore.deleteAllRefreshTokens).not.toHaveBeenCalled();
     });
 
     it('rejects an unknown token', async () => {

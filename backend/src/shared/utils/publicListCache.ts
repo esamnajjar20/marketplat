@@ -1,8 +1,9 @@
 import { canonicalCacheKey, canonicalGenerationKey } from '../cache/cacheKey';
 import { getCacheDomain } from '../cache/cacheContract';
 import { swrGet, bumpGeneration } from './swrCache';
-import { invalidateHomeCache } from '../../modules/home/home.cache.keys';
+import { HOME_GEN_KEY, invalidateHomeCache } from '../../modules/home/home.cache.keys';
 import { cachePolicy } from '../cache/cachePolicy';
+import { logger } from './logger';
 
 /**
  * Redis SWR cache for the public browse lists of
@@ -114,6 +115,23 @@ export async function bumpPublicListCache(...namespaces: PublicListNamespace[]):
  * homepage rebuild reads through the list caches.
  */
 export async function hidePublicEntities(...namespaces: PublicListNamespace[]): Promise<void> {
-  await Promise.all(namespaces.map(ns => bumpGeneration(hardGenKey(ns))));
+  const results = await Promise.all(namespaces.map(async ns => ({
+    ns,
+    ok: await bumpGeneration(hardGenKey(ns), {
+      retryRequiredGenKeys: namespaces.map(hardGenKey).filter((key) => key !== hardGenKey(ns)),
+      retryDependentGenKeys: [HOME_GEN_KEY],
+    }),
+  })));
+  const failed = results.filter(result => !result.ok).map(result => result.ns);
+  if (failed.length > 0) {
+    // The underlying mutation is already committed. Surface the exact namespaces
+    // whose hard invalidation could not be confirmed; a generic SWR warning alone
+    // does not identify which public list may still serve a hidden entity.
+    logger.error('Public-list hard cache invalidation failed; stale hidden entities may remain until hard TTL', { namespaces: failed });
+    // Do not bump/rewarm the homepage from a namespace whose old generation may
+    // still be readable. That would turn a failed invalidation into a fresh homepage
+    // envelope containing the hidden entity. The existing homepage expires by TTL.
+    return;
+  }
   await invalidateHomeCache();
 }

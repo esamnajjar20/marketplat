@@ -21,6 +21,12 @@ describe('Pagination Utils', () => {
     expect(getPaginationParams({ page: -5 }).page).toBe(1);
   });
 
+  it('should cap offset pagination at page 1000 for internal callers', () => {
+    const r = getPaginationParams({ page: 1_000_000, limit: 100 });
+    expect(r.page).toBe(1000);
+    expect(r.skip).toBe(99_900);
+  });
+
   it('should accept numeric page and limit arguments', () => {
     const r = getPaginationParams(2, 10);
     expect(r.page).toBe(2);
