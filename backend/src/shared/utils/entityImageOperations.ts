@@ -99,7 +99,33 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
           throw new BadRequestError(`A ${entityLabel} can have at most ${maxImages} images`);
         }
 
-        const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, uploadFolder)));
+        // Promise.all rejects as soon as one upload fails, but sibling uploads
+        // may still succeed and leave untracked Cloudinary assets. Wait for all
+        // attempts to settle so every successful upload can be cleaned up.
+        const uploadResults = await Promise.allSettled(
+          files.map(file => uploadImage(file.buffer, uploadFolder)),
+        );
+        const uploads = uploadResults
+          .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> => result.status === 'fulfilled')
+          .map(result => result.value);
+        const uploadFailure = uploadResults.find(
+          (result): result is PromiseRejectedResult => result.status === 'rejected',
+        );
+
+        if (uploadFailure) {
+          if (uploads.length > 0) {
+            try {
+              await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+            } catch (cleanupError) {
+              logger.warn(`Failed to clean up successful uploads after ${entityLabel} image upload failure`, {
+                entityId,
+                cleanupError,
+              });
+            }
+          }
+          throw uploadFailure.reason;
+        }
+
         try {
           return await repository.addImages(entityId, uploads.map(upload => upload.url));
         } catch (error) {

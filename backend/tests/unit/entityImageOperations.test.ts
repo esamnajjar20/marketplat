@@ -2,6 +2,8 @@ import { createEntityImageOperations } from '../../src/shared/utils/entityImageO
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { uploadImage } from '../../src/config/cloudinary';
+import { cleanupUploadedImages } from '../../src/shared/utils/cloudinaryHelpers';
 
 jest.mock('../../src/config/cloudinary', () => ({
   uploadImage: jest.fn().mockResolvedValue({ url: 'https://cdn/x.jpg', publicId: 'x' }),
@@ -78,6 +80,22 @@ describe('createEntityImageOperations', () => {
     expect(withLock).toHaveBeenCalled();
     expect(repository.addImages).toHaveBeenCalled();
     expect(result.images).toContain('https://cdn/x.jpg');
+  });
+
+  it('addImages cleans up successful sibling uploads when another upload fails', async () => {
+    (uploadImage as jest.Mock)
+      .mockResolvedValueOnce({ url: 'https://cdn/ok.jpg', publicId: 'ok-upload' })
+      .mockRejectedValueOnce(new Error('Cloudinary upload failed'));
+
+    await expect(
+      ops.addImages('e1', () => true, [
+        { buffer: Buffer.from('ok') } as any,
+        { buffer: Buffer.from('fail') } as any,
+      ]),
+    ).rejects.toThrow('Cloudinary upload failed');
+
+    expect(cleanupUploadedImages).toHaveBeenCalledWith(['ok-upload']);
+    expect(repository.addImages).not.toHaveBeenCalled();
   });
 
   it('removeImage refuses last image', async () => {

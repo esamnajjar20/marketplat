@@ -38,6 +38,25 @@ import { FollowTargetType } from '@prisma/client';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
+
+/**
+ * Upload ad images without leaking successful Cloudinary uploads when one
+ * sibling upload fails. Promise.all rejects early and can hide uploads that
+ * finish later; allSettled lets us clean up every successful result first.
+ */
+async function uploadAdImages(files: Express.Multer.File[]) {
+  const results = await Promise.allSettled(files.map(file => uploadImage(file.buffer, 'ads')));
+  const uploads = results
+    .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> => result.status === 'fulfilled')
+    .map(result => result.value);
+  const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+  if (failure) {
+    await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+    throw failure.reason;
+  }
+  return uploads;
+}
+
 /**
  * FIX AUDIT-V4-06: GET /ads previously hit Postgres on every single request.
  * The list is heavily filtered/paginated/sorted, so the cache key is derived
@@ -171,7 +190,7 @@ export const adsService = {
     }
 
     // P-01: parallel uploads — 10x faster than sequential for loop
-    const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'ads')));
+    const uploads = await uploadAdImages(files);
     try {
       // Authoritative check-and-insert, serialized per-user so no two
       // concurrent createAd calls for the same user can both pass the
@@ -777,7 +796,7 @@ export const adsService = {
       }
 
       // P-01: parallel uploads
-      const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'ads')));
+      const uploads = await uploadAdImages(files);
       try {
         const updated = await adsRepository.addImages(
           adId,
