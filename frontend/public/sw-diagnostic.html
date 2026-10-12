@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تشخيص الأوفلاين — MarketPlat</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --fg: #e8e9ec;
+    --muted: #8a919c;
+    --card: #181b22;
+    --border: #2a2f3a;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --err: #ef4444;
+    --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, system-ui, "Segoe UI", Tahoma, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 20px 0 8px; color: var(--accent); }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .row .label { flex-shrink: 0; color: var(--muted); min-width: 100px; }
+  .row .value { flex: 1; word-break: break-all; font-family: ui-monospace, monospace; font-size: 12px; }
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: ui-monospace, monospace;
+  }
+  .ok { background: rgba(34,197,94,.15); color: var(--ok); }
+  .warn { background: rgba(245,158,11,.15); color: var(--warn); }
+  .err { background: rgba(239,68,68,.15); color: var(--err); }
+  .muted { background: rgba(138,145,156,.15); color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: ui-monospace, monospace; }
+  th, td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; }
+  input, button {
+    font: inherit;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+  }
+  input { font-family: ui-monospace, monospace; direction: ltr; text-align: left; }
+  button {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:active { opacity: .85; }
+  button.secondary { background: transparent; color: var(--fg); border-color: var(--border); }
+  .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .keys { max-height: 240px; overflow-y: auto; padding: 4px; background: #0a0c10; border-radius: 6px; }
+  .keys code { display: block; padding: 2px 0; color: #a5d6ff; font-size: 11px; }
+  details { margin-bottom: 8px; }
+  summary { cursor: pointer; padding: 6px 0; color: var(--accent); }
+  .test-result {
+    padding: 10px;
+    background: #0a0c10;
+    border-radius: 6px;
+    margin-top: 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    direction: ltr;
+    text-align: left;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+  @media (min-width: 700px) { .grid { grid-template-columns: 1fr 1fr 1fr; } }
+  .sticky-top {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 8px 0;
+    margin: -8px 0 8px;
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+  }
+  #copied-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>🔍 تشخيص الأوفلاين</h1>
+<div class="sub">MarketPlat — فحص Cache Storage + IndexedDB + Service Worker</div>
+
+<div class="sticky-top flex">
+  <button onclick="runAll()">🔄 أعد الفحص</button>
+  <button class="secondary" onclick="copyReport()">📋 انسخ التقرير</button>
+  <span class="sub" style="margin:0">آخر فحص: <span id="last-scan">—</span></span>
+</div>
+
+<!-- ═══ 1. الحالة العامة ═══ -->
+<h2>1. الحالة العامة</h2>
+<div class="card" id="general">جارٍ الفحص…</div>
+
+<!-- ═══ 2. اختبار صفحة محددة ═══ -->
+<h2>2. اختبار صفحة</h2>
+<div class="card">
+  <p class="sub">اكتب مساراً بالضبط كما تفتحه في المتصفح، واضغط "اختبر".</p>
+  <div class="flex">
+    <input id="test-path" placeholder="/products?page=2" value="/products?page=2" style="flex:1;min-width:180px">
+    <button onclick="testPath()">اختبر</button>
+  </div>
+  <div class="flex" style="margin-top:8px;flex-wrap:wrap">
+    <button class="secondary" onclick="setPath('/products')">/products</button>
+    <button class="secondary" onclick="setPath('/products?page=2')">/products?page=2</button>
+    <button class="secondary" onclick="setPath('/products/')">/products/</button>
+    <button class="secondary" onclick="setPath('/ads?category=x')">/ads?category=x</button>
+    <button class="secondary" onclick="setPath('/')">/</button>
+    <button class="secondary" onclick="setPath('/offline')">/offline</button>
+  </div>
+  <div id="test-output"></div>
+</div>
+
+<!-- ═══ 3. الكاشات ═══ -->
+<h2>3. الكاشات</h2>
+<div class="card" id="caches">جارٍ الفحص…</div>
+
+<!-- ═══ 4. محتوى market-static ═══ -->
+<h2>4. محتوى market-static-*</h2>
+<div class="card">
+  <p class="sub">هذه هي الصفحات (HTML) التي خزّنها warming. راقب:<br>— أي المفاتيح هنا (<code>/products</code> أو <code>/products?page=2</code>)<br>— إن كان عدد كبير جداً (≥30) أو صغير (≤3).</p>
+  <div class="keys" id="static-keys">جارٍ الفحص…</div>
+</div>
+
+<!-- ═══ 5. محتوى market-personal-shell ═══ -->
+<h2>5. محتوى market-personal-shell-*</h2>
+<div class="card">
+  <div class="keys" id="personal-keys">جارٍ الفحص…</div>
+</div>
+
+<!-- ═══ 6. snapshot warming ═══ -->
+<h2>6. سجل warming (IndexedDB)</h2>
+<div class="card" id="snapshot">جارٍ الفحص…</div>
+
+<!-- ═══ 7. Service Worker ═══ -->
+<h2>7. Service Worker</h2>
+<div class="card" id="sw-status">جارٍ الفحص…</div>
+
+<!-- ═══ سجل التشخيص ═══ -->
+<h2>8. سجل التشخيص الكامل</h2>
+<details>
+  <summary>اقرأه إن أردت</summary>
+  <div class="test-result" id="full-report"></div>
+</details>
+
+<div id="copied-toast">✅ تم النسخ</div>
+
+<script>
+const report = { ts: new Date().toISOString(), sections: {} };
+
+function fmtDate(d) {
+  try { return new Date(d).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }); }
+  catch { return String(d); }
+}
+
+function fmtAge(ts) {
+  if (!ts) return '—';
+  const ms = Date.now() - ts;
+  if (ms < 60_000) return Math.round(ms/1000) + 'ث';
+  if (ms < 3_600_000) return Math.round(ms/60_000) + 'د';
+  if (ms < 86_400_000) return Math.round(ms/3_600_000) + 'س';
+  return Math.round(ms/86_400_000) + 'ي';
+}
+
+function el(html) { return html; }
+
+async function openIdb(name, version) {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(name, version);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+
+// ═══ 1. General ═══
+async function scanGeneral() {
+  const out = [];
+  out.push(`<div class="row"><span class="label">URL</span><span class="value">${location.href}</span></div>`);
+  out.push(`<div class="row"><span class="label">Origin</span><span class="value">${location.origin}</span></div>`);
+  out.push(`<div class="row"><span class="label">navigator.onLine</span><span class="value">${navigator.onLine} ${navigator.onLine ? '<span class="badge ok">أونلاين</span>' : '<span class="badge warn">أوفلاين</span>'}</span></div>`);
+
+  if ('serviceWorker' in navigator) {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const active = reg?.active;
+    out.push(`<div class="row"><span class="label">SW active</span><span class="value">${active ? 'نعم' : 'لا'}</span></div>`);
+    if (active) {
+      const m = active.scriptURL.match(/sw\.js$/);
+      out.push(`<div class="row"><span class="label">SW scriptURL</span><span class="value">${active.scriptURL}</span></div>`);
+    }
+    out.push(`<div class="row"><span class="label">SW controller</span><span class="value">${navigator.serviceWorker.controller ? 'نعم (تتحكم بالصفحة)' : 'لا'}</span></div>`);
+
+    // Ask the SW its version
+    if (active) {
+      try {
+        const version = await new Promise((res) => {
+          const ch = new MessageChannel();
+          const t = setTimeout(() => res(null), 800);
+          ch.port1.onmessage = (e) => { clearTimeout(t); res(e.data?.cacheVersion ?? null); };
+          active.postMessage({ type: 'GET_SW_STATUS' }, [ch.port2]);
+        });
+        out.push(`<div class="row"><span class="label">SW cacheVersion</span><span class="value">${version ?? '؟'}</span></div>`);
+      } catch {}
+    }
+  } else {
+    out.push(`<div class="row"><span class="label">SW</span><span class="value"><span class="badge err">غير مدعوم</span></span></div>`);
+  }
+
+  if (navigator.storage?.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      const usedMB = (est.usage/1024/1024).toFixed(1);
+      const quotaMB = (est.quota/1024/1024).toFixed(0);
+      out.push(`<div class="row"><span class="label">Storage</span><span class="value">${usedMB} MB / ${quotaMB} MB</span></div>`);
+    } catch {}
+  }
+
+  document.getElementById('general').innerHTML = out.join('');
+  report.sections.general = out.map(h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).join('\n');
+}
+
+// ═══ 2. Test path ═══
+async function testPath() {
+  const path = document.getElementById('test-path').value.trim();
+  if (!path) return;
+  const out = [];
+
+  const names = await caches.keys();
+  const staticName = names.find(n => n.startsWith('market-static-'));
+  const personalName = names.find(n => n.startsWith('market-personal-shell-'));
+  const staticCache = staticName ? await caches.open(staticName) : null;
+  const personalCache = personalName ? await caches.open(personalName) : null;
+
+  const url = new URL(path, location.origin);
+  const variants = [
+    { label: 'exact (كما هو)', key: url.href },
+    { label: 'bare path (بدون query)', key: url.origin + url.pathname },
+    { label: 'slash alt', key: url.origin + (url.pathname.endsWith('/') ? url.pathname.slice(0,-1) || '/' : url.pathname + '/') },
+    { label: 'rsc shell', key: url.origin + url.pathname + (url.search ? url.search + '&' : '?') + '__offline_rsc_shell' },
+  ];
+
+  for (const v of variants) {
+    const inStatic = staticCache ? !!(await staticCache.match(v.key)) : false;
+    const inPersonal = personalCache ? !!(await personalCache.match(v.key)) : false;
+    const badge = inStatic ? '<span class="badge ok">static ✓</span>' :
+                  inPersonal ? '<span class="badge ok">personal ✓</span>' :
+                  '<span class="badge err">✗</span>';
+    out.push(`<div class="row"><span class="label">${v.label}</span><span class="value">${badge}  ${v.key}</span></div>`);
+  }
+
+  // Verdict
+  const exactHit = staticCache && await staticCache.match(url.href);
+  const bareHit = staticCache && await staticCache.match(url.origin + url.pathname);
+  let verdict = '';
+  if (exactHit) verdict = '<span class="badge ok">SW will serve: OK</span>';
+  else if (bareHit) verdict = '<span class="badge warn">SW falls back to bare — should work with v52</span>';
+  else verdict = '<span class="badge err">Not cached at all — warming never stored this page</span>';
+
+  document.getElementById('test-output').innerHTML =
+    '<div class="test-result">' + out.join('') + '<hr style="border-color:#2a2f3a;margin:8px 0"><strong>النتيجة: ' + verdict + '</strong></div>';
+  report.sections[`test ${path}`] = out.map(h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).join('\n') + '\nVERDICT: ' + verdict.replace(/<[^>]+>/g, '');
+}
+
+function setPath(p) {
+  document.getElementById('test-path').value = p;
+  testPath();
+}
+
+// ═══ 3. Caches list ═══
+async function scanCaches() {
+  const names = await caches.keys();
+  const out = [];
+  out.push(`<div class="row"><span class="label">عدد الكاشات</span><span class="value">${names.length}</span></div>`);
+  for (const name of names.sort()) {
+    const cache = await caches.open(name);
+    const keys = await cache.keys();
+    const isV52 = /-v52(\b|$)/.test(name) || name.endsWith('-v52');
+    const isV51 = /-v51(\b|$)/.test(name) || name.endsWith('-v51');
+    const isV50 = /-v50(\b|$)/.test(name) || name.endsWith('-v50');
+    const ageBadge = isV52 ? '<span class="badge ok">v52 ✓</span>' :
+                     isV51 ? '<span class="badge warn">v51 (قديم)</span>' :
+                     isV50 ? '<span class="badge err">v50 (قديم جداً)</span>' : '';
+    out.push(`<div class="row"><span class="label">${ageBadge}</span><span class="value">${name} — <strong>${keys.length}</strong> مدخل</span></div>`);
+  }
+  document.getElementById('caches').innerHTML = out.join('');
+  report.sections.caches = out.map(h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).join('\n');
+}
+
+// ═══ 4. Static keys ═══
+async function scanStaticKeys() {
+  const names = await caches.keys();
+  const name = names.find(n => n.startsWith('market-static-'));
+  if (!name) {
+    document.getElementById('static-keys').innerHTML = '<span class="badge err">لا يوجد كاش market-static-*</span>';
+    return;
+  }
+  const cache = await caches.open(name);
+  const keys = await cache.keys();
+  const htmlKeys = keys.filter(k => {
+    const u = new URL(k.url);
+    if (u.origin !== location.origin) return false;
+    if (u.pathname.startsWith('/_next/')) return false;
+    if (u.pathname.startsWith('/api/')) return false;
+    if (/\.[a-z0-9]{2,8}$/i.test(u.pathname)) return false;
+    return true;
+  });
+
+  if (htmlKeys.length === 0) {
+    document.getElementById('static-keys').innerHTML = '<span class="badge err">لا HTML في الكاش (فقط JS/CSS)</span>';
+    report.sections.staticKeys = 'NO HTML KEYS';
+    return;
+  }
+
+  const lines = [];
+  for (const k of htmlKeys.slice(0, 60)) {
+    const u = new URL(k.url);
+    lines.push(`<code>${u.pathname}${u.search}</code>`);
+  }
+  document.getElementById('static-keys').innerHTML = lines.join('') +
+    (htmlKeys.length > 60 ? `<div class="sub" style="margin-top:8px">… و ${htmlKeys.length - 60} أخرى</div>` : '');
+  report.sections.staticKeys = htmlKeys.map(k => new URL(k.url).pathname + new URL(k.url).search).join('\n');
+}
+
+// ═══ 5. Personal keys ═══
+async function scanPersonalKeys() {
+  const names = await caches.keys();
+  const name = names.find(n => n.startsWith('market-personal-shell-'));
+  if (!name) {
+    document.getElementById('personal-keys').innerHTML = '<span class="badge muted">لا يوجد كاش personal (لم تسجّل دخول؟)</span>';
+    return;
+  }
+  const cache = await caches.open(name);
+  const keys = await cache.keys();
+  const htmlKeys = keys.filter(k => !/\.[a-z0-9]{2,8}$/i.test(new URL(k.url).pathname));
+  const lines = htmlKeys.slice(0, 40).map(k => {
+    const u = new URL(k.url);
+    return `<code>${u.pathname}${u.search}</code>`;
+  });
+  document.getElementById('personal-keys').innerHTML =
+    `<div class="sub">${htmlKeys.length} مدخل HTML</div>` +
+    (lines.join('') || '<span class="badge muted">فارغ</span>');
+  report.sections.personalKeys = htmlKeys.map(k => new URL(k.url).pathname + new URL(k.url).search).join('\n');
+}
+
+// ═══ 6. Snapshot ═══
+async function scanSnapshot() {
+  let db;
+  try { db = await openIdb('marketplat-warming', 1); }
+  catch (e) {
+    document.getElementById('snapshot').innerHTML = '<span class="badge err">تعذّر فتح IndexedDB</span>';
+    return;
+  }
+  const snap = await new Promise((res, rej) => {
+    const tx = db.transaction('state', 'readonly');
+    const r = tx.objectStore('state').get('current');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }).catch(() => null);
+
+  if (!snap) {
+    document.getElementById('snapshot').innerHTML = '<span class="badge muted">لا snapshot (لم يبدأ warming)</span>';
+    report.sections.snapshot = 'NO SNAPSHOT';
+    return;
+  }
+
+  const routes = Object.entries(snap.routes || {});
+  const complete = routes.filter(([_, m]) => m.status === 'complete').length;
+  const failed = routes.filter(([_, m]) => m.status === 'failed').length;
+  const pending = routes.length - complete - failed;
+  const age = snap.updatedAt ? fmtAge(snap.updatedAt) : '—';
+
+  const head = `
+    <div class="row"><span class="label">cacheVersion</span><span class="value">${snap.cacheVersion || '?'}</span></div>
+    <div class="row"><span class="label">آخر تحديث</span><span class="value">${age} (${fmtDate(snap.updatedAt)})</span></div>
+    <div class="row"><span class="label">liveUrls</span><span class="value">${(snap.liveUrls || []).length}</span></div>
+    <div class="row"><span class="label">routes</span><span class="value">${routes.length} — <span class="badge ok">مكتمل ${complete}</span> <span class="badge err">فشل ${failed}</span> <span class="badge muted">بالانتظار ${pending}</span></span></div>
+  `;
+
+  document.getElementById('snapshot').innerHTML = head;
+  report.sections.snapshot = `cacheVersion=${snap.cacheVersion} updatedAt=${snap.updatedAt} liveUrls=${(snap.liveUrls||[]).length} routes=${routes.length} complete=${complete} failed=${failed} pending=${pending}`;
+}
+
+// ═══ 7. Full report ═══
+async function buildFullReport() {
+  const lines = [`# تقرير تشخيص الأوفلاين`, `التاريخ: ${report.ts}`, ``];
+  for (const [k, v] of Object.entries(report.sections)) {
+    lines.push(`## ${k}`, v, '');
+  }
+  document.getElementById('full-report').textContent = lines.join('\n');
+  return lines.join('\n');
+}
+
+async function copyReport() {
+  const text = await buildFullReport();
+  try {
+    await navigator.clipboard.writeText(text);
+    const t = document.getElementById('copied-toast');
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 1500);
+  } catch {
+    // fallback: select the text
+    const r = document.getElementById('full-report');
+    const range = document.createRange();
+    range.selectNode(r);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    alert('انسخ النص المحدد يدوياً');
+  }
+}
+
+// ═══ Master ═══
+async function runAll() {
+  document.getElementById('last-scan').textContent = 'جارٍ…';
+  try {
+    await scanGeneral();
+    await scanCaches();
+    await scanStaticKeys();
+    await scanPersonalKeys();
+    await scanSnapshot();
+    await buildFullReport();
+    document.getElementById('last-scan').textContent = new Date().toLocaleTimeString('ar-EG');
+  } catch (e) {
+    document.getElementById('last-scan').textContent = 'خطأ: ' + e.message;
+  }
+}
+
+runAll();
+</script>
+</body>
+</html>
