@@ -25,7 +25,7 @@ import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import type { ServiceListingWithProvider, ServiceAvailability, ServicePricingType } from '@/types/service.types';
 
 vi.mock('@/components/shared/FavoriteButton', () => ({
-  FavoriteButton: () => <div data-testid="favorite-button" />,
+  FavoriteButton: ({ returnTo }: { returnTo?: string }) => <div data-testid="favorite-button" data-return-to={returnTo} />,
 }));
 
 function makeListing(overrides: Partial<ServiceListingWithProvider> = {}): ServiceListingWithProvider {
@@ -65,6 +65,11 @@ describe('ServiceListingCard', () => {
   it('links to the service detail page', () => {
     render(<ServiceListingCard listing={makeListing({ id: 'listing-99' })} />);
     expect(screen.getByRole('link')).toHaveAttribute('href', '/services/listing-99');
+  });
+
+  it('returns to the selected service after signing in from its favorite action', () => {
+    render(<ServiceListingCard listing={makeListing({ id: 'listing-99' })} />);
+    expect(screen.getByTestId('favorite-button')).toHaveAttribute('data-return-to', '/services/listing-99');
   });
 
   it('renders the title and city in public context without provider attribution', () => {
@@ -147,6 +152,18 @@ describe('ServiceListingCard', () => {
     render(<ServiceListingCard listing={makeListing({ images: [] })} />);
     const img = screen.getByRole('img', { name: 'تصليح مكيفات منزلية' }) as HTMLImageElement;
     expect(img.src).toContain('data:image/svg+xml');
+  });
+
+  it('handles a missing images field from an incomplete API payload', () => {
+    render(<ServiceListingCard listing={makeListing({ images: undefined as unknown as string[] })} />);
+    const img = screen.getByRole('img', { name: 'تصليح مكيفات منزلية' }) as HTMLImageElement;
+    expect(img.src).toContain('data:image/svg+xml');
+  });
+
+  it('keeps long service titles available when the visible title is clamped', () => {
+    const title = 'صيانة وتركيب مكيفات منزلية وتجارية مع توفير قطع الغيار';
+    render(<ServiceListingCard listing={makeListing({ title })} />);
+    expect(screen.getByRole('heading', { name: title })).toHaveAttribute('title', title);
   });
 
   it('applies an additional className when provided', () => {

@@ -75,6 +75,17 @@ describe('AdListItem', () => {
     expect(container.textContent).not.toMatch(/جديد|مستعمل|مجدد/);
   });
 
+  it('shows a clear fallback when the price is not announced', () => {
+    render(<AdListItem ad={makeAd({ price: null as unknown as string })} />);
+    expect(screen.getByText('السعر غير معلن')).toBeInTheDocument();
+  });
+
+  it('keeps the horizontal card layout narrow-screen friendly', () => {
+    const { container } = render(<AdListItem ad={makeAd({})} />);
+    expect(container.querySelector('a')).toHaveClass('min-w-0', 'gap-3');
+    expect(container.querySelector('a > div')).toHaveClass('h-24', 'w-24', 'shrink-0');
+  });
+
   it('shows the city', () => {
     render(<AdListItem ad={makeAd({ city: 'رفح' })} />);
     expect(screen.getByText('رفح')).toBeInTheDocument();

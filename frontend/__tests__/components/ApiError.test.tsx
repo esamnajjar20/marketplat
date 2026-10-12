@@ -41,10 +41,12 @@ describe('ApiError — status code dispatch', () => {
     expect(screen.getByText('الإعلان غير موجود')).toBeInTheDocument();
   });
 
-  it('renders a "Server error" message and reassurance copy for 500+', () => {
-    render(<ApiError error={{ statusCode: 500, message: 'Internal error' }} />);
+  it('renders safe reassurance for 500+ without exposing raw server details', () => {
+    render(<ApiError error={{ statusCode: 500, message: 'DB_HOST=private.internal stack trace' }} />);
     expect(screen.getByText('خطأ في الخادم')).toBeInTheDocument();
     expect(screen.getByText(/تم إبلاغ فريقنا/)).toBeInTheDocument();
+    expect(screen.queryByText(/DB_HOST|private\.internal|stack trace/)).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'assertive');
   });
 
   it('defaults to 500 (generic server error) when the error has no recognizable status field', () => {
@@ -143,5 +145,14 @@ describe('ApiError — unified network/service policy', () => {
   it('renders a conflict state for 409', () => {
     render(<ApiError error={{ statusCode: 409, code: 'CONFLICT', message: 'conflict' }} />);
     expect(screen.getByText('تعارض في البيانات')).toBeInTheDocument();
+  });
+});
+
+
+describe('EmptyState announcement urgency', () => {
+  it('keeps ordinary empty states as polite status updates', async () => {
+    const { EmptyState } = await import('@/components/shared/feedback/EmptyState');
+    const { container } = render(<EmptyState title="لا توجد نتائج" />);
+    expect(container.querySelector('[role="status"]')).toHaveAttribute('aria-live', 'polite');
   });
 });

@@ -61,7 +61,10 @@ describe('NotificationToasts', () => {
       'رسالة جديدة',
       expect.objectContaining({
         description: 'من أحمد',
-        action: expect.objectContaining({ label: 'عرض' }),
+        className: 'market-live-notification',
+        duration: 6500,
+        icon: expect.anything(),
+        action: expect.objectContaining({ label: 'عرض التفاصيل' }),
       }),
     );
   });

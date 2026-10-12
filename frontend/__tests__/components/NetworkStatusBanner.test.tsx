@@ -29,12 +29,15 @@ describe('NetworkStatusBanner', () => {
     vi.mocked(useOnlineStatus).mockReturnValue(false);
     render(<NetworkStatusBanner />);
     expect(screen.getByText('لا يوجد اتصال بالإنترنت')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'المحفوظات' })).toHaveAttribute('href', '/offline?tab=saved');
+    expect(screen.getByRole('link', { name: 'المسودات' })).toHaveAttribute('href', '/offline?tab=drafts');
 
     act(() => {
       vi.advanceTimersByTime(3000);
     });
     expect(screen.queryByText('لا يوجد اتصال بالإنترنت')).not.toBeInTheDocument();
     expect(screen.getByText('غير متصل')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'فتح المحفوظات دون اتصال' })).toHaveAttribute('href', '/offline?tab=saved');
   });
 
   it('shows "عاد الاتصال" after transition offline → online', () => {

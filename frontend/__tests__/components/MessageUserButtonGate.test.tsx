@@ -16,6 +16,9 @@ import { useStartConversation } from '@/hooks/mutations/useConversationMutations
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
 
+const { mockRouterPush } = vi.hoisted(() => ({ mockRouterPush: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }));
+
 vi.mock('@/hooks/mutations/useConversationMutations', () => ({
   useStartConversation: vi.fn(),
 }));
@@ -51,6 +54,7 @@ function renderWithClient(ui: React.ReactElement) {
 
 beforeEach(() => {
   mockStartConversation.mockReset();
+  mockRouterPush.mockReset();
   vi.mocked(useStartConversation).mockReturnValue({
     mutate: mockStartConversation,
     isPending: false,
@@ -97,6 +101,7 @@ describe('MessageUserButtonGate', () => {
     await user.click(screen.getByRole('button', { name: 'مراسلة' }));
 
     expect(toast.error).toHaveBeenCalledWith('يرجى تسجيل الدخول أولاً');
+    expect(mockRouterPush).toHaveBeenCalledWith('/login?from=%2F');
     expect(mockStartConversation).not.toHaveBeenCalled();
   });
 
@@ -107,7 +112,9 @@ describe('MessageUserButtonGate', () => {
     } as never);
     renderWithClient(<MessageUserButtonGate targetUserId={targetUserId} />);
 
-    expect(screen.getByRole('button', { name: 'جارٍ التحضير…' })).toBeDisabled();
+    const button = screen.getByRole('button', { name: 'جارٍ التحضير…' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
   });
 
   it('renders for an unauthenticated visitor too (auth is checked on click, not on render)', () => {

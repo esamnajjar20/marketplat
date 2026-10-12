@@ -125,6 +125,19 @@ describe('ImageUpload', () => {
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('notes.txt'));
   });
 
+  it('shows the rejected filename and reason in an accessible alert while keeping valid files', async () => {
+    const onChange = vi.fn();
+    render(<ImageUpload value={[]} onChange={onChange} />);
+    const dropzone = screen.getByRole('button', { name: /رفع الصور/ });
+
+    fireEvent.drop(dropzone, { dataTransfer: { files: [JPEG_1KB(), TEXT_FILE()] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('notes.txt');
+    expect(screen.getByRole('alert')).toHaveTextContent('نوع الملف غير مدعوم');
+    expect(onChange.mock.calls[0][0]).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveTextContent('الصور المقبولة بقيت محفوظة');
+  });
+
   it('filters out oversized files on drop', () => {
     const onChange = vi.fn();
     render(<ImageUpload value={[]} onChange={onChange} />);

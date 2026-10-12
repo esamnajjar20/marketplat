@@ -164,6 +164,28 @@ describe('ConversationList', () => {
     expect(screen.getByText('متجر ب')).toBeInTheDocument();
   });
 
+  describe('filter empty states', () => {
+    it('explains an empty archive and lets the user clear every filter', async () => {
+      mockUseMyConversations.mockImplementation((params) => ({
+        data: params?.archivedOnly
+          ? { items: [] }
+          : { items: [makeConversation()] },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      } as never));
+      const user = setupUser();
+      render(<ConversationList />);
+
+      await user.click(screen.getAllByRole('button', { name: 'الأرشيف' })[0]);
+      expect(screen.getByText('لا توجد محادثات في الأرشيف')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'إظهار الكل' }));
+      expect(screen.getByText('متجر سارة')).toBeInTheDocument();
+      expect(mockUseMyConversations).toHaveBeenLastCalledWith({ page: 1, limit: 20 });
+    });
+  });
+
   describe('online presence', () => {
     it('does not show an online dot when the other party is offline', () => {
       mockUseMyConversations.mockReturnValue({

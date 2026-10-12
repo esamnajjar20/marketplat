@@ -21,6 +21,7 @@ vi.mock('next/navigation', () => ({
 describe('SearchBar', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    window.localStorage.clear();
   });
 
   it('navigates to /search with the encoded query on submit', async () => {
@@ -33,6 +34,24 @@ describe('SearchBar', () => {
     expect(mockPush).toHaveBeenCalledWith(
       `${ROUTES.search}?q=${encodeURIComponent('سيارة كورولا')}`,
     );
+  });
+
+  it('exposes suggestions as a controlled combobox for assistive technology', async () => {
+    window.localStorage.setItem('marketplat:recent-searches-v2:guest', JSON.stringify([
+      { query: 'سيارة كورولا', count: 1, lastUsedAt: new Date().toISOString() },
+    ]));
+    render(<SearchBar />);
+
+    const input = screen.getByRole('combobox', { name: 'ابحث في الإعلانات' });
+    expect(input).toHaveAttribute('aria-autocomplete', 'list');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    const listId = input.getAttribute('aria-controls');
+    expect(listId).toBeTruthy();
+
+    await userEvent.type(input, 'سي');
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(listId!)).toHaveAttribute('role', 'listbox');
+    expect(screen.getByRole('option', { name: /سيارة كورولا/ })).toBeInTheDocument();
   });
 
   it('trims leading/trailing whitespace before encoding the query', async () => {

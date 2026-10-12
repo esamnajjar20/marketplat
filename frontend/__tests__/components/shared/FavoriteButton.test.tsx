@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
-import { FavoriteButton } from '@/components/shared/FavoriteButton';
+import { FavoriteButton, getFavoriteReturnTo } from '@/components/shared/FavoriteButton';
 import { useToggleFavoriteEntity } from '@/hooks/mutations/useFavoriteMutations';
 import { useIsEntityFavorited, useFavoriteEntityCheck } from '@/hooks/queries/useFavorites';
 import { useAuthStore } from '@/store/auth.store';
@@ -56,6 +56,20 @@ function mockFavoriteState({ isAuth = true, isFavorited = false } = {}) {
 }
 
 describe('FavoriteButton', () => {
+  it('allows a local detail destination after sign-in', () => {
+    expect(getFavoriteReturnTo('/products/prod-1', '/search?q=blender')).toBe('/products/prod-1');
+  });
+
+  it('rejects protocol-relative destinations and falls back to the current path', () => {
+    expect(getFavoriteReturnTo('//evil.example/path', '/search?q=blender')).toBe('/search?q=blender');
+    expect(getFavoriteReturnTo(undefined, '/search?q=blender')).toBe('/search?q=blender');
+  });
+
+  it('rejects backslash and control-character destinations', () => {
+    expect(getFavoriteReturnTo('/\\evil.example', '/search')).toBe('/search');
+    expect(getFavoriteReturnTo('/products/1\n//evil.example', '/search')).toBe('/search');
+  });
+
   beforeEach(() => {
     mockToggleMutate.mockReset();
     vi.mocked(useFavoriteEntityCheck).mockClear();
@@ -97,8 +111,21 @@ describe('FavoriteButton', () => {
       isPending: true,
     } as unknown as ReturnType<typeof useToggleFavoriteEntity>);
     render(<FavoriteButton entityType="PRODUCT" entityId="prod-1" />);
-    const btn = screen.getByRole('button', { name: 'إضافة إلى المفضلة' });
+    const btn = screen.getByRole('button', { name: 'جارٍ تحديث المفضلة…' });
     expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('announces the pending state on the labeled button', () => {
+    vi.mocked(useToggleFavoriteEntity).mockReturnValue({
+      mutate: mockToggleMutate,
+      isPending: true,
+    } as unknown as ReturnType<typeof useToggleFavoriteEntity>);
+    render(<FavoriteButton entityType="PRODUCT" entityId="prod-1" showLabel />);
+    const btn = screen.getByRole('button', { name: 'جارٍ تحديث المفضلة…' });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('aria-busy', 'true');
+    expect(btn).toHaveTextContent('جارٍ تحديث المفضلة…');
   });
 
   it('stops click propagation (so a parent <Link> never navigates on this click)', async () => {

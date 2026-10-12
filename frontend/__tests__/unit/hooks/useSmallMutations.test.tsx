@@ -26,6 +26,7 @@ import { conversationsApi } from '@/api/conversations.api';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/api/blocked-users.api', () => ({
   blockedUsersApi: { toggleBlock: vi.fn() },
@@ -234,6 +235,46 @@ describe('useSendMessage', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(conversationsApi.sendMessage).toHaveBeenCalledWith('c1', payload);
+  });
+
+  it('updates the cached conversation preview optimistically while sending', async () => {
+    let resolveSend!: (value: unknown) => void;
+    (conversationsApi.sendMessage as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((resolve) => { resolveSend = resolve; }),
+    );
+    const { wrapper, queryClient } = createWrapper();
+    const oldConversation = {
+      id: 'c1', buyerId: 'u1', sellerId: 'u2', buyer: { id: 'u1', name: 'Me', avatarUrl: null },
+      seller: { id: 'u2', name: 'Seller', avatarUrl: null }, adId: null, serviceRequestId: null,
+      pinnedAt: null, archivedAt: null, createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z', ad: null, serviceRequest: null, unreadCount: 0,
+      lastMessage: { id: 'old', conversationId: 'c1', senderId: 'u2', body: 'previous', imageUrl: null,
+        readAt: null, deletedAt: null, createdAt: '2026-01-01T00:00:00.000Z' },
+    };
+    queryClient.setQueryData(queryKeys.conversations.mine(), {
+      items: [oldConversation],
+      meta: { total: 1, page: 1, limit: 20, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+    });
+
+    useAuthStore.getState().setAuth(
+      { id: 'u1', name: 'Me', email: 'me@example.com', role: 'USER' },
+      { accessToken: 'test-token' },
+    );
+    const { result } = renderHook(() => useSendMessage('c1'), { wrapper });
+    act(() => { result.current.mutate({ body: 'hello now' }); });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<{ items: Array<{ lastMessage: { body: string; id: string }; updatedAt: string }> }>(queryKeys.conversations.mine());
+      expect(cached?.items[0].lastMessage.body).toBe('hello now');
+      expect(cached?.items[0].lastMessage.id).toMatch(/^optimistic-/);
+      expect(cached?.items[0].updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+    });
+
+    resolveSend({ data: { data: { id: 'm2', conversationId: 'c1', senderId: 'u1', body: 'hello now',
+      imageUrl: null, readAt: null, deletedAt: null, createdAt: '2026-10-11T18:00:00.000Z' } } });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const cached = queryClient.getQueryData<{ items: Array<{ lastMessage: { id: string } }> }>(queryKeys.conversations.mine());
+    expect(cached?.items[0].lastMessage.id).toBe('m2');
   });
 
   it('invalidates this thread\'s messages and the conversations list on success', async () => {

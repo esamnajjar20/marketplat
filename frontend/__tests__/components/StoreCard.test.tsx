@@ -24,7 +24,7 @@ import { ROUTES } from '@/lib/constants';
 import type { StoreWithSeller } from '@/types/store.types';
 
 vi.mock('@/components/shared/FavoriteButton', () => ({
-  FavoriteButton: () => <div data-testid="favorite-button" />,
+  FavoriteButton: ({ returnTo }: { returnTo?: string }) => <div data-testid="favorite-button" data-return-to={returnTo} />,
 }));
 
 const baseStore: StoreWithSeller = {
@@ -64,6 +64,11 @@ describe('StoreCard', () => {
   it('links to the store detail page', () => {
     render(<StoreCard store={baseStore} />);
     expect(screen.getByRole('link')).toHaveAttribute('href', ROUTES.storeDetail('store-1'));
+  });
+
+  it('returns to the selected store after signing in from its favorite action', () => {
+    render(<StoreCard store={baseStore} />);
+    expect(screen.getByTestId('favorite-button')).toHaveAttribute('data-return-to', ROUTES.storeDetail('store-1'));
   });
 
   it('shows the rating and review count when totalRatings > 0', () => {

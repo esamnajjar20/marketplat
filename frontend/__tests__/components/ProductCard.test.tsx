@@ -18,6 +18,7 @@
  *    wholesaleMinQty are present (a partial pair must not render half
  *    a sentence)
  *  - falls back to a placeholder image when the product has no images
+  - unified 4:3 image ratio and compact metadata chips
  *
  *  FEAT-FAVORITE-POLYMORPHIC PR3: ProductCard now also renders a
  *  FavoriteButton. Mocked out (own behavior covered by
@@ -32,7 +33,7 @@ import { formatPrice } from '@/lib/formatters';
 import type { ProductWithStore, EffectivePrice } from '@/types/product.types';
 
 vi.mock('@/components/shared/FavoriteButton', () => ({
-  FavoriteButton: () => <div data-testid="favorite-button" />,
+  FavoriteButton: ({ returnTo }: { returnTo?: string }) => <div data-testid="favorite-button" data-return-to={returnTo} />,
 }));
 
 const noDiscount: EffectivePrice = {
@@ -73,6 +74,18 @@ describe('ProductCard', () => {
   it('links to the product detail page', () => {
     render(<ProductCard product={baseProduct} storeId="store-1" />);
     expect(screen.getByRole('link')).toHaveAttribute('href', '/products/prod-1');
+  });
+
+  it('returns to the selected product after signing in from its favorite action', () => {
+    render(<ProductCard product={baseProduct} storeId="store-1" />);
+    expect(screen.getByTestId('favorite-button')).toHaveAttribute('data-return-to', '/products/prod-1');
+  });
+
+  it('uses the unified 4:3 image frame and compact metadata chips', () => {
+    render(<ProductCard product={baseProduct} storeId="store-1" />);
+    const image = screen.getByRole('img', { name: baseProduct.name });
+    expect(image.parentElement).toHaveClass('aspect-[4/3]');
+    expect(screen.getByText('غزة').parentElement).toHaveClass('inline-flex', 'rounded-full');
   });
 
   describe('pricing', () => {
@@ -136,6 +149,11 @@ describe('ProductCard', () => {
       render(<ProductCard product={{ ...baseProduct, availability: 'OUT_OF_STOCK' }} storeId="store-1" />);
       expect(screen.getByText('غير متوفر')).toBeInTheDocument();
     });
+
+    it('makes out-of-stock state unmistakable on the image as well as in the badge', () => {
+      render(<ProductCard product={{ ...baseProduct, availability: 'OUT_OF_STOCK' }} storeId="store-1" />);
+      expect(screen.getByLabelText('المنتج غير متوفر')).toBeInTheDocument();
+    });
   });
 
   describe('wholesale pricing', () => {
@@ -174,6 +192,12 @@ describe('ProductCard', () => {
     const img = screen.getByAltText('خلاط كهربائي 500 واط');
     expect(img).toBeInTheDocument();
     expect(img.getAttribute('src')).toBeTruthy();
+  });
+
+  it('keeps long product names available to users when the visible title is clamped', () => {
+    const longName = 'خلاط كهربائي منزلي قوي متعدد الاستخدامات مع ضمان وخيارات إضافية';
+    render(<ProductCard product={{ ...baseProduct, name: longName }} storeId="store-1" />);
+    expect(screen.getByRole('heading', { name: longName })).toHaveAttribute('title', longName);
   });
 
   it('applies a custom className alongside the default styling', () => {

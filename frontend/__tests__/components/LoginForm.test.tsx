@@ -67,6 +67,24 @@ describe('LoginForm', () => {
       expect(mockLogin).not.toHaveBeenCalled();
     });
 
+    it('focuses the first invalid field when the form is submitted', () => {
+      const { container } = render(<LoginForm />);
+      fireEvent.submit(container.querySelector('form')!);
+
+      expect(screen.getByLabelText(/البريد الإلكتروني/)).toHaveFocus();
+      expect(screen.getByText('البريد الإلكتروني مطلوب')).toBeInTheDocument();
+    });
+
+    it('clears a field error as the user edits that field', async () => {
+      const user = setupUser();
+      const { container } = render(<LoginForm />);
+      fireEvent.submit(container.querySelector('form')!);
+      expect(screen.getByText('البريد الإلكتروني مطلوب')).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.com');
+      expect(screen.queryByText('البريد الإلكتروني مطلوب')).not.toBeInTheDocument();
+    });
+
     it('shows an invalid-email error for a malformed email', async () => {
       const user = setupUser();
       render(<LoginForm />);

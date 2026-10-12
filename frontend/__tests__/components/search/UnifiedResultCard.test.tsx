@@ -38,6 +38,13 @@ describe('UnifiedResultCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/ads/r1');
   });
 
+  it('renders a horizontal compact layout when list mode is selected', () => {
+    const { container } = render(<UnifiedResultCard result={base} layout="list" />);
+    const link = screen.getByRole('link');
+    expect(link).toHaveClass('flex-row', 'min-w-0');
+    expect(container.querySelector('a > div')).toHaveClass('h-24', 'w-24', 'shrink-0');
+  });
+
   it('shows the title', () => {
     render(<UnifiedResultCard result={base} />);
     expect(screen.getByText('لابتوب ديل مستعمل')).toBeInTheDocument();

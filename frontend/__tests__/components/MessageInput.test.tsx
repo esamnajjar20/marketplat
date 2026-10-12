@@ -49,6 +49,18 @@ describe('MessageInput', () => {
     expect(screen.queryByPlaceholderText('اكتب رسالتك...')).not.toBeInTheDocument();
   });
 
+  it('REGRESSION: keeps the textarea enabled while a text send is pending but blocks re-sending', () => {
+    (useSendMessage as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: mockMutate,
+      isPending: true,
+    });
+    render(<MessageInput conversationId="conv-1" />);
+
+    // Disabling the field would drop focus (closing the mobile keyboard).
+    expect(getTextarea()).not.toBeDisabled();
+    expect(screen.getByLabelText('إرسال')).toBeDisabled();
+  });
+
   it('send button is disabled while the composer is empty', () => {
     render(<MessageInput conversationId="conv-1" />);
     expect(screen.getByLabelText('إرسال')).toBeDisabled();
@@ -145,6 +157,20 @@ describe('MessageInput', () => {
 
     expect(mockMutate).not.toHaveBeenCalled();
     expect(screen.getByLabelText('إرسال')).toBeDisabled();
+  });
+
+  it('marks the composer busy and prevents editing while a send is pending', () => {
+    (useSendMessage as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: mockMutate,
+      isPending: true,
+    });
+
+    render(<MessageInput conversationId="conv-1" />);
+
+    expect(document.querySelector('form')).toHaveAttribute('aria-busy', 'true');
+    expect(getTextarea()).toBeDisabled();
+    expect(screen.getByLabelText('إرفاق صورة')).toBeDisabled();
+    expect(screen.getByLabelText('إرفاق ملف')).toBeDisabled();
   });
 
   it('textarea enforces the 2000-character max length', () => {

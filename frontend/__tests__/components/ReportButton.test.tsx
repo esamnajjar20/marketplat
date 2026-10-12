@@ -15,6 +15,7 @@
  *  - Submit sends { reason, notes }, trimming empty notes to undefined
  *  - Changing the reason Select changes the submitted value
  *  - Dialog closes only onSuccess, not immediately on submit click
+  - Mutation failure shows a useful error and preserves the draft for retry
  *  - Reopening after cancel resets reason to the default and clears notes
  *  - Pending state disables submit and shows the pending label
  */
@@ -24,6 +25,9 @@ import { setupUser } from '@/test-support/user-event';
 import { ReportButton } from '@/components/shared/ReportButton';
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
+
+const { mockRouterPush } = vi.hoisted(() => ({ mockRouterPush: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }));
 
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
@@ -74,6 +78,7 @@ describe('ReportButton', () => {
       await user.click(screen.getByRole('button', { name: /الإبلاغ عن هذا المستخدم/ }));
 
       expect(toast.error).toHaveBeenCalledWith('يرجى تسجيل الدخول أولاً');
+      expect(mockRouterPush).toHaveBeenCalledWith('/login?from=%2F');
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
@@ -93,7 +98,7 @@ describe('ReportButton', () => {
 
       expect(mockMutate).toHaveBeenCalledWith(
         { reason: 'SCAM', notes: undefined },
-        expect.objectContaining({ onSuccess: expect.any(Function) }),
+        expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
       );
     });
 
@@ -138,6 +143,22 @@ describe('ReportButton', () => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
+    it('keeps the dialog and entered notes when the mutation fails', async () => {
+      const user = await openDialog();
+      const dialog = screen.getByRole('dialog');
+      const notes = within(dialog).getByLabelText(/تفاصيل إضافية/);
+      await user.type(notes, 'أحتاج مراجعة هذا الحساب');
+      await user.click(within(dialog).getByRole('button', { name: 'إرسال البلاغ' }));
+
+      const options = mockMutate.mock.calls[0][1];
+      options.onError(new Error('network failure'));
+
+      // The mutation hook owns error toasts; the component must not add a second one.
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(within(screen.getByRole('dialog')).getByLabelText(/تفاصيل إضافية/)).toHaveValue('أحتاج مراجعة هذا الحساب');
+    });
+
     it('closes on cancel', async () => {
       const user = await openDialog();
       const dialog = screen.getByRole('dialog');
@@ -169,7 +190,9 @@ describe('ReportButton', () => {
       await openDialog(true);
       const dialog = screen.getByRole('dialog');
 
-      expect(within(dialog).getByRole('button', { name: 'جارٍ الإرسال…' })).toBeDisabled();
+      const submit = within(dialog).getByRole('button', { name: 'جارٍ الإرسال…' });
+      expect(submit).toBeDisabled();
+      expect(submit).toHaveAttribute('aria-busy', 'true');
     });
   });
 });

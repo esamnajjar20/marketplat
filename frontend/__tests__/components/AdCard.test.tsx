@@ -150,6 +150,12 @@ describe('AdCard', () => {
       expect(screen.getByAltText('سيارة تويوتا كورولا 2020')).toBeInTheDocument();
     });
 
+    it('keeps long ad titles available when the visible title is clamped', () => {
+      const title = 'سيارة تويوتا كورولا موديل 2020 بحالة ممتازة مع إضافات متعددة';
+      render(<AdCard ad={{ ...baseAd, title }} />);
+      expect(screen.getByRole('heading', { name: title })).toHaveAttribute('title', title);
+    });
+
     it('renders an image even when the ad has no images (placeholder fallback)', () => {
       render(<AdCard ad={{ ...baseAd, images: [] }} />);
       // Must not crash and must still render an <img> with the ad's
@@ -158,6 +164,11 @@ describe('AdCard', () => {
       const img = screen.getByAltText('سيارة تويوتا كورولا 2020');
       expect(img).toBeInTheDocument();
       expect(img.getAttribute('src')).toBeTruthy();
+    });
+
+    it('handles a missing images field from an incomplete API payload', () => {
+      render(<AdCard ad={{ ...baseAd, images: undefined as unknown as string[] }} />);
+      expect(screen.getByAltText(baseAd.title).getAttribute('src')).toBeTruthy();
     });
   });
 

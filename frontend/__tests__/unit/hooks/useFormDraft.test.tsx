@@ -23,7 +23,7 @@
  *  - A quota/private-browsing localStorage.setItem throw is swallowed,
  *    not propagated to the caller
  *  - clearDraft() removes the stored key and swallows storage errors
- *  - Unmounting before the debounce fires cancels the pending write
+ *  - Unmounting before the debounce fires flushes the pending write
  *  - readFormDraft returns the parsed draft, null when absent, null on
  *    malformed JSON, and null under SSR (no window)
  */
@@ -48,7 +48,7 @@ describe('useFormDraft', () => {
       vi.advanceTimersByTime(5000);
     });
 
-    expect(window.localStorage.getItem('draft:ad:new')).toBeNull();
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBeNull();
   });
 
   it('persists the values under draft:{key} after debounceMs once values change', () => {
@@ -62,12 +62,12 @@ describe('useFormDraft', () => {
     act(() => {
       vi.advanceTimersByTime(799);
     });
-    expect(window.localStorage.getItem('draft:ad:new')).toBeNull();
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBeNull();
 
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(window.localStorage.getItem('draft:ad:new')).toBe(
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBe(
       JSON.stringify({ title: 'عنوان معدّل' }),
     );
   });
@@ -88,12 +88,12 @@ describe('useFormDraft', () => {
     });
     // Total elapsed since the last change is only 400ms — should not
     // have written yet if the timer correctly reset on each change.
-    expect(window.localStorage.getItem('draft:ad:new')).toBeNull();
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBeNull();
 
     act(() => {
       vi.advanceTimersByTime(400);
     });
-    expect(window.localStorage.getItem('draft:ad:new')).toBe(JSON.stringify({ title: 'أبج' }));
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBe(JSON.stringify({ title: 'أبج' }));
   });
 
   it('does not persist anything when enabled is false', () => {
@@ -108,17 +108,17 @@ describe('useFormDraft', () => {
       vi.advanceTimersByTime(1000);
     });
 
-    expect(window.localStorage.getItem('draft:ad:edit:1')).toBeNull();
+    expect(window.localStorage.getItem('draft:guest:ad:edit:1')).toBeNull();
   });
 
-  it('swallows a localStorage.setItem failure (e.g. private browsing / quota exceeded)', () => {
+  it('reports a localStorage.setItem failure so the UI can warn before navigation', () => {
     const setItemSpy = vi
       .spyOn(Storage.prototype, 'setItem')
       .mockImplementation(() => {
         throw new DOMException('QuotaExceededError');
       });
 
-    const { rerender } = renderHook(
+    const { rerender, result } = renderHook(
       (values: { title: string }) => useFormDraft('ad:new', values, { debounceMs: 100 }),
       { initialProps: { title: 'أ' } },
     );
@@ -129,12 +129,46 @@ describe('useFormDraft', () => {
         vi.advanceTimersByTime(200);
       });
     }).not.toThrow();
+    expect(result.current.saveError).toContain('تعذّر حفظ المسودة');
 
     setItemSpy.mockRestore();
   });
 
+
+  it('flushes the latest pending values on pagehide before the debounce expires', () => {
+    const { rerender } = renderHook(
+      (values: { title: string }) => useFormDraft('ad:new', values, { debounceMs: 800 }),
+      { initialProps: { title: 'أولي' } },
+    );
+    rerender({ title: 'آخر تعديل' });
+
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBe(JSON.stringify({ title: 'آخر تعديل' }));
+  });
+
+  it('does not write the current form into a different account draft scope', () => {
+    window.localStorage.setItem('marketplace-auth', JSON.stringify({ state: { user: { id: 'user-a' } } }));
+    const { rerender, result } = renderHook(
+      (values: { title: string }) => useFormDraft('ad:new', values, { debounceMs: 100 }),
+      { initialProps: { title: 'خاص بالمستخدم أ' } },
+    );
+    rerender({ title: 'تعديل قبل تبديل الحساب' });
+    window.localStorage.setItem('marketplace-auth', JSON.stringify({ state: { user: { id: 'user-b' } } }));
+    rerender({ title: 'تعديل بعد تبديل الحساب' });
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(window.localStorage.getItem('draft:user-b:ad:new')).toBeNull();
+    expect(result.current.saveError).toContain('تغيّر الحساب');
+  });
+
   it('clearDraft removes the stored key', () => {
-    window.localStorage.setItem('draft:ad:new', JSON.stringify({ title: 'قديم' }));
+    window.localStorage.setItem('draft:guest:ad:new', JSON.stringify({ title: 'قديم' }));
 
     const { result } = renderHook(() => useFormDraft('ad:new', { title: 'قديم' }));
 
@@ -142,7 +176,7 @@ describe('useFormDraft', () => {
       result.current.clearDraft();
     });
 
-    expect(window.localStorage.getItem('draft:ad:new')).toBeNull();
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBeNull();
   });
 
   it('clearDraft swallows a localStorage.removeItem failure', () => {
@@ -159,7 +193,7 @@ describe('useFormDraft', () => {
     removeItemSpy.mockRestore();
   });
 
-  it('cancels the pending write if the component unmounts before debounceMs elapses', () => {
+  it('flushes the pending write if the component unmounts before debounceMs elapses', () => {
     const { rerender, unmount } = renderHook(
       (values: { title: string }) => useFormDraft('ad:new', values, { debounceMs: 800 }),
       { initialProps: { title: 'أ' } },
@@ -172,7 +206,26 @@ describe('useFormDraft', () => {
       vi.advanceTimersByTime(2000);
     });
 
-    expect(window.localStorage.getItem('draft:ad:new')).toBeNull();
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBe(JSON.stringify({ title: 'ب' }));
+  });
+
+  it('REGRESSION: clearDraft cancels a pending write so unmount does not resurrect the draft', () => {
+    const { rerender, result, unmount } = renderHook(
+      (values: { title: string }) => useFormDraft('ad:new', values, { debounceMs: 800 }),
+      { initialProps: { title: 'أ' } },
+    );
+
+    rerender({ title: 'ب' }); // schedules a debounced write
+    act(() => {
+      result.current.clearDraft(); // e.g. successful publish
+    });
+    unmount(); // unmount flush must not re-create the draft
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBeNull();
   });
 
   it('scopes drafts by key so two different keys never collide', () => {
@@ -192,8 +245,8 @@ describe('useFormDraft', () => {
       vi.advanceTimersByTime(200);
     });
 
-    expect(window.localStorage.getItem('draft:ad:new')).toBe(JSON.stringify({ title: 'ب' }));
-    expect(window.localStorage.getItem('draft:ad:edit:1')).toBe(JSON.stringify({ title: 'د' }));
+    expect(window.localStorage.getItem('draft:guest:ad:new')).toBe(JSON.stringify({ title: 'ب' }));
+    expect(window.localStorage.getItem('draft:guest:ad:edit:1')).toBe(JSON.stringify({ title: 'د' }));
   });
 });
 
@@ -203,12 +256,12 @@ describe('readFormDraft', () => {
   });
 
   it('returns the parsed draft when one exists', () => {
-    window.localStorage.setItem('draft:ad:new', JSON.stringify({ title: 'محفوظ' }));
+    window.localStorage.setItem('draft:guest:ad:new', JSON.stringify({ title: 'محفوظ' }));
     expect(readFormDraft<{ title: string }>('ad:new')).toEqual({ title: 'محفوظ' });
   });
 
   it('returns null (not a throw) when the stored value is malformed JSON', () => {
-    window.localStorage.setItem('draft:ad:new', '{not valid json');
+    window.localStorage.setItem('draft:guest:ad:new', '{not valid json');
     expect(readFormDraft('ad:new')).toBeNull();
   });
 

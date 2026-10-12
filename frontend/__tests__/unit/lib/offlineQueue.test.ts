@@ -21,6 +21,8 @@ import {
   discardFailedRequest,
   requestQueueReplay,
   enqueueOfflineMutationFallback,
+  getQueueFailureGuidance,
+  queueFailureAction,
 } from '@/lib/offlineQueue';
 
 interface FakeIDBRequest {
@@ -462,4 +464,41 @@ describe('offlineQueue', () => {
       await expect(requestQueueReplay()).resolves.toBeUndefined();
     });
   });
+
+  describe('failure guidance for offline replay', () => {
+    const item = (status?: number) => ({
+      id: 1,
+      url: 'https://example.test/api/v1/products',
+      method: 'POST',
+      queuedAt: 1,
+      status: 'failed' as const,
+      lastError: status === undefined ? undefined : { status, message: 'server message' },
+    });
+
+    it('recommends correcting invalid data instead of blind retry', () => {
+      const guidance = getQueueFailureGuidance(item(422));
+      expect(guidance.category).toBe('invalid-data');
+      expect(guidance.nextStep).toContain('صحح الحقول');
+      expect(queueFailureAction(item(422))).toBe('edit');
+    });
+
+    it('explains conflicts and discourages duplicate submission', () => {
+      const guidance = getQueueFailureGuidance(item(409));
+      expect(guidance.category).toBe('conflict');
+      expect(guidance.nextStep).toContain('لا تكرر الطلب');
+      expect(queueFailureAction(item(409))).toBe('edit');
+    });
+
+    it('distinguishes rate limits and server failures as retry-later cases', () => {
+      expect(getQueueFailureGuidance(item(429)).category).toBe('rate-limit');
+      expect(getQueueFailureGuidance(item(503)).category).toBe('server');
+      expect(queueFailureAction(item(429))).toBe('retry');
+      expect(queueFailureAction(item(503))).toBe('retry');
+    });
+
+    it('does not imply a known cause when the server status is absent', () => {
+      expect(getQueueFailureGuidance(item()).category).toBe('unknown');
+    });
+  });
+
 });
