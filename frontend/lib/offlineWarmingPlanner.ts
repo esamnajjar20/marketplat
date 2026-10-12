@@ -19,9 +19,11 @@ import { getNetworkPolicy, type NetworkTier } from './networkPolicy';
 import { getWarmingBudget } from './warmingBudget';
 import { readNavigationUsage } from '@/hooks/useNavigationUsage';
 
-// NOTE: getWarmingPlan() no longer produces 'critical' (see FIX WARM-DEADCODE-01);
-// the member stays in the union because downstream consumers and their tests
-// still branch on it.
+// NOTE: 'critical' IS produced by getWarmingPlan() — see the
+// 'user-fast-very-slow' and 'user-fast-slow' branches below (FIX
+// WARM-ADAPTIVE-01). FIX WARM-DEADCODE-01 removed old dead-code paths,
+// not the tier itself. Downstream consumers and tests branch on
+// 'critical' for slow-link throttling.
 export type WarmingTier = 'none' | 'critical' | 'core' | 'full';
 
 export interface WarmingPlan {

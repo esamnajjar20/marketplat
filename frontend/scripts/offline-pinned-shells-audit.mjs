@@ -20,6 +20,10 @@ check('public periodic warming bypasses age refresh for pinned shells', /const p
 check('personal periodic warming bypasses age refresh for pinned shells', /const permanentShell = isPermanentShellRoute\(route, true\);[\s\S]{0,250}!permanentShell && prior\?\.status/.test(routes));
 check('incomplete pinned shells are still repaired and explicit force still refreshes', /force \|\|\s*!cacheAudit\.complete/.test(routes));
 check('cache trimming protects pinned shell HTML and referenced JS/CSS assets', /collectPermanentShellAssets\(\)/.test(sw) && /permanentBonus = permanentShell \? 1_000_000_000 : permanentAsset \? 900_000_000/.test(sw));
-check('SW and TypeScript cache versions match v50', /CACHE_VERSION = 'v50'/.test(sw) && /SW_CACHE_VERSION = 'v50'/.test(version));
+check('SW and TypeScript cache versions match', (() => {
+  const swVersion = sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)['"]/)?.[1];
+  const tsVersion = version.match(/SW_CACHE_VERSION\s*=\s*['"]v(\d+)['"]/)?.[1];
+  return Boolean(swVersion && tsVersion && swVersion === tsVersion);
+})());
 if (failures.length) { console.error(`${failures.length} failure(s), ${passed} passed`); process.exitCode = 1; }
 else console.log(`${passed}/${passed} checks passed`);

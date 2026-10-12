@@ -59,12 +59,12 @@ import {
   recordSweepTime,
   shouldSweep,
   isBuildChanged,
-  backoffForAttempts,
 } from './offlineWarmingState';
 import {
   getWarmingPlan,
   selectRoutesByPlan,
   isWarmingDisabled,
+  ROUTE_BUDGETS,
 } from './offlineWarmingPlanner';
 import { getWarmingMode } from './warmingPreferences';
 import { getAverageRequestMs } from './connectionQuality';
@@ -437,6 +437,17 @@ function estimateKbps(): number | null {
 //     voucher card; the pass would starve the current page.
 const UNLIMITED_BUDGET = 9_999;
 
+// FIX WARM-BUDGET-TRUTH-01: values below are for getDripProgress's UI
+// display only — actual route selection lives in selectRoutesByPlan via
+// ROUTE_BUDGETS. Both must stay aligned; the old hardcoded '20' claimed
+// critical warms 20 routes per pass, but selectRoutesByPlan caps critical
+// at 12 (8 public + 4 personal). Deriving from ROUTE_BUDGETS keeps the
+// two mechanical.
+const CRITICAL_BUDGET_TOTAL =
+  ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal;
+const CORE_BUDGET_TOTAL =
+  ROUTE_BUDGETS.core.public + ROUTE_BUDGETS.core.personal;
+
 function getDripParams(tier: 'none' | 'critical' | 'core' | 'full'): {
   budget: number;
   intervalMs: number;
@@ -444,20 +455,17 @@ function getDripParams(tier: 'none' | 'critical' | 'core' | 'full'): {
 } {
   if (tier === 'none') return { budget: 0, intervalMs: 0, reason: 'offline' };
 
-  // FIX WARM-MIN-20-01: critical / very-slow still warm a floor of 20
-  // routes (sequential). Previously budget 0 left users with almost
-  // nothing offline on voucher links.
   const kbps = estimateKbps();
   if (tier === 'critical') {
-    return { budget: 20, intervalMs: 8 * 60 * 1000, reason: `critical-${kbps ?? '?'}kbps` };
+    return { budget: CRITICAL_BUDGET_TOTAL, intervalMs: 8 * 60 * 1000, reason: `critical-${kbps ?? '?'}kbps` };
   }
 
-  if (kbps == null) return { budget: 20, intervalMs: 8 * 60 * 1000, reason: 'unknown' };
+  if (kbps == null) return { budget: CORE_BUDGET_TOTAL, intervalMs: 8 * 60 * 1000, reason: 'unknown' };
 
   if (kbps >= 100) return { budget: UNLIMITED_BUDGET, intervalMs: 45 * 1000, reason: `${kbps}kbps-unlimited` };
-  if (kbps >= 40)  return { budget: 20, intervalMs: 6 * 60 * 1000, reason: `${kbps}kbps-mid` };
-  if (kbps >= 15)  return { budget: 20, intervalMs: 8 * 60 * 1000, reason: `${kbps}kbps-slow` };
-  return { budget: 20, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-voucher` };
+  if (kbps >= 40)  return { budget: CORE_BUDGET_TOTAL, intervalMs: 6 * 60 * 1000, reason: `${kbps}kbps-mid` };
+  if (kbps >= 15)  return { budget: CORE_BUDGET_TOTAL, intervalMs: 8 * 60 * 1000, reason: `${kbps}kbps-slow` };
+  return { budget: CORE_BUDGET_TOTAL, intervalMs: 10 * 60 * 1000, reason: `${kbps}kbps-voucher` };
 }
 
 const LAST_DRIP_WARMED_KEY = `marketplat:drip-last-pass:${CACHE_VERSION_SUFFIX}`;
@@ -1034,14 +1042,15 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
         continue;
       }
 
-      // FIX WARM-BACKOFF-01: backoff is a FAILURE penalty. It used to be
-      // applied to every route with attempts > 0 — and `attempts` was
-      // incremented on success too — so each daily refresh of a healthy
-      // route slept 2s, 4s, 8s … up to 30 min INSIDE the warming loop
-      // (holding the lock and blocking every route behind it).
-      const delay = prior?.status === 'failed' ? backoffForAttempts(prior.attempts) : 0;
-      if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
+      // FIX WARM-BACKOFF-SKIP-01: a repeatedly-failed route used to
+      // sleep INSIDE the warming loop (backoffForAttempts caps at
+      // 30 minutes) while holding the cross-tab lock, blocking every
+      // route behind it. Now: skip routes with too many prior failures
+      // in this pass; the next cycle (or the user's per-row "retry"
+      // in /settings/offline) picks them up.
+      const CONSECUTIVE_FAILURE_SKIP = 3;
+      if (prior?.status === 'failed' && (prior?.attempts ?? 0) >= CONSECUTIVE_FAILURE_SKIP) {
+        continue;
       }
 
       // force (manual button) always replaces; otherwise visit copies win.
@@ -1401,14 +1410,15 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
         continue;
       }
 
-      // FIX WARM-BACKOFF-01: backoff is a FAILURE penalty. It used to be
-      // applied to every route with attempts > 0 — and `attempts` was
-      // incremented on success too — so each daily refresh of a healthy
-      // route slept 2s, 4s, 8s … up to 30 min INSIDE the warming loop
-      // (holding the lock and blocking every route behind it).
-      const delay = prior?.status === 'failed' ? backoffForAttempts(prior.attempts) : 0;
-      if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
+      // FIX WARM-BACKOFF-SKIP-01: a repeatedly-failed route used to
+      // sleep INSIDE the warming loop (backoffForAttempts caps at
+      // 30 minutes) while holding the cross-tab lock, blocking every
+      // route behind it. Now: skip routes with too many prior failures
+      // in this pass; the next cycle (or the user's per-row "retry"
+      // in /settings/offline) picks them up.
+      const CONSECUTIVE_FAILURE_SKIP = 3;
+      if (prior?.status === 'failed' && (prior?.attempts ?? 0) >= CONSECUTIVE_FAILURE_SKIP) {
+        continue;
       }
 
       const result = await warmPersonalRouteAtomic(
@@ -1474,7 +1484,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
  * network drops, which is the entire point of having them cached.
  * Retry is allowed on both (may refresh stale chunks); delete is not.
  */
-const PROTECTED_FROM_DELETE = new Set(['/offline', '/']);
+export const PROTECTED_FROM_DELETE = new Set(['/offline', '/']);
 
 /** Full route list for the settings UI, in warming order. */
 export function getKnownRoutes(): Array<{ route: string; personal: boolean }> {

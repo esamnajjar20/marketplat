@@ -110,7 +110,7 @@ const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v50';
+const CACHE_VERSION = 'v51';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -339,9 +339,12 @@ const NETWORK_TIMEOUT_MS = 5000
 
 /** Navigate documents need longer on weak links — 3s caused false /offline. */
 const NAVIGATE_TIMEOUT_MS = 15000
-/** FIX NAV-TIMEOUT-CACHED-01: when a cached shell already exists, fail over
- * faster (3.5s) so the user sees content instead of a blank screen for 10s.
- * The real fetch continues in the background and updates the cache. */
+/** FIX NAV-TIMEOUT-CACHED-01: when a cached shell already exists, fail
+ * over faster than the uncached path so the user sees content instead of
+ * a blank screen. FIX WEAK-NET-TUNE-01: raised from the initial 3.5s to
+ * 8s — on Gaza links 3.5s was too aggressive (many false timeouts on
+ * requests that eventually succeeded in 4-7s). The real fetch continues
+ * in the background and updates the cache either way. */
 const NAVIGATE_TIMEOUT_CACHED_MS = 8000
 
 /** FIX QUEUE-HOL-01: max consecutive soft failures on the same head entry
@@ -3330,6 +3333,24 @@ self.addEventListener('message', (event) => {
       (async () => {
         const entry = await getQueuedEntry(event.data.id);
         if (!entry || !entry.ownerUserId || event.data.ownerUserId !== entry.ownerUserId) return;
+        // FIX CANCEL-RACE-01: refuse to flip an entry another drain is
+        // actively sending. If replayOne succeeds while we mark
+        // 'cancelled', its deleteQueuedEntry removes the row regardless
+        // — the user thinks cancel succeeded when the operation actually
+        // completed. Refuse here so the user can cancel again after the
+        // current attempt settles.
+        if (hasActiveProcessingLease(entry)) {
+          await notifyClients({
+            type: 'QUEUE_CANCEL_REJECTED',
+            id: event.data.id,
+            reason: 'processing',
+          });
+          return;
+        }
+        if (entry.processing) {
+          // Recover stale/legacy leases before flipping status.
+          await markQueuedEntry(entry.id, { processing: false, processingStartedAt: null });
+        }
         await markQueuedEntry(event.data.id, { status: 'cancelled' });
         await notifyClients({
           type: 'QUEUE_ITEM_CANCELLED',

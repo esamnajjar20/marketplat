@@ -39,6 +39,27 @@ import type {
 } from '@/types/service.types';
 import type { RequestType } from '@/types/request.types';
 
+/**
+ * FIX DRAFT-SIZE-DOC-01: the offline draft publish path intentionally
+ * allows larger payloads (MAX_PUBLISH_TOTAL_BYTES = 18 MB per draft,
+ * MAX_PUBLISH_FILE_BYTES = 6 MB per file — see offlineAdDrafts.ts)
+ * than the SW queue's own MAX_QUEUE_BODY_BYTES (6 MB in sw.js). This
+ * is NOT a bug — the two limits form a deliberate chain:
+ *
+ *   <=6 MB   → SW queue handles it (fast replay, survives reloads and
+ *              app close; no page JS required).
+ *   <=18 MB  → SW queue rejects with QUEUE_BODY_TOO_LARGE; the request
+ *              falls through to THIS publisher, which re-sends from
+ *              publishFiles once connectivity returns.
+ *   >18 MB   → refused at save time (MAX_PUBLISH_TOTAL_BYTES) so the
+ *              draft never claims to hold attachments it dropped.
+ *
+ * Raising either constant without the other silently breaks the
+ * handoff: e.g. raising MAX_QUEUE_BODY_BYTES above 6 MB moves a slice
+ * of the 6-18 MB range into SW-queue territory, changing idempotency
+ * and lifecycle behavior for those drafts. Keep both documented
+ * together.
+ */
 const MAX_AUTO_RETRIES = 5;
 
 /**

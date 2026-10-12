@@ -277,7 +277,7 @@ export async function getQueuedRequestCounts(): Promise<{ pending: number; faile
 function isMessageSendUrl(url: string): boolean {
   try {
     const { pathname } = new URL(url);
-    return /\/conversations\/[^/]+\/messages(?:\/(?:image|audio))?$/.test(pathname);
+    return /\/conversations\/[^/]+\/messages(?:\/(?:image|audio|file))?$/.test(pathname);
   } catch {
     return false;
   }

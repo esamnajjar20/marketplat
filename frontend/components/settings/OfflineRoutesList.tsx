@@ -37,6 +37,7 @@ import {
   clearSingleRouteCache,
   retryAllFailedRoutes,
   inspectRouteCaches,
+  PROTECTED_FROM_DELETE,
 } from '@/lib/offlineRouteShells';
 import { readSnapshot, type RouteWarmingMeta } from '@/lib/offlineWarmingState';
 
@@ -52,8 +53,6 @@ interface Row {
   warmedAt: number;
   lastError: string | null;
 }
-
-const PROTECTED_FROM_DELETE = new Set(['/offline', '/']);
 
 function rowKey(r: Row): string {
   return (r.personal ? 'personal:' : '') + r.route;
