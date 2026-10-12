@@ -36,6 +36,7 @@ import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities'
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
 import { initSwTokenSync } from '@/lib/swTokenSync';
+import { initStaleWaitingServiceWorkerHandler } from '@/lib/swStaleActivation';
 import { initSalesOfflineSync, syncPendingSales } from '@/lib/sales-offline/salesSync';
 import { invalidateOfflineCachesForMutation } from '@/lib/offlineCacheInvalidation';
 import { recordQueueDrainCompleted, recordQueueDrainStarted } from '@/lib/networkObservability';
@@ -134,6 +135,10 @@ export function OfflineBootstrap() {
       __offlineBootstrapInitialized = true;
       initAdDraftSync();
       initSwTokenSync();
+      // FIX STALE-SW-AUTO-ACTIVATION-01: activate a waiting Service
+      // Worker after 48h of continuous waiting, without requiring the
+      // user to close every tab. See lib/swStaleActivation.ts.
+      initStaleWaitingServiceWorkerHandler();
     }
 
     // Queue first (immediately — user's pending ad/message must not wait);

@@ -341,6 +341,38 @@ async function putTimestamped(
 // bump — the /admin/debug/warming page was reading stale names.
 export const CACHE_VERSION_SUFFIX = STATIC_CACHE.split('-').pop() ?? 'unknown';
 
+// FIX WARM-GRACE-AFTER-BUMP-01: the first warming pass after a
+// CACHE_VERSION bump starts from an empty snapshot and hits every
+// route at once. On weak links some fail — and with a plain
+// CONSECUTIVE_FAILURE_SKIP=3 they are then parked for weeks. This
+// records when the current cache version was first seen in this
+// browser (localStorage, versioned key) and grants a wider failure
+// budget for the first 6 hours.
+const CACHE_VERSION_INSTALLED_KEY = `marketplat:cache-version-installed-at:${CACHE_VERSION_SUFFIX}`;
+try {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem(CACHE_VERSION_INSTALLED_KEY)) {
+    localStorage.setItem(CACHE_VERSION_INSTALLED_KEY, String(Date.now()));
+  }
+} catch {
+  // private mode / quota — fall through; the threshold just uses
+  // the conservative (non-grace) value.
+}
+const FRESH_CACHE_GRACE_MS = 6 * 60 * 60 * 1000;
+const FRESH_CACHE_SKIP_ATTEMPTS = 5;
+const STALE_CACHE_SKIP_ATTEMPTS = 3;
+function consecutiveFailureSkipThreshold(): number {
+  try {
+    const installedAt = Number(localStorage.getItem(CACHE_VERSION_INSTALLED_KEY) ?? 0);
+    if (Number.isFinite(installedAt) && installedAt > 0
+        && Date.now() - installedAt < FRESH_CACHE_GRACE_MS) {
+      return FRESH_CACHE_SKIP_ATTEMPTS;
+    }
+  } catch {
+    // ignore
+  }
+  return STALE_CACHE_SKIP_ATTEMPTS;
+}
+
 // SW-WARM-CACHE-VERSION-WRITE-01-CALL: tell the snapshot writer which
 // cache version it describes, once, at module load. Read back by
 // readSnapshotForCacheVersion so a deploy that bumped CACHE_VERSION
@@ -1048,8 +1080,10 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
       // route behind it. Now: skip routes with too many prior failures
       // in this pass; the next cycle (or the user's per-row "retry"
       // in /settings/offline) picks them up.
-      const CONSECUTIVE_FAILURE_SKIP = 3;
-      if (prior?.status === 'failed' && (prior?.attempts ?? 0) >= CONSECUTIVE_FAILURE_SKIP) {
+      // FIX WARM-GRACE-AFTER-BUMP-01: threshold widens to 5 during the
+      // first 6 hours after a cache-version bump (see helpers above).
+      if (prior?.status === 'failed'
+          && (prior?.attempts ?? 0) >= consecutiveFailureSkipThreshold()) {
         continue;
       }
 
@@ -1416,8 +1450,10 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
       // route behind it. Now: skip routes with too many prior failures
       // in this pass; the next cycle (or the user's per-row "retry"
       // in /settings/offline) picks them up.
-      const CONSECUTIVE_FAILURE_SKIP = 3;
-      if (prior?.status === 'failed' && (prior?.attempts ?? 0) >= CONSECUTIVE_FAILURE_SKIP) {
+      // FIX WARM-GRACE-AFTER-BUMP-01: threshold widens to 5 during the
+      // first 6 hours after a cache-version bump (see helpers above).
+      if (prior?.status === 'failed'
+          && (prior?.attempts ?? 0) >= consecutiveFailureSkipThreshold()) {
         continue;
       }
 
