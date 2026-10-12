@@ -57,8 +57,8 @@ const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? '';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // DEPLOYMENT-NONCE-01: expose the build nonce so proxy.ts can reuse it
-  // for every request within this deployment (see proxy.ts for why).
+  // DEPLOYMENT-NONCE-01: expose the build nonce so middleware.ts can reuse it
+  // for every request within this deployment (see middleware.ts for why).
   env: {
     NEXT_PUBLIC_BUILD_NONCE: BUILD_NONCE,
   },
@@ -221,7 +221,7 @@ const nextConfig: NextConfig = {
     // build time and has no way to generate a fresh value per request,
     // so a real nonce was never possible from this file alone.
     // CSP generation (with a per-request nonce) has moved to
-    // proxy.ts (formerly middleware.ts), which runs on every request and
+    // middleware.ts, which runs on every request and
     // nonce and forward it to Next.js's own script injection via the
     // `x-nonce` request header. All other static security headers
     // remain here since they don't need to vary per request.

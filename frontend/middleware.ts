@@ -1,7 +1,7 @@
 /**
  * Next.js Proxy (formerly Middleware).
  *
- * RUNTIME NOTE (FIX PROXY-RUNTIME-01): Next 16 proxy runs on the Node.js runtime,
+ * RUNTIME NOTE (FIX PROXY-RUNTIME-01): This middleware runs on the Node.js runtime,
  * and OpenNext bundles it for Cloudflare as "Node.js middleware" (experimental,
  * flagged in the build log). The many "Edge" mentions below are historical wording;
  * keep this file free of Node-only APIs the Workers runtime lacks, and verify the
@@ -312,7 +312,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
 // exported function name change — the automatic codemod
 // (npx @next/codemod middleware-to-proxy) does exactly this.
 // Nothing about the function body changes; this is a rename.
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   // FIX CPU-LIMIT-01: /api/* skips CSP nonce + cookie decoding entirely.

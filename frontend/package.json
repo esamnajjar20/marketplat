@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack && node scripts/generate-warming-manifest.mjs",
+    "build": "next build && node scripts/generate-warming-manifest.mjs",
     "build:cf": "opennextjs-cloudflare build",
     "start": "next start",
     "lint": "eslint .",

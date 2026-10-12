@@ -23,7 +23,7 @@ import { NextRequest } from 'next/server';
 
 // We test the middleware function directly — import it from the source.
 // Because next/server is available in jsdom via vitest, this should work.
-import { proxy } from '@/proxy';
+import { middleware } from '@/middleware';
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -73,32 +73,32 @@ const ADMIN_TOKEN = makeJwt({ userId: 'admin-1', exp: futureExp() });
 describe('middleware — public routes', () => {
   it('passes through / (homepage)', () => {
     const req = makeRequest('/');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
     expect(res.headers.get('Location')).toBeNull();
   });
 
   it('passes through /ads/:id (ad detail)', () => {
     const req = makeRequest('/ads/clr123abc');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('passes through /search', () => {
     const req = makeRequest('/search?q=laptops');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('passes through /categories/:slug', () => {
     const req = makeRequest('/categories/electronics');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('passes through /profile/:id', () => {
     const req = makeRequest('/profile/user-123');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 });
@@ -108,34 +108,34 @@ describe('middleware — public routes', () => {
 describe('middleware — auth pages, logged-in user redirected', () => {
   it('redirects /login → /dashboard when logged in', () => {
     const req = makeRequest('/login', { token: VALID_TOKEN });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
   it('redirects /register → /dashboard when logged in', () => {
     const req = makeRequest('/register', { token: VALID_TOKEN });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
   it('redirects /forgot-password → /dashboard when logged in', () => {
     const req = makeRequest('/forgot-password', { token: VALID_TOKEN });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
   it('allows /login when NOT logged in', () => {
     const req = makeRequest('/login');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('allows /login when token is expired', () => {
     const req = makeRequest('/login', { token: EXPIRED_TOKEN });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 });
@@ -156,7 +156,7 @@ describe('middleware — protected routes, unauthenticated redirect', () => {
   for (const path of protectedPaths) {
     it(`redirects ${path} → /login?from=... when no token`, () => {
       const req = makeRequest(path);
-      const res = proxy(req);
+      const res = middleware(req);
       expect(res.status).toBe(307);
       const location = res.headers.get('Location') ?? '';
       expect(location).toContain('/login');
@@ -166,14 +166,14 @@ describe('middleware — protected routes, unauthenticated redirect', () => {
 
   it('encodes the original path in ?from param', () => {
     const req = makeRequest('/my-ads');
-    const res = proxy(req);
+    const res = middleware(req);
     const location = res.headers.get('Location') ?? '';
     expect(location).toContain(encodeURIComponent('/my-ads').replace(/%20/g, '+'));
   });
 
   it('REGRESSION ROUTE-FIX-01: keeps the query string (hub tab) in ?from', () => {
     const req = makeRequest('/my-store?tab=analytics');
-    const res = proxy(req);
+    const res = middleware(req);
     const location = res.headers.get('Location') ?? '';
     const from = new URL(location, 'http://localhost').searchParams.get('from');
     expect(from).toBe('/my-store?tab=analytics');
@@ -181,33 +181,33 @@ describe('middleware — protected routes, unauthenticated redirect', () => {
 
   it('allows /dashboard with valid token', () => {
     const req = makeRequest('/dashboard', { token: VALID_TOKEN });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('blocks /dashboard with expired token', () => {
     const req = makeRequest('/dashboard', { token: EXPIRED_TOKEN });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/login');
   });
 
   it('blocks /dashboard with malformed token', () => {
     const req = makeRequest('/dashboard', { token: 'not.a.token' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 
   it('matches /ads/:id/edit via regex', () => {
     const req = makeRequest('/ads/abc123/edit');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/login');
   });
 
   it('does NOT match /ads/:id (view page) as protected', () => {
     const req = makeRequest('/ads/abc123');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 });
@@ -217,33 +217,33 @@ describe('middleware — protected routes, unauthenticated redirect', () => {
 describe('middleware — admin routes', () => {
   it('blocks /admin with no token → redirects /login', () => {
     const req = makeRequest('/admin');
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/login');
   });
 
   it('blocks /admin/users with USER role → redirects /dashboard', () => {
     const req = makeRequest('/admin/users', { token: VALID_TOKEN, role: 'USER' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
   it('allows /admin/dashboard with ADMIN role + valid token', () => {
     const req = makeRequest('/admin/dashboard', { token: ADMIN_TOKEN, role: 'ADMIN' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('allows /admin/ads with ADMIN role', () => {
     const req = makeRequest('/admin/ads', { token: ADMIN_TOKEN, role: 'ADMIN' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('blocks /admin with valid token but no role cookie → redirects /dashboard', () => {
     const req = makeRequest('/admin', { token: ADMIN_TOKEN });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
@@ -251,13 +251,13 @@ describe('middleware — admin routes', () => {
   // Gap #20 (admin permission tiers)
   it('allows /admin with MODERATOR role — admin-tier gate now accepts MODERATOR', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'MODERATOR' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
   it('allows /admin with SUPER_ADMIN role', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'SUPER_ADMIN' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 });
@@ -268,7 +268,7 @@ describe('middleware — Gap #20 admin-tier token/cookie agreement', () => {
   it('rejects a MODERATOR cookie paired with a token carrying role USER', () => {
     const token = makeJwt({ sub: 'u1', exp: futureExp(), role: 'USER' });
     const req = makeRequest('/admin', { token, role: 'MODERATOR' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
@@ -276,7 +276,7 @@ describe('middleware — Gap #20 admin-tier token/cookie agreement', () => {
   it('allows a SUPER_ADMIN cookie paired with a token carrying role SUPER_ADMIN', () => {
     const token = makeJwt({ sub: 'u1', exp: futureExp(), role: 'SUPER_ADMIN' });
     const req = makeRequest('/admin', { token, role: 'SUPER_ADMIN' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 });
@@ -286,26 +286,26 @@ describe('middleware — Gap #20 admin-tier token/cookie agreement', () => {
 describe('middleware — SEC-05 role cookie validation', () => {
   it('treats unknown role "SUPERADMIN" as non-admin', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'SUPERADMIN' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
   it('treats empty role "" as non-admin', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: '' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 
   it('treats injected role "admin" (lowercase) as non-admin (case-sensitive)', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'admin' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 
   it('treats role "ADMIN " (trailing space) as non-admin', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'ADMIN ' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 });
@@ -315,15 +315,15 @@ describe('middleware — SEC-05 role cookie validation', () => {
 describe('middleware — X-Request-Id header', () => {
   it('sets X-Request-Id on pass-through responses', () => {
     const req = makeRequest('/');
-    const res = proxy(req);
+    const res = middleware(req);
     const id = res.headers.get('X-Request-Id');
     expect(id).toBeTruthy();
     expect(id).toMatch(/^[0-9a-f-]{36}$/); // UUID format
   });
 
   it('each request gets a unique Request-Id', () => {
-    const a = proxy(makeRequest('/')).headers.get('X-Request-Id');
-    const b = proxy(makeRequest('/')).headers.get('X-Request-Id');
+    const a = middleware(makeRequest('/')).headers.get('X-Request-Id');
+    const b = middleware(makeRequest('/')).headers.get('X-Request-Id');
     expect(a).not.toBe(b);
   });
 });
@@ -333,20 +333,20 @@ describe('middleware — X-Request-Id header', () => {
 describe('middleware — token edge cases (decodeToken)', () => {
   it('handles token with no parts (empty string → blocks protected route)', () => {
     const req = makeRequest('/dashboard', { token: '' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 
   it('handles token with only one part (malformed)', () => {
     const req = makeRequest('/dashboard', { token: 'onlyonepart' });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 
   it('handles token whose payload is not valid JSON', () => {
     const badPayload = btoa('not json!!!').replace(/=/g, '');
     const req = makeRequest('/dashboard', { token: `header.${badPayload}.sig` });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 
@@ -354,14 +354,14 @@ describe('middleware — token edge cases (decodeToken)', () => {
     // exp is 5s in the future, but buffer is 10s → treated as expired
     const token = makeJwt({ userId: 'u', exp: Math.floor(Date.now() / 1000) + 5 });
     const req = makeRequest('/dashboard', { token });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(307);
   });
 
   it('token expiring in 20s is treated as valid (beyond 10s buffer)', () => {
     const token = makeJwt({ userId: 'u', exp: Math.floor(Date.now() / 1000) + 20 });
     const req = makeRequest('/dashboard', { token });
-    const res = proxy(req);
+    const res = middleware(req);
     expect(res.status).toBe(200);
   });
 });
