@@ -1,13 +1,8 @@
 /**
  * W5 — build-time warming manifest.
- *
- * Produces public/warming-manifest.json from routes approved by
- * offlineRouteShells.ts plus whatever chunk manifests Next.js 16 emits.
- *
- * Next 16 removed `.next/server/app-build-manifest.json` (which used to map
- * route → chunks). This script tries multiple Next manifest shapes and falls
- * back to scanning `.next/static/chunks/` directly. The manifest is advisory:
- * runtime warming still verifies every asset before promoting a route.
+ * FIX WARMING-03: strip route groups (public)/(auth)/...
+ * FIX WARMING-04: collect chunks from ALL ancestor dirs
+ * FIX WARMING-05: react-loadable keys use prefix match ("src -> mod")
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +12,7 @@ const source = fs.readFileSync(path.join(root, 'lib/offlineRouteShells.ts'), 'ut
 const outputPath = path.join(root, 'public/warming-manifest.json');
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
-// ─── 1) Extract route lists from source ─────────────────────────
+// ─── 1) Extract route lists ─────────────────────────────────────
 function extractArray(name) {
   const re = new RegExp(
     `export const ${name}(?:\\s*:[^=;]+)?\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*(?:as const)?;`
@@ -30,13 +25,10 @@ const publicRoutes = extractArray('CORE_ROUTES');
 const personalRoutes = extractArray('PERSONAL_SHELL_ROUTES_ESSENTIAL');
 const routes = [...new Set([...publicRoutes, ...personalRoutes])];
 
-// ─── 2) Read every Next manifest shape we can find ──────────────
+// ─── 2) Read manifests ──────────────────────────────────────────
 function readJson(relPath) {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(root, relPath), 'utf8'));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(fs.readFileSync(path.join(root, relPath), 'utf8')); }
+  catch { return null; }
 }
 
 const appBuildCandidates = [
@@ -53,38 +45,33 @@ const appPathsManifest = readJson('.next/server/app-paths-manifest.json');
 const reactLoadableManifest = readJson('.next/react-loadable-manifest.json');
 const buildManifest = readJson('.next/build-manifest.json');
 
-const findings = {
+console.log('[warming-manifest] manifests found:', {
   appBuild: appBuildManifest ? appBuildManifest.path : null,
   appPaths: !!appPathsManifest,
   reactLoadable: !!reactLoadableManifest,
   buildManifest: !!buildManifest,
-};
-console.log('[warming-manifest] manifests found:', findings);
+});
 
-// ─── 3) URL → source path map (from app-paths-manifest) ─────────
+// ─── 3) URL → source map (FIX 03) ───────────────────────────────
+function stripRouteGroups(p) { return p.replace(/\/\([^)]+\)/g, ''); }
+
 const urlToSource = new Map();
 if (appPathsManifest && typeof appPathsManifest === 'object') {
   for (const [key, value] of Object.entries(appPathsManifest)) {
     if (typeof value !== 'string') continue;
-    // keys look like "/products/page" or "/page"
-    if (key === '/page') {
-      urlToSource.set('/', value);
-    } else if (key.endsWith('/page')) {
-      urlToSource.set(key.slice(0, -'/page'.length), value);
-    }
+    const normKey = stripRouteGroups(key);
+    if (normKey === '/page') urlToSource.set('/', value);
+    else if (normKey.endsWith('/page')) urlToSource.set(normKey.slice(0, -5), value);
   }
 }
 console.log(`[warming-manifest] URL→source entries: ${urlToSource.size}`);
 
-// ─── 4) Direct chunks from app-build-manifest (legacy path) ─────
+// ─── 4) Chunks from app-build-manifest ──────────────────────────
 function chunksFromAppBuild(route) {
   if (!appBuildManifest || !appBuildManifest.data) return [];
   const pages = appBuildManifest.data.pages ?? appBuildManifest.data.app ?? {};
   const clean = route === '/' ? '/' : route.replace(/\/$/, '');
-  const candidates = [
-    clean,
-    clean === '/' ? '/page' : `${clean}/page`,
-  ];
+  const candidates = [clean, clean === '/' ? '/page' : `${clean}/page`];
   const out = new Set();
   for (const c of candidates) {
     const entry = pages[c];
@@ -95,13 +82,10 @@ function chunksFromAppBuild(route) {
         }
       }
     } else if (entry && typeof entry === 'object') {
-      // Sometimes nested
       for (const v of Object.values(entry)) {
         if (Array.isArray(v)) {
           for (const chunk of v) {
-            if (typeof chunk === 'string') {
-              out.add(chunk.startsWith('/') ? chunk : `/${chunk}`);
-            }
+            if (typeof chunk === 'string') out.add(chunk.startsWith('/') ? chunk : `/${chunk}`);
           }
         }
       }
@@ -110,49 +94,66 @@ function chunksFromAppBuild(route) {
   return [...out];
 }
 
-// ─── 5) Direct chunks by scanning .next/static/chunks/ ──────────
+// ─── 5) Static scan (FIX 04: all ancestors + root) ──────────────
+function normalizeChunkRef(ref) {
+  if (typeof ref !== 'string') return null;
+  if (ref.startsWith('/_next/')) return ref;
+  if (ref.startsWith('_next/')) return '/' + ref;
+  if (ref.startsWith('static/')) return '/_next/' + ref;
+  return null;
+}
+
+function collectDirChunks(relDir) {
+  const full = path.join('.next/static/chunks', relDir);
+  const out = new Set();
+  try {
+    if (!fs.existsSync(full) || !fs.statSync(full).isDirectory()) return out;
+    for (const f of fs.readdirSync(full)) {
+      if (!/\.(js|css)$/.test(f)) continue;
+      if (f.includes('_server') || f.endsWith('.node.js')) continue;
+      const rel = path.relative('.next/static/chunks', path.join(full, f));
+      out.add('/_next/static/chunks/' + rel.split(path.sep).join('/'));
+    }
+  } catch { /* ignore */ }
+  return out;
+}
+
 function chunksFromStaticScan(sourcePath) {
   if (!sourcePath) return [];
-  // sourcePath is like "./app/(public)/products/page.js"
-  const clean = sourcePath.replace(/^\.\//, '').replace(/\.js$/, '');
-  // dir of the page chunk: ".next/static/chunks/app/(public)/products"
+  const clean = sourcePath.replace(/^\.\//, '').replace(/\.(js|tsx?|jsx)$/, '');
   const sourceDir = clean.replace(/\/page$/, '');
-  const scanDirs = [
-    path.join('.next/static/chunks', sourceDir),
-    // Also try parent layout dirs
-    path.join('.next/static/chunks', sourceDir.split('/').slice(0, -1).join('/')),
-  ];
-
+  const segments = sourceDir.split('/').filter(Boolean);
+  if (segments.length === 0) return [];
   const out = new Set();
-  for (const dir of scanDirs) {
-    try {
-      if (!fs.existsSync(dir)) continue;
-      for (const f of fs.readdirSync(dir)) {
-        if (!f.endsWith('.js') && !f.endsWith('.css')) continue;
-        // Skip server-only chunks
-        if (f.includes('_server') || f.endsWith('.node.js')) continue;
-        const rel = path.relative('.next/static/chunks', path.join(dir, f));
-        out.add('/_next/static/chunks/' + rel.split(path.sep).join('/'));
-      }
-    } catch {
-      /* ignore */
+  for (let i = segments.length; i >= 1; i--) {
+    const chunks = collectDirChunks(segments.slice(0, i).join('/'));
+    for (const c of chunks) out.add(c);
+  }
+  // Only include essential framework/main/polyfills from root (not all vendor chunks)
+  const rootChunks = collectDirChunks('');
+  for (const c of rootChunks) {
+    const f = c.split('/').pop() || '';
+    if (/^(framework|main|main-app|polyfills|webpack)-/i.test(f) ||
+        f.includes('_buildManifest') || f.includes('_ssgManifest')) {
+      out.add(c);
     }
   }
   return [...out];
 }
 
-// ─── 6) Lazy chunks from react-loadable-manifest ────────────────
+// ─── 6) React-loadable (FIX 05: prefix match) ───────────────────
 function chunksFromReactLoadable(sourcePath) {
   if (!reactLoadableManifest || !sourcePath) return [];
-  const key = sourcePath.replace(/^\.\//, '');
-  const entry = reactLoadableManifest[key];
-  if (!entry || typeof entry !== 'object') return [];
+  const clean = sourcePath.replace(/^\.\//, '');
+  const prefixes = [clean, './' + clean];
   const out = new Set();
-  for (const chunks of Object.values(entry)) {
-    if (!Array.isArray(chunks)) continue;
-    for (const c of chunks) {
-      if (typeof c !== 'string') continue;
-      const norm = c.startsWith('_next/') ? '/' + c : c.startsWith('/_next/') ? c : null;
+  for (const [key, value] of Object.entries(reactLoadableManifest)) {
+    const matches = prefixes.some((p) => key === p || key.startsWith(p + ' ') || key.startsWith(p + ' ->'));
+    if (!matches) continue;
+    const files = Array.isArray(value?.files) ? value.files
+      : Array.isArray(value) ? value : [];
+    for (const f of files) {
+      const norm = normalizeChunkRef(f);
       if (norm) out.add(norm);
     }
   }
@@ -161,36 +162,41 @@ function chunksFromReactLoadable(sourcePath) {
 
 // ─── 7) Build per-route manifest ────────────────────────────────
 const routesData = {};
+const diagnostics = {};
 for (const route of routes) {
   const sourcePath = urlToSource.get(route) || null;
-
-  const set = new Set([
-    ...chunksFromAppBuild(route),
-    ...chunksFromStaticScan(sourcePath),
-    ...chunksFromReactLoadable(sourcePath),
-  ]);
-
-  routesData[route] = {
-    assets: [...set].sort(),
-    auth: personalRoutes.includes(route),
+  const fromAppBuild = chunksFromAppBuild(route);
+  const fromStatic = chunksFromStaticScan(sourcePath);
+  const fromLoadable = chunksFromReactLoadable(sourcePath);
+  const set = new Set([...fromAppBuild, ...fromStatic, ...fromLoadable]);
+  routesData[route] = { assets: [...set].sort(), auth: personalRoutes.includes(route) };
+  diagnostics[route] = {
+    appBuild: fromAppBuild.length,
+    staticScan: fromStatic.length,
+    reactLoadable: fromLoadable.length,
+    source: sourcePath,
   };
 }
 
-// ─── 8) Diagnostic summary ──────────────────────────────────────
 const withChunks = Object.values(routesData).filter((r) => r.assets.length > 0).length;
+const totalAssets = Object.values(routesData).reduce((a, r) => a + r.assets.length, 0);
 console.log(`[warming-manifest] routes with chunks: ${withChunks}/${routes.length}`);
+console.log(`[warming-manifest] total assets: ${totalAssets}`);
 
 if (withChunks === 0) {
-  console.warn(
-    '[warming-manifest] WARN: no chunks discovered — ' +
-    'HTML extraction will still work at runtime.'
-  );
-  // don't write empty manifest
-  try { fs.unlinkSync(outputPath); } catch { /* not present */ }
+  const hasNextBuild = fs.existsSync(path.join(root, '.next'));
+  if (hasNextBuild) {
+    console.warn('[warming-manifest] WARN: no chunks discovered after a real build.');
+    try { fs.unlinkSync(outputPath); } catch { /* not present */ }
+  } else {
+    console.log('[warming-manifest] pre-build run — keeping existing manifest (if any).');
+  }
+  if (process.env.WARMING_DEBUG) {
+    console.log('[warming-manifest] diagnostics:', JSON.stringify(diagnostics, null, 2));
+  }
   process.exit(0);
 }
 
-// ─── 9) Write manifest ──────────────────────────────────────────
 const sources = [];
 if (appBuildManifest) sources.push('app-build-manifest');
 if (appPathsManifest) sources.push('app-paths-manifest');
@@ -198,15 +204,17 @@ if (reactLoadableManifest) sources.push('react-loadable-manifest');
 if (buildManifest) sources.push('build-manifest');
 if (sources.length === 0) sources.push('route-source-only');
 
-const manifest = {
+fs.writeFileSync(outputPath, `${JSON.stringify({
   version: 1,
   generatedAt: new Date().toISOString(),
   source: sources.join('+'),
   routes: routesData,
-};
+}, null, 2)}\n`);
 
-fs.writeFileSync(outputPath, `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(
   `[warming-manifest] wrote ${routes.length} routes ` +
   `(${withChunks} with chunks) -> ${path.relative(root, outputPath)}`
 );
+if (process.env.WARMING_DEBUG) {
+  console.log('[warming-manifest] diagnostics:', JSON.stringify(diagnostics, null, 2));
+}

@@ -1,5 +1,11 @@
 /**
- * Next.js Proxy (formerly Middleware) — Edge Runtime.
+ * Next.js Proxy (formerly Middleware).
+ *
+ * RUNTIME NOTE (FIX PROXY-RUNTIME-01): Next 16 proxy runs on the Node.js runtime,
+ * and OpenNext bundles it for Cloudflare as "Node.js middleware" (experimental,
+ * flagged in the build log). The many "Edge" mentions below are historical wording;
+ * keep this file free of Node-only APIs the Workers runtime lacks, and verify the
+ * CSP header + redirects on the deployed Worker after each OpenNext upgrade.
  *
  * Auth strategy (cookies set by AuthHydrationProvider after hydration,
  * AND — as of AUDIT-FIX C-1 — by the backend itself at login/register/

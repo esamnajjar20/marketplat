@@ -300,7 +300,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
                   role="option"
                   aria-selected={i === activeIndex}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-start text-sm transition-colors duration-[var(--motion-fast)]',
+                    'flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-start text-sm transition-colors duration-fast',
                     i === activeIndex ? 'bg-muted' : 'hover:bg-muted',
                   )}
                   onMouseDown={(e) => e.preventDefault()}

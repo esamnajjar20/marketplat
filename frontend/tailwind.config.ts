@@ -23,6 +23,16 @@ const config: Config = {
       screens: { '2xl': '1400px' },
     },
     extend: {
+      // FIX TW-AMBIGUOUS-01: named motion utilities (duration-fast / duration-normal /
+      // ease-standard) replace the ambiguous arbitrary-value classes that made
+      // Tailwind warn at build time. Values come from tokens in globals.css.
+      transitionDuration: {
+        fast: 'var(--motion-fast)',
+        normal: 'var(--motion-normal)',
+      },
+      transitionTimingFunction: {
+        standard: 'var(--ease-standard)',
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

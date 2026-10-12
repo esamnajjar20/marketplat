@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  *   - xs: image overlays & very tight spaces (AdCard condition / featured)
  */
 const badgeVariants = cva(
-  'inline-flex items-center border font-medium transition-[background-color,border-color,color,box-shadow] duration-[var(--motion-fast)] ease-[var(--ease-standard)] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center border font-medium transition-[background-color,border-color,color,box-shadow] duration-fast ease-standard focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {

@@ -70,7 +70,7 @@ const SheetContent = React.forwardRef<
           // it's anchored below any fixed bottom nav that might be
           // hidden behind it while open (visually it covers BottomNav,
           // so this only matters for the panel's own padding).
-          'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-[var(--radius-modal)] border-t bg-background shadow-lg duration-[var(--motion-normal)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
+          'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-[var(--radius-modal)] border-t bg-background shadow-lg duration-normal data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
           className,
         )}
         {...props}

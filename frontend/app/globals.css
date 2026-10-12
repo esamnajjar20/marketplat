@@ -268,6 +268,21 @@
 }
 
 /**
+ * FIX TOKENS-MOTION-01: design tokens used across components and tailwind.config.ts
+ * (duration-fast/normal, ease-standard, motion-fade-up/page, rounded-[var(--radius-control)])
+ * but never declared, so every dependent transition/animation/radius silently
+ * resolved to its initial value (0s / square corners).
+ */
+:root {
+  --motion-fast: 150ms;
+  --motion-normal: 200ms;
+  --motion-slow: 300ms;
+  --motion-page: 400ms;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --radius-control: var(--radius);
+}
+
+/**
  * Single source for BottomNav height + safe area (mobile sticky bars).
  * Components should prefer bottom-[var(--bottom-nav-offset)] over hard-coded 4.25rem.
  */

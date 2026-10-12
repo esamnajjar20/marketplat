@@ -157,7 +157,7 @@ export function BottomNav() {
         'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t border-border/80',
         'bg-background/95 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)]',
         'backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden',
-        // CLEANUP-EASE-AMBIGUOUS-01: ease-[cubic-bezier(...)] was ambiguous in
+        // CLEANUP-EASE-AMBIGUOUS-01: an arbitrary cubic-bezier easing class was ambiguous in
         // Tailwind (matches both transitionProperty and transitionTiming).
         // Use explicit arbitrary property so the intent is unambiguous.
         'transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] will-change-transform',
