@@ -3,7 +3,7 @@ import { FollowTargetType, NotificationType, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { followsRepository } from './follows.repository';
 import { storeFollowersRepository } from '../stores/store-followers.repository';
-import { ToggleFollowInput } from './follows.validation';
+import { MAX_FEED_PAGE, ToggleFollowInput } from './follows.validation';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -206,63 +206,85 @@ export const followsService = {
   },
 
   async getFollowingFeed(followerId: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
-    const take = page * limit;
+    // The feed merges three independent content streams. Fetch enough records
+    // from each stream to compute the requested global page after sorting;
+    // taking only `limit` from each stream made every page after page 1 empty
+    // or incomplete. The aggregate count is exact because content types are
+    // disjoint (ads, products and service listings).
+    // Reject (rather than silently clamp) pages beyond the supported depth:
+    // a clamped request would return page N's data labelled as another page.
+    const safePage = Math.max(1, Math.trunc(page || 1));
+    if (safePage > MAX_FEED_PAGE) {
+      throw new BadRequestError(`Feed page cannot exceed ${MAX_FEED_PAGE}`);
+    }
+    const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit || 20)));
+    const skip = (safePage - 1) * safeLimit;
+    const windowSize = skip + safeLimit;
     const [userIds, storeIds, categoryTargetIds] = await Promise.all([
       followsService.getFollowedTargetIds(followerId, FollowTargetType.USER),
       followsService.getFollowedTargetIds(followerId, FollowTargetType.STORE),
       followsService.getFollowedTargetIds(followerId, FollowTargetType.CATEGORY),
     ]);
 
-    // A followed person can publish personal ads, store products, or services.
-    // Resolve their store/provider ids once so the feed remains a small number
-    // of indexed queries rather than an N+1 per followed person.
+    // Resolve the followed users' seller/provider profiles in batches to avoid
+    // an N+1 query for each followed person.
     const [followedStores, followedProviders] = await Promise.all([
-      prisma.storeDetails.findMany({ where: { sellerProfile: { userId: { in: userIds } } }, select: { id: true } }),
-      prisma.serviceProviderDetails.findMany({ where: { sellerProfile: { userId: { in: userIds } } }, select: { id: true } }),
+      userIds.length
+        ? prisma.storeDetails.findMany({ where: { sellerProfile: { userId: { in: userIds } } }, select: { id: true } })
+        : [],
+      userIds.length
+        ? prisma.serviceProviderDetails.findMany({ where: { sellerProfile: { userId: { in: userIds } } }, select: { id: true } })
+        : [],
     ]);
-    const allStoreIds = Array.from(new Set([...storeIds, ...followedStores.map((s) => s.id)]));
-    const providerIds = followedProviders.map((p) => p.id);
+    const allStoreIds = Array.from(new Set([...storeIds, ...followedStores.map((store) => store.id)]));
+    const providerIds = followedProviders.map((provider) => provider.id);
     const categoryIds = { AD: [] as string[], PRODUCT: [] as string[], SERVICE: [] as string[] };
-    for (const target of categoryTargetIds) { const parsed = parseCategoryTarget(target); categoryIds[parsed.kind].push(parsed.id); }
+    for (const target of categoryTargetIds) {
+      const parsed = parseCategoryTarget(target);
+      categoryIds[parsed.kind].push(parsed.id);
+    }
 
-    const [ads, products, services] = await Promise.all([
-      prisma.ad.findMany({
-        where: {
-          status: 'ACTIVE',
-          OR: [
-            ...(userIds.length ? [{ userId: { in: userIds } }] : []),
-            ...(allStoreIds.length ? [{ storeId: { in: allStoreIds } }] : []),
-            ...(categoryIds.AD.length ? [{ categoryId: { in: categoryIds.AD } }] : []),
-          ],
-        },
-        select: { id: true, title: true, price: true, images: true, city: true, createdAt: true, userId: true, storeId: true, categoryId: true },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      }),
-      prisma.product.findMany({
-        where: { status: 'ACTIVE', OR: [ ...(allStoreIds.length ? [{ storeId: { in: allStoreIds } }] : []), ...(categoryIds.PRODUCT.length ? [{ categoryId: { in: categoryIds.PRODUCT } }] : []), ], },
-        select: { id: true, name: true, price: true, images: true, createdAt: true, storeId: true, categoryId: true },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      }),
-      prisma.serviceListing.findMany({
-        where: { status: 'ACTIVE', OR: [ ...(providerIds.length ? [{ providerId: { in: providerIds } }] : []), ...(categoryIds.SERVICE.length ? [{ categoryId: { in: categoryIds.SERVICE } }] : []), ], },
-        select: { id: true, title: true, price: true, images: true, createdAt: true, providerId: true, categoryId: true },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      }),
+    const adsWhere: Prisma.AdWhereInput = {
+      status: 'ACTIVE',
+      OR: [
+        ...(userIds.length ? [{ userId: { in: userIds } }] : []),
+        ...(allStoreIds.length ? [{ storeId: { in: allStoreIds } }] : []),
+        ...(categoryIds.AD.length ? [{ categoryId: { in: categoryIds.AD } }] : []),
+      ],
+    };
+    const productsWhere: Prisma.ProductWhereInput = {
+      status: 'ACTIVE',
+      OR: [
+        ...(allStoreIds.length ? [{ storeId: { in: allStoreIds } }] : []),
+        ...(categoryIds.PRODUCT.length ? [{ categoryId: { in: categoryIds.PRODUCT } }] : []),
+      ],
+    };
+    const servicesWhere: Prisma.ServiceListingWhereInput = {
+      status: 'ACTIVE',
+      OR: [
+        ...(providerIds.length ? [{ providerId: { in: providerIds } }] : []),
+        ...(categoryIds.SERVICE.length ? [{ categoryId: { in: categoryIds.SERVICE } }] : []),
+      ],
+    };
+
+    const [ads, products, services, adsCount, productsCount, servicesCount] = await Promise.all([
+      prisma.ad.findMany({ where: adsWhere, select: { id: true, title: true, price: true, images: true, city: true, createdAt: true, userId: true, storeId: true, categoryId: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: windowSize }),
+      prisma.product.findMany({ where: productsWhere, select: { id: true, name: true, price: true, images: true, createdAt: true, storeId: true, categoryId: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: windowSize }),
+      prisma.serviceListing.findMany({ where: servicesWhere, select: { id: true, title: true, price: true, images: true, createdAt: true, providerId: true, categoryId: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: windowSize }),
+      prisma.ad.count({ where: adsWhere }),
+      prisma.product.count({ where: productsWhere }),
+      prisma.serviceListing.count({ where: servicesWhere }),
     ]);
 
-    const items = [
+    const merged = [
       ...ads.map((item) => ({ type: 'AD' as const, id: item.id, title: item.title, price: item.price, images: item.images, city: item.city, createdAt: item.createdAt, userId: item.userId, storeId: item.storeId, categoryId: item.categoryId })),
       ...products.map((item) => ({ type: 'PRODUCT' as const, id: item.id, title: item.name, price: item.price, images: item.images, city: null, createdAt: item.createdAt, userId: null, storeId: item.storeId, categoryId: item.categoryId })),
       ...services.map((item) => ({ type: 'SERVICE' as const, id: item.id, title: item.title, price: item.price, images: item.images, city: null, createdAt: item.createdAt, userId: null, storeId: null, categoryId: item.categoryId })),
-    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(skip, skip + take);
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || `${b.type}:${b.id}`.localeCompare(`${a.type}:${a.id}`));
 
-    const hasMore = ads.length === take || products.length === take || services.length === take;
-    const totalEstimate = skip + items.length + (hasMore ? 1 : 0);
-    return { items, meta: buildPaginationMeta(totalEstimate, page, limit) };
+    const items = merged.slice(skip, skip + safeLimit);
+    const total = adsCount + productsCount + servicesCount;
+    return { items, meta: buildPaginationMeta(total, safePage, safeLimit) };
   },
   displayNameForTarget,
 };

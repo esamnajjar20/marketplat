@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { FollowTargetType } from '@prisma/client';
 import { followsService } from './follows.service';
-import { followListQuerySchema, followTargetSchema, toggleFollowSchema, userIdSchema } from './follows.validation';
+import { followFeedQuerySchema, followListQuerySchema, followTargetSchema, toggleFollowSchema, userIdSchema } from './follows.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 
@@ -11,7 +11,7 @@ export const followsController = {
   feed: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);
-      const { query } = followListQuerySchema.parse({ query: req.query });
+      const { query } = followFeedQuerySchema.parse({ query: req.query });
       const result = await followsService.getFollowingFeed(user.userId, query.page, query.limit);
       res.status(200).json(listResponse('Following feed fetched', result));
     } catch (error) { next(error); }
