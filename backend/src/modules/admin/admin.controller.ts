@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { prisma } from '../../config/prisma';
+import { auditLog } from '../../shared/utils/auditLog';
 import { adminService } from './admin.service';
 import { notificationsService } from '../notifications';
 import { successResponse } from '../../shared/types/api-response.types';
@@ -27,6 +29,7 @@ import { broadcastNotificationSchema } from '../notifications/notifications.vali
 import { requireUser } from '../../shared/utils/requireUser';
 import { getClientIp } from '../../shared/utils/getClientIp';
 import { Role } from '../../shared/constants/roles';
+import { acknowledgeMonitoringAlert, getMonitoringAlerts, getMonitoringEvents, getMonitoringHistory } from '../../shared/utils/monitoringState';
 
 /** Same convention as auth.controller.ts's own local getUserAgent —
  * kept inline here too rather than shared, since it's a one-line
@@ -34,6 +37,60 @@ import { Role } from '../../shared/constants/roles';
 const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unknown';
 
 export const adminController = {
+  /** Global developer toolbox switch. Script execution itself remains
+   * development-only in the frontend; production keeps diagnostics but never
+   * relaxes CSP or enables eval-like execution. */
+  getDeveloperToolsSetting: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const setting = await prisma.platformSetting.findUnique({
+        where: { key: 'developerTools.enabled' },
+        select: { value: true, updatedAt: true },
+      });
+      const enabled = setting?.value === true;
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.status(200).json(successResponse('Developer tools setting fetched', {
+        enabled,
+        updatedAt: setting?.updatedAt?.toISOString() ?? null,
+        // This reports backend mode only; the frontend independently checks its
+        // own NODE_ENV before exposing arbitrary script execution.
+        backendDevelopmentMode: process.env.NODE_ENV === 'development',
+      }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  setDeveloperToolsSetting: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      if (!req.body || typeof req.body.enabled !== 'boolean' || Object.keys(req.body).some((key) => key !== 'enabled')) {
+        res.status(400).json({ success: false, message: 'enabled must be a boolean' });
+        return;
+      }
+      const enabled = req.body.enabled as boolean;
+      const setting = await prisma.platformSetting.upsert({
+        where: { key: 'developerTools.enabled' },
+        create: { key: 'developerTools.enabled', value: enabled, updatedBy: user.userId },
+        update: { value: enabled, updatedBy: user.userId },
+        select: { value: true, updatedAt: true },
+      });
+      await auditLog({
+        event: 'ADMIN_DEVELOPER_TOOLS_CHANGED',
+        userId: user.userId,
+        ip: getClientIp(req),
+        userAgent: getUserAgent(req),
+        details: { enabled },
+      });
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.status(200).json(successResponse('Developer tools setting updated', {
+        enabled: setting.value === true,
+        updatedAt: setting.updatedAt.toISOString(),
+        backendDevelopmentMode: process.env.NODE_ENV === 'development',
+      }));
+    } catch (error) {
+      next(error);
+    }
+  },
   /**
    * GET /admin/stats — replaces the frontend's previous
    * three-separate-requests workaround in useAdminStats().
@@ -175,6 +232,37 @@ export const adminController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  getMonitoringEvents: async (req: Request, res: Response): Promise<void> => {
+    const rawLimit = Number(req.query.limit);
+    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 100;
+    res.status(200).json(successResponse('Monitoring events', {
+      processLocal: true,
+      events: getMonitoringEvents(limit),
+    }));
+  },
+
+  getMonitoringAlerts: async (_req: Request, res: Response): Promise<void> => {
+    res.status(200).json(successResponse('Monitoring alerts', {
+      processLocal: true,
+      alerts: getMonitoringAlerts(),
+    }));
+  },
+
+  acknowledgeMonitoringAlert: async (req: Request, res: Response): Promise<void> => {
+    const id = typeof req.params.id === 'string' ? req.params.id : '';
+    if (!acknowledgeMonitoringAlert(id)) {
+      res.status(404).json({ success: false, message: 'Alert rule not found' });
+      return;
+    }
+    res.status(200).json(successResponse('Alert acknowledged', { id, status: 'acknowledged' }));
+  },
+
+  getMonitoringHistory: async (req: Request, res: Response): Promise<void> => {
+    const rawLimit = Number(req.query.limit);
+    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 1440) : 60;
+    res.status(200).json(successResponse('Monitoring history', getMonitoringHistory(limit)));
   },
 
   exportUsersCsv: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {

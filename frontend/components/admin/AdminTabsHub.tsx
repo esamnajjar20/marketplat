@@ -23,12 +23,10 @@
  */
 
 import { Suspense, useEffect } from 'react';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuthStore, selectUser } from '@/store/auth.store';
-import { ROUTES } from '@/lib/constants';
 import {
   adminTabHref,
   canOpenAdminTab,
@@ -64,11 +62,8 @@ import { CreateCategoryButton } from '@/components/admin/CreateCategoryButton';
 import { CreateProductCategoryButton } from '@/components/admin/CreateProductCategoryButton';
 import { CreateServiceCategoryButton } from '@/components/admin/CreateServiceCategoryButton';
 import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
-import { AdminSystemHealth } from '@/components/admin/AdminSystemHealth';
-import { AdminSystemTools } from '@/components/admin/AdminSystemTools';
-import { AdminDeviceErrorsPanel } from '@/components/admin/AdminDeviceErrorsPanel';
-import { AdminNetworkRequestsPanel } from '@/components/admin/AdminNetworkRequestsPanel';
-import { AdminConsolePanel } from '@/components/admin/AdminConsolePanel';
+import { AdminMonitoringCenter } from '@/components/admin/AdminMonitoringCenter';
+import { AdminDeveloperToolsControl } from '@/components/admin/AdminDeveloperToolsControl';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
 const AdminAnalyticsDashboard = dynamic(
@@ -243,50 +238,8 @@ function TabBody({ tab }: { tab: AdminTab }) {
           <AdminAnalyticsDashboard />
         </div>
       );
-    case 'system':
-      return (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-xl font-bold">صحة النظام والأدوات</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              فحص الخدمات الحية وأدوات تشغيلية سريعة للمشرف.
-            </p>
-          </div>
-          <AdminSystemHealth />
-          <AdminSystemTools />
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="font-semibold">روابط سريعة</h2>
-            <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <li>
-                <Link prefetch={false} href={ROUTES.admin.auditLogs} className="text-primary hover:underline">
-                  سجل العمليات
-                </Link>
-              </li>
-              <li>
-                <Link prefetch={false} href={ROUTES.admin.analytics} className="text-primary hover:underline">
-                  التحليلات
-                </Link>
-              </li>
-              <li>
-                <Link prefetch={false} href={ROUTES.admin.notifications} className="text-primary hover:underline">
-                  إدارة الإشعارات
-                </Link>
-              </li>
-              <li>
-                <Link prefetch={false} href={ROUTES.admin.fraud} className="text-primary hover:underline">
-                  مكافحة الاحتيال
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-      );
-    case 'device-errors':
-      return <AdminDeviceErrorsPanel />;
-    case 'console':
-      return <AdminConsolePanel />;
-    case 'network-requests':
-      return <AdminNetworkRequestsPanel />;
+    case 'monitoring':
+      return <AdminMonitoringCenter />;
     case 'dashboard':
     default:
       return (
@@ -295,6 +248,7 @@ function TabBody({ tab }: { tab: AdminTab }) {
           description="ملخص المنصة، الطوابير، وأحدث النشاط."
           actions={<BroadcastNotificationButton />}
         >
+          <AdminDeveloperToolsControl />
           <AdminOpsQueue />
           <AdminPlatformTrends />
           <AdminStatsGrid />

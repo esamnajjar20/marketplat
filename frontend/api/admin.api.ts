@@ -66,16 +66,72 @@ export interface AdminPlatformTrendsResponse {
 }
 
 /**
- * FIX ADMIN-API-TYPING-01: system-health response shape (admin.api.ts's
- * getSystemHealth). checkedAt is the only field the component reads
- * without a cast (AdminSystemHealth.tsx line 73 uses it in a Date
- * constructor). redis and db are cast by the component itself, so
- * they stay unknown here.
+ * Shape returned by the protected admin system-health endpoint. Runtime
+ * fields are intentionally limited to safe operational facts; secrets,
+ * environment variables, and request payloads are not returned.
  */
+export interface DeveloperToolsSetting {
+  enabled: boolean;
+  updatedAt: string | null;
+  backendDevelopmentMode: boolean;
+}
+
+export interface AdminMonitoringEvent {
+  id: string;
+  timestamp: string;
+  requestId: string;
+  method: string;
+  route: string;
+  statusCode: number;
+  durationMs: number;
+  kind: 'http-error' | 'slow-request';
+  errorCode?: string;
+}
+
+export interface AdminMonitoringAlert {
+  id: string;
+  title: string;
+  severity: 'warning' | 'critical';
+  status: 'active' | 'acknowledged' | 'resolved';
+  description: string;
+  value: number;
+  threshold: number;
+  firstSeenAt: string;
+  updatedAt: string;
+}
+
+export interface AdminMonitoringSample {
+  timestamp: string;
+  requests: number;
+  errors: number;
+  serverErrors: number;
+  averageDurationMs: number;
+  rssBytes: number;
+  heapUsedBytes: number;
+}
+
 export interface AdminSystemHealthResponse {
   checkedAt?: string;
-  redis?: unknown;
-  db?: unknown;
+  redis?: { ok: boolean; latencyMs: number | null; commandLatencyMs?: number | null; error?: string; note?: string };
+  db?: { ok: boolean; latencyMs: number | null; error?: string; note?: string };
+  runtime?: {
+    uptimeSeconds: number;
+    memoryRssBytes: number;
+    memoryHeapUsedBytes: number;
+    memoryHeapTotalBytes: number;
+    memoryHeapUsedPercent?: number;
+    nodeVersion: string;
+    environment: string;
+  };
+  backgroundWork?: {
+    available: boolean;
+    pendingOutbox: number | null;
+    deadLetterOutbox: number | null;
+    staleOutbox: number | null;
+    unresolvedFailedTasks: number | null;
+    checkedAt: string;
+    note?: string;
+  };
   [key: string]: unknown;
 }
 
@@ -148,6 +204,21 @@ export const adminApi = {
   // FIX ADMIN-API-TYPING-01: type defined above (AdminSystemHealthResponse).
   getSystemHealth: () =>
     apiClient.get<ApiResponse<AdminSystemHealthResponse>>('/admin/system-health'),
+
+  getDeveloperToolsSetting: () =>
+    apiClient.get<ApiResponse<DeveloperToolsSetting>>('/admin/developer-tools/setting'),
+
+  setDeveloperToolsSetting: (enabled: boolean) =>
+    apiClient.patch<ApiResponse<DeveloperToolsSetting>>('/admin/developer-tools/setting', { enabled }),
+
+  getMonitoringEvents: (limit = 100) =>
+    apiClient.get<ApiResponse<{ processLocal: true; events: AdminMonitoringEvent[] }>>('/admin/monitoring/events', { params: { limit } }),
+  getMonitoringAlerts: () =>
+    apiClient.get<ApiResponse<{ processLocal: true; alerts: AdminMonitoringAlert[] }>>('/admin/monitoring/alerts'),
+  acknowledgeMonitoringAlert: (id: string) =>
+    apiClient.patch<ApiResponse<{ id: string; status: 'acknowledged' }>>(`/admin/monitoring/alerts/${encodeURIComponent(id)}/acknowledge`, {}),
+  getMonitoringHistory: (limit = 60) =>
+    apiClient.get<ApiResponse<{ processLocal: true; retentionMinutes: number; samples: AdminMonitoringSample[] }>>('/admin/monitoring/history', { params: { limit } }),
 
   // FIX ADMIN-API-TYPING-01: typed as Blob — axios with responseType
   // 'blob' resolves with an actual Blob in .data, and TS otherwise

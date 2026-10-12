@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, CheckCircle2, CircleAlert, Clipboard, Download, Filter, RefreshCw, Search, Trash2, Wifi, WifiOff, Clock3, ArrowDownToLine, ArrowUpRight } from 'lucide-react';
 import { clearNetworkRequests, getNetworkRequests, NETWORK_REQUESTS_EVENT, type NetworkRequestOutcome, type NetworkRequestRecord } from '@/lib/networkRequestMonitor';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { summarizeDurations } from '@/lib/monitoringMetrics';
 
 const outcomeLabel: Record<NetworkRequestOutcome, string> = {
   success: 'ناجح', 'http-error': 'خطأ HTTP', 'network-error': 'فشل اتصال', aborted: 'ملغى',
@@ -18,7 +19,7 @@ const formatTime = (value: string) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }).format(date);
 };
-const formatBytes = (value: number) => `${Math.max(0, value).toLocaleString('ar-PS')} مللي ثانية`;
+const formatDuration = (value: number | null) => value === null ? '—' : `${Math.max(0, Math.round(value)).toLocaleString('ar-PS')} مللي ثانية`;
 
 export function AdminNetworkRequestsPanel() {
   const [records, setRecords] = useState<NetworkRequestRecord[]>([]);
@@ -27,6 +28,8 @@ export function AdminNetworkRequestsPanel() {
   const [outcome, setOutcome] = useState('all');
   const [method, setMethod] = useState('all');
   const [kind, setKind] = useState('all');
+  const [route, setRoute] = useState('all');
+  const [statusGroup, setStatusGroup] = useState('all');
   const [onlyFailures, setOnlyFailures] = useState(false);
   const [copied, setCopied] = useState(false);
   const online = useOnlineStatus();
@@ -43,24 +46,29 @@ export function AdminNetworkRequestsPanel() {
   }, [refresh]);
 
   const methods = useMemo(() => [...new Set(records.map((row) => row.method))].sort(), [records]);
+  const routes = useMemo(() => [...new Set(records.map((row) => row.pageRoute))].sort(), [records]);
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return records.filter((row) => (outcome === 'all' || row.outcome === outcome)
       && (method === 'all' || row.method === method)
       && (kind === 'all' || row.kind === kind)
+      && (route === 'all' || row.pageRoute === route)
+      && (statusGroup === 'all' || (statusGroup === '4xx' && row.status >= 400 && row.status < 500)
+        || (statusGroup === '5xx' && row.status >= 500 && row.status < 600)
+        || (statusGroup === 'no-response' && row.status === 0))
       && (!onlyFailures || row.outcome !== 'success')
       && (!needle || `${row.method} ${row.url} ${row.pageRoute} ${row.status} ${row.statusText ?? ''} ${row.error ?? ''} ${row.outcome}`.toLowerCase().includes(needle)));
-  }, [records, query, outcome, method, kind, onlyFailures]);
+  }, [records, query, outcome, method, kind, route, statusGroup, onlyFailures]);
   const selected = filtered.find((row) => row.id === selectedId) ?? filtered[0] ?? null;
   const failureCount = records.filter((row) => row.outcome === 'http-error' || row.outcome === 'network-error').length;
   const successCount = records.filter((row) => row.outcome === 'success').length;
-  const averageDuration = records.length ? Math.round(records.reduce((sum, row) => sum + row.durationMs, 0) / records.length) : 0;
+  const durationStats = summarizeDurations(records.map((row) => row.durationMs));
 
   const copyReport = async (row?: NetworkRequestRecord) => {
     const payload = {
       generatedAt: new Date().toISOString(),
       scope: 'local browser only; request metadata only; no headers or bodies',
-      filters: { query, outcome, method, kind, onlyFailures },
+      filters: { query, outcome, method, kind, route, statusGroup, onlyFailures },
       count: row ? 1 : filtered.length,
       requests: row ? [row] : filtered,
     };
@@ -69,7 +77,7 @@ export function AdminNetworkRequestsPanel() {
     catch { window.prompt('انسخ تقرير طلبات الشبكة:', text); }
   };
   const downloadReport = () => {
-    const blob = new Blob([JSON.stringify({ generatedAt: new Date().toISOString(), scope: 'local browser only; metadata only', requests: filtered }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ generatedAt: new Date().toISOString(), scope: 'local browser only; metadata only', filters: { query, outcome, method, kind, route, statusGroup, onlyFailures }, requests: filtered }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `marketplat-network-requests-${new Date().toISOString().slice(0, 10)}.json`; anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -100,7 +108,10 @@ export function AdminNetworkRequestsPanel() {
         <Metric title="الطلبات المحفوظة" value={records.length} detail="آخر 300 طلب في هذا المتصفح" icon={<ArrowDownToLine className="h-4 w-4" />} />
         <Metric title="طلبات ناجحة" value={successCount} detail="استجابة HTTP ناجحة" icon={<CheckCircle2 className="h-4 w-4" />} />
         <Metric title="طلبات فاشلة" value={failureCount} detail="HTTP 4xx/5xx أو فشل اتصال" icon={<CircleAlert className="h-4 w-4" />} danger={failureCount > 0} />
-        <Metric title="متوسط زمن الاستجابة" value={formatBytes(averageDuration)} detail="محسوب من السجل المحفوظ" icon={<Clock3 className="h-4 w-4" />} />
+        <Metric title="متوسط زمن الاستجابة" value={formatDuration(durationStats.average)} detail="محسوب من السجل المحلي" icon={<Clock3 className="h-4 w-4" />} />
+        <Metric title="P50 / الوسيط" value={formatDuration(durationStats.p50)} detail="نصف العينة تقريبًا أسرع أو يساوي هذه القيمة" icon={<Clock3 className="h-4 w-4" />} />
+        <Metric title="P95 / المئين 95" value={formatDuration(durationStats.p95)} detail="قياس ذيل زمن الاستجابة في هذه العينة" icon={<Clock3 className="h-4 w-4" />} />
+        <Metric title="P99 / المئين 99" value={formatDuration(durationStats.p99)} detail="قد لا يكون ذا دلالة مع عينة صغيرة" icon={<Clock3 className="h-4 w-4" />} />
       </div>
 
       <section className="space-y-3 rounded-2xl border bg-card p-4">
@@ -110,6 +121,8 @@ export function AdminNetworkRequestsPanel() {
           <Select label="النتيجة" value={outcome} onChange={setOutcome} options={[['all', 'كل النتائج'], ['success', 'ناجح'], ['http-error', 'خطأ HTTP'], ['network-error', 'فشل اتصال'], ['aborted', 'ملغى']]} />
           <Select label="الطريقة" value={method} onChange={setMethod} options={[['all', 'كل الطرق'], ...methods.map((item) => [item, item] as [string, string])]} />
           <Select label="المصدر" value={kind} onChange={setKind} options={[['all', 'كل المصادر'], ['fetch', 'Fetch'], ['xhr', 'XMLHttpRequest']]} />
+          <Select label="صفحة المصدر" value={route} onChange={setRoute} options={[['all', 'كل الصفحات'], ...routes.map((item) => [item, item] as [string, string])]} />
+          <Select label="فئة HTTP" value={statusGroup} onChange={setStatusGroup} options={[['all', 'كل فئات HTTP'], ['4xx', 'HTTP 4xx'], ['5xx', 'HTTP 5xx'], ['no-response', 'بلا استجابة HTTP']]} />
         </div>
         <p className="text-xs text-muted-foreground">يعرض {filtered.length.toLocaleString('ar-PS')} من أصل {records.length.toLocaleString('ar-PS')} طلب. تُخفى قيم query string الحساسة/الشخصية في السجل عمدًا.</p>
       </section>

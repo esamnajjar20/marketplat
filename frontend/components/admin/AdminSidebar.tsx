@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
-  HeartPulse, ListOrdered, Bell, Search, Bug, Network, Terminal } from 'lucide-react';
+  ListOrdered, Bell, Search, Activity } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { canOpenAdminTab, isAdminTabActive, type AdminTab } from '@/lib/adminHubTabs';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
@@ -54,10 +54,7 @@ const NAV_LINKS = [
   // Gap #7 (product analytics): GET /admin/analytics/summary — see
   // AdminAnalyticsDashboard.tsx.
   { tab: 'analytics' as AdminTab, href: ROUTES.admin.analytics,         label: 'التحليلات',      icon: BarChart3 },
-  { tab: 'system' as AdminTab, href: ROUTES.admin.system,            label: 'صحة النظام',     icon: HeartPulse },
-  { tab: 'device-errors' as AdminTab, href: '/admin?tab=device-errors', label: 'أخطاء هذا الجهاز', icon: Bug },
-  { tab: 'network-requests' as AdminTab, href: '/admin?tab=network-requests', label: 'طلبات الشبكة', icon: Network },
-  { tab: 'console' as AdminTab, href: '/admin?tab=console', label: 'الكونسول', icon: Terminal },
+  { tab: 'monitoring' as AdminTab, href: '/admin?tab=monitoring', label: 'المراقبة والتشخيص', icon: Activity },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

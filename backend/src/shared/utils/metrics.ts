@@ -45,6 +45,7 @@ function safeTokenEquals(a: string, b: string): boolean {
 }
 
 import { register } from './metricsRegistry';
+import { recordRequestObservation } from './monitoringState';
 export { register };
 
 // Default process/runtime metrics are registered once in metricsRegistry.ts
@@ -159,6 +160,14 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
 
     httpRequestsTotal.inc(labels);
     httpRequestDurationSeconds.observe(labels, durationSeconds);
+    recordRequestObservation({
+      requestId: req.requestId ?? 'unknown',
+      method: req.method,
+      route,
+      statusCode: res.statusCode,
+      durationMs: durationSeconds * 1000,
+      errorCode: typeof res.locals?.errorCode === 'string' ? res.locals.errorCode : undefined,
+    });
 
     if (res.statusCode >= 400) {
       const fallbackCode =

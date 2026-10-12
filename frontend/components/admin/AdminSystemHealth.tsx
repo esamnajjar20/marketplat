@@ -4,7 +4,7 @@ import { useAdminSystemHealth } from '@/hooks/queries/useAdmin';
 import { ApiError } from '@/components/shared/ApiError';
 import { parseApiError } from '@/lib/errorParser';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { AlertTriangle, CheckCircle2, Database, Server, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Database, Server, Info, Cpu, Gauge } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/ui/Button';
 
@@ -29,6 +29,23 @@ function latencyTone(ms: number | null | undefined): string {
   return 'text-warning-strong';
 }
 
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+function formatUptime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '—';
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return [days ? `${days} يوم` : '', hours ? `${hours} ساعة` : '', `${minutes} دقيقة`].filter(Boolean).join(' و ');
+}
+
 export function AdminSystemHealth() {
   const { data, isLoading, isError, error, refetch, dataUpdatedAt, isFetching } = useAdminSystemHealth();
 
@@ -40,11 +57,9 @@ export function AdminSystemHealth() {
     );
   }
 
-  // shared ApiError for 401/403/404/500+
-  // differentiation, consistent with every other admin surface. Note
-  // the `|| !data` clause is preserved — an empty successful response
-  // (both services down) is still a valid empty state, and ApiError
-  // would be misleading there.
+  // Shared ApiError for 401/403/404/500+ differentiation, consistent
+  // with other admin surfaces. A valid response with both services down
+  // still renders the real failure details below.
   if (isError) {
     return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
@@ -159,6 +174,76 @@ export function AdminSystemHealth() {
           )}
         </div>
       </div>
+
+      {data.runtime && (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Gauge className="h-4 w-4" /> مدة تشغيل الخادم</div>
+            <p className="mt-2 text-lg font-semibold">{formatUptime(data.runtime.uptimeSeconds)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">منذ آخر إعادة تشغيل لعملية Node.js</p>
+          </div>
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Cpu className="h-4 w-4" /> ذاكرة Heap المستخدمة</div>
+            <p className="mt-2 text-lg font-semibold">{formatBytes(data.runtime.memoryHeapUsedBytes)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">من أصل {formatBytes(data.runtime.memoryHeapTotalBytes)} مخصصة للـ Heap</p>
+            {typeof data.runtime.memoryHeapUsedPercent === 'number' && <>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="نسبة استخدام Heap" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, data.runtime.memoryHeapUsedPercent))}>
+                <div className={cn('h-full rounded-full transition-all', data.runtime.memoryHeapUsedPercent >= 90 ? 'bg-destructive' : data.runtime.memoryHeapUsedPercent >= 75 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${Math.min(100, Math.max(0, data.runtime.memoryHeapUsedPercent))}%` }} />
+              </div>
+              <p className={cn('mt-1 text-xs', data.runtime.memoryHeapUsedPercent >= 90 ? 'text-destructive' : data.runtime.memoryHeapUsedPercent >= 75 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
+                {data.runtime.memoryHeapUsedPercent}% مستخدم{data.runtime.memoryHeapUsedPercent >= 90 ? ' — راجع احتمال ضغط الذاكرة' : data.runtime.memoryHeapUsedPercent >= 75 ? ' — راقب الاتجاه مع الوقت' : ''}
+              </p>
+            </>}
+          </div>
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Server className="h-4 w-4" /> ذاكرة العملية (RSS)</div>
+            <p className="mt-2 text-lg font-semibold">{formatBytes(data.runtime.memoryRssBytes)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">تشمل الذاكرة المقيمة للعملية، وليست حد ذاكرة الحاوية</p>
+          </div>
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Info className="h-4 w-4" /> بيئة التشغيل</div>
+            <p className="mt-2 text-lg font-semibold">{data.runtime.environment === 'production' ? 'إنتاج' : data.runtime.environment === 'test' ? 'اختبار' : data.runtime.environment === 'development' ? 'تطوير' : data.runtime.environment}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Node.js {data.runtime.nodeVersion}</p>
+          </div>
+        </div>
+      )}
+
+      {data.backgroundWork && (
+        <section className="space-y-3 rounded-xl border p-4" aria-label="صحة المهام الخلفية">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="font-semibold">المهام الخلفية وطابور الأحداث</h3>
+              <p className="mt-1 text-sm text-muted-foreground">عدادات مباشرة من قاعدة البيانات للمهام غير المعالجة والفاشلة؛ لا تثبت وحدها أن العامل الخلفي يعمل.</p>
+            </div>
+            <span className={cn(
+              'rounded-full px-2.5 py-1 text-xs font-semibold',
+              !data.backgroundWork.available
+                ? 'bg-muted text-muted-foreground'
+                : (data.backgroundWork.deadLetterOutbox ?? 0) > 0 || (data.backgroundWork.staleOutbox ?? 0) > 0 || (data.backgroundWork.unresolvedFailedTasks ?? 0) > 0
+                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+            )}>
+              {!data.backgroundWork.available ? 'البيانات غير متاحة' : (data.backgroundWork.deadLetterOutbox ?? 0) > 0 || (data.backgroundWork.staleOutbox ?? 0) > 0 || (data.backgroundWork.unresolvedFailedTasks ?? 0) > 0 ? 'تحتاج مراجعة' : 'لا توجد مؤشرات تراكم'}
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['أحداث بانتظار المعالجة', data.backgroundWork.pendingOutbox],
+              ['أحداث في قائمة الفشل النهائي', data.backgroundWork.deadLetterOutbox],
+              ['أحداث قديمة/متأخرة', data.backgroundWork.staleOutbox],
+              ['مهام فاشلة غير محلولة', data.backgroundWork.unresolvedFailedTasks],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-lg bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{value == null ? '—' : value}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {data.backgroundWork.note ?? `آخر قراءة: ${new Date(data.backgroundWork.checkedAt).toLocaleString('ar-PS')}. الأحداث المتأخرة محسوبة بعتبة خمس دقائق؛ اضغط تحديث الآن لإعادة الفحص بعد انتهاء التخزين المؤقت.`}
+          </p>
+        </section>
+      )}
 
       <div className="rounded-xl border border-dashed bg-muted/30 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
         <p className="font-medium text-foreground">ماذا تعني الأرقام؟</p>

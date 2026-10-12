@@ -710,6 +710,23 @@ describe('AdminService', () => {
       expect(health).toHaveProperty('db');
       expect(health).toHaveProperty('redis');
       expect(health).toHaveProperty('checkedAt');
+      expect(health).toHaveProperty('runtime');
+      expect(health.runtime.uptimeSeconds).toBeGreaterThanOrEqual(0);
+      expect(health.runtime.memoryRssBytes).toBeGreaterThan(0);
+      expect(health.runtime.memoryHeapUsedBytes).toBeGreaterThan(0);
+      expect(health.runtime.memoryHeapTotalBytes).toBeGreaterThan(0);
+      expect(health.runtime.memoryHeapUsedPercent).toBeGreaterThanOrEqual(0);
+      expect(health.runtime.memoryHeapUsedPercent).toBeLessThanOrEqual(100);
+      expect(health.runtime.nodeVersion).toMatch(/^v\d+/);
+      expect(health).toHaveProperty('backgroundWork');
+      expect(health.backgroundWork).toEqual(expect.objectContaining({
+        available: expect.any(Boolean),
+        checkedAt: expect.any(String),
+      }));
+      expect(health.backgroundWork).toHaveProperty('pendingOutbox');
+      expect(health.backgroundWork).toHaveProperty('deadLetterOutbox');
+      expect(health.backgroundWork).toHaveProperty('staleOutbox');
+      expect(health.backgroundWork).toHaveProperty('unresolvedFailedTasks');
       expect(health.db.ok).toBe(true);
     });
   });

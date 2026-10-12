@@ -40,10 +40,7 @@ export const ADMIN_TABS = [
   'notifications',
   'audit-logs',
   'analytics',
-  'system',
-  'device-errors',
-  'network-requests',
-  'console',
+  'monitoring',
 ] as const;
 export type AdminTab = (typeof ADMIN_TABS)[number];
 
@@ -103,7 +100,15 @@ export function isAdminTab(value: unknown): value is AdminTab {
 }
 
 /** Tab requested by `?tab=…`, or by a Null when absent/unknown. */
-export const resolveAdminTab = hub.resolveTab;
+/** Legacy monitoring tabs now converge on the unified diagnostics screen. */
+export function resolveAdminTab(search: string, pathname?: string): AdminTab | null {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  const requested = params.get('tab');
+  if (requested === 'console' || requested === 'network-requests' || requested === 'device-errors' || requested === 'system') {
+    return 'monitoring';
+  }
+  return hub.resolveTab(search, pathname);
+}
 
 /** `/admin?tab=ads` (+ optional extra params). The dashboard tab is the bare `/admin`. */
 export function adminTabHref(tab: AdminTab, extra?: HubExtraParams): string {

@@ -15,6 +15,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { getQueryClient } from '@/lib/queryClient';
 import { Button } from '@/components/shared/ui/Button';
+import { getNetworkRequests } from '@/lib/networkRequestMonitor';
+import { getDeviceErrorsAsync } from '@/lib/deviceErrorMonitor';
 
 const HISTORY_KEY = 'admin:console:history';
 const MAX_HISTORY = 20;
@@ -28,13 +30,15 @@ interface ConsoleEntry {
 
 const HELP_TEXT = `Commands:
   help                - this list
-  cookie              - all cookies
-  cookie csrf         - csrfToken cookie value
+  cookie              - cookie names only (values masked)
+  cookie csrf         - csrfToken cookie value (masked)
   auth                - auth store summary
   auth csrf           - csrfToken from store
   auth token          - accessToken (masked)
   query count         - number of cached queries
   query list          - all query keys
+  network summary     - local request totals and failures
+  errors summary      - local device error totals by severity
   storage keys        - localStorage keys
   sw                  - service worker registrations
   online              - navigator.onLine + visibility
@@ -93,7 +97,8 @@ export function AdminConsolePanel() {
 
     if (head === 'cookie') {
       if (sub === 'csrf') return 'csrfToken cookie: ' + mask(readCsrfCookie());
-      return 'document.cookie:\n' + (document.cookie || '(empty)');
+      const cookieNames = document.cookie.split(';').map((part) => part.trim().split('=')[0]).filter(Boolean);
+      return 'cookie names visible to JavaScript (' + cookieNames.length + '):\n' + (cookieNames.length ? [...new Set(cookieNames)].sort().join('\n') : '(none)') + '\nValues are intentionally hidden. HttpOnly cookies are not visible to JavaScript.';
     }
 
     if (head === 'auth') {
@@ -107,6 +112,25 @@ export function AdminConsolePanel() {
         'accessToken: ' + mask(state.accessToken ?? null),
         'csrfToken: ' + mask(state.csrfToken ?? null),
       ].join('\n');
+    }
+
+    if (head === 'network' && sub === 'summary') {
+      const requests = getNetworkRequests();
+      const failed = requests.filter((row) => row.outcome === 'http-error' || row.outcome === 'network-error').length;
+      const aborted = requests.filter((row) => row.outcome === 'aborted').length;
+      const avg = requests.length ? Math.round(requests.reduce((sum, row) => sum + Math.max(0, row.durationMs), 0) / requests.length) : null;
+      return ['local requests: ' + requests.length, 'HTTP/network failures: ' + failed, 'aborted: ' + aborted, 'average duration: ' + (avg === null ? 'n/a' : avg + ' ms'), 'Scope: this browser only; no bodies or headers'].join('\n');
+    }
+
+    if (head === 'errors' && sub === 'summary') {
+      const records = await getDeviceErrorsAsync();
+      const totals = records.reduce((sum, row) => {
+        if (row.severity === 'error') sum.errors += row.count;
+        else if (row.severity === 'warning') sum.warnings += row.count;
+        else if (row.severity === 'network') sum.network += row.count;
+        return sum;
+      }, { errors: 0, warnings: 0, network: 0 });
+      return ['local error records: ' + records.length, 'errors: ' + totals.errors, 'warnings: ' + totals.warnings, 'network events: ' + totals.network, 'Scope: this browser only'].join('\n');
     }
 
     if (head === 'query') {

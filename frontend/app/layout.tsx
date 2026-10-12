@@ -43,6 +43,7 @@ import { AppProviders }               from '@/providers/AppProviders';
 import { WebVitals }                  from '@/components/shared/WebVitals';
 import { ErudaDebug }                 from '@/components/debug/ErudaDebug';
 import { DeviceErrorCapture }         from '@/components/debug/DeviceErrorCapture';
+import { AdminScriptConsole }         from '@/components/debug/AdminScriptConsole';
 import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
 import { APP_NAME, APP_URL }          from '@/lib/constants';
 import {
@@ -204,6 +205,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <WebVitals />
           <ErudaDebug />
           <DeviceErrorCapture />
+          <AdminScriptConsole />
           <DeferredFonts />
         {children}
         </AppProviders>

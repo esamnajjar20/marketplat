@@ -828,6 +828,24 @@ export const adminService = {
       note?: string;
     };
     checkedAt: string;
+    runtime: {
+      uptimeSeconds: number;
+      memoryRssBytes: number;
+      memoryHeapUsedBytes: number;
+      memoryHeapTotalBytes: number;
+      memoryHeapUsedPercent: number;
+      nodeVersion: string;
+      environment: string;
+    };
+    backgroundWork: {
+      available: boolean;
+      pendingOutbox: number | null;
+      deadLetterOutbox: number | null;
+      staleOutbox: number | null;
+      unresolvedFailedTasks: number | null;
+      checkedAt: string;
+      note?: string;
+    };
   }> => {
     // UPSTASH-SAVE: كاش دقيقة واحدة — فتح الصفحة عدة مرات لا يضرب Redis/DB
     if (
@@ -867,8 +885,10 @@ export const adminService = {
         redisNote =
           'أوامر Redis بطيئة نسبيًا — غالبًا بسبب استضافة بعيدة (RTT) أو ضغط على الخادم.';
       }
-    } catch (e) {
-      redisErr = e instanceof Error ? e.message : 'redis unreachable';
+    } catch {
+      // Never return raw infrastructure exceptions to the admin browser: some
+      // client libraries include hostnames or connection details in messages.
+      redisErr = 'تعذّر تنفيذ فحص Redis؛ راجع سجلات الخادم المحمية.';
     }
 
     let dbOk = false;
@@ -884,8 +904,64 @@ export const adminService = {
         dbNote =
           'استجابة DB أعلى من المعتاد محليًا — قد يكون الخادم بعيدًا أو تحت ضغط.';
       }
-    } catch (e) {
-      dbErr = e instanceof Error ? e.message : 'db unreachable';
+    } catch {
+      // Keep SQL/driver details in server logs rather than the browser response.
+      dbErr = 'تعذّر تنفيذ فحص قاعدة البيانات؛ راجع سجلات الخادم المحمية.';
+    }
+
+    const runtimeMemory = process.memoryUsage();
+    const runtimeUptimeSeconds = Math.floor(process.uptime());
+    const runtimeNodeVersion = process.version;
+    const runtimeEnvironment = process.env.NODE_ENV ?? 'unknown';
+
+    // Queue diagnostics are read-only counts. They deliberately do not claim
+    // that a worker is alive: a queue backlog is observable here, but worker
+    // liveness requires a separately persisted heartbeat.
+    const queueCheckedAt = new Date().toISOString();
+    let backgroundWork: {
+      available: boolean;
+      pendingOutbox: number | null;
+      deadLetterOutbox: number | null;
+      staleOutbox: number | null;
+      unresolvedFailedTasks: number | null;
+      checkedAt: string;
+      note?: string;
+    } = {
+      available: false,
+      pendingOutbox: null,
+      deadLetterOutbox: null,
+      staleOutbox: null,
+      unresolvedFailedTasks: null,
+      checkedAt: queueCheckedAt,
+      note: 'تعذّر قراءة مؤشرات المهام الخلفية؛ صحة DB/Redis منفصلة عن هذه القراءة.',
+    };
+    try {
+      const staleBefore = new Date(Date.now() - 5 * 60 * 1000);
+      const [pendingOutbox, deadLetterOutbox, staleOutbox, unresolvedFailedTasks] = await Promise.all([
+        prisma.outboxEvent.count({ where: { processedAt: null, deadLetterAt: null } }),
+        prisma.outboxEvent.count({ where: { processedAt: null, deadLetterAt: { not: null } } }),
+        prisma.outboxEvent.count({
+          where: {
+            processedAt: null,
+            deadLetterAt: null,
+            createdAt: { lt: staleBefore },
+            availableAt: { lte: new Date() },
+            OR: [{ lockedAt: null }, { lockedAt: { lt: staleBefore } }],
+          },
+        }),
+        prisma.failedBackgroundTask.count({ where: { resolved: false } }),
+      ]);
+      backgroundWork = {
+        available: true,
+        pendingOutbox,
+        deadLetterOutbox,
+        staleOutbox,
+        unresolvedFailedTasks,
+        checkedAt: queueCheckedAt,
+      };
+    } catch {
+      // Keep the primary health endpoint useful when an optional diagnostics
+      // query fails (e.g. a partially migrated DB); never expose raw errors.
     }
 
     const value = {
@@ -897,6 +973,16 @@ export const adminService = {
         note: redisNote,
       },
       db: { ok: dbOk, latencyMs: dbMs, error: dbErr, note: dbNote },
+      runtime: {
+        uptimeSeconds: runtimeUptimeSeconds,
+        memoryRssBytes: runtimeMemory.rss,
+        memoryHeapUsedBytes: runtimeMemory.heapUsed,
+        memoryHeapTotalBytes: runtimeMemory.heapTotal,
+        memoryHeapUsedPercent: runtimeMemory.heapTotal > 0 ? Math.round((runtimeMemory.heapUsed / runtimeMemory.heapTotal) * 1000) / 10 : 0,
+        nodeVersion: runtimeNodeVersion,
+        environment: runtimeEnvironment,
+      },
+      backgroundWork,
       checkedAt,
     };
     _systemHealthMem = { at: Date.now(), value };

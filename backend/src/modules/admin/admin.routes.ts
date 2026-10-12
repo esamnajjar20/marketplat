@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 import { adminController } from './admin.controller';
 import { sellersController } from '../sellers/sellers.controller';
 import { storesController } from '../stores/stores.controller';
@@ -48,6 +48,43 @@ adminRouter.patch('/open-requests/:id/cancel', requireMinRole(ROLES.MODERATOR), 
 
 adminRouter.get('/trends', requireMinRole(ROLES.ADMIN), adminController.getPlatformTrends);
 adminRouter.get('/system-health', requireMinRole(ROLES.ADMIN), adminController.getSystemHealth);
+adminRouter.get('/developer-tools/setting', requireMinRole(ROLES.ADMIN), adminController.getDeveloperToolsSetting);
+adminRouter.patch('/developer-tools/setting', requireMinRole(ROLES.ADMIN), adminController.setDeveloperToolsSetting);
+
+// Monitoring responses contain operational metadata and must never be cached
+// by browsers, reverse proxies, or shared intermediaries. Keep the stricter
+// role gate on every endpoint; acknowledgement is a state-changing operation.
+const monitoringNoStore = (_req: Request, res: Response, next: NextFunction): void => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Vary', 'Authorization, Cookie');
+  next();
+};
+adminRouter.get(
+  '/monitoring/events',
+  requireMinRole(ROLES.ADMIN),
+  monitoringNoStore,
+  adminController.getMonitoringEvents,
+);
+adminRouter.get(
+  '/monitoring/alerts',
+  requireMinRole(ROLES.ADMIN),
+  monitoringNoStore,
+  adminController.getMonitoringAlerts,
+);
+adminRouter.patch(
+  '/monitoring/alerts/:id/acknowledge',
+  requireMinRole(ROLES.ADMIN),
+  monitoringNoStore,
+  adminController.acknowledgeMonitoringAlert,
+);
+adminRouter.get(
+  '/monitoring/history',
+  requireMinRole(ROLES.ADMIN),
+  monitoringNoStore,
+  adminController.getMonitoringHistory,
+);
 adminRouter.get('/export/users.csv', requireMinRole(ROLES.ADMIN), adminController.exportUsersCsv);
 adminRouter.get('/export/reports.csv', requireMinRole(ROLES.ADMIN), adminController.exportReportsCsv);
 
