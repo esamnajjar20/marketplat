@@ -28,6 +28,14 @@ const FIRED_KEY = 'marketplat:sw-stale-activation-fired';
 
 let waitingSince: number | null = null;
 let timerId: ReturnType<typeof setInterval> | null = null;
+// FIX SW-STALE-INIT-GUARD-01: the previous guard checked `timerId !== null`
+// before the async setup had run — `timerId` is only assigned *inside* the
+// serviceWorker.ready.then() callback, so two synchronous calls in the same
+// tick both passed the guard and created two intervals. This flag is set
+// synchronously, closing that window even though today's only caller
+// (OfflineBootstrap's module-level `__offlineBootstrapInitialized` guard)
+// happens to prevent the double call.
+let initRequested = false;
 let visibilityListenerAttached = false;
 
 function alreadyFiredInThisTab(): boolean {
@@ -67,7 +75,8 @@ function evaluate(reg: ServiceWorkerRegistration): void {
 export function initStaleWaitingServiceWorkerHandler(): void {
   if (typeof window === 'undefined') return;
   if (!('serviceWorker' in navigator)) return;
-  if (timerId !== null) return; // already initialized in this module instance
+  if (initRequested) return; // already initialized in this module instance
+  initRequested = true;
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     waitingSince = null;

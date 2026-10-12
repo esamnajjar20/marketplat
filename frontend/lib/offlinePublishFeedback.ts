@@ -120,3 +120,16 @@ export function toastSyncStarted(): void {
     duration: 4000,
   });
 }
+
+/**
+ * FIX CANCEL-REJECTED-UX-01: fired when the SW refuses CANCEL_QUEUE_ITEM
+ * because another drain holds an active processing lease on the entry.
+ * Without this toast, the user clicks "إلغاء" and sees nothing — the
+ * message is still on the wire, and they have no way to know the cancel
+ * did not stick.
+ */
+export function toastCancelRejected(): void {
+  toast.info('العملية قيد الإرسال الآن — أعد الإلغاء بعد لحظة', {
+    duration: 5000,
+  });
+}

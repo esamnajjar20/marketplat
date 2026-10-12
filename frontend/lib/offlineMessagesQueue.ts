@@ -233,4 +233,8 @@ export const QUEUE_MESSAGE_EVENT_TYPES = [
   'QUEUE_ITEM_FAILED',
   'QUEUE_ITEM_DISCARDED',
   'QUEUE_ITEM_CANCELLED',
+  // FIX CANCEL-REJECTED-UX-01: emitted when the SW refuses CANCEL_QUEUE_ITEM
+  // because another drain is actively sending the entry. Without this, the
+  // user's cancel appears to do nothing.
+  'QUEUE_CANCEL_REJECTED',
 ] as const;

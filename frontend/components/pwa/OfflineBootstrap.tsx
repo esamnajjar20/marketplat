@@ -20,7 +20,7 @@ import { requestQueueReplay, syncQueueNetworkHint } from '@/lib/offlineQueue';
 import { getNetworkPolicy, subscribeNetworkPolicy } from '@/lib/networkPolicy';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 import { syncOfflineFavoriteIntents } from '@/lib/offlineFavoriteIntents';
-import { toastDraftPublishResult } from '@/lib/offlinePublishFeedback';
+import { toastDraftPublishResult, toastCancelRejected } from '@/lib/offlinePublishFeedback';
 import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { setQueueReplayInFlight } from '@/lib/offlineWarmingPipeline';
 import { shouldAutoSyncNow } from '@/lib/offlineHubPrefs';
@@ -128,6 +128,10 @@ export function OfflineBootstrap() {
         // invalidate local/API caches. Mirror the same post-commit invalidation
         // here, but only after the SW confirms the server accepted the mutation.
         invalidateOfflineCachesForMutation(data.url, data.method);
+      } else if (data?.type === 'QUEUE_CANCEL_REJECTED') {
+        // FIX CANCEL-REJECTED-UX-01: the SW refused our cancel because another
+        // drain is actively sending the entry. Tell the user to retry shortly.
+        toastCancelRejected();
       }
     };
     navigator.serviceWorker?.addEventListener('message', onQueueMessage);

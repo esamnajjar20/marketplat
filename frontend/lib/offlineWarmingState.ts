@@ -150,6 +150,29 @@ export async function readSnapshot(): Promise<WarmingSnapshot | null> {
 export async function readSnapshotForCacheVersion(
   currentCacheVersion: string,
 ): Promise<WarmingSnapshot | null> {
+  // FIX CACHE-VERSION-KEY-LEAK-01: the CACHE_VERSION bump in
+  // offlineRouteShells.ts writes a per-version marker
+  // `marketplat:cache-version-installed-at:<v>` to remember when the
+  // current cache version was first seen in this browser. Nothing was
+  // ever clearing the old ones, so every bump left a ~60-byte orphan
+  // key behind — 20-30 keys after a year of deploys. This block runs
+  // on every read, keeps the current version's key, and removes any
+  // stale sibling.
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const KEEP_KEY = `marketplat:cache-version-installed-at:${currentCacheVersion}`;
+      const PREFIX = 'marketplat:cache-version-installed-at:';
+      const stale: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const k = window.localStorage.key(i);
+        if (k && k.startsWith(PREFIX) && k !== KEEP_KEY) stale.push(k);
+      }
+      for (const k of stale) window.localStorage.removeItem(k);
+    }
+  } catch {
+    /* private mode / quota — harmless */
+  }
+
   const snap = await readSnapshot();
   if (!snap) return null;
   if (snap.cacheVersion !== currentCacheVersion) {
