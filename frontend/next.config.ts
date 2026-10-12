@@ -57,6 +57,10 @@ const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? '';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // BUILD-LINT-01: ESLint runs separately; skip during build to avoid
+  // version mismatches with eslint-config-next flat config.
+  eslint: { ignoreDuringBuilds: true },
+
   // DEPLOYMENT-NONCE-01: expose the build nonce so middleware.ts can reuse it
   // for every request within this deployment (see middleware.ts for why).
   env: {
