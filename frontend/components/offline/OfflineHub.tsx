@@ -427,7 +427,7 @@ function SyncTabBody({
 }
 
 
-function TabBadge({ count, tone = 'default' }: { count: number; tone?: 'default' | 'danger' }) {
+function TabBadge({ count, tone = 'default', label }: { count: number; tone?: 'default' | 'danger'; label: string }) {
   if (count <= 0) return null;
   return (
     <span
@@ -439,7 +439,8 @@ function TabBadge({ count, tone = 'default' }: { count: number; tone?: 'default'
         tone === 'default' && 'group-data-[selected=false]:bg-primary/15 group-data-[selected=false]:text-primary',
       )}
     >
-      {count > 99 ? '99+' : count}
+      <span aria-hidden="true">{count > 99 ? '99+' : count}</span>
+      <span className="sr-only">{label}: {count}</span>
     </span>
   );
 }
@@ -590,7 +591,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
         role="tablist"
         aria-label="أقسام مركز الأوفلاين"
         className={cn(
-          'sticky top-2 z-20 -mx-1 mb-5 flex gap-1.5 overflow-x-auto rounded-2xl border border-border/60 bg-background/95 px-2 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85',
+          'sticky top-2 z-20 -mx-1 mb-5 flex snap-x snap-mandatory gap-1.5 overflow-x-auto overscroll-x-contain rounded-2xl border border-border/60 bg-background/95 px-2 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85',
           '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:overflow-visible',
         )}
       >
@@ -613,9 +614,26 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
               aria-selected={selected}
               aria-controls={`offline-panel-${tab}`}
               data-selected={selected}
+              tabIndex={selected ? 0 : -1}
               onClick={() => select(tab)}
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const currentIndex = tabs.indexOf(tab);
+                const isRtl = document.documentElement.dir === 'rtl' || getComputedStyle(event.currentTarget).direction === 'rtl';
+                let nextIndex = currentIndex;
+                if (event.key === 'Home') nextIndex = 0;
+                else if (event.key === 'End') nextIndex = tabs.length - 1;
+                else if (event.key === 'ArrowRight') nextIndex = (currentIndex + (isRtl ? -1 : 1) + tabs.length) % tabs.length;
+                else if (event.key === 'ArrowLeft') nextIndex = (currentIndex + (isRtl ? 1 : -1) + tabs.length) % tabs.length;
+                const nextTab = tabs[nextIndex];
+                if (nextTab) {
+                  select(nextTab);
+                  window.requestAnimationFrame(() => document.getElementById(`offline-tab-${nextTab}`)?.focus());
+                }
+              }}
               className={cn(
-                'group flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors lg:min-w-0 lg:flex-1',
+                'group flex min-h-11 snap-start shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:min-w-0 lg:flex-1',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                   : 'border-border/80 bg-card text-muted-foreground hover:border-primary/35 hover:text-foreground',
@@ -625,7 +643,11 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
               <span className="sm:hidden">{shortLabel}</span>
               <span className="hidden sm:inline">{label}</span>
               {isSignedIn && (
-                <TabBadge count={badge} tone={selected && badgeTone === 'danger' ? 'danger' : badgeTone} />
+                <TabBadge
+                  count={badge}
+                  tone={badgeTone}
+                  label={tab === 'drafts' ? 'مسودات غير مكتملة' : failedQueue > 0 ? 'عمليات مزامنة معلّقة أو فاشلة' : 'عمليات بانتظار المزامنة'}
+                />
               )}
             </button>
           );

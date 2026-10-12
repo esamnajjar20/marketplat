@@ -33,7 +33,7 @@ import { track }          from '@/lib/analytics';
 import { SearchX, AlertTriangle } from 'lucide-react';
 
 export function AdDetailSection({ id }: { id: string }) {
-  const { data: ad, isLoading, isError, error, refetch } = useAd(id);
+  const { data: ad, isLoading, isFetching, isError, error, refetch } = useAd(id);
   // Warms the shared favorites.ids() Set with just this ad's status —
   // no-ops (query disabled) when the user isn't authenticated, same as
   // useFavorites' `enabled` check.
@@ -106,10 +106,12 @@ export function AdDetailSection({ id }: { id: string }) {
         action={
           <button
             type="button"
-            onClick={() => refetch()}
-            className="text-sm text-primary hover:underline"
+            disabled={isFetching}
+            aria-busy={isFetching}
+            onClick={() => { if (!isFetching) void refetch(); }}
+            className="text-sm text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
           >
-            إعادة المحاولة
+            {isFetching ? 'جارٍ إعادة المحاولة…' : 'إعادة المحاولة'}
           </button>
         }
       />

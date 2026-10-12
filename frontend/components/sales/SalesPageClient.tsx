@@ -2,16 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, ReceiptText, WalletCards } from 'lucide-react';
+import { Plus, ReceiptText, ShoppingCart, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SalesSummary } from './SalesSummary';
 import { SaleCard } from './SaleCard';
 import { POSDialog } from './POSDialog';
+import { AddSaleDialog } from './AddSaleDialog';
 import { useSales, useSalesSummary } from '@/hooks/queries/useSales';
 import { salesHubTabHref } from '@/lib/salesHubTabs';
 
 export function SalesPageClient() {
   const [open, setOpen] = useState(false);
+  const [posOpen, setPosOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useSales({ page: 1, limit: 4 });
   const { data: summary } = useSalesSummary('month');
   const items = data?.items ?? [];
@@ -26,10 +28,16 @@ export function SalesPageClient() {
           </div>
           <p className="mt-1 text-sm text-muted-foreground">ملخص سريع للمبيعات والدفعات والمبالغ المستحقة.</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="ms-2 h-4 w-4" />
-          بيع جديد
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="ms-2 h-4 w-4" />
+            تسجيل بيع
+          </Button>
+          <Button variant="outline" onClick={() => setPosOpen(true)}>
+            <ShoppingCart className="ms-2 h-4 w-4" />
+            نقطة بيع متعددة المنتجات
+          </Button>
+        </div>
       </div>
 
       <SalesSummary summary={summary} />
@@ -48,11 +56,12 @@ export function SalesPageClient() {
         ) : items.length ? (
           <div className="grid gap-3 md:grid-cols-2">{items.map((sale) => <SaleCard key={sale.id} sale={sale} />)}</div>
         ) : (
-          <div className="rounded-[var(--radius-card)] border border-dashed bg-surface-1 p-8 text-center sm:p-10"><ReceiptText className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 font-medium">لا توجد مبيعات بعد</p><Button className="mt-4" onClick={() => setOpen(true)}>تسجيل أول بيع</Button></div>
+          <div className="rounded-[var(--radius-card)] border border-dashed bg-surface-1 p-8 text-center sm:p-10"><ReceiptText className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 font-medium">لا توجد مبيعات بعد</p><div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row"><Button onClick={() => setOpen(true)}>تسجيل أول بيع</Button><Button variant="outline" onClick={() => setPosOpen(true)}>بيع عدة منتجات</Button></div></div>
         )}
       </section>
 
-      <POSDialog open={open} onOpenChange={setOpen} />
+      <AddSaleDialog open={open} onOpenChange={setOpen} />
+      <POSDialog open={posOpen} onOpenChange={setPosOpen} />
     </div>
   );
 }

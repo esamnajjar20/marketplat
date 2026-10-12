@@ -78,6 +78,7 @@ import {
 import { parseApiError } from '@/lib/errorParser';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { subscribeToSessionEnded } from '@/lib/authSessionBroadcast';
+import { buildSessionExpiredLoginUrl } from '@/lib/sessionRedirect';
 
 /**
  * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
@@ -125,7 +126,12 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
       useAuthStore.getState().logout();
       clearAuthCookies();
       void clearSensitiveLocalData().finally(() => {
-        router.replace(ROUTES.login);
+        // Preserve the active page (including query parameters) so the user
+        // can return to the same task after signing in again. Never redirect
+        // back to an auth page as the post-login target.
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : ROUTES.dashboard;
+        const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
+        router.replace(buildSessionExpiredLoginUrl(currentPath, currentSearch));
       });
     });
   }, [router]);

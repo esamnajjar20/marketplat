@@ -16,7 +16,9 @@ import { LazySection } from '@/components/shared/LazySection';
 
 /**
  * Homepage content hierarchy:
- * discovery → featured → unified categories → personalized → entity feeds.
+ * discovery → categories → featured → mixed recommendations → following → entity feeds.
+ * Quick navigation appears before the large promotional carousel; useful mixed
+ * discovery precedes the following feed's empty state for newer accounts.
  * No repeated publish/explore/browse blocks; every entity gets one primary rail.
  */
 export function HomePageContent() {
@@ -24,14 +26,14 @@ export function HomePageContent() {
     <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-16 md:pb-16">
       <HomeBusyBoundary>
         <EagerHomeSections />
-        <div className="mx-auto mt-3 max-w-7xl px-3 sm:mt-5 sm:px-4"><StoriesRail /></div>
+        <div className="mx-auto mt-3 max-w-7xl px-3 sm:mt-4 sm:px-4"><StoriesRail /></div>
 
-        <div className="mt-3 space-y-5 sm:mt-6 sm:space-y-8">
-          <LazySection minHeight={220} rootMargin="20px 0px" whenIdle={false}>
-            <FollowingFeedSection />
-          </LazySection>
+        <div className="mt-3 space-y-4 sm:mt-5 sm:space-y-6">
           <LazySection minHeight={240} rootMargin="20px 0px" whenIdle={false}>
             <ForYouMixedSection />
+          </LazySection>
+          <LazySection minHeight={220} rootMargin="32px 0px" whenIdle={false}>
+            <FollowingFeedSection />
           </LazySection>
 
           <LazySection minHeight={240} rootMargin="40px 0px" whenIdle>

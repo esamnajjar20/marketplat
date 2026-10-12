@@ -108,8 +108,8 @@ export function StoresGrid() {
       {/* SLOW-NET phase4 */}
       <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={false} />
       <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-      <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className="min-w-0 text-sm text-muted-foreground">
         {total > 0 ? `${total} متجر` : 'لا توجد نتائج'}
         {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
       </p>
@@ -123,7 +123,7 @@ export function StoresGrid() {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد متاجر مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_STORE_GRID_CLASS, 'stagger-fade-in')}>
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_STORE_GRID_CLASS, 'stagger-fade-in min-w-0')}>
           {items.map((store) => (
             <StoreCard key={store.id} store={store} density={view === 'list' ? 'compact' : 'default'} layout={view} />
           ))}

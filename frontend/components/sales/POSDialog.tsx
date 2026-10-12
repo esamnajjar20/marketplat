@@ -48,6 +48,8 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   );
   const total = useMemo(() => cart.reduce((s, x) => s + Math.max(0, x.unitPrice - x.discount) * x.quantity, 0), [cart]);
   const quantity = cart.reduce((s, x) => s + x.quantity, 0);
+  const stockIssues = cart.filter((x) => x.product.stockQuantity != null && x.quantity > x.product.stockQuantity);
+  const noProducts = !products.isLoading && !products.isError && available.length === 0;
   const mixedTotal = payments.reduce((s, p) => s + n(p.amount), 0);
   const paid = paymentMode === 'full' ? total : paymentMode === 'partial' ? Math.min(total, mixedTotal) : 0;
   const installmentTotal = installments.reduce((s, x) => s + x.amount, 0);
@@ -55,11 +57,18 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
 
   const addProduct = (product: ProductWithStore) => setCart((current) => {
     const existing = current.find((x) => x.product.id === product.id);
-    if (existing) return current.map((x) => x.product.id === product.id ? { ...x, quantity: x.quantity + 1 } : x);
+    const nextQuantity = (existing?.quantity ?? 0) + 1;
+    if (product.stockQuantity != null && nextQuantity > product.stockQuantity) return current;
+    if (existing) return current.map((x) => x.product.id === product.id ? { ...x, quantity: nextQuantity } : x);
     return [...current, { product, quantity: 1, unitPrice: n(product.effectivePrice?.price ?? product.price), discount: 0 }];
   });
   const remove = (id: string) => setCart((current) => current.filter((x) => x.product.id !== id));
-  const changeQty = (id: string, quantity: number) => setCart((current) => current.map((x) => x.product.id === id ? { ...x, quantity: Math.max(1, Math.floor(quantity || 1)) } : x));
+  const changeQty = (id: string, quantity: number) => setCart((current) => current.map((x) => {
+    if (x.product.id !== id) return x;
+    const requested = Math.max(1, Math.floor(quantity || 1));
+    const safeQuantity = x.product.stockQuantity == null ? requested : Math.min(requested, Math.max(1, x.product.stockQuantity));
+    return { ...x, quantity: safeQuantity };
+  }));
   const changePrice = (id: string, unitPrice: number) => setCart((current) => current.map((x) => x.product.id === id ? { ...x, unitPrice: Math.max(0, unitPrice) } : x));
   const changeDiscount = (id: string, discount: number) => setCart((current) => current.map((x) => x.product.id === id ? { ...x, discount: Math.max(0, Math.min(unitPriceOf(x), discount)) } : x));
   const unitPriceOf = (x: CartLine) => x.unitPrice;
@@ -102,12 +111,15 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         <section className="space-y-3">
           <div className="relative"><Search className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pr-9" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن منتج…" /></div>
           <div className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
-            {available.map((product) => <button key={product.id} type="button" onClick={() => addProduct(product)} className="rounded-xl border p-3 text-right transition hover:bg-muted/50">
+            {available.map((product) => <button key={product.id} type="button" onClick={() => addProduct(product)} disabled={product.stockQuantity != null && product.stockQuantity <= 0} className="rounded-xl border p-3 text-right transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50">
               <div className="flex items-start justify-between gap-2"><strong className="line-clamp-2">{product.name}</strong><span className="shrink-0 text-sm">{n(product.effectivePrice?.price ?? product.price).toFixed(2)} ₪</span></div>
-              <p className="mt-1 text-xs text-muted-foreground">المخزون: {product.stockQuantity ?? 'غير محدود'}</p>
+              <p className="mt-1 text-xs text-muted-foreground">المخزون: {product.stockQuantity ?? 'غير محدد'}</p>{product.stockQuantity != null && product.stockQuantity <= 0 ? <span className="mt-2 inline-block text-xs text-destructive">نفد المخزون</span> : null}
             </button>)}
-            {!available.length ? <div className="col-span-full rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">لا توجد منتجات مطابقة.</div> : null}
+            {products.isLoading ? <div className="col-span-full rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">جارٍ تحميل المنتجات…</div> : null}
+            {products.isError ? <div className="col-span-full rounded-xl border border-dashed p-5 text-center text-sm"><p className="text-destructive">تعذر تحميل المنتجات.</p><Button className="mt-2" variant="outline" size="sm" onClick={() => void products.refetch()}>إعادة المحاولة</Button></div> : null}
+            {noProducts ? <div className="col-span-full rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{query.trim()?'لا توجد منتجات تطابق بحثك. جرّب اسمًا آخر.':'لا توجد منتجات نشطة متاحة للبيع.'}</div> : null}
           </div>
+          {stockIssues.length ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">توجد كمية تتجاوز المخزون المتاح. عدّل الكمية قبل إتمام البيع.</p> : null}
           <div className="rounded-xl border p-3">
             <div className="mb-2 flex items-center justify-between"><strong>السلة ({cart.length})</strong><span className="text-sm text-muted-foreground">{quantity} قطعة</span></div>
             <div className="space-y-2">
@@ -135,7 +147,7 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           <div className="rounded-xl border bg-muted/30 p-4"><div className="flex justify-between text-sm"><span>الإجمالي</span><strong className="text-xl">{total.toFixed(2)} ₪</strong></div><p className="mt-1 text-xs text-muted-foreground">الخصومات محسوبة على مستوى كل منتج.</p></div>
         </section>
       </div>
-      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button><Button disabled={create.isPending || !cart.length || total <= 0 || (paymentMode === 'partial' && (mixedTotal <= 0 || mixedTotal > total)) || (paymentMode === 'installments' && (!installments.length || Math.abs(installmentTotal - total) > 0.009))} onClick={() => void submit()}>{create.isPending ? 'جارٍ التسجيل…' : 'إتمام البيع'}</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button><Button disabled={create.isPending || !cart.length || total <= 0 || stockIssues.length > 0 || (paymentMode === 'partial' && (mixedTotal <= 0 || mixedTotal > total)) || (paymentMode === 'installments' && (!installments.length || Math.abs(installmentTotal - total) > 0.009))} onClick={() => void submit()}>{create.isPending ? 'جارٍ التسجيل…' : 'إتمام البيع'}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }

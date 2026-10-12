@@ -4,7 +4,7 @@
  * PublicHeader — top navigation for all public-facing pages.
  *
  * Contains: Logo, main nav links, search bar, auth buttons (or user menu).
- * Responsive: collapses to a hamburger menu on mobile.
+ * Responsive: collapses to a hamburger menu below the desktop breakpoint (including narrow tablet/split-screen widths).
  */
 
 import { useEffect, useState } from 'react';
@@ -102,7 +102,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           brand mark, bell kept unconditionally reachable next to it —
           while staying on the same theme tokens as the rest of the
           header so it needs no separate dark-mode treatment. */}
-      <div className="flex h-14 items-center justify-between px-4 md:hidden">
+      <div className="flex h-14 items-center justify-between px-4 lg:hidden">
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo size="sm" />
         </Link>
@@ -113,21 +113,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
         </div>
       </div>
 
-      <div className="container mx-auto hidden min-h-16 max-w-7xl items-center gap-3 px-4 py-2 lg:gap-4 md:flex">
+      <div className="container mx-auto hidden min-h-16 max-w-7xl items-center gap-3 px-4 py-2 lg:gap-4 lg:flex">
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo />
         </Link>
 
-        {/* FIX HEADER-01: was `lg:flex` while every sibling in this row
-            (this whole container, the search bar below, the auth/menu
-            nav) all gate on `md:flex` — the mismatch left a dead zone
-            between 768px and 1023px (tablets, split-screen desktop
-            windows) where this row of nav appears "desktop" (logo +
-            search + auth all visible) but Stores/Services/Service
-            Providers silently vanish with zero fallback, since
-            MobileNav itself is md:hidden at that width. Matches the
-            container's own md:flex so the whole row turns on together. */}
-        <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-xl border border-border/50 bg-surface-1/50 p-1 md:flex">
+        {/* DESKTOP-RESPONSIVE-01: keep the full five-link desktop navigation
+            for lg and wider viewports. At 768–1023px, the full row can
+            crowd the logo, search and account actions; use the compact
+            header plus its complete drawer navigation until lg instead. */}
+        <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-xl border border-border/50 bg-surface-1/50 p-1 lg:flex">
           {/* SPRINT-2-IA: desktop navigation now exposes the five primary
               discovery destinations consistently: search/explore, ads,
               products, services, and stores. Service providers remain
@@ -150,11 +145,11 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           </Button>
         </nav>
 
-        <div className="hidden flex-1 md:block">
+        <div className="hidden flex-1 lg:block">
           {!onSearchPage && !isHomePage && showSearch && <SearchBar />}
         </div>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {/* FIX UX-03: theme is a device preference, not tied to an
               account — sits outside the isAuthenticated branch so
               guests can switch it too, not just logged-in users. */}
@@ -191,14 +186,14 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
         </nav>
       </div>
 
-      {/* Mobile search bar — kept as its own row (not merged into the
+      {/* Compact-header search bar — kept as its own row (not merged into the
           title row above) since the title row's job is brand + quick
           actions (theme/bell/menu), while search needs its full
-          width to stay comfortably tappable. Hidden on /search itself
+          width to stay comfortably usable. Hidden on /search itself
           for the same reason as the desktop copy above — see this
           component's top-level comment. */}
       {!onSearchPage && !isHomePage && showSearch && (
-        <div className="border-t px-4 py-2 md:hidden">
+        <div className="border-t px-4 py-2 lg:hidden">
           <SearchBar />
         </div>
       )}

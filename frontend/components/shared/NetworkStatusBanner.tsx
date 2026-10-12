@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Wifi, WifiOff, X } from 'lucide-react';
+import Link from 'next/link';
+import { Archive, FileText, Wifi, WifiOff, X } from 'lucide-react';
 
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
@@ -94,11 +95,27 @@ export function NetworkStatusBanner() {
         <div
           role="status"
           aria-atomic="true"
-          className="fixed inset-x-0 bottom-0 z-[60] flex items-center justify-center gap-2 bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground pwa-safe-bottom"
+          className="fixed inset-x-0 bottom-0 z-[60] flex flex-wrap items-center justify-center gap-2 bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground pwa-safe-bottom"
         >
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
-          <span>لا يوجد اتصال بالإنترنت</span>
-          {offlineQuerySavedAt != null && <span className="text-xs font-normal opacity-90">— بيانات محفوظة · {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
+          <span className="shrink-0">لا يوجد اتصال بالإنترنت</span>
+          {offlineQuerySavedAt != null && <span className="hidden max-w-[30vw] truncate text-xs font-normal opacity-90 sm:inline">— بيانات محفوظة · {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
+          <nav aria-label="خيارات الأوفلاين" className="ms-2 flex shrink-0 items-center gap-2">
+            <Link
+              href="/offline?tab=saved"
+              className="inline-flex items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <Archive className="h-3.5 w-3.5" aria-hidden />
+              المحفوظات
+            </Link>
+            <Link
+              href="/offline?tab=drafts"
+              className="hidden items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:inline-flex"
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden />
+              المسودات
+            </Link>
+          </nav>
         </div>
       )}
 
@@ -115,7 +132,15 @@ export function NetworkStatusBanner() {
         >
           <WifiOff className="h-3.5 w-3.5" aria-hidden />
           <span>غير متصل</span>
-          {offlineQuerySavedAt != null && <span className="max-w-[55vw] truncate font-normal opacity-90">· {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
+          {offlineQuerySavedAt != null && <span className="max-w-[30vw] truncate font-normal opacity-90">· {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
+          <Link
+            href="/offline?tab=saved"
+            aria-label="فتح المحفوظات دون اتصال"
+            className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Archive className="h-3 w-3" aria-hidden />
+            <span>المحفوظات</span>
+          </Link>
         </div>
       )}
 

@@ -24,16 +24,8 @@ export default function ProductDetailError({
 }) {
 
 useEffect(() => {
-    // Mobile remote-inspect consoles often render an Error object as an
-    // empty `TypeError {}` (message/stack are non-enumerable, so the
-    // collapsed view shows nothing) — log them as plain strings too so
-    // they're visible without needing to expand the object.
-    // eslint-disable-next-line no-console
-    console.error('[ProductDetailError] message:', error.message, '| stack:', error.stack);
     if (!isOfflineChunkLoadError(error)) {
-
       reportClientError(error, { boundary: 'ProductDetailError', digest: error.digest });
-
     }
   }, [error]);
 
@@ -41,15 +33,10 @@ useEffect(() => {
     <div className="container mx-auto flex max-w-lg flex-col items-center gap-4 px-4 py-16 text-center">
       <AlertTriangle className="h-10 w-10 text-muted-foreground" />
       <h1 className="text-lg font-semibold">حدث خطأ أثناء عرض المنتج</h1>
-      {/* DEBUG: عرض الخطأ الحقيقي مؤقتاً */}
-      <pre
-        dir="ltr"
-        className="w-full overflow-auto rounded bg-destructive/10 p-3 text-left text-xs text-destructive"
-      >
-        {error.message}
-        {'\n\n'}
-        {(error.stack || '').split('\n').slice(0, 6).join('\n')}
-      </pre>
+      {/* SEC-06: Keep internal error details in telemetry/logs, never in the UI. */}
+      <p className="max-w-sm text-sm text-muted-foreground">
+        يرجى المحاولة مرة أخرى. إذا استمرت المشكلة، تواصل مع الدعم الفني.
+      </p>
       {error.digest && (
         <code className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
           رمز الخطأ: {error.digest}

@@ -83,6 +83,8 @@ export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
                 ? 'تعذّر تنفيذ الطلب'
                 : 'حدث خطأ ما';
 
+  // Do not expose raw server/runtime messages for 5xx errors. They can
+  // contain implementation details; this surface should stay safe and actionable.
   const description = isNetwork
     ? 'تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.'
     : isRateLimited
@@ -90,7 +92,7 @@ export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
       : isUnavailable
         ? 'الخدمة غير متاحة مؤقتاً. حاول مرة أخرى بعد قليل.'
         : isServer
-          ? `${message} تم إبلاغ فريقنا.`
+          ? 'حدث خلل مؤقت في الخادم. حاول مرة أخرى بعد قليل. تم إبلاغ فريقنا.'
           : message;
 
   const icon = isNetwork
@@ -106,6 +108,7 @@ export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
   const content = (
     <EmptyState
       tone={is404 ? 'muted' : 'warning'}
+      role="alert"
       compact={variant === 'inline'}
       icon={icon}
       title={title}

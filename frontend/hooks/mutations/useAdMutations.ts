@@ -30,6 +30,7 @@ import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { bestEffortCompressPublish, bestEffortCompressPreviews } from '@/lib/imageOfflineHelpers';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { publishAttemptFingerprint } from '@/lib/publishAttemptFingerprint';
 import {
   getActiveOfflineDraftId,
   clearActiveOfflineDraftId,
@@ -54,10 +55,15 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
   // re-render، وonError بنفس الاستدعاء يقرأه بأمان (لا نداءات متزامنة من
   // نفس نموذج الإعلان الواحد).
   const operationIdRef = useRef<string | null>(null);
+  const operationFingerprintRef = useRef<string | null>(null);
 
   return useMutation({
     mutationFn: (payload: Parameters<typeof adsApi.create>[0]) => {
-      operationIdRef.current = newOfflineOperationId();
+      const fingerprint = publishAttemptFingerprint(payload as unknown as Record<string, unknown>);
+      if (!operationIdRef.current || operationFingerprintRef.current !== fingerprint) {
+        operationIdRef.current = newOfflineOperationId();
+        operationFingerprintRef.current = fingerprint;
+      }
       // FIX TRIPLE-COMPRESS-01: removed the compressImageForPublish call
       // that briefly lived here. It was documented as "so the queued
       // SW request stays under the 6MB cap", but the Service Worker
@@ -71,6 +77,8 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       return adsApi.create(payload, onUploadProgress, operationIdRef.current).then((r) => r.data.data);
     },
     onSuccess: (ad) => {
+      operationIdRef.current = null;
+      operationFingerprintRef.current = null;
       clearActiveOfflineDraftId();
       void invalidateAdBrowseCaches(queryClient);
       toast.success('تم نشر الإعلان بنجاح', {

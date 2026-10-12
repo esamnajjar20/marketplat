@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from 'react';
+import { BadgeCheck, BellRing, MessageCircle, Tag, Handshake } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useNotificationStream, type LiveStreamPayload } from '@/hooks/useNotificationStream';
@@ -54,10 +55,23 @@ export function NotificationToasts() {
         }
       }
 
+      const NotificationIcon =
+        type === 'NEW_MESSAGE' ? MessageCircle
+          : type === 'FAV_AD_SOLD' || type === 'FAV_AD_PRICE_CHANGED' ? Tag
+            : type === 'NEW_REQUEST_OFFER' ? Handshake
+              : type === 'REQUEST_OFFER_ACCEPTED' ? BadgeCheck : BellRing;
+
       toast(event.title ?? 'إشعار جديد', {
         description: event.body,
+        icon: (
+          <span className="market-live-notification-icon" aria-hidden="true">
+            <NotificationIcon size={19} strokeWidth={2.1} />
+          </span>
+        ),
+        className: 'market-live-notification',
+        duration: 6500,
         action: {
-          label: 'عرض',
+          label: 'عرض التفاصيل',
           onClick: () => router.push(href),
         },
       });

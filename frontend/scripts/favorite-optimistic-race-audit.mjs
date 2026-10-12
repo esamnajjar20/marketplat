@@ -7,7 +7,7 @@ const checks = [
   ['ad favorite mutation is serialized by session, kind, and ad ID', /runSerializedMutation\(JSON\.stringify\(\['favorite', getSessionCleanupVersion\(\), 'ad', adId\]\)/.test(source)],
   ['ad favorite uses a Set for optimistic membership', /setQueryData<Set<string>>\(queryKeys\.favorites\.ids\(\), \(old\) =>/.test(source)],
   ['ad favorite does not restore a stale snapshot on failure', /No rollback snapshot is retained/.test(source) && !/context\.previousIds/.test(source)],
-  ['queued offline ad mutation is kept optimistic', /if \(parsed\?\.queued\) return;/.test(source)],
+  ['offline ad favorite intent is persisted on network failure and kept optimistic', /await saveOfflineFavoriteIntent\(userId, 'AD', adId, desired\)/.test(source) && /if \(data && 'offlinePending' in data && data\.offlinePending\) return;/.test(source) && /if \(parsed\?\.queued \|\| \(parsed && isNetworkLikeFailure\(parsed\)\)\) return;/.test(source)],
   ['entity favorite mutation is serialized by session, type, and entity ID', /runSerializedMutation\(JSON\.stringify\(\['favorite', getSessionCleanupVersion\(\), type, entityId\]\)/.test(source)],
   ['entity favorite uses a Set for optimistic membership', /setQueryData<Set<string>>\(queryKeys\.favorites\.entityIds\(type\), \(old\) =>/.test(source)],
   ['entity favorite does not restore a stale snapshot on failure', /Avoid retaining a stale rollback snapshot/.test(source) && !/context\.previousIds/.test(source)],

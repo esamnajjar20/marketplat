@@ -13,8 +13,10 @@ import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 import { ServiceTypeFieldsForm } from '@/components/services/ServiceTypeFieldsForm';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useFormDraftAttachments } from '@/hooks/useFormDraftAttachments';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
+import { PublishMutationErrorNotice } from '@/components/shared/forms/PublishMutationErrorNotice';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
   setActiveOfflineDraftId,
@@ -177,7 +179,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   // PHASE-OFFLINE-DRAFTS: بوضع create فقط — نفس استثناء AdForm.tsx
   // لوضع edit (بيانات سيرفر حقيقية موجودة أصلاً، لا داعي لمسودة).
-  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<ServiceDraftValues>(
+  const { clearDraft, lastSavedAt, isSaving, saveError } = useFormDraft<ServiceDraftValues>(
     'service:create',
     {
       serviceTypeId: values.serviceTypeId,
@@ -192,6 +194,19 @@ export function ServiceListingForm({ mode, listing }: Props) {
     },
     { enabled: mode === 'create' },
   );
+  const { attachmentError, isSavingAttachments, savedAttachmentCount, clearAttachments, retrySaveAttachments } = useFormDraftAttachments(
+    'service:create',
+    values.images,
+    (images) => setValues((current) => ({ ...current, images })),
+    { enabled: mode === 'create' },
+  );
+  const combinedDraftError = saveError ?? attachmentError;
+  const combinedDraftSaving = isSaving || isSavingAttachments;
+  async function clearDraftAndAttachments() {
+    clearDraft();
+    await clearAttachments();
+  }
+
 
   const selectedServiceType = serviceTypes?.find((type) => type.id === values.serviceTypeId);
   const allowedPricingTypes = selectedServiceType?.capabilities?.allowedPricingTypes?.length
@@ -210,10 +225,30 @@ export function ServiceListingForm({ mode, listing }: Props) {
     const nextLocation = nextType?.capabilities?.allowedLocations?.[0] ?? 'AT_PROVIDER';
     setValues((current) => ({ ...current, serviceTypeId: id, categoryId: '', attributes: {}, pricingType: nextPricing, serviceLocation: nextLocation }));
     setErrors((current) => ({ ...current, serviceTypeId: undefined, categoryId: undefined, attributes: undefined }));
+    setServerErrors((current) => {
+      if (!current) return current;
+      const next = { ...current };
+      delete next.serviceTypeId;
+      delete next.categoryId;
+      delete next.attributes;
+      return Object.keys(next).length > 0 ? next : undefined;
+    });
   }
 
   function setAttribute(key: string, value: unknown) {
     setValues((current) => ({ ...current, attributes: { ...current.attributes, [key]: value } }));
+    setErrors((current) => {
+      if (!current.attributes) return current;
+      const nextAttributes = { ...current.attributes };
+      delete nextAttributes[key];
+      return { ...current, attributes: Object.keys(nextAttributes).length ? nextAttributes : undefined };
+    });
+    setServerErrors((current) => {
+      if (!current?.attributes) return current;
+      const next = { ...current };
+      delete next.attributes;
+      return Object.keys(next).length > 0 ? next : undefined;
+    });
   }
 
   function normalizeAttributes(fields: ServiceTypeField[] | undefined): Record<string, unknown> {
@@ -250,6 +285,15 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   function set<K extends keyof ServiceListingFormValues>(key: K, val: ServiceListingFormValues[K]) {
     setValues((v) => ({ ...v, [key]: val }));
+    // Clear stale field feedback as soon as the user starts correcting it.
+    setErrors((current) => ({ ...current, [key]: undefined }));
+    setServerErrors((current) => {
+      if (!current) return current;
+      const next = { ...current };
+      delete next[key];
+      if (key === 'attributes') delete next.attributes;
+      return Object.keys(next).length > 0 ? next : undefined;
+    });
   }
 
   const priceRequired = values.pricingType !== 'NEGOTIABLE';
@@ -304,7 +348,11 @@ export function ServiceListingForm({ mode, listing }: Props) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [initialValues] = useState(() => values);
   const isDirty = JSON.stringify(values) !== JSON.stringify(initialValues);
-  useUnsavedChangesWarning(isDirty);
+  // P2: Unsaved image attachments must also trigger the unsaved-changes
+  // warning — otherwise a user who fails to persist image bytes (quota,
+  // IndexedDB unavailable, files too large) can navigate away and lose
+  // them silently. Text-draft errors are covered by FormDraftStatus.
+  useUnsavedChangesWarning(isDirty || Boolean(attachmentError));
 
   function goBackSafely() {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -318,7 +366,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
-      if (mode === 'create') clearDraft();
+      if (mode === 'create') clearDraftAndAttachments();
       goBackSafely();
     }
   }
@@ -363,7 +411,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
             isSubmittingRef.current = false;
           },
           // PHASE-OFFLINE-DRAFTS: لا داعي لمسودة بعد نجاح النشر الفعلي.
-          onSuccess: () => clearDraft(),
+          onSuccess: () => clearDraftAndAttachments(),
           // FIX SUBMIT-REF-STUCK: onError already cleared the ref,
           // but onSuccess left it true. Normally invisible — the
           // mutation's own onSuccess pushes to /my-services, which
@@ -510,7 +558,9 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   const formElement = (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} enabled={mode === 'create'} />
+      <FormDraftStatus savedAt={lastSavedAt} saving={combinedDraftSaving} saveError={combinedDraftError} onRetry={!saveError && attachmentError ? retrySaveAttachments : undefined} enabled={mode === 'create'} />
+      {mode === 'create' && savedAttachmentCount > 0 && !attachmentError && !isSavingAttachments && <p className="text-xs text-muted-foreground" role="status">تم حفظ {savedAttachmentCount} من الصور محليًا لاستعادتها دون اتصال.</p>}
+      <PublishMutationErrorNotice error={mode === 'create' ? create.error : update.error} />
       {isWizard && (
         <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps
@@ -745,7 +795,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
       onConfirm={() => {
         // SW-SVCFORM-HISTORY-GUARD-01: explicit discard also drops the
         // autosaved draft so it does not resurrect on the next visit.
-        if (mode === 'create') clearDraft();
+        if (mode === 'create') clearDraftAndAttachments();
         goBackSafely();
       }}
     />

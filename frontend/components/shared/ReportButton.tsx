@@ -8,6 +8,7 @@
  * useReportAd bound in; behavior for ads is unchanged.
  */
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Flag } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
@@ -15,6 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 import type { ReportReason } from '@/types/admin.types';
 import type { CreateReportPayload } from '@/api/reports.api';
@@ -47,22 +49,40 @@ export function ReportButton<TData, TError>({
   dialogTitle,
   mutation,
 }: Props<TData, TError>) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<ReportReason>('SCAM');
   const [notes, setNotes] = useState('');
   const isAuth = useAuthStore(selectIsAuthenticated);
 
   function handleOpen() {
-    if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+    if (!isAuth) {
+      toast.error('يرجى تسجيل الدخول أولاً');
+      const returnTo = typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}`
+        : '/';
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(returnTo)}`);
+      return;
+    }
     setReason('SCAM');
     setNotes('');
     setOpen(true);
   }
 
   function handleSubmit() {
+    // Keep the draft intact and the dialog open when the request fails.
+    // The pending guard is intentional even though the submit button is disabled.
+    if (mutation.isPending) return;
     mutation.mutate(
       { reason, notes: notes.trim() || undefined },
-      { onSuccess: () => setOpen(false) },
+      {
+        onSuccess: () => setOpen(false),
+        // Failures are already toasted by each report mutation hook
+        // (parseApiError message); toasting again here produced two toasts
+        // and a misleading "check your connection" text for server errors.
+        // The dialog stays open and the draft intact, so the user can retry.
+        onError: () => undefined,
+      },
     );
   }
 
@@ -76,7 +96,14 @@ export function ReportButton<TData, TError>({
         <Flag className="h-3.5 w-3.5" />
         {triggerLabel}
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          // Do not discard the form while a report is being submitted.
+          if (mutation.isPending && !nextOpen) return;
+          setOpen(nextOpen);
+        }}
+      >
         <DialogContent>
           <DialogHeader><DialogTitle>{dialogTitle}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
@@ -106,8 +133,8 @@ export function ReportButton<TData, TError>({
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-              <Button variant="destructive" onClick={handleSubmit} disabled={mutation.isPending}>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={mutation.isPending}>إلغاء</Button>
+              <Button variant="destructive" onClick={handleSubmit} disabled={mutation.isPending} aria-busy={mutation.isPending}>
                 {mutation.isPending ? 'جارٍ الإرسال…' : 'إرسال البلاغ'}
               </Button>
             </div>

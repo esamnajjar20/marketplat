@@ -21,9 +21,14 @@ export default function GroupNotFound() {
       <span className="text-7xl font-bold text-muted-foreground/30" aria-hidden>404</span>
       <h1 className="text-2xl font-semibold">الصفحة غير موجودة</h1>
       <p className="max-w-sm text-muted-foreground">ربما حُذف هذا المحتوى أو تغيّر رابطه.</p>
-      <Button asChild>
-        <Link href={ROUTES.home}>العودة للرئيسية</Link>
-      </Button>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Button asChild>
+          <Link href={ROUTES.home}>العودة للرئيسية</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href={ROUTES.search}>البحث في المنصة</Link>
+        </Button>
+      </div>
     </div>
   );
 }

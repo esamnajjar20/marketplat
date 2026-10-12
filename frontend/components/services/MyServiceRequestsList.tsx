@@ -39,7 +39,10 @@ export function MyServiceRequestsList() {
   // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-  const status = (sp.get('status') ?? undefined) as ServiceRequestStatus | undefined;
+  const statusParam = sp.get('status') ?? '';
+  const status = FILTER_TABS.includes(statusParam as ServiceRequestStatus | '')
+    ? (statusParam || undefined) as ServiceRequestStatus | undefined
+    : undefined;
 
   const { data, isLoading, isError, refetch } = useMyServiceRequests({ page, limit: 10, status });
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
@@ -92,14 +95,14 @@ export function MyServiceRequestsList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 border-b pb-3 overflow-x-auto" role="group" aria-label="تصفية الطلبات حسب الحالة">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2" role="group" aria-label="تصفية الطلبات حسب الحالة" style={{ scrollbarWidth: 'thin' }}>
         {FILTER_TABS.map((val) => (
           <button
             key={val}
             onClick={() => setStatus(val)}
             aria-pressed={(status ?? '') === val}
-            className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors
-              ${(status ?? '') === val ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
+            className={`inline-flex min-h-10 shrink-0 items-center justify-center rounded-full px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+              ${(status ?? '') === val ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'}`}
           >
             {val ? SERVICE_REQUEST_STATUS_LABELS[val] : 'الكل'}
           </button>
@@ -123,23 +126,23 @@ export function MyServiceRequestsList() {
             const canReview = request.status === 'COMPLETED' && request.review === null;
 
             return (
-              <div key={request.id} className="flex gap-3 p-3 rounded-lg border bg-card">
-                <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
+              <div key={request.id} className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
+                <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-24">
                   <SafeImage src={thumb} alt={request.listing.title} fill className="object-cover" sizes="96px" />
                 </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:justify-between">
                     <Link
                       href={ROUTES.serviceDetail(request.listing.id)}
-                      className="font-medium text-sm hover:underline line-clamp-1"
+                      className="min-w-0 break-words text-sm font-semibold leading-6 hover:underline sm:line-clamp-1"
                     >
                       {request.listing.title}
                     </Link>
-                    <Badge variant={SERVICE_REQUEST_STATUS_VARIANT[request.status]} className="shrink-0 text-xs">
+                    <Badge variant={SERVICE_REQUEST_STATUS_VARIANT[request.status]} className="max-w-full shrink-0 text-xs">
                       {SERVICE_REQUEST_STATUS_LABELS[request.status]}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="break-words text-xs text-muted-foreground">
                     إلى {request.listing.provider.businessName}
                   </p>
                   <p className="text-sm line-clamp-2">{request.details}</p>
@@ -153,7 +156,7 @@ export function MyServiceRequestsList() {
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}
-                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline">
+                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     عرض التفاصيل الكاملة
                   </Link>
                   {request.status === 'COMPLETED' && !canReview && (
@@ -204,7 +207,7 @@ export function MyServiceRequestsList() {
                   )}
                 </div>
                 {canCancel && (
-                  <div className="flex flex-col gap-1 shrink-0">
+                  <div className="flex shrink-0 flex-row justify-end gap-1 sm:flex-col">
                     <Button
                       variant="ghost"
                       size="icon"

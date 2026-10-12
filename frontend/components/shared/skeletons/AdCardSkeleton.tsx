@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 export function AdCardSkeleton({ density = 'default' }: { density?: 'default' | 'compact' }) {
   const compact = density === 'compact';
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card">
       <div className="relative">
         <Skeleton className={cn('w-full rounded-none', 'aspect-[4/3]')} />
         <Skeleton className="absolute end-2 top-2 h-9 w-9 rounded-full" />

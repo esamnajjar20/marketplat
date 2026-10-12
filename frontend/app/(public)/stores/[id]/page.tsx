@@ -92,7 +92,7 @@ export default async function StorePage({ params }: Props) {
     // widen from max-w-3xl → max-w-5xl so the
     // product grid and tabs breathe on tablet/desktop without losing
     // the centered mobile-first feel.
-    <div className="container mx-auto w-full max-w-7xl space-y-8 px-3 py-6 sm:px-4 lg:py-8">
+    <div className="container mx-auto w-full max-w-7xl space-y-6 px-3 py-5 sm:space-y-8 sm:px-5 sm:py-7 lg:py-9">
       {/* SW-SEO-JSONLD-STORE-01: LocalBusiness/Store schema. Phone and
           address are present on StoreDetails, so Google can surface a
           store card with contact info and location. */}

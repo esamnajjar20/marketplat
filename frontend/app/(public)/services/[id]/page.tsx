@@ -38,8 +38,13 @@ export default async function ServiceListingPage({ params }: Props) {
   try {
     const res = await getCachedListing(id);
     listing = res.data.data ?? null;
-  } catch {
-    /* 404 */
+  } catch (err) {
+    // Only a confirmed 404 means the service is missing. Network failures
+    // and server errors must reach the public error boundary with retry UI.
+    const statusCode =
+      (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
+      (err as { response?: { status?: number } })?.response?.status;
+    if (statusCode !== 404) throw err;
   }
 
   if (!listing) {

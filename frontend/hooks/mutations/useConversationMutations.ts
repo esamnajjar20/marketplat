@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { toast } from 'sonner';
-import type { StartConversationPayload, SendMessagePayload, Message } from '@/types/conversation.types';
+import type { StartConversationPayload, SendMessagePayload, Message, ConversationListItem } from '@/types/conversation.types';
 import type { PaginatedResponse } from '@/types/api.types';
 
 /**
@@ -33,10 +33,10 @@ export function useStartConversation() {
 }
 
 /**
- * POST /conversations/:id/messages. Invalidates both this thread's
- * messages and the conversation list (a new message bumps the thread's
- * updatedAt server-side, so the list's ordering changes too) — same
- * broad-invalidation shape as useRespondToServiceRequest.
+ * POST /conversations/:id/messages. Optimistically updates both the thread
+ * and every cached conversation-list page so the latest-message preview and
+ * ordering respond immediately, then reconciles or rolls back on completion.
+ * The server refetch remains the source of truth.
  *
  * UX-FIX (perceived-latency): previously did nothing to the cache until
  * the request resolved, then invalidated — ChatWindow (reading from the
@@ -115,6 +115,23 @@ export function useSendMessage(conversationId: string) {
       });
 
       const previous = matches.map(([key, data]) => [key, data] as const);
+      const previousConversations = queryClient.getQueriesData<PaginatedResponse<ConversationListItem>>({
+        queryKey: queryKeys.conversations.mineRoot(),
+      });
+      const sentAt = optimisticMessage.createdAt;
+
+      // Update the preview and timestamp in cached list pages immediately.
+      // The list component sorts by updatedAt (with pinned threads first), so
+      // the active conversation naturally rises without a refetch flash.
+      for (const [key, data] of previousConversations) {
+        if (!data?.items?.some((item) => item.id === conversationId)) continue;
+        queryClient.setQueryData<PaginatedResponse<ConversationListItem>>(key, {
+          ...data,
+          items: data.items.map((item) => item.id === conversationId
+            ? { ...item, lastMessage: optimisticMessage, updatedAt: sentAt }
+            : item),
+        });
+      }
 
       for (const [key, data] of matches) {
         if (!data) continue;
@@ -124,7 +141,7 @@ export function useSendMessage(conversationId: string) {
         });
       }
 
-      return { previous, optimisticId: optimisticMessage.id };
+      return { previous, previousConversations, optimisticId: optimisticMessage.id };
     },
 
     // FIX CHAT-OPTIMISTIC-SSE-DUP-01: replace the temp id with the server
@@ -136,6 +153,19 @@ export function useSendMessage(conversationId: string) {
       // nothing (the query-layer owns the fallback).
       if (!serverMessage) return;
       const optimisticId = context?.optimisticId;
+      const sentAt = serverMessage.createdAt || new Date().toISOString();
+      const listMatches = queryClient.getQueriesData<PaginatedResponse<ConversationListItem>>({
+        queryKey: queryKeys.conversations.mineRoot(),
+      });
+      for (const [key, data] of listMatches) {
+        if (!data?.items?.some((item) => item.id === conversationId)) continue;
+        queryClient.setQueryData<PaginatedResponse<ConversationListItem>>(key, {
+          ...data,
+          items: data.items.map((item) => item.id === conversationId
+            ? { ...item, lastMessage: serverMessage, updatedAt: sentAt }
+            : item),
+        });
+      }
       const matches = queryClient.getQueriesData<PaginatedResponse<Message>>({
         queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
@@ -171,6 +201,9 @@ export function useSendMessage(conversationId: string) {
     onError: (err, _payload, context) => {
       // Roll back only the exact cache entries this mutation touched.
       context?.previous.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      context?.previousConversations?.forEach(([key, data]) => {
         queryClient.setQueryData(key, data);
       });
       // FEAT-OFFLINE-MSG: a queued-offline rejection isn't a real failure —

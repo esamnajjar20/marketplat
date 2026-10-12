@@ -16,6 +16,8 @@ interface Props {
    * - warning: soft warning (offline / attention)
    */
   tone?: 'default' | 'muted' | 'warning';
+  /** Announcement urgency: errors should interrupt politely; ordinary empty states remain status updates. */
+  role?: 'status' | 'alert';
 }
 
 /**
@@ -30,6 +32,7 @@ export function EmptyState({
   className,
   compact = false,
   tone = 'default',
+  role = 'status',
 }: Props) {
   const iconWell =
     tone === 'warning'
@@ -45,7 +48,8 @@ export function EmptyState({
         compact ? 'gap-3 py-8 sm:py-10' : 'gap-4 py-12 sm:py-16',
         className,
       )}
-      role="status"
+      role={role}
+      aria-live={role === 'alert' ? 'assertive' : 'polite'}
     >
       {icon && (
         <div

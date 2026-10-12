@@ -48,13 +48,13 @@ export function StoryComposer({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="إنشاء ستوري">
-      <div className="relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-background shadow-2xl">
+      <div className="relative flex max-h-[min(92dvh,900px)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-background shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div><h2 className="font-bold">ستوري جديدة</h2><p className="text-xs text-muted-foreground">تختفي تلقائيًا بعد 24 ساعة</p></div>
           <button onClick={onClose} className="rounded-full p-2 hover:bg-muted" aria-label="إغلاق"><X className="h-5 w-5" /></button>
         </div>
 
-        <div className="overflow-y-auto p-4">
+        <div className="min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-4">
           <div className={`relative mx-auto flex aspect-[9/14] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br ${STORY_BACKGROUNDS.find((b) => b.key === background)?.gradient ?? STORY_BACKGROUNDS[0].gradient}`}>
             {preview && <img src={preview} alt="معاينة الستوري" className="absolute inset-0 h-full w-full object-cover" />}
             {!preview && <div className="px-7 text-center text-2xl font-bold leading-relaxed text-white drop-shadow-lg">{text || 'اكتب شيئًا رائعًا...'}</div>}
@@ -69,7 +69,7 @@ export function StoryComposer({ onClose }: { onClose: () => void }) {
             {file && <button type="button" onClick={() => setFile(undefined)} className="rounded-xl border border-border px-3 hover:bg-muted" aria-label="إزالة الصورة"><X className="h-4 w-4" /></button>}
           </div>
 
-          <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 500))} rows={3} maxLength={500} placeholder="اكتب رسالة قصيرة..." className="mt-3 w-full resize-none rounded-xl border border-border bg-card p-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+          <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 500))} rows={3} maxLength={500} placeholder="اكتب رسالة قصيرة..." aria-label="نص الستوري" className="mt-3 w-full resize-none rounded-xl border border-border bg-card p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/50" />
           <div className="mt-1 text-end text-[11px] text-muted-foreground">{text.length}/500</div>
 
           {!file && <div className="mt-3"><p className="mb-2 text-xs font-semibold">الخلفية</p><div className="flex gap-2">{STORY_BACKGROUNDS.map((item) => <button key={item.key} type="button" title={item.label} onClick={() => setBackground(item.key)} className={`h-9 w-9 rounded-full bg-gradient-to-br ${item.gradient} ring-offset-2 ${background === item.key ? 'ring-2 ring-primary' : ''}`} />)}</div></div>}
@@ -77,7 +77,7 @@ export function StoryComposer({ onClose }: { onClose: () => void }) {
           <div className="mt-4"><p className="mb-2 text-xs font-semibold">من يمكنه رؤيتها؟</p><div className="grid grid-cols-2 gap-2">{(['FOLLOWERS', 'PUBLIC'] as StoryVisibility[]).map((value) => <button key={value} type="button" onClick={() => setVisibility(value)} className={`rounded-xl border px-3 py-2 text-sm ${visibility === value ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted'}`}>{value === 'FOLLOWERS' ? 'المتابعون فقط' : 'الجميع'}</button>)}</div></div>
         </div>
 
-        <div className="border-t border-border p-3"><button disabled={!canPublish || createStory.isPending} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">{createStory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} نشر الستوري</button></div>
+        <div className="shrink-0 border-t border-border p-3"><button type="button" disabled={!canPublish || createStory.isPending} onClick={submit} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">{createStory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} نشر الستوري</button></div>
       </div>
     </div>
   );

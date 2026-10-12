@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
@@ -15,6 +15,7 @@ import { addRecentSearch, suggestRecentSearches } from '@/lib/recentSearches';
  */
 export function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
+  const suggestionsId = useId();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   // Recent-search history is browser-local state. Keep it out of render so
@@ -64,6 +65,10 @@ export function SearchBar({ className }: { className?: string }) {
         placeholder="ابحث عن سيارة، شقة، جهاز…"
         className="ps-9"
         aria-label="ابحث في الإعلانات"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open && suggestions.length > 0}
+        aria-controls={suggestionsId}
         autoComplete="off"
       />
       <button
@@ -76,7 +81,9 @@ export function SearchBar({ className }: { className?: string }) {
       {open && suggestions.length > 0 && (
         <ul
           className="absolute inset-x-0 top-full z-40 mt-1 max-h-56 overflow-auto rounded-lg border bg-popover py-1 text-sm shadow-md"
+          id={suggestionsId}
           role="listbox"
+          aria-label="عمليات البحث الأخيرة"
         >
           {suggestions.map((s) => (
             <li key={s}>

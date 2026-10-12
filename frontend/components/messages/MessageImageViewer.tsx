@@ -98,7 +98,7 @@ export function MessageImageViewer({ images, initialIndex, open, onOpenChange }:
         <DialogTitle className="sr-only">عارض الصور</DialogTitle>
         <div className="relative flex h-full min-h-0 flex-col">
           <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 bg-gradient-to-b from-black/75 to-transparent p-3 pb-8">
-            <span className="rounded-full bg-black/45 px-3 py-1 text-xs tabular-nums backdrop-blur">
+            <span className="rounded-full bg-black/45 px-3 py-1 text-xs tabular-nums backdrop-blur" aria-live="polite" aria-atomic="true" aria-label={`الصورة ${index + 1} من ${images.length}`}>
               {index + 1} / {images.length}
             </span>
             <div className="flex items-center gap-1 rounded-full bg-black/45 p-1 backdrop-blur">

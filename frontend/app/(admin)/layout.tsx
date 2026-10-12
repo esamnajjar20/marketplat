@@ -31,6 +31,7 @@ import { ROUTES } from '@/lib/constants';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader }  from '@/components/admin/AdminHeader';
 import { PageTransition } from '@/components/shared/PageTransition';
+import { SessionRestorationStatus } from '@/components/shared/SessionRestorationStatus';
 
 // Gap #20 (admin permission tiers) / ADMIN-HUB-01: every admin section is a tab
 // of the /admin hub now, so the page-level gate only has to admit the hub
@@ -91,11 +92,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [isAuthenticated, isAdminTier, isOutOfScopeForModerator, isResolved, router]);
 
   if (!isResolved) {
-    return (
-      <div className="min-h-screen min-h-dvh flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <SessionRestorationStatus />;
   }
 
   if (!isAuthenticated || !isAdminTier || isOutOfScopeForModerator) return null;

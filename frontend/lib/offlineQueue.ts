@@ -554,6 +554,62 @@ export function describeQueueFailure(item: QueuedRequestSummary): string {
   return msg || 'فشل غير معروف';
 }
 
+export type QueueFailureGuidance = {
+  category: 'session' | 'conflict' | 'invalid-data' | 'permission' | 'missing' | 'rate-limit' | 'server' | 'client' | 'unknown';
+  title: string;
+  nextStep: string;
+};
+
+/** تفسير قابل للتنفيذ لسبب الفشل، دون عرض رسالة HTTP خام كأنها تشخيص كامل. */
+export function getQueueFailureGuidance(item: QueuedRequestSummary): QueueFailureGuidance {
+  const status = item.lastError?.status;
+  if (status === 401) return {
+    category: 'session',
+    title: 'تحتاج إلى التحقق من تسجيل الدخول',
+    nextStep: 'افتح حسابك وتأكد أن جلستك ما زالت فعّالة، ثم راجع المسودة قبل إعادة الإرسال.',
+  };
+  if (status === 409 || status === 412) return {
+    category: 'conflict',
+    title: 'البيانات تغيّرت منذ حفظ الطلب',
+    nextStep: 'افتح المسودة وقارن البيانات الحالية قبل الإرسال؛ لا تكرر الطلب نفسه دون مراجعة.',
+  };
+  if (status === 422) return {
+    category: 'invalid-data',
+    title: 'البيانات تحتاج إلى تصحيح',
+    nextStep: 'افتح المسودة، صحح الحقول المطلوبة، ثم أرسلها من جديد.',
+  };
+  if (status === 403) return {
+    category: 'permission',
+    title: 'الحساب لا يملك صلاحية تنفيذ العملية',
+    nextStep: 'تحقق من نوع الحساب والصلاحيات. إعادة المحاولة وحدها لن تحل المشكلة.',
+  };
+  if (status === 404 || status === 410) return {
+    category: 'missing',
+    title: 'العنصر لم يعد متاحًا',
+    nextStep: 'راجع العنصر من التطبيق؛ احذف الطلب القديم إذا لم تعد تحتاجه.',
+  };
+  if (status === 429) return {
+    category: 'rate-limit',
+    title: 'الخادم طلب تقليل المحاولات',
+    nextStep: 'انتظر قليلًا قبل إعادة المحاولة، وتجنب الضغط المتكرر على الزر.',
+  };
+  if (status !== undefined && status >= 500) return {
+    category: 'server',
+    title: 'مشكلة مؤقتة في الخادم',
+    nextStep: 'احتفظ بالمسودة وأعد المحاولة لاحقًا عندما يستقر الاتصال بالخادم.',
+  };
+  if (status !== undefined && status >= 400) return {
+    category: 'client',
+    title: 'الخادم رفض الطلب',
+    nextStep: 'راجع تفاصيل العملية والمسودة قبل إعادة المحاولة أو إلغاء الطلب.',
+  };
+  return {
+    category: 'unknown',
+    title: 'لم نتمكن من تحديد سبب الفشل',
+    nextStep: 'احتفظ بالمسودة، تحقق من الاتصال، ثم أعد المحاولة يدويًا عند الاستعداد.',
+  };
+}
+
 /** الإجراء المقترح لعنصر فاشل — متوافق مع ConflictInfo.primaryAction */
 export function queueFailureAction(
   item: QueuedRequestSummary,

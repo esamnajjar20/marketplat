@@ -1,15 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, RefreshCw, WalletCards } from 'lucide-react';
+import { Plus, RefreshCw, ShoppingCart, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SaleCard } from './SaleCard';
 import { POSDialog } from './POSDialog';
+import { AddSaleDialog } from './AddSaleDialog';
 import { useSales } from '@/hooks/queries/useSales';
 
 export function SalesListClient() {
   const [open, setOpen] = useState(false);
+  const [posOpen, setPosOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const { data, isLoading, isError, refetch } = useSales({ page, limit: 12 });
@@ -30,10 +32,16 @@ export function SalesListClient() {
           <h2 className="text-xl font-bold">سجل المبيعات</h2>
           <p className="text-sm text-muted-foreground">راجع عمليات البيع والدفعات والإيصالات.</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="ms-2 h-4 w-4" />
-          بيع جديد
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="ms-2 h-4 w-4" />
+            تسجيل بيع
+          </Button>
+          <Button variant="outline" onClick={() => setPosOpen(true)}>
+            <ShoppingCart className="ms-2 h-4 w-4" />
+            نقطة بيع متعددة المنتجات
+          </Button>
+        </div>
       </div>
 
       <section className="rounded-xl border bg-card p-4">
@@ -83,6 +91,8 @@ export function SalesListClient() {
         </div>
       )}
 
+      {!isLoading && !isError && query && filtered.length === 0 ? <div className="text-center"><Button variant="ghost" size="sm" onClick={() => setSearch('')}>مسح البحث وعرض المبيعات</Button></div> : null}
+
       {data?.meta?.totalPages && data.meta.totalPages > 1 ? (
         <div className="flex items-center justify-center gap-3">
           <Button variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
@@ -95,7 +105,8 @@ export function SalesListClient() {
         </div>
       ) : null}
 
-      <POSDialog open={open} onOpenChange={setOpen} />
+      <AddSaleDialog open={open} onOpenChange={setOpen} />
+      <POSDialog open={posOpen} onOpenChange={setPosOpen} />
     </div>
   );
 }

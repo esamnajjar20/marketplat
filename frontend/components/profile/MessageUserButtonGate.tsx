@@ -45,6 +45,10 @@ export function MessageUserButtonGate({ targetUserId, className, size = 'sm', va
   function handleMessage() {
     if (!isAuth) {
       toast.error('يرجى تسجيل الدخول أولاً');
+      const returnTo = typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}`
+        : ROUTES.userProfile(targetUserId);
+      router.push(`${ROUTES.login}?from=${encodeURIComponent(returnTo)}`);
       return;
     }
     track('CONTACT_CLICK', { sellerId: targetUserId, source: 'product_or_profile' });
@@ -60,6 +64,7 @@ export function MessageUserButtonGate({ targetUserId, className, size = 'sm', va
       size={size}
       className={className ?? 'gap-2 min-h-11'}
       disabled={startConversation.isPending}
+      aria-busy={startConversation.isPending}
       onClick={handleMessage}
     >
       <MessageSquare className="h-4 w-4" />

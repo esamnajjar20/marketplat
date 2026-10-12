@@ -1,5 +1,6 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
+import { DETAIL_GALLERY_SHELL, DETAIL_GALLERY_FRAME, DETAIL_PANEL_PADDED, DETAIL_SECTION_TITLE, DETAIL_THUMBNAIL_RAIL, DETAIL_PRICE_PANEL } from '@/components/shared/detail/detailTokens';
 
 /**
  * Public product detail — mirrors AdDetail structure so shoppers get
@@ -8,13 +9,14 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
  */
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
   MapPin, Eye, Package, ChevronRight, ChevronLeft, Phone, Store as StoreIcon, X,
 } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { SafeImg } from '@/components/shared/ui/SafeImg';
+import { ZoomableDetailImage } from '@/components/shared/detail/ZoomableDetailImage';
+import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
 import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
@@ -49,9 +51,24 @@ export function ProductDetail({ product, related = [] }: Props) {
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
+  const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const images = product.images && product.images.length > 0 ? product.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
+
+  // Keep the active thumbnail visible when users navigate with arrows,
+  // keyboard shortcuts, swipe gestures, or direct thumbnail selection.
+  // Respect reduced-motion preferences and avoid any work during SSR.
+  useEffect(() => {
+    const activeThumbnail = thumbnailRefs.current[imgIdx];
+    if (!activeThumbnail) return;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    activeThumbnail.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }, [imgIdx, images.length]);
 
   // FIX: الـ API يُرجع price/discountPrice مسطّحة، فنحسب effectivePrice محلياً
   const rawPrice = Number(product.price ?? 0);
@@ -77,6 +94,17 @@ export function ProductDetail({ product, related = [] }: Props) {
     setImgIdx((i) => Math.min(images.length - 1, i + 1));
   }, [images.length]);
 
+  // Full-screen gallery keyboard support; Dialog handles Escape and focus management.
+  useEffect(() => {
+    if (!lightboxOpen || images.length <= 1) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') goNext();
+      if (event.key === 'ArrowRight') goPrev();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxOpen, images.length, goNext, goPrev]);
+
   const store = product.store;
   const shareUrl = `${APP_URL}${ROUTES.productDetail(product.id)}`;
   const ownerId = store.sellerProfile?.userId;
@@ -86,9 +114,9 @@ export function ProductDetail({ product, related = [] }: Props) {
       <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', ownerId ? 'pb-sticky-contact' : 'pb-8' /* FIX PB-STICKY-FALLBACK */)}>
         {/* Gallery + description */}
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm lg:shadow-md">
+          <div className={cn(DETAIL_GALLERY_SHELL, 'lg:shadow-md')}>
             <div
-              className="relative aspect-[4/3] bg-muted touch-pan-y sm:aspect-[16/9]"
+              className={DETAIL_GALLERY_FRAME}
               onTouchStart={(e) => {
                 touchStartX.current = e.changedTouches[0]?.clientX ?? null;
               }}
@@ -107,10 +135,9 @@ export function ProductDetail({ product, related = [] }: Props) {
                 onClick={() => setLightboxOpen(true)}
                 aria-label="تكبير الصورة"
               >
-                <SafeImage
+                <ProgressiveDetailImage
                   src={currentImg}
                   alt={product.name}
-                  fill
                   className="pointer-events-none select-none object-contain"
                   sizes="(max-width:1024px) 100vw, 66vw"
                   priority={imgIdx === 0}
@@ -152,10 +179,11 @@ export function ProductDetail({ product, related = [] }: Props) {
             </div>
 
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto p-3">
+              <div className={DETAIL_THUMBNAIL_RAIL}>
                 {images.map((src, i) => (
                   <button
                     key={`${src}-${i}`}
+                    ref={(node) => { thumbnailRefs.current[i] = node; }}
                     type="button"
                     onClick={() => setImgIdx(i)}
                     aria-label={`صورة ${i + 1}`}
@@ -185,8 +213,8 @@ export function ProductDetail({ product, related = [] }: Props) {
             <ActionRow product={product} shareUrl={shareUrl} />
           </div>
 
-          <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
-            <h2 className="text-sm font-semibold">الوصف</h2>
+          <section className={cn(DETAIL_PANEL_PADDED, 'space-y-3')}>
+            <h2 className={DETAIL_SECTION_TITLE}>الوصف</h2>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
               {product.description?.trim() || 'لا يوجد وصف إضافي لهذا المنتج.'}
             </p>
@@ -199,7 +227,7 @@ export function ProductDetail({ product, related = [] }: Props) {
 
           {related.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold">منتجات من نفس المتجر</h2>
+              <h2 className={DETAIL_SECTION_TITLE}>منتجات من نفس المتجر</h2>
               <div className="grid grid-cols-2 gap-3">
                 {related.map((p) => (
                   <ProductCard key={p.id} product={p} storeId={product.storeId} context="related" />
@@ -219,7 +247,7 @@ export function ProductDetail({ product, related = [] }: Props) {
 
         {/* Sidebar — سعر وإجراءات فقط (بدون sticky) */}
         <aside className="hidden w-full shrink-0 space-y-4 lg:block lg:w-1/3">
-          <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+          <div className={cn(DETAIL_PRICE_PANEL, 'space-y-3')}>
             <PriceBlock product={product} displayPrice={displayPrice} hasDiscount={hasDiscount} />
             <h1 className="text-xl font-bold leading-snug">{product.name}</h1>
             <MetaRow product={product} />
@@ -247,25 +275,50 @@ export function ProductDetail({ product, related = [] }: Props) {
         </div>
       )}
 
-      {/* Lightbox */}
+      {/* Full-screen gallery: keyboard, touch swipe, counter and explicit navigation. */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent
-          className="flex h-[100dvh] w-screen max-w-none items-center justify-center rounded-none border-0 bg-black/90 p-4 text-white shadow-none [&>button]:hidden"
+          className="flex h-[100dvh] w-screen max-w-none flex-col rounded-none border-0 bg-black/95 p-0 text-white shadow-none [&>button]:hidden"
         >
-          <DialogTitle className="sr-only">معاينة صورة المنتج</DialogTitle>
-          <button
-            type="button"
-            className="absolute top-4 end-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 p-2 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            onClick={() => setLightboxOpen(false)}
-            aria-label="إغلاق"
+          <DialogTitle className="sr-only">معرض صور المنتج</DialogTitle>
+          <div className="flex shrink-0 items-center justify-between px-4 py-3">
+            <span className="rounded-full bg-white/10 px-3 py-1 text-sm tabular-nums" aria-live="polite">
+              {imgIdx + 1} / {images.length}
+            </span>
+            <button
+              type="button"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              onClick={() => setLightboxOpen(false)}
+              aria-label="إغلاق المعرض"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <div
+            className="relative min-h-0 flex-1"
+            onTouchStart={(e) => { touchStartX.current = e.changedTouches[0]?.clientX ?? null; }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current == null || images.length <= 1) return;
+              const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+              touchStartX.current = null;
+              if (Math.abs(dx) < 40) return;
+              if (dx > 0) goPrev(); else goNext();
+            }}
           >
-            <X className="h-6 w-6" />
-          </button>
-          <SafeImg
-            src={currentImg}
-            alt={product.name}
-            className="max-h-[90vh] max-w-full object-contain"
-          />
+            <ZoomableDetailImage key={imgIdx} src={currentImg} alt={product.name} onSwipeNext={goNext} onSwipePrevious={goPrev} priority={imgIdx === 0} previousSrc={imgIdx > 0 ? getDetailImageUrl(images[imgIdx - 1] ?? PLACEHOLDER_SVG) : undefined} nextSrc={imgIdx < images.length - 1 ? getDetailImageUrl(images[imgIdx + 1] ?? PLACEHOLDER_SVG) : undefined} />
+            {images.length > 1 && (
+              <>
+                <button type="button" onClick={goPrev} disabled={imgIdx === 0} aria-label="الصورة السابقة"
+                  className="absolute start-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+                <button type="button" onClick={goNext} disabled={imgIdx === images.length - 1} aria-label="الصورة التالية"
+                  className="absolute end-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -285,11 +338,11 @@ function ProductAttributesSection({ product }: { product: ProductWithFullStore }
   };
 
   return (
-    <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
-      <h2 className="text-sm font-semibold">مواصفات المنتج</h2>
+    <section className={cn(DETAIL_PANEL_PADDED, 'space-y-3')}>
+      <h2 className={DETAIL_SECTION_TITLE}>مواصفات المنتج</h2>
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {fields.map((field) => (
-          <div key={field.id} className="rounded-lg bg-muted/40 px-3 py-2">
+          <div key={field.id} className="rounded-xl border border-border/50 bg-muted/40 px-3 py-3">
             <dt className="text-xs text-muted-foreground">{field.pageLabelAr || field.labelAr}</dt>
             <dd className="mt-1 text-sm font-medium">{formatValue(field, product.attributes?.[field.key])}</dd>
           </div>
@@ -397,7 +450,7 @@ function ActionRow({ product, shareUrl }: { product: ProductWithFullStore; share
 function StorePanel({ store, productId }: { store: ProductWithFullStore['store']; productId: string }) {
   const ownerId = store.sellerProfile?.userId;
   return (
-    <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+    <div className={cn(DETAIL_PRICE_PANEL, 'space-y-3')}>
       <p className="text-xs font-medium text-muted-foreground">المتجر</p>
       <Link
         href={ROUTES.storeDetail(store.slug || store.id)}

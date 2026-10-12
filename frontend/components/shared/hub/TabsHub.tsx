@@ -139,7 +139,7 @@ export function TabsHub<T extends string>({
       <div
         role="tablist"
         aria-label={tabListLabel}
-        className="sticky top-16 z-30 -mx-1 mb-6 flex gap-1 overflow-x-auto border-b border-border/70 bg-background/95 px-1 py-2 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:-mx-2 lg:px-2"
+        className="sticky top-16 z-30 -mx-1 mb-5 flex snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain border-b border-border/70 bg-background/95 px-1 py-2 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-background/85 [scrollbar-width:thin] sm:mb-6 lg:-mx-2 lg:px-2"
       >
         {tabs.map((tab) => {
           const { label, Icon } = meta[tab];
@@ -157,14 +157,14 @@ export function TabsHub<T extends string>({
               onClick={() => select(tab)}
               onKeyDown={(event) => onTabKeyDown(event, tab)}
               className={cn(
-                'flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:min-h-11 lg:px-3.5',
+                'flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-3.5',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground shadow-xs ring-1 ring-primary/10'
                   : 'border-border/80 bg-card/50 text-muted-foreground hover:border-primary/30 hover:bg-primary-soft/50 hover:text-foreground',
               )}
             >
               <Icon className="h-4 w-4" aria-hidden={true} />
-              {label}
+              <span className="whitespace-nowrap">{label}</span>
             </button>
           );
         })}

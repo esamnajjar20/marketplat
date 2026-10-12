@@ -53,6 +53,12 @@ export function LoginForm() {
     // with a confusing client-only error before it even reaches the server.
     if (!password)        e.password = 'كلمة المرور مطلوبة';
     setErrors(e);
+    // Move focus to the first invalid field so keyboard and screen-reader
+    // users immediately know where to correct the form.
+    const firstInvalidField = e.email ? 'email' : e.password ? 'password' : null;
+    if (firstInvalidField) {
+      document.getElementById(firstInvalidField)?.focus();
+    }
     return Object.keys(e).length === 0;
   }
 
@@ -109,7 +115,16 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setEmail(value);
+            setErrors((current) => {
+              if (!current.email) return current;
+              const next = { ...current };
+              delete next.email;
+              return next;
+            });
+          }}
           placeholder="example@email.com"
           dir="ltr"
         />
@@ -120,7 +135,16 @@ export function LoginForm() {
           id="password"
           autoComplete="current-password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setPassword(value);
+            setErrors((current) => {
+              if (!current.password) return current;
+              const next = { ...current };
+              delete next.password;
+              return next;
+            });
+          }}
           placeholder="••••••••"
           dir="ltr"
         />

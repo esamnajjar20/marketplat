@@ -1,8 +1,6 @@
 'use client';
 
-/**
- * Toaster — إشعارات عابرة بمظهر متسق وRTL.
- */
+/** Shared, theme-aware notification surface for lightweight feedback. */
 import { Toaster as SonnerToaster } from 'sonner';
 
 export function Toaster() {
@@ -11,17 +9,22 @@ export function Toaster() {
       position="top-center"
       dir="rtl"
       richColors
+      expand
       closeButton
-      duration={3800}
+      duration={4600}
       toastOptions={{
         classNames: {
-          toast:
-            'rounded-2xl border border-border/80 bg-card text-foreground shadow-lg font-sans',
-          title: 'text-sm font-semibold',
-          description: 'text-xs text-muted-foreground',
-          actionButton: 'bg-primary text-primary-foreground rounded-lg',
-          cancelButton: 'bg-muted text-muted-foreground rounded-lg',
-          closeButton: 'bg-card border-border',
+          toast: 'market-toast group font-sans',
+          title: 'market-toast-title',
+          description: 'market-toast-description',
+          icon: 'market-toast-icon',
+          success: 'market-toast-success',
+          error: 'market-toast-error',
+          warning: 'market-toast-warning',
+          info: 'market-toast-info',
+          actionButton: 'market-toast-action',
+          cancelButton: 'market-toast-cancel',
+          closeButton: 'market-toast-close',
         },
       }}
     />

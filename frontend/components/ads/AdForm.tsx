@@ -17,8 +17,10 @@ import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useFormDraftAttachments } from '@/hooks/useFormDraftAttachments';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
+import { PublishMutationErrorNotice } from '@/components/shared/forms/PublishMutationErrorNotice';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
   setActiveOfflineDraftId,
@@ -174,7 +176,7 @@ export function AdForm({ mode, ad }: Props) {
   // there's already a real saved ad to fall back to, and restoring a
   // stale draft over freshly-fetched server data would be confusing
   // rather than helpful.
-  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<DraftValues>(
+  const { clearDraft, lastSavedAt, isSaving, saveError } = useFormDraft<DraftValues>(
     'ad:create',
     {
       title: values.title, description: values.description, price: values.price,
@@ -183,8 +185,25 @@ export function AdForm({ mode, ad }: Props) {
     },
     { enabled: mode === 'create' },
   );
+  const { attachmentError, isSavingAttachments, savedAttachmentCount, clearAttachments, retrySaveAttachments } = useFormDraftAttachments(
+    'ad:create',
+    values.images,
+    (images) => setValues((current) => ({ ...current, images })),
+    { enabled: mode === 'create' },
+  );
+  const combinedDraftError = saveError ?? attachmentError;
+  const combinedDraftSaving = isSaving || isSavingAttachments;
+  async function clearDraftAndAttachments() {
+    clearDraft();
+    await clearAttachments();
+  }
 
-  useUnsavedChangesWarning(isDirty);
+
+  // P2: Unsaved image attachments must also trigger the unsaved-changes
+  // warning — otherwise a user who fails to persist image bytes (quota,
+  // IndexedDB unavailable, files too large) can navigate away and lose
+  // them silently. Text-draft errors are covered by FormDraftStatus.
+  useUnsavedChangesWarning(isDirty || Boolean(attachmentError));
 
   // SW-HISTORY-GUARD-01: history.back() leaves the app entirely when
   // the user opened /ads/create via a deep link (notification, bookmark,
@@ -205,7 +224,7 @@ export function AdForm({ mode, ad }: Props) {
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
-      if (mode === 'create') clearDraft();
+      if (mode === 'create') clearDraftAndAttachments();
       goBackSafely();
     }
   }
@@ -353,7 +372,7 @@ export function AdForm({ mode, ad }: Props) {
       // onSettled (not onSuccess) would also fire on failure and wipe
       // a draft the user still needs, so this stays scoped to onSuccess.
       createAd.mutate(payload, {
-        onSuccess: () => clearDraft(),
+        onSuccess: () => clearDraftAndAttachments(),
         onSettled: () => setUploadProgress(null),
       });
       return;
@@ -506,7 +525,9 @@ export function AdForm({ mode, ad }: Props) {
         />
       )}
 
-      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} enabled={mode === 'create'} />
+      <FormDraftStatus savedAt={lastSavedAt} saving={combinedDraftSaving} saveError={combinedDraftError} onRetry={!saveError && attachmentError ? retrySaveAttachments : undefined} enabled={mode === 'create'} />
+      {mode === 'create' && savedAttachmentCount > 0 && !attachmentError && !isSavingAttachments && <p className="text-xs text-muted-foreground" role="status">تم حفظ {savedAttachmentCount} من الصور محليًا لاستعادتها دون اتصال.</p>}
+      <PublishMutationErrorNotice error={mode === 'create' ? createAd.error : updateAd.error} />
 
       {isWizard && (
         <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
@@ -732,7 +753,7 @@ export function AdForm({ mode, ad }: Props) {
           // otherwise it would silently resurrect on the next visit
           // to /ads/create despite the user just having said no to
           // exactly that content.
-          if (mode === 'create') clearDraft();
+          if (mode === 'create') clearDraftAndAttachments();
           goBackSafely();
         }}
       />

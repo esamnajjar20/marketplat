@@ -15,6 +15,7 @@ import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { bestEffortCompressPublish, bestEffortCompressPreviews } from '@/lib/imageOfflineHelpers';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { publishAttemptFingerprint } from '@/lib/publishAttemptFingerprint';
 import {
   getActiveOfflineDraftId,
   clearActiveOfflineDraftId,
@@ -37,16 +38,23 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
   const router = useRouter();
   const userId = useAuthStore(selectUser)?.id ?? null;
   const operationIdRef = useRef<string | null>(null);
+  const operationFingerprintRef = useRef<string | null>(null);
 
   return useMutation({
     mutationFn: async (payload: CreateProductPayload) => {
-      operationIdRef.current = newOfflineOperationId();
+      const fingerprint = publishAttemptFingerprint(payload as unknown as Record<string, unknown>);
+      if (!operationIdRef.current || operationFingerprintRef.current !== fingerprint) {
+        operationIdRef.current = newOfflineOperationId();
+        operationFingerprintRef.current = fingerprint;
+      }
       // FIX TRIPLE-COMPRESS-01: removed dead compression step (see useAdMutations.ts for full rationale). Compression now runs once, in onError.
       return productsApi
         .create(payload, onUploadProgress, operationIdRef.current)
         .then((r) => r.data.data);
     },
     onSuccess: () => {
+      operationIdRef.current = null;
+      operationFingerprintRef.current = null;
       clearActiveOfflineDraftId();
       void invalidateProductBrowseCaches(queryClient, { includeStock: true });
       toast.success('تم إضافة المنتج بنجاح');

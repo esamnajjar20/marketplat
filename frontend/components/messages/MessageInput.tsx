@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
-import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Paperclip } from 'lucide-react';
+import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Paperclip, WifiOff } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { RecordingTimer } from './RecordingTimer';
 import { MessageBodyEditor, type MessageBodyEditorHandle } from './MessageBodyEditor';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface Props {
   conversationId: string;
@@ -43,6 +44,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const sendMessage = useSendMessage(conversationId);
+  const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
   const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -316,18 +318,25 @@ export function MessageInput({ conversationId, disabled }: Props) {
     );
   }
 
+  const composerBusy = uploading || sendMessage.isPending;
   const canSend =
-    (hasBody || Boolean(imageFile) || Boolean(attachmentFile)) && !sendMessage.isPending && !uploading && !recording;
+    (hasBody || Boolean(imageFile) || Boolean(attachmentFile)) && !composerBusy && !recording;
 
   return (
     <div className="border-t border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/90 dark:bg-card/95">
+      {!isOnline && (
+        <div role="status" aria-live="polite" className="flex items-start gap-2 border-b border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+          <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+          <span>الاتصال منقطع. يمكنك متابعة الكتابة؛ قد تُضاف الرسالة إلى قائمة الإرسال عند عودة الاتصال.</span>
+        </div>
+      )}
       {uploading && (
         <div role="status" aria-live="polite" className="flex items-center gap-2 border-b bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
           <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري رفع الصورة…' : uploadKind === 'file' ? 'جاري رفع الملف…' : 'جاري الإرسال…'}</span>
         </div>
       )}
-      {attachmentFile && <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs"><Paperclip className="h-4 w-4 text-primary"/><span className="min-w-0 flex-1 truncate">{attachmentFile.name}</span><button type="button" onClick={clearAttachment} className="rounded-full p-1 hover:bg-background" aria-label="إزالة الملف"><X className="h-4 w-4"/></button></div>}
+      {attachmentFile && <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs"><Paperclip className="h-4 w-4 text-primary"/><span className="min-w-0 flex-1 truncate">{attachmentFile.name}</span><button type="button" onClick={clearAttachment} disabled={composerBusy} className="rounded-full p-1 hover:bg-background" aria-label="إزالة الملف"><X className="h-4 w-4"/></button></div>}
       {imagePreview && (
         <div className="flex items-center gap-2 border-b px-3 py-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -338,6 +347,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
           <button
             type="button"
             onClick={clearImage}
+            disabled={composerBusy}
             className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="إزالة الصورة"
           >
@@ -346,7 +356,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
         </div>
       )}
 
-      {!hasBody && !imageFile && !attachmentFile && (
+      {!composerBusy && !hasBody && !imageFile && !attachmentFile && (
         <div
           className="flex gap-2 overflow-x-auto px-3 pt-2.5 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
           role="group"
@@ -396,10 +406,10 @@ export function MessageInput({ conversationId, disabled }: Props) {
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="px-3 py-2.5">
+      <form onSubmit={handleSubmit} aria-busy={composerBusy} className="px-2 py-2 sm:px-3 sm:py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <div
           className={cn(
-            'flex items-end gap-1.5 rounded-3xl border bg-muted/60 p-1.5 shadow-inner transition-[border-color,background-color,box-shadow]',
+            'flex items-end gap-1 rounded-3xl border bg-muted/60 p-1 sm:gap-1.5 sm:p-1.5 shadow-inner transition-[border-color,background-color,box-shadow]',
             'focus-within:border-primary/30 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/15',
           )}
         >
@@ -408,6 +418,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             type="file"
             accept=".pdf,.txt,.csv,.json,.zip,.7z,.rar,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
             className="hidden"
+            disabled={composerBusy}
             onChange={onPickAttachment}
           />
           <input
@@ -415,19 +426,21 @@ export function MessageInput({ conversationId, disabled }: Props) {
             type="file"
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
+            disabled={composerBusy}
             onChange={onPickImage}
           />
-          <button type="button" aria-label="إرفاق ملف" onClick={() => attachmentRef.current?.click()} disabled={uploading || disabled} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50" title="إرفاق ملف"><Paperclip className="h-5 w-5" /></button>
+          <button type="button" aria-label="إرفاق ملف" onClick={() => attachmentRef.current?.click()} disabled={uploading || disabled} className="mb-0.5 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50" title="إرفاق ملف"><Paperclip className="h-5 w-5" /></button>
           <button
             type="button"
             aria-label="إرفاق صورة"
             onClick={() => fileRef.current?.click()}
-            className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            disabled={composerBusy}
+            className="mb-0.5 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
           >
             <ImagePlus className="h-5 w-5" />
           </button>
           {recording && (
-            <button type="button" onClick={cancelRecording} className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:bg-muted hover:text-destructive" aria-label="إلغاء التسجيل" title="إلغاء التسجيل">
+            <button type="button" onClick={cancelRecording} className="mb-0.5 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:bg-muted hover:text-destructive" aria-label="إلغاء التسجيل" title="إلغاء التسجيل">
               <X className="h-4 w-4" />
             </button>
           )}
@@ -437,9 +450,9 @@ export function MessageInput({ conversationId, disabled }: Props) {
             aria-label={recording ? 'إيقاف التسجيل الصوتي' : 'تسجيل رسالة صوتية'}
             title={recording ? 'إيقاف التسجيل وإرسال التسجيل' : 'تسجيل رسالة صوتية'}
             onClick={() => void toggleRecording()}
-            disabled={uploading}
+            disabled={composerBusy}
             className={cn(
-              'group relative mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-[border-color,background-color,color,box-shadow,transform] duration-200',
+              'group relative mb-0.5 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border transition-[border-color,background-color,color,box-shadow,transform] duration-200',
               recording
                 ? 'border-destructive/40 bg-destructive text-destructive-foreground shadow-md shadow-destructive/20'
                 : 'border-transparent text-muted-foreground hover:border-primary/20 hover:bg-primary/10 hover:text-primary active:scale-95',
@@ -449,7 +462,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
             {recording ? <Square className="relative h-4 w-4" fill="currentColor" /> : <Mic className="relative h-5 w-5 transition-transform group-hover:scale-110" />}
           </button>
           <div className="min-w-0 flex-1">
-<MessageBodyEditor ref={bodyEditorRef} conversationId={conversationId} disabled={disabled} onContentChange={setHasBody} />
+{/* Keep the editor enabled while a text send is pending: disabling it drops focus (closing the mobile keyboard) and blocks typing the next message. Duplicate sends are already prevented by handleSubmit/canSend. It stays disabled during file uploads, whose completion clears the body. */}
+<MessageBodyEditor ref={bodyEditorRef} conversationId={conversationId} disabled={disabled || uploading} onContentChange={setHasBody} />
           </div>
 
           <button
@@ -462,7 +476,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             }}
             disabled={!canSend}
             className={cn(
-              'mb-0.5 me-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-md transition-[box-shadow,transform]',
+              'mb-0.5 me-0.5 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full shadow-md transition-[box-shadow,transform]',
               canSend
                 ? 'bg-primary text-primary-foreground hover:shadow-lg hover:scale-105 active:scale-95'
                 : 'bg-muted text-muted-foreground opacity-50 pointer-events-none',

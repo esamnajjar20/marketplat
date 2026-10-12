@@ -119,12 +119,12 @@ export function ProductsGrid() {
           page). */}
       <div className="space-y-1.5">
       <BrowseCityHint />
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="min-w-0 text-sm text-muted-foreground">
           {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
         </p>
-        <div className="flex items-center gap-2"><SaveSearchButton type="products" queryParamKey="search" /><ListViewToggle /></div>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto"><SaveSearchButton type="products" queryParamKey="search" /><ListViewToggle /></div>
       </div>
       </div>
 
@@ -142,7 +142,7 @@ export function ProductsGrid() {
         // ~1600px instead of an extra column of actual content. Same
         // change applied to ServiceListingsGrid/search+ads
         // SearchResults/StoresGrid.
-        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_CARD_GRID_CLASS, 'stagger-fade-in')}>
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_CARD_GRID_CLASS, 'stagger-fade-in min-w-0')}>
           {items.map((product) => (
             <div key={product.id} className="space-y-1.5">
               <ProductCard product={product} storeId={product.store.id} context="catalog" density={view === 'list' ? 'compact' : 'default'} layout={view} />

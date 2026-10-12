@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pause, Play, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pause, Play, Sparkles } from 'lucide-react';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
@@ -74,7 +74,7 @@ const BADGE: Record<SlideType, { emoji: string; label: string; className: string
 };
 
 /** Shorter on phones so featured does not own the whole fold; wider on desktop. */
-export const CAROUSEL_ASPECT = 'aspect-[16/10] sm:aspect-[2/1] md:aspect-[21/9] lg:aspect-[3/1]';
+export const CAROUSEL_ASPECT = 'aspect-[16/10] sm:aspect-[2/1] md:aspect-[21/9] lg:aspect-[21/8]';
 
 export function FeaturedCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -251,10 +251,11 @@ export function FeaturedCarousel() {
         }
       }}
     >
+      <div className="relative">
       <div
         ref={trackRef}
         onScroll={handleScroll}
-        className="flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain rounded-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
+        className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain rounded-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         tabIndex={0}
         aria-live={autoPlaying ? 'off' : 'polite'}
       >
@@ -280,7 +281,7 @@ export function FeaturedCarousel() {
               src={slide.imageUrl}
               alt={slide.title}
               fill
-              sizes="(max-width: 1280px) 100vw, 1280px"
+              sizes="100vw"
               className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               priority={i === 0}
             />
@@ -303,30 +304,30 @@ export function FeaturedCarousel() {
         ))}
       </div>
 
+        {slides.length > 1 && (
+        <div className="pointer-events-none absolute inset-y-0 start-0 end-0 flex items-center justify-between px-1 sm:px-2">
+          <button
+            type="button"
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-md backdrop-blur transition-colors hover:bg-background active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10 sm:w-10"
+            aria-label="الشريحة السابقة"
+            onClick={() => go(index - 1)}
+          >
+            <ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-md backdrop-blur transition-colors hover:bg-background active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10 sm:w-10"
+            aria-label="الشريحة التالية"
+            onClick={() => go(index + 1)}
+          >
+            <ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden />
+          </button>
+        </div>
+        )}
+      </div>
+
       {slides.length > 1 && (
         <>
-          <div className="pointer-events-none absolute inset-y-0 start-0 end-0 flex items-center justify-between px-1 sm:px-2">
-            <button
-              type="button"
-              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9 sm:w-9"
-              aria-label="الشريحة السابقة"
-              onClick={() => go(index - 1)}
-            >
-              <span aria-hidden className="text-lg leading-none">
-                ‹
-              </span>
-            </button>
-            <button
-              type="button"
-              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur hover:bg-background active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9 sm:w-9"
-              aria-label="الشريحة التالية"
-              onClick={() => go(index + 1)}
-            >
-              <span aria-hidden className="text-lg leading-none">
-                ›
-              </span>
-            </button>
-          </div>
           <div className="flex items-center justify-center gap-1" role="group" aria-label="شرائح مميزة">
             <button
               type="button"
@@ -345,8 +346,8 @@ export function FeaturedCarousel() {
               <button
                 key={slide.key}
                 type="button"
-                aria-current={i === index ? 'true' : undefined}
-                aria-label={`الشريحة ${i + 1}`}
+                aria-label={`الشريحة ${i + 1} من ${slides.length}: ${slide.title}`}
+                aria-current={i === index ? 'step' : undefined}
                 onClick={() => go(i)}
                 className="flex h-10 w-8 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-8 sm:w-6"
               >

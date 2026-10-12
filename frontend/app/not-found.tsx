@@ -25,9 +25,14 @@ export default function NotFound() {
       <p className="max-w-sm text-muted-foreground">
         الصفحة التي تبحث عنها غير موجودة أو تم نقلها.
       </p>
-      <Button asChild>
-        <Link href="/">العودة للرئيسية</Link>
-      </Button>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Button asChild>
+          <Link href="/">العودة للرئيسية</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/search">البحث في المنصة</Link>
+        </Button>
+      </div>
     </main>
   );
 }

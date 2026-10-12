@@ -45,6 +45,15 @@ export function ConversationList({ selectedId }: Props = {}) {
   const [pendingFlagId, setPendingFlagId] = useState<string | null>(null);
   const { mutate: setFlags } = useSetConversationFlags();
 
+  // Keep every filter-reset action in sync. In particular, the empty-state
+  // action must also clear archivedOnly or the list remains stuck in archive.
+  const clearFilters = useCallback(() => {
+    setQuery('');
+    setUnreadOnly(false);
+    setArchivedOnly(false);
+    setInbox('all');
+  }, []);
+
   const handleSetFlags = useCallback((input: { id: string; pinned?: boolean; archived?: boolean; mutedUntil?: string | null }) => {
     setPendingFlagId(input.id);
     setFlags(input, { onSettled: () => setPendingFlagId(null) });
@@ -285,12 +294,7 @@ export function ConversationList({ selectedId }: Props = {}) {
           <span>محادثة مطابقة للفلاتر الحالية</span>
           <button
             type="button"
-            onClick={() => {
-              setQuery('');
-              setUnreadOnly(false);
-              setArchivedOnly(false);
-              setInbox('all');
-            }}
+            onClick={clearFilters}
             className="ms-auto font-medium text-primary hover:underline"
           >
             مسح الفلاتر
@@ -306,20 +310,18 @@ export function ConversationList({ selectedId }: Props = {}) {
               ? `لا نتائج لـ «${query}»`
               : unreadOnly
                 ? 'لا محادثات غير مقروءة'
-                : inbox === 'stores'
+                : archivedOnly
+                  ? 'لا توجد محادثات في الأرشيف'
+                  : inbox === 'stores'
                   ? 'لا توجد محادثات مع المتاجر'
                   : inbox === 'users'
                     ? 'لا توجد محادثات مع المستخدمين'
                     : 'لا نتائج'}
           </p>
-          {(query || unreadOnly || inbox !== 'all') && (
+          {(query.trim() || unreadOnly || archivedOnly || inbox !== 'all') && (
             <button
               type="button"
-              onClick={() => {
-                setQuery('');
-                setUnreadOnly(false);
-                setInbox('all');
-              }}
+              onClick={clearFilters}
               className="text-sm text-primary hover:underline"
             >
               إظهار الكل

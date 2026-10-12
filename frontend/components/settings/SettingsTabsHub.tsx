@@ -95,9 +95,9 @@ function TabBody({ tab }: { tab: SettingsTab }) {
     default:
       return (
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <h1 className="text-xl font-bold">الملف الشخصي</h1>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Link
                 href={ROUTES.offline.drafts}
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"

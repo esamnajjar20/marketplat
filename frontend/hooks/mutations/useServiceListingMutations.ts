@@ -15,6 +15,7 @@ import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { bestEffortCompressPublish, bestEffortCompressPreviews } from '@/lib/imageOfflineHelpers';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { publishAttemptFingerprint } from '@/lib/publishAttemptFingerprint';
 import {
   getActiveOfflineDraftId,
   clearActiveOfflineDraftId,
@@ -40,16 +41,23 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
   const router = useRouter();
   const userId = useAuthStore(selectUser)?.id ?? null;
   const operationIdRef = useRef<string | null>(null);
+  const operationFingerprintRef = useRef<string | null>(null);
 
   return useMutation({
     mutationFn: async (payload: CreateServiceListingPayload) => {
-      operationIdRef.current = newOfflineOperationId();
+      const fingerprint = publishAttemptFingerprint(payload as unknown as Record<string, unknown>);
+      if (!operationIdRef.current || operationFingerprintRef.current !== fingerprint) {
+        operationIdRef.current = newOfflineOperationId();
+        operationFingerprintRef.current = fingerprint;
+      }
       // FIX TRIPLE-COMPRESS-01: removed dead compression step (see useAdMutations.ts for full rationale). Compression now runs once, in onError.
       return serviceListingsApi
         .create(payload, onUploadProgress, operationIdRef.current)
         .then((r) => r.data.data);
     },
     onSuccess: () => {
+      operationIdRef.current = null;
+      operationFingerprintRef.current = null;
       clearActiveOfflineDraftId();
       void invalidateServiceListingCaches(queryClient);
       toast.success('تم نشر الخدمة بنجاح');

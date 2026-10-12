@@ -73,17 +73,17 @@ function HubBody({ store }: { store: StoreDetails }) {
   const featurePending = Boolean(store.featureRequestedAt);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:p-5">
         <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Store className="h-5 w-5 text-muted-foreground shrink-0" />
-            <h1 className="text-xl font-bold truncate">{store.name}</h1>
+            <h1 className="min-w-0 break-words text-lg font-bold sm:text-xl">{store.name}</h1>
             <Badge variant={STORE_STATUS_VARIANT[store.status]}>{STORE_STATUS_LABELS[store.status]}</Badge>
           </div>
           {store.city && <p className="text-sm text-muted-foreground">{store.city}</p>}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
           {store.status === 'ACTIVE' && (
             <Button variant="outline" size="sm" asChild className="gap-1.5">
               <Link href={ROUTES.storeDetail(store.id)}>
@@ -128,38 +128,38 @@ function HubBody({ store }: { store: StoreDetails }) {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">إجراءات سريعة</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <Button asChild className="h-auto flex-col gap-1 py-3 font-semibold">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+          <Button asChild className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center font-semibold sm:min-h-24">
             <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
               <PackagePlus className="h-4 w-4" />
               {storeLabels.addProduct}
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
             <Link prefetch={false} href={ROUTES.myStoreProducts}>
               <Package className="h-4 w-4" />
               {storeLabels.products}
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
             <Link prefetch={false} href={ROUTES.myStoreInventory}>
               <Package className="h-4 w-4" />
               المخزون
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
             <Link prefetch={false} href={ROUTES.myStoreMembers}>
               <Users className="h-4 w-4" />
               الأعضاء
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
             <Link prefetch={false} href={ROUTES.myStorePromotions}>
               <Tag className="h-4 w-4" />
               العروض
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-1 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
             <Link prefetch={false} href={ROUTES.myStoreCollections}>
               <Layers className="h-4 w-4" />
               المجموعات

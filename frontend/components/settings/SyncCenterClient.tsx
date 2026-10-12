@@ -25,6 +25,7 @@ import {
   requestQueueReplay,
   isConflictFailure,
   describeQueueFailure,
+  getQueueFailureGuidance,
   queueFailureAction,
   type QueuedRequestSummary,
 } from '@/lib/offlineQueue';
@@ -65,6 +66,7 @@ export function SyncCenterClient() {
   const [syncing, setSyncing] = useState(false);
   const [loadWarning, setLoadWarning] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [queueActivity, setQueueActivity] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -103,12 +105,54 @@ export function SyncCenterClient() {
 
   useEffect(() => {
     void refresh();
-    const onLocalUpdate = () => { void refresh(); };
+    let refreshTimer: number | undefined;
+    const scheduleRefresh = () => {
+      // SW may send QUEUE_ITEM_SENT for many rows followed by QUEUE_REPLAYED.
+      // Coalesce these signals so the sync centre doesn't open many IDB reads.
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = undefined;
+        void refresh();
+      }, 300);
+    };
+    const onLocalUpdate = () => scheduleRefresh();
+    const onServiceWorkerMessage = (event: MessageEvent) => {
+      const data = event.data as {
+        type?: string;
+        sent?: number;
+        failed?: number;
+        processed?: number;
+        stillOffline?: boolean;
+      } | null;
+      if (!data?.type) return;
+      if (data.type === 'QUEUE_DRAIN_STARTED') {
+        setQueueActivity('جارٍ إرسال العمليات المحفوظة…');
+        scheduleRefresh();
+      } else if (data.type === 'QUEUE_DRAIN_FINISHED') {
+        const sent = Number.isFinite(data.sent) ? Math.max(0, Number(data.sent)) : 0;
+        const failedCount = Number.isFinite(data.failed) ? Math.max(0, Number(data.failed)) : 0;
+        if (data.stillOffline) {
+          setQueueActivity('توقف الإرسال لأن الاتصال غير متاح. بقيت العمليات غير المرسلة محفوظة.');
+        } else if (sent > 0 || failedCount > 0) {
+          setQueueActivity(`انتهت محاولة المزامنة: أُرسل ${sent}، ويحتاج ${failedCount} إلى مراجعة.`);
+        } else {
+          setQueueActivity('انتهت محاولة المزامنة. حدّث القائمة للتحقق من الحالة الحالية.');
+        }
+        scheduleRefresh();
+      } else if (data.type === 'QUEUE_REPLAYED' || data.type === 'QUEUE_CLEARED') {
+        scheduleRefresh();
+      }
+    };
     window.addEventListener('offline-appointment-drafts:updated', onLocalUpdate);
     window.addEventListener('offline-favorite-intents:updated', onLocalUpdate);
+    window.addEventListener('offline-drafts:updated', onLocalUpdate);
+    navigator.serviceWorker?.addEventListener('message', onServiceWorkerMessage);
     return () => {
       window.removeEventListener('offline-appointment-drafts:updated', onLocalUpdate);
       window.removeEventListener('offline-favorite-intents:updated', onLocalUpdate);
+      window.removeEventListener('offline-drafts:updated', onLocalUpdate);
+      navigator.serviceWorker?.removeEventListener('message', onServiceWorkerMessage);
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
     };
   }, [refresh, isOnline]);
 
@@ -318,6 +362,11 @@ export function SyncCenterClient() {
             {syncNotice}
           </p>
         ) : null}
+        {queueActivity ? (
+          <p role="status" aria-live="polite" className="mt-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            {queueActivity}
+          </p>
+        ) : null}
         {drafts[0]?.updatedAt ? (
           <OfflineFreshnessBadge
             className="mt-1"
@@ -515,6 +564,7 @@ export function SyncCenterClient() {
             {failedItems.map((item) => {
               const action = queueFailureAction(item);
               const conflict = isConflictFailure(item);
+              const guidance = getQueueFailureGuidance(item);
               return (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
                 <div className="min-w-0 text-sm">
@@ -524,6 +574,13 @@ export function SyncCenterClient() {
                   <p className="text-xs text-muted-foreground">
                     {describeQueueFailure(item)}
                   </p>
+                  <div className="mt-2 rounded-lg border border-border/70 bg-muted/30 p-2" aria-label="إرشادات حل الخطأ">
+                    <p className="text-xs font-semibold">{guidance.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{guidance.nextStep}</p>
+                  </div>
+                  {item.lastError?.status ? (
+                    <p className="mt-1 text-[11px] text-muted-foreground">رمز الاستجابة: {item.lastError.status}</p>
+                  ) : null}
                   {item.operationId ? (
                     <p className="mt-1 text-xs text-muted-foreground">
                       المحتوى المرتبط بهذه العملية محفوظ أيضًا كمسودة، ويمكنك تعديله من قسم المسودات أعلاه.
@@ -539,21 +596,30 @@ export function SyncCenterClient() {
                     </p>
                   ) : null}
                 </div>
-                <div className="flex gap-1">
-                  {action === 'retry' || action === 'edit' ? (
+                <div className="flex flex-wrap gap-1">
+                  {action === 'retry' ? (
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={!isOnline || (conflict && action !== 'retry')}
+                      disabled={!isOnline}
                       onClick={() => void handleRetry(item.id)}
-                      title={
-                        conflict && action !== 'retry'
-                          ? 'التعارض يحتاج مراجعة يدوية'
-                          : 'إعادة المحاولة'
-                      }
+                      title="إعادة المحاولة عند توفر الاتصال"
                     >
-                      {conflict && action !== 'retry' ? 'تعارض' : 'إعادة'}
+                      إعادة المحاولة
                     </Button>
+                  ) : null}
+                  {action === 'edit' ? (
+                    item.operationId ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href="/offline?tab=drafts" title="افتح مركز المسودات لمراجعة العملية قبل إرسالها">
+                          مراجعة المسودة
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" disabled title="راجع البيانات في الصفحة الأصلية قبل إعادة الإرسال">
+                        تحتاج مراجعة
+                      </Button>
+                    )
                   ) : null}
                   <Button size="sm" variant="ghost" onClick={() => void handleDiscard(item.id, item.operationId)}>
                     إلغاء الطلب

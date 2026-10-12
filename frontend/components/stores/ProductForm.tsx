@@ -13,8 +13,10 @@ import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { useStoreTypeFields } from '@/hooks/queries/useStoreTypes';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useFormDraftAttachments } from '@/hooks/useFormDraftAttachments';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
+import { PublishMutationErrorNotice } from '@/components/shared/forms/PublishMutationErrorNotice';
 import { getAdDraft } from '@/lib/offlineAdDrafts';
 import {
   setActiveOfflineDraftId,
@@ -233,7 +235,7 @@ export function ProductForm({ mode, product }: Props) {
   // يملأ نموذج منتج *جديد* — بوضع create فقط (نفس استثناء AdForm.tsx:
   // بوضع edit توجد بيانات منتج حقيقية بالسيرفر، فاستعادة مسودة قديمة
   // فوقها سيكون مربكًا لا مفيدًا).
-  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<ProductDraftValues>(
+  const { clearDraft, lastSavedAt, isSaving, saveError } = useFormDraft<ProductDraftValues>(
     'product:create',
     {
       categoryId: values.categoryId,
@@ -250,6 +252,19 @@ export function ProductForm({ mode, product }: Props) {
     },
     { enabled: mode === 'create' },
   );
+  const { attachmentError, isSavingAttachments, savedAttachmentCount, clearAttachments, retrySaveAttachments } = useFormDraftAttachments(
+    'product:create',
+    values.images,
+    (images) => setValues((current) => ({ ...current, images })),
+    { enabled: mode === 'create' },
+  );
+  const combinedDraftError = saveError ?? attachmentError;
+  const combinedDraftSaving = isSaving || isSavingAttachments;
+  async function clearDraftAndAttachments() {
+    clearDraft();
+    await clearAttachments();
+  }
+
 
   function fieldError(field: keyof Errors): string | undefined {
     return errors[field] ?? serverErrors?.[field]?.[0];
@@ -257,6 +272,16 @@ export function ProductForm({ mode, product }: Props) {
 
   function set<K extends keyof ProductFormValues>(key: K, val: ProductFormValues[K]) {
     setValues((v) => ({ ...v, [key]: val }));
+    // Once the user edits a field, remove stale client/server feedback for it.
+    // Dynamic attributes share one server key, so editing one clears that group.
+    setErrors((current) => ({ ...current, [key]: undefined }));
+    setServerErrors((current) => {
+      if (!current) return current;
+      const next = { ...current };
+      delete next[key];
+      if (key === 'attributes') delete next.attributes;
+      return Object.keys(next).length > 0 ? next : undefined;
+    });
   }
 
   function validate(): boolean {
@@ -334,7 +359,11 @@ export function ProductForm({ mode, product }: Props) {
     values.images.length > 0 ||
     values.existingImages.length !== initialValues.existingImages.length ||
     values.existingImages.some((url, i) => url !== initialValues.existingImages[i]);
-  useUnsavedChangesWarning(isDirty);
+  // P2: Unsaved image attachments must also trigger the unsaved-changes
+  // warning — otherwise a user who fails to persist image bytes (quota,
+  // IndexedDB unavailable, files too large) can navigate away and lose
+  // them silently. Text-draft errors are covered by FormDraftStatus.
+  useUnsavedChangesWarning(isDirty || Boolean(attachmentError));
 
   function goBackSafely() {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -348,7 +377,7 @@ export function ProductForm({ mode, product }: Props) {
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
-      if (mode === 'create') clearDraft();
+      if (mode === 'create') clearDraftAndAttachments();
       goBackSafely();
     }
   }
@@ -383,7 +412,7 @@ export function ProductForm({ mode, product }: Props) {
           },
           // PHASE-OFFLINE-DRAFTS: نفس منطق AdForm.tsx — لا داعي لمسودة
           // بعد نجاح النشر الفعلي.
-          onSuccess: () => clearDraft(),
+          onSuccess: () => clearDraftAndAttachments(),
           onSettled: () => setUploadProgress(null),
         }
       );
@@ -521,7 +550,9 @@ export function ProductForm({ mode, product }: Props) {
 
   const formElement = (
     <form dir="rtl" onSubmit={handleSubmit} noValidate className="space-y-6 text-right">
-      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} enabled={mode === 'create'} />
+      <FormDraftStatus savedAt={lastSavedAt} saving={combinedDraftSaving} saveError={combinedDraftError} onRetry={!saveError && attachmentError ? retrySaveAttachments : undefined} enabled={mode === 'create'} />
+      {mode === 'create' && savedAttachmentCount > 0 && !attachmentError && !isSavingAttachments && <p className="text-xs text-muted-foreground" role="status">تم حفظ {savedAttachmentCount} من الصور محليًا لاستعادتها دون اتصال.</p>}
+      <PublishMutationErrorNotice error={mode === 'create' ? create.error : update.error} />
       {isWizard && (
         <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
           <FormSteps
@@ -810,7 +841,7 @@ export function ProductForm({ mode, product }: Props) {
         // draft — otherwise it would silently resurrect on the next
         // visit to /my-store/products/new despite the user just
         // having said no to exactly that content.
-        if (mode === 'create') clearDraft();
+        if (mode === 'create') clearDraftAndAttachments();
         goBackSafely();
       }}
     />

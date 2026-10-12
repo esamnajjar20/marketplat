@@ -20,6 +20,7 @@ interface Props {
   isMine: boolean;
   conversationId: string;
   isRetrying: boolean;
+  retryBlocked: boolean;
   markPending: boolean;
   onMarkMessage: (input: { messageId: string; kind: 'star' | 'pin'; active: boolean }) => void;
   onDeleteRequest: (messageId: string) => void;
@@ -29,7 +30,7 @@ interface Props {
   onEditQueued: (message: DisplayMessage) => void;
 }
 
-export const ChatMessageRow = memo(function ChatMessageRow({ message, showDay, tight, isMine, conversationId, isRetrying, markPending, onMarkMessage, onDeleteRequest, onRetryQueued, onDiscardQueued, onCancelQueued, onEditQueued }: Props) {
+export const ChatMessageRow = memo(function ChatMessageRow({ message, showDay, tight, isMine, conversationId, isRetrying, retryBlocked, markPending, onMarkMessage, onDeleteRequest, onRetryQueued, onDiscardQueued, onCancelQueued, onEditQueued }: Props) {
   // Keep the day separator identical during SSR and the first hydration render.
   // The shared clock publishes the real client time only after mount.
   const now = useNowAfterMount(true, message.createdAt);
@@ -49,7 +50,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({ message, showDay, t
           </div>
         </div>
         <MessageStatusBar message={message} isMine={isMine} />
-        <MessageQueuedActions message={message} isRetrying={isRetrying} onRetryQueued={onRetryQueued} onDiscardQueued={onDiscardQueued} onCancelQueued={onCancelQueued} onEditQueued={onEditQueued} />
+        <MessageQueuedActions message={message} isRetrying={isRetrying} retryBlocked={retryBlocked} onRetryQueued={onRetryQueued} onDiscardQueued={onDiscardQueued} onCancelQueued={onCancelQueued} onEditQueued={onEditQueued} />
         {clientStatus === 'failed' && message.lastError && (
           <p className="px-1 text-2xs text-destructive/80">
             {classifyHttpConflict(message.lastError.status, message.lastError.message).message}

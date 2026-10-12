@@ -41,6 +41,7 @@ import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';
 import { BottomNav }        from '@/components/layout/BottomNav';
 import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { PageTransition }   from '@/components/shared/PageTransition';
+import { SessionRestorationStatus } from '@/components/shared/SessionRestorationStatus';
 import { ROUTES }           from '@/lib/constants';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -115,21 +116,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 
   // Show skeleton while waiting for hydration or session restoration.
   if (!isResolved) {
-    return (
-      <div className="min-h-screen min-h-dvh flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <SessionRestorationStatus />;
   }
 
   // لا تُرجع null (شاشة بيضاء) — اعرض رسالة قصيرة أثناء التحويل لتسجيل الدخول.
   if (!isAuthenticated && !canRenderOffline) {
-    return (
-      <div className="flex min-h-screen min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="text-sm text-muted-foreground">جاري التحقق من الجلسة…</p>
-      </div>
-    );
+    return <SessionRestorationStatus message="جاري التحقق من الجلسة…" />;
   }
 
   return (

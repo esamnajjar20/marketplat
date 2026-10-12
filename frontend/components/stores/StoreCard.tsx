@@ -46,7 +46,7 @@ export const StoreCard = memo(function StoreCard({ store, className, density = '
           CARD_PRESS,
         )}
       >
-        <div className={cn('relative overflow-hidden bg-muted', layout === 'list' ? 'aspect-auto h-32 w-32 shrink-0 sm:h-36 sm:w-44' : 'aspect-[3/1]') }>
+        <div className={cn('relative overflow-hidden bg-muted', layout === 'list' ? 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40' : 'aspect-[3/1]') }>
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover transition-transform duration-normal ease-standard group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, 360px" />
           ) : (
@@ -62,7 +62,7 @@ export const StoreCard = memo(function StoreCard({ store, className, density = '
           )}
         </div>
 
-        <div className={cn('relative flex flex-1 flex-col', compact ? 'px-3 pb-3' : 'px-3.5 pb-3.5')}>
+        <div className={cn('relative flex min-w-0 flex-1 flex-col', compact ? 'px-2.5 pb-3 sm:px-3' : 'px-3.5 pb-3.5')}>
           <div className="-mt-7 mb-2 flex items-end justify-between gap-2">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border-[3px] border-card bg-muted shadow-md">
               <SafeImage variant="avatar" src={avatar} alt={store.name} fill className="object-cover" sizes="56px" />
@@ -101,7 +101,7 @@ export const StoreCard = memo(function StoreCard({ store, className, density = '
         </div>
       </Link>
 
-      {showHeart && <FavoriteButton entityType="STORE" entityId={store.id} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
+      {showHeart && <FavoriteButton entityType="STORE" entityId={store.id} returnTo={ROUTES.storeDetail(store.id)} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
     </article>
   );
 });

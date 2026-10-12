@@ -7,7 +7,7 @@ import { FeaturedCarousel } from './FeaturedCarousel';
 import { CategoriesRow } from './CategoriesRow';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
-/** Only discovery controls + featured content live above the organic feed. */
+/** Keep search and categories immediately discoverable; featured content follows quick navigation. */
 export function EagerHomeSections() {
   const feed = useHomeFeed();
 
@@ -35,10 +35,10 @@ export function EagerHomeSections() {
         <HomeContextStrip />
       </div>
       <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-3 sm:space-y-5 sm:px-4 sm:pt-4">
-        <FeaturedCarousel />
-        <div className="border-t border-border/50 pt-4 sm:pt-5">
+        <div className="border-t border-border/50 pt-3 sm:pt-4">
           <CategoriesRow />
         </div>
+        <FeaturedCarousel />
       </div>
     </>
   );

@@ -75,9 +75,9 @@ export function PublicProfileHeader({ user }: Props) {
     undefined;
 
   return (
-    <div className="mx-auto w-full max-w-lg">
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/50 pb-5 pt-7 shadow-sm">
-      <div className="relative z-10 flex flex-col items-center px-4 text-center">
+    <div className="mx-auto w-full max-w-4xl">
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/50 pb-5 pt-6 shadow-sm sm:pb-7 sm:pt-8">
+      <div className="relative z-10 flex flex-col items-center px-3 text-center sm:px-6">
         <div className={`relative shrink-0 rounded-full p-[3px] ${profileStories.length ? 'bg-gradient-to-tr from-amber-500 via-pink-500 to-violet-600' : 'bg-transparent'}`}>
           <button
             type="button"
@@ -114,36 +114,32 @@ export function PublicProfileHeader({ user }: Props) {
         )}
 
         {/* Stats card */}
-        <div className="mt-4 w-full max-w-sm rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
-          <div className="flex justify-around items-center">
+        <div className="mt-4 w-full max-w-2xl rounded-2xl border border-border/70 bg-card p-3 sm:p-4 shadow-sm">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
             <div className="flex flex-col items-center">
               <FileText className="mb-1 h-4 w-4 text-muted-foreground" />
               <span className="text-lg font-semibold tabular-nums text-foreground">{user._count.ads}</span>
               <span className="text-2xs-tight text-muted-foreground">إعلان</span>
             </div>
-            <div className="w-px h-8 bg-border" />
             <div className="flex flex-col items-center">
               <span className="text-lg font-semibold tabular-nums text-foreground">{user.followStats.followers}</span>
               <span className="text-2xs-tight text-muted-foreground">متابع</span>
             </div>
-            <div className="w-px h-8 bg-border" />
             <div className="flex flex-col items-center">
               <span className="text-lg font-semibold tabular-nums text-foreground">{user.followStats.following}</span>
               <span className="text-2xs-tight text-muted-foreground">أتابعهم</span>
             </div>
             {user.city && (
               <>
-                <div className="w-px h-8 bg-border" />
-                <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center">
                   <MapPin className="mb-1 h-4 w-4 text-muted-foreground" />
                   <span className="text-2xs-tight text-muted-foreground">{user.city}</span>
                 </div>
               </>
             )}
-            <div className="w-px h-8 bg-border" />
             <div className="flex flex-col items-center">
               <Calendar className="mb-1 h-4 w-4 text-muted-foreground" />
-              <span className="text-2xs-tight text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
+              <span className="max-w-full text-center text-2xs-tight leading-4 text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
             </div>
           </div>
           <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
@@ -160,8 +156,8 @@ export function PublicProfileHeader({ user }: Props) {
             block, and report gate themselves on the viewer (via
             useAuthStore) — only show on someone else's profile; edit
             only shows on your own. */}
-        <div className="mt-4 w-full max-w-sm space-y-2">
-          <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-4 w-full max-w-2xl space-y-3">
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
             {!isOwnProfile && (
               <button
                 type="button"
@@ -190,7 +186,7 @@ export function PublicProfileHeader({ user }: Props) {
         {activeStoryGroup && <StoryViewer group={activeStoryGroup} onClose={() => setActiveStoryGroup(null)} />}
 
         {(profilePaymentMethods.length > 0 || !!fallbackPhone) && (
-          <div className="mt-3 w-full max-w-sm">
+          <div className="mt-4 w-full max-w-2xl">
             <StorePaymentMethods
               paymentMethods={profilePaymentMethods}
               entityName={user.name}

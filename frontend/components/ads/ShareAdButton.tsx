@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { nativeShare, canNativeShare } from '@/lib/capacitor/nativeShare';
+import { copyToClipboard } from '@/lib/copyToClipboard';
 import { ShareAdQrDialog } from './ShareAdQrDialog';
 import type { SharedPayload } from '@/lib/shareQr';
 
@@ -72,16 +73,17 @@ export function ShareAdButton({ title, url, variant = 'icon', className, qrPaylo
 
   async function handleCopyLink() {
     const shareUrl = getUrl();
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      toast.success('تم نسخ الرابط');
-      // track + clear on unmount.
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-      resetTimerRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('تعذّر نسخ الرابط');
+    const didCopy = await copyToClipboard(shareUrl);
+    if (!didCopy) {
+      toast.error('تعذّر نسخ الرابط. يمكنك فتح المشاركة وإرسال الرابط مباشرة.');
+      return;
     }
+
+    setCopied(true);
+    toast.success('تم نسخ الرابط');
+    // Clear the visual confirmation when the menu is used again later.
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = setTimeout(() => setCopied(false), 2000);
   }
 
   async function handleNativeShare() {

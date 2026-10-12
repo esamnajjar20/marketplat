@@ -15,6 +15,7 @@ import {
   Pause,
   Play,
   Search,
+  X,
   Inbox,
   CalendarClock,
   Loader2,
@@ -223,18 +224,31 @@ export function MyServiceListingsList() {
         </Link>
       </div>
 
-      <form onSubmit={submitSearch} className="flex gap-2">
+      <form onSubmit={submitSearch} className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="ابحث بعنوان الخدمة…"
-            className="ps-9"
+            className="ps-9 pe-9"
             aria-label="بحث في الخدمات"
           />
+          {searchInput && (
+            <button
+              type="button"
+              aria-label="مسح البحث"
+              onClick={() => {
+                setSearchInput('');
+                pushParams((params) => params.delete('q'));
+              }}
+              className="absolute end-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
-        <Button type="submit" variant="secondary">
+        <Button type="submit" variant="secondary" className="min-h-10 sm:min-h-9">
           بحث
         </Button>
       </form>
@@ -251,7 +265,7 @@ export function MyServiceListingsList() {
               type="button"
               onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}
-              className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${
+              className={`shrink-0 rounded-full px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 (status ?? '') === val
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-muted text-muted-foreground'
@@ -336,7 +350,7 @@ export function MyServiceListingsList() {
               ? getThumbnailUrl(listing.images[0], 120, 90)
               : PLACEHOLDER_SVG;
             return (
-              <div key={listing.id} className="flex gap-3 p-3 rounded-lg border bg-card">
+              <div key={listing.id} className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
                 {listing.status !== 'DELETED' && (
                   <input
                     type="checkbox"
@@ -346,7 +360,7 @@ export function MyServiceListingsList() {
                     aria-label={`تحديد ${listing.title}`}
                   />
                 )}
-                <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
+                <div className="relative h-36 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-24">
                   <SafeImage src={thumb} alt={listing.title} fill className="object-cover" sizes="96px" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">

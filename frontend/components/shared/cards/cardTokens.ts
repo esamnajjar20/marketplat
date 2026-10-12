@@ -1,8 +1,11 @@
 export const CARD_SHELL =
-  'h-full w-full min-w-0 overflow-hidden rounded-card border border-border/80 bg-card shadow-card transition-[transform,box-shadow,border-color] duration-normal ease-standard';
-export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5';
-export const CARD_BODY_COMPACT = 'flex flex-1 flex-col gap-1 p-2.5 sm:p-3';
+  'h-full w-full min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card transition-[transform,box-shadow,border-color] duration-normal ease-standard';
+export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-2 p-3 sm:p-3.5';
+export const CARD_BODY_COMPACT = 'flex flex-1 flex-col gap-1.5 p-2.5 sm:p-3';
 export const CARD_IMAGE_43 = 'relative aspect-[4/3] overflow-hidden bg-muted';
+export const CARD_IMAGE_SHADE = 'pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/[0.03]';
+export const CARD_META_ITEM = 'inline-flex min-w-0 items-center gap-1.5 rounded-full bg-muted/65 px-2 py-1';
+export const CARD_PRICE_ROW = 'flex min-h-7 flex-wrap items-center gap-1.5';
 export const CARD_IMAGE_SQUARE = 'relative aspect-square overflow-hidden bg-muted';
 export const CARD_IMAGE_LIST = 'relative aspect-auto h-28 w-28 shrink-0 overflow-hidden bg-muted sm:h-36 sm:w-44';
 

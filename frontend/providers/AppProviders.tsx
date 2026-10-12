@@ -94,10 +94,26 @@ function ThemedToaster() {
       position="top-center"
       dir="rtl"
       richColors
-      duration={4000}
+      expand
+      duration={4600}
       closeButton
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
       offset="max(1rem, env(safe-area-inset-top))"
+      toastOptions={{
+        classNames: {
+          toast: 'market-toast group font-sans',
+          title: 'market-toast-title',
+          description: 'market-toast-description',
+          icon: 'market-toast-icon',
+          success: 'market-toast-success',
+          error: 'market-toast-error',
+          warning: 'market-toast-warning',
+          info: 'market-toast-info',
+          actionButton: 'market-toast-action',
+          cancelButton: 'market-toast-cancel',
+          closeButton: 'market-toast-close',
+        },
+      }}
     />
   );
 }

@@ -60,7 +60,7 @@ export function UnifiedProfileSettings() {
       <div
         role="tablist"
         aria-label="أقسام الملف"
-        className="flex gap-1 rounded-xl border border-border/60 bg-muted/60 p-1"
+        className="flex gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-border/60 bg-muted/60 p-1 [scrollbar-width:thin]"
       >
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
@@ -69,23 +69,25 @@ export function UnifiedProfileSettings() {
               key={id}
               type="button"
               role="tab"
+              id={`settings-profile-tab-${id}`}
+              aria-controls={`settings-profile-panel-${id}`}
               aria-selected={isActive}
               onClick={() => selectSection(id)}
               className={cn(
-                'flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-medium transition-colors sm:text-sm',
+                'flex min-h-11 min-w-fit flex-1 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-sm',
                 isActive
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-              <span className="truncate">{label}</span>
+              <span className="whitespace-nowrap">{label}</span>
             </button>
           );
         })}
       </div>
 
-      <div role="tabpanel" key={active}>
+      <div role="tabpanel" id={`settings-profile-panel-${active}`} aria-labelledby={`settings-profile-tab-${active}`} key={active}>
         {active === 'personal' && (
           <div className="space-y-6">
             <ProfileSettingsForm />

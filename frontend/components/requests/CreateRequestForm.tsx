@@ -20,6 +20,7 @@ import {
   clearActiveOfflineDraftId,
 } from '@/lib/offlineDraftResume';
 import { cn } from '@/lib/utils';
+import { getFirstInvalidRequestField, type RequestFormFieldId } from '@/lib/requestFormValidation';
 
 const TYPES: RequestType[] = ['SERVICE', 'PRODUCT', 'RENTAL'];
 
@@ -180,8 +181,22 @@ export function CreateRequestForm() {
   const [files, setFiles] = useState<File[]>([]);
   const [draftLoading, setDraftLoading] = useState(Boolean(offlineDraftId));
   const [stepError, setStepError] = useState<string | null>(null);
+  const [focusTarget, setFocusTarget] = useState<RequestFormFieldId | null>(null);
+  const [invalidField, setInvalidField] = useState<RequestFormFieldId | null>(null);
 
-  const { clearDraft, lastSavedAt, isSaving } = useFormDraft<DraftValues>(
+  // When validation moves the wizard to an earlier step, focus the first
+  // invalid control after React has rendered that step. This avoids leaving
+  // keyboard and screen-reader users at the submit button or error banner.
+  useEffect(() => {
+    if (!focusTarget) return;
+    const target = document.getElementById(focusTarget);
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFocusTarget(null);
+  }, [step, focusTarget]);
+
+  const { clearDraft, lastSavedAt, isSaving, saveError } = useFormDraft<DraftValues>(
     'open-request:create',
     { type, categoryId, title, description, city, budgetMin, budgetMax, step, expiresInDays },
     { enabled: !offlineDraftId },
@@ -272,14 +287,21 @@ export function CreateRequestForm() {
     const err = validateStep(step);
     if (err) {
       setStepError(err);
+      const target: RequestFormFieldId = step === 1 ? 'req-cat' : title.trim().length < 5 ? 'req-title' : 'req-desc';
+      setFocusTarget(target);
+      setInvalidField(target);
       return;
     }
     setStepError(null);
+    setFocusTarget(null);
+    setInvalidField(null);
     setStep((x) => Math.min(4, x + 1));
   }
 
   function goBack() {
     setStepError(null);
+    setFocusTarget(null);
+    setInvalidField(null);
     setStep((x) => Math.max(1, x - 1));
   }
 
@@ -289,8 +311,17 @@ export function CreateRequestForm() {
     const err2 = validateStep(2);
     if (err1 || err2) {
       setStepError(err1 || err2);
-      if (err1) setStep(1);
-      else setStep(2);
+      const firstInvalid = getFirstInvalidRequestField({ categoryId, title, description });
+      if (err1) {
+        setStep(1);
+        setFocusTarget(firstInvalid ?? 'req-cat');
+        setInvalidField(firstInvalid ?? 'req-cat');
+      } else {
+        setStep(2);
+        const target = firstInvalid ?? (title.trim().length < 5 ? 'req-title' : 'req-desc');
+        setFocusTarget(target);
+        setInvalidField(target);
+      }
       return;
     }
 
@@ -333,10 +364,10 @@ export function CreateRequestForm() {
     >
       <StepIndicator current={step} />
 
-      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} />
+      <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} saveError={saveError} />
 
       {stepError && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+        <p id="req-step-error" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert" aria-live="assertive">
           {stepError}
         </p>
       )}
@@ -386,8 +417,10 @@ export function CreateRequestForm() {
               id="req-cat"
               className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              onChange={(e) => { setCategoryId(e.target.value); setStepError(null); setFocusTarget(null); setInvalidField(null); }}
               required
+              aria-invalid={Boolean(stepError && invalidField === 'req-cat')}
+              aria-describedby={stepError && invalidField === 'req-cat' ? 'req-step-error' : undefined}
               disabled={catsLoading}
             >
               <option value="">{catsLoading ? 'جاري تحميل الفئات…' : 'اختر الفئة…'}</option>
@@ -412,10 +445,12 @@ export function CreateRequestForm() {
               id="req-title"
               className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setStepError(null); setFocusTarget(null); setInvalidField(null); }}
               minLength={5}
               maxLength={150}
               required
+              aria-invalid={Boolean(stepError && invalidField === 'req-title')}
+              aria-describedby={stepError && invalidField === 'req-title' ? 'req-step-error' : undefined}
               placeholder="مثال: أبحث عن فني تكييف في غزة"
             />
             <p className="text-2xs text-muted-foreground">
@@ -431,10 +466,12 @@ export function CreateRequestForm() {
               id="req-desc"
               className="min-h-[140px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => { setDescription(e.target.value); setStepError(null); setFocusTarget(null); setInvalidField(null); }}
               minLength={10}
               maxLength={1000}
               required
+              aria-invalid={Boolean(stepError && invalidField === 'req-desc')}
+              aria-describedby={stepError && invalidField === 'req-desc' ? 'req-step-error' : undefined}
               placeholder="صف احتياجك: المواصفات، التوقيت، أي شروط مهمة…"
             />
             <p className="text-2xs text-muted-foreground">

@@ -3230,21 +3230,24 @@ self.addEventListener('message', (event) => {
           entry.processingStartedAt = null;
         }
 
-        // T706 — flipping failed→pending BEFORE checking the drain lock.
-        // If a drain is currently in flight, its replayQueueImpl() will
-        // see this entry as 'pending' on its next iteration and attempt
-        // it; calling replayOne() directly here as well would produce a
-        // duplicate POST when the drain reaches the same id (the drain
-        // does not check `processing` before calling replayOne). The
-        // window is tight — user must click retry while a drain is
-        // mid-flight AND before the drain reaches this id — but on the
-        // weak-network paths this queue exists for, drains run often
-        // and last long, so the window is real. Same class of race as
-        // the one REPLAY-RACE-01's lock already prevents for
-        // REPLAY_QUEUE_NOW.
-        const wasFailed = entry.status === 'failed';
-        if (wasFailed) {
+        // T706 — revive the entry (failed/cancelled → pending) BEFORE checking
+        // the drain lock. If a drain is in flight, its replayQueueImpl() will
+        // see this entry as 'pending' on its next iteration and attempt it;
+        // calling replayOne() directly here as well would produce a duplicate
+        // POST when the drain reaches the same id (the drain does not check
+        // `processing` before calling replayOne). The window is tight, but on
+        // the weak-network paths this queue exists for, drains run often and
+        // last long. Same class of race as the one REPLAY-RACE-01's lock
+        // already prevents for REPLAY_QUEUE_NOW.
+        // The UI exposes retry for both failed and cancelled messages, so an
+        // explicit retry must revive either state; otherwise a cancelled item
+        // would stay cancelled forever and the button would do nothing.
+        const canRetry = entry.status === 'failed' || entry.status === 'cancelled';
+        if (canRetry) {
           await markQueuedEntry(entry.id, { status: 'pending', retryCount: 0, lastAttemptAt: 0, retryNotBefore: 0, lastSoftError: undefined, lastError: undefined });
+          // Early signal so subscribers (chat retry lock, sync centre) see
+          // the entry leave failed/cancelled immediately, not after the drain.
+          await notifyClients({ type: 'QUEUE_REPLAYED', id: entry.id });
         }
 
         if (replayQueueInFlight) {
@@ -3399,10 +3402,10 @@ function pushActionsFor(data) {
   const type = typeof data.type === 'string' ? data.type : '';
   const dismiss = { action: 'dismiss', title: 'تجاهل' };
   if (type === 'NEW_MESSAGE' || tag.startsWith('conversation-')) {
-    return [{ action: 'open', title: 'رد' }, dismiss];
+    return [{ action: 'open', title: 'الرد على الرسالة' }, dismiss];
   }
   if (type === 'NEW_REQUEST_OFFER' || type === 'REQUEST_OFFER_ACCEPTED') {
-    return [{ action: 'open', title: 'عرض العرض' }, dismiss];
+    return [{ action: 'open', title: 'عرض التفاصيل' }, dismiss];
   }
   if (type === 'FAV_AD_SOLD' || type === 'FAV_AD_PRICE_CHANGED') {
     return [{ action: 'open', title: 'عرض الإعلان' }, dismiss];
@@ -3410,7 +3413,7 @@ function pushActionsFor(data) {
   if (type === 'TEST') {
     return [dismiss];
   }
-  return [{ action: 'open', title: 'فتح' }, dismiss];
+  return [{ action: 'open', title: 'عرض التفاصيل' }, dismiss];
 }
 
 self.addEventListener('push', (event) => {
@@ -3427,9 +3430,16 @@ self.addEventListener('push', (event) => {
     body: data.body || '',
     tag: data.tag,
     renotify: Boolean(data.tag),
-    data: { url: targetUrl },
+    timestamp: Date.now(),
+    data: { url: targetUrl, type: typeof data.type === 'string' ? data.type : 'GENERAL' },
     icon: '/icon-192',
     badge: '/icon-192',
+    // Supported browsers use a short, restrained haptic pattern. The OS
+    // still owns the actual visual style of notifications outside the app.
+    vibrate: data.urgent ? [120, 60, 120] : [80],
+    // Only urgent events remain visible until the user dismisses them;
+    // routine updates should not interrupt the user for too long.
+    requireInteraction: data.urgent === true,
     // Arabic-first UI: without these the OS may lay the banner out LTR.
     dir: 'rtl',
     lang: 'ar',

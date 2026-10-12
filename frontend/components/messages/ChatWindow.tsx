@@ -155,6 +155,7 @@ export function ChatWindow({ conversationId }: Props) {
   }, [conversationId, user?.id]);
 
   const [retryingQueueId, setRetryingQueueId] = useState<number | null>(null);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Older messages use an opaque (createdAt,id) cursor rather than OFFSET.
   // `olderCursorToFetch` is null until the user explicitly asks for older rows.
@@ -224,10 +225,41 @@ export function ChatWindow({ conversationId }: Props) {
     ...queuedMessages,
   ];
 
+  // Keep the retry control locked until the service worker confirms the
+  // queue state has moved away from failed/cancelled. The previous `finally`
+  // cleared this state as soon as postMessage returned, which made the spinner
+  // nearly invisible and allowed rapid double-clicks to enqueue duplicate
+  // retry commands. The timeout is only a safety valve if the worker cannot
+  // notify this page; the queued payload itself remains untouched.
+  useEffect(() => {
+    if (retryingQueueId === null) return;
+    const item = pendingQueued.find((queued) => queued.queueId === retryingQueueId);
+    if (!item || item.status === 'pending') {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+      setRetryingQueueId(null);
+    }
+  }, [pendingQueued, retryingQueueId]);
+
+  useEffect(() => () => {
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+  }, [conversationId]);
+
   const handleRetryQueued = useCallback((queueId: number) => {
+    // One in-flight retry at a time; a second click cannot race the first.
+    if (retryingQueueId !== null) return;
     setRetryingQueueId(queueId);
-    retryQueuedMessage(queueId).finally(() => setRetryingQueueId(null));
-  }, []);
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    retryTimeoutRef.current = setTimeout(() => {
+      retryTimeoutRef.current = null;
+      setRetryingQueueId(null);
+    }, 10000);
+    retryQueuedMessage(queueId).catch(() => {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+      setRetryingQueueId(null);
+    });
+  }, [retryingQueueId]);
 
   const handleCancelQueued = useCallback((queueId: number) => {
     void cancelQueuedMessage(queueId);
@@ -469,7 +501,7 @@ export function ChatWindow({ conversationId }: Props) {
               window.location.href = ROUTES.messages;
             }
           }}
-          className="lg:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+          className="lg:hidden flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:bg-muted/80"
           aria-label="رجوع للمحادثات"
         >
           <ChevronRight className="h-5 w-5" />
@@ -550,7 +582,7 @@ export function ChatWindow({ conversationId }: Props) {
 
       <div
         ref={scrollRef}
-        className="relative min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-surface-1/50 px-4 py-4"
+        className="relative min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain touch-pan-y bg-surface-1/50 px-3 py-3 sm:px-4 sm:py-4 [scrollbar-gutter:stable]"
         role="log"
         aria-relevant="additions"
         aria-label="سجل الرسائل"
@@ -598,6 +630,7 @@ export function ChatWindow({ conversationId }: Props) {
                   isMine={message.senderId === user?.id}
                   conversationId={conversationId}
                   isRetrying={retryingQueueId === message.queueId}
+                  retryBlocked={retryingQueueId !== null && retryingQueueId !== message.queueId}
                   markPending={pendingMarkMessageId === message.id}
                   onMarkMessage={handleMarkMessage}
                   onDeleteRequest={setConfirmDeleteMessageId}

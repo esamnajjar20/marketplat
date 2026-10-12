@@ -19,6 +19,7 @@ import type { SearchResult, SearchResultType } from '@/types/search.types';
 interface Props {
   result: SearchResult;
   className?: string;
+  layout?: 'grid' | 'list';
 }
 
 const TYPE_BADGE: Record<
@@ -34,7 +35,8 @@ const TYPE_BADGE: Record<
 /**
  * Unified search result card — aligned with AdCard (Badge + typography scale).
  */
-export function UnifiedResultCard({ result, className }: Props) {
+export function UnifiedResultCard({ result, className, layout = 'grid' }: Props) {
+  const isList = layout === 'list';
   const thumb = result.image
     ? getListThumbnailUrl(result.image, 400, 280)
     : PLACEHOLDER_SVG;
@@ -48,7 +50,7 @@ export function UnifiedResultCard({ result, className }: Props) {
   return (
     <div
       className={cn(
-        'group/card relative isolate z-0 h-full',
+        'group/card relative isolate z-0 h-full min-w-0',
         'transition-transform duration-200 ease-out',
         'hover:z-10 hover:-translate-y-0.5',
       )}
@@ -57,7 +59,8 @@ export function UnifiedResultCard({ result, className }: Props) {
         href={result.url}
         prefetch={false}
         className={cn(
-          'flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card',
+          'flex h-full min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card',
+          isList ? 'flex-row items-stretch' : 'flex-col',
           'shadow-sm transition-[box-shadow,border-color] duration-200',
           'active:scale-[0.995]',
           'group-hover/card:border-primary/30 group-hover/card:shadow-md',
@@ -65,13 +68,13 @@ export function UnifiedResultCard({ result, className }: Props) {
           className,
         )}
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <div className={cn('relative overflow-hidden bg-muted', isList ? 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40' : 'aspect-[4/3]')}>
           <SafeImage
             src={thumb}
             alt={result.title}
             fill
             className="object-cover transition-transform duration-400 ease-out group-hover/card:scale-[1.04]"
-            sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
+            sizes={isList ? '(max-width: 640px) 96px, 160px' : '(max-width:640px) 50vw, (max-width:1024px) 50vw, 33vw'}
             loading="lazy"
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
           />
@@ -90,17 +93,17 @@ export function UnifiedResultCard({ result, className }: Props) {
           </Badge>
         </div>
 
-        <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
+        <div className={cn('flex min-w-0 flex-1 flex-col gap-1.5 p-2.5 sm:p-3.5', isList && 'sm:gap-2')}>
           {result.price !== null && (
-            <p className="font-mono text-lg font-bold tabular-nums tracking-tight text-primary leading-none sm:text-xl">
+            <p className="font-mono text-base font-bold leading-none tracking-tight text-primary tabular-nums sm:text-xl">
               {formatPrice(result.price)}
             </p>
           )}
-          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground sm:text-card-title">
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground sm:text-card-title" title={result.title}>
             {result.title}
           </h3>
 
-          <div className="mt-auto flex flex-col gap-1.5 border-t border-border/40 pt-2">
+          <div className={cn('mt-auto flex min-w-0 flex-col gap-1.5 border-t border-border/40 pt-2', isList && 'sm:flex-row sm:flex-wrap sm:items-center sm:justify-between')}>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               {(result.city || distanceLabel) && (
                 <span className="flex min-w-0 items-center gap-1">

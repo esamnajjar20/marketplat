@@ -26,7 +26,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function AdDetailPage({ params }: Props) {
   const { id } = await params;
   const qc = getQueryClient();
-  try { await prefetchAd(qc, id); } catch { notFound(); }
+  try {
+    await prefetchAd(qc, id);
+  } catch (err) {
+    // Avoid telling users an ad is deleted when the API is temporarily down.
+    const statusCode =
+      (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
+      (err as { response?: { status?: number } })?.response?.status;
+    if (statusCode === 404) notFound();
+    throw err;
+  }
 
   // SW-SEO-JSONLD-AD-01: read the same Ad object that generateMetadata
   // already fetched — prefetchAd populates the cache and getQueryData

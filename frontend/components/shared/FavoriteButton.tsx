@@ -30,6 +30,8 @@ interface Props {
   showLabel?: boolean;
   /** نمط البطاقات (القاعدة 7): مفرّغ/ممتلئ بلون rating، 36px. */
   variant?: 'default' | 'card';
+  /** Local destination to return to after sign-in when triggered from a card. */
+  returnTo?: string;
 }
 
 /**
@@ -42,8 +44,19 @@ interface Props {
  */
 const ADD_LABEL = 'إضافة إلى المفضلة';
 const REMOVE_LABEL = 'إزالة من المفضلة';
+const PENDING_LABEL = 'جارٍ تحديث المفضلة…';
 
-export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false, showLabel = false, variant = 'default' }: Props) {
+/** Prevent open redirects while allowing local detail-page destinations. */
+export function getFavoriteReturnTo(returnTo: string | undefined, currentPath: string): string {
+  // Browsers treat a backslash like a slash ("/\evil.example" -> "//evil.example"),
+  // and control characters can be stripped by URL parsers, so reject both.
+  return returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+    && !/[\\\u0000-\u001f]/.test(returnTo)
+    ? returnTo
+    : currentPath;
+}
+
+export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false, showLabel = false, variant = 'default', returnTo }: Props) {
   const isAuth = useAuthStore(selectIsAuthenticated);
   // Rules-of-hooks: always called, `warm` just gates the network
   // request internally (see useFavoriteEntityCheck's own doc comment).
@@ -65,8 +78,9 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
     if (!isAuth) {
       toast.error('سجّل الدخول لحفظ العنصر');
       if (typeof window !== 'undefined') {
-        const returnTo = window.location.pathname + window.location.search;
-        window.location.href = `/login?from=${encodeURIComponent(returnTo)}`;
+        const currentPath = window.location.pathname + window.location.search;
+        const safeReturnTo = getFavoriteReturnTo(returnTo, currentPath);
+        window.location.href = `/login?from=${encodeURIComponent(safeReturnTo)}`;
       }
       return;
     }
@@ -76,10 +90,12 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
   }
 
 
-  const textLabel = isFavorited ? REMOVE_LABEL : ADD_LABEL;
+  const textLabel = toggleFavorite.isPending
+    ? PENDING_LABEL
+    : isFavorited ? REMOVE_LABEL : ADD_LABEL;
 
 
-  const dim = isCard ? 'h-9 w-9' : size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
+  const dim = isCard ? 'h-11 w-11 touch-manipulation' : size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
   const iconDim = isCard ? 'h-4 w-4' : size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
 
   if (showLabel) {
@@ -88,6 +104,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
         type="button"
         onClick={handleClick}
         disabled={toggleFavorite.isPending}
+        aria-busy={toggleFavorite.isPending}
         aria-label={textLabel}
         aria-pressed={isFavorited}
         className={cn(
@@ -104,7 +121,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
             isFavorited ? 'fill-destructive text-destructive' : 'text-foreground',
           )}
         />
-        {textLabel}
+        {toggleFavorite.isPending ? PENDING_LABEL : textLabel}
       </button>
     );
   }
@@ -114,6 +131,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
       type="button"
       onClick={handleClick}
       disabled={toggleFavorite.isPending}
+      aria-busy={toggleFavorite.isPending}
       aria-label={textLabel}
       aria-pressed={isFavorited}
       title={textLabel}

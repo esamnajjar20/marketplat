@@ -14,7 +14,7 @@ import { ROUTES } from '@/lib/constants';
 import { parseApiError } from '@/lib/errorParser';
 
 export function ProductDetailSection({ id }: { id: string }) {
-  const { data: product, isLoading, isError, error, refetch } = useProduct(id);
+  const { data: product, isLoading, isFetching, isError, error, refetch } = useProduct(id);
   const storeId = product?.storeId;
   const { data: relatedPage } = useProducts(
     { storeId: storeId ?? '', limit: 6 },
@@ -44,8 +44,15 @@ export function ProductDetailSection({ id }: { id: string }) {
         action={
           <div className="flex flex-wrap justify-center gap-2">
             {!notFound && (
-              <Button type="button" size="sm" variant="outline" onClick={() => refetch()}>
-                إعادة المحاولة
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isFetching}
+                aria-busy={isFetching}
+                onClick={() => { if (!isFetching) void refetch(); }}
+              >
+                {isFetching ? 'جارٍ إعادة المحاولة…' : 'إعادة المحاولة'}
               </Button>
             )}
             <Button asChild size="sm">

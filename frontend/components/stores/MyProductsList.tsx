@@ -16,6 +16,7 @@ import {
   Tag,
   Layers,
   Search,
+  X,
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -185,18 +186,31 @@ export function MyProductsList() {
   return (
     <div className="space-y-4">
       {showPendingOffline && <PendingOfflinePublishCard kind="product" />}
-      <form onSubmit={submitSearch} className="flex gap-2">
-        <div className="relative flex-1">
+      <form onSubmit={submitSearch} className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="ابحث باسم المنتج…"
-            className="ps-9"
+            className="ps-9 pe-9"
             aria-label="بحث في المنتجات"
           />
+          {searchInput && (
+            <button
+              type="button"
+              aria-label="مسح البحث"
+              onClick={() => {
+                setSearchInput('');
+                pushParams((params) => params.delete('q'));
+              }}
+              className="absolute end-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
-        <Button type="submit" variant="secondary">
+        <Button type="submit" variant="secondary" className="w-full sm:w-auto">
           بحث
         </Button>
       </form>
@@ -213,8 +227,7 @@ export function MyProductsList() {
                 className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${
                   (status ?? '') === val
                     ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted text-muted-foreground'
-                }`}
+                    : 'text-muted-foreground hover:bg-muted'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
               >
                 {label}
               </button>
@@ -243,8 +256,7 @@ export function MyProductsList() {
             className={`shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${
               (availability ?? '') === val
                 ? 'bg-primary/10 border-primary text-primary'
-                : 'text-muted-foreground hover:bg-muted'
-            }`}
+                : 'text-muted-foreground hover:bg-muted'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
           >
             {label}
           </button>
@@ -314,7 +326,7 @@ export function MyProductsList() {
               ? getThumbnailUrl(product.images[0], 120, 90)
               : PLACEHOLDER_SVG;
             return (
-              <div key={product.id} className="flex gap-3 p-3 rounded-lg border bg-card">
+              <div key={product.id} className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-start">
                 {product.status !== 'DELETED' && (
                   <input
                     type="checkbox"
@@ -324,7 +336,7 @@ export function MyProductsList() {
                     aria-label={`تحديد ${product.name}`}
                   />
                 )}
-                <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
+                <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-24">
                   <SafeImage src={thumb} alt={product.name} fill className="object-cover" sizes="96px" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
@@ -367,7 +379,7 @@ export function MyProductsList() {
                     {!product.images?.length && <span className="text-warning">بدون صور</span>}
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 shrink-0">
+                <div className="flex flex-wrap items-center justify-end gap-1 border-t pt-2 sm:flex-col sm:border-t-0 sm:pt-0">
                   {product.status === 'ACTIVE' && (
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-success" aria-label={`بيع ${product.name}`} title="بعت" onClick={() => setSalePrefill({ entityType: 'PRODUCT', entityId: product.id, entityTitle: product.name, entityImageUrl: product.images?.[0] ?? null, unitPrice: Number(product.discountPrice ?? product.price), storeId: product.storeId })}>
                       <Package className="h-3.5 w-3.5" />

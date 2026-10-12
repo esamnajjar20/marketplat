@@ -52,18 +52,18 @@ export default function MyRequestsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 px-3 pb-10 sm:px-4 lg:px-0" dir="rtl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto w-full max-w-5xl space-y-5 px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:space-y-6 sm:px-4 sm:pb-10 lg:px-0" dir="rtl">
+      <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.07] to-transparent p-4 sm:flex-row sm:items-center sm:p-5">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">طلباتي</h1>
-          <p className="text-sm text-muted-foreground">الطلبات التي نشرتها في السوق</p>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">طلباتي</h1>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">الطلبات التي نشرتها في السوق، تابع حالتها وعدّل خياراتك بسهولة.</p>
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="min-h-10 w-full sm:w-auto">
           <Link href={ROUTES.requestNew}>طلب جديد</Link>
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="حالة الطلب" aria-orientation="horizontal">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist" aria-label="حالة الطلب" aria-orientation="horizontal" style={{ scrollbarWidth: 'thin' }}>
         {STATUS_TABS.map((tab) => {
           const active = tab.value === status;
           return (
@@ -74,7 +74,7 @@ export default function MyRequestsPage() {
               aria-selected={active}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'inline-flex min-h-10 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'inline-flex min-h-10 shrink-0 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 active
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:text-foreground',
@@ -99,7 +99,7 @@ export default function MyRequestsPage() {
       )}
 
       {!isLoading && !isError && (
-        <ul className="space-y-3">
+        <ul className="min-w-0 space-y-3">
           {items.map((r) => (
             <RequestCard key={r.id} request={r} showStatus />
           ))}

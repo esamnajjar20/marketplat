@@ -43,13 +43,13 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
   const needsAttention = pendingRequests + upcomingAppointments;
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-xl border bg-card p-4 sm:p-5">
+    <div className="space-y-5 sm:space-y-6">
+      <section className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Wrench className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-xl font-bold">{provider.businessName}</h2>
+              <h2 className="break-words text-lg font-bold sm:text-xl">{provider.businessName}</h2>
               <Badge variant={AVAIL_VARIANT[provider.availabilityStatus]}>
                 {AVAIL_LABELS[provider.availabilityStatus]}
               </Badge>
@@ -80,7 +80,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="ملخص أداء مقدم الخدمة">
+      <section className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4" aria-label="ملخص أداء مقدم الخدمة">
         <StatCard icon={Inbox} label="طلبات معلقة" value={pendingRequests.toLocaleString('ar')} />
         <StatCard icon={CalendarClock} label="مواعيد قادمة" value={upcomingAppointments.toLocaleString('ar')} />
         <StatCard icon={ListChecks} label="خدمات نشطة" value={activeListings.toLocaleString('ar')} />
@@ -88,7 +88,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
       </section>
 
       {needsAttention > 0 ? (
-        <Card className="border-primary/20">
+        <Card className="overflow-hidden border-primary/20 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <AlertTriangle className="h-4 w-4 text-primary" aria-hidden />
@@ -137,33 +137,33 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
             <p className="text-xs text-muted-foreground">أهم العمليات التي تستخدمها لإدارة عملك.</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-          <Button asChild className="h-auto min-h-20 flex-col gap-1.5 py-3 font-semibold">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+          <Button asChild className="h-auto min-h-24 flex-col gap-2 whitespace-normal px-2 py-3 text-center font-semibold sm:min-h-20">
             <Link href={ROUTES.myServiceCreate}>
               <Plus className="h-4 w-4" aria-hidden />
               خدمة جديدة
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-24 flex-col gap-2 whitespace-normal px-2 py-3 text-center sm:min-h-20">
             <Link prefetch={false} href={ROUTES.incomingServiceRequests}>
               <Inbox className="h-4 w-4" aria-hidden />
               الطلبات الواردة
               {pendingRequests > 0 && <Badge variant="secondary">{pendingRequests.toLocaleString('ar')}</Badge>}
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-24 flex-col gap-2 whitespace-normal px-2 py-3 text-center sm:min-h-20">
             <Link prefetch={false} href={ROUTES.myServiceAppointments}>
               <CalendarClock className="h-4 w-4" aria-hidden />
               المواعيد
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-24 flex-col gap-2 whitespace-normal px-2 py-3 text-center sm:min-h-20">
             <Link prefetch={false} href={ROUTES.requests}>
               <Radio className="h-4 w-4" aria-hidden />
               الطلبات المفتوحة
             </Link>
           </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1.5 py-3">
+          <Button asChild variant="outline" className="h-auto min-h-24 flex-col gap-2 whitespace-normal px-2 py-3 text-center sm:min-h-20">
             <Link prefetch={false} href={ROUTES.myServiceProviderAnalytics}>
               <BarChart3 className="h-4 w-4" aria-hidden />
               الإحصائيات
@@ -172,7 +172,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
         </div>
       </section>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden />

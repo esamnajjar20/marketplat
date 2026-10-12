@@ -86,6 +86,7 @@ export function ImageUpload({
   uploadProgress,
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [rejectedFiles, setRejectedFiles] = useState<Array<{ name: string; reason: string }>>([]);
   const maxBytes  = MAX_FILE_SIZE_MB * 1024 * 1024;
   // UX bonus FIX: useId instead of hardcoded 'image-upload-input' so multiple
   // ImageUpload instances on the same page don't share the same id.
@@ -189,10 +190,15 @@ export function ImageUpload({
       if (!newFiles) return;
       const incoming = Array.from(newFiles);
       if (incoming.length === 0) return;
+      // Keep rejection details visible in the form as well as announcing them
+      // via toast, so users can identify which files need replacing.
+      const rejected: Array<{ name: string; reason: string }> = [];
+      setRejectedFiles([]);
 
       // FIX IMAGE-PICK-01: slots المتبقية تحسب الملفات الجديدة الحالية أيضًا
       const slotsLeft = Math.max(0, maxFiles - existingUrls.length - value.length);
       if (slotsLeft <= 0) {
+        setRejectedFiles(incoming.map((file) => ({ name: file.name || 'ملف بدون اسم', reason: `تم الوصول إلى الحد الأقصى ${maxFiles} صور` })));
         toast.error(`الحد الأقصى ${maxFiles} صور`);
         return;
       }
@@ -205,6 +211,7 @@ export function ImageUpload({
       }
 
       if (wrongType.length > 0) {
+        rejected.push(...wrongType.map((file) => ({ name: file.name || 'ملف بدون اسم', reason: 'نوع الملف غير مدعوم' })));
         toast.error(
           wrongType.length === 1
             ? `الملف "${wrongType[0]?.name}" غير مدعوم (JPG، PNG، أو WEBP)`
@@ -220,6 +227,7 @@ export function ImageUpload({
           if (f.size > maxBytes || f.type === 'image/heic' || f.type === 'image/heif') {
             const compressed = await compressImageForPublish(f);
             if (compressed.size > maxBytes) {
+              rejected.push({ name: f.name || 'ملف بدون اسم', reason: `حجم الملف أكبر من ${MAX_FILE_SIZE_MB} ميجابايت بعد الضغط` });
               toast.error(`تعذّر تصغير "${f.name}" تحت ${MAX_FILE_SIZE_MB} ميجابايت`);
               continue;
             }
@@ -229,12 +237,16 @@ export function ImageUpload({
           }
         } catch {
           if (f.size <= maxBytes) prepared.push(f);
-          else toast.error(`تعذّر معالجة "${f.name}"`);
+          else {
+            rejected.push({ name: f.name || 'ملف بدون اسم', reason: 'تعذّرت معالجة الصورة؛ جرّب صورة أخرى' });
+            toast.error(`تعذّر معالجة "${f.name}"`);
+          }
         }
       }
 
       const overLimit = candidates.length - Math.min(candidates.length, slotsLeft);
       if (overLimit > 0) {
+        rejected.push(...candidates.slice(slotsLeft).map((file) => ({ name: file.name || 'ملف بدون اسم', reason: `تجاوز الحد الأقصى ${maxFiles} صور` })));
         toast.error(
           `الحد الأقصى ${maxFiles} صور — تم تجاهل ${overLimit} ${overLimit === 1 ? 'صورة' : 'صور'} إضافية`,
         );
@@ -243,6 +255,7 @@ export function ImageUpload({
       if (prepared.length > 0) {
         onChange([...value, ...prepared]);
       }
+      setRejectedFiles(rejected);
     },
     [value, onChange, existingUrls.length, maxBytes, maxFiles],
   );
@@ -347,6 +360,20 @@ export function ImageUpload({
             />
           </div>
           <p className="text-xs text-muted-foreground">جارٍ رفع الصور… {uploadProgress}%</p>
+        </div>
+      )}
+
+      {rejectedFiles.length > 0 && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm" role="alert" aria-live="polite">
+          <p className="mb-2 font-medium">لم تتم إضافة بعض الملفات:</p>
+          <ul className="list-inside list-disc space-y-1">
+            {rejectedFiles.map((file, index) => (
+              <li key={`${file.name}-${index}`}>
+                <span className="font-medium">{file.name}</span>: {file.reason}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted-foreground">الصور المقبولة بقيت محفوظة في النموذج؛ استبدل الملفات المذكورة فقط ثم تابع.</p>
         </div>
       )}
 

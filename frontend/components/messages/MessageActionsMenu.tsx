@@ -18,7 +18,7 @@ export const MessageActionsMenu = memo(function MessageActionsMenu({ message, ma
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted shrink-0" aria-label="خيارات الرسالة">
+        <button type="button" className="inline-flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-100 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group-hover:opacity-100" aria-label="خيارات الرسالة">
           <MoreVertical className="h-3.5 w-3.5" />
         </button>
       </DropdownMenuTrigger>

@@ -3,6 +3,8 @@
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { ZoomableDetailImage } from '@/components/shared/detail/ZoomableDetailImage';
+import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
 import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, X, MessageSquare } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
@@ -29,6 +31,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
+import { DETAIL_GALLERY_SHELL, DETAIL_META_TILE, DETAIL_PANEL_PADDED, DETAIL_SECTION_TITLE, DETAIL_PRICE_PANEL } from '@/components/shared/detail/detailTokens';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 /**
@@ -75,6 +78,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
+  const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   function handleStickyMessage() {
     if (!isAuth) {
@@ -148,6 +152,20 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   const images = ad.images.length > 0 ? ad.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
+
+  // Keep the active thumbnail visible when users navigate with arrows,
+  // keyboard shortcuts, swipe gestures, or direct thumbnail selection.
+  // Respect reduced-motion preferences and avoid any work during SSR.
+  useEffect(() => {
+    const activeThumbnail = thumbnailRefs.current[imgIdx];
+    if (!activeThumbnail) return;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    activeThumbnail.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }, [imgIdx, images.length]);
   const categoryHref = useCategoryHref(ad.category?.id);
 
   function handleFavorite() {
@@ -190,7 +208,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
       <div className="flex-1 md:w-2/3 min-w-0 space-y-6">
 
         {/* Gallery */}
-        <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
+        <div className={DETAIL_GALLERY_SHELL}>
           <div
             className="relative aspect-[4/3] max-h-[min(52vh,420px)] bg-muted touch-pan-y sm:aspect-[16/9] sm:max-h-none"
             onTouchStart={(e) => {
@@ -212,7 +230,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               onClick={() => setLightboxOpen(true)}
               aria-label="تكبير الصورة"
             >
-              <SafeImage src={currentImg} alt={ad.title} fill className="object-contain select-none pointer-events-none" sizes="(max-width:1024px) 100vw, 66vw" priority={imgIdx === 0} draggable={false} />
+              <ProgressiveDetailImage src={currentImg} alt={ad.title} className="object-contain select-none pointer-events-none" sizes="(max-width:1024px) 100vw, 66vw" priority={imgIdx === 0} draggable={false} />
             </button>
             {ad.isFeatured && (
               <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
@@ -242,7 +260,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           {images.length > 1 && (
             <div className="flex gap-3 p-3 overflow-x-auto">
               {images.map((img, i) => (
-                <button key={i} onClick={() => setImgIdx(i)}
+                <button key={i} ref={(node) => { thumbnailRefs.current[i] = node; }} onClick={() => setImgIdx(i)}
                   aria-label={`عرض الصورة ${i + 1} من ${images.length}`}
                   aria-current={i === imgIdx ? 'true' : undefined}
                   className={cn('relative w-16 h-16 sm:w-20 sm:h-20 min-h-[44px] min-w-[44px] rounded-lg shrink-0 overflow-hidden border-2 transition-colors',
@@ -367,25 +385,25 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               fabricated brand/model/storage attributes since this data
               model has no per-category custom fields. */}
           <div>
-            <h3 className="font-semibold mb-3">المواصفات</h3>
+            <h3 className={cn(DETAIL_SECTION_TITLE, 'mb-3')}>المواصفات</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {ad.condition && (
-                <div className="bg-muted/60 p-4 rounded-xl">
+                <div className={DETAIL_META_TILE}>
                   <div className="text-xs text-muted-foreground mb-1">الحالة</div>
                   <div className="font-semibold text-sm">{CONDITION_LABELS[ad.condition] ?? ad.condition}</div>
                 </div>
               )}
-              <div className="bg-muted/60 p-4 rounded-xl">
+              <div className={DETAIL_META_TILE}>
                 <div className="text-xs text-muted-foreground mb-1">الموقع</div>
                 <div className="font-semibold text-sm">{ad.city}</div>
               </div>
               {ad.category && (
-                <div className="bg-muted/60 p-4 rounded-xl">
+                <div className={DETAIL_META_TILE}>
                   <div className="text-xs text-muted-foreground mb-1">القسم</div>
                   <div className="font-semibold text-sm">{ad.category.nameAr}</div>
                 </div>
               )}
-              <div className="bg-muted/60 p-4 rounded-xl">
+              <div className={DETAIL_META_TILE}>
                 <div className="text-xs text-muted-foreground mb-1">تاريخ النشر</div>
                 <div className="font-semibold text-sm">{formatDate(ad.createdAt)}</div>
               </div>
@@ -393,10 +411,10 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           </div>
 
           {/* Description */}
-          <div>
-            <h3 className="font-semibold mb-3">التفاصيل</h3>
-            <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{ad.description}</p>
-          </div>
+          <section className={cn(DETAIL_PANEL_PADDED, 'space-y-3')}>
+            <h3 className={DETAIL_SECTION_TITLE}>التفاصيل</h3>
+            <p className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm leading-7 whitespace-pre-line text-muted-foreground">{ad.description?.trim() || 'لا توجد تفاصيل إضافية لهذا الإعلان.'}</p>
+          </section>
         </div>
 
         {/* Mobile-only seller card, right after the main details block —
@@ -415,7 +433,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
           equivalents are rendered inline above, in reading order) */}
       <aside className="hidden md:flex md:w-1/3 flex-col gap-6">
         <div className="space-y-6">
-          <div className="rounded-2xl bg-card shadow-md p-6 space-y-1">
+          <div className={cn(DETAIL_PRICE_PANEL, 'space-y-1')}>
             <div className="text-sm text-muted-foreground">السعر المطلوب</div>
             <div className="text-3xl font-bold text-primary">{formatPrice(ad.price)}</div>
             {ad.isNegotiable && (
@@ -488,14 +506,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               else goNext();
             }}
           >
-            <SafeImage
-              src={currentImg}
-              alt={ad.title}
-              fill
-              className="object-contain"
-              sizes="100vw"
-              priority={imgIdx === 0}
-            />
+            <ZoomableDetailImage key={imgIdx} src={currentImg} alt={ad.title} onSwipeNext={goNext} onSwipePrevious={goPrev} priority={imgIdx === 0} previousSrc={imgIdx > 0 ? getDetailImageUrl(images[imgIdx - 1] ?? PLACEHOLDER_SVG) : undefined} nextSrc={imgIdx < images.length - 1 ? getDetailImageUrl(images[imgIdx + 1] ?? PLACEHOLDER_SVG) : undefined} />
             {images.length > 1 && (
               <>
                 <button
