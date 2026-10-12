@@ -4,10 +4,13 @@ import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { HomeDiscoverHero } from './HomeDiscoverHero';
 import { HomeContextStrip } from './HomeContextStrip';
 import { FeaturedCarousel } from './FeaturedCarousel';
-import { CategoriesRow } from './CategoriesRow';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
-/** Keep search and categories immediately discoverable; featured content follows quick navigation. */
+/**
+ * Homepage first-screen order: search + quick type shortcuts (from HomeDiscoverHero),
+ * city context strip, then the featured carousel. The old CategoriesRow that
+ * duplicated the shortcuts has been removed.
+ */
 export function EagerHomeSections() {
   const feed = useHomeFeed();
 
@@ -18,11 +21,6 @@ export function EagerHomeSections() {
           <Skeleton className="h-8 w-2/3 max-w-md rounded-lg" />
           <Skeleton className="h-12 w-full rounded-2xl" />
           <Skeleton className="aspect-video w-full rounded-2xl md:aspect-[21/9]" />
-          <div className="flex gap-2 overflow-hidden">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-20 shrink-0 rounded-xl" />
-            ))}
-          </div>
         </div>
       </div>
     );
@@ -35,9 +33,6 @@ export function EagerHomeSections() {
         <HomeContextStrip />
       </div>
       <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-3 sm:space-y-5 sm:px-4 sm:pt-4">
-        <div className="border-t border-border/50 pt-3 sm:pt-4">
-          <CategoriesRow />
-        </div>
         <FeaturedCarousel />
       </div>
     </>

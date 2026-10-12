@@ -254,7 +254,7 @@ export function MyServiceListingsList() {
       </form>
 
       <div
-        className="flex gap-2 border-b pb-3 overflow-x-auto"
+        className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain"
         role="group"
         aria-label="تصفية الخدمات حسب الحالة"
       >

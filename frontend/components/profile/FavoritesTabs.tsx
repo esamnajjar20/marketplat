@@ -60,7 +60,7 @@ export function FavoritesTabs() {
 
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="نوع المفضلة" className="flex gap-1 overflow-x-auto border-b scrollbar-none">
+      <div role="tablist" aria-label="نوع المفضلة" className="flex gap-1 overflow-x-auto overscroll-x-contain border-b scrollbar-none">
         {TABS.map((tab, index) => (
           <button
             key={tab.value}

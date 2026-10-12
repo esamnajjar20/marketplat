@@ -318,7 +318,7 @@ function DeletedFavoriteCard({ adId, title }: { adId: string; title: string }) {
         </span>
       </div>
       <div className="space-y-2 p-3">
-        <h3 className="line-clamp-2 text-sm font-medium leading-snug text-muted-foreground">
+        <h3 title={title} className="line-clamp-2 text-sm font-medium leading-snug text-muted-foreground">
           {title}
         </h3>
         <Button

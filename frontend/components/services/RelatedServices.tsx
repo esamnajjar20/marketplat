@@ -57,7 +57,7 @@ export function RelatedServices({
         <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
         {title}
       </h2>
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory sm:hidden [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 snap-x snap-mandatory sm:hidden [&::-webkit-scrollbar]:hidden">
         {items.map((s) => (
           <div key={s.id} className="w-[48%] min-w-[160px] max-w-[220px] shrink-0 snap-start">
             <ServiceListingCard listing={s} context="related" />

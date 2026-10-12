@@ -164,12 +164,14 @@ export function OnboardingChecklist() {
         ))}
       </ul>
 
-      <Button asChild className="w-full font-semibold" size="sm">
-        <Link href={next.href}>
-          {next.label}
-          <ArrowLeft className="ms-1 h-4 w-4" aria-hidden />
-        </Link>
-      </Button>
+      <div className="flex justify-end pt-1">
+        <Button asChild className="font-semibold" size="sm">
+          <Link href={next.href}>
+            {next.label}
+            <ArrowLeft className="ms-1 h-4 w-4" aria-hidden />
+          </Link>
+        </Button>
+      </div>
     </section>
   );
 }

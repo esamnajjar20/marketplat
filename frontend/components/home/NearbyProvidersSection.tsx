@@ -36,7 +36,7 @@ export function NearbyProvidersSection() {
     return (
       <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
         {header}
-        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3">
+        <div className="flex gap-3 overflow-x-auto overscroll-x-contain pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3">
           {Array.from({ length: limit }).map((_, i) => (
             <div key={i} className="w-72 shrink-0 sm:w-auto"><StoreCardSkeleton /></div>
           ))}
@@ -79,7 +79,7 @@ export function NearbyProvidersSection() {
   return (
     <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
       {header}
-      <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3 stagger-fade-in">
+      <div className="flex gap-3 overflow-x-auto overscroll-x-contain pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3 stagger-fade-in">
         {items.map((provider) => (
           <div key={provider.id} className="w-72 shrink-0 sm:w-auto"><ServiceProviderCard provider={provider} /></div>
         ))}

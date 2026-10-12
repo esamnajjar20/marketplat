@@ -122,7 +122,7 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
           رسالة (اختياري)
         </label>
         <div
-          className="-mx-0.5 mb-2 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5 scrollbar-none"
+          className="-mx-0.5 mb-2 flex gap-1.5 overflow-x-auto overscroll-x-contain px-0.5 pb-0.5 scrollbar-none"
           role="group"
           aria-label="قوالب رسالة سريعة"
         >

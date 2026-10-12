@@ -95,7 +95,7 @@ export function MyServiceRequestsList() {
 
   return (
     <div className="space-y-4">
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2" role="group" aria-label="تصفية الطلبات حسب الحالة" style={{ scrollbarWidth: 'thin' }}>
+      <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2" role="group" aria-label="تصفية الطلبات حسب الحالة" style={{ scrollbarWidth: 'thin' }}>
         {FILTER_TABS.map((val) => (
           <button
             key={val}

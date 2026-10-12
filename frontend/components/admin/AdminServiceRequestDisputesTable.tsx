@@ -29,7 +29,7 @@ export const AdminServiceRequestDisputesTable = memo(function AdminServiceReques
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-xl border">
+      <div className="overflow-x-auto overscroll-x-contain rounded-xl border">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-muted/50 text-start"><tr>
             <th className="p-3 font-medium">الطلب</th><th className="p-3 font-medium">الأطراف</th><th className="p-3 font-medium">سبب النزاع</th><th className="p-3 font-medium">التاريخ</th><th className="p-3" />

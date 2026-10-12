@@ -49,7 +49,7 @@ export function SearchTabs({ value, onChange, className }: Props) {
       role="tablist"
       aria-label="نوع النتائج"
       id={tabListId}
-      className={cn('flex gap-1 overflow-x-auto border-b border-border/60', className)}
+      className={cn('flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border/60', className)}
     >
       {TABS.map((tab, index) => (
         <button

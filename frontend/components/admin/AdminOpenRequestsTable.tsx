@@ -87,7 +87,7 @@ export const AdminOpenRequestsTable = memo(function AdminOpenRequestsTable() {
       )}
 
       {!isLoading && items.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="overflow-x-auto overscroll-x-contain rounded-xl border">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-muted/50 text-start">
               <tr>

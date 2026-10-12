@@ -216,7 +216,7 @@ export function MyProductsList() {
       </form>
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex gap-2 border-b pb-3 overflow-x-auto flex-1" role="group" aria-label="تصفية حسب الحالة">
+        <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain flex-1" role="group" aria-label="تصفية حسب الحالة">
           {([['', 'الكل'], ['ACTIVE', 'نشط'], ['PAUSED', 'متوقف'], ['DELETED', 'محذوف']] as const).map(
             ([val, label]) => (
               <button
@@ -239,7 +239,7 @@ export function MyProductsList() {
         </Link>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="تصفية حسب التوفر">
+      <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1" role="group" aria-label="تصفية حسب التوفر">
         {(
           [
             ['', 'كل التوفر'],

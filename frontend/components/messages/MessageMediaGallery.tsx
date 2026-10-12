@@ -147,7 +147,7 @@ export function MessageMediaGallery({ items, queuedItems = [], conversationId = 
   const tabs: [Kind, string, number][] = [['all', 'الكل', counts.images + counts.audio + counts.files], ['images', 'الصور', counts.images], ['audio', 'الصوت', counts.audio], ['files', 'الملفات', counts.files]];
 
   return <>
-    <div className="mb-3 flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="نوع الوسائط">
+    <div className="mb-3 flex gap-1 overflow-x-auto overscroll-x-contain pb-1" role="tablist" aria-label="نوع الوسائط">
       {tabs.map(([id, label, count]) => <button key={id} type="button" role="tab" aria-selected={kind === id} onClick={() => setKind(id)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-medium', kind === id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{label} <span className="opacity-70">{count}</span></button>)}
     </div>
 

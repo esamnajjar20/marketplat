@@ -172,7 +172,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             </span>
           )}
         </div>
-        <div className="flex gap-1.5 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
+        <div className="flex gap-1.5 px-1 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
           {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
             <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={cn('min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition-[background-color,border-color,color,box-shadow] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', inbox === value ? 'border-primary bg-primary text-primary-foreground shadow-xs' : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground')}>{label}</button>
           ))}
@@ -246,7 +246,7 @@ export function ConversationList({ selectedId }: Props = {}) {
 
       {/* Mobile search */}
       <div className="md:hidden space-y-2 border-b bg-card px-3 py-2">
-        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
+        <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
           {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
             <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
           ))}
@@ -262,7 +262,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             aria-label="بحث في المحادثات"
           />
         </div>
-        <div className="flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden">
           {[
             ['all', 'الكل'],
             ['unread', `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}`],

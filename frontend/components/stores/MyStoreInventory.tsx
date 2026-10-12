@@ -338,7 +338,7 @@ export function MyStoreInventory() {
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="overflow-x-auto overscroll-x-contain rounded-xl border">
           <table className="w-full min-w-[32rem] text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>

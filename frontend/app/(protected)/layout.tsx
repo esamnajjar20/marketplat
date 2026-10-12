@@ -129,13 +129,13 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     // chain below (the row div, <main>) were missing min-w-0. Default
     // flex-item min-width is `auto`, meaning a flex item never shrinks
     // narrower than its own content — so Timeline's 8-tab row (which
-    // relies on its own overflow-x-auto to scroll internally) was
+    // relies on its own overflow-x-auto overscroll-x-contain to scroll internally) was
     // instead pushing <main>, this row, and this outer column wider
     // than the viewport. That page-level horizontal overflow is what
     // stretched the whole layout and clipped BottomNav's fixed
     // inset-x-0 items off the visible edge — not a BottomNav bug
     // itself. min-w-0 at each level lets children's own overflow
-    // handling (Timeline's overflow-x-auto) actually take effect
+    // handling (Timeline's overflow-x-auto overscroll-x-contain) actually take effect
     // instead of being bypassed by an ancestor refusing to shrink.
     <div className="flex min-h-screen min-h-dvh min-w-0 flex-col">
       <ProtectedHeader />

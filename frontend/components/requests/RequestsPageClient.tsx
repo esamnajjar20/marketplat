@@ -168,7 +168,7 @@ export function RequestsPageClient() {
           </div>
 
           <div
-            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="group"
             aria-label="تصفية حسب النوع"
           >

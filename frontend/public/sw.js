@@ -264,6 +264,44 @@ async function collectPermanentShellAssets() {
 }
 
 const OFFLINE_URL = '/offline';
+
+/**
+ * Minimal offline error page. Replaces the previous behavior of forcing
+ * the full /offline hub on any weak-network timeout. The hub is an
+ * app-shell route that yanks the user off the URL they typed; a short
+ * inline page preserves the URL and offers a single retry action — the
+ * same interaction model as the browser's native error screen, but
+ * localized and styled.
+ */
+function buildOfflineErrorPage() {
+  const html = [
+    '<!DOCTYPE html><html lang="ar" dir="rtl"><head>',
+    '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    '<title>\u062a\u0639\u0630\u0651\u0631 \u0627\u0644\u062a\u062d\u0645\u064a\u0644</title>',
+    '<style>',
+    'html,body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#fafaf8;color:#1f1a13;min-height:100%}',
+    'body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem}',
+    '.card{max-width:22rem;width:100%;padding:2rem 1.5rem;border:1px solid #e6e2db;border-radius:1rem;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.04);text-align:center}',
+    'h1{font-size:1.125rem;margin:0 0 .5rem;font-weight:700}',
+    'p{color:#6b6358;font-size:.875rem;margin:0 0 1.25rem;line-height:1.6}',
+    'button{background:#2d5a3d;color:#fff;border:0;border-radius:.6rem;padding:.75rem 1.25rem;font-size:.875rem;font-weight:600;cursor:pointer;font-family:inherit}',
+    'button:active{transform:scale(.97)}',
+    '</style></head><body><div class="card">',
+    '<h1>\u062a\u0639\u0630\u0651\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0635\u0641\u062d\u0629</h1>',
+    '<p>\u064a\u0628\u062f\u0648 \u0623\u0646 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0636\u0639\u064a\u0641 \u0623\u0648 \u0645\u0646\u0642\u0637\u0639\u060c \u0648\u0627\u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629 \u0644\u0645 \u062a\u064f\u062d\u0641\u064e\u0638 \u0639\u0644\u0649 \u062c\u0647\u0627\u0632\u0643.</p>',
+    '<button onclick="location.reload()">\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629</button>',
+    '</div></body></html>',
+  ].join('');
+  return new Response(html, {
+    status: 503,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
 const READ_BATCH_PATH = '/api/v1/batch';
 
 // يجب مطابقة lib/offlineQueue.ts حرفيًا — الصفحة تقرأ من نفس القاعدة/المخزن.
@@ -300,11 +338,11 @@ const SYNC_TAG = 'replay-offline-queue';
 const NETWORK_TIMEOUT_MS = 5000
 
 /** Navigate documents need longer on weak links — 3s caused false /offline. */
-const NAVIGATE_TIMEOUT_MS = 10000
+const NAVIGATE_TIMEOUT_MS = 15000
 /** FIX NAV-TIMEOUT-CACHED-01: when a cached shell already exists, fail over
  * faster (3.5s) so the user sees content instead of a blank screen for 10s.
  * The real fetch continues in the background and updates the cache. */
-const NAVIGATE_TIMEOUT_CACHED_MS = 3500
+const NAVIGATE_TIMEOUT_CACHED_MS = 8000
 
 /** FIX QUEUE-HOL-01: max consecutive soft failures on the same head entry
  * before marking failed (unblocks the rest of the queue). */
@@ -965,10 +1003,12 @@ async function staleWhileRevalidate(event, request, cacheKey) {
     return Response.error();
   }
 
-  // FIX SW-OFFLINE-FALLBACK-SCOPE-01: HTML /offline فقط لتنقّل حقيقي بلا كاش.
+  // No forced navigation to /offline on public App Shell pages. On a
+  // weak-but-alive connection this used to bounce the user out of the
+  // URL they typed. Return a minimal inline error page that keeps the
+  // URL and offers a retry button instead. (See buildOfflineErrorPage.)
   if (request.mode === 'navigate') {
-    const offlineFallback = await cache.match(OFFLINE_URL);
-    return offlineFallback || Response.error();
+    return buildOfflineErrorPage();
   }
 
   return Response.error();
@@ -1100,8 +1140,10 @@ async function networkFirstPage(event, request, cacheKey) {
       if (!isRscShellRequest(request)) {
         const safe = await verifyCachedChunks(cachedResponse, cache);
         if (!safe) {
-          const offlineFallback = await cache.match(OFFLINE_URL);
-          return offlineFallback || Response.error();
+          // Weak network: the cached HTML exists but its referenced chunks
+          // are missing. Return a small inline error instead of the full
+          // /offline hub so the user keeps their URL.
+          return buildOfflineErrorPage();
         }
       }
       return cachedResponse;
@@ -1112,10 +1154,11 @@ async function networkFirstPage(event, request, cacheKey) {
       return Response.error();
     }
 
-    // فقط تنقّل حقيقي (mode=navigate) لصفحة غير موجودة في الكاش → /offline.
+    // No forced navigation to /offline. Weak-network timeouts used to
+    // bounce users out of the URL they typed. Return a minimal error page
+    // that keeps the URL and offers retry instead.
     if (request.mode === 'navigate') {
-      const offlineFallback = await cache.match(OFFLINE_URL);
-      return offlineFallback || Response.error();
+      return buildOfflineErrorPage();
     }
 
     return Response.error();

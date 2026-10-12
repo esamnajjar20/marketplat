@@ -111,7 +111,7 @@ export function SavedOfflineAdsPageClient() {
   return (
     <div className="space-y-4">
       {/* Tabs — filter by entity type */}
-      <div className="flex gap-2 overflow-x-auto" role="group" aria-label="تصفية حسب النوع">
+      <div className="flex gap-2 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية حسب النوع">
         {TABS.map((t) => {
           const count = counts[t.id];
           const disabled = t.id !== 'all' && count === 0;

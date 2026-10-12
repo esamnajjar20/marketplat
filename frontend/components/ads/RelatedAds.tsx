@@ -39,7 +39,7 @@ export function RelatedAds({ adId }: Props) {
         إعلانات مشابهة
       </h2>
       {/* Mobile: horizontal snap carousel */}
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory sm:hidden [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 snap-x snap-mandatory sm:hidden [&::-webkit-scrollbar]:hidden">
         {data.map((ad) => (
           <div key={ad.id} className="w-[48%] min-w-[160px] max-w-[220px] shrink-0 snap-start">
             <AdCard ad={ad} context="related" />

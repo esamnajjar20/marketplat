@@ -136,7 +136,7 @@ export function MessageImageViewer({ images, initialIndex, open, onOpenChange }:
           </div>
 
           {images.length > 1 && (
-            <div className="shrink-0 overflow-x-auto bg-black/60 px-3 py-2">
+            <div className="shrink-0 overflow-x-auto overscroll-x-contain bg-black/60 px-3 py-2">
               <div className="mx-auto flex w-max gap-2">
                 {images.map((image, thumbnailIndex) => (
                   <button key={image.id} type="button" onClick={() => goTo(thumbnailIndex)} className={cn('h-14 w-14 overflow-hidden rounded-lg border-2 opacity-60 transition hover:opacity-100', thumbnailIndex === index && 'border-white opacity-100')} aria-label={`الصورة ${thumbnailIndex + 1}`}>

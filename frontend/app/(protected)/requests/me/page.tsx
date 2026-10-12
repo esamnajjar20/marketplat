@@ -63,7 +63,7 @@ export default function MyRequestsPage() {
         </Button>
       </div>
 
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist" aria-label="حالة الطلب" aria-orientation="horizontal" style={{ scrollbarWidth: 'thin' }}>
+      <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-1" role="tablist" aria-label="حالة الطلب" aria-orientation="horizontal" style={{ scrollbarWidth: 'thin' }}>
         {STATUS_TABS.map((tab) => {
           const active = tab.value === status;
           return (

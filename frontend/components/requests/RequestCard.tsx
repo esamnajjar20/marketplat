@@ -30,7 +30,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
           {expiringSoon && <Badge size="xs" variant="outline" className="border-warning/50 bg-warning/10 text-warning-strong dark:text-warning"><Clock className="me-1 h-3 w-3" aria-hidden />ينتهي قريبًا</Badge>}
           {!(showStatus && expiringSoon) && <Badge size="xs" variant={REQUEST_TYPE_VARIANT[r.type]}>{REQUEST_TYPE_LABEL[r.type]}</Badge>}
         </div>
-        <h2 className="mt-2.5 line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-snug tracking-tight text-foreground">{r.title}</h2>
+        <h2 title={r.title} className="mt-2.5 line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-snug tracking-tight text-foreground">{r.title}</h2>
         {r.description ? <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{r.description}</p> : <div className="min-h-4" />}
         <div className="mt-auto space-y-2 pt-3">
           <div className="flex min-h-5 flex-wrap items-center gap-x-3 gap-y-1 text-xs">

@@ -25,7 +25,7 @@ export type CategoryTypeTab = (typeof TABS)[number]['id'];
  */
 export function AdminCategoryTypeTabs({ active }: { active: CategoryTypeTab }) {
   return (
-    <div role="tablist" aria-label="نوع الفئات" className="flex gap-1 overflow-x-auto border-b">
+    <div role="tablist" aria-label="نوع الفئات" className="flex gap-1 overflow-x-auto overscroll-x-contain border-b">
       {TABS.map((tab) => {
         const isActive = tab.id === active;
         return (

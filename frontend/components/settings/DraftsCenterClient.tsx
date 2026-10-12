@@ -179,7 +179,7 @@ export function DraftsCenterClient() {
         </Button>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b">
+      <div className="flex gap-1 overflow-x-auto overscroll-x-contain border-b">
         {TABS.map((t) => {
           const count = t.key === 'all' ? counts.all : counts[t.key];
           return (

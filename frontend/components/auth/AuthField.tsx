@@ -51,10 +51,14 @@ export function AuthField({ label, htmlFor, icon: Icon, error, hint, required, i
         className: cn(
           'h-12 rounded-xl border-input bg-transparent shadow-sm',
           // Icon side gets the extra padding to clear it; the other
-          // side keeps normal spacing. PasswordInput adds its own pe-9
-          // for the eye toggle via its className merge on top of this.
-          // Logical padding; avoid conflicting pr/pe so PasswordInput's pe-11 wins for the eye toggle.
-          iconOnLeft ? 'ps-11 pe-4' : 'pe-11 ps-4',
+          // side keeps normal spacing. Both the icon inset and the
+          // padding use LOGICAL sides (start/end) so they stay on the
+          // same edge in RTL and LTR. Earlier code mixed physical
+          // insets with logical padding, which put the icon on top of
+          // the input text in RTL.
+          // PasswordInput adds its own pe-9 for the eye toggle via
+          // its className merge on top of this.
+          iconOnLeft ? 'pe-11 ps-4' : 'ps-11 pe-4',
           (children.props as { className?: string }).className,
         ),
         'aria-describedby': (children.props as { ['aria-describedby']?: string })['aria-describedby'] ?? describedBy,
@@ -67,7 +71,7 @@ export function AuthField({ label, htmlFor, icon: Icon, error, hint, required, i
       <div className="relative">
         <label
           htmlFor={htmlFor}
-          className="pointer-events-none absolute -top-2 right-4 z-10 bg-card px-2 text-xs font-medium text-muted-foreground"
+          className="pointer-events-none absolute -top-2 start-4 z-10 bg-card px-2 text-xs font-medium text-muted-foreground"
         >
           {label}
           {required && <span className="ms-1 text-destructive" aria-hidden="true">*</span>}
@@ -77,7 +81,7 @@ export function AuthField({ label, htmlFor, icon: Icon, error, hint, required, i
           aria-hidden
           className={cn(
             'pointer-events-none absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/60',
-            iconOnLeft ? 'left-4' : 'right-4',
+            iconOnLeft ? 'end-4' : 'start-4',
           )}
         />
         {styledChild}

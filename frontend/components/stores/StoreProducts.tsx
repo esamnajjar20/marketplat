@@ -181,7 +181,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
       )}
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/70 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="ترتيب المنتجات">
+        <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1" role="group" aria-label="ترتيب المنتجات">
           {SORT_OPTIONS.map((opt) => (
             <button
               key={opt.value}

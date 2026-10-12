@@ -71,7 +71,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
   // check could never match a thumbnail that didn't exist). Users on
   // a listing with more than three photos had no visual indication
   // of which image they were viewing beyond the “n / total” counter.
-  // The thumbnail container already has overflow-x-auto, so the full
+  // The thumbnail container already has overflow-x-auto overscroll-x-contain, so the full
   // strip fits and scrolls on narrow screens.
   const thumbnailImages = images;
 

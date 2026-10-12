@@ -23,7 +23,7 @@ export function AdBreadcrumb({ ad }: Props) {
   const categoryHref = useCategoryHref(ad.category?.id);
 
   return (
-    <nav aria-label="مسار التصفح" className="mb-4 flex items-center gap-1.5 overflow-x-auto text-sm text-muted-foreground">
+    <nav aria-label="مسار التصفح" className="mb-4 flex items-center gap-1.5 overflow-x-auto overscroll-x-contain text-sm text-muted-foreground">
       <Link href={ROUTES.home} className="flex shrink-0 items-center gap-1 hover:text-primary">
         <Home className="h-3.5 w-3.5" />
         الرئيسية

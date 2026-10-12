@@ -358,7 +358,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
       {!composerBusy && !hasBody && !imageFile && !attachmentFile && (
         <div
-          className="flex gap-2 overflow-x-auto px-3 pt-2.5 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
+          className="flex gap-2 overflow-x-auto overscroll-x-contain px-3 pt-2.5 pb-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
           role="group"
           aria-label="رسائل سريعة"
         >

@@ -238,7 +238,7 @@ export function NotificationsPage() {
       )}
 
       {/* فئات */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 scrollbar-none">
         {NOTIFICATION_CATEGORIES.map((c) => (
           <button
             key={c.id}

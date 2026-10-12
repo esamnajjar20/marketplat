@@ -79,7 +79,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   return (
     <div className="space-y-5">
       <div
-        className="sticky top-[var(--protected-header-offset,4rem)] z-20 -mx-2 flex gap-1.5 overflow-x-auto border-b border-border/70 bg-background/95 px-2 py-2 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/85"
+        className="sticky top-[var(--protected-header-offset,4rem)] z-20 -mx-2 flex gap-1.5 overflow-x-auto overscroll-x-contain border-b border-border/70 bg-background/95 px-2 py-2 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/85"
         role="tablist"
         aria-label="أقسام المتجر"
       >

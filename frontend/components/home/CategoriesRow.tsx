@@ -75,7 +75,7 @@ export function CategoriesRow() {
 
   if (categoriesLoading) {
     return (
-      <div className="flex gap-2.5 overflow-x-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4">
+      <div className="flex gap-2.5 overflow-x-auto overscroll-x-contain px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-[5.5rem] w-[5.5rem] shrink-0 rounded-2xl" />
         ))}

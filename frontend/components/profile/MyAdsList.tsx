@@ -250,7 +250,7 @@ export function MyAdsList() {
       {/* Status filter tabs */}
       {/* BULK-ADS-01-JSX */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3">
-        <div className="flex gap-2 overflow-x-auto" role="group" aria-label="تصفية الإعلانات حسب الحالة">
+        <div className="flex gap-2 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الإعلانات حسب الحالة">
           {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['EXPIRED', 'منتهية'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
             <button key={val} onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}

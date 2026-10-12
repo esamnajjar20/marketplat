@@ -258,7 +258,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
             )}
           </div>
           {images.length > 1 && (
-            <div className="flex gap-3 p-3 overflow-x-auto">
+            <div className="flex gap-3 p-3 overflow-x-auto overscroll-x-contain">
               {images.map((img, i) => (
                 <button key={i} ref={(node) => { thumbnailRefs.current[i] = node; }} onClick={() => setImgIdx(i)}
                   aria-label={`عرض الصورة ${i + 1} من ${images.length}`}

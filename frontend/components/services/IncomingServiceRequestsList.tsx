@@ -207,7 +207,7 @@ export function IncomingServiceRequestsList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 border-b pb-3 overflow-x-auto" role="group" aria-label="تصفية الطلبات الواردة حسب الحالة">
+      <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الطلبات الواردة حسب الحالة">
         {FILTER_TABS.map((val) => (
           <button
             key={val}
