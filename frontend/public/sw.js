@@ -110,7 +110,7 @@ const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v51';
+const CACHE_VERSION = 'v52';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -1079,13 +1079,37 @@ async function verifyCachedChunks(cachedResponse, cache) {
  * "نسخة قديمة" لها أصلًا وتخزينها أولًا مكسب سرعة/أوفلاين بلا أي كلفة.
  * الخلل كان فقط بمستند الـ HTML/RSC الذي *يشير* لتلك الأسماء، وهو بالضبط
  * ما تعالجه هذه الدالة. */
+/**
+ * FIX SW-SHELL-PATH-FALLBACK-01: warming stores shells at their bare
+ * pathname from CORE_ROUTES, but user navigation can arrive with a
+ * trailing slash, a query string, or both - cache.match is URL-exact,
+ * so any such mismatch fell to buildOfflineErrorPage even when a
+ * perfectly valid shell existed. Order: exact -> bare path -> slash alt.
+ */
+async function lookupShellWithFallback(cache, request, url) {
+  const isRsc = isRscShellRequest(request);
+  const exact = await cache.match(request);
+  if (exact) return exact;
+  if (request.mode !== 'navigate' && !isRsc) return null;
+  if (url.search) {
+    const bareKey = isRsc ? rscShellKey(url.origin + url.pathname) : url.origin + url.pathname;
+    const bare = await cache.match(bareKey);
+    if (bare) return bare;
+  }
+  const altPath = url.pathname.endsWith('/')
+    ? url.pathname.slice(0, -1) || '/'
+    : url.pathname + '/';
+  const altKey = isRsc ? rscShellKey(url.origin + altPath) : url.origin + altPath;
+  return await cache.match(altKey) || null;
+}
+
 async function networkFirstPage(event, request, cacheKey) {
   const url = new URL(request.url);
   const cache = await caches.open(STATIC_CACHE);
   // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
   // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
   // FIX NAV-TIMEOUT-CACHED-01: shorter timeout when a cached shell exists.
-  const hasCachedShell = !!(await cache.match(cacheKey));
+  const hasCachedShell = !!(await lookupShellWithFallback(cache, request, url));
   const navigateTimeout = hasCachedShell ? NAVIGATE_TIMEOUT_CACHED_MS : NAVIGATE_TIMEOUT_MS;
   const fetchPromise = fetch(request);
   try {
@@ -1134,7 +1158,8 @@ async function networkFirstPage(event, request, cacheKey) {
       );
     }
     // فشل الشبكة (أوفلاين) أو تجاوز المهلة — آخر نسخة مخزَّنة فعليًا، إن وُجدت.
-    const cachedResponse = await cache.match(cacheKey);
+    // FIX SW-SHELL-PATH-FALLBACK-01: try bare path when exact key misses.
+    const cachedResponse = await lookupShellWithFallback(cache, request, url);
     if (cachedResponse) {
       // FIX SW-CHUNK-VERIFY-01: refuse to serve HTML whose referenced
       // chunks are not all cached — that would produce a ChunkLoadError
@@ -1287,7 +1312,8 @@ async function handleProtectedPage(event, request, url) {
     }
     if (useShellCache) {
       const shellCache = await caches.open(PERSONAL_SHELL_CACHE);
-      const cachedShell = await shellCache.match(cacheKey);
+      // FIX SW-SHELL-PATH-FALLBACK-01: try bare path when exact key misses.
+      const cachedShell = await lookupShellWithFallback(shellCache, request, url);
       if (cachedShell) {
         // SW-CHUNK-VERIFY-PROTECTED-01: the same protection that
         // networkFirstPage got in SW-CHUNK-VERIFY-01, applied to the
