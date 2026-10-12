@@ -27,7 +27,6 @@ const CHECK_INTERVAL_MS = 60 * 60 * 1000; // hourly
 const FIRED_KEY = 'marketplat:sw-stale-activation-fired';
 
 let waitingSince: number | null = null;
-let timerId: ReturnType<typeof setInterval> | null = null;
 // FIX SW-STALE-INIT-GUARD-01: the previous guard checked `timerId !== null`
 // before the async setup had run — `timerId` is only assigned *inside* the
 // serviceWorker.ready.then() callback, so two synchronous calls in the same
@@ -85,7 +84,7 @@ export function initStaleWaitingServiceWorkerHandler(): void {
   void navigator.serviceWorker.ready
     .then((reg) => {
       evaluate(reg);
-      timerId = setInterval(() => evaluate(reg), CHECK_INTERVAL_MS);
+      setInterval(() => evaluate(reg), CHECK_INTERVAL_MS);
       if (!visibilityListenerAttached) {
         visibilityListenerAttached = true;
         document.addEventListener('visibilitychange', () => {
