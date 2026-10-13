@@ -34,7 +34,14 @@ import type { PaginationMeta } from '@/types/api.types';
  *   `meta.pagination` (not `data.meta`) holds { total, page, totalPages, ... }.
  */
 
-export const revalidate = 21600; // 6 hours
+// SITEMAP-DYNAMIC-01: generate on first request, not at build time.
+// At build time the Render backend is often asleep (cold start > 8s),
+// causing every fetch below to time out and ship a sitemap with only
+// the 8 static routes. force-dynamic defers generation to the first
+// real request — by then user traffic has woken the backend, so the
+// fetches succeed and the full catalog gets cached.
+export const dynamic = 'force-dynamic';
+export const revalidate = 21600; // 6 hours — CDN cache after first build
 
 const MAX_ADS_IN_SITEMAP = 5000;
 

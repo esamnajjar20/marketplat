@@ -31,7 +31,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     // FIX TS-04: Explicit tsBuildInfoFile location keeps incremental
     //   artifacts out of the project root.
     "incremental": true,
