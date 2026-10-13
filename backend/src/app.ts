@@ -10,6 +10,7 @@ import { router } from './routes';
 import { errorMiddleware } from './middlewares/error.middleware';
 import { globalRateLimit } from './middlewares/rateLimit.middleware';
 import { requestIdMiddleware } from './middlewares/requestId.middleware';
+import { offlineOperationIdMiddleware } from './middlewares/offlineOperationId.middleware';
 import { sendApiError } from './shared/errors/errorResponse';
 import { ErrorCode } from './shared/errors/errorCodes';
 import { logger } from './shared/utils/logger';
@@ -118,6 +119,10 @@ app.use(passport.initialize());
 
 // ── Request ID ────────────────────────────────────────
 app.use(requestIdMiddleware);
+
+// Validate the optional offline idempotency key before any route consumes it.
+// Missing headers are valid for ordinary online requests.
+app.use(offlineOperationIdMiddleware);
 
 // ── Metrics ───────────────────────────────────────────
 // Registered here (before globalRateLimit, same as /health/ready/live

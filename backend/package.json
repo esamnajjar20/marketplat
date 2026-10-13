@@ -56,7 +56,9 @@
     "cron:sales-notifications": "ts-node-dev --transpile-only --exit-child src/scripts/runSalesNotificationJobs.ts",
     "postinstall": "prisma generate || true",
     "worker:outbox": "ts-node-dev --transpile-only --exit-child src/scripts/runOutboxWorker.ts",
-    "worker:outbox:prod": "node dist/scripts/runOutboxWorker.js"
+    "worker:outbox:prod": "node dist/scripts/runOutboxWorker.js",
+    "audit:offline-idempotency": "node scripts/offline-idempotency-complete-audit.mjs",
+    "audit:offline-idempotency-concurrency": "node scripts/offline-idempotency-concurrency-audit.mjs"
   },
   "lint-staged": {
     "src/**/*.ts": [

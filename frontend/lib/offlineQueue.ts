@@ -161,7 +161,10 @@ export async function enqueueOfflineMutationFallback(
     return { queued: false, reason: 'body-too-large' };
   }
 
-  const operationId = input.operationId || newOfflineOperationId();
+  const operationId = (input.operationId || newOfflineOperationId()).slice(0, 128);
+  // Keep the stable operation identity in both the record and request headers
+  // so the SW can restore it on replay after an interrupted acknowledgement.
+  safeHeaders['x-offline-op-id'] = operationId;
   const db = await openQueueDb();
   try {
     await new Promise<void>((resolve, reject) => {
@@ -312,9 +315,9 @@ export async function listFailedRequests(): Promise<QueuedRequestSummary[]> {
     }))
     .sort((a, b) => a.queuedAt - b.queuedAt)
     // FIX QUEUE-UI-LIMIT: cap the list displayed in /offline at 20 —
-    // sw.js's pruneFailedEntries keeps 50 max in IDB, but showing all
-    // of them in the page is overkill and slows the UI. Users can
-    // discard the visible ones and refresh to see more.
+    // The service worker retains failed entries until explicit user action;
+    // the display remains capped at 20 for responsiveness. Users can
+    // discard visible entries and refresh to reveal older entries.
     .slice(0, 20);
 }
 

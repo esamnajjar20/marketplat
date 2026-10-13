@@ -64,11 +64,12 @@ check('Worker only processes outbox events while holding its lease', () => {
   assert.match(worker, /Outbox lease lost before notification acknowledgement/);
 });
 check('Unread cache invalidation is chunked to bounded batches', () => {
-  assert.match(worker, /i \+= 50/);
+  assert.match(worker, /const POST_COMMIT_BATCH_SIZE = 50/);
+  assert.match(worker, /i \+= POST_COMMIT_BATCH_SIZE/);
 });
 check('Push/SSE failures do not undo durable notification rows', () => {
   assert.match(worker, /durable notification rows/);
-  assert.match(worker, /Outbox notification push failed after durable commit/);
+  assert.match(worker, /Outbox notification SSE publish failed after durable commit/);
 });
 
 console.log(`\n${checks.length}/${checks.length} static outbox notification checks passed.`);

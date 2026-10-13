@@ -231,6 +231,7 @@ function loadServiceWorker() {
     console,
     URL,
     Headers,
+    TextEncoder,
     Blob,
     Response,
     queueMicrotask,
@@ -256,7 +257,7 @@ function loadServiceWorker() {
   // want to modify just for testability.
   vm.runInContext(
     `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__USER_DATA_CACHE_PREFIX = USER_DATA_CACHE_PREFIX;
-self.__USER_DATA_CACHE_NAME = userDataCacheName;\nself.__NAVIGATE_TIMEOUT_MS = NAVIGATE_TIMEOUT_MS;\nself.__NAVIGATE_TIMEOUT_CACHED_MS = NAVIGATE_TIMEOUT_CACHED_MS;\nself.__withNetworkTimeout = withNetworkTimeout;`,
+self.__USER_DATA_CACHE_NAME = userDataCacheName;\nself.__MAX_QUEUE_ENTRIES = MAX_QUEUE_ENTRIES;\nself.__MAX_QUEUE_TOTAL_BYTES = MAX_QUEUE_TOTAL_BYTES;\nself.__NAVIGATE_TIMEOUT_MS = NAVIGATE_TIMEOUT_MS;\nself.__NAVIGATE_TIMEOUT_CACHED_MS = NAVIGATE_TIMEOUT_CACHED_MS;\nself.__withNetworkTimeout = withNetworkTimeout;`,
     sandbox,
     { filename: 'sw.js' },
   );
@@ -614,7 +615,7 @@ describe('sw.js — service worker logic', () => {
       expect(await userDataCache.match(request)).toBeDefined();
     });
 
-    it('does NOT store authenticated private paths (/ads/me) in any shared cache', async () => {
+    it('stores authenticated private GET responses only in the matching user cache', async () => {
       ctx.setFetch(async () =>
         new Response(JSON.stringify({ items: [] }), {
           status: 200,
@@ -634,7 +635,151 @@ describe('sw.js — service worker logic', () => {
       const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
       const userDataCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
       expect(await apiCache.match(request)).toBeUndefined();
-      expect(await userDataCache.match(request)).toBeUndefined();
+      expect(await userDataCache.match(request)).toBeDefined();
+    });
+
+    it('never caches admin API responses, even for an authenticated user', async () => {
+      ctx.setFetch(async () => new Response(JSON.stringify({ secret: true }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      }));
+      const event = makeEvent();
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/admin/metrics',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+      const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      expect(await apiCache.match(request)).toBeUndefined();
+      expect(await userCache.match(request)).toBeUndefined();
+    });
+
+    it('never caches auth/session endpoints even when the response is JSON', async () => {
+      ctx.setFetch(async () => new Response(JSON.stringify({ secret: true }), {
+        status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' },
+      }));
+      const event = makeEvent();
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/auth/session',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+      const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      expect(await userCache.match(request)).toBeUndefined();
+    });
+
+    it.each([
+      ['no-cache', 'no-cache'],
+      ['must-revalidate', 'public, max-age=3600, must-revalidate'],
+      ['zero max-age', 'public, max-age=0'],
+      ['zero shared max-age', 'public, s-maxage=0'],
+    ])('does not persist a response that requires revalidation (%s)', async (_label, cacheControl) => {
+      ctx.setFetch(async () => new Response(JSON.stringify({ snapshot: 'must-revalidate' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': cacheControl },
+      }));
+      const event = makeEvent();
+      const request = makeFakeRequest({ url: 'https://example.com/api/v1/categories' });
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+      const sharedCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      expect(await sharedCache.match(request)).toBeUndefined();
+    });
+
+    it('does not store user-partitioned responses that vary by Authorization', async () => {
+      ctx.setFetch(async () => new Response(JSON.stringify({ scoped: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Vary': 'Authorization' },
+      }));
+      const event = makeEvent();
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/orders',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+      const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      expect(await userCache.match(request)).toBeUndefined();
+    });
+
+    it('does not return a legacy no-cache response as an offline fallback', async () => {
+      const request = makeFakeRequest({ url: 'https://example.com/api/v1/categories' });
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      await cache.put(request, new Response(JSON.stringify({ stale: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+      }));
+      ctx.setFetch(async () => { throw new Error('offline'); });
+      const fallback = await ctx.sandbox.networkFirstApi(makeEvent(), request, new URL(request.url));
+      expect(fallback.type).toBe('error');
+    });
+
+    it('never persists a no-store response, even in the authenticated user partition', async () => {
+      ctx.setFetch(async () => new Response(JSON.stringify({ orders: [{ id: 'order-1' }] }), {
+        status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' },
+      }));
+      const event = makeEvent();
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/orders',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+      const sharedCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      expect(await sharedCache.match(request)).toBeUndefined();
+      expect(await userCache.match(request)).toBeUndefined();
+    });
+
+    it('never writes cookie-authenticated private responses to the shared API cache', async () => {
+      // The SW cannot read the Cookie request header; backend private/Vary
+      // response metadata must therefore prevent a shared write.
+      ctx.setFetch(async () => new Response(JSON.stringify({ profile: { name: 'private' } }), {
+        status: 200, headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-transform',
+          'Vary': 'Authorization, Cookie',
+        },
+      }));
+      const event = makeEvent();
+      const request = makeFakeRequest({ url: 'https://example.com/api/v1/users/me' });
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+      const sharedCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      expect(await sharedCache.match(request)).toBeUndefined();
+    });
+
+    it('does not serve an identity-varying cached response as a shared offline fallback', async () => {
+      const request = makeFakeRequest({ url: 'https://example.com/api/v1/users/me' });
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      await cache.put(request, new Response(JSON.stringify({ profile: { name: 'old-private' } }), {
+        status: 200, headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache',
+          'Vary': 'Cookie',
+        },
+      }));
+      ctx.setFetch(async () => { throw new Error('offline'); });
+      const event = makeEvent();
+      const fallback = await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      expect(fallback.type).toBe('error');
+    });
+
+    it('does not return a legacy no-store response from a user cache during offline fallback', async () => {
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/orders',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      await userCache.put(request, new Response(JSON.stringify({ orders: [{ id: 'legacy-private' }] }), {
+        status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' },
+      }));
+      ctx.setFetch(async () => { throw new Error('offline'); });
+      const event = makeEvent();
+      const fallback = await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      expect(fallback.type).toBe('error');
     });
 
     it('keeps different query strings as separate USER_DATA_CACHE keys', async () => {
@@ -901,6 +1046,26 @@ describe('sw.js — service worker logic', () => {
       expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_CACHED_MS).toBeLessThan(
         ctx.sandbox.self.__NAVIGATE_TIMEOUT_MS,
       );
+    });
+  });
+
+  describe('offline queue capacity (v58)', () => {
+    it('publishes conservative aggregate queue caps', () => {
+      expect(ctx.sandbox.self.__MAX_QUEUE_ENTRIES).toBe(500);
+      expect(ctx.sandbox.self.__MAX_QUEUE_TOTAL_BYTES).toBe(20 * 1024 * 1024);
+    });
+
+    it('rejects an enqueue that would exceed the aggregate byte budget without storing it', async () => {
+      const oversized = new Blob([new Uint8Array(20 * 1024 * 1024)]);
+      await expect(ctx.sandbox.queueRequestEntry({
+        url: 'https://example.com/api/v1/ads',
+        method: 'POST',
+        headers: {},
+        body: oversized,
+        queuedAt: Date.now(),
+        operationId: 'oversized-queue-test',
+      })).rejects.toMatchObject({ code: 'QUEUE_LIMIT_EXCEEDED' });
+      expect(await ctx.sandbox.getAllQueuedEntries()).toHaveLength(0);
     });
   });
 
@@ -1282,5 +1447,34 @@ describe('sw.js — service worker logic', () => {
 
       expect(fetchCalls).toBe(0);
     });
+  });
+});
+
+
+describe('account-bound offline queue replay guard', () => {
+  it('defers owner-bound rows when the current session identity cannot be verified', () => {
+    expect(SW_SOURCE).toMatch(/if \(queuedOwner && !currentOwner\) \{[\s\S]*?return 'still-offline';[\s\S]*?\}/);
+    expect(SW_SOURCE).toMatch(/sessionIdentityUnverified/);
+    expect(SW_SOURCE).toMatch(/if \(queuedOwner && currentOwner && queuedOwner !== currentOwner\)/);
+    expect(SW_SOURCE).toMatch(/type: 'QUEUE_NEEDS_RELOGIN'/);
+    expect(SW_SOURCE).toMatch(/if \(PROTECTED_AD_EDIT_RE\.test\(path\)\) return false;/);
+  });
+});
+
+
+describe('queue drain failure resilience (v60)', () => {
+  it('always releases the replay lock when drain notifications or replay fail', () => {
+    const start = SW_SOURCE.indexOf('async function replayQueue()');
+    const end = SW_SOURCE.indexOf('async function replayQueueImpl', start);
+    const body = SW_SOURCE.slice(start, end);
+    expect(body).toMatch(/try\s*\{[\s\S]*?finally\s*\{\s*replayQueueInFlight = false;/);
+    expect(body).toMatch(/Unable to notify queue drain start/);
+    expect(body).toMatch(/Unable to notify queue drain completion/);
+    expect(body).toMatch(/QUEUE_DRAIN_FAILED/);
+  });
+
+  it('does not silently prune failed queued operations', () => {
+    expect(SW_SOURCE).not.toMatch(/function pruneFailedEntries\s*\(/);
+    expect(SW_SOURCE).toMatch(/must never free\s+space by silently deleting/);
   });
 });

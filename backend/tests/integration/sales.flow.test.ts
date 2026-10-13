@@ -205,4 +205,79 @@ describe('Sales integration flow', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(first.body.data.id);
   });
+
+  it('deduplicates concurrent retries of the same offline operation', async () => {
+    const user = await createTestUser();
+    const op = `test-offline-concurrent-${Date.now()}`;
+    const payload = {
+      entityType: 'FREE', entityTitle: 'Concurrent Offline Sale', quantity: 1,
+      unitPrice: 31, buyerName: 'Concurrent Offline Buyer', paidAmount: 31,
+      payment: { amount: 31, method: 'CASH' },
+    };
+    const send = () => request(app)
+      .post('/api/v1/sales')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .set('X-Offline-Op-Id', op)
+      .send(payload);
+
+    const [first, second] = await Promise.all([send(), send()]);
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(first.body.data.id).toBe(second.body.data.id);
+    expect(await prisma.saleRecord.count({ where: { sellerId: user.id, offlineOperationId: op } })).toBe(1);
+    expect(await prisma.salePayment.count({ where: { saleId: first.body.data.id } })).toBe(1);
+  });
+
+  it('replays a committed product sale without repeating inventory, payment, or customer side effects', async () => {
+    const { user, store } = await sellerStore();
+    const product = await createProduct(store.id);
+    const op = `test-offline-lost-ack-${Date.now()}`;
+    const payload = {
+      entityType: 'PRODUCT', entityId: product.id, storeId: store.id, entityTitle: product.name,
+      quantity: 2, unitPrice: 10, buyerName: 'Lost Acknowledgement Buyer',
+      buyerPhone: `059${String(Date.now()).slice(-7)}`, paidAmount: 20,
+      payment: { amount: 20, method: 'CASH' },
+    };
+    const send = () => request(app)
+      .post('/api/v1/sales')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .set('X-Offline-Op-Id', op)
+      .send(payload);
+
+    // Model a client that cannot rely on the first response and retries the same durable operation.
+    const first = await send();
+    expect(first.status).toBe(201);
+    const replay = await send();
+    expect(replay.status).toBe(201);
+    expect(replay.body.data.id).toBe(first.body.data.id);
+
+    const freshProduct = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    const customer = await prisma.customer.findFirstOrThrow({ where: { sellerId: user.id, phone: payload.buyerPhone } });
+    expect(freshProduct.stockQuantity).toBe(8);
+    expect(customer.purchaseCount).toBe(1);
+    expect(Number(customer.totalSpent)).toBe(20);
+    expect(await prisma.salePayment.count({ where: { saleId: first.body.data.id } })).toBe(1);
+    expect(await prisma.saleRecord.count({ where: { sellerId: user.id, offlineOperationId: op } })).toBe(1);
+  });
+
+  it('scopes identical offline operation ids to each authenticated seller', async () => {
+    const firstUser = await createTestUser();
+    const secondUser = await createTestUser();
+    const op = `test-offline-cross-account-${Date.now()}`;
+    const send = (user: typeof firstUser, title: string) => request(app)
+      .post('/api/v1/sales')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .set('X-Offline-Op-Id', op)
+      .send({ entityType: 'FREE', entityTitle: title, quantity: 1, unitPrice: 9, buyerName: 'Account Isolation Buyer', paidAmount: 0 });
+
+    const [first, second] = await Promise.all([
+      send(firstUser, 'First seller sale'),
+      send(secondUser, 'Second seller sale'),
+    ]);
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(first.body.data.id).not.toBe(second.body.data.id);
+    expect(await prisma.saleRecord.count({ where: { sellerId: firstUser.id, offlineOperationId: op } })).toBe(1);
+    expect(await prisma.saleRecord.count({ where: { sellerId: secondUser.id, offlineOperationId: op } })).toBe(1);
+  });
 });

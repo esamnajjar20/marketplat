@@ -110,7 +110,7 @@ const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v53';
+const CACHE_VERSION = 'v61';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -365,6 +365,9 @@ let queueConcurrencyHint = 1;
  * فوق هذا الحد نرفض الطابور ونُرجع خطأ واضحًا لتأخذ المسودة (publishFiles)
  * المسار الاحتياطي — أفضل من QuotaExceeded صامت أو still-offline أبدي. */
 const MAX_QUEUE_BODY_BYTES = 6 * 1024 * 1024; // 6 MB
+/** Aggregate IndexedDB queue caps. Never silently evict pending user actions. */
+const MAX_QUEUE_ENTRIES = 500;
+const MAX_QUEUE_TOTAL_BYTES = 20 * 1024 * 1024; // 20 MB
 
 /** Headers must not be replayed verbatim — content-length especially
  * breaks fetch() when the Blob size differs slightly after IDB round-trip. */
@@ -399,6 +402,24 @@ function decodeAccessTokenUserId(token) {
   } catch {
     return null;
   }
+}
+
+/** Stable per-queued-mutation key. Persist it before any network replay so a
+ * lost acknowledgement can safely retry on endpoints that implement
+ * X-Offline-Op-Id idempotency. This is not a substitute for server support. */
+function createOfflineOperationId() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+  } catch {}
+  // Last-resort uniqueness for older environments; server still validates owner.
+  return `offline-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 }
 
 function sanitizeQueueHeaders(raw) {
@@ -684,12 +705,14 @@ function rscShellKey(input) {
  * The cache is separate from the shared public cache and is cleared on logout.
  * Warming remains a fallback only: it still uses the curated route allowlist
  * in offlineRouteShells.ts and VISIT-WINS metadata prevents it replacing a
- * newer real visit. Never cache admin, authentication, or ad-edit responses.
+ * newer real visit. Admin responses remain excluded; auth pages bypass shell caching.
  * Dynamic/private data is still governed by the explicit offline data stores;
  * a cached shell alone does not imply every API payload is available offline.
  */
 function isPersonalShellRoute(url) {
   const path = url.pathname;
+  // Ad-edit screens may contain drafts and prefilled private form state;
+  // do not persist their document/RSC shell even in the personal cache.
   if (PROTECTED_AD_EDIT_RE.test(path)) return false;
   if (path === '/admin' || path.startsWith('/admin/')) return false;
   if (isAuthPage(url)) return false;
@@ -1678,48 +1701,100 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
 /** Network First لطلبات API (GET) — عند فشل الشبكة: API_CACHE أولًا (آخر
  * استجابة فعلية زارها المستخدم)، ثم CORE_CACHE (الحزمة الأساسية المحمَّلة
  * استباقيًا عبر warmCoreBundle لمسارات لم تُزَر من قبل). */
+function cacheControlHasDirective(value, directive) {
+  return String(value || '').split(',').some((part) => part.trim().split('=')[0].trim().toLowerCase() === directive.toLowerCase());
+}
+
+/**
+ * A response that requires revalidation must not be used as an offline
+ * snapshot. Browsers may store `no-cache` responses, but they must validate
+ * them before reuse; an offline fallback cannot perform that validation.
+ * Treat zero freshness lifetimes the same way to avoid serving known-stale
+ * snapshots after a network failure.
+ */
+function cacheControlRequiresValidation(value) {
+  const directives = String(value || '').split(',').map((part) => {
+    const [rawName, ...rawValue] = part.trim().split('=');
+    return {
+      name: String(rawName || '').trim().toLowerCase(),
+      value: rawValue.join('=').trim().replace(/^"|"$/g, ''),
+    };
+  });
+  return directives.some(({ name, value }) =>
+    name === 'no-store' ||
+    name === 'no-cache' ||
+    name === 'must-revalidate' ||
+    name === 'proxy-revalidate' ||
+    ((name === 'max-age' || name === 's-maxage') && value === '0'),
+  );
+}
+
+function responseVariesBy(response, headerName) {
+  const vary = (response?.headers?.get('vary') || '').split(',').map((part) => part.trim().toLowerCase());
+  return vary.includes('*') || vary.includes(headerName.toLowerCase());
+}
+
+function isSafeSharedApiSnapshot(response) {
+  if (!response) return false;
+  const headers = response.headers;
+  const cacheControl = headers.get('cache-control') || '';
+  // A shared API cache must never retain explicitly private/no-store data,
+  // session-setting responses, or variants dependent on a caller's identity.
+  return !cacheControlRequiresValidation(cacheControl) &&
+    !cacheControlHasDirective(cacheControl, 'private') &&
+    !headers.has('set-cookie') &&
+    !responseVariesBy(response, 'cookie') &&
+    !responseVariesBy(response, 'authorization');
+}
+
+function isSafeUserApiSnapshot(response) {
+  if (!response) return false;
+  const headers = response.headers;
+  const cacheControl = headers.get('cache-control') || '';
+  // A subject partition does not override no-store and cannot reproduce a
+  // response whose representation also depends on an inaccessible Cookie.
+  return !cacheControlRequiresValidation(cacheControl) &&
+    !headers.has('set-cookie') &&
+    !responseVariesBy(response, 'cookie') &&
+    !responseVariesBy(response, 'authorization');
+}
+
 async function networkFirstApi(event, request, url) {
   const cache = await caches.open(API_CACHE);
-  // FIX SW-WEAK-NET-TIMEOUT-01: fetchPromise الحقيقي منفصل عن السباق —
-  // يستمر بالخلفية حتى لو فازت المهلة أدناه (انظر تعليق withNetworkTimeout).
   const fetchPromise = fetch(request);
-  // T710 — never store an auth-keyed response in the SHARED API_CACHE.
-  // The backend's CACHE.NONE middleware sends `Cache-Control: no-store`
-  // but NOT `Vary: Authorization`, so a `/users/me` (or /conversations,
-  // /notifications, ...) response cached under User A would match a
-  // later request for the same URL from a different session.
-  // FIX SW-API-AUTH-TIMEOUT-01: this gate now guards BOTH the normal
-  // path and the late-arriving (post-timeout) path — the latter used to
-  // store auth'd responses without checking it.
-  // FIX SW-AUTH-PUBLIC-LIST-01: public list GETs (ads/products/…) may still
-  // be stored in USER_DATA_CACHE when Authorization is present — that cache
-  // is cleared on logout, so isFavorited leakage across users is avoided.
   const hadAuth = request.headers.get('authorization') != null;
+  const userCacheName = hadAuth ? userDataCacheForRequest(request) : null;
   const publicListOk = isPublicListApiPath(url);
+  const isAdminApi = url.pathname === '/api/admin' || url.pathname.startsWith('/api/admin/') || /\/api\/v\d+\/admin(?:\/|$)/i.test(url.pathname);
+  const isSensitiveApi = isNeverCache(url) || isAdminApi || /\/(?:auth|csrf|sessions?|tokens?|password|payment-intents?|checkout\/confirm)(?:\/|$)/i.test(url.pathname);
 
+  // Respect HTTP cache directives for every identity mode. In particular,
+  // CACHE.NONE/no-store must never be overridden just because a JWT is present.
+  // Cookie-authenticated requests have no readable Cookie request header in a
+  // Service Worker, so the response's private/Vary: Cookie metadata is the
+  // reliable signal that it must not enter the shared API cache.
   const storeIfAllowed = async (response) => {
-    if (!response) return;
-    // FIX SW-CAPTIVE-01 (API variant): رد API حقيقي متوقّع يكون JSON —
-    // صفحة captive portal/edge error بحالة 200 عادة HTML.
-    const looksLikeJson = (response.headers.get('content-type') || '').includes('application/json');
-    // FIX SW-206-API: استثناء 206 أيضاً.
-    if (!(response.ok && response.status !== 206 && isSameOriginResponse(response) && looksLikeJson)) {
-      return;
-    }
+    if (!response || isSensitiveApi) return;
+    const headers = response.headers;
+    const contentType = (headers.get('content-type') || '').toLowerCase();
+    const cacheControl = headers.get('cache-control') || '';
+    if (!(response.ok && response.status !== 206 && isSameOriginResponse(response) && contentType.includes('application/json'))) return;
+    if (cacheControlRequiresValidation(cacheControl) || headers.has('set-cookie')) return;
+
     if (!hadAuth) {
+      if (!isSafeSharedApiSnapshot(response)) return;
       if (await shouldSkipDisposableCacheWrite(API_CACHE)) return;
       await putTimestamped(cache, request, response.clone());
       await trimCache(API_CACHE, MAX_API_ENTRIES);
       return;
     }
-    // Logged-in public lists → USER_DATA_CACHE only (cleared on logout).
-    if (publicListOk) {
-      const cacheName = userDataCacheForRequest(request);
-      if (!cacheName) return;
-      const userDataCache = await caches.open(cacheName);
-      await putTimestamped(userDataCache, request, response.clone());
-      await trimCache(cacheName, MAX_USER_DATA_ENTRIES, MAX_USER_DATA_BYTES);
-    }
+
+    // A user-partitioned cache is still not allowed to override no-store or
+    // store responses that vary by Cookie. Opaque tokens cannot be partitioned.
+    if (!userCacheName || responseVariesBy(response, 'cookie')) return;
+    const userDataCache = await caches.open(userCacheName);
+    await putTimestamped(userDataCache, request, response.clone());
+    await trimCache(userCacheName, MAX_USER_DATA_ENTRIES, MAX_USER_DATA_BYTES);
   };
 
   try {
@@ -1728,43 +1803,39 @@ async function networkFirstApi(event, request, url) {
     return response;
   } catch (err) {
     const timedOut = !!(err && err.name === 'SwTimeoutError');
-    if (timedOut) {
-      // مهلة (نت ضعيف) لا تعني تخلّيًا عن fetchPromise الحقيقي — لو نجح
-      // لاحقًا حدِّث الكاش بالخلفية (بنفس بوابة التخزين).
-      event.waitUntil(fetchPromise.then(storeIfAllowed).catch(() => {}));
+    if (timedOut) event.waitUntil(fetchPromise.then(storeIfAllowed).catch(() => {}));
+
+    // Never satisfy an authenticated private request from the shared cache:
+    // only its subject-partitioned cache may supply a stale offline response.
+    if (hadAuth) {
+      if (!isSensitiveApi && userCacheName) {
+        const userDataCache = await caches.open(userCacheName);
+        const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
+        if (cachedUserData && isSafeUserApiSnapshot(cachedUserData)) return cachedUserData;
+      }
+      // Shared/core caches are safe only for explicitly public-list endpoints.
+      if (publicListOk && !isSensitiveApi) {
+        const cachedApi = await cache.match(request, { ignoreVary: true });
+        if (cachedApi && isSafeSharedApiSnapshot(cachedApi)) return cachedApi;
+        const coreCache = await caches.open(CORE_CACHE);
+        const cachedCore = await coreCache.match(request.url);
+        if (cachedCore && isSafeSharedApiSnapshot(cachedCore)) return cachedCore;
+      }
+    } else {
+      const cachedApi = await cache.match(request, { ignoreVary: true });
+      if (cachedApi && isSafeSharedApiSnapshot(cachedApi)) return cachedApi;
+      const coreCache = await caches.open(CORE_CACHE);
+      const cachedCore = await coreCache.match(request.url);
+      if (cachedCore && isSafeSharedApiSnapshot(cachedCore)) return cachedCore;
     }
 
-    // FIX SW-VARY-01: entries here come only from anonymous requests and
-    // the backend marks public responses `Vary: Authorization`; without
-    // ignoreVary a logged-in user's request (which carries the header)
-    // could never match them and the cache was useless for members.
-    const cachedApi = await cache.match(request, { ignoreVary: true });
-    if (cachedApi) return cachedApi;
-
-    // PHASE-5 + SW-AUTH-PUBLIC-LIST-01: user-warmed data and auth'd public
-    // lists. Ordered after API_CACHE and before CORE_CACHE.
-    const userDataCacheNameForRequest = userDataCacheForRequest(request);
-    if (userDataCacheNameForRequest) {
-      const userDataCache = await caches.open(userDataCacheNameForRequest);
-      const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
-      if (cachedUserData) return cachedUserData;
+    // Explicitly saved ad records remain available as an opt-in public fallback.
+    if (!isSensitiveApi) {
+      const savedCache = await caches.open(SAVED_ADS_CACHE);
+      const cachedSaved = await savedCache.match(request.url);
+      if (cachedSaved) return cachedSaved;
     }
-
-    const coreCache = await caches.open(CORE_CACHE);
-    const cachedCore = await coreCache.match(request.url);
-    if (cachedCore) return cachedCore;
-
-    // PHASE-OFFLINE-AD-DETAIL: GET /ads/:id لإعلان محفوظ يدويًا.
-    const savedCache = await caches.open(SAVED_ADS_CACHE);
-    const cachedSaved = await savedCache.match(request.url);
-    if (cachedSaved) return cachedSaved;
-
-    // FIX SW-TIMEOUT-NOCACHE-01: the timeout fired but nothing is cached.
-    // The real request is still in flight — keep waiting for it instead of
-    // handing the page a synthetic network error on a slow-but-alive link.
-    if (timedOut) {
-      return fetchPromise.catch(() => Response.error());
-    }
+    if (timedOut) return fetchPromise.catch(() => Response.error());
     return Response.error();
   }
 }
@@ -1790,6 +1861,25 @@ function openQueueDb() {
  * ضمنيًا/غير موجود سابقًا: كل عنصر بالطابور كان "معلّقًا" حتى يُحذف عند
  * نجاح أو فشل نهائي، بلا تمييز). لا يُكسر أي مستهلك قديم للطابور — عنصر
  * بلا status يُعامَل كـ pending أيضًا (انظر الفحص أدناه). */
+function estimateQueueEntryBytes(entry) {
+  let bodyBytes = 0;
+  const body = entry && entry.body;
+  try {
+    if (typeof Blob !== 'undefined' && body instanceof Blob) bodyBytes = body.size;
+    else if (body instanceof ArrayBuffer) bodyBytes = body.byteLength;
+    else if (ArrayBuffer.isView(body)) bodyBytes = body.byteLength;
+    else if (typeof body === 'string') bodyBytes = body.length * 2;
+    else if (body && typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams) bodyBytes = body.toString().length * 2;
+    else if (body != null) bodyBytes = JSON.stringify(body).length * 2;
+  } catch { bodyBytes = MAX_QUEUE_BODY_BYTES + 1; }
+  let metadataBytes = 1024;
+  try {
+    const metadata = { ...entry, body: undefined };
+    metadataBytes = new TextEncoder().encode(JSON.stringify(metadata)).byteLength + 256;
+  } catch { /* conservative fallback below */ }
+  return bodyBytes + metadataBytes;
+}
+
 async function queueRequestEntry(entry, lifecycleVersion = queueLifecycleVersion) {
   const db = await openQueueDb();
   return new Promise((resolve, reject) => {
@@ -1801,9 +1891,41 @@ async function queueRequestEntry(entry, lifecycleVersion = queueLifecycleVersion
       return;
     }
     const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
-    tx.objectStore(QUEUE_STORE_NAME).add({ status: 'pending', ...entry });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    const store = tx.objectStore(QUEUE_STORE_NAME);
+    const getAll = store.getAll();
+    let rejected = false;
+    getAll.onsuccess = () => {
+      if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) {
+        rejected = true;
+        reject(Object.assign(new Error('Queue lifecycle changed before enqueue'), { code: 'QUEUE_LIFECYCLE_CHANGED' }));
+        return;
+      }
+      const existing = Array.isArray(getAll.result) ? getAll.result : [];
+      const incomingBytes = estimateQueueEntryBytes(entry);
+      const existingBytes = existing.reduce((sum, row) => sum + estimateQueueEntryBytes(row), 0);
+      if (existing.length >= MAX_QUEUE_ENTRIES || existingBytes + incomingBytes > MAX_QUEUE_TOTAL_BYTES) {
+        rejected = true;
+        reject(Object.assign(new Error('Offline queue storage limit reached'), {
+          code: 'QUEUE_LIMIT_EXCEEDED',
+          maxEntries: MAX_QUEUE_ENTRIES,
+          maxBytes: MAX_QUEUE_TOTAL_BYTES,
+        }));
+        return;
+      }
+      try {
+        store.add({ status: 'pending', ...entry });
+      } catch (err) {
+        rejected = true;
+        reject(err);
+      }
+    };
+    getAll.onerror = () => {
+      rejected = true;
+      reject(getAll.error || new Error('Unable to inspect offline queue capacity'));
+    };
+    tx.oncomplete = () => { if (!rejected) resolve(); };
+    tx.onerror = () => { if (!rejected) reject(tx.error || new Error('Offline queue transaction failed')); };
+    tx.onabort = () => { if (!rejected) reject(tx.error || new Error('Offline queue transaction aborted')); };
   });
 }
 
@@ -2083,6 +2205,12 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     // FIX OFFLINE-QUEUE-RELIABILITY-01: sanitize every replay — entries
     // queued before this fix may still carry content-length/host.
     let sendHeaders = sanitizeQueueHeaders(entry.headers || {});
+    // Re-attach the persisted operation identity on every replay. This covers
+    // old rows where the custom header was lost but operationId was retained,
+    // and keeps retries stable after a server commit whose ACK was interrupted.
+    if (typeof entry.operationId === 'string' && entry.operationId.trim()) {
+      sendHeaders['x-offline-op-id'] = entry.operationId.trim().slice(0, 128);
+    }
     if ((entry.needsCsrf || entry.needsAuth || isUnsafeMethod(entry.method)) && freshCreds) {
       sendHeaders = {
         ...sendHeaders,
@@ -2104,6 +2232,21 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     const queuedOwner =
       entry.ownerUserId || decodeAccessTokenUserId(entry.headers?.authorization);
     const currentOwner = freshCreds ? decodeAccessTokenUserId(freshCreds.accessToken) : null;
+    // An owner-bound legacy row must never fall through to replay when the
+    // current session cannot be identified (for example a transient refresh
+    // failure or an opaque token). A known mismatch is handled below; an
+    // unknown current owner is deferred instead of being attributed to a
+    // different or anonymous session.
+    if (queuedOwner && !currentOwner) {
+      if (refreshReason === 'auth') {
+        await notifyClients({
+          type: 'QUEUE_NEEDS_RELOGIN',
+          operationId: entry.operationId || null,
+          message: 'سجّل الدخول بالحساب الذي أنشأ العملية لمتابعة مزامنتها.',
+        });
+      }
+      return 'still-offline';
+    }
     // Unsafe rows with no recorded owner are ambiguous: replaying them while
     // another account is active would silently attribute the guest/legacy
     // operation to that account. Keep them for explicit recovery instead.
@@ -2481,45 +2624,44 @@ async function replayQueue() {
   replayQueueInFlight = true;
   const lifecycleVersion = queueLifecycleVersion;
   const startedAt = Date.now();
-  await notifyClients({ type: 'QUEUE_DRAIN_STARTED', startedAt });
   try {
+    // Notifications are best-effort. A clients.matchAll/postMessage failure
+    // must never leave replayQueueInFlight locked forever.
+    try {
+      await notifyClients({ type: 'QUEUE_DRAIN_STARTED', startedAt });
+    } catch (notifyError) {
+      console.warn('[SW] Unable to notify queue drain start:', notifyError);
+    }
     const result = await replayQueueImpl(lifecycleVersion);
-    await notifyClients({
-      type: 'QUEUE_DRAIN_FINISHED',
-      startedAt,
-      durationMs: Date.now() - startedAt,
-      processed: result?.processed ?? 0,
-      sent: result?.sent ?? 0,
-      failed: result?.failed ?? 0,
-      stillOffline: Boolean(result?.stillOffline),
-    });
+    try {
+      await notifyClients({
+        type: 'QUEUE_DRAIN_FINISHED',
+        startedAt,
+        durationMs: Date.now() - startedAt,
+        processed: result?.processed ?? 0,
+        sent: result?.sent ?? 0,
+        failed: result?.failed ?? 0,
+        stillOffline: Boolean(result?.stillOffline),
+      });
+    } catch (notifyError) {
+      console.warn('[SW] Unable to notify queue drain completion:', notifyError);
+    }
+  } catch (drainError) {
+    // Storage/replay failures must not wedge all future sync attempts.
+    console.warn('[SW] Queue drain failed; a later sync may retry:', drainError);
+    try {
+      await notifyClients({ type: 'QUEUE_DRAIN_FAILED', message: 'تعذر إكمال المزامنة؛ ستتم المحاولة لاحقًا.' });
+    } catch { /* notification is best-effort */ }
   } finally {
     replayQueueInFlight = false;
   }
 }
 
-/** FIX SW-PRUNE-FAILED: حد أقصى لعدد العناصر الفاشلة في الطابور.
- * بدون هذا، المستخدم الذي لديه 100+ عملية فاشلة يبقى الطابور ينمو
- * للأبد. عند التجاوز، الأقدم يُحذف تلقائياً. */
-async function pruneFailedEntries(maxFailed = 50) {
-  try {
-    const all = await getAllQueuedEntries();
-    const failed = all.filter((e) => e.status === 'failed');
-    if (failed.length <= maxFailed) return;
-    const sorted = failed.slice().sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
-    const toDelete = sorted.slice(0, failed.length - maxFailed);
-    for (const entry of toDelete) {
-      await deleteQueuedEntry(entry.id);
-    }
-  } catch {
-    // لا توقف replayQueue إن فشل التنظيف.
-  }
-}
-
 async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
   const metrics = { processed: 0, sent: 0, failed: 0, stillOffline: false };
-  // FIX SW-PRUNE-FAILED: نظّف العناصر الفاشلة القديمة قبل المعالجة.
-  await pruneFailedEntries(50);
+  // Keep failed rows until the user explicitly retries or discards them.
+  // The bounded queue rejects new enqueues at capacity; it must never free
+  // space by silently deleting a user's failed/pending operation.
   if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return metrics;
 
   let entries;
@@ -2632,10 +2774,15 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
     // without ever attempting a real fetch. Keep lastAttemptAt so the
     // minGap backoff still spaces retries; page refresh + next drain
     // will supply creds.
+    const entryOwner =
+      entry.ownerUserId || decodeAccessTokenUserId(entry.headers?.authorization);
+    const sessionIdentityUnverified =
+      Boolean(entryOwner) && (!freshCreds || !decodeAccessTokenUserId(freshCreds.accessToken));
     const deferRetryCount =
       result === 'still-offline' &&
       (refreshReason === 'page-priority' ||
         refreshReason === 'network' ||
+        sessionIdentityUnverified ||
         ((entry.needsCsrf || entry.needsAuth) && !freshCreds));
 
     if (deferRetryCount) {
@@ -2876,8 +3023,12 @@ async function handleMutation(request) {
     });
 
     // FIX AD-DRAFT-QUEUE-LINK-01: X-Offline-Op-Id → حقل operationId مستقل.
-    const operationId =
-      headers['x-offline-op-id'] || headers['X-Offline-Op-Id'] || null;
+    const operationId = String(
+      headers['x-offline-op-id'] || headers['X-Offline-Op-Id'] || createOfflineOperationId(),
+    ).trim().slice(0, 128);
+    // Keep the header and IndexedDB field in sync. Server routes that support
+    // offline idempotency can now deduplicate retries after uncertain ACKs.
+    headers['x-offline-op-id'] = operationId;
 
     try {
       const priority = inferQueuePriority(requestForQueue.url, requestForQueue.method);
@@ -2924,10 +3075,12 @@ async function handleMutation(request) {
       return new Response(
         JSON.stringify({
           queued: false,
-          code: lifecycleChanged ? 'QUEUE_SESSION_CHANGED' : 'QUEUE_STORE_FAILED',
+          code: lifecycleChanged ? 'QUEUE_SESSION_CHANGED' : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED' ? 'QUEUE_LIMIT_EXCEEDED' : 'QUEUE_STORE_FAILED',
           message: lifecycleChanged
             ? 'تغيّرت الجلسة أثناء حفظ العملية؛ لم تُحفظ لإعادة الإرسال بحساب آخر.'
-            : 'تعذّر حفظ العملية في طابور الأوفلاين — حُفظت مسودة محلية إن أمكن وستُرفع عند عودة الاتصال.',
+            : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED'
+              ? 'وصل طابور الأوفلاين إلى حد التخزين الآمن. أرسل العمليات المعلّقة أو احذف العناصر الفاشلة قبل إضافة عمليات جديدة.'
+              : 'تعذّر حفظ العملية في طابور الأوفلاين — حُفظت مسودة محلية إن أمكن وستُرفع عند عودة الاتصال.',
         }),
         { status: lifecycleChanged ? 409 : 503, headers: { 'Content-Type': 'application/json' } },
       );

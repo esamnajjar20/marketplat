@@ -16,6 +16,8 @@ check('visited HTML is marked with visit source metadata', /putTimestamped\(html
 check('warm-up keeps newer real visits', /isFreshVisitCopy\(existingVisitAt, priorWarmedAt\)/.test(routeShells) && /keepLatestVisit = keepVisitedCopy \|\| isFreshVisitCopy/.test(routeShells));
 check('personal cache is removed during logout cleanup', /n\.startsWith\('market-personal-shell-'\)/.test(authCleanup));
 check('public visits still use network-first page handling', /return networkFirstPage\(event, request, cacheKey\)/.test(sw));
-check('service-worker and TypeScript cache versions match v53', /const CACHE_VERSION = 'v53'/.test(sw) && /SW_CACHE_VERSION = 'v53'/.test(versions));
+const swVersion = sw.match(/const CACHE_VERSION = '(v\d+)'/)?.[1];
+const tsVersion = versions.match(/SW_CACHE_VERSION = '(v\d+)'/)?.[1];
+check('service-worker and TypeScript cache versions match', Boolean(swVersion) && swVersion === tsVersion);
 if (failures.length) { console.error(`${failures.length} failed; ${passed} passed`); process.exit(1); }
 console.log(`[visited-pages] ${passed}/${passed} checks passed`);

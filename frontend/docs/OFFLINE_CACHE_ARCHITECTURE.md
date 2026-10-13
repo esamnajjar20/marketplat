@@ -201,3 +201,68 @@ if (conflict.isTerminal) { /* discard / edit */ } else { /* retry */ }
 ### Phase 2 — User-data cache partitioning
 
 User-scoped API warming caches are partitioned by authenticated user subject (`market-user-data-<version>-<encoded-user-id>`). This prevents a force-closed session from leaving User A's authenticated response under the same cache key that User B would later read. Opaque/non-JWT Authorization requests do not use the user-data cache. Each user-data cache is bounded to 40 entries / 8 MB.
+
+
+## Expanded offline storage limits (v55)
+
+The configured Service Worker bounds are now: static assets 800 entries / 60 MiB; authenticated JSON data 400 entries / 50 MiB per user partition; public API responses 120 entries; viewed images 160 entries; personal page shells 500 entries; and explicitly cached ads up to 1,000 entries. Offline list snapshots were also increased (for example, up to 40 browse pages for ads/products/services/stores, 80 conversations, and 150 messages per conversation). These are cache ceilings, not a guarantee that every item will be retained: browser quota, storage pressure, response eligibility, and device eviction still apply.
+
+## Visited-page and authenticated-data guarantee (v55)
+
+Every successfully visited non-admin route that is eligible for document caching refreshes its shell cache after the server returns a valid same-origin HTML/RSC response and the required JS/CSS chunks are verified. Protected visited routes use the account-cleared `PERSONAL_SHELL_CACHE`; `/admin/**` is never persisted; ad-edit routes use the per-user personal shell cache. Warming is only a preparation mechanism and must not replace a newer real visit.
+
+Successful authenticated JSON GET responses are persisted in the JWT-subject-partitioned `USER_DATA_CACHE`, rather than the shared `API_CACHE`. This now covers safe private reads (for example, the user's own listings, profile-related reads, saved lists, messages, and order history) as well as public lists. On network failure, an authenticated request may only read its subject-partitioned cache, never another user's shared API response. Logout clears personal shells and per-user data caches. Auth/session/CSRF/token/payment-confirmation and admin endpoints are excluded. Opaque bearer tokens without a verifiable subject are not persisted.
+
+The limits are finite (400 entries / 50 MiB per user partition; static assets up to 800 entries / 60 MiB; images up to 160 entries; public API up to 120 entries), so this is a best-effort local snapshot, not an unlimited archive. Browser storage eviction, unavailable assets, an endpoint without a bearer subject, or an API response that is not JSON can still make data unavailable offline. Mutations are not treated as successful until the server confirms them; offline writes continue through the explicit mutation queue policy.
+
+
+## Cache privacy hardening (v56)
+
+- `Cache-Control: no-store` is now an unconditional prohibition on Service Worker persistence, including JWT-subject-partitioned caches.
+- Responses marked `private`, `Vary: Cookie`, `Vary: Authorization`, `Vary: *`, or `Set-Cookie` are never written to the shared API cache. Responses varying by Cookie are not persisted in the per-user API cache either, because the Service Worker cannot inspect the Cookie request header and cannot safely reproduce that variant offline.
+- Shared API and core-cache fallbacks validate cached response headers before returning a snapshot, preventing a private/identity-varying response from being served as public data.
+- Cookie-authenticated requests cannot be identified by reading the request Cookie header from a Service Worker. The backend must therefore consistently send `private`/`no-store` and `Vary: Cookie` for identity-dependent responses; `v56` clears old `market-*` cache entries so pre-fix snapshots are not reused.
+- Trade-off: routes using `CACHE.NONE` (`no-store`) are deliberately not available from the Service Worker API cache offline. If offline access is required for a particular personal read, expose a separate explicit offline-storage contract that does not use `no-store` and carefully partitions by verified user identity.
+
+
+## Revalidation and offline fallback hardening (v57)
+
+- Responses with `no-store`, `no-cache`, `must-revalidate`, `proxy-revalidate`, `max-age=0`, or `s-maxage=0` are not saved as API snapshots. In particular, `no-cache` permits storage under HTTP semantics but requires validation before reuse; offline fallback cannot validate, so this app deliberately does not cache it.
+- User-partitioned snapshots are also rejected when `Vary` includes `Authorization`. Partitioning by JWT subject alone is not enough to reproduce a representation that varies by token or authorization context.
+- Offline fallback re-checks the same policy for existing snapshots, so a legacy cached response with restrictive directives is not served after network failure.
+- Added unit coverage for strict revalidation directives, authorization-varying responses, and legacy no-cache fallback. Real-browser/offline-device testing remains a separate release check.
+
+
+## Aggregate offline queue limits (v58)
+
+- The IndexedDB mutation queue is capped at 500 entries and an estimated 20 MiB of payload plus metadata. The existing per-request 6 MiB body limit remains in place.
+- When the aggregate limit is reached, the Service Worker rejects the new enqueue with `QUEUE_LIMIT_EXCEEDED` and a visible 503 response. It does not silently delete pending, failed, or cancelled user actions.
+- The estimate counts Blob/ArrayBuffer/string payloads by their byte lengths and adds serialized metadata. Browser storage accounting differs by engine, so this is an application-level guard, not a guarantee of physical disk usage.
+- Before release, run the unit tests with the project's installed Vitest version and test real IndexedDB quota failures in at least one mobile browser. The fake IndexedDB test harness cannot fully emulate transaction scheduling or device quota behavior.
+
+
+## Account-bound queue replay guard (v59)
+
+- Queue rows with a recorded owner are deferred when the current access token cannot be refreshed or its subject cannot be verified. They are never sent as an anonymous operation or implicitly attributed to another account.
+- A confirmed owner mismatch remains blocked by the existing mismatch guard. If the refresh explicitly fails due to authentication, the Service Worker asks the user to sign in again; transient refresh failures leave the row pending.
+- This is defense in depth alongside logout queue clearing and `ownerUserId` checks. Validate with the Vitest Service Worker harness and real multi-account browser testing before release.
+
+
+## Queue drain resilience and failure retention (v60)
+
+- Queue-drain notifications are best-effort: failure to enumerate clients or post a message cannot leave the in-memory drain lock permanently set.
+- Unexpected drain/storage errors are logged and reported with `QUEUE_DRAIN_FAILED`; the lock is always released in `finally`, allowing a later online/background-sync/manual trigger to retry.
+- Failed queue rows are retained until the user explicitly retries or discards them. The service worker must not silently delete failed operations to make room. The queue's entry/byte caps reject new work with a clear capacity error instead.
+- The offline page still limits the visible failed-request list to 20 rows for UI performance; discarding visible entries and refreshing reveals additional rows.
+
+
+## v61 — stable operation identity during replay
+
+New queued mutations receive a stable `operationId` before they are persisted, and
+`X-Offline-Op-Id` is stored alongside it. The Service Worker restores this header
+for every replay; the page fallback writes the same header/field pair. This helps
+backend routes that explicitly implement offline idempotency return the original
+result when a server commit succeeded but its response was lost. It does **not**
+make every mutation globally idempotent: each endpoint must enforce the key with a
+durable, user-scoped uniqueness boundary. Routes without that server-side support
+can still duplicate an action after an ambiguous network failure.
