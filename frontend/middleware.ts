@@ -466,7 +466,9 @@ export function middleware(request: NextRequest) {
     // Worker + backend at all, cutting TTFB from ~800ms to ~50ms.
     response.headers.set(
       'Cache-Control',
-      'public, s-maxage=60, stale-while-revalidate=300',
+      // max-age controls BROWSER cache; s-maxage controls SHARED (CDN).
+      // Without max-age, browsers ignore s-maxage and use heuristics.
+      'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
     );
   }
 
