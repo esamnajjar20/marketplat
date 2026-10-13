@@ -327,7 +327,9 @@ function getHtmlCacheControl(pathname: string): string | null {
     /^\/profile\/[^/]+$/.test(pathname) ||
     /^\/profile\/[^/]+\/(followers|following)$/.test(pathname) ||
     /^\/sellers\/[^/]+$/.test(pathname) ||
-    /^\/store\/[^/]+\/stats$/.test(pathname)
+    /^\/store\/[^/]+\/stats$/.test(pathname) ||
+    /^\/stores\/[^/]+$/.test(pathname) ||
+    /^\/service-providers\/[^/]+$/.test(pathname)
   ) {
     return 'public, max-age=300, s-maxage=600, stale-while-revalidate=1800';
   }
@@ -336,7 +338,7 @@ function getHtmlCacheControl(pathname: string): string | null {
     return 'public, max-age=60, s-maxage=120, stale-while-revalidate=300';
   }
   // Tier 6 — market feed pages (default for public HTML routes)
-  if (['/promoted', '/stories', '/for-you', '/suggestions'].includes(pathname)) {
+  if (['/promoted', '/stories', '/for-you', '/suggestions', '/requests'].includes(pathname)) {
     return 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
   }
   if (isPublicHtmlRoute(pathname)) {
