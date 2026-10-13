@@ -305,6 +305,47 @@ function buildCsp(nonce: string, isDev: boolean): string {
   ].join('; ');
 }
 
+// CACHE-TIERS-01: HTML cache tiers by page category.
+// Longer cache for pages that rarely change; short for market feed
+// pages where stale items hurt UX (a sold ad should disappear fast).
+// Returns null for authenticated pages (Next.js default = no-store).
+function getHtmlCacheControl(pathname: string): string | null {
+  // Tier 1 — static content pages (rarely change)
+  if (['/about', '/privacy', '/contact', '/terms'].includes(pathname)) {
+    return 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400';
+  }
+  // Tier 2 — category index + detail
+  if (pathname === '/categories' || pathname.startsWith('/categories/')) {
+    return 'public, max-age=600, s-maxage=1200, stale-while-revalidate=3600';
+  }
+  // Tier 3 — store/service indexes + seller ranking (change slowly)
+  if (['/stores', '/services', '/service-providers', '/sellers/ranking', '/trending', '/shared'].includes(pathname)) {
+    return 'public, max-age=300, s-maxage=600, stale-while-revalidate=1800';
+  }
+  // Tier 4 — profile / seller / store-stats (bio/avatar rarely change)
+  if (
+    /^\/profile\/[^/]+$/.test(pathname) ||
+    /^\/profile\/[^/]+\/(followers|following)$/.test(pathname) ||
+    /^\/sellers\/[^/]+$/.test(pathname) ||
+    /^\/store\/[^/]+\/stats$/.test(pathname)
+  ) {
+    return 'public, max-age=300, s-maxage=600, stale-while-revalidate=1800';
+  }
+  // Tier 5 — individual ad/product/service/request (can be removed)
+  if (/^\/(ads|products|services|requests)\/[^/]+$/.test(pathname)) {
+    return 'public, max-age=60, s-maxage=120, stale-while-revalidate=300';
+  }
+  // Tier 6 — market feed pages (default for public HTML routes)
+  if (['/promoted', '/stories', '/for-you', '/suggestions'].includes(pathname)) {
+    return 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+  }
+  if (isPublicHtmlRoute(pathname)) {
+    return 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+  }
+  // Authenticated/private — do NOT cache
+  return null;
+}
+
 // ── Middleware ────────────────────────────────────────────────────
 
 // FIX NEXT-16-PROXY: Next.js 16 deprecates the 'middleware' file
@@ -444,32 +485,11 @@ export function middleware(request: NextRequest) {
   // HTML routes so browsers keep a copy and revalidate via ETag (304).
   // Nonce is deployment-scoped (DEPLOYMENT-NONCE-01), so the HTML body
   // is stable within a deployment.
-  if (isPublicHtmlRoute(request.nextUrl.pathname)) {
-    // CDN-CACHE-01: enable Cloudflare edge caching for public HTML.
-    //
-    // History: this used to be `private, no-cache` (browser-only cache
-    // with 304 revalidation) because of a worry that a CDN could serve
-    // an HTML body whose embedded CSP nonce didn't match the nonce in
-    // the CSP response header. That worry doesn't apply here:
-    //   - The CSP header is set by this same middleware and is part
-    //     of the same response object.
-    //   - Cloudflare caches the WHOLE response (body + headers) as
-    //     one unit, so the nonce inside the cached HTML always
-    //     matches the nonce inside the cached CSP header.
-    //   - DEPLOYMENT-NONCE-01 already makes the nonce stable across
-    //     every request in a given deployment, so a stale cached HTML
-    //     from the previous deploy is still self-consistent.
-    //
-    // 60s edge TTL keeps any post-deploy staleness window short;
-    // stale-while-revalidate means users never wait for a refresh.
-    // The main win: ~60% of public page visits stop hitting the
-    // Worker + backend at all, cutting TTFB from ~800ms to ~50ms.
-    response.headers.set(
-      'Cache-Control',
-      // max-age controls BROWSER cache; s-maxage controls SHARED (CDN).
-      // Without max-age, browsers ignore s-maxage and use heuristics.
-      'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
-    );
+  // CACHE-TIERS-01: tiered Cache-Control per page category.
+  // See getHtmlCacheControl() above for the tier table.
+  const htmlCache = getHtmlCacheControl(request.nextUrl.pathname);
+  if (htmlCache) {
+    response.headers.set('Cache-Control', htmlCache);
   }
 
   return response;

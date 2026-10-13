@@ -223,7 +223,36 @@ const nextConfig: NextConfig = {
     // robots.txt and sitemap.xml were using Next.js default max-age=0,
     // forcing every request to hit the Worker (P95 was 4.5s on robots.txt).
     // cache-policy.js changes rarely. _next/static is content-hashed.
+    // ═══════════════════════════════════════════════════════════
+    // CACHE-POLICY-V1: complete cache strategy (extensions + paths).
+    //   1y immutable: content-hashed assets
+    //   30d CDN / 7d browser: images, fonts, tessdata
+    //   24h CDN / 1h browser: SEO files, PWA icons, manifest
+    //   0 (no-cache): service worker, warming manifest
+    // ═══════════════════════════════════════════════════════════
     const perfHeaders = [
+      // ─── الأصول الثابتة ذات الامتدادات المعروفة ───
+      {
+        source: '/:path*\\.(png|jpg|jpeg|gif|webp|avif|svg|ico|woff|woff2|ttf|otf|eot)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400' },
+        ],
+      },
+      // ─── أيقونات PWA ───
+      {
+        source: '/:path(icon|icon-192|icon-512|icon-512-maskable|apple-icon|favicon.ico)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' },
+        ],
+      },
+      // ─── Tessdata (OCR) ───
+      {
+        source: '/tessdata/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400' },
+        ],
+      },
+      // ─── SEO files ───
       {
         source: '/robots.txt',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' }],
