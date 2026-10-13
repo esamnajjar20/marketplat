@@ -637,8 +637,8 @@ export function SyncCenterClient() {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={!isOnline}
-                      onClick={() => void runAction(`queue:retry:${item.id}`, () => handleRetry(item.id))} disabled={!isOnline || busyActions.has(`queue:retry:${item.id}`)}
+                      onClick={() => void runAction(`queue:retry:${item.id}`, () => handleRetry(item.id))}
+                      disabled={!isOnline || busyActions.has(`queue:retry:${item.id}`)}
                       title="إعادة المحاولة عند توفر الاتصال"
                     >
                       إعادة المحاولة
