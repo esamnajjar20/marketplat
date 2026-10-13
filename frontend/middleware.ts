@@ -319,7 +319,7 @@ function getHtmlCacheControl(pathname: string): string | null {
     return 'public, max-age=600, s-maxage=1200, stale-while-revalidate=3600';
   }
   // Tier 3 — store/service indexes + seller ranking (change slowly)
-  if (['/stores', '/services', '/service-providers', '/sellers/ranking', '/trending', '/shared'].includes(pathname)) {
+  if (['/stores', '/services', '/service-providers', '/sellers/ranking', '/trending', '/shared', '/saved-payments'].includes(pathname)) {
     return 'public, max-age=300, s-maxage=600, stale-while-revalidate=1800';
   }
   // Tier 4 — profile / seller / store-stats (bio/avatar rarely change)
