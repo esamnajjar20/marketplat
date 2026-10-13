@@ -39,12 +39,32 @@ export default async function ServiceListingPage({ params }: Props) {
     const res = await getCachedListing(id);
     listing = res.data.data ?? null;
   } catch (err) {
-    // Only a confirmed 404 means the service is missing. Network failures
-    // and server errors must reach the public error boundary with retry UI.
+    // Only a confirmed "not found" means the service is missing. Network
+    // failures and server errors must reach the public error boundary.
+    //
+    // HTTP status extraction is defensive because axios running under
+    // Cloudflare Workers (via OpenNext's nodejs_compat layer) can lose
+    // the .response property or store the status under .status/.cause.
+    // We accept any of the shapes axios produces in practice.
+    const e = err as {
+      statusCode?: number;
+      status?: number;
+      response?: { status?: number };
+      cause?: { statusCode?: number; status?: number; response?: { status?: number } };
+    } | null;
     const statusCode =
-      (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
-      (err as { response?: { status?: number } })?.response?.status;
-    if (statusCode !== 404) throw err;
+      e?.statusCode ??
+      e?.status ??
+      e?.response?.status ??
+      e?.cause?.statusCode ??
+      e?.cause?.status ??
+      e?.cause?.response?.status;
+
+    // 400/404/422 all mean "no such resource as far as the user cares":
+    // 400 from a malformed ID (e.g. 'test-id' instead of a UUID),
+    // 404 for a truly missing listing, 422 for validation failures.
+    const isNotFound = statusCode === 404 || statusCode === 400 || statusCode === 422;
+    if (!isNotFound) throw err;
   }
 
   if (!listing) {
