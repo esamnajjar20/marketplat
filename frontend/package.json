@@ -97,7 +97,11 @@
     "app-shell:navigation-audit": "node scripts/app-shell-navigation-audit.mjs",
     "ux:user-journey-shell-audit": "node scripts/user-journey-shell-audit.mjs",
     "ux:feedback-motion-audit": "node scripts/feedback-motion-audit.mjs",
-    "ux:sync-center-loading-audit": "node scripts/sync-center-loading-states-audit.mjs"
+    "ux:sync-center-loading-audit": "node scripts/sync-center-loading-states-audit.mjs",
+    "offline:phase6-actions-audit": "node scripts/offline-phase6-actions-audit.mjs",
+    "offline:phase7-reliability-audit": "node scripts/offline-phase7-reliability-audit.mjs",
+    "offline:phase8-scope-audit": "node scripts/offline-phase8-idempotency-scope-audit.mjs",
+    "offline:phase9-e2e-audit": "node scripts/offline-phase9-e2e-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

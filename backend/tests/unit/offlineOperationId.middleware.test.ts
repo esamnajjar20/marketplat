@@ -19,6 +19,9 @@ describe('offlineOperationIdMiddleware', () => {
     '550e8400-e29b-41d4-a716-446655440000',
     'op_1728830000_ab12cd34',
     'client.operation-1:retry',
+    'a',
+    'x'.repeat(128),
+    'op_1728830000_ab12cd34:retry.2',
   ])('accepts a valid generated token: %s', (id) => {
     const next = invoke(id);
     expect(next).toHaveBeenCalledWith();
@@ -28,6 +31,10 @@ describe('offlineOperationIdMiddleware', () => {
     '',
     ' contains-space',
     'bad\nheader',
+    'bad\theader',
+    'id,another-id',
+    '/path-like-id',
+    'عربي',
     'x'.repeat(129),
     ['op-one', 'op-two'],
   ])('rejects malformed operation IDs', (id) => {

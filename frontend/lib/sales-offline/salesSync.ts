@@ -58,11 +58,12 @@ export async function syncSalesDraft(draft: SalesOfflineDraft) {
     await deleteSalesDraft(draft.operationId, draft.userId);
     return { ok: true as const, result: result.data.data };
   } catch (error) {
+    const conflict = isConflictError(error);
     await updateSalesDraft(draft.operationId, draft.userId, {
-      status: isConflictError(error) ? 'conflict' : 'pending',
+      status: conflict ? 'conflict' : isRetryableSalesSyncError(error) ? 'pending' : 'failed',
       lastError: errorDetails(error),
     });
-    return { ok: false as const, conflict: isConflictError(error), error };
+    return { ok: false as const, conflict, error };
   }
 }
 
@@ -115,6 +116,14 @@ export async function resolveSalesConflict(operationId: string, action: 'retry' 
   }
   await updateSalesDraft(operationId, userId, { status: 'pending', lastError: undefined });
   await syncSalesDraft({ ...draft, status: 'pending', lastError: undefined });
+}
+
+function isRetryableSalesSyncError(error: unknown): boolean {
+  const e = error as { code?: string; statusCode?: number; status?: number; response?: { status?: number } } | null;
+  const status = e?.statusCode ?? e?.response?.status ?? e?.status;
+  if (e?.code === 'NETWORK_ERROR' || e?.code === 'OFFLINE_QUEUED' || isDeviceOffline()) return true;
+  if (typeof status !== 'number' || status === 0) return true;
+  return status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
 function isConflictError(error: unknown): boolean {

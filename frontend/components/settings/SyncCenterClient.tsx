@@ -67,6 +67,21 @@ export function SyncCenterClient() {
   const [loadWarning, setLoadWarning] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [queueActivity, setQueueActivity] = useState<string | null>(null);
+  const [busyActions, setBusyActions] = useState<Set<string>>(() => new Set());
+
+  const runAction = useCallback(async (key: string, action: () => Promise<void>) => {
+    if (busyActions.has(key)) return;
+    setBusyActions((current) => new Set(current).add(key));
+    try {
+      await action();
+    } finally {
+      setBusyActions((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
+  }, [busyActions]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -320,9 +335,26 @@ export function SyncCenterClient() {
   }
 
   async function handleDeleteAppointmentDraft(id: string) {
-    await deleteOfflineAppointmentDraft(id);
-    await refresh();
-    toast.message('حُذف طلب الموعد المحفوظ محليًا');
+    try {
+      await deleteOfflineAppointmentDraft(id);
+      await refresh();
+      toast.message('حُذف طلب الموعد المحفوظ محليًا');
+    } catch {
+      toast.error('تعذّر حذف طلب الموعد المحفوظ');
+    }
+  }
+
+  async function handleSalesAction(operationId: string, action: 'retry' | 'discard') {
+    const key = `sales:${operationId}:${action}`;
+    await runAction(key, async () => {
+      try {
+        await resolveSalesConflict(operationId, action);
+        toast.message(action === 'retry' ? 'تم طلب إعادة محاولة البيع' : 'حُذفت مسودة البيع المحلية');
+        await refresh();
+      } catch {
+        toast.error(action === 'retry' ? 'تعذّرت إعادة محاولة البيع' : 'تعذّر حذف مسودة البيع');
+      }
+    });
   }
 
   async function handleDiscardFavoriteIntent(key: string) {
@@ -442,7 +474,7 @@ export function SyncCenterClient() {
           <ul className="divide-y rounded-xl border">
             {favoriteIntents.map((intent) => <li key={intent.key} className="flex flex-wrap items-center justify-between gap-3 p-3">
               <div className="min-w-0 text-sm"><p className="font-medium">{intent.desired ? 'إضافة إلى المفضلة' : 'إزالة من المفضلة'} · {intent.type === 'AD' ? 'إعلان' : intent.type === 'PRODUCT' ? 'منتج' : intent.type === 'STORE' ? 'متجر' : 'خدمة'}</p><p className="text-xs text-muted-foreground">معرّف العنصر: {intent.entityId} · محفوظ محليًا</p></div>
-              <Button variant="ghost" size="sm" onClick={() => void handleDiscardFavoriteIntent(intent.key)}>إلغاء التغيير</Button>
+              <Button variant="ghost" size="sm" onClick={() => void runAction(`favorite:discard:${intent.key}`, () => handleDiscardFavoriteIntent(intent.key))} disabled={busyActions.has(`favorite:discard:${intent.key}`)}>إلغاء التغيير</Button>
             </li>)}
           </ul>
         )}
@@ -454,7 +486,7 @@ export function SyncCenterClient() {
           <ul className="divide-y rounded-xl border">
             {appointmentDrafts.map((draft) => <li key={draft.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
               <div className="min-w-0 text-sm"><p className="font-medium">{new Date(draft.payload.scheduledStart).toLocaleString('ar')}</p><p className="text-xs text-warning-strong">طلب محفوظ محليًا — الحجز غير مؤكد حتى يوافق الخادم.</p>{draft.lastError ? <p className="text-xs text-destructive">{draft.lastError}</p> : null}</div>
-              <div className="flex gap-2"><Button size="sm" onClick={() => void handleRetryAppointmentDraft(draft)} disabled={!isOnline}>إعادة التحقق والإرسال</Button><Button variant="ghost" size="sm" onClick={() => void handleDeleteAppointmentDraft(draft.id)}>حذف</Button></div>
+              <div className="flex gap-2"><Button size="sm" onClick={() => void runAction(`appointment:retry:${draft.id}`, () => handleRetryAppointmentDraft(draft))} disabled={!isOnline || busyActions.has(`appointment:retry:${draft.id}`)}>إعادة التحقق والإرسال</Button><Button variant="ghost" size="sm" onClick={() => void runAction(`appointment:delete:${draft.id}`, () => handleDeleteAppointmentDraft(draft.id))} disabled={busyActions.has(`appointment:delete:${draft.id}`)}>حذف</Button></div>
             </li>)}
           </ul>
         )}
@@ -525,11 +557,11 @@ export function SyncCenterClient() {
                   </Button>
                   {d.status === 'failed' ? (
                     <>
-                      <Button size="sm" onClick={() => void handleRetryDraft(d)} disabled={!isOnline}>
+                      <Button size="sm" onClick={() => void runAction(`draft:retry:${d.id}`, () => handleRetryDraft(d))} disabled={!isOnline || busyActions.has(`draft:retry:${d.id}`)}>
                         <RefreshCw className="me-1 h-3.5 w-3.5" />
                         إعادة المحاولة
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => void handleCancelDraftSync(d)}>
+                      <Button variant="ghost" size="sm" onClick={() => void runAction(`draft:cancel:${d.id}`, () => handleCancelDraftSync(d))} disabled={busyActions.has(`draft:cancel:${d.id}`)}>
                         إيقاف الإرسال
                       </Button>
                     </>
@@ -538,7 +570,7 @@ export function SyncCenterClient() {
                     variant="ghost"
                     size="icon"
                     aria-label="حذف المسودة نهائيًا"
-                    onClick={() => void handleDeleteDraft(d.id)}
+                    onClick={() => void runAction(`draft:delete:${d.id}`, () => handleDeleteDraft(d.id))} disabled={busyActions.has(`draft:delete:${d.id}`)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -606,7 +638,7 @@ export function SyncCenterClient() {
                       size="sm"
                       variant="outline"
                       disabled={!isOnline}
-                      onClick={() => void handleRetry(item.id)}
+                      onClick={() => void runAction(`queue:retry:${item.id}`, () => handleRetry(item.id))} disabled={!isOnline || busyActions.has(`queue:retry:${item.id}`)}
                       title="إعادة المحاولة عند توفر الاتصال"
                     >
                       إعادة المحاولة
@@ -625,7 +657,7 @@ export function SyncCenterClient() {
                       </Button>
                     )
                   ) : null}
-                  <Button size="sm" variant="ghost" onClick={() => void handleDiscard(item.id, item.operationId)}>
+                  <Button size="sm" variant="ghost" onClick={() => void runAction(`queue:discard:${item.id}`, () => handleDiscard(item.id, item.operationId))} disabled={busyActions.has(`queue:discard:${item.id}`)}>
                     إلغاء الطلب
                   </Button>
                 </div>
@@ -653,8 +685,8 @@ export function SyncCenterClient() {
                     {draft.lastError?.message ? <p className="mt-1 text-xs text-destructive">{draft.lastError.message}</p> : null}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" disabled={!isOnline} onClick={() => void resolveSalesConflict(draft.operationId, 'retry').then(() => refresh())}>إعادة المحاولة</Button>
-                    <Button size="sm" variant="ghost" onClick={() => void resolveSalesConflict(draft.operationId, 'discard').then(() => refresh())}>حذف المسودة</Button>
+                    <Button size="sm" variant="outline" onClick={() => void handleSalesAction(draft.operationId, 'retry')} disabled={!isOnline || busyActions.has(`sales:${draft.operationId}:retry`)}>إعادة المحاولة</Button>
+                    <Button size="sm" variant="ghost" onClick={() => void handleSalesAction(draft.operationId, 'discard')} disabled={busyActions.has(`sales:${draft.operationId}:discard`)}>حذف المسودة</Button>
                   </div>
                 </li>
               );

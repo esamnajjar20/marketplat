@@ -58,7 +58,9 @@
     "worker:outbox": "ts-node-dev --transpile-only --exit-child src/scripts/runOutboxWorker.ts",
     "worker:outbox:prod": "node dist/scripts/runOutboxWorker.js",
     "audit:offline-idempotency": "node scripts/offline-idempotency-complete-audit.mjs",
-    "audit:offline-idempotency-concurrency": "node scripts/offline-idempotency-concurrency-audit.mjs"
+    "audit:offline-idempotency-concurrency": "node scripts/offline-idempotency-concurrency-audit.mjs",
+    "audit:offline-idempotency-phase10": "node scripts/offline-idempotency-phase10-audit.mjs",
+    "audit:offline-idempotency-phase11": "node scripts/offline-idempotency-phase11-audit.mjs"
   },
   "lint-staged": {
     "src/**/*.ts": [
