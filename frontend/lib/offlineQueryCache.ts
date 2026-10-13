@@ -3,9 +3,15 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 
 export const OFFLINE_QUERY_CACHE_DB = 'marketplat-offline-query-cache-v1';
 export const OFFLINE_QUERY_CACHE_STORE = 'queries';
-export const OFFLINE_QUERY_MAX_ENTRY_BYTES = 64 * 1024;
+// CACHE-SIZE-01: 64 KB was too small for real API payloads.
+// The unified home feed (/api/v1/home/feed) is 200-500 KB because it
+// contains many rails (ads, products, services, stores, providers,
+// featured carousel, categories). Category and product lists are
+// similar. Raised per-entry to 512 KB and total to 20 MB; well within
+// IndexedDB quotas (typically 50% of free disk).
+export const OFFLINE_QUERY_MAX_ENTRY_BYTES = 512 * 1024;
 export const OFFLINE_QUERY_MAX_ENTRIES = 500;
-export const OFFLINE_QUERY_MAX_TOTAL_BYTES = 5 * 1024 * 1024;
+export const OFFLINE_QUERY_MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 export const OFFLINE_QUERY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LAST_CACHE_AT_KEY = 'marketplat:offline-query-cache:last-saved-at';
 const SAVE_DEBOUNCE_MS = 250;
@@ -97,9 +103,18 @@ export function isOfflinePersistableQueryKey(queryKey: QueryKey): boolean {
   const third = queryKey[2];
   const fourth = queryKey[3];
   if (root === 'home') {
-    // The legacy homepage payload is public; the home-feed variant includes a
-    // user identity and personalized rails, so it is deliberately not persisted.
-    return queryKey.length === 3 && child === 'page' && (third === null || typeof third === 'string');
+    // The legacy homepage payload.
+    if (queryKey.length === 3 && child === 'page' && (third === null || typeof third === 'string')) return true;
+    // CACHE-OFFLINE-HOME-FEED-01: allow the unified home feed to persist.
+    // The query key includes the user identity
+    // (['home','feed',city|__ALL__,userId|'guest']) so different users get
+    // different IndexedDB entries; authCleanup.ts clears this cache on
+    // logout. Both invariants together make cross-user leakage impossible,
+    // which was the reason this branch previously excluded home.feed.
+    // Persisting it lets the home page render its rails offline instead of
+    // the generic skeletons the user was seeing.
+    if (queryKey.length === 4 && child === 'feed') return true;
+    return false;
   }
   if (EXACT_PUBLIC_ROOTS.has(root)) {
     if (queryKey.length === 1) return true;
