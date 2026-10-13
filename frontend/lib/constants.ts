@@ -5,7 +5,9 @@ import type { ServiceListingSortField } from '@/types/service.types';
 import { getRawApiUrl } from './env';
 
 export const APP_NAME = 'سوق غزة';
-export const APP_URL  = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const PRODUCTION_APP_URL = 'https://marketplat.esamnajjar6.workers.dev';
+const FALLBACK_APP_URL = process.env.NODE_ENV === 'production' ? PRODUCTION_APP_URL : 'http://localhost:3000';
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? FALLBACK_APP_URL;
 
 export const ROUTES = {
   home:          '/',

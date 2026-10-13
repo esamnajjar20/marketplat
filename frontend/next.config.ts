@@ -219,6 +219,29 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    // PERF-HEADERS-01: explicit Cache-Control for static/metadata files.
+    // robots.txt and sitemap.xml were using Next.js default max-age=0,
+    // forcing every request to hit the Worker (P95 was 4.5s on robots.txt).
+    // cache-policy.js changes rarely. _next/static is content-hashed.
+    const perfHeaders = [
+      {
+        source: '/robots.txt',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' }],
+      },
+      {
+        source: '/sitemap.xml',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' }],
+      },
+      {
+        source: '/cache-policy.js',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' }],
+      },
+      {
+        source: '/_next/static/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+    ];
+
     // FIX SEC-06: the Content-Security-Policy header previously built here
     // used a static 'unsafe-inline' for script-src in ALL environments,
     // including production — next.config.ts's headers() runs once at
@@ -230,6 +253,7 @@ const nextConfig: NextConfig = {
     // `x-nonce` request header. All other static security headers
     // remain here since they don't need to vary per request.
     return [
+      ...perfHeaders,
       {
         source: '/(.*)',
         headers: [
