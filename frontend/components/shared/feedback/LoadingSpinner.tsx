@@ -47,14 +47,14 @@ export function LoadingSpinner({
       <span
         aria-hidden
         className={cn(
-          'absolute inset-0 animate-spin rounded-full border-primary border-t-transparent border-l-transparent',
+          'absolute inset-0 animate-spin motion-reduce:animate-none rounded-full border-primary border-t-transparent border-l-transparent',
           BORDER[size],
         )}
         style={{ animationDuration: '0.85s' }}
       />
       <span
         aria-hidden
-        className="absolute inset-[32%] rounded-full bg-primary/25 animate-pulse"
+        className="absolute inset-[32%] rounded-full bg-primary/25 animate-pulse motion-reduce:animate-none"
       />
       {hideLabel ? <span className="sr-only">{label}</span> : null}
     </div>

@@ -121,7 +121,7 @@ function NavLink({
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex min-h-10 items-center gap-3 rounded-lg py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'flex min-h-11 items-center gap-3 rounded-lg py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         indent ? 'px-3 ms-7' : 'px-3',
         isActive
           ? 'bg-primary-soft text-primary shadow-xs ring-1 ring-primary/10'
@@ -161,7 +161,7 @@ function DisclosureGroup({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={cn(
-          'flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+          'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
           isAnyChildActive && !isOpen
             ? 'bg-primary-soft text-primary'
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',

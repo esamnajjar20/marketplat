@@ -35,7 +35,7 @@ export function LegalPageShell({ title, description, children, className }: Prop
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs transition-colors hover:border-primary/30 hover:bg-primary-soft hover:text-primary"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground shadow-xs transition-colors hover:border-primary/30 hover:bg-primary-soft hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transition-none"
             >
               {item.label}
             </Link>

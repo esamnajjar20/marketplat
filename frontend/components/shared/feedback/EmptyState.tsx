@@ -44,7 +44,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center text-center section-enter',
+        'flex flex-col items-center justify-center text-center section-enter motion-reduce:animate-none',
         compact ? 'gap-3 py-8 sm:py-10' : 'gap-4 py-12 sm:py-16',
         className,
       )}

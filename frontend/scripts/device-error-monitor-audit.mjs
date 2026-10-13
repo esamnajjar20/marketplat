@@ -23,9 +23,9 @@ const checks = [
   ['reproduce mode is opt-in and bounded', /MAX_REPRODUCE_RECORDS = 5000/.test(files.monitor) && /setReproduceMode/.test(files.monitor) && /reproductionMode/.test(files.monitor)],
   ['panel includes grouping, route filters and timeline', /تجميع المتكرر/.test(files.panel) && /HTTP 5xx/.test(files.panel) && /الخط الزمني/.test(files.panel)],
   ['copy report and JSON export include diagnostic data', /navigator\.clipboard\.writeText/.test(files.panel) && /downloadReport/.test(files.panel) && /breadcrumbs/.test(files.panel)],
-  ['admin-only tab added', /'device-errors'/.test(files.tabs) && /device-errors/.test(files.sidebar)],
+  ['legacy device-error tab resolves to unified monitoring center', /requested === 'console' \|\| requested === 'network-requests' \|\| requested === 'device-errors' \|\| requested === 'system'/.test(files.tabs) && /return 'monitoring'/.test(files.tabs)],
   ['collector mounted in client bundle at root layout', /DeviceErrorCapture/.test(files.layout) && /deviceErrorMonitor/.test(files.capture)],
-  ['admin tab renders diagnostic panel', /case 'device-errors'/.test(files.hub) && /AdminDeviceErrorsPanel/.test(files.hub)],
+  ['unified monitoring center renders diagnostic panel', /case 'monitoring'/.test(files.hub) && /AdminMonitoringCenter/.test(files.hub) && /AdminDeviceErrorsPanel/.test(readFileSync(resolve(root, 'components/admin/AdminMonitoringCenter.tsx'), 'utf8'))],
 ];
 let failed = 0;
 for (const [label, passed] of checks) { console.log(`${passed ? 'PASS' : 'FAIL'} ${label}`); if (!passed) failed++; }

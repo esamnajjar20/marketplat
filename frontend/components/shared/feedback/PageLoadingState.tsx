@@ -20,7 +20,7 @@ export function PageLoadingState({
 }: PageLoadingStateProps) {
   return (
     <div className={cn('w-full', className)} role="status" aria-busy="true" aria-label={title}>
-      <div className="fixed inset-x-0 top-0 z-[200] h-1 overflow-hidden bg-primary/10">
+      <div className="fixed inset-x-0 top-0 z-[200] h-1 overflow-hidden bg-primary/10" aria-hidden="true">
         <div className="nav-progress-bar h-full w-full" />
       </div>
 

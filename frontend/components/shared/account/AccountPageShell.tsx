@@ -38,7 +38,7 @@ export function AccountPageShell({
               <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground sm:text-sm">{description}</p>
             ) : null}
           </div>
-          {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+          {actions ? <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">{actions}</div> : null}
         </div>
       </header>
       <div className="container mx-auto w-full max-w-7xl px-3 pt-4 sm:px-4 sm:pt-6 lg:pt-7">{children}</div>

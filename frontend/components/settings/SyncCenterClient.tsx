@@ -336,7 +336,7 @@ export function SyncCenterClient() {
   const lastLabel = isOnline ? 'متصل' : 'غير متصل';
 
   return (
-    <div dir="rtl" className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2">
+    <div dir="rtl" aria-busy={loading || syncing} className="mx-auto w-full max-w-5xl space-y-6 px-1 py-2">
       <div>
         <h1 className="text-xl font-bold">المزامنة</h1>
         {!isOnline ? (
@@ -389,7 +389,7 @@ export function SyncCenterClient() {
         <StatCard
           icon={<RefreshCw className="h-4 w-4" />}
           label="في الطابور"
-          value={loading ? '…' : String(Math.max(0, pending))}
+          value={loading ? '…' : loadWarning ? '—' : String(Math.max(0, pending))}
           hint="سيُرسل تلقائيًا"
         />
         <StatCard
@@ -398,7 +398,9 @@ export function SyncCenterClient() {
           value={
             loading
               ? '…'
-              : String(drafts.filter((d) => !d.operationId && d.status !== 'failed').length)
+              : loadWarning
+                ? '—'
+                : String(drafts.filter((d) => !d.operationId && d.status !== 'failed').length)
           }
           hint="لم تبدأ المزامنة بعد"
         />
@@ -408,7 +410,9 @@ export function SyncCenterClient() {
           value={
             loading
               ? '…'
-              : String(failed + drafts.filter((d) => !d.operationId && d.status === 'failed').length)
+              : loadWarning
+                ? '—'
+                : String(failed + drafts.filter((d) => !d.operationId && d.status === 'failed').length)
           }
           hint="مراجعة أو إعادة محاولة"
           tone="danger"
@@ -417,7 +421,7 @@ export function SyncCenterClient() {
 
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => void handleSyncNow()} disabled={syncing || !isOnline}>
-          <RefreshCw className={`me-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`me-2 h-4 w-4 ${syncing ? 'animate-spin motion-reduce:animate-none' : ''}`} />
           مزامنة الآن
         </Button>
         <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
@@ -434,7 +438,7 @@ export function SyncCenterClient() {
 
       <section className="space-y-2">
         <h2 className="flex items-center gap-2 text-base font-semibold"><FileText className="h-4 w-4" />تغييرات المفضلة المعلّقة</h2>
-        {favoriteIntents.length === 0 ? <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">لا توجد تغييرات مفضلة بانتظار المزامنة.</p> : (
+        {favoriteIntents.length === 0 ? <p role={loading ? 'status' : undefined} className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? 'جارٍ تحميل تغييرات المفضلة…' : loadWarning ? 'تعذّر التأكد من قائمة تغييرات المفضلة. حدّث القائمة للمحاولة مجددًا.' : 'لا توجد تغييرات مفضلة بانتظار المزامنة.'}</p> : (
           <ul className="divide-y rounded-xl border">
             {favoriteIntents.map((intent) => <li key={intent.key} className="flex flex-wrap items-center justify-between gap-3 p-3">
               <div className="min-w-0 text-sm"><p className="font-medium">{intent.desired ? 'إضافة إلى المفضلة' : 'إزالة من المفضلة'} · {intent.type === 'AD' ? 'إعلان' : intent.type === 'PRODUCT' ? 'منتج' : intent.type === 'STORE' ? 'متجر' : 'خدمة'}</p><p className="text-xs text-muted-foreground">معرّف العنصر: {intent.entityId} · محفوظ محليًا</p></div>
@@ -446,7 +450,7 @@ export function SyncCenterClient() {
 
       <section className="space-y-2">
         <h2 className="flex items-center gap-2 text-base font-semibold"><FileText className="h-4 w-4" />طلبات مواعيد غير مؤكدة</h2>
-        {appointmentDrafts.length === 0 ? <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">لا توجد طلبات مواعيد محفوظة محليًا.</p> : (
+        {appointmentDrafts.length === 0 ? <p role={loading ? 'status' : undefined} className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? 'جارٍ تحميل طلبات المواعيد…' : loadWarning ? 'تعذّر التأكد من طلبات المواعيد المحفوظة. حدّث القائمة للمحاولة مجددًا.' : 'لا توجد طلبات مواعيد محفوظة محليًا.'}</p> : (
           <ul className="divide-y rounded-xl border">
             {appointmentDrafts.map((draft) => <li key={draft.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
               <div className="min-w-0 text-sm"><p className="font-medium">{new Date(draft.payload.scheduledStart).toLocaleString('ar')}</p><p className="text-xs text-warning-strong">طلب محفوظ محليًا — الحجز غير مؤكد حتى يوافق الخادم.</p>{draft.lastError ? <p className="text-xs text-destructive">{draft.lastError}</p> : null}</div>
@@ -463,10 +467,10 @@ export function SyncCenterClient() {
           مسودات محفوظة محليًا
         </h2>
         {drafts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-8 text-center">
+          <div role={loading ? 'status' : undefined} className="rounded-2xl border border-dashed bg-muted/20 px-4 py-8 text-center">
             <FileText className="mx-auto h-8 w-8 text-muted-foreground/70" />
-            <p className="mt-2 text-sm font-medium">لا توجد مسودات محفوظة محليًا</p>
-            <p className="mt-1 text-xs text-muted-foreground">ستظهر هنا المسودات التي تبدأها أثناء انقطاع الاتصال.</p>
+            <p className="mt-2 text-sm font-medium">{loading ? 'جارٍ تحميل المسودات…' : loadWarning ? 'تعذّر التأكد من قائمة المسودات' : 'لا توجد مسودات محفوظة محليًا'}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{loadWarning ? 'حدّث القائمة للمحاولة مجددًا؛ قد تكون البيانات غير مكتملة.' : 'ستظهر هنا المسودات التي تبدأها أثناء انقطاع الاتصال.'}</p>
           </div>
         ) : (
           <ul className="divide-y rounded-xl border">
@@ -554,10 +558,10 @@ export function SyncCenterClient() {
       <section className="space-y-2">
         <h2 className="text-base font-semibold">طلبات فاشلة</h2>
         {failedItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-7 text-center">
+          <div role={loading ? 'status' : undefined} className="rounded-2xl border border-dashed bg-muted/20 px-4 py-7 text-center">
             <CheckCircle2 className="mx-auto h-8 w-8 text-success/80" />
-            <p className="mt-2 text-sm font-medium">لا توجد طلبات فاشلة</p>
-            <p className="mt-1 text-xs text-muted-foreground">كل ما فشل سيظهر هنا مع خيار المراجعة أو إعادة المحاولة.</p>
+            <p className="mt-2 text-sm font-medium">{loading ? 'جارٍ تحميل الطلبات الفاشلة…' : loadWarning ? 'تعذّر التأكد من قائمة الطلبات الفاشلة' : 'لا توجد طلبات فاشلة'}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{loadWarning ? 'حدّث القائمة للمحاولة مجددًا؛ لا يمكن تأكيد أن القائمة فارغة.' : 'كل ما فشل سيظهر هنا مع خيار المراجعة أو إعادة المحاولة.'}</p>
           </div>
         ) : (
           <ul className="divide-y rounded-xl border">

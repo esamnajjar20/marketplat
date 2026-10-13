@@ -92,7 +92,12 @@
     "notifications:polish-phase75-audit": "node scripts/notifications-polish-phase75-audit.mjs && node --check public/sw.js && npm run offline-center:ux-phase74-audit",
     "follow:feature-phase76-audit": "node scripts/follow-feature-phase76-audit.mjs && npm run notifications:polish-phase75-audit",
     "offline:final-audit": "node scripts/offline-final-audit.mjs && node --check public/sw.js",
-    "offline:visited-pages-audit": "node scripts/offline-visited-pages-priority-audit.mjs && node --check public/sw.js"
+    "offline:visited-pages-audit": "node scripts/offline-visited-pages-priority-audit.mjs && node --check public/sw.js",
+    "design-system:token-audit": "node scripts/design-system-token-contract-audit.mjs",
+    "app-shell:navigation-audit": "node scripts/app-shell-navigation-audit.mjs",
+    "ux:user-journey-shell-audit": "node scripts/user-journey-shell-audit.mjs",
+    "ux:feedback-motion-audit": "node scripts/feedback-motion-audit.mjs",
+    "ux:sync-center-loading-audit": "node scripts/sync-center-loading-states-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

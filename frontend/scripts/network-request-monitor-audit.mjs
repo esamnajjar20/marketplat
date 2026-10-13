@@ -21,9 +21,9 @@ const checks = [
   ['panel has search and outcome filters', /setQuery/.test(panel) && /setOutcome/.test(panel)],
   ['panel can copy and export JSON', /clipboard\.writeText/.test(panel) && /application\/json/.test(panel)],
   ['panel can clear local records', /clearNetworkRequests\(\)/.test(panel)],
-  ['admin tab is registered', /'network-requests'/.test(tabs)],
-  ['sidebar links to request monitor', /label: 'طلبات الشبكة'/.test(sidebar)],
-  ['admin hub renders request panel', /case 'network-requests':[\s\S]*AdminNetworkRequestsPanel/.test(hub)],
+  ['legacy network-request tab resolves to unified monitoring center', /requested === 'console' \|\| requested === 'network-requests' \|\| requested === 'device-errors' \|\| requested === 'system'/.test(tabs) && /return 'monitoring'/.test(tabs)],
+  ['sidebar exposes the unified monitoring destination', /label: 'المراقبة والتشخيص'/.test(sidebar)],
+  ['unified monitoring center renders request panel', /case 'monitoring':[\s\S]*AdminMonitoringCenter/.test(hub) && /AdminNetworkRequestsPanel/.test(read('components/admin/AdminMonitoringCenter.tsx'))],
   ['audit command is registered', pkg.scripts['network:request-audit'] === 'node scripts/network-request-monitor-audit.mjs'],
 ];
 let failed = 0;

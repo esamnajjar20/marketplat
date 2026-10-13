@@ -75,7 +75,7 @@ export function ListPageShell({
 
       <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6 lg:pt-7" aria-labelledby={titleId}>
         {toolbar ? (
-          <div className="desktop-toolbar flex flex-wrap items-center gap-2" role="toolbar" aria-label={`أدوات ${title}`}>{toolbar}</div>
+          <div className="desktop-toolbar flex flex-wrap items-center gap-2 [&_button]:min-h-11 [&_a]:min-h-11 [&_button]:touch-manipulation [&_a]:touch-manipulation" role="toolbar" aria-label={`أدوات ${title}`}>{toolbar}</div>
         ) : null}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-7">
