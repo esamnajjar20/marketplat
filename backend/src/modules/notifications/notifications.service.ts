@@ -389,15 +389,45 @@ export const notificationsService = {
    */
   getAdminStats: async (days = 30) => {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const [byType, unreadTotal, totalInWindow] = await Promise.all([
-      prisma.notification.groupBy({
-        by: ['type'],
-        where: { createdAt: { gte: since } },
-        _count: { _all: true },
-      }),
-      prisma.notification.count({ where: { readAt: null, createdAt: { gte: since } } }),
-      prisma.notification.count({ where: { createdAt: { gte: since } } }),
-    ]);
+    // Compute totals and per-type counts in one database round trip. The
+    // totals CTE always returns one row, so an empty window still reports
+    // total=0/unread=0 and an empty byType array.
+    const rows = await prisma.$queryRaw<
+      Array<{
+        total: bigint;
+        unread: bigint;
+        type: string | null;
+        typeCount: bigint | null;
+      }>
+    >`
+      WITH totals AS (
+        SELECT
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE "readAt" IS NULL) AS unread
+        FROM "notifications"
+        WHERE "createdAt" >= ${since}
+      ), by_type AS (
+        SELECT "type"::text AS type, COUNT(*) AS type_count
+        FROM "notifications"
+        WHERE "createdAt" >= ${since}
+        GROUP BY "type"
+      )
+      SELECT
+        totals.total AS total,
+        totals.unread AS unread,
+        by_type.type AS type,
+        by_type.type_count AS "typeCount"
+      FROM totals
+      LEFT JOIN by_type ON TRUE
+    `;
+    const totalInWindow = Number(rows[0]?.total ?? 0n);
+    const unreadTotal = Number(rows[0]?.unread ?? 0n);
+    const byType = rows
+      .filter((row): row is typeof row & { type: string; typeCount: bigint } =>
+        row.type !== null && row.typeCount !== null
+      )
+      .map((row) => ({ type: row.type as NotificationType, count: Number(row.typeCount) }))
+      .sort((a, b) => b.count - a.count);
     return {
       days,
       total: totalInWindow,
@@ -406,9 +436,7 @@ export const notificationsService = {
         totalInWindow === 0
           ? null
           : Math.round(((totalInWindow - unreadTotal) / totalInWindow) * 1000) / 10,
-      byType: byType
-        .map((row) => ({ type: row.type, count: row._count._all }))
-        .sort((a, b) => b.count - a.count),
+      byType,
     };
   },
 };

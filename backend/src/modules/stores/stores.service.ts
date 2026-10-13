@@ -627,15 +627,13 @@ updateStorePlan: async (
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [followers, newFollowers7d, newFollowers30d, activeProducts, promotionSummary, topProducts] =
-      await Promise.all([
-        storeFollowersRepository.countByStoreId(store.id),
-        storeFollowersRepository.countByStoreIdSince(store.id, since7d),
-        storeFollowersRepository.countByStoreIdSince(store.id, since30d),
-        storesRepository.countActiveProducts(store.id),
-        promotionsRepository.getStoreAnalyticsSummary(store.id),
-        productsRepository.findTopByStoreId(store.id, 5),
-      ]);
+    const [followerSummary, activeProducts, promotionSummary, topProducts] = await Promise.all([
+      storeFollowersRepository.countAnalyticsByStoreId(store.id, since7d, since30d),
+      storesRepository.countActiveProducts(store.id),
+      promotionsRepository.getStoreAnalyticsSummary(store.id),
+      productsRepository.findTopByStoreId(store.id, 5),
+    ]);
+    const { followers, newFollowers7d, newFollowers30d } = followerSummary;
 
     return {
       views: store.views,

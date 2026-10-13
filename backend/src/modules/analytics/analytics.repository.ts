@@ -119,31 +119,23 @@ export const analyticsRepository = {
     from: Date,
     to: Date
   ): Promise<{ searchSessions: number; contactSessions: number }> => {
-    const [searchRows, contactRows] = await Promise.all([
-      runWithQueryTimeout(
-        tx =>
-          tx.$queryRaw<{ count: bigint }[]>`
-            SELECT COUNT(DISTINCT "sessionId") AS count
-            FROM "analytics_events"
-            WHERE "event" = 'SEARCH'
-              AND "createdAt" >= ${from} AND "createdAt" < ${to}
-          `,
-        env.analytics.queryTimeoutMs
-      ),
-      runWithQueryTimeout(
-        tx =>
-          tx.$queryRaw<{ count: bigint }[]>`
-            SELECT COUNT(DISTINCT "sessionId") AS count
-            FROM "analytics_events"
-            WHERE "event" = 'CONTACT_CLICK'
-              AND "createdAt" >= ${from} AND "createdAt" < ${to}
-          `,
-        env.analytics.queryTimeoutMs
-      ),
-    ]);
+    // One bounded database round-trip computes both funnel endpoints. The
+    // FILTER clauses keep each distinct-session count scoped to its own event.
+    const rows = await runWithQueryTimeout(
+      tx =>
+        tx.$queryRaw<{ searchSessions: bigint; contactSessions: bigint }[]>`
+          SELECT
+            COUNT(DISTINCT "sessionId") FILTER (WHERE "event" = 'SEARCH') AS "searchSessions",
+            COUNT(DISTINCT "sessionId") FILTER (WHERE "event" = 'CONTACT_CLICK') AS "contactSessions"
+          FROM "analytics_events"
+          WHERE "event" IN ('SEARCH', 'CONTACT_CLICK')
+            AND "createdAt" >= ${from} AND "createdAt" < ${to}
+        `,
+      env.analytics.queryTimeoutMs
+    );
     return {
-      searchSessions: Number(searchRows[0]?.count ?? 0),
-      contactSessions: Number(contactRows[0]?.count ?? 0),
+      searchSessions: Number(rows[0]?.searchSessions ?? 0),
+      contactSessions: Number(rows[0]?.contactSessions ?? 0),
     };
   },
 
@@ -155,31 +147,23 @@ export const analyticsRepository = {
     from: Date,
     to: Date
   ): Promise<{ startedSessions: number; completedSessions: number }> => {
-    const [startedRows, completedRows] = await Promise.all([
-      runWithQueryTimeout(
-        tx =>
-          tx.$queryRaw<{ count: bigint }[]>`
-            SELECT COUNT(DISTINCT "sessionId") AS count
-            FROM "analytics_events"
-            WHERE "event" = 'SIGNUP_STARTED'
-              AND "createdAt" >= ${from} AND "createdAt" < ${to}
-          `,
-        env.analytics.queryTimeoutMs
-      ),
-      runWithQueryTimeout(
-        tx =>
-          tx.$queryRaw<{ count: bigint }[]>`
-            SELECT COUNT(DISTINCT "sessionId") AS count
-            FROM "analytics_events"
-            WHERE "event" = 'SIGNUP_COMPLETED'
-              AND "createdAt" >= ${from} AND "createdAt" < ${to}
-          `,
-        env.analytics.queryTimeoutMs
-      ),
-    ]);
+    // Keep both funnel counts in one timeout-bounded query, reducing pool
+    // checkout/transaction overhead while preserving distinct-session semantics.
+    const rows = await runWithQueryTimeout(
+      tx =>
+        tx.$queryRaw<{ startedSessions: bigint; completedSessions: bigint }[]>`
+          SELECT
+            COUNT(DISTINCT "sessionId") FILTER (WHERE "event" = 'SIGNUP_STARTED') AS "startedSessions",
+            COUNT(DISTINCT "sessionId") FILTER (WHERE "event" = 'SIGNUP_COMPLETED') AS "completedSessions"
+          FROM "analytics_events"
+          WHERE "event" IN ('SIGNUP_STARTED', 'SIGNUP_COMPLETED')
+            AND "createdAt" >= ${from} AND "createdAt" < ${to}
+        `,
+      env.analytics.queryTimeoutMs
+    );
     return {
-      startedSessions: Number(startedRows[0]?.count ?? 0),
-      completedSessions: Number(completedRows[0]?.count ?? 0),
+      startedSessions: Number(rows[0]?.startedSessions ?? 0),
+      completedSessions: Number(rows[0]?.completedSessions ?? 0),
     };
   },
 };

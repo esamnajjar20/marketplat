@@ -771,20 +771,21 @@ export const adminService = {
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() - (safeDays - 1));
 
-    const [userRows, adRows, reportRows] = await Promise.all([
-      prisma.$queryRaw<Array<{ d: Date; c: bigint }>>`
-        SELECT date_trunc('day', "createdAt") AS d, COUNT(*)::bigint AS c
-        FROM users WHERE "createdAt" >= ${start}
-        GROUP BY 1 ORDER BY 1`,
-      prisma.$queryRaw<Array<{ d: Date; c: bigint }>>`
-        SELECT date_trunc('day', "createdAt") AS d, COUNT(*)::bigint AS c
-        FROM ads WHERE "createdAt" >= ${start}
-        GROUP BY 1 ORDER BY 1`,
-      prisma.$queryRaw<Array<{ d: Date; c: bigint }>>`
-        SELECT date_trunc('day', "createdAt") AS d, COUNT(*)::bigint AS c
-        FROM reports WHERE "createdAt" >= ${start}
-        GROUP BY 1 ORDER BY 1`,
-    ]);
+    // Keep the three independent daily aggregates, but return them through
+    // one PostgreSQL request so this dashboard does not check out three
+    // pooled connections at once on Neon.
+    const trendRows = await prisma.$queryRaw<Array<{ d: Date; kind: string; c: bigint }>>`
+      SELECT date_trunc('day', "createdAt") AS d, 'users'::text AS kind, COUNT(*)::bigint AS c
+      FROM users WHERE "createdAt" >= ${start}
+      GROUP BY 1
+      UNION ALL
+      SELECT date_trunc('day', "createdAt") AS d, 'ads'::text AS kind, COUNT(*)::bigint AS c
+      FROM ads WHERE "createdAt" >= ${start}
+      GROUP BY 1
+      UNION ALL
+      SELECT date_trunc('day', "createdAt") AS d, 'reports'::text AS kind, COUNT(*)::bigint AS c
+      FROM reports WHERE "createdAt" >= ${start}
+      GROUP BY 1`;
 
     const mapCount = (rows: Array<{ d: Date; c: bigint }>) => {
       const m = new Map<string, number>();
@@ -794,9 +795,9 @@ export const adminService = {
       }
       return m;
     };
-    const uMap = mapCount(userRows);
-    const aMap = mapCount(adRows);
-    const rMap = mapCount(reportRows);
+    const uMap = mapCount(trendRows.filter((r) => r.kind === 'users'));
+    const aMap = mapCount(trendRows.filter((r) => r.kind === 'ads'));
+    const rMap = mapCount(trendRows.filter((r) => r.kind === 'reports'));
 
     const series: Array<{ date: string; users: number; ads: number; reports: number }> = [];
     for (let i = 0; i < safeDays; i++) {
@@ -1054,12 +1055,26 @@ export const adminService = {
     unreviewedFraud: number;
     total: number;
   }> => {
-    const [openReports, pendingStores, pendingSellers, unreviewedFraud] = await Promise.all([
-      prisma.report.count({ where: { status: 'PENDING' } }),
-      prisma.storeDetails.count({ where: { status: 'PENDING' } }),
-      prisma.sellerProfile.count({ where: { verificationStatus: 'PENDING' } }),
-      prisma.fraudSignal.count({ where: { reviewed: false } }),
-    ]);
+    // These counters are independent and read-only, so a single aggregate
+    // round-trip is cheaper than four concurrent pool checkouts on every
+    // admin operations-center refresh. Keep each model's original predicate.
+    const rows = await prisma.$queryRaw<Array<{
+      openReports: bigint;
+      pendingStores: bigint;
+      pendingSellers: bigint;
+      unreviewedFraud: bigint;
+    }>>`
+      SELECT
+        (SELECT COUNT(*) FROM "reports" WHERE "status" = 'PENDING') AS "openReports",
+        (SELECT COUNT(*) FROM "store_details" WHERE "status" = 'PENDING') AS "pendingStores",
+        (SELECT COUNT(*) FROM "seller_profiles" WHERE "verificationStatus" = 'PENDING') AS "pendingSellers",
+        (SELECT COUNT(*) FROM "fraud_signals" WHERE "reviewed" = false) AS "unreviewedFraud"
+    `;
+    const row = rows[0];
+    const openReports = Number(row?.openReports ?? 0n);
+    const pendingStores = Number(row?.pendingStores ?? 0n);
+    const pendingSellers = Number(row?.pendingSellers ?? 0n);
+    const unreviewedFraud = Number(row?.unreviewedFraud ?? 0n);
     const total = openReports + pendingStores + pendingSellers + unreviewedFraud;
     return { openReports, pendingStores, pendingSellers, unreviewedFraud, total };
   },

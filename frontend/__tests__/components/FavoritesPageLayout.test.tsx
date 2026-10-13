@@ -1,6 +1,3 @@
-/**
- * __tests__/components/FavoritesPageLayout.test.tsx
- */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FavoritesPageLayout } from '@/components/favorites/FavoritesPageLayout';
@@ -14,17 +11,11 @@ vi.mock('@/components/profile/FavoritesTabs', () => ({
 }));
 
 describe('FavoritesPageLayout', () => {
-  it('renders page title and instructions', () => {
-    render(<FavoritesPageLayout />);
-
-    expect(screen.getByRole('heading', { name: 'المفضلة' })).toBeInTheDocument();
-    expect(screen.getByText(/كل ما حفظته في مكان واحد/)).toBeInTheDocument();
-  });
-
-  it('renders sidebar and tabs', () => {
+  it('renders the lists sidebar and favorites content without duplicate intro copy', () => {
     render(<FavoritesPageLayout />);
 
     expect(screen.getByTestId('favorite-lists-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('favorites-tabs')).toBeInTheDocument();
+    expect(screen.queryByText(/كل ما حفظته في مكان واحد/)).not.toBeInTheDocument();
   });
 });

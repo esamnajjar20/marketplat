@@ -492,6 +492,46 @@ describe('registerServiceWorker', () => {
     unsubscribe();
   });
 
+  it('defers controller-change reload until the device is online', async () => {
+    process.env.NODE_ENV = 'production';
+    let controllerchangeCb: (() => void) | undefined;
+    const registration = {
+      pushManager: { getSubscription: vi.fn().mockResolvedValue(null), subscribe: vi.fn() },
+      waiting: null,
+      installing: null,
+      addEventListener: vi.fn(),
+    };
+    const swContainer = {
+      ready: Promise.resolve(registration),
+      register: vi.fn().mockResolvedValue(registration),
+      controller: null,
+      addEventListener: vi.fn((evt: string, cb: () => void) => {
+        if (evt === 'controllerchange') controllerchangeCb = cb;
+      }),
+    };
+    Object.defineProperty(window.navigator, 'serviceWorker', { value: swContainer, configurable: true });
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
+
+    const reloadSpy = vi.fn();
+    const originalLocation = window.location;
+    // @ts-expect-error jsdom location is configurable enough for this stub
+    delete window.location;
+    // @ts-expect-error partial Location stub sufficient for this test
+    window.location = { ...originalLocation, reload: reloadSpy };
+
+    await registerServiceWorker();
+    controllerchangeCb?.();
+    expect(reloadSpy).not.toHaveBeenCalled();
+
+    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+    window.dispatchEvent(new Event('online'));
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+
+    // @ts-expect-error restore
+    window.location = originalLocation;
+    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+  });
+
   it('reloads the page exactly once when the controller changes', async () => {
     process.env.NODE_ENV = 'production';
     let controllerchangeCb: (() => void) | undefined;

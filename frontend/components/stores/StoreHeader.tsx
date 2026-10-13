@@ -18,7 +18,6 @@ import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
-import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { StoreAttributesSummary } from '@/components/stores/StoreAttributesSummary';
 import { ROUTES, APP_URL } from '@/lib/constants';
@@ -86,14 +85,14 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const presentation = getStoreTypePresentation(store.storeType);
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <section className="mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
       {/* الغلاف — الصورة فقط داخل القص؛ الشعار خارجها */}
       <div className="relative">
-        <div className="relative h-40 w-full overflow-hidden rounded-2xl bg-muted shadow-sm sm:h-52 md:h-60 lg:h-72">
+        <div className="relative h-40 w-full overflow-hidden bg-muted sm:h-52 md:h-60 lg:h-72">
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1024px" priority />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted-foreground/15" aria-hidden />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-violet-500/10 to-cyan-500/20" aria-hidden />
           )}
           <FavoriteButton
             entityType="STORE"
@@ -133,7 +132,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
       </div>
 
       {/* المحتوى — وسط الشاشة */}
-      <div className="mt-4 flex flex-col items-center gap-1 px-3 text-center sm:px-5 lg:mx-auto lg:max-w-5xl">
+      <div className="relative mt-0 flex flex-col items-center gap-1 px-3 pb-6 text-center sm:px-6 sm:pb-8 lg:mx-auto lg:max-w-5xl">
         <p className="text-2xs-tight font-medium text-primary">{presentation.page.title}</p>
         <h1 className="flex flex-wrap items-center justify-center gap-2 text-lg font-bold leading-snug text-foreground sm:text-xl">
           {store.name}
@@ -182,19 +181,19 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         <StoreBadges storeId={store.id} className="mt-2" />
 
         {/* Stats card */}
-        <div className="mt-4 w-full max-w-3xl rounded-2xl border border-border/70 bg-card p-3 sm:p-4 shadow-sm">
-          <div className="grid grid-cols-3 items-center gap-2 sm:gap-4">
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-semibold tabular-nums text-foreground">{store._count.followers}</span>
-              <span className="text-2xs-tight text-muted-foreground">متابع</span>
+        <div className="mt-5 w-full max-w-4xl rounded-2xl border border-border/70 bg-background/90 p-3 shadow-sm sm:p-4">
+          <div className="grid grid-cols-3 items-stretch gap-2 sm:gap-3">
+            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
+              <span className="text-lg font-bold tabular-nums text-foreground">{store._count.followers}</span>
+              <span className="text-xs text-muted-foreground">متابع</span>
             </div>
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-semibold tabular-nums text-foreground">{store._count.products}</span>
-              <span className="text-2xs-tight text-muted-foreground">{storeLabels.product}</span>
+            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
+              <span className="text-lg font-bold tabular-nums text-foreground">{store._count.products}</span>
+              <span className="text-xs text-muted-foreground">{storeLabels.product}</span>
             </div>
-            <div className="flex flex-col items-center">
-              <span className="mb-0.5 text-lg font-semibold tabular-nums text-foreground">{store.city}</span>
-              <span className="text-2xs-tight text-muted-foreground">{presentation.page.location}</span>
+            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
+              <span className="max-w-full truncate text-sm font-bold text-foreground">{store.city}</span>
+              <span className="text-xs text-muted-foreground">الموقع</span>
             </div>
           </div>
         </div>
@@ -202,7 +201,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         <StoreAttributesSummary storeTypeId={store.storeTypeId} fields={store.storeType?.fields} attributes={store.attributes} presentation={store.storeType?.presentation} />
 
         {/* Call + follow row */}
-        <div className="mt-4 grid w-full max-w-3xl grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="mt-5 grid w-full max-w-4xl grid-cols-1 gap-2 sm:grid-cols-2">
           <a
             href={`tel:${store.phone}`}
             className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition active:scale-[0.98]"
@@ -222,7 +221,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           )}
         </div>
 
-        <div className="mt-2 grid w-full max-w-3xl grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="mt-2 grid w-full max-w-4xl grid-cols-1 gap-2 sm:grid-cols-2">
           {!isOwnStore && waPhone.length >= 9 && (
             <a
               href={`https://wa.me/${waPhone}`}
@@ -253,7 +252,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
         </div>
 
         {/* تحميل كتالوج المنتجات كاملًا كملف HTML للمشاهدة بدون إنترنت */}
-        <div className="mt-3 w-full max-w-3xl">
+        <div className="mt-3 w-full max-w-4xl">
           <DownloadStoreCatalogButton
             storeId={store.id}
             storeName={store.name}
@@ -283,7 +282,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             owner's own store and handles the unauthenticated case, so
             no extra isOwnStore/isAuthenticated guard is needed here. */}
         {!isOwnStore && (
-          <div className="mt-3 w-full max-w-3xl">
+          <div className="mt-3 w-full max-w-4xl">
             <MessageUserButtonGate
               targetUserId={store.sellerProfile?.userId ?? ''}
               size="lg"
@@ -299,7 +298,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             is for catalog products. Shown for the owner regardless of
             ACTIVE so PENDING stores can still prepare products/settings. */}
         {isOwnStore && (
-          <div className="mt-5 w-full max-w-3xl space-y-3">
+          <div className="mt-5 w-full max-w-4xl space-y-3 rounded-2xl border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
             {store.status === 'ACTIVE' && (
               <Button asChild className="w-full rounded-full py-3 h-auto gap-2 font-semibold">
                 <Link href={ROUTES.myStoreProductCreate}>
@@ -377,7 +376,6 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           </details>
         )}
 
-        <DetailSafetyTips className="mt-4 w-full max-w-2xl text-start" />
 
         {isAuthenticated && !isOwnStore && (
           <div className="mt-3">
@@ -390,6 +388,6 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

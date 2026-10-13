@@ -110,7 +110,7 @@ const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v52';
+const CACHE_VERSION = 'v53';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -678,64 +678,25 @@ function rscShellKey(input) {
   return `${url.pathname}?${query ? `${query}&` : ''}__offline_rsc_shell`;
 }
 
-/** FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01: نطاق محدود عمدًا — /messages،
- * /messages/:id، و/notifications فقط، وليس كل isProtectedPage. هذه هي
- * المسارات المحمية الوحيدة التي رُوجعت وتحقّقنا أنها آمنة لتخزين شكلها
- * (لا بيانات مستخدم مخبوزة داخل HTML/RSC نفسه — كلتاهما 'use client' بالكامل
- * وتجلبان بياناتهما عبر React Query بعد الـ hydration). توسيعه لبقية
- * الصفحات المحمية (dashboard/settings/admin...) قرار منفصل يستأهل مراجعة
- * حساسية بيانات خاصة به لكل صفحة على حدة. */
+/**
+ * VISITED-PAGE-FIRST-01: any protected route that the signed-in user actually
+ * visits may keep its latest document/RSC shell in PERSONAL_SHELL_CACHE.
+ * The cache is separate from the shared public cache and is cleared on logout.
+ * Warming remains a fallback only: it still uses the curated route allowlist
+ * in offlineRouteShells.ts and VISIT-WINS metadata prevents it replacing a
+ * newer real visit. Never cache admin, authentication, or ad-edit responses.
+ * Dynamic/private data is still governed by the explicit offline data stores;
+ * a cached shell alone does not imply every API payload is available offline.
+ */
 function isPersonalShellRoute(url) {
-  // يجب أن يغطي PERSONAL_SHELL_ROUTES في lib/offlineRouteShells.ts
-  // + بادئات للفروع (محادثة، منتج متجر، إعدادات فرعية…).
-  // لا يشمل /admin أبدًا.
   const path = url.pathname;
   if (PROTECTED_AD_EDIT_RE.test(path)) return false;
-  const exact = [
-    '/messages',
-    '/notifications',
-    '/dashboard',
-    '/favorites',
-    '/my-ads',
-    '/saved-searches',
-    '/activity',
-    // FIX OFFLINE-AD-CREATE-01: نموذج نشر إعلان جديد كان غائبًا عن هذه
-    // القائمة رغم أن lib/offlineAdDrafts.ts (mode: 'create') وطابور SW
-    // (handleMutation) مبنيان بالكامل لدعم نشر إعلان كامل أوفلاين —
-    // النتيجة العملية قبل هذا الإصلاح: بائع يفتح /ads/create لأول مرة
-    // (أو بعد hard reload) وهو أوفلاين كان يوصله لصفحة /offline العامة،
-    // مو نموذج النشر، رغم أن كل البنية التحتية لحفظ المسودة وإرسالها لاحقًا
-    // جاهزة وتعمل. آمن بنفس منطق /notifications (FIX PWA-NOTIF-01):
-    // CreateAdGate/CreateAdForm بالكامل 'use client'، تجلب seller profile
-    // عبر useMySellerProfile بعد الـhydration — لا بيانات مستخدم مُخصَّصة
-    // مخبوزة بالـHTML/RSC نفسه.
-    '/ads/create',
-    // The complete-profile page is a static Server Component shell; its form
-    // and account state are client-rendered after hydration. It is also in the
-    // personal warming list, so it must be readable from PERSONAL_SHELL_CACHE.
-    '/complete-profile',
-    // SETTINGS/MY-STORE/MY-SERVICES-HUB-01 + OFFLINE-HUB-01: the old sub-pages
-    // (/settings/security, /my-store/products, …) are 307 redirects into the hub
-    // routes below; the prefix checks further down still cover any stray
-    // sub-path, so they are no longer listed one by one. /service-broadcasts*
-    // and /my-requests were removed with their pages (T780 / ACTIVITY-HUB-01).
-    '/settings',
-    '/my-store',
-    '/my-services',
-    '/requests',
-    '/requests/me',
-    '/requests/offers',
-  ];
-  if (exact.includes(path)) return true;
-  if (path.startsWith('/messages/')) return true;
-  if (path.startsWith('/settings/')) return true;
-  if (path.startsWith('/my-store/')) return true;
-  if (path.startsWith('/my-services/')) return true;
-  if (path.startsWith('/requests/')) return true;
-  if (path.startsWith('/my-ads/')) return true;
-  // صفحة حسابي /profile/:id — شكل فقط؛ يُمسَح عند logout
-  if (path.startsWith('/profile/')) return true;
-  return false;
+  if (path === '/admin' || path.startsWith('/admin/')) return false;
+  if (isAuthPage(url)) return false;
+  // The caller only asks this after isProtectedPage(url) succeeds. This makes
+  // the latest real visit available offline for protected routes beyond the
+  // warming list, without placing account-specific shells in STATIC_CACHE.
+  return isProtectedPage(url);
 }
 
 // ── استراتيجيات التخزين ─────────────────────────────────────────

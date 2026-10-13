@@ -97,8 +97,8 @@ export function FavoriteListsSidebar() {
         </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        من صفحة المفضلة: استخدم «نقل إلى قائمة» على أي عنصر. أو أنشئ قائمة ثم انقل العناصر إليها.
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        نظّم العناصر المحفوظة ضمن قوائمك الخاصة.
       </p>
 
       {showCreate && (

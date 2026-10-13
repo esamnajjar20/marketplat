@@ -17,6 +17,11 @@
 @layer base {
   /* GAZA-WARM-PALETTE-01 */
   :root {
+    /* Shared control sizing: consistent buttons, icon targets and form controls. */
+    --control-height: 44px;
+    --control-height-sm: 40px;
+    --control-height-lg: 48px;
+    --touch-target: 44px;
     --background: 40 45% 98.5%;
     --foreground: 28 18% 12%;
 

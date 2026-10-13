@@ -7,7 +7,6 @@ import { storesApi } from '@/api/stores.api';
 import { StoreHeader } from '@/components/stores/StoreHeader';
 import { StoreDetailClient } from '@/components/stores/StoreDetailClient';
 import { StoreStorefront } from '@/components/stores/StoreStorefront';
-import { StoreRecommendations } from '@/components/recommendations/StoreRecommendations';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
@@ -127,8 +126,6 @@ export default async function StorePage({ params }: Props) {
           store={store}
         />
       </Suspense>
-
-      <StoreRecommendations excludeStoreId={store.id} />
     </div>
   );
 }

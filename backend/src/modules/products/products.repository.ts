@@ -213,26 +213,37 @@ export const productsRepository = {
   }),
 
   getStockSummary: async (storeId: string) => {
-    const [totalProducts, trackedProducts, inStock, limited, outOfStock, totalUnits] =
-      await Promise.all([
-        prisma.product.count({ where: { storeId, status: 'ACTIVE' } }),
-        prisma.product.count({ where: { storeId, status: 'ACTIVE', stockQuantity: { not: null } } }),
-        prisma.product.count({ where: { storeId, status: 'ACTIVE', availability: 'IN_STOCK' } }),
-        prisma.product.count({ where: { storeId, status: 'ACTIVE', availability: 'LIMITED' } }),
-        prisma.product.count({ where: { storeId, status: 'ACTIVE', availability: 'OUT_OF_STOCK' } }),
-        prisma.product.aggregate({
-          where: { storeId, status: 'ACTIVE', stockQuantity: { not: null } },
-          _sum: { stockQuantity: true },
-        }),
-      ]);
+    // Keep all inventory counters on one database round-trip. The ACTIVE
+    // enum literal is intentionally static; storeId remains parameterized.
+    const [summary] = await prisma.$queryRaw<Array<{
+      totalProducts: bigint;
+      trackedProducts: bigint;
+      inStock: bigint;
+      limited: bigint;
+      outOfStock: bigint;
+      totalUnits: bigint | number | null;
+    }>>`
+      SELECT
+        COUNT(*) AS "totalProducts",
+        COUNT(*) FILTER (WHERE "stockQuantity" IS NOT NULL) AS "trackedProducts",
+        COUNT(*) FILTER (WHERE "availability" = 'IN_STOCK') AS "inStock",
+        COUNT(*) FILTER (WHERE "availability" = 'LIMITED') AS "limited",
+        COUNT(*) FILTER (WHERE "availability" = 'OUT_OF_STOCK') AS "outOfStock",
+        COALESCE(SUM("stockQuantity"), 0) AS "totalUnits"
+      FROM "products"
+      WHERE "storeId" = ${storeId} AND "status" = 'ACTIVE'
+    `;
+
+    const totalProducts = Number(summary?.totalProducts ?? 0n);
+    const trackedProducts = Number(summary?.trackedProducts ?? 0n);
     return {
       totalProducts,
       trackedProducts,
       untrackedProducts: totalProducts - trackedProducts,
-      inStock,
-      limited,
-      outOfStock,
-      totalUnits: totalUnits._sum.stockQuantity ?? 0,
+      inStock: Number(summary?.inStock ?? 0n),
+      limited: Number(summary?.limited ?? 0n),
+      outOfStock: Number(summary?.outOfStock ?? 0n),
+      totalUnits: Number(summary?.totalUnits ?? 0),
     };
   },
 

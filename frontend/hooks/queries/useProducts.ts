@@ -56,6 +56,16 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
     params?.maxPrice === undefined &&
     params?.hasPromotion === undefined;
   const queryKey = queryKeys.products.list(params);
+  const isHomeSnapshot = params?.limit === 8 && params?.sortBy === 'createdAt' && params?.sortOrder === 'desc'
+    && !params?.page && !params?.search && !params?.categoryId && !params?.storeId
+    && !params?.city && !params?.availability && params?.minPrice === undefined
+    && params?.maxPrice === undefined && params?.hasPromotion === undefined && params?.status === undefined;
+  useOfflineListSeed<ProductWithStore, ProductsPage>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.homeProducts,
+    enabled: isHomeSnapshot && (options?.enabled ?? true),
+    mapItems: offlinePage,
+  });
   useOfflineListSeed<ProductWithStore, ProductsPage>({
     queryKey,
     cacheKey: OFFLINE_LIST_KEYS.productsBrowse,

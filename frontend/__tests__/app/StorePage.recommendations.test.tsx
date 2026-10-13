@@ -1,8 +1,7 @@
 /**
  * __tests__/app/StorePage.recommendations.test.tsx
  *
- * PR4C + public store page mounts StoreRecommendations with
- * excludeStoreId, StoreHeader, and StoreStorefront (tabs).
+ * Public store page keeps the requested store focused: header and storefront only.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -25,24 +24,18 @@ vi.mock('@/components/stores/StoreStorefront', () => ({
   ),
 }));
 
-vi.mock('@/components/recommendations/StoreRecommendations', () => ({
-  StoreRecommendations: ({ excludeStoreId }: { excludeStoreId: string }) => (
-    <div data-testid="store-recommendations">{excludeStoreId}</div>
-  ),
-}));
-
 const store = {
   id: 'store-1',
   name: 'متجر تجريبي',
   sellerProfile: { userId: 'user-1' },
 };
 
-describe('StorePage — recommendations integration', () => {
+describe('StorePage — focused store layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders StoreRecommendations excluding the store being viewed', async () => {
+  it('renders the store header and storefront without unsolicited recommendations', async () => {
     (storesApi.getById as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: store } });
 
     const jsx = await StorePage({ params: Promise.resolve({ id: 'store-1' }) });
@@ -50,10 +43,10 @@ describe('StorePage — recommendations integration', () => {
 
     expect(screen.getByTestId('store-header')).toHaveTextContent('store-1');
     expect(screen.getByTestId('store-storefront')).toHaveTextContent('store-1');
-    expect(screen.getByTestId('store-recommendations')).toHaveTextContent('store-1');
+    expect(screen.queryByTestId('store-recommendations')).not.toBeInTheDocument();
   });
 
-  it('does not render recommendations on the 404 empty state', async () => {
+  it('renders the 404 empty state without store content', async () => {
     (storesApi.getById as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('404'));
 
     const jsx = await StorePage({ params: Promise.resolve({ id: 'missing' }) });

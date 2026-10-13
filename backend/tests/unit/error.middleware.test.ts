@@ -119,6 +119,44 @@ describe('errorMiddleware', () => {
     );
   });
 
+  it('classifies Prisma P2028 transaction failures as 503 and logs actionable context', () => {
+    const res = mockRes();
+    const { logger } = require('../../src/shared/utils/logger');
+    const transactionError = Object.assign(
+      new Error('Transaction already closed: internal transaction details'),
+      { code: 'P2028' },
+    );
+
+    errorMiddleware(
+      transactionError,
+      { ...mockReq('req-p2028'), path: '/api/v1/sales', method: 'POST' } as Request,
+      res as Response,
+      mockNext,
+    );
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Prisma interactive transaction failed (P2028)',
+      expect.objectContaining({
+        err: transactionError,
+        code: 'P2028',
+        requestId: 'req-p2028',
+        path: '/api/v1/sales',
+        method: 'POST',
+      }),
+    );
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      statusCode: 503,
+      code: 'SERVICE_UNAVAILABLE',
+      requestId: 'req-p2028',
+      message: 'Service temporarily unavailable, please try again shortly',
+    }));
+    expect(res.json).not.toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Transaction already closed: internal transaction details',
+    }));
+  });
+
   it('handles unknown errors as 500', () => {
     const res = mockRes();
     errorMiddleware(new Error('Unexpected'), mockReq() as Request, res as Response, mockNext);

@@ -63,8 +63,8 @@ if (!cacheVersion || !sourceVersion || cacheVersion !== sourceVersion) fail(`cac
 else pass(`cache version synchronized: ${cacheVersion}`);
 
 const manifestScript = read('scripts/generate-warming-manifest.mjs');
-if (!manifestScript.includes('app/(public)')) fail('manifest generator lacks App Router route-group aliases');
-else pass('manifest generator handles App Router route groups');
+if (!/function stripRouteGroups\(p\)\s*\{\s*return p\.replace\(/.test(manifestScript)) fail('manifest generator does not strip App Router route-group segments');
+else pass('manifest generator strips App Router route-group segments generically');
 
 if (process.exitCode) process.exit(1);
 console.log('[warming-audit] FINAL AUDIT PASSED');

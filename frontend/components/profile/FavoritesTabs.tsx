@@ -60,7 +60,7 @@ export function FavoritesTabs() {
 
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="نوع المفضلة" className="flex gap-1 overflow-x-auto overscroll-x-contain border-b scrollbar-none">
+      <div role="tablist" aria-label="نوع المفضلة" className="flex gap-1 overflow-x-auto overscroll-x-contain rounded-xl border bg-muted/45 p-1 scrollbar-none">
         {TABS.map((tab, index) => (
           <button
             key={tab.value}
@@ -73,10 +73,10 @@ export function FavoritesTabs() {
             onKeyDown={(event) => handleKeyDown(event, index)}
             onClick={() => handleChange(tab.value)}
             className={cn(
-              'min-h-11 shrink-0 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',
+              'min-h-11 shrink-0 rounded-lg border border-transparent px-3.5 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               type === tab.value
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'border-border/70 bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-background/70 hover:text-foreground'
             )}
           >
             {tab.label}

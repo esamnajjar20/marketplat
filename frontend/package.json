@@ -90,7 +90,9 @@
     "settings:ux-phase73-audit": "node scripts/settings-ux-phase73-audit.mjs && npm run stories:ux-phase72-audit",
     "offline-center:ux-phase74-audit": "node scripts/offline-center-ux-phase74-audit.mjs && npm run settings:ux-phase73-audit",
     "notifications:polish-phase75-audit": "node scripts/notifications-polish-phase75-audit.mjs && node --check public/sw.js && npm run offline-center:ux-phase74-audit",
-    "follow:feature-phase76-audit": "node scripts/follow-feature-phase76-audit.mjs && npm run notifications:polish-phase75-audit"
+    "follow:feature-phase76-audit": "node scripts/follow-feature-phase76-audit.mjs && npm run notifications:polish-phase75-audit",
+    "offline:final-audit": "node scripts/offline-final-audit.mjs && node --check public/sw.js",
+    "offline:visited-pages-audit": "node scripts/offline-visited-pages-priority-audit.mjs && node --check public/sw.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

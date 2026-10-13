@@ -331,11 +331,20 @@ export const serviceListingsRepository = {
   getStatsByProviderId: async (
     providerId: string
   ): Promise<{ activeCount: number; totalViews: number }> => {
-    const [activeCount, viewsResult] = await Promise.all([
-      prisma.serviceListing.count({ where: { providerId, status: 'ACTIVE' } }),
-      prisma.serviceListing.aggregate({ where: { providerId }, _sum: { views: true } }),
-    ]);
-    return { activeCount, totalViews: viewsResult._sum.views ?? 0 };
+    // Keep both metrics in one round-trip. The active count is filtered,
+    // while total views intentionally include every status.
+    const rows = await prisma.$queryRaw<Array<{ activeCount: bigint; totalViews: number | bigint | null }>>`
+      SELECT
+        COUNT(*) FILTER (WHERE "status" = 'ACTIVE') AS "activeCount",
+        COALESCE(SUM("views"), 0) AS "totalViews"
+      FROM "service_listings"
+      WHERE "providerId" = ${providerId}
+    `;
+    const row = rows[0];
+    return {
+      activeCount: Number(row?.activeCount ?? 0n),
+      totalViews: Number(row?.totalViews ?? 0),
+    };
   },
 
   findManyByProviderId: async (

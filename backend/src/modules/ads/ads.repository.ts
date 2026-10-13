@@ -183,7 +183,7 @@ export const adsRepository = {
       const { tsQueryString } = analyzeSearchQuery(search);
       const effectiveTs = tsQueryString ?? search;
       const whereParts: Prisma.Sql[] = [
-        Prisma.sql`"status" = ${AdStatus.ACTIVE}::"AdStatus"`,
+        Prisma.sql`"status" = 'ACTIVE'::"AdStatus"`,
         Prisma.sql`"flaggedForReview" = false`,
         // AUDIT-FIX (ads-feature review): the SEC-(see the
         // plain where-clause branch further down) hides ads from
@@ -367,23 +367,29 @@ export const adsRepository = {
   getStatsByUserId: async (
     userId: string
   ): Promise<{ activeAds: number; soldAds: number; totalViews: number }> => {
-    const [statusCounts, viewsAgg] = await Promise.all([
-      prisma.ad.groupBy({
-        by: ['status'],
-        where: { userId, status: { not: AdStatus.DELETED } },
-        _count: { _all: true },
-      }),
-      prisma.ad.aggregate({
-        _sum: { views: true },
-        where: { userId, status: { not: AdStatus.DELETED } },
-      }),
-    ]);
+    // The status counts and lifetime view total share the same user/status
+    // predicate. A single filtered aggregate avoids two concurrent pool
+    // requests every time the seller dashboard loads.
+    const rows = await prisma.$queryRaw<Array<{
+      activeAds: bigint;
+      soldAds: bigint;
+      totalViews: bigint | number | null;
+    }>>`
+      SELECT
+        COUNT(*) FILTER (WHERE "status" = 'ACTIVE'::"AdStatus") AS "activeAds",
+        COUNT(*) FILTER (WHERE "status" = 'SOLD'::"AdStatus") AS "soldAds",
+        COALESCE(SUM("views"), 0) AS "totalViews"
+      FROM "ads"
+      WHERE "userId" = ${userId}
+        AND "status" <> 'DELETED'::"AdStatus"
+    `;
 
-    const activeAds = statusCounts.find((s) => s.status === AdStatus.ACTIVE)?._count._all ?? 0;
-    const soldAds = statusCounts.find((s) => s.status === AdStatus.SOLD)?._count._all ?? 0;
-    const totalViews = viewsAgg._sum.views ?? 0;
-
-    return { activeAds, soldAds, totalViews };
+    const row = rows[0];
+    return {
+      activeAds: Number(row?.activeAds ?? 0n),
+      soldAds: Number(row?.soldAds ?? 0n),
+      totalViews: Number(row?.totalViews ?? 0),
+    };
   },
 
   findManyByUserId: async (

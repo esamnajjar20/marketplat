@@ -52,6 +52,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const isOnline        = useOnlineStatus();
   const router          = useRouter();
   const pathname        = usePathname();
+  // A conversation thread is a focused mobile view: it must use the
+  // viewport below the header, without the global bottom-nav spacer.
+  const isConversationThread = pathname.startsWith(`${ROUTES.messages}/`);
 
   // FIX AUTH-04: don't make any auth decision until both hydration AND
   // (if applicable) the async session-restore flow have completed.
@@ -154,11 +157,16 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
             is the mobile base; md:p-6 (24px) and lg:p-8 (32px) scale
             it up, with pb-20/md:pb-6 layered on top for BottomNav. */}
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
-        <main id="main-content" className="min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8">
+        <main
+          id="main-content"
+          className={isConversationThread
+            ? 'min-w-0 min-h-0 flex-1 p-0 md:p-6 lg:p-8'
+            : 'min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8'}
+        >
           <PageTransition>{children}</PageTransition>
         </main>
       </div>
-      <BottomNav />
+      {!isConversationThread && <BottomNav />}
     </div>
   );
 }

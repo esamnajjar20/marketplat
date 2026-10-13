@@ -55,6 +55,20 @@ console.log('[warming-manifest] manifests found:', {
 // ─── 3) URL → source map (FIX 03) ───────────────────────────────
 function stripRouteGroups(p) { return p.replace(/\/\([^)]+\)/g, ''); }
 
+// Next's app-paths manifest keys normally contain route URLs, while the
+// compiled source values can retain route-group folders such as app/(public).
+// Resolve both forms so route groups never cause a warming manifest miss.
+function routeFromAppSource(sourcePath) {
+  const normalized = String(sourcePath).replace(/\\/g, '/');
+  const appMarker = normalized.match(/(?:^|\/)app\//);
+  if (!appMarker || appMarker.index === undefined) return null;
+  let routePath = normalized.slice(appMarker.index + appMarker[0].length).replace(/\.(?:js|jsx|ts|tsx|mjs|cjs)$/, '');
+  routePath = stripRouteGroups(routePath);
+  routePath = routePath.replace(/\/(?:page|route)$/, '');
+  if (!routePath || routePath === 'page' || routePath === 'route') return '/';
+  return routePath.startsWith('/') ? routePath : `/${routePath}`;
+}
+
 const urlToSource = new Map();
 if (appPathsManifest && typeof appPathsManifest === 'object') {
   for (const [key, value] of Object.entries(appPathsManifest)) {
@@ -62,6 +76,8 @@ if (appPathsManifest && typeof appPathsManifest === 'object') {
     const normKey = stripRouteGroups(key);
     if (normKey === '/page') urlToSource.set('/', value);
     else if (normKey.endsWith('/page')) urlToSource.set(normKey.slice(0, -5), value);
+    const sourceAlias = routeFromAppSource(value);
+    if (sourceAlias && !urlToSource.has(sourceAlias)) urlToSource.set(sourceAlias, value);
   }
 }
 console.log(`[warming-manifest] URL→source entries: ${urlToSource.size}`);

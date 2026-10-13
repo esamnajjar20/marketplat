@@ -76,6 +76,27 @@ const JUST_UPDATED_SUPPRESS_MS = 5 * 60 * 1000;
 
 /** يمنع أكثر من reload واحد لكل دورة حياة صفحة عند controllerchange. */
 let updateReloadInProgress = false;
+let deferredOnlineReload: (() => void) | null = null;
+
+/** One reload path for controllerchange and its timeout fallback. Never reload offline. */
+function reloadAfterServiceWorkerChange(): void {
+  if (updateReloadInProgress) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (deferredOnlineReload) return;
+    deferredOnlineReload = () => {
+      deferredOnlineReload = null;
+      reloadAfterServiceWorkerChange();
+    };
+    window.addEventListener('online', deferredOnlineReload, { once: true });
+    return;
+  }
+  updateReloadInProgress = true;
+  if (deferredOnlineReload) {
+    window.removeEventListener('online', deferredOnlineReload);
+    deferredOnlineReload = null;
+  }
+  window.location.reload();
+}
 
 
 function markJustUpdated(): void {
@@ -285,9 +306,9 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
     // 3) controllerchange → reload واحد فقط
     // 4) activate في sw.js يمسح كاشات الإصدار القديم تلقائيًا
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (updateReloadInProgress) return;
-      updateReloadInProgress = true;
-      window.location.reload();
+      // A controller can change just as connectivity drops. Both the event
+      // and the activation timeout must share this guarded reload path.
+      reloadAfterServiceWorkerChange();
     });
 
     // FIX SW-UPDATE-DETECTION-01: تشغيل فحص التحديث الآن فورًا، بلا انتظار
@@ -371,7 +392,7 @@ export function activateWaitingServiceWorker(
   if (!registration.waiting) {
     markJustUpdated();
     onStage?.('reloading');
-    window.location.reload();
+    reloadAfterServiceWorkerChange();
     return;
   }
   onStage?.('activating');
@@ -383,7 +404,10 @@ export function activateWaitingServiceWorker(
   // تُعرض للمستخدم كخطوتين متزامنتين.
   window.setTimeout(() => onStage?.('reloading'), 300);
   window.setTimeout(() => {
-    window.location.reload();
+    // controllerchange normally handles this. If Safari delays that event,
+    // use the same online-aware, single-reload path rather than forcing a
+    // hard reload while offline (which caused homepage flicker/blank shells).
+    reloadAfterServiceWorkerChange();
   }, 3000);
 }
 

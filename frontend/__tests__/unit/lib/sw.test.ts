@@ -402,52 +402,34 @@ describe('sw.js — service worker logic', () => {
     });
   });
 
-  describe('isPersonalShellRoute (FEAT-OFFLINE-MSG + FIX PWA-NOTIF-01 — narrow shell-cache exception within the protected-page set)', () => {
-    it('matches every route on sw.js\'s own exact + prefix list (messages, notifications, dashboard, favorites, my-ads, saved-searches, activity, settings*, my-store*, my-services*, profile/:id)', () => {
+  describe('isPersonalShellRoute (VISITED-PAGE-FIRST-01)', () => {
+    it('caches real visits for protected routes outside the warming allowlist too', () => {
       const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
       const paths = [
-        '/messages',
-        '/messages/abc123',
-        '/notifications',
-        '/dashboard',
-        '/favorites',
-        '/my-ads',
-        '/my-ads/123/edit',
-        '/saved-searches',
-        '/activity',
-        // FIX OFFLINE-AD-CREATE-01
-        '/ads/create',
-        '/settings',
-        '/settings/seller',
-        '/my-store',
-        '/my-store/inventory',
-        '/my-services',
-        '/my-services/123/edit',
-        '/profile/some-user-id',
+        '/messages', '/messages/abc123', '/notifications', '/dashboard',
+        '/favorites', '/my-ads', '/saved-searches', '/activity',
+        '/ads/create', '/settings', '/settings/security', '/my-store',
+        '/my-store/inventory', '/my-services', '/my-services/appointments',
+        '/requests/new', '/requests/me', '/requests/offers',
+        '/service-requests', '/my-reports', '/complete-profile',
       ];
       for (const pathname of paths) {
-        expect(isPersonalShellRoute(new URL(`https://example.com${pathname}`))).toBe(true);
+        expect(isPersonalShellRoute(new URL(`https://example.com${pathname}`)), pathname).toBe(true);
       }
     });
 
-    it('no longer matches routes whose pages were removed (service-broadcasts*, legacy /my-requests)', () => {
+    it('never caches admin or sensitive ad-edit responses in the personal shell', () => {
       const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
-      for (const pathname of ['/service-broadcasts', '/service-broadcasts/quotes', '/my-requests', '/my-requests/1']) {
+      for (const pathname of ['/admin', '/admin/sellers', '/ads/123/edit', '/ads/123/edit/images']) {
         expect(isPersonalShellRoute(new URL(`https://example.com${pathname}`))).toBe(false);
       }
     });
 
-    it('never matches /admin — deliberately excluded even though it is protected (sw.js\'s own comment: "لا يشمل /admin أبدًا")', () => {
+    it('does not classify public or authentication pages as personal shells', () => {
       const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
-      expect(isPersonalShellRoute(new URL('https://example.com/admin'))).toBe(false);
-      expect(isPersonalShellRoute(new URL('https://example.com/admin/sellers'))).toBe(false);
-    });
-
-    it('does not match public pages', () => {
-      const isPersonalShellRoute = ctx.sandbox.isPersonalShellRoute;
-      expect(isPersonalShellRoute(new URL('https://example.com/'))).toBe(false);
-      expect(isPersonalShellRoute(new URL('https://example.com/ads/123'))).toBe(false);
-      expect(isPersonalShellRoute(new URL('https://example.com/login'))).toBe(false);
+      for (const pathname of ['/', '/ads/123', '/products/123', '/login', '/register']) {
+        expect(isPersonalShellRoute(new URL(`https://example.com${pathname}`))).toBe(false);
+      }
     });
   });
 

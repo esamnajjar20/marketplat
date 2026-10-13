@@ -398,22 +398,26 @@ export const productRecommendationsRepository = {
     return aggregateCategorySignals([...rows, ...createdRows, ...favoriteRows]);
   },
 
-  // Signal #1: categories of products the user has favorited. Same
-  // two-step fan-out favoritedCategoryIds (AD) uses — Favorite has no
-  // Prisma relation to Product either.
+  // Signal #1: resolve the user's most recent product favorites and their
+  // categories in one DB round-trip. The limited CTE intentionally runs
+  // before the join, preserving the old behavior (take the newest N
+  // favorites first, then ignore deleted/missing products).
   favoritedCategoryIds: async (userId: string): Promise<string[]> => {
-    const favoriteRows = await prisma.favorite.findMany({
-      where: { userId, entityType: 'PRODUCT' },
-      select: { entityId: true },
-      orderBy: { createdAt: 'desc' },
-      take: FAVORITE_SIGNAL_TAKE,
-    });
-    if (favoriteRows.length === 0) return [];
-    const products = await prisma.product.findMany({
-      where: { id: { in: favoriteRows.map(r => r.entityId) }, status: { not: ProductStatus.DELETED } },
-      select: { categoryId: true },
-    });
-    return products.map(p => p.categoryId);
+    const rows = await prisma.$queryRaw<{ categoryId: string }[]>`
+      WITH recent_favorites AS (
+        SELECT f."entityId"
+        FROM "favorites" f
+        WHERE f."userId" = ${userId}
+          AND f."entityType" = 'PRODUCT'::"FavoriteEntityType"
+        ORDER BY f."createdAt" DESC
+        LIMIT ${FAVORITE_SIGNAL_TAKE}
+      )
+      SELECT p."categoryId" AS "categoryId"
+      FROM recent_favorites rf
+      JOIN "products" p ON p."id" = rf."entityId"
+      WHERE p."status" <> 'DELETED'::"ProductStatus"
+    `;
+    return rows.map(row => row.categoryId);
   },
 
   // Signal #3 (PR4A): categories of products the user has recently
@@ -656,21 +660,25 @@ export const serviceListingRecommendationsRepository = {
   },
 
   favoritedCategoryIds: async (userId: string): Promise<string[]> => {
-    const favoriteRows = await prisma.favorite.findMany({
-      where: { userId, entityType: 'SERVICE_LISTING' },
-      select: { entityId: true },
-      orderBy: { createdAt: 'desc' },
-      take: FAVORITE_SIGNAL_TAKE,
-    });
-    if (favoriteRows.length === 0) return [];
-    const listings = await prisma.serviceListing.findMany({
-      where: {
-        id: { in: favoriteRows.map(r => r.entityId) },
-        status: { not: ServiceListingStatus.DELETED },
-      },
-      select: { categoryId: true },
-    });
-    return listings.map(l => l.categoryId);
+    // Keep the newest-favorites limit inside the CTE, before joining listings,
+    // so deleted/missing listings do not cause older favorites to enter the
+    // signal window. This replaces two DB round-trips with one parameterized
+    // query while preserving the previous signal semantics.
+    const rows = await prisma.$queryRaw<{ categoryId: string }[]>`
+      WITH recent_favorites AS (
+        SELECT f."entityId"
+        FROM "favorites" f
+        WHERE f."userId" = ${userId}
+          AND f."entityType" = 'SERVICE_LISTING'::"FavoriteEntityType"
+        ORDER BY f."createdAt" DESC
+        LIMIT ${FAVORITE_SIGNAL_TAKE}
+      )
+      SELECT sl."categoryId" AS "categoryId"
+      FROM recent_favorites rf
+      JOIN "service_listings" sl ON sl."id" = rf."entityId"
+      WHERE sl."status" <> 'DELETED'::"ServiceListingStatus"
+    `;
+    return rows.map(row => row.categoryId);
   },
 
   // Signal #3 (PR4A): SERVICE_LISTING counterpart of
@@ -937,36 +945,26 @@ export const recommendationsRepository = {
     return aggregateCategorySignals([...rows, ...createdRows, ...favoriteRows]);
   },
 
-  // Signal #1 (strongest): categories of ads the user has favorited.
-  // Mirrors favoritesRepository.findManyByUserId's live-ad filter — a
-  // favorite pointing at a since-deleted ad carries no usable category
-  // signal.
-  // FEAT-FAVORITE-POLYMORPHIC PR1: Favorite has no relation to Ad
-  // anymore (see favorites.repository.ts's header comment), so this
-  // can no longer filter/select through `ad:` in one Prisma call —
-  // resolved as a two-step fan-out (favorite entityIds → matching
-  // active ads), same "1 query for favorites + 1 for ads" shape
-  // favorites.repository.ts's own findManyByUserId now uses. Scoped
-  // to entityType: 'AD' — PR2 will need to also read PRODUCT/STORE/
-  // SERVICE_LISTING favorites' categories once those exist.
+  // Signal #1 (strongest): resolve recent AD favorites to live ad
+  // categories in one DB round-trip. Limit favorites before joining so the
+  // selected signal window stays identical to the former two-query flow.
   favoritedCategoryIds: async (userId: string): Promise<string[]> => {
-    const favoriteRows = await prisma.favorite.findMany({
-      where: { userId, entityType: 'AD' },
-      select: { entityId: true },
-      orderBy: { createdAt: 'desc' },
-      take: FAVORITE_SIGNAL_TAKE,
-    });
-    if (favoriteRows.length === 0) return [];
-
-    const ads = await prisma.ad.findMany({
-      where: {
-        id: { in: favoriteRows.map(r => r.entityId) },
-        status: { not: AdStatus.DELETED },
-        categoryId: { not: null },
-      },
-      select: { categoryId: true },
-    });
-    return ads.flatMap(a => (a.categoryId ? [a.categoryId] : []));
+    const rows = await prisma.$queryRaw<{ categoryId: string | null }[]>`
+      WITH recent_favorites AS (
+        SELECT f."entityId"
+        FROM "favorites" f
+        WHERE f."userId" = ${userId}
+          AND f."entityType" = 'AD'::"FavoriteEntityType"
+        ORDER BY f."createdAt" DESC
+        LIMIT ${FAVORITE_SIGNAL_TAKE}
+      )
+      SELECT a."categoryId" AS "categoryId"
+      FROM recent_favorites rf
+      JOIN "ads" a ON a."id" = rf."entityId"
+      WHERE a."status" <> 'DELETED'::"AdStatus"
+        AND a."categoryId" IS NOT NULL
+    `;
+    return rows.flatMap(row => (row.categoryId ? [row.categoryId] : []));
   },
 
   // Signal #2: categories the user has recently viewed or browsed, from

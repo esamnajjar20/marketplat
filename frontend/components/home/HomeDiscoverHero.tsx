@@ -3,7 +3,6 @@
 import { cn } from '@/lib/utils';
 import { WelcomeBar } from '@/components/home/WelcomeBar';
 import { SearchBox } from '@/components/search/SearchBox';
-import { HomeTypeShortcuts } from '@/components/home/HomeTypeShortcuts';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 
 /**
@@ -54,7 +53,6 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
               <SearchBox />
             </div>
             <div className="max-w-3xl">
-              <HomeTypeShortcuts />
             </div>
           </div>
         </div>

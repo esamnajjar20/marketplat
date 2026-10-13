@@ -16,6 +16,7 @@ import { usePendingDraftsCount } from '@/hooks/usePendingDraftsCount';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 
 const selectToggleMobileNav = (s: ReturnType<typeof useUIStore.getState>) => s.toggleMobileNav;
+const selectIsMobileNavOpen = (s: ReturnType<typeof useUIStore.getState>) => s.isMobileNavOpen;
 
 /**
  * FIX P1-3: mobile navigation previously relied entirely on the
@@ -90,11 +91,17 @@ export function BottomNav() {
   const isAuthenticated = mounted && isAuthenticatedRaw;
   const user = mounted ? userRaw : null;
   const toggleMobileNav = useUIStore(selectToggleMobileNav);
+  const mobileNavOpen = useUIStore(selectIsMobileNavOpen);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const { hidden: scrollNavHidden } = useScrollDirection();
-  // Sheets open → force bar visible (user is mid-action).
-  const navHidden = scrollNavHidden && !exploreOpen && !createOpen;
+  const { hidden: scrollNavHidden } = useScrollDirection({
+    threshold: 12,
+    topOffset: 72,
+    hideAfter: 112,
+  });
+  // Keep navigation available while a sheet/drawer is active; otherwise hide
+  // only after a deliberate downward scroll and reveal on upward scroll/top.
+  const navHidden = scrollNavHidden && !exploreOpen && !createOpen && !mobileNavOpen;
   // FIX NETWORK-BANNER-UNIFY-01: شارة «غير متصل» نُقلت لـ NetworkStatusBanner
   // (شريط سفلي موحّد وواضح). يبقى هنا فقط عدّاد طابور الطلبات.
   // FIX QUEUE-BADGE-01: عدّاد "طلبات بالانتظار" كشارة رقم بزاوية الأيقونة.
@@ -130,14 +137,14 @@ export function BottomNav() {
         prefetch={false}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'relative flex min-h-14 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1.5 text-2xs font-medium transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
         <span
           className={cn(
-            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-2.5 py-1 transition-colors duration-150',
-            isActive && 'bg-primary-soft text-primary shadow-xs',
+            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-xl px-2.5 py-1 transition-colors duration-150',
+            isActive && 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/10',
           )}
         >
           <Icon className={cn('h-5 w-5', isActive && 'text-primary')} aria-hidden={true} />
@@ -154,14 +161,14 @@ export function BottomNav() {
       aria-hidden={navHidden ? true : undefined}
       inert={navHidden ? true : undefined}
       className={cn(
-        'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-center border-t border-border/80',
-        'bg-background/95 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)]',
-        'backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden',
+        'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-end border-t border-border/70 px-1.5 pt-1.5',
+        'rounded-t-2xl bg-background/95 shadow-[0_-8px_28px_-16px_hsl(var(--shadow-color)/0.28)]',
+        'backdrop-blur-xl supports-[backdrop-filter]:bg-background/88 md:hidden',
         // CLEANUP-EASE-AMBIGUOUS-01: an arbitrary cubic-bezier easing class was ambiguous in
         // Tailwind (matches both transitionProperty and transitionTiming).
         // Use explicit arbitrary property so the intent is unambiguous.
-        'transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] will-change-transform',
-        navHidden ? 'translate-y-[calc(100%+2.5rem)] pointer-events-none' : 'translate-y-0',
+        'transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+        navHidden ? 'translate-y-[calc(100%+1rem)] pointer-events-none' : 'translate-y-0',
       )}
     >
       {leadingItems.map(renderItem)}
@@ -170,16 +177,17 @@ export function BottomNav() {
         type="button"
         onClick={() => setExploreOpen(true)}
         aria-expanded={exploreOpen}
+        aria-current={isExploreActive ? 'page' : undefined}
         aria-haspopup="dialog"
         className={cn(
-          'relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'relative flex min-h-14 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1.5 text-2xs font-medium transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
       >
         <span
           className={cn(
-            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-2.5 py-1 transition-colors duration-150',
-            isExploreActive && 'bg-primary/10',
+            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-xl px-2.5 py-1 transition-colors duration-150',
+            isExploreActive && 'bg-primary/10 text-primary ring-1 ring-primary/10',
           )}
         >
           <Compass className={cn('h-5 w-5', isExploreActive && 'text-primary')} aria-hidden={true} />
@@ -196,9 +204,9 @@ export function BottomNav() {
             aria-haspopup="dialog"
             aria-label={draftsCount > 0 ? `أضف — ${draftsCount} مسودة معلّقة` : 'أضف'}
             className={cn(
-              'flex h-14 w-14 min-h-[52px] min-w-[52px] items-center justify-center rounded-full',
-              'border-4 border-background bg-primary text-primary-foreground',
-              'shadow-md shadow-primary/25 transition-transform',
+              'flex h-[52px] w-[52px] min-h-[52px] min-w-[52px] items-center justify-center rounded-full',
+              'border-[3px] border-background bg-primary text-primary-foreground',
+              'shadow-lg shadow-primary/20 transition-transform',
               'transition-[transform,box-shadow] duration-150 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             )}

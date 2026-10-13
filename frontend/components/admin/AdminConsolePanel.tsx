@@ -42,6 +42,10 @@ const HELP_TEXT = `Commands:
   storage keys        - localStorage keys
   sw                  - service worker registrations
   online              - navigator.onLine + visibility
+  route               - current browser route
+  memory              - browser memory metrics when supported
+  network recent      - last 10 local requests (metadata only)
+  errors recent       - last 10 local device errors
   clear-cache         - clear React Query cache
   reload              - reload page
 
@@ -64,6 +68,7 @@ export function AdminConsolePanel() {
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
+  const [running, setRunning] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -114,12 +119,22 @@ export function AdminConsolePanel() {
       ].join('\n');
     }
 
+    if (head === 'network' && sub === 'recent') {
+      const requests = getNetworkRequests().slice(0, 10);
+      return requests.length ? requests.map((row) => `${row.startedAt} | ${row.method} ${row.url} | ${row.status || row.outcome} | ${row.durationMs} ms | ${row.pageRoute}`).join('\n') : 'No local requests recorded yet.';
+    }
+
     if (head === 'network' && sub === 'summary') {
       const requests = getNetworkRequests();
       const failed = requests.filter((row) => row.outcome === 'http-error' || row.outcome === 'network-error').length;
       const aborted = requests.filter((row) => row.outcome === 'aborted').length;
       const avg = requests.length ? Math.round(requests.reduce((sum, row) => sum + Math.max(0, row.durationMs), 0) / requests.length) : null;
       return ['local requests: ' + requests.length, 'HTTP/network failures: ' + failed, 'aborted: ' + aborted, 'average duration: ' + (avg === null ? 'n/a' : avg + ' ms'), 'Scope: this browser only; no bodies or headers'].join('\n');
+    }
+
+    if (head === 'errors' && sub === 'recent') {
+      const records = (await getDeviceErrorsAsync()).slice(0, 10);
+      return records.length ? records.map((row) => `${row.occurredAt} | ${row.severity.toUpperCase()} | ${row.title} | ${row.route} | count=${row.count}`).join('\n') : 'No local device errors recorded yet.';
     }
 
     if (head === 'errors' && sub === 'summary') {
@@ -163,6 +178,15 @@ export function AdminConsolePanel() {
       ).join('\n');
     }
 
+    if (head === 'route') {
+      return ['pathname: ' + window.location.pathname, 'search params: ' + (window.location.search || '(none)'), 'hash: ' + (window.location.hash || '(none)')].join('\n');
+    }
+
+    if (head === 'memory') {
+      const memory = (performance as Performance & { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+      return memory ? ['used JS heap: ' + Math.round(memory.usedJSHeapSize / 1024 / 1024) + ' MB', 'total JS heap: ' + Math.round(memory.totalJSHeapSize / 1024 / 1024) + ' MB', 'heap limit: ' + Math.round(memory.jsHeapSizeLimit / 1024 / 1024) + ' MB', 'Note: Chromium-only metric; approximate.'].join('\n') : 'Browser does not expose performance.memory.';
+    }
+
     if (head === 'online') {
       const conn = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
       return [
@@ -187,7 +211,8 @@ export function AdminConsolePanel() {
 
   const submit = async () => {
     const cmd = input.trim();
-    if (!cmd) return;
+    if (!cmd || running) return;
+    setRunning(true);
     let output: string;
     let error = false;
     try {
@@ -195,6 +220,8 @@ export function AdminConsolePanel() {
     } catch (e) {
       output = 'Error: ' + (e instanceof Error ? e.message : String(e));
       error = true;
+    } finally {
+      setRunning(false);
     }
     setEntries((prev) => [...prev, { command: cmd, output, error, at: Date.now() }]);
     pushHistory(cmd);
@@ -230,41 +257,47 @@ export function AdminConsolePanel() {
     <div className="flex flex-col gap-3">
       <div className="rounded-lg border bg-card p-3">
         <p className="mb-2 text-xs text-muted-foreground">
-          Debug console — type <code className="rounded bg-muted px-1 py-0.5">help</code> for commands. ↑ ↓ recalls history.
+          كونسول تفاعلي: اكتب الأمر في الحقل ثم اضغط Enter أو زر التنفيذ. ↑ ↓ لاسترجاع الأوامر السابقة، وShift+Enter لسطر جديد. التنفيذ محصور بأوامر تشخيص آمنة ولا يشغّل JavaScript حرًا.
         </p>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="type a command..."
-          className="min-h-20 w-full resize-y rounded-md border bg-background p-2 font-mono text-sm"
+          placeholder="marketplat> help"
+          aria-label="أدخل أمر التشخيص"
+          className="min-h-24 w-full resize-y rounded-md border bg-background p-3 font-mono text-sm leading-6 outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
           dir="ltr"
           spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
         />
-        <div className="mt-2 flex gap-2">
-          <Button size="sm" onClick={() => void submit()}>Run</Button>
-          <Button size="sm" variant="outline" onClick={() => setEntries([])}>Clear output</Button>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={() => void submit()} disabled={running || !input.trim()}>{running ? 'Running…' : 'تنفيذ الأمر ↵'}</Button>
+          <Button size="sm" variant="outline" onClick={() => setEntries([])}>مسح المخرجات</Button>
+          {['help', 'online', 'network summary', 'errors summary', 'route'].map((command) => (
+            <Button key={command} size="sm" variant="ghost" onClick={() => setInput(command)}>{command}</Button>
+          ))}
         </div>
       </div>
 
       <div
         ref={outputRef}
-        className="max-h-[60vh] overflow-y-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs"
+        className="max-h-[55vh] min-h-32 overflow-y-auto rounded-lg border bg-[#101820] p-3 font-mono text-xs leading-6 text-slate-100 shadow-inner"
         dir="ltr"
       >
         {entries.length === 0 ? (
-          <p className="text-muted-foreground" dir="rtl">No output yet.</p>
+          <div className="space-y-1" dir="ltr"><p className="text-emerald-300">MarketPlat diagnostic console</p><p className="text-slate-400">Type <span className="text-amber-200">help</span> to list available commands.</p><p className="text-slate-500">$ _</p></div>
         ) : (
           entries.map((entry, i) => (
             <div key={i} className="mb-3 border-b border-border/40 pb-2 last:border-0">
               <div>
-                <span className="text-muted-foreground">
+                <span className="text-slate-400">
                   {new Date(entry.at).toLocaleTimeString('ar-PS')}
                 </span>
                 {' '}
-                <span className="font-semibold text-primary">$ {entry.command}</span>
+                <span className="font-semibold text-emerald-300">$ {entry.command}</span>
               </div>
-              <pre className={`mt-1 whitespace-pre-wrap break-all ${entry.error ? 'text-destructive' : ''}`}>
+              <pre className={`mt-1 whitespace-pre-wrap break-words ${entry.error ? 'text-red-300' : 'text-slate-100'}`}>
                 {entry.output}
               </pre>
             </div>

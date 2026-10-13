@@ -34,6 +34,27 @@ const STALE_ON_ERROR = true;
 
 const inflight = new Map();
 
+// Cache API keys are versioned so entries written by older Worker releases
+// cannot bypass the current upstream Cache-Control safety checks.
+function makeCacheKey(url) {
+  const keyUrl = new URL(url.toString());
+  keyUrl.searchParams.set('__mp_cache_policy', 'v2');
+  return new Request(keyUrl.toString(), { method: 'GET' });
+}
+
+function isUpstreamCacheable(response) {
+  if (!response || response.status !== 200) return false;
+  if (response.headers.has('set-cookie')) return false;
+  const vary = (response.headers.get('vary') || '').toLowerCase();
+  if (vary === '*' || /(?:^|,)\s*(authorization|cookie)\s*(?:,|$)/.test(vary)) return false;
+  const cc = (response.headers.get('cache-control') || '').toLowerCase();
+  const directives = cc.split(',').map((part) => part.trim().split('=')[0]);
+  if (['private', 'no-store', 'no-cache'].some((directive) => directives.includes(directive))) return false;
+  // The API Worker is a shared cache: require an explicit public policy from
+  // the origin rather than converting private/default responses into public.
+  return directives.includes('public') || /(?:^|,)\s*s-maxage=\d+/.test(cc);
+}
+
 function parseCacheControl(cc) {
   const sm = cc.match(/s-maxage=(\d+)/);
   const mx = cc.match(/(?:^|[,\s])max-age=(\d+)/);
@@ -90,7 +111,7 @@ function cleanUpstreamHeaders(request, extra) {
 
 async function handleCacheable(request, url, ctx) {
   const cache = caches.default;
-  const cacheKey = new Request(url.toString(), { method: 'GET' });
+  const cacheKey = makeCacheKey(url);
   const key = url.toString();
   const clientIfNoneMatch = request.headers.get('if-none-match');
 
@@ -195,9 +216,21 @@ async function handleCacheable(request, url, ctx) {
 async function finalize(upstream, ms, cacheKey, cache, ctx) {
   const body = await upstream.arrayBuffer();
   const contentType = upstream.headers.get('content-type') || 'application/json';
-  const { ttl, swr } = parseCacheControl(upstream.headers.get('cache-control') || '');
+  const upstreamCacheControl = upstream.headers.get('cache-control') || '';
+  const { ttl, swr } = parseCacheControl(upstreamCacheControl);
   const etag = upstream.headers.get('etag');
   const vary = upstream.headers.get('vary');
+
+  // Never override private/no-store/no-cache or Set-Cookie responses with a
+  // public Cache-Control header. This protects routes such as /home/feed and
+  // /recommendations, whose origin policy intentionally forbids shared caching.
+  if (!isUpstreamCacheable({ status: upstream.status, headers: upstream.headers })) {
+    const headers = new Headers(upstream.headers);
+    headers.set('x-proxy-cache', 'BYPASS-POLICY');
+    headers.set('x-upstream-ms', String(ms || 0));
+    headers.set('access-control-allow-origin', '*');
+    return new Response(body, { status: upstream.status, headers });
+  }
 
   const cacheHeaders = {
     'content-type': contentType,
@@ -261,10 +294,10 @@ async function warmCache() {
   const results = [];
   for (const path of WARM_PATHS) {
     const url = new URL(RENDER_ORIGIN + path);
-    const cacheKey = new Request(url.toString(), { method: 'GET' });
+    const cacheKey = makeCacheKey(url);
     try {
       const res = await fetch(url.toString(), { headers: { 'accept-encoding': 'gzip, br' } });
-      if (res.status === 200) {
+      if (isUpstreamCacheable(res)) {
         const body = await res.arrayBuffer();
         const { ttl, swr } = parseCacheControl(res.headers.get('cache-control') || '');
         const headers = {
@@ -276,7 +309,12 @@ async function warmCache() {
         await cache.put(cacheKey, new Response(body, { status: 200, headers }));
         results.push({ path, status: 'WARMED', ttl });
       } else {
-        results.push({ path, status: 'FAIL', code: res.status });
+        results.push({
+          path,
+          status: res.status === 200 ? 'SKIP_POLICY' : 'FAIL',
+          code: res.status,
+          cacheControl: res.headers.get('cache-control') || null,
+        });
       }
     } catch (e) {
       results.push({ path, status: 'ERROR', msg: e.message });
@@ -317,8 +355,11 @@ export default {
 
     const isGet = request.method === 'GET' || request.method === 'HEAD';
     const hasAuth = request.headers.has('authorization') || request.headers.has('cookie');
-    const isCacheable = isGet && !hasAuth &&
-      CACHEABLE_PREFIXES.some((p) => url.pathname.startsWith(p));
+    const deliberatelyPrivatePath = url.pathname === '/api/v1/home/feed'
+      || url.pathname === '/api/v1/recommendations'
+      || url.pathname.startsWith('/api/v1/recommendations/');
+    const isCacheable = isGet && !hasAuth && !deliberatelyPrivatePath &&
+      CACHEABLE_PREFIXES.some((p) => url.pathname === p || url.pathname.startsWith(`${p}/`));
 
     if (isCacheable) return handleCacheable(request, url, ctx);
     return handlePassthrough(request, url);

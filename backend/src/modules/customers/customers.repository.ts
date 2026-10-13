@@ -22,14 +22,38 @@ export const customersRepository = {
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit), hasNextPage: page < Math.ceil(total / limit), hasPrevPage: page > 1 } };
   },
   summary: async (sellerId: string) => {
-    const [totalCustomers, vipCustomers, debtors, inactiveCustomers, spent] = await Promise.all([
-      prisma.customer.count({ where: { sellerId } }),
-      prisma.customer.count({ where: { sellerId, isVip: true } }),
-      prisma.customer.count({ where: { sellerId, totalDue: { gt: 0 } } }),
-      prisma.customer.count({ where: { sellerId, OR: [{ lastPurchaseAt: null }, { lastPurchaseAt: { lt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) } }] } }),
-      prisma.customer.aggregate({ where: { sellerId }, _sum: { totalSpent: true }, _avg: { totalSpent: true } }),
-    ]);
-    return { totalCustomers, vipCustomers, debtors, inactiveCustomers, totalSpent: Number(spent._sum.totalSpent ?? 0), averageCustomerSpend: Number(spent._avg.totalSpent ?? 0) };
+    // All summary metrics scan the same seller's customer rows. Compute them in
+    // one round-trip instead of issuing four COUNTs and one aggregate in parallel.
+    const inactiveBefore = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    const rows = await prisma.$queryRaw<Array<{
+      totalCustomers: bigint;
+      vipCustomers: bigint;
+      debtors: bigint;
+      inactiveCustomers: bigint;
+      totalSpent: unknown;
+      averageCustomerSpend: unknown;
+    }>>`
+      SELECT
+        COUNT(*) AS "totalCustomers",
+        COUNT(*) FILTER (WHERE "isVip" = TRUE) AS "vipCustomers",
+        COUNT(*) FILTER (WHERE "totalDue" > 0) AS "debtors",
+        COUNT(*) FILTER (
+          WHERE "lastPurchaseAt" IS NULL OR "lastPurchaseAt" < ${inactiveBefore}
+        ) AS "inactiveCustomers",
+        COALESCE(SUM("totalSpent"), 0) AS "totalSpent",
+        COALESCE(AVG("totalSpent"), 0) AS "averageCustomerSpend"
+      FROM "sales_customers"
+      WHERE "sellerId" = ${sellerId}
+    `;
+    const row = rows[0];
+    return {
+      totalCustomers: Number(row?.totalCustomers ?? 0n),
+      vipCustomers: Number(row?.vipCustomers ?? 0n),
+      debtors: Number(row?.debtors ?? 0n),
+      inactiveCustomers: Number(row?.inactiveCustomers ?? 0n),
+      totalSpent: Number(row?.totalSpent ?? 0),
+      averageCustomerSpend: Number(row?.averageCustomerSpend ?? 0),
+    };
   },
   search: (sellerId: string, q: string) => prisma.customer.findMany({ where: { sellerId, OR: [{ name: { contains: q, mode: 'insensitive' } }, { phone: { contains: q } }] }, orderBy: [{ lastPurchaseAt: 'desc' }, { name: 'asc' }], take: 10 }),
 };

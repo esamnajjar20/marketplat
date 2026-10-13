@@ -189,6 +189,34 @@ export const errorMiddleware = (
     return;
   }
 
+  // P2028 means Prisma could not complete an interactive transaction
+  // (commonly because the transaction expired before the callback finished).
+  // Treat it as a server-side transient failure, not a generic 500 and not a
+  // warning: it is actionable operational telemetry and must not be grouped
+  // with ordinary constraint races. Do not expose Prisma's internal message
+  // to clients, and do not automatically retry the request here because some
+  // mutations may not be safe to replay.
+  const prismaCode = (err as Error & { code?: unknown }).code;
+  if (prismaCode === 'P2028') {
+    logger.error('Prisma interactive transaction failed (P2028)', {
+      err,
+      code: 'P2028',
+      requestId,
+      path: req.path,
+      method: req.method,
+    });
+    res.locals.errorCode = ErrorCode.SERVICE_UNAVAILABLE;
+    res.status(503).json(
+      buildApiErrorBody(
+        req,
+        503,
+        ErrorCode.SERVICE_UNAVAILABLE,
+        'Service temporarily unavailable, please try again shortly',
+      ),
+    );
+    return;
+  }
+
   // safety net for any Prisma error that reaches here unhandled
   // by a service layer (e.g. a future endpoint that forgets to catch a
   // P2002/P2025 race the way favoritesService/reportsService already do).

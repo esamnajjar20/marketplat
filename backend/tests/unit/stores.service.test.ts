@@ -754,15 +754,16 @@ describe('storesService', () => {
     });
 
     it('aggregates views, followers, promotions, and top products with no revenue/orders fields', async () => {
-      (storeFollowersRepository.countByStoreId as jest.Mock).mockResolvedValue(42);
-      (storeFollowersRepository.countByStoreIdSince as jest.Mock)
-        .mockResolvedValueOnce(5) // 7d
-        .mockResolvedValueOnce(12); // 30d
+      (storeFollowersRepository.countAnalyticsByStoreId as jest.Mock).mockResolvedValue({
+        followers: 42,
+        newFollowers7d: 5,
+        newFollowers30d: 12,
+      });
       (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(8);
-      (promotionsRepository.findByStoreId as jest.Mock).mockResolvedValue([
-        { status: 'ACTIVE', usageCount: 3 },
-        { status: 'EXPIRED', usageCount: 7 },
-      ]);
+      (promotionsRepository.getStoreAnalyticsSummary as jest.Mock).mockResolvedValue({
+        activePromotions: 1,
+        promotionUses: 10,
+      });
       (productsRepository.findTopByStoreId as jest.Mock).mockResolvedValue([
         { id: 'p1', name: 'Phone', views: 90, images: ['https://x/img1.jpg'] },
         { id: 'p2', name: 'Case', views: 40, images: [] },

@@ -56,6 +56,17 @@ export function useStores(
     nonFilterFields: ['page', 'limit'],
   });
   const queryKey = queryKeys.stores.list(params);
+  const isHomeSnapshot = params?.limit === 6 && params?.sortBy === 'createdAt' && params?.sortOrder === 'desc'
+    && !params?.page && !params?.search && !params?.city && !params?.type;
+  useOfflineListSeed<StoreWithSeller, Awaited<ReturnType<typeof storesApi.getAll>>['data']['data']>({
+    queryKey,
+    cacheKey: OFFLINE_LIST_KEYS.homeStores,
+    enabled: isHomeSnapshot && (options?.enabled ?? true),
+    mapItems: (items: StoreWithSeller[]) => ({
+      items,
+      meta: { total: items.length, page: 1, limit: items.length || 1, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+    }),
+  });
   useOfflineListSeed<StoreWithSeller, Awaited<ReturnType<typeof storesApi.getAll>>['data']['data']>({
     queryKey,
     cacheKey: OFFLINE_LIST_KEYS.storesBrowse,

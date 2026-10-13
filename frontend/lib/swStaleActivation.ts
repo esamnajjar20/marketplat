@@ -85,6 +85,10 @@ function isUserBusy(): boolean {
 }
 
 function evaluate(reg: ServiceWorkerRegistration): void {
+  // Never activate a waiting worker while offline: activation emits
+  // controllerchange, and the PWA update handler may reload the document.
+  // On a weak connection this can make the cached homepage visibly flicker.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   if (alreadyFiredInThisTab()) return;
   if (reg.waiting) {
     if (waitingSince === null) waitingSince = Date.now();
@@ -113,6 +117,14 @@ export function initStaleWaitingServiceWorkerHandler(): void {
     // The waiting SW is now the active controller. Clear local state so
     // a future waiting SW (next deploy) starts a fresh window.
     waitingSince = null;
+  });
+
+  // If a worker is waiting while offline, reconsider it only after the
+  // browser reports connectivity restored. Do not poll/activate offline.
+  window.addEventListener('online', () => {
+    void navigator.serviceWorker.ready.then(evaluate).catch(() => {
+      // A missing registration is not fatal.
+    });
   });
 
   void navigator.serviceWorker.ready

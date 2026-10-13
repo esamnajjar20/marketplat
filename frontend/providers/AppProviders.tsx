@@ -53,7 +53,6 @@ import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { AnalyticsConsentBanner } from '@/components/shared/AnalyticsConsentBanner';
-import { NavigationProgress } from '@/components/shared/NavigationProgress';
 import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
 import { restoreOfflineQueryCache, subscribeOfflineQueryCache, persistOfflineQueryCache } from '@/lib/offlineQueryCache';
 
@@ -190,8 +189,6 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
             header for why this is a client-side redirect rather than
             an Edge middleware rule. */}
         <ProfileCompletionGate />
-
-        <NavigationProgress />
 
         <NetworkStatusBanner />
 

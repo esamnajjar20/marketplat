@@ -102,7 +102,7 @@ export const salesRepository = {
       profit: Prisma.Decimal;
     }>>`
       SELECT
-        CASE WHEN si."productId" IS NOT NULL THEN si."productId" ELSE NULL END AS "productId",
+        si."productId" AS "productId",
         CASE WHEN si."productId" IS NOT NULL THEN MAX(si."title") ELSE si."title" END AS "title",
         SUM(GREATEST(si."quantity" - si."returnedQuantity", 0))::bigint AS "quantity",
         SUM(
@@ -123,7 +123,7 @@ export const salesRepository = {
       WHERE sr."sellerId" = ${sellerId}
         AND si."entityType" = 'PRODUCT'
       GROUP BY
-        CASE WHEN si."productId" IS NOT NULL THEN si."productId" ELSE NULL END,
+        si."productId",
         CASE WHEN si."productId" IS NULL THEN si."title" ELSE NULL END
       ORDER BY "revenue" DESC
       LIMIT ${safeLimit}

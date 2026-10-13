@@ -53,6 +53,10 @@ export const OFFLINE_LIST_KEYS = {
   productsBrowse: 'products-browse',
   servicesBrowse: 'services-browse',
   storesBrowse: 'stores-browse',
+  // Separate bounded snapshots for homepage's intentionally small sections.
+  // Never mix these six/eight items into the full browse-list cache.
+  homeProducts: 'home-products',
+  homeStores: 'home-stores',
   categories: 'categories',
   // FIX CATEGORIES-OFFLINE-01: product + service category trees were
   // fetched live and never cached — offline, both create-product and
@@ -79,6 +83,8 @@ export const OFFLINE_LIST_LIMITS = {
   productsBrowse: OFFLINE_DATA_LIMITS.productsBrowse,
   servicesBrowse: OFFLINE_DATA_LIMITS.servicesBrowse,
   storesBrowse: OFFLINE_DATA_LIMITS.storesBrowse,
+  homeProducts: 8,
+  homeStores: 6,
   categories: OFFLINE_DATA_LIMITS.categories,
   productCategories: OFFLINE_DATA_LIMITS.categories,
   serviceCategories: OFFLINE_DATA_LIMITS.categories,

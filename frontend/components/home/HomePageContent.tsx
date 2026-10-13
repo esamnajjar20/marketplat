@@ -2,7 +2,6 @@
 
 import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { HomeAppPromo } from '@/components/home/HomeAppPromo';
-import { HomeSafeBuyingTips } from '@/components/home/HomeSafeBuyingTips';
 import { ForYouMixedSection } from '@/components/home/ForYouMixedSection';
 import { FollowingFeedSection } from '@/components/home/FollowingFeedSection';
 import { RecentProductsSection } from '@/components/home/RecentProductsSection';
@@ -59,7 +58,6 @@ export function HomePageContent() {
 
         <div className="mx-auto mt-5 max-w-7xl space-y-3 px-3 sm:mt-10 sm:space-y-4 sm:px-4">
           <HomeAppPromo />
-          <HomeSafeBuyingTips />
         </div>
       </HomeBusyBoundary>
     </div>

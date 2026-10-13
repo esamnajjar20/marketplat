@@ -505,17 +505,31 @@ export const salesService = {
       dueAmount: { gt: 0 },
       paymentStatus: { in: ['PARTIAL', 'UNPAID', 'OVERDUE'] },
     };
-    // Aggregate totals in the database; avoid transferring every outstanding debt to Node.
-    const [allDebts, overdue, dueToday] = await Promise.all([
-      prisma.saleRecord.aggregate({ where: baseWhere, _sum: { dueAmount: true }, _count: { _all: true } }),
-      prisma.saleRecord.aggregate({ where: { ...baseWhere, dueDate: { lt: now } }, _sum: { dueAmount: true } }),
-      prisma.saleRecord.aggregate({ where: { ...baseWhere, dueDate: { gte: todayStart, lt: tomorrowStart } }, _sum: { dueAmount: true } }),
-    ]);
+    // Compute all debt KPIs in one database round-trip instead of three aggregates.
+    // Keep the same base filters and date boundaries as the Prisma aggregates above.
+    const [summary] = await prisma.$queryRaw<Array<{
+      totalDue: Prisma.Decimal | number | string | null;
+      overdueDue: Prisma.Decimal | number | string | null;
+      dueToday: Prisma.Decimal | number | string | null;
+      debtorCount: bigint;
+    }>>`
+      SELECT
+        COALESCE(SUM("dueAmount"), 0) AS "totalDue",
+        COALESCE(SUM("dueAmount") FILTER (WHERE "dueDate" < ${now}), 0) AS "overdueDue",
+        COALESCE(SUM("dueAmount") FILTER (
+          WHERE "dueDate" >= ${todayStart} AND "dueDate" < ${tomorrowStart}
+        ), 0) AS "dueToday",
+        COUNT(*) AS "debtorCount"
+      FROM "sale_records"
+      WHERE "sellerId" = ${userId}
+        AND "dueAmount" > 0
+        AND "paymentStatus"::text IN ('PARTIAL', 'UNPAID', 'OVERDUE')
+    `;
     return {
-      totalDue: roundMoney(Number(allDebts._sum.dueAmount ?? 0)),
-      overdueDue: roundMoney(Number(overdue._sum.dueAmount ?? 0)),
-      dueToday: roundMoney(Number(dueToday._sum.dueAmount ?? 0)),
-      debtorCount: allDebts._count._all,
+      totalDue: roundMoney(Number(summary?.totalDue ?? 0)),
+      overdueDue: roundMoney(Number(summary?.overdueDue ?? 0)),
+      dueToday: roundMoney(Number(summary?.dueToday ?? 0)),
+      debtorCount: Number(summary?.debtorCount ?? 0),
     };
   },
   debts: (userId: string, page = 1, limit = 20) => salesRepository.debts(userId, page, limit),

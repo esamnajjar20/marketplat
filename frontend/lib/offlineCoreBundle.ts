@@ -50,6 +50,7 @@ import {
 import { reportWarmingFailure } from './offlineWarmingReport';
 import { fetchWithTimeout } from './fetchTimeout';
 import { getListThumbnailUrl, getAvatarUrl } from './cloudinary';
+import { saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from './offlineListCache';
 
 // FIX PWA-VER-01: نفس مشكلة lib/offlineRouteShells.ts's STATIC_CACHE — كانت
 // عالقة على 'v4' بينما public/sw.js تجاوزها إلى 'v5'، فكان warmCoreBundle()
@@ -170,6 +171,7 @@ export function buildCoreUrls(): { key: string; url: string }[] {
       ['services-default', 'services'],
       ['ads-featured', 'ads-featured'],
       ['products-home', 'products-home'],
+      ['stores-home', 'stores-home'],
     ] as const).map(([id, key]) => ({ key, url: warmingQueryUrl(contract.get(id) as string) })),
   ];
 }
@@ -221,6 +223,42 @@ export function collectThumbnailUrls(
     if (typeof logo === 'string' && logo) push(getAvatarUrl(logo, STORE_LOGO_SIZE));
   }
   return Array.from(out);
+}
+
+/** Extract a bounded list from the API envelope without assuming one wrapper shape. */
+function extractListItems(payload: unknown): unknown[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const root = payload as Record<string, unknown>;
+  const data = root.data;
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    const nested = data as Record<string, unknown>;
+    if (Array.isArray(nested.items)) return nested.items;
+    if (Array.isArray(nested.data)) return nested.data;
+  }
+  if (Array.isArray(root.items)) return root.items;
+  return [];
+}
+
+function persistWarmedPublicList(key: string, payload: unknown): void {
+  const items = extractListItems(payload);
+  if (!items.length) return;
+  // Keep homepage snapshots separate from browse snapshots: a small home
+  // response must never overwrite the user's larger browse-list fallback.
+  if (key === 'products-home') {
+    saveOfflineList(OFFLINE_LIST_KEYS.homeProducts, items, OFFLINE_LIST_LIMITS.homeProducts);
+  } else if (key === 'stores-home') {
+    saveOfflineList(OFFLINE_LIST_KEYS.homeStores, items, OFFLINE_LIST_LIMITS.homeStores);
+  } else if (key === 'products-default' || key === 'products') {
+    saveOfflineList(OFFLINE_LIST_KEYS.productsBrowse, items, OFFLINE_LIST_LIMITS.productsBrowse);
+  } else if (key === 'stores-default' || key === 'stores') {
+    saveOfflineList(OFFLINE_LIST_KEYS.storesBrowse, items, OFFLINE_LIST_LIMITS.storesBrowse);
+  } else if (key === 'ads-default' || key === 'ads' || key === 'ads-featured') {
+    // Featured-only results are not a safe substitute for the general ads list.
+    if (key !== 'ads-featured') saveOfflineList(OFFLINE_LIST_KEYS.adsBrowse, items, OFFLINE_LIST_LIMITS.adsBrowse);
+  } else if (key === 'services-default' || key === 'services') {
+    saveOfflineList(OFFLINE_LIST_KEYS.servicesBrowse, items, OFFLINE_LIST_LIMITS.servicesBrowse);
+  }
 }
 
 async function runPool<T>(
@@ -309,12 +347,13 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
         }
         if (await cachePut(cache, url, response.clone())) {
           jsonSucceeded += 1;
-          if (key === 'ads' || key === 'products' || key === 'services' || key === 'stores') {
-            try {
-              bodies[key] = await response.json();
-            } catch {
-              // JSON تالف — التخزين تم، لكن لا صور من هذه القائمة.
-            }
+          try {
+            const payload: unknown = await response.clone().json();
+            persistWarmedPublicList(key, payload);
+            const bodyKey = (/^(ads|products|services|stores)(?:-|$)/.exec(key)?.[1] ?? null) as 'ads' | 'products' | 'services' | 'stores' | null;
+            if (bodyKey && !bodies[bodyKey]) bodies[bodyKey] = payload;
+          } catch {
+            // JSON تالف — الكاش الشبكي يبقى best-effort، ولا نخزن لقطة محلية فارغة.
           }
         }
       } catch {

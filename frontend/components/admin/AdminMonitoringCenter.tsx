@@ -61,6 +61,7 @@ export function AdminMonitoringCenter() {
   const [serverAlerts, setServerAlerts] = useState<AdminMonitoringAlert[]>([]);
   const [history, setHistory] = useState<AdminMonitoringSample[]>([]);
   const [serverDiagnosticsUnavailable, setServerDiagnosticsUnavailable] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'server' | 'health' | 'network' | 'errors' | 'console'>('overview');
 
   const refreshLocalDiagnostics = useCallback(() => {
     setRequests(getNetworkRequests());
@@ -180,6 +181,22 @@ export function AdminMonitoringCenter() {
 
       <NetworkStatusBanner />
 
+      <nav aria-label="أقسام المراقبة والتشخيص" className="grid grid-cols-2 gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-3 xl:grid-cols-6">
+        {[
+          { id: 'overview', label: 'نظرة عامة', icon: Gauge },
+          { id: 'server', label: 'الخادم والتنبيهات', icon: Server },
+          { id: 'health', label: 'صحة الخدمات', icon: Activity },
+          { id: 'network', label: 'طلبات الشبكة', icon: Network },
+          { id: 'errors', label: 'الأخطاء', icon: CircleAlert },
+          { id: 'console', label: 'الكونسول', icon: Terminal },
+        ].map(({ id, label, icon: TabIcon }) => (
+          <button key={id} type="button" onClick={() => setActiveTab(id as typeof activeTab)} aria-pressed={activeTab === id} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${activeTab === id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+            <TabIcon className="h-4 w-4 shrink-0" />{label}
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === 'overview' && <div className="space-y-4">
       <section aria-label="ملخص المراقبة" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric title="صحة الخدمات" value={serviceCountLabel} detail={healthError ? 'تعذّر الوصول إلى فحص الإدارة' : 'قاعدة البيانات وRedis؛ لا تشمل الخدمات الخارجية غير المفحوصة'} icon={Server} tone={systemTone} />
         <Metric title="اتصال هذا الجهاز" value={online ? 'متصل' : 'غير متصل'} detail="حالة اتصال المتصفح الحالي فقط" icon={online ? Wifi : WifiOff} tone={online ? 'good' : 'danger'} />
@@ -203,8 +220,9 @@ export function AdminMonitoringCenter() {
           <li>• <strong className="text-foreground">غير متاح:</strong> يعني أن الفحص لم يعطِ بيانات موثوقة؛ لا نعرضه على أنه سليم أو متعطل دون دليل.</li>
         </ul>
       </section>
+      </div>}
 
-
+      {activeTab === 'server' && <div className="space-y-4">
       <Section title="التنبيهات التشغيلية" description="قواعد تنبيه بسيطة مبنية على أخطاء الخادم والطلبات البطيئة خلال آخر خمس دقائق. الإقرار مؤقت داخل عملية الخادم ولا يُعد سجلًا دائمًا بعد إعادة التشغيل." icon={AlertTriangle}>
         {serverDiagnosticsUnavailable ? <p className="text-sm text-muted-foreground">تعذّر تحميل بيانات التنبيهات المركزية. تحقّق من صلاحية المدير واتصال API.</p> : (
           <div className="space-y-3">
@@ -229,20 +247,21 @@ export function AdminMonitoringCenter() {
         {history.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد عينات مكتملة بعد. يبدأ حفظ العينات بعد انتقال الدقيقة الأولى أثناء استقبال الطلبات.</p> : <div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[650px] text-right text-sm"><thead className="bg-muted/50"><tr><th className="p-3">الدقيقة</th><th className="p-3">الطلبات</th><th className="p-3">أخطاء HTTP</th><th className="p-3">5xx</th><th className="p-3">متوسط الزمن</th><th className="p-3">Heap</th></tr></thead><tbody>{[...history].reverse().map((sample) => <tr key={sample.timestamp} className="border-t"><td className="p-3 whitespace-nowrap">{new Date(sample.timestamp).toLocaleString('ar-PS')}</td><td className="p-3">{sample.requests}</td><td className="p-3">{sample.errors}</td><td className="p-3">{sample.serverErrors}</td><td className="p-3">{formatDuration(sample.averageDurationMs)}</td><td className="p-3">{sample.heapUsedBytes ? `${(sample.heapUsedBytes / 1024 / 1024).toFixed(1)} MB` : '—'}</td></tr>)}</tbody></table></div>}
         <p className="text-xs text-muted-foreground">الاحتفاظ المحلي بحد أقصى 24 ساعة (1440 عينة). عينات الذاكرة لا تُعد بديلًا عن مراقبة Prometheus/Grafana.</p>
       </Section>
+      </div>}
 
-      <Section title="صحة الخادم والخدمات" description="فحص اتصال قاعدة البيانات وRedis، وزمن الاستجابة، ومعلومات تشغيل عملية Node.js المتاحة من الخادم." icon={Activity}>
+      {activeTab === 'health' && <Section title="صحة الخادم والخدمات" description="فحص اتصال قاعدة البيانات وRedis، وزمن الاستجابة، ومعلومات تشغيل عملية Node.js المتاحة من الخادم." icon={Activity}>
         <AdminSystemHealth />
         <AdminSystemTools />
-      </Section>
-      <Section title="طلبات الشبكة" description="تفاصيل fetch وXMLHttpRequest: الحالة، المسار، الزمن، وأخطاء الاتصال. لا تُحفظ أجسام الطلبات أو ترويساتها." icon={Network}>
+      </Section>}
+      {activeTab === 'network' && <Section title="طلبات الشبكة" description="تفاصيل fetch وXMLHttpRequest: الحالة، المسار، الزمن، وأخطاء الاتصال. لا تُحفظ أجسام الطلبات أو ترويساتها." icon={Network}>
         <AdminNetworkRequestsPanel />
-      </Section>
-      <Section title="أخطاء الجهاز والواجهة" description="أخطاء JavaScript والوعود والتحميل وHTTP التي التقطها التطبيق في هذا المتصفح، مع التجميع حسب البصمة والمسار." icon={CircleAlert}>
+      </Section>}
+      {activeTab === 'errors' && <Section title="أخطاء الجهاز والواجهة" description="أخطاء JavaScript والوعود والتحميل وHTTP التي التقطها التطبيق في هذا المتصفح، مع التجميع حسب البصمة والمسار." icon={CircleAlert}>
         <AdminDeviceErrorsPanel />
-      </Section>
-      <Section title="الكونسول التشخيصي" description="أوامر تشخيص محددة لمراجعة المصادقة والكاش والتخزين وحالة الاتصال. لا يوجد تنفيذ JavaScript حر." icon={Terminal}>
+      </Section>}
+      {activeTab === 'console' && <Section title="الكونسول التشخيصي" description="أوامر تشخيص محددة لمراجعة المصادقة والكاش والتخزين وحالة الاتصال. لا يوجد تنفيذ JavaScript حر." icon={Terminal}>
         <AdminConsolePanel />
-      </Section>
+      </Section>}
     </div>
   );
 }
