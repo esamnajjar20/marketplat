@@ -439,7 +439,7 @@ export const queryKeys = {
     /** Prefix for paginated favorited-ad list variants. */
     listRoot: () => ['favorites', 'list'] as const,
     /** Prefix for polymorphic entity-list variants. */
-    entityListRoot: (type: FavoriteEntityKind) => ['favorites', 'entity-list', type] as const,
+    entityListRoot: (type: FavoriteEntityKind) => ['favorites', 'entity-list', String(type).toLowerCase()] as const,
     /** Saved named favorite lists (separate from the favorite-ad list). */
     lists: () => ['favorites', 'lists'] as const,
     /** Paginated list of favorited ads */

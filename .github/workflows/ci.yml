@@ -59,6 +59,10 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_test?connection_limit=5
+      # CI runs a local Postgres without a pooler, so DIRECT_URL = DATABASE_URL.
+      # schema.prisma uses directUrl = env("DIRECT_URL") for migrations;
+      # without it, `prisma migrate deploy` fails with P1012.
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/classifieds_test
       # قيم اختبار فقط — لا علاقة لها بأي بيئة حقيقية. الحد الأدنى 32 حرفًا
       # مفروض فعليًا في env.ts (Zod)، فالقيمة يجب أن تحققه.
       JWT_SECRET: ci-test-jwt-secret-please-change-me-32chars
@@ -270,6 +274,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_e2e?connection_limit=5
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/classifieds_e2e
       JWT_SECRET: ci-test-jwt-secret-please-change-me-32chars
       JWT_REFRESH_SECRET: ci-test-refresh-secret-please-change-me-32c
       FRONTEND_URL: http://localhost:3000
