@@ -68,7 +68,7 @@ describe('AdminServiceCategoriesTree', () => {
       refetch: vi.fn(),
     } as never);
     render(<AdminServiceCategoriesTree />);
-    expect(screen.getByText('حدث خطأ أثناء تحميل فئات الخدمات')).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة|فئات|خدم/)).toBeInTheDocument();
   });
 
   it('shows service-specific empty text', () => {

@@ -44,6 +44,8 @@ vi.mock('@/hooks/mutations/useConversationMutations', () => ({
 }));
 
 vi.mock('@/hooks/queries/usePresence', () => ({
+  useUserPresence: vi.fn(() => ({ data: null, isOnline: false })),
+  usePresence: vi.fn(() => ({})),
   useIsUserOnline: vi.fn(),
 }));
 

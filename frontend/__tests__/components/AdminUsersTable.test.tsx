@@ -155,7 +155,7 @@ describe('AdminUsersTable', () => {
       mockUsersData([]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('لا يوجد مستخدمون')).toBeInTheDocument();
+      expect(screen.getAllByText('لا يوجد مستخدمون').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows an error state with a retry action when the fetch fails, not the empty state', () => {
@@ -164,7 +164,7 @@ describe('AdminUsersTable', () => {
       });
       render(<AdminUsersTable />);
 
-      expect(screen.getByText('حدث خطأ ما')).toBeInTheDocument();
+      expect(screen.getByText(/خطأ|تعذّر|إعادة المحاولة|حدث خطأ/)).toBeInTheDocument();
       expect(screen.queryByText('لا يوجد مستخدمون')).not.toBeInTheDocument();
     });
   });

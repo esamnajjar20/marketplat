@@ -102,11 +102,11 @@ describe('adsApi.create — FormData construction', () => {
     expect(form.getAll('images')).toHaveLength(0);
   });
 
-  it('sets the multipart/form-data Content-Type header', async () => {
+  it('does not set Content-Type (browser/axios add multipart boundary)', async () => {
     await adsApi.create({ title: 'Test ad', description: 'A description', city: 'غزة' });
 
     const config = (apiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][2];
-    expect(config.headers['Content-Type']).toBe('multipart/form-data');
+    expect(config.headers?.['Content-Type']).toBeUndefined();
   });
 
   it('POSTs to /ads', async () => {
@@ -126,13 +126,13 @@ describe('adsApi.addImages — FormData construction', () => {
     expect((entries[1] as File).name).toBe('y.jpg');
   });
 
-  it('POSTs to /ads/:id/images with the multipart Content-Type header', async () => {
+  it('POSTs to /ads/:id/images without a hard-coded Content-Type header', async () => {
     await adsApi.addImages('ad-1', [makeFile('x.jpg')]);
 
     expect(apiClient.post).toHaveBeenCalledWith(
       '/ads/ad-1/images',
       expect.any(FormData),
-      expect.objectContaining({ headers: { 'Content-Type': 'multipart/form-data' } }),
+      expect.objectContaining({ headers: expect.not.objectContaining({ 'Content-Type': 'multipart/form-data' }) }),
     );
   });
 });

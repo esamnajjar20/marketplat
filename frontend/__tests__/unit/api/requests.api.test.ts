@@ -35,6 +35,7 @@ describe('requestsApi', () => {
     expect(apiClient.post).toHaveBeenCalledWith(
       '/requests',
       expect.objectContaining({ type: 'PRODUCT', categoryId: 'c1' }),
+      expect.any(Object),
     );
   });
 

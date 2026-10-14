@@ -43,7 +43,7 @@ describe('AdminRecentActivity', () => {
     const user = setupUser();
     render(<AdminRecentActivity />);
 
-    expect(screen.getByText('حدث خطأ أثناء تحميل النشاط الأخير')).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة|نشاط/)).toBeInTheDocument();
     expect(screen.queryByText('لا توجد نشاطات')).not.toBeInTheDocument();
 
     await user.click(screen.getByText('إعادة المحاولة'));

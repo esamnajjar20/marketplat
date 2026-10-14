@@ -118,7 +118,7 @@ describe('AdminSidebar', () => {
     expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('المنتجات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('الخدمات')).toBeInTheDocument();
-    expect(within(desktopNav).getByText('صحة النظام')).toBeInTheDocument();
+    expect(within(desktopNav).getByText('المراقبة والتشخيص')).toBeInTheDocument();
   });
 
   it('links to /admin?tab=categories for the فئات الإعلانات item (report item #6 fix)', () => {

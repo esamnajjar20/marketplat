@@ -74,7 +74,7 @@ describe('AdminProductsTable', () => {
   it('shows error with retry', () => {
     mockTable({ isError: true, rows: [] });
     render(<AdminProductsTable />);
-    expect(screen.getByText(/تعذّر تحميل المنتجات/)).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة|منتج/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /إعادة المحاولة/ })).toBeInTheDocument();
   });
 

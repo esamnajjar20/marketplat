@@ -89,10 +89,10 @@ describe('productsApi.create — FormData construction', () => {
     expect(form.get('availability')).toBe('LIMITED');
   });
 
-  it('sets the multipart/form-data Content-Type header', async () => {
+  it('does not set Content-Type (browser/axios add multipart boundary)', async () => {
     await productsApi.create(makePayload());
     const config = (apiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][2];
-    expect(config.headers['Content-Type']).toBe('multipart/form-data');
+    expect(config.headers?.['Content-Type']).toBeUndefined();
   });
 
   it('POSTs to /products', async () => {
@@ -149,13 +149,13 @@ describe('productsApi.addImages — FormData construction (Gap #3 fix)', () => {
     expect((entries[1] as File).name).toBe('y.jpg');
   });
 
-  it('POSTs to /products/:id/images with the multipart Content-Type header', async () => {
+  it('POSTs to /products/:id/images without a hard-coded Content-Type header', async () => {
     await productsApi.addImages('p-1', [makeFile('x.jpg')]);
 
     expect(apiClient.post).toHaveBeenCalledWith(
       '/products/p-1/images',
       expect.any(FormData),
-      expect.objectContaining({ headers: { 'Content-Type': 'multipart/form-data' } }),
+      expect.objectContaining({ headers: expect.not.objectContaining({ 'Content-Type': 'multipart/form-data' }) }),
     );
   });
 });

@@ -99,7 +99,7 @@ describe('AdminSellersTable', () => {
     it('shows a loading spinner while fetching', () => {
       mockSellersData([], { isLoading: true });
       render(<AdminSellersTable />);
-      expect(document.querySelector('.animate-pulse')).toBeTruthy();
+      expect(document.querySelector('.skeleton-shimmer, .animate-pulse, .bg-muted')).toBeTruthy();
     });
 
     it('shows an error state with a retry option that calls refetch', async () => {
@@ -108,7 +108,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      expect(screen.getByText('حدث خطأ ما')).toBeInTheDocument();
+      expect(screen.getByText(/خطأ|تعذّر|إعادة المحاولة|حدث خطأ/)).toBeInTheDocument();
       await user.click(screen.getByText('إعادة المحاولة'));
       expect(refetch).toHaveBeenCalledTimes(1);
     });

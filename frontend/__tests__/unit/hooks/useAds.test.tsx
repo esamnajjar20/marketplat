@@ -72,7 +72,7 @@ describe('useAds', () => {
   it('calls adsApi.getAll with the given params', async () => {
     const { result } = renderHook(() => useAds({ page: 2, city: 'غزة' }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(adsApi.getAll).toHaveBeenCalledWith({ page: 2, city: 'غزة' });
+    expect(adsApi.getAll).toHaveBeenCalledWith({ page: 2, city: 'غزة' }, expect.anything());
   });
 
   // FIX PERF-04: SearchResults.tsx calls both useAds and useSearchAds
@@ -88,7 +88,7 @@ describe('useAds', () => {
   it('still calls adsApi.getAll by default when no options are passed (backward compatible)', async () => {
     const { result } = renderHook(() => useAds({ page: 1 }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(adsApi.getAll).toHaveBeenCalledWith({ page: 1 });
+    expect(adsApi.getAll).toHaveBeenCalledWith({ page: 1 }, expect.anything());
   });
 
   // FIX ADS-OFFLINE-SORT-01

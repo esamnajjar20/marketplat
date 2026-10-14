@@ -63,9 +63,11 @@ vi.mock('next/link', () => ({
 // resolve with isSuccess && data (see ROLE-SEP 3.2 in the component).
 // All three are mocked directly rather than left to run for real —
 // same pattern AdDetail.test.tsx uses for useCategories/auth.store.
+let mockUserRole = 'USER';
+
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: (selector: (s: { isAuthenticated: boolean; user: { id: string; name: string; role: string } | null }) => unknown) =>
-    selector({ isAuthenticated: true, user: { id: 'user-1', name: 'مستخدم', role: 'USER' } }),
+    selector({ isAuthenticated: true, user: { id: 'user-1', name: 'مستخدم', role: mockUserRole } }),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
   selectIsAdminTier: (s: { user: { role: string } | null }) => s.user?.role === 'MODERATOR' || s.user?.role === 'ADMIN' || s.user?.role === 'SUPER_ADMIN',
   selectUser: (s: { user: unknown }) => s.user,
@@ -159,6 +161,7 @@ describe('ProtectedSidebar', () => {
   it('shows the admin entry for MODERATOR and marks it active across admin routes', () => {
     // The protected shell and AdminSidebar both treat MODERATOR as an
     // admin-tier role; keep their visibility rules aligned.
+    mockUserRole = 'MODERATOR';
     mockUsePathname.mockReturnValue('/admin/users');
     renderWithClient(<ProtectedSidebar />);
     const link = screen.getByText('لوحة الإدارة').closest('a');

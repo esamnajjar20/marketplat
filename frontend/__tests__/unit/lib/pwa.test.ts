@@ -95,6 +95,9 @@ function installServiceWorkerStub(overrides: {
 
   const swContainer = {
     ready: Promise.resolve(registration),
+    // FIX PWA-READY-HANG: getPushSubscriptionState uses getRegistration()
+    // (not ready) so the stub must expose it or state always is unsupported.
+    getRegistration: vi.fn().mockResolvedValue(registration),
     register: overrides.register ?? vi.fn().mockResolvedValue(registration),
     controller: null,
     addEventListener: vi.fn(),

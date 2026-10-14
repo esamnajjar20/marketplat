@@ -20,6 +20,10 @@ import { setupUser } from '@/test-support/user-event';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 
+vi.mock('@/lib/runtime/capabilities', () => ({
+  supportsInstallPrompt: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock('@/lib/capacitor/platform', () => ({
   isNativePlatform: vi.fn(async () => false),
 }));

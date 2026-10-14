@@ -14,6 +14,13 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
+
+function renderWithClient(ui: ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 import { setupUser } from '@/test-support/user-event';
 import { MessageInput } from '@/components/messages/MessageInput';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
@@ -38,12 +45,12 @@ describe('MessageInput', () => {
   });
 
   it('calls useSendMessage with the conversation id', () => {
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
     expect(useSendMessage).toHaveBeenCalledWith('conv-1');
   });
 
   it('disabled renders a static notice instead of the composer form', () => {
-    render(<MessageInput conversationId="conv-1" disabled />);
+    renderWithClient(<MessageInput conversationId="conv-1" disabled />);
 
     expect(screen.getByText('لا يمكنك مراسلة هذا المستخدم')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('اكتب رسالتك...')).not.toBeInTheDocument();
@@ -54,7 +61,7 @@ describe('MessageInput', () => {
       mutate: mockMutate,
       isPending: true,
     });
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     // Disabling the field would drop focus (closing the mobile keyboard).
     expect(getTextarea()).not.toBeDisabled();
@@ -62,13 +69,13 @@ describe('MessageInput', () => {
   });
 
   it('send button is disabled while the composer is empty', () => {
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
     expect(screen.getByLabelText('إرسال')).toBeDisabled();
   });
 
   it('send button stays disabled for whitespace-only input', async () => {
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), '   ');
 
@@ -77,7 +84,7 @@ describe('MessageInput', () => {
 
   it('clicking send trims and submits the body', async () => {
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), '  مرحباً  ');
     await user.click(screen.getByLabelText('إرسال'));
@@ -90,7 +97,7 @@ describe('MessageInput', () => {
 
   it('Enter (no Shift) submits the message', async () => {
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة سريعة{Enter}');
 
@@ -102,7 +109,7 @@ describe('MessageInput', () => {
 
   it('Shift+Enter inserts a newline instead of submitting', async () => {
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'السطر الأول{Shift>}{Enter}{/Shift}السطر الثاني');
 
@@ -112,7 +119,7 @@ describe('MessageInput', () => {
 
   it('Enter on an empty/whitespace body does not submit', async () => {
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), '   {Enter}');
 
@@ -121,7 +128,7 @@ describe('MessageInput', () => {
 
   it('clears the composer immediately on send (optimistic)', async () => {
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة');
     await user.click(screen.getByLabelText('إرسال'));
@@ -132,7 +139,7 @@ describe('MessageInput', () => {
 
   it('restores the body when send fails', async () => {
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة');
     await user.click(screen.getByLabelText('إرسال'));
@@ -151,7 +158,7 @@ describe('MessageInput', () => {
       isPending: true,
     });
     const user = setupUser();
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     await user.type(getTextarea(), 'رسالة أخرى{Enter}');
 
@@ -165,7 +172,7 @@ describe('MessageInput', () => {
       isPending: true,
     });
 
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
 
     expect(document.querySelector('form')).toHaveAttribute('aria-busy', 'true');
     expect(getTextarea()).toBeDisabled();
@@ -174,14 +181,14 @@ describe('MessageInput', () => {
   });
 
   it('textarea enforces the 2000-character max length', () => {
-    render(<MessageInput conversationId="conv-1" />);
+    renderWithClient(<MessageInput conversationId="conv-1" />);
     expect(getTextarea()).toHaveAttribute('maxLength', '2000');
   });
 
   describe('character counter (FIX UX-GAP-05)', () => {
     it('shows no counter for a short message', async () => {
       const user = setupUser();
-      render(<MessageInput conversationId="conv-1" />);
+      renderWithClient(<MessageInput conversationId="conv-1" />);
 
       await user.type(getTextarea(), 'رسالة قصيرة');
 
@@ -189,7 +196,7 @@ describe('MessageInput', () => {
     });
 
     it('shows the counter once the body reaches the warn threshold', async () => {
-      render(<MessageInput conversationId="conv-1" />);
+      renderWithClient(<MessageInput conversationId="conv-1" />);
       const textarea = getTextarea();
 
       // userEvent.type is too slow for 1800 chars in a unit test —
@@ -203,7 +210,7 @@ describe('MessageInput', () => {
     });
 
     it('marks the counter as destructive once the body hits the max length', async () => {
-      render(<MessageInput conversationId="conv-1" />);
+      renderWithClient(<MessageInput conversationId="conv-1" />);
       const textarea = getTextarea();
 
       const { fireEvent } = await import('@testing-library/react');

@@ -9,6 +9,13 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
+
+function renderWithClient(ui: ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 import { setupUser } from '@/test-support/user-event';
 import { ConversationList } from '@/components/messages/ConversationList';
 import { useMyConversations } from '@/hooks/queries/useConversations';
@@ -76,7 +83,7 @@ describe('ConversationList', () => {
 
   it('shows a loading spinner while fetching', () => {
     mockUseMyConversations.mockReturnValue({ data: undefined, isLoading: true, isError: false, refetch: vi.fn() } as never);
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
@@ -84,7 +91,7 @@ describe('ConversationList', () => {
     const refetch = vi.fn();
     mockUseMyConversations.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch } as never);
     const user = setupUser();
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المحادثات')).toBeInTheDocument();
     await user.click(screen.getByText('إعادة المحاولة'));
@@ -93,7 +100,7 @@ describe('ConversationList', () => {
 
   it('shows the empty state when there are no conversations', () => {
     mockUseMyConversations.mockReturnValue({ data: { items: [] }, isLoading: false, isError: false, refetch: vi.fn() } as never);
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
     expect(screen.getByText('لا توجد محادثات بعد')).toBeInTheDocument();
   });
 
@@ -102,7 +109,7 @@ describe('ConversationList', () => {
       data: { items: [makeConversation({ id: 'conv-42' })] },
       isLoading: false, isError: false, refetch: vi.fn(),
     } as never);
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
 
     expect(screen.getByText('متجر سارة')).toBeInTheDocument();
     expect(screen.getByText('متجر سارة').closest('a')).toHaveAttribute('href', '/messages/conv-42');
@@ -114,7 +121,7 @@ describe('ConversationList', () => {
       data: { items: [makeConversation({ buyerId: buyer.id, buyer })] },
       isLoading: false, isError: false, refetch: vi.fn(),
     } as never);
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
     expect(screen.getByText('خالد')).toBeInTheDocument();
   });
 
@@ -123,7 +130,7 @@ describe('ConversationList', () => {
       data: { items: [makeConversation({ ad: { title: 'هاتف للبيع' } })] },
       isLoading: false, isError: false, refetch: vi.fn(),
     } as never);
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
     expect(screen.getByText('هاتف للبيع')).toBeInTheDocument();
   });
 
@@ -132,7 +139,7 @@ describe('ConversationList', () => {
       data: { items: [makeConversation({ ad: null })] },
       isLoading: false, isError: false, refetch: vi.fn(),
     } as never);
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
     expect(screen.getByText('محادثة عامة')).toBeInTheDocument();
   });
 
@@ -146,7 +153,7 @@ describe('ConversationList', () => {
       },
       isLoading: false, isError: false, refetch: vi.fn(),
     } as never);
-    render(<ConversationList selectedId="conv-2" />);
+    renderWithClient(<ConversationList selectedId="conv-2" />);
 
     const links = screen.getAllByRole('link');
     const selectedLink = links.find((l) => l.getAttribute('href') === '/messages/conv-2');
@@ -166,7 +173,7 @@ describe('ConversationList', () => {
       },
       isLoading: false, isError: false, refetch: vi.fn(),
     } as never);
-    render(<ConversationList />);
+    renderWithClient(<ConversationList />);
 
     expect(screen.getByText('متجر أ')).toBeInTheDocument();
     expect(screen.getByText('متجر ب')).toBeInTheDocument();
@@ -183,7 +190,7 @@ describe('ConversationList', () => {
         refetch: vi.fn(),
       } as never));
       const user = setupUser();
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       await user.click(screen.getAllByRole('button', { name: 'الأرشيف' })[0]);
       expect(screen.getByText('لا توجد محادثات في الأرشيف')).toBeInTheDocument();
@@ -201,7 +208,7 @@ describe('ConversationList', () => {
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
       mockUsePresence.mockReturnValue({ data: { [seller.id]: false } } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(screen.queryByLabelText('متصل الآن')).not.toBeInTheDocument();
     });
@@ -212,7 +219,7 @@ describe('ConversationList', () => {
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
       mockUsePresence.mockReturnValue({ data: { [seller.id]: true } } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(screen.getByLabelText('متصل الآن')).toBeInTheDocument();
     });
@@ -227,7 +234,7 @@ describe('ConversationList', () => {
         },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(mockUsePresence).toHaveBeenCalledWith(['seller-a', 'seller-b']);
     });
@@ -243,7 +250,7 @@ describe('ConversationList', () => {
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
       mockUsePresence.mockReturnValue({ data: { 'seller-a': true, 'seller-b': false } } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(screen.getAllByLabelText('متصل الآن')).toHaveLength(1);
     });
@@ -257,7 +264,7 @@ describe('ConversationList', () => {
         data: { items: [makeConversation({ unreadCount: 0 })] },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(screen.queryByLabelText(/رسالة غير مقروءة/)).not.toBeInTheDocument();
     });
@@ -267,7 +274,7 @@ describe('ConversationList', () => {
         data: { items: [makeConversation({ unreadCount: 3 })] },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(screen.getByLabelText('3 رسالة غير مقروءة')).toHaveTextContent('3');
     });
@@ -277,7 +284,7 @@ describe('ConversationList', () => {
         data: { items: [makeConversation({ unreadCount: 42 })] },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(screen.getByLabelText('42 رسالة غير مقروءة')).toHaveTextContent('9+');
     });
@@ -292,7 +299,7 @@ describe('ConversationList', () => {
         },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      render(<ConversationList />);
+      renderWithClient(<ConversationList />);
 
       expect(screen.getAllByLabelText(/رسالة غير مقروءة/)).toHaveLength(1);
     });

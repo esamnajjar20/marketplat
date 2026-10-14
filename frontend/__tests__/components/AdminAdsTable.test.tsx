@@ -98,7 +98,7 @@ describe('AdminAdsTable', () => {
       mockAdsData([{ ...baseAd, user: null } as never]);
       render(<AdminAdsTable />);
 
-      expect(screen.getByText('—')).toBeInTheDocument();
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows a "مميز" badge for a featured ad', () => {

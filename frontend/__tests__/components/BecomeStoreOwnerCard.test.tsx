@@ -19,6 +19,7 @@ vi.mock('@/hooks/queries/useSellers', () => ({
 }));
 
 vi.mock('@/hooks/queries/useStoreTypes', () => ({
+  useStoreTypeFields: vi.fn(() => ({ data: [], isLoading: false })),
   useStoreTypes: vi.fn(() => ({ data: [] })),
 }));
 

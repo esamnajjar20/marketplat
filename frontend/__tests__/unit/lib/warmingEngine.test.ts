@@ -21,6 +21,24 @@ vi.mock('../../../lib/offlineRouteShells', () => ({
   warmPersonalShellsAtomic: mocks.personalRoutes,
 }));
 vi.mock('../../../lib/offlineWarmingUserData', () => ({ warmUserData: mocks.userData }));
+vi.mock('../../../lib/warmingRegistry', () => ({
+  getWarmingJob: (id: string) => ({
+    id,
+    priority: id === 'core-data' ? 1 : id === 'public-routes' ? 2 : id === 'personal-routes' ? 3 : 4,
+    requiresAuth: id === 'personal-routes' || id === 'user-data',
+    estimatedRequests: 1,
+    estimatedBytes: 10_000,
+  }),
+}));
+vi.mock('../../../lib/offlineStoragePressure', () => ({
+  shouldPauseBackgroundWarming: vi.fn().mockResolvedValue(false),
+  getBackgroundWarmingBudget: vi.fn().mockResolvedValue('full'),
+}));
+vi.mock('../../../lib/warmingRuntimeBudget', () => ({
+  beginWarmingRuntimeBudget: () => () => undefined,
+  getWarmingRuntimeBudgetState: () => ({ requests: 0, bytes: 0 }),
+  noteWarmingRuntimeUsage: vi.fn(),
+}));
 
 import { runWarmingEngine } from '../../../lib/warmingEngine';
 

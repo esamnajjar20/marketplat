@@ -10,12 +10,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { AdminCategoriesTree } from '@/components/admin/AdminCategoriesTree';
-import { useCategories } from '@/hooks/queries/useCategories';
+import { useCategories, useCategoriesForAdmin } from '@/hooks/queries/useCategories';
 import { useUpdateCategory, useDeleteCategory } from '@/hooks/mutations/useCategoryMutations';
 import type { Category } from '@/types/category.types';
 
 vi.mock('@/hooks/queries/useCategories', () => ({
   useCategories: vi.fn(),
+  useCategoriesForAdmin: vi.fn(),
 }));
 
 vi.mock('@/hooks/mutations/useCategoryMutations', () => ({
@@ -41,6 +42,10 @@ describe('AdminCategoriesTree', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [rootCategory],
+      isLoading: false,
+    });
+    (useCategoriesForAdmin as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [rootCategory],
       isLoading: false,
     });
@@ -162,6 +167,10 @@ describe('AdminCategoriesTree', () => {
         }],
       };
       (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: [withChild],
+        isLoading: false,
+      });
+    (useCategoriesForAdmin as ReturnType<typeof vi.fn>).mockReturnValue({
         data: [withChild],
         isLoading: false,
       });

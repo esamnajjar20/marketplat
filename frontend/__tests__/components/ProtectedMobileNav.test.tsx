@@ -121,17 +121,13 @@ describe('ProtectedMobileNav', () => {
     });
   });
 
-  it('renders a closed drawer by default with aria-hidden="true"', () => {
+  it('renders a closed drawer by default with inert (not aria-hidden)', () => {
     isMobileNavOpen = false;
     render(<ProtectedMobileNav />);
-    // getByRole excludes aria-hidden elements from the accessibility
-    // tree by design, so it can never find the nav while it's closed —
-    // query the DOM directly instead. The nav is rendered via
-    // createPortal(..., document.body), outside RTL's `container`, so
-    // query document.body rather than container.
+    // SW-FIX-DRAWER-INERT: closed drawer uses `inert` instead of aria-hidden.
     const nav = document.body.querySelector('nav[aria-label="القائمة الشخصية"]');
     expect(nav).not.toBeNull();
-    expect(nav?.getAttribute('aria-hidden')).toBe('true');
+    expect(nav?.hasAttribute('inert')).toBe(true);
   });
 
   it('toggle button calls toggleMobileNav on click', () => {

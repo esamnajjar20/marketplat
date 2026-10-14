@@ -88,10 +88,16 @@ vi.mock('@/store/auth.store', () => ({
 
 vi.mock('@/lib/offlineAdDrafts', () => ({
   saveAdDraft: vi.fn().mockResolvedValue(undefined),
+  clearActiveOfflineDraftId: vi.fn(),
 }));
 
 // FIX IMAGEOFFLINE-WIRE-01: jsdom has no Canvas/createImageBitmap, so the
 // real compressImageForOffline can't run here — mocked per-test instead.
+vi.mock('@/lib/queryInvalidation', () => ({
+  invalidateAdBrowseCaches: vi.fn().mockResolvedValue(undefined),
+  invalidateAdEntityCaches: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('@/lib/imageOffline', () => ({
   compressImageForOffline: vi.fn(),
 }));
@@ -225,8 +231,9 @@ describe('useDeleteAd', () => {
     act(() => { result.current.mutate('ad-1'); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(toast.success).toHaveBeenCalledWith('تم حذف الإعلان');
-    expect(mockPush).toHaveBeenCalledWith('/my-ads');
+    // Delete no longer toasts or navigates — callers (MyAdsList) handle UX.
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('shows an error toast and does not navigate on failure', async () => {

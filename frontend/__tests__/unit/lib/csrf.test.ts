@@ -1,3 +1,4 @@
+vi.mock('@/store/auth.store', () => ({ useAuthStore: { getState: () => ({ csrfToken: null }) } }));
 /**
  * __tests__/unit/lib/csrf.test.ts
  *
@@ -72,9 +73,9 @@ describe('getCsrfToken', () => {
     expect(getCsrfToken()).toBe('abc/123+def==');
   });
 
-  it('returns an empty string (not null) for an explicitly empty token value', () => {
+  it('returns null for an explicitly empty token value (length-0 is treated as missing)', () => {
     setCookie('csrfToken=');
-    expect(getCsrfToken()).toBe('');
+    expect(getCsrfToken()).toBeNull();
   });
 
   it('returns null when document is undefined (SSR)', () => {

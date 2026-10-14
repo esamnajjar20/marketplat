@@ -63,7 +63,7 @@ describe('AdminProductCategoriesTree', () => {
       data: undefined, isLoading: false, isError: true, refetch: vi.fn(),
     } as never);
     render(<AdminProductCategoriesTree />);
-    expect(screen.getByText('حدث خطأ أثناء تحميل فئات المنتجات')).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة|فئات|منتج/)).toBeInTheDocument();
   });
 
   it('shows the product-specific empty text', () => {

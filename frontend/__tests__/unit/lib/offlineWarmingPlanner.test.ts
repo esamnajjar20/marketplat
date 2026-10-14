@@ -14,6 +14,31 @@ vi.mock('../../../lib/connectionQuality', () => ({
   getConnectionQuality: () => 'unknown',
 }));
 
+let networkPolicy = {
+  tier: 'fast' as string,
+  quality: 'unknown',
+  saveData: false,
+  effectiveType: '4g',
+  downlinkMbps: 10,
+  rttMs: null,
+  consecutiveFailures: 0,
+  allowPrefetch: true,
+  allowBackgroundWarming: true,
+  allowBackgroundSync: true,
+  allowOriginalImages: true,
+  pageSizeMultiplier: 1,
+  maxPrefetchDistancePx: 800,
+  maxPrefetchConcurrency: 2,
+  queueConcurrency: 2,
+  uploadConcurrency: 2,
+  uploadTimeoutMs: 30_000,
+  uploadRetryDelaysMs: [1000],
+  requestTimeoutMs: 15_000,
+};
+vi.mock('../../../lib/networkPolicy', () => ({
+  getNetworkPolicy: () => networkPolicy,
+}));
+
 import {
   getWarmingPlan,
   selectRoutesByPlan,
@@ -26,6 +51,14 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
   beforeEach(() => {
     localStorage.clear();
     mode = 'fast';
+    networkPolicy = {
+      ...networkPolicy,
+      tier: 'fast',
+      saveData: false,
+      allowBackgroundWarming: true,
+      effectiveType: '4g',
+      downlinkMbps: 10,
+    };
     Object.defineProperty(globalThis, 'navigator', {
       value: { onLine: true },
       configurable: true,
@@ -147,16 +180,10 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
   });
 
   it('saveData and being offline still disable warming, whatever the mode', () => {
-    Object.defineProperty(globalThis, 'navigator', {
-      value: { onLine: true, connection: { saveData: true } },
-      configurable: true,
-    });
     mode = 'full';
+    networkPolicy = { ...networkPolicy, saveData: true, allowBackgroundWarming: false };
     expect(getWarmingPlan().tier).toBe('none');
-    Object.defineProperty(globalThis, 'navigator', {
-      value: { onLine: false },
-      configurable: true,
-    });
+    networkPolicy = { ...networkPolicy, saveData: false, tier: 'offline', allowBackgroundWarming: false };
     expect(getWarmingPlan().tier).toBe('none');
   });
 });

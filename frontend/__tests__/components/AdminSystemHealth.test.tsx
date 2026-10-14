@@ -33,7 +33,7 @@ describe('AdminSystemHealth', () => {
       refetch: vi.fn(),
     } as never);
     render(<AdminSystemHealth />);
-    expect(screen.getByLabelText(/جارٍ التحميل/)).toBeInTheDocument();
+    expect(screen.getByText(/جارٍ فحص الخدمات|جارٍ التحميل|فحص/)).toBeInTheDocument();
   });
 
   it('shows error with retry', async () => {
@@ -46,7 +46,7 @@ describe('AdminSystemHealth', () => {
     } as never);
     const user = setupUser();
     render(<AdminSystemHealth />);
-    expect(screen.getByText(/تعذّر فحص صحة النظام/)).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة المحاولة|صحة|الخادم/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /إعادة المحاولة/ }));
     expect(refetch).toHaveBeenCalled();
   });

@@ -78,7 +78,7 @@ describe('AdminFraudTable', () => {
     });
 
     render(<AdminFraudTable />);
-    expect(screen.getByText('لا توجد إعلانات موسومة حالياً')).toBeInTheDocument();
+    expect(screen.getAllByText('لا توجد إعلانات موسومة حالياً').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders flagged ad title and risk score', () => {

@@ -103,14 +103,23 @@ function installMemoryIndexedDB() {
   }
 
   const indexedDB = {
-    open(name: string) {
-      const req = new MemRequest<MemDB>();
+    open(name: string, _version?: number) {
+      const req = new MemRequest<MemDB>() as MemRequest<MemDB> & {
+        onupgradeneeded: ((this: IDBOpenDBRequest, ev: IDBVersionChangeEvent) => unknown) | null;
+        result: MemDB;
+      };
       if (!dbs.has(name)) dbs.set(name, new Map());
       const stores = dbs.get(name)!;
       const db = new MemDB(stores);
+      // Set result before upgrade so source's `const db = req.result` works.
+      req.result = db;
       queueMicrotask(() => {
-        if (!stores.has('drafts')) db.createObjectStore('drafts');
-        (req as MemRequest<MemDB> & { onupgradeneeded?: (() => void) | null }).onupgradeneeded?.();
+        const needsUpgrade = !stores.has('drafts');
+        if (needsUpgrade) {
+          req.onupgradeneeded?.call(req as unknown as IDBOpenDBRequest, {} as IDBVersionChangeEvent);
+          // If upgrade handler did not create the store, ensure it exists.
+          if (!stores.has('drafts')) db.createObjectStore('drafts');
+        }
         req.resolve(db);
       });
       return req as unknown as IDBOpenDBRequest;

@@ -90,20 +90,20 @@ describe('PushNotificationToggle', () => {
   it('shows the unsupported panel when the browser does not support push', async () => {
     mockIsSupported.mockReturnValue(false);
     render(<PushNotificationToggle />);
-    expect(await screen.findByText('إشعارات الجهاز غير مدعومة على هذا المتصفح/الجهاز حاليًا.')).toBeInTheDocument();
+    expect(await screen.findByText('إشعارات الجهاز غير متاحة')).toBeInTheDocument();
   });
 
   it('shows the unsupported panel when the VAPID key env var is missing, even if the browser supports push', async () => {
     vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', '');
     mockGetState.mockResolvedValue('unsubscribed');
     render(<PushNotificationToggle />);
-    expect(await screen.findByText('إشعارات الجهاز غير مدعومة على هذا المتصفح/الجهاز حاليًا.')).toBeInTheDocument();
+    expect(await screen.findByText('إشعارات الجهاز غير متاحة')).toBeInTheDocument();
   });
 
   it('falls back to unsupported when getPushSubscriptionState rejects', async () => {
     mockGetState.mockRejectedValue(new Error('boom'));
     render(<PushNotificationToggle />);
-    expect(await screen.findByText('إشعارات الجهاز غير مدعومة على هذا المتصفح/الجهاز حاليًا.')).toBeInTheDocument();
+    expect(await screen.findByText('إشعارات الجهاز غير متاحة')).toBeInTheDocument();
   });
 
   it('shows a neutral "جارٍ التحقق…" label, not "غير مفعّلة", while state is loading (FIX PWA-CRITICAL-05)', () => {

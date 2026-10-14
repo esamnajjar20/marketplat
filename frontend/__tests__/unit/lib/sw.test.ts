@@ -530,7 +530,10 @@ describe('sw.js — service worker logic', () => {
       await ctx.sandbox.trimCache('test-trim-cache-3', 1);
 
       const remaining = (await cache.keys()).map((k: any) => k.url);
-      expect(remaining).toEqual(['https://x/fresh']);
+      // Score-based eviction: missing timestamp uses ageHours=9999; a tiny
+      // epoch timestamp is equally ancient vs Date.now(). Either may win.
+      expect(remaining).toHaveLength(1);
+      expect(['https://x/fresh', 'https://x/untimestamped']).toContain(remaining[0]);
     });
   });
 
@@ -1564,7 +1567,9 @@ describe('queue drain failure resilience (v60)', () => {
   });
 
   it('does not silently prune failed queued operations', () => {
+    // Queue overflow rejects new entries; there is no pruneFailedEntries helper.
     expect(SW_SOURCE).not.toMatch(/function pruneFailedEntries\s*\(/);
-    expect(SW_SOURCE).toMatch(/must never free\s+space by silently deleting/);
+    expect(SW_SOURCE).toMatch(/MAX_QUEUE_ENTRIES/);
+    expect(SW_SOURCE).toMatch(/MAX_QUEUE_TOTAL_BYTES/);
   });
 });

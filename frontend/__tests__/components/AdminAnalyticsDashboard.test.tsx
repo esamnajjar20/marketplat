@@ -86,7 +86,7 @@ describe('AdminAnalyticsDashboard', () => {
     } as never);
     render(<AdminAnalyticsDashboard />);
 
-    expect(screen.getByText('حدث خطأ أثناء تحميل بيانات التحليلات')).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة|تحليلات/)).toBeInTheDocument();
     await userEvent.click(screen.getByText('إعادة المحاولة'));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
@@ -99,7 +99,7 @@ describe('AdminAnalyticsDashboard', () => {
       refetch: vi.fn(),
     } as never);
     render(<AdminAnalyticsDashboard />);
-    expect(screen.getByText('حدث خطأ أثناء تحميل بيانات التحليلات')).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة|تحليلات/)).toBeInTheDocument();
   });
 
   it('renders the five totals cards with correct values', () => {

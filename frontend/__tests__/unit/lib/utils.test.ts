@@ -203,10 +203,10 @@ describe('buildMetadata()', () => {
     expect(ogImages?.[0]?.url).toBe('https://res.cloudinary.com/img.jpg');
   });
 
-  it('omits openGraph images when no image provided', () => {
+  it('falls back to DEFAULT_OG_IMAGE when no image provided', () => {
     const meta = buildMetadata({ title: 'x' });
-    const ogImages = (meta.openGraph as { images?: unknown[] }).images;
-    expect(ogImages).toBeUndefined();
+    const ogImages = (meta.openGraph as { images?: { url: string }[] }).images;
+    expect(ogImages?.[0]?.url).toBe('/og-default.png');
   });
 
   it('sets twitter card type', () => {
@@ -248,11 +248,10 @@ describe('buildAdMetadata()', () => {
     expect(ogImages?.[0]?.url).toBe('https://res.cloudinary.com/demo/image/upload/car.jpg');
   });
 
-  it('handles empty images array (no image)', () => {
+  it('handles empty images array (falls back to DEFAULT_OG_IMAGE)', () => {
     const meta = buildAdMetadata({ ...baseAd, images: [] });
-    // image is undefined → no OG image
-    const ogImages = (meta.openGraph as { images?: unknown[] }).images;
-    expect(ogImages).toBeUndefined();
+    const ogImages = (meta.openGraph as { images?: { url: string }[] }).images;
+    expect(ogImages?.[0]?.url).toBe('/og-default.png');
   });
 });
 

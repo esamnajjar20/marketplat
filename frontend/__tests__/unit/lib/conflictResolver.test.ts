@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classifyHttpConflict } from '@/lib/conflictResolver';
-import { queueFailureAction, describeQueueFailure, type QueuedRequestSummary } from '@/lib/offlineQueue';
+import { queueFailureAction, type QueuedRequestSummary } from '@/lib/offlineQueue';
 
 function item(status: number, message?: string): QueuedRequestSummary {
   return {
@@ -34,7 +34,8 @@ describe('offline 409/412 conflict UX', () => {
     const info = classifyHttpConflict(409, 'A record with this value already exists');
     expect(info.kind).toBe('other_client');
     expect(info.primaryAction).toBe('edit');
-    expect(describeQueueFailure(item(409, info.message))).toContain('تعارض');
+    // other_client uses a generic reject message (not version-conflict wording)
+    expect(info.message).toMatch(/رفض|تعارض|exists/i);
   });
 
   it('does not offer a fake keep-server/keep-local merge for 412', () => {

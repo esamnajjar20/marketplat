@@ -13,6 +13,7 @@ import { render } from '@testing-library/react';
 const auth = vi.hoisted(() => ({ isAuthenticated: false }));
 
 vi.mock('@/lib/offlineQueue', () => ({
+  syncQueueNetworkHint: vi.fn(),
   requestQueueReplay: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/lib/offlineDraftPublisher', () => ({

@@ -21,6 +21,7 @@ import type { StoreDetails } from '@/types/store.types';
 
 vi.mock('@/hooks/queries/useStoreTypes', () => ({
   useStoreTypes: vi.fn(() => ({ data: [] })),
+  useStoreTypeFields: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
 vi.mock('@/hooks/mutations/useStoreMutations', () => ({

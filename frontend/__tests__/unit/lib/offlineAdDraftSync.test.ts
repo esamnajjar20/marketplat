@@ -80,10 +80,13 @@ describe('initAdDraftSync', () => {
       data: { type: 'QUEUE_ITEM_FAILED', operationId: 'op-2', status: 409, message: 'تعارض بالبيانات' },
     });
     await vi.waitFor(() =>
-      expect(markAdDraftByOperationId).toHaveBeenCalledWith('op-2', {
-        status: 'failed',
-        lastError: 'تعارض بالبيانات',
-      }),
+      expect(markAdDraftByOperationId).toHaveBeenCalledWith(
+        'op-2',
+        expect.objectContaining({
+          status: 'failed',
+          lastError: 'تعارض بالبيانات',
+        }),
+      ),
     );
   });
 
@@ -94,10 +97,13 @@ describe('initAdDraftSync', () => {
 
     capturedListener!({ data: { type: 'QUEUE_ITEM_FAILED', operationId: 'op-3', status: 500 } });
     await vi.waitFor(() =>
-      expect(markAdDraftByOperationId).toHaveBeenCalledWith('op-3', {
-        status: 'failed',
-        lastError: 'رُفض الطلب (500)',
-      }),
+      expect(markAdDraftByOperationId).toHaveBeenCalledWith(
+        'op-3',
+        expect.objectContaining({
+          status: 'failed',
+          lastError: 'رُفض الطلب (500)',
+        }),
+      ),
     );
   });
 

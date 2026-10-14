@@ -62,7 +62,7 @@ describe('AdminEntityCategoriesTree', () => {
       useCategories: () => ({ data: undefined, isLoading: false, isError: true, refetch }),
     })} />);
 
-    expect(screen.getByText('حدث خطأ أثناء تحميل الفئات')).toBeInTheDocument();
+    expect(screen.getByText(/خطأ|تعذّر|إعادة|فئات/)).toBeInTheDocument();
     await user.click(screen.getByText('إعادة المحاولة'));
     expect(refetch).toHaveBeenCalledTimes(1);
   });

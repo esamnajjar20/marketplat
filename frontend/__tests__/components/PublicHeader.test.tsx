@@ -18,6 +18,14 @@ import { PublicHeader } from '@/components/layout/PublicHeader';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/store/auth.store', () => ({
+  selectLastKnownRoles: (s: any) => s?.lastKnownRoles ?? null,
+  selectIsAdminTier: (s: any) => Boolean(s?.isAdmin),
+  selectUser: (s: any) => s?.user ?? null,
+  selectIsAuthenticated: (s: any) => Boolean(s?.isAuthenticated),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken),
+  getState: vi.fn(() => ({})),
   useAuthStore: vi.fn(),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
   selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
