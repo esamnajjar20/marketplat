@@ -13,7 +13,9 @@ import { renderWithProviders as render } from '@/test-support/render';
 const auth = vi.hoisted(() => ({ isAuthenticated: false }));
 
 vi.mock('@/lib/offlineQueue', () => ({
-  syncQueueNetworkHint: vi.fn(),
+  // OfflineBootstrap pipes this through safeFire(), which calls .catch() on
+  // the result — the mock must return a promise, not undefined.
+  syncQueueNetworkHint: vi.fn().mockResolvedValue(undefined),
   requestQueueReplay: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/lib/offlineDraftPublisher', () => ({

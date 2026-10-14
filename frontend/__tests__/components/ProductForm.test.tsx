@@ -29,6 +29,7 @@ import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ProductForm } from '@/components/stores/ProductForm';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
+import { useMyStore } from '@/hooks/queries/useStores';
 import {
   useCreateProduct,
   useUpdateProduct,
@@ -105,6 +106,11 @@ describe('ProductForm', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // resetAllMocks wipes the factory's default implementation, so the
+    // useMyStore return value must be re-established every test.
+    (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { id: 'store-1' }, isLoading: false, isError: false,
+    });
     (useProductCategories as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [{ id: 'cat-1', nameAr: 'إلكترونيات' }],
     });

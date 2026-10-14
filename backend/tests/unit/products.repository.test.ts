@@ -1,4 +1,7 @@
-import { productsRepository } from '../../src/modules/products/products.repository';
+import {
+  productsRepository,
+  productWithRelations,
+} from '../../src/modules/products/products.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({
@@ -16,10 +19,6 @@ jest.mock('../../src/config/prisma', () => ({
 const mockTx = { product: { create: jest.fn() } } as any;
 const storeId = 'store-1';
 
-const productWithRelationsInclude = {
-  store: { include: { sellerProfile: true } },
-  category: { select: { id: true, name: true, nameAr: true } },
-};
 
 describe('productsRepository', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -85,12 +84,20 @@ describe('productsRepository', () => {
       expect(prisma.product.findUnique).toHaveBeenCalledWith({ where: { id: 'product-1' } });
     });
 
-    it('findPublicById includes store+sellerProfile and category', async () => {
+    it('findPublicById includes store+sellerProfile, storeType product fields and category', async () => {
       (prisma.product.findUnique as jest.Mock).mockResolvedValue(null);
       await productsRepository.findPublicById('product-1');
       expect(prisma.product.findUnique).toHaveBeenCalledWith({
         where: { id: 'product-1' },
-        include: productWithRelationsInclude,
+        include: productWithRelations,
+      });
+      expect(productWithRelations.store.include.sellerProfile).toBe(true);
+      expect(productWithRelations.store.include.storeType.include.fields).toEqual({
+        where: { isActive: true, scope: 'PRODUCT' },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      });
+      expect(productWithRelations.category).toEqual({
+        select: { id: true, name: true, nameAr: true },
       });
     });
 
@@ -186,7 +193,7 @@ describe('productsRepository', () => {
     // replacing another — this test closes the "combination with other
     // filters untested" gap flagged for the minimal version.
     it('combines hasPromotion with city and categoryId while full-text search adds an ID constraint', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'product-1' }]);
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ id: 'product-1' }]);
       await productsRepository.findMany({
         hasPromotion: true,
         city: 'Gaza',
@@ -236,16 +243,25 @@ describe('productsRepository', () => {
       expect(call.where.price).toEqual({ gte: 50, lte: 200 });
     });
 
-    it('applies a case-insensitive OR search across name and description', async () => {
+    it('constrains results to the full-text-search matching ids (no ILIKE OR)', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ id: 'product-1' }, { id: 'product-2' }]);
       await productsRepository.findMany({ search: 'phone' } as any);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
       const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.where.OR).toEqual([
-        { name: { contains: 'phone', mode: 'insensitive' } },
-        { description: { contains: 'phone', mode: 'insensitive' } },
-      ]);
+      expect(call.where.id).toEqual({ in: ['product-1', 'product-2'] });
+      expect(call.where.OR).toBeUndefined();
+    });
+
+    it('returns an empty page without querying products when full-text search matches nothing', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
+      const result = await productsRepository.findMany({ search: 'phone' } as any);
+      expect(result).toEqual({ products: [], total: 0 });
+      expect(prisma.product.findMany).not.toHaveBeenCalled();
+      expect(prisma.product.count).not.toHaveBeenCalled();
     });
 
     it('combines every optional filter at once', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ id: 'product-1' }]);
       await productsRepository.findMany({
         categoryId: 'cat-1',
         storeId: 'store-1',
@@ -265,10 +281,7 @@ describe('productsRepository', () => {
         availability: 'OUT_OF_STOCK',
         store: { status: 'ACTIVE', sellerProfile: { suspended: false }, city: 'Gaza' },
         price: { gte: 50, lte: 200 },
-        OR: [
-          { name: { contains: 'phone', mode: 'insensitive' } },
-          { description: { contains: 'phone', mode: 'insensitive' } },
-        ],
+        id: { in: ['product-1'] },
       });
       expect(call.orderBy).toEqual({ price: 'asc' });
     });
@@ -311,7 +324,7 @@ describe('productsRepository', () => {
     it('orders by createdAt desc', async () => {
       await productsRepository.findManyByStoreId(storeId, {});
       const call = (prisma.product.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.orderBy).toEqual({ createdAt: 'desc' });
+      expect(call.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
     });
 
     it('applies default pagination', async () => {

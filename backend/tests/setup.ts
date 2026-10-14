@@ -191,6 +191,32 @@ jest.mock('../src/config/redis', () => {
         return sessionIds.length;
       }
 
+      if (script.includes('SWR_WRITE_IF_GENERATION_CURRENT')) {
+        // WRITE_IF_GENERATION_CURRENT_LUA (shared/utils/swrCache.ts):
+        // KEYS=[hardGenKey, softGenKey|hardGenKey, valueKey]
+        // ARGV=[hardToken, softToken|'', envelopeJson, ttlSec]
+        // Must be matched BEFORE the generic "redis.call('GET', KEYS[1])"
+        // branch below — that one is the adLock compare-and-delete, and this
+        // script's source contains the same substring, so without this branch
+        // the double deleted the generation key and never wrote the envelope
+        // (every SWR cache read then looked like a cold miss).
+        const [hardKey, softKey, valueKey] = keys;
+        const [hardToken, softToken, envelopeJson, ttl] = argv;
+        if (store.get(hardKey) !== hardToken) return 0;
+        if (softToken !== '' && store.get(softKey) !== softToken) return 0;
+        await setex(valueKey, Number(ttl), envelopeJson);
+        return 1;
+      }
+
+      if (script.includes("redis.call('get', KEYS[1]) == ARGV[1]")) {
+        // RELEASE_LOCK_LUA (shared/utils/swrCache.ts): compare-and-delete of
+        // the `<key>:refresh-lock` token (lowercase `get`, unlike adLock's).
+        const [lockKey] = keys;
+        const [token] = argv;
+        if (store.get(lockKey) === token) return await del(lockKey);
+        return 0;
+      }
+
       if (script.includes("redis.call('GET', KEYS[1])")) {
         // RELEASE_SCRIPT (adLock.ts): KEYS[1]=lockKey, ARGV[1]=token.
         // Compare-and-delete: only releases the lock if the caller's

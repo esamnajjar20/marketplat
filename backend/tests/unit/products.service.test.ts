@@ -12,7 +12,6 @@ import { cleanupUploadedImages, extractCloudinaryPublicId } from '../../src/shar
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
-import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
 
 jest.mock('../../src/modules/products/products.repository');
 jest.mock('../../src/modules/product-categories/product-categories.repository');
@@ -52,7 +51,16 @@ const mockEffectivePrice = {
   activePromotionId: null,
 };
 
-const mockActiveStore = { id: 'store-1', status: 'ACTIVE', plan: 'FREE', name: 'My Store', storeTypeId: 'st_general' };
+// The free-plan cap now comes from the store's own included storeType relation
+// (getFreeProductLimit reads store.storeType.freeProductLimit), not a separate lookup.
+const mockActiveStore = {
+  id: 'store-1',
+  status: 'ACTIVE',
+  plan: 'FREE',
+  name: 'My Store',
+  storeTypeId: 'st_general',
+  storeType: { freeProductLimit: 20 },
+};
 // storeTypeId null = category available for every store type (matches service check)
 const mockCategory = { id: 'cat-1', isActive: true, storeTypeId: null };
 
@@ -66,6 +74,16 @@ const validInput = {
   availability: 'IN_STOCK' as const,
 };
 
+// Real Prisma rows always carry these columns (null, never undefined).
+// updateProduct validates the *final* pricing state, so a fixture that omits
+// them makes `wholesaleMinQty` look populated while `wholesalePrice` is null.
+const unpricedProductFields = {
+  price: '100',
+  discountPrice: null,
+  wholesalePrice: null,
+  wholesaleMinQty: null,
+};
+
 describe('productsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -73,7 +91,6 @@ describe('productsService', () => {
     (notificationEvents.onStoreNewProduct as jest.Mock).mockResolvedValue({ count: 0 });
     (promotionsService.getEffectivePrice as jest.Mock).mockResolvedValue(mockEffectivePrice);
     (promotionsService.getEffectivePrices as jest.Mock).mockResolvedValue(new Map());
-    (storeTypesRepository.findById as jest.Mock).mockResolvedValue({ freeProductLimit: 20 });
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -173,8 +190,8 @@ describe('productsService', () => {
       (requireStoreAccessForProducts as jest.Mock).mockResolvedValue({
         ...mockActiveStore,
         storeTypeId: 'st_pharmacy',
+        storeType: { freeProductLimit: 100 },
       });
-      (storeTypesRepository.findById as jest.Mock).mockResolvedValue({ freeProductLimit: 100 });
       (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(99);
 
       await productsService.createProduct('user-1', validInput, validFiles);
@@ -398,6 +415,7 @@ describe('productsService', () => {
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
+        ...unpricedProductFields,
       });
       (productsRepository.update as jest.Mock).mockResolvedValue({ id: 'product-1' });
 
@@ -455,6 +473,7 @@ describe('productsService', () => {
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
+        ...unpricedProductFields,
       });
       (productCategoriesRepository.findById as jest.Mock).mockResolvedValue(null);
 
@@ -469,6 +488,7 @@ describe('productsService', () => {
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
+        ...unpricedProductFields,
       });
       (productCategoriesRepository.findById as jest.Mock).mockResolvedValue({
         id: 'cat-2',
@@ -507,6 +527,7 @@ describe('productsService', () => {
       (productsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'product-1',
         storeId: 'store-1',
+        ...unpricedProductFields,
       });
       (productsRepository.update as jest.Mock).mockResolvedValue({ id: 'product-1' });
 
@@ -521,6 +542,7 @@ describe('productsService', () => {
         id: 'product-1',
         storeId: 'store-1',
         availability: 'OUT_OF_STOCK',
+        ...unpricedProductFields,
       });
       (productsRepository.update as jest.Mock).mockResolvedValue({
         id: 'product-1',
@@ -549,6 +571,7 @@ describe('productsService', () => {
         id: 'product-1',
         storeId: 'store-1',
         availability: 'IN_STOCK',
+        ...unpricedProductFields,
       });
       (productsRepository.update as jest.Mock).mockResolvedValue({
         id: 'product-1',
@@ -568,6 +591,7 @@ describe('productsService', () => {
         id: 'product-1',
         storeId: 'store-1',
         availability: 'IN_STOCK',
+        ...unpricedProductFields,
       });
       (productsRepository.update as jest.Mock).mockResolvedValue({
         id: 'product-1',

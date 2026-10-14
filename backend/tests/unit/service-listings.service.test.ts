@@ -40,6 +40,10 @@ describe('ServiceListingsService', () => {
     (serviceTypesRepository.findActiveById as jest.Mock).mockResolvedValue({
       id: 'st_general', isActive: true, capabilities: {}, fields: [],
     });
+    const st = { id: 'st_general', isActive: true, capabilities: {}, fields: [] };
+    (serviceTypesRepository.findById as jest.Mock).mockResolvedValue(st);
+    (serviceTypesRepository.findByIdWithFields as jest.Mock).mockResolvedValue(st);
+    (serviceTypesRepository.findByIdWithAllFields as jest.Mock).mockResolvedValue(st);
     (serviceTypesRepository.lockForListingCreation as jest.Mock).mockResolvedValue(true);
     (serviceCategoriesRepository.lockForListingCreation as jest.Mock).mockResolvedValue({
       serviceTypeId: 'st_general', isActive: true,
@@ -72,7 +76,9 @@ describe('ServiceListingsService', () => {
       );
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) =>
+        cb({ serviceProviderServiceType: { upsert: jest.fn().mockResolvedValue({}) } }) as any
+      );
       (serviceListingsRepository.create as jest.Mock).mockResolvedValue({ id: 'listing-1' });
 
       const result = await serviceListingsService.createServiceListing(
@@ -92,7 +98,9 @@ describe('ServiceListingsService', () => {
       });
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) =>
+        cb({ serviceProviderServiceType: { upsert: jest.fn().mockResolvedValue({}) } }) as any
+      );
       (serviceListingsRepository.create as jest.Mock).mockResolvedValue({ id: 'listing-2' });
 
       const result = await serviceListingsService.createServiceListing(
@@ -144,6 +152,12 @@ describe('ServiceListingsService', () => {
       (serviceListingsRepository.findById as jest.Mock).mockResolvedValue({
         id: 'listing-1',
         providerId: 'provider-1',
+        status: 'ACTIVE',
+        serviceTypeId: 'st_general',
+        pricingType: 'FIXED',
+        price: 100,
+        serviceLocation: 'AT_PROVIDER',
+        attributes: null,
       });
       (serviceListingsRepository.update as jest.Mock).mockResolvedValue({ id: 'listing-1' });
 

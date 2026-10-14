@@ -307,7 +307,7 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.getConversationById(buyerId, 'conv-1');
 
-      expect(result).toEqual(mockConversation);
+      expect(result).toEqual({ ...mockConversation, mySettings: null });
     });
 
     it('returns the conversation when the caller is the seller', async () => {
@@ -315,7 +315,7 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.getConversationById(sellerId, 'conv-1');
 
-      expect(result).toEqual(mockConversation);
+      expect(result).toEqual({ ...mockConversation, mySettings: null });
     });
   });
 
@@ -414,7 +414,7 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' });
 
-      expect(messagesRepository.create).toHaveBeenCalledWith('conv-1', buyerId, 'Hi');
+      expect(messagesRepository.create).toHaveBeenCalledWith('conv-1', buyerId, 'Hi', null, null, null);
       expect(conversationsRepository.touchUpdatedAt).toHaveBeenCalledWith('conv-1');
       expect(result).toEqual(mockMessage);
 
@@ -544,7 +544,18 @@ describe('conversationsService', () => {
       const result = await conversationsService.getMessages(buyerId, 'conv-1', {});
 
       expect(result.items[0]).toEqual({ ...liveMessage, isPinned: false, isStarredByMe: false });
-      expect(result.items[1]).toEqual({ ...deletedMessage, body: '', isPinned: false, isStarredByMe: false });
+      expect(result.items[1]).toEqual({
+        ...deletedMessage,
+        body: '',
+        imageUrl: null,
+        audioUrl: null,
+        fileUrl: null,
+        fileName: null,
+        fileMimeType: null,
+        fileSize: null,
+        isPinned: false,
+        isStarredByMe: false,
+      });
     });
   });
 

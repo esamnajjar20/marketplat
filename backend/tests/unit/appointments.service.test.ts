@@ -293,12 +293,20 @@ describe('appointmentsService', () => {
   });
 
   describe('getMyAppointments', () => {
-    it('throws BadRequestError when the caller has no provider profile', async () => {
+    it('still lists the caller\'s own (customer) appointments when they have no provider profile', async () => {
+      // Customers can own appointments too (via their service requests), so a
+      // missing provider profile is no longer an error — the repository is
+      // queried with providerId=null and filters by userId instead.
       (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.findManyByUserId as jest.Mock).mockResolvedValue({
+        appointments: [mockAppointment],
+        total: 1,
+      });
 
-      await expect(appointmentsService.getMyAppointments(userId, {})).rejects.toThrow(
-        BadRequestError
-      );
+      const result = await appointmentsService.getMyAppointments(userId, {});
+
+      expect(result.items).toEqual([mockAppointment]);
+      expect(appointmentsRepository.findManyByUserId).toHaveBeenCalledWith(null, userId, {});
     });
 
     it('returns paginated appointments for the caller’s provider profile', async () => {
@@ -313,6 +321,7 @@ describe('appointmentsService', () => {
       expect(result.meta.total).toBe(1);
       expect(appointmentsRepository.findManyByUserId).toHaveBeenCalledWith(
         provider.id,
+        userId,
         { page: 1, limit: 20 }
       );
     });
@@ -332,12 +341,16 @@ describe('appointmentsService', () => {
   });
 
   describe('updateAppointmentStatus', () => {
-    it('throws BadRequestError when the caller has no provider profile', async () => {
+    it('throws ForbiddenError when the caller has no provider profile and is not the request\'s customer', async () => {
+      // Ownership is now provider-or-customer: with no provider profile (and no
+      // linked request making the caller the customer) the appointment is not theirs.
       (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue(mockAppointment);
 
       await expect(
         appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'COMPLETED')
-      ).rejects.toThrow(BadRequestError);
+      ).rejects.toThrow(ForbiddenError);
+      expect(appointmentsRepository.updateStatus).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundError when the appointment does not exist', async () => {
@@ -411,19 +424,22 @@ describe('appointmentsService', () => {
       );
     });
 
-    it('still saves the cancellation when the notification lookup throws', async () => {
+    it('fails closed (no status change) when the linked-request lookup used for ownership throws', async () => {
       (appointmentsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAppointment, requestId: 'req-1' });
       (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
         ...mockAppointment,
         requestId: 'req-1',
         status: 'CANCELLED',
       });
-      (serviceRequestsRepository.findById as jest.Mock).mockRejectedValue(new Error('db down'));
+      // The linked request is loaded *before* the update because it decides
+      // whether the caller is the customer — so a lookup failure must abort the
+      // change rather than silently skip the ownership check.
+      (serviceRequestsRepository.findById as jest.Mock).mockRejectedValueOnce(new Error('db down'));
 
       await expect(
         appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'CANCELLED')
-      ).resolves.toMatchObject({ status: 'CANCELLED' });
-      await new Promise((resolve) => setImmediate(resolve));
+      ).rejects.toThrow('db down');
+      expect(appointmentsRepository.updateStatus).not.toHaveBeenCalled();
     });
 
     it('does not notify for COMPLETED or NO_SHOW even when linked to a request', async () => {

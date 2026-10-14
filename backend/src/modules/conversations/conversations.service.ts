@@ -42,7 +42,20 @@ const assertParty = (conversation: Conversation, userId: string): void => {
  * own response, since a message can be deleted by one party and then
  * read by the other via getMessages moments later. */
 const redactIfDeleted = (message: Message): Message =>
-  message.deletedAt ? { ...message, body: '', imageUrl: null, audioUrl: null } : message;
+  message.deletedAt
+    ? {
+        ...message,
+        body: '',
+        imageUrl: null,
+        audioUrl: null,
+        // File attachments carry a direct URL + original filename/type/size —
+        // they must disappear with the message exactly like image/audio do.
+        fileUrl: null,
+        fileName: null,
+        fileMimeType: null,
+        fileSize: null,
+      }
+    : message;
 
 // same high-signal scam phrasing the ad fraud scorer
 // uses — applied here so steering payment off-platform in chat can't

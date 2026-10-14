@@ -8,6 +8,8 @@ import { prisma } from '../../src/config/prisma';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { ConflictError } from '../../src/shared/errors/ConflictError';
+import { hidePublicEntities } from '../../src/shared/utils/publicListCache';
 
 jest.mock('../../src/modules/service-listings/service-listings.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
@@ -47,9 +49,25 @@ const mockListing = {
   id: 'listing-1',
   providerId: 'provider-1',
   status: 'ACTIVE',
+  title: 'Listing',
+  categoryId: 'cat-1',
+  serviceTypeId: 'st_general',
+  pricingType: 'FIXED',
+  price: 100,
+  serviceLocation: 'AT_PROVIDER',
+  attributes: null,
   images: [`https://res.cloudinary.com/${cloudName}/image/upload/v1/service-listings/abc.webp`],
   provider: { sellerProfile: { suspended: false } },
 };
+// Public reads strip the provider's contact phone and payment methods.
+const redactedMockListing = {
+  ...mockListing,
+  provider: {
+    contactPhone: '',
+    sellerProfile: { ...mockListing.provider.sellerProfile, paymentMethods: null },
+  },
+};
+const oneFile = [{ buffer: Buffer.from('x') }] as any;
 
 describe('serviceListingsService — additional coverage', () => {
   beforeEach(() => {
@@ -74,6 +92,12 @@ describe('serviceListingsService — additional coverage', () => {
       capabilities: {},
       fields: [],
     });
+    (serviceTypesRepository.findByIdWithAllFields as jest.Mock).mockResolvedValue({
+      id: 'st_general',
+      isActive: true,
+      capabilities: {},
+      fields: [],
+    });
     (serviceTypesRepository.lockForListingCreation as jest.Mock).mockResolvedValue(true);
     (serviceCategoriesRepository.lockForListingCreation as jest.Mock).mockResolvedValue({
       serviceTypeId: 'st_general',
@@ -88,7 +112,7 @@ describe('serviceListingsService — additional coverage', () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        serviceListingsService.createServiceListing('user-1', { categoryId: 'missing' } as any, [])
+        serviceListingsService.createServiceListing('user-1', { categoryId: 'missing' } as any, oneFile)
       ).rejects.toThrow('Invalid or inactive service category.');
     });
 
@@ -99,7 +123,7 @@ describe('serviceListingsService — additional coverage', () => {
       });
 
       await expect(
-        serviceListingsService.createServiceListing('user-1', { categoryId: 'cat-1' } as any, [])
+        serviceListingsService.createServiceListing('user-1', { categoryId: 'cat-1' } as any, oneFile)
       ).rejects.toThrow('Invalid or inactive service category.');
     });
 
@@ -117,7 +141,11 @@ describe('serviceListingsService — additional coverage', () => {
       (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       const files = Array.from({ length: 10 }, () => ({ buffer: Buffer.from('x') })) as any;
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
+      jest
+        .spyOn(prisma, '$transaction')
+        .mockImplementation(async (cb: any) =>
+          cb({ serviceProviderServiceType: { upsert: jest.fn().mockResolvedValue({}) } }) as any
+        );
       (serviceListingsRepository.create as jest.Mock).mockResolvedValue(mockListing);
 
       const result = await serviceListingsService.createServiceListing(
@@ -239,7 +267,7 @@ describe('serviceListingsService — additional coverage', () => {
 
       const result = await serviceListingsService.getServiceListingById('listing-1');
 
-      expect(result).toEqual(mockListing);
+      expect(result).toEqual(redactedMockListing);
       expect(serviceListingsRepository.incrementViews).toHaveBeenCalledWith('listing-1');
     });
 
@@ -250,7 +278,7 @@ describe('serviceListingsService — additional coverage', () => {
       );
 
       await expect(serviceListingsService.getServiceListingById('listing-1')).resolves.toEqual(
-        mockListing
+        redactedMockListing
       );
     });
 
@@ -329,44 +357,56 @@ describe('serviceListingsService — additional coverage', () => {
     });
   });
 
-  describe('deleteServiceListing — success path with Cloudinary cleanup', () => {
-    it('soft-deletes and cleans up every Cloudinary image on the listing', async () => {
+  describe('deleteServiceListing', () => {
+    const mockDeleteTx = (openRequests = 0) => {
+      const tx = {
+        serviceRequest: { count: jest.fn().mockResolvedValue(openRequests) },
+        serviceListing: { update: jest.fn().mockResolvedValue({ ...mockListing, status: 'DELETED' }) },
+      };
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(tx) as any);
+      return tx;
+    };
+
+    it('soft-deletes inside a transaction and hides the listing from public caches', async () => {
       (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
-      (serviceListingsRepository.softDelete as jest.Mock).mockResolvedValue({
-        ...mockListing,
-        status: 'DELETED',
-      });
-      (deleteImage as jest.Mock).mockResolvedValue(undefined);
-
-      await serviceListingsService.deleteServiceListing('user-1', 'listing-1');
-
-      expect(serviceListingsRepository.softDelete).toHaveBeenCalledWith('listing-1');
-      expect(deleteImage).toHaveBeenCalledWith('service-listings/abc');
-    });
-
-    it('completes successfully even when Cloudinary cleanup fails for an image', async () => {
-      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
-      (serviceListingsRepository.softDelete as jest.Mock).mockResolvedValue({
-        ...mockListing,
-        status: 'DELETED',
-      });
-      (deleteImage as jest.Mock).mockRejectedValue(new Error('cloudinary down'));
+      const tx = mockDeleteTx();
 
       await expect(
         serviceListingsService.deleteServiceListing('user-1', 'listing-1')
       ).resolves.toBeUndefined();
+
+      expect(tx.serviceRequest.count).toHaveBeenCalledWith({
+        where: {
+          listingId: 'listing-1',
+          status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'DISPUTED'] },
+        },
+      });
+      expect(tx.serviceListing.update).toHaveBeenCalledWith({
+        where: { id: 'listing-1' },
+        data: { status: 'DELETED' },
+      });
+      expect(hidePublicEntities).toHaveBeenCalledWith('service-listings');
     });
 
-    it('skips deleteImage for a non-Cloudinary image URL', async () => {
-      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue({
-        ...mockListing,
-        images: ['https://example.com/not-cloudinary.png'],
-      });
-      (serviceListingsRepository.softDelete as jest.Mock).mockResolvedValue({});
+    it('keeps the Cloudinary images: historical service requests still reference them', async () => {
+      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
+      mockDeleteTx();
 
       await serviceListingsService.deleteServiceListing('user-1', 'listing-1');
 
       expect(deleteImage).not.toHaveBeenCalled();
+    });
+
+    it('rejects with ConflictError when the listing still has open requests', async () => {
+      (serviceListingsRepository.findById as jest.Mock).mockResolvedValue(mockListing);
+      const tx = mockDeleteTx(2);
+
+      await expect(
+        serviceListingsService.deleteServiceListing('user-1', 'listing-1')
+      ).rejects.toThrow(ConflictError);
+
+      expect(tx.serviceListing.update).not.toHaveBeenCalled();
+      expect(hidePublicEntities).not.toHaveBeenCalled();
     });
 
     it('handles a listing with no images at all', async () => {
@@ -374,7 +414,7 @@ describe('serviceListingsService — additional coverage', () => {
         ...mockListing,
         images: [],
       });
-      (serviceListingsRepository.softDelete as jest.Mock).mockResolvedValue({});
+      mockDeleteTx();
 
       await expect(
         serviceListingsService.deleteServiceListing('user-1', 'listing-1')

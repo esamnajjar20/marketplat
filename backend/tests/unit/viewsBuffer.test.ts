@@ -2,6 +2,10 @@ import { viewsBuffer } from '../../src/shared/utils/viewsBuffer';
 import { redis } from '../../src/config/redis';
 
 describe('viewsBuffer', () => {
+  // redis.scan is a shared jest.fn from tests/setup.ts: earlier tests (and the
+  // shutdown flush in stopFlushTimer) leave calls on it, so clear call history
+  // before each test or call-count assertions see stale calls.
+  beforeEach(() => jest.clearAllMocks());
   afterEach(() => jest.restoreAllMocks());
 
   it('returns false when viewer already seen', async () => {
@@ -26,10 +30,11 @@ describe('viewsBuffer', () => {
     expect(result).toBe(false);
   });
 
-  it('starts flush timer once', () => {
+  it('starts flush timer once', async () => {
     viewsBuffer.startFlushTimer();
     viewsBuffer.startFlushTimer();
-    viewsBuffer.stopFlushTimer();
+    // stopFlushTimer performs a final flush; await it so it cannot leak into later tests.
+    await viewsBuffer.stopFlushTimer();
   });
 
   it('flushes buffered views atomically via GETDEL script', async () => {

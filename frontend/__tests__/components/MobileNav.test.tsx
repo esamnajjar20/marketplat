@@ -11,14 +11,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders as render } from '@/test-support/render';
 import { screen, act } from '@testing-library/react';
 
-async function renderNav() {
-  const result = await renderNav();
-  await act(async () => {
-    await Promise.resolve();
-  });
-  return result;
-}
 import { setupUser } from '@/test-support/user-event';
+import { MobileNav } from '@/components/layout/MobileNav';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
@@ -43,6 +37,16 @@ vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useMyServiceProvider: vi.fn(() => ({ data: undefined, isSuccess: false })),
   useIsProvider: vi.fn(() => ({ isProvider: false, isLoaded: true })),
 }));
+
+// MobileNav defers its drawer content (requestIdleCallback), so flush the
+// microtask queue once after render before asserting.
+async function renderNav() {
+  const result = render(<MobileNav />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return result;
+}
 
 const mockLogout = vi.fn();
 

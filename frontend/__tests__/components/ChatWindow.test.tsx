@@ -30,6 +30,8 @@ import { useAuthStore } from '@/store/auth.store';
 vi.mock('@/hooks/queries/useConversations', () => ({
   useConversation: vi.fn(),
   useMessages: vi.fn(),
+  // ChatWindow now reads the shared-media gallery via useConversationMedia.
+  useConversationMedia: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
 vi.mock('@/hooks/queries/useBlockedUsers', () => ({

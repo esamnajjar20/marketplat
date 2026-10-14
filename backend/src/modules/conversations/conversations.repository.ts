@@ -287,7 +287,9 @@ export const conversationsRepository = {
           },
           // newest message for inbox preview (1 row, not N+1).
           messages: {
-            orderBy: { createdAt: 'desc' },
+            // id tiebreaker: two messages in the same millisecond must not
+            // flip which one is the inbox preview between requests.
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: 1,
           },
           userSettings: { where: { userId }, take: 1 },

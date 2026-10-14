@@ -183,8 +183,14 @@ describe('conversationsRepository', () => {
 
       await conversationsRepository.findManyForUser(buyerId, {});
 
+      // Only conversations the caller has not archived/deleted (per-user
+      // ConversationUserSetting row) are listed by default.
+      const expectedWhere = {
+        OR: [{ buyerId }, { sellerId: buyerId }],
+        userSettings: { some: { userId: buyerId, archivedAt: null, deletedAt: null } },
+      };
       expect(prisma.conversation.findMany).toHaveBeenCalledWith({
-        where: { OR: [{ buyerId }, { sellerId: buyerId }] },
+        where: expectedWhere,
         include: {
           ...conversationWithRelationsInclude,
           _count: {
@@ -196,14 +202,13 @@ describe('conversationsRepository', () => {
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: 1,
           },
+          userSettings: { where: { userId: buyerId }, take: 1 },
         },
         orderBy: { updatedAt: 'desc' },
         skip: 0,
         take: 20,
       });
-      expect(prisma.conversation.count).toHaveBeenCalledWith({
-        where: { OR: [{ buyerId }, { sellerId: buyerId }] },
-      });
+      expect(prisma.conversation.count).toHaveBeenCalledWith({ where: expectedWhere });
     });
 
     it('applies pagination skip/take from page and limit', async () => {
@@ -234,8 +239,8 @@ describe('conversationsRepository', () => {
 
       expect(result).toEqual({
         conversations: [
-          { id: 'conv-1', unreadCount: 3, lastMessage: { id: 'msg-1', body: 'hi' } },
-          { id: 'conv-2', unreadCount: 0, lastMessage: null },
+          { id: 'conv-1', unreadCount: 3, lastMessage: { id: 'msg-1', body: 'hi' }, mySettings: null },
+          { id: 'conv-2', unreadCount: 0, lastMessage: null, mySettings: null },
         ],
         total: 2,
       });
@@ -266,7 +271,19 @@ describe('messagesRepository', () => {
       await messagesRepository.create('conv-1', buyerId, 'Hello');
 
       expect(prisma.message.create).toHaveBeenCalledWith({
-        data: { conversationId: 'conv-1', senderId: buyerId, body: 'Hello' },
+        data: {
+          conversationId: 'conv-1',
+          senderId: buyerId,
+          body: 'Hello',
+          // Optional attachments / idempotency key default to null.
+          imageUrl: null,
+          audioUrl: null,
+          fileUrl: null,
+          fileName: null,
+          fileMimeType: null,
+          fileSize: null,
+          clientOperationId: null,
+        },
       });
     });
   });

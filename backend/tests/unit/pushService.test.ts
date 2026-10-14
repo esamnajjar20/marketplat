@@ -171,19 +171,50 @@ describe('pushService', () => {
       expect(mockDeleteByEndpoints).not.toHaveBeenCalled();
     });
 
-    it('one subscription failing does not stop the others from sending', async () => {
+    it('one subscription failing (non-retryable) does not stop the others from sending', async () => {
       mockFindManyByUserId.mockResolvedValue([
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
         { id: 'sub-2', userId: 'user-1', endpoint: 'https://push/2', p256dh: 'p2', auth: 'a2' },
       ]);
+      // A 4xx other than 404/410/429 is non-retryable: exactly one attempt for
+      // sub-1, then sub-2 is still sent.
       mockSendNotification
-        .mockRejectedValueOnce(new Error('network blip'))
+        .mockRejectedValueOnce(Object.assign(new Error('bad request'), { statusCode: 400 }))
         .mockResolvedValueOnce(undefined);
       const { pushService } = require('../../src/shared/utils/pushService');
 
       await pushService.notifyUser('user-1', payload);
 
       expect(mockSendNotification).toHaveBeenCalledTimes(2);
+      expect(mockSendNotification.mock.calls[0][0].endpoint).toBe('https://push/1');
+      expect(mockSendNotification.mock.calls[1][0].endpoint).toBe('https://push/2');
+    });
+
+    it('retries a transient failure once for that subscription, then still sends the others', async () => {
+      jest.useFakeTimers();
+      try {
+        mockFindManyByUserId.mockResolvedValue([
+          { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
+          { id: 'sub-2', userId: 'user-1', endpoint: 'https://push/2', p256dh: 'p2', auth: 'a2' },
+        ]);
+        mockSendNotification
+          // Subscriptions are sent concurrently (Promise.all): call 1 = sub-1 (fails,
+          // no statusCode => transient), call 2 = sub-2, call 3 = sub-1's retry.
+          .mockRejectedValueOnce(new Error('network blip'))
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce(undefined);
+        const { pushService } = require('../../src/shared/utils/pushService');
+
+        const pending = pushService.notifyUser('user-1', payload);
+        await jest.advanceTimersByTimeAsync(2_000);
+        await pending;
+
+        expect(mockSendNotification).toHaveBeenCalledTimes(3);
+        const endpoints = mockSendNotification.mock.calls.map(c => c[0].endpoint).sort();
+        expect(endpoints).toEqual(['https://push/1', 'https://push/1', 'https://push/2']);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('prunes the subscription row when the push service returns 410 Gone', async () => {

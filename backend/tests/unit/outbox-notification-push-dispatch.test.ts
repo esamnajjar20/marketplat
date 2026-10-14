@@ -37,7 +37,7 @@ describe('durable notification push dispatch handoff', () => {
     expect(source).toContain("where: { dispatchId: dispatch.id, status: 'PENDING' }");
     expect(source).toContain("SET \"status\" = ${outcome === 'sent' ? 'SENT' : 'GONE'}, \"processedAt\" = NOW()");
     expect(source).toContain('completedPushDispatchesWithPermanentFailure: permanentPushFailures');
-    expect(source).toContain('attempts: { decrement: 1 }');
+    expect(source).toContain('"attempts" = GREATEST("attempts" - 1, 0)');
     expect(source).not.toContain('pushService.deliverForOutbox(dispatch.userId, payload)');
   });
 
@@ -74,7 +74,8 @@ describe('durable notification push dispatch handoff', () => {
   it('renews the dispatch lease separately from per-target leases during slow delivery work', () => {
     expect(source).toContain('function startPushDispatchLeaseHeartbeat(dispatchId: string, workerId: string)');
     expect(source).toContain('const stopDispatchHeartbeat = startPushDispatchLeaseHeartbeat(dispatch.id, workerId)');
-    expect(source).toContain('where: { id: dispatchId, lockedBy: workerId, processedAt: null, deadLetterAt: null }');
+    expect(source).toContain('WHERE "id" = ${dispatchId} AND "lockedBy" = ${workerId}');
+    expect(source).toContain('AND "processedAt" IS NULL AND "deadLetterAt" IS NULL');
     expect(source).toContain('Push dispatch lease heartbeat found that dispatch ownership was lost');
     expect(source).toContain('Push dispatch lease heartbeat failed');
     expect(source).toContain('} finally {\n      stopDispatchHeartbeat();');
@@ -110,7 +111,8 @@ describe('durable notification push dispatch handoff', () => {
     expect(source).toContain('UPDATE "notification_push_dispatches"\n      SET "lockedAt" = NOW()');
     expect(source).toContain('UPDATE "notification_push_delivery_targets" AS target\n      SET "lockedAt" = NOW()');
     expect(source).toContain('RETURNING "id"');
-    expect(source).toContain('lease expiry is evaluated with NOW() in claimPushDispatch');
+    expect(source).toContain('lease expiry is evaluated');
+    expect(source).toContain('with NOW() in claimPushDispatch');
   });
 
   it('uses the database clock for stale-target terminalization and target lease health metrics', () => {

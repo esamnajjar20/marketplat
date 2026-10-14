@@ -377,7 +377,11 @@ describe('serviceRequestsService — additional coverage', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
 
       await expect(
-        serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED')
+        // The fixture's service type requires a quote, so ACCEPTED must carry quotedPrice
+        // to get past validation and reach the conditional update.
+        serviceRequestsService.respondToRequest(providerUserId, requestId, 'ACCEPTED', {
+          quotedPrice: 50,
+        })
       ).rejects.toThrow('Request status has changed — please refresh and try again');
       expect(mockTx.serviceRequest.findUniqueOrThrow).not.toHaveBeenCalled();
     });
