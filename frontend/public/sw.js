@@ -137,6 +137,19 @@ const USER_DATA_CACHE_PREFIX = `market-user-data-${CACHE_VERSION}-`;
 const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 40;
 const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 8 * 1024 * 1024;
 
+// FIX SW-JWT-CLAIM-01: the backend signs access tokens with `userId`
+// (backend/src/shared/utils/jwt.ts) and no `sub`, but userIdFromAuthorization
+// only read `sub` -> it always returned null in production, so the per-user
+// API partition was never written or read for logged-in users. One helper is
+// now shared by every JWT-subject reader; `sub` stays supported (tests/other
+// issuers).
+function jwtSubject(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  if (typeof payload.userId === 'string' && payload.userId) return payload.userId;
+  if (typeof payload.sub === 'string' && payload.sub) return payload.sub;
+  return null;
+}
+
 function userDataCacheName(userId) {
   return `${USER_DATA_CACHE_PREFIX}${encodeURIComponent(userId)}`;
 }
@@ -152,7 +165,7 @@ function userIdFromAuthorization(request) {
     const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
     const json = atob(padded);
     const payload = JSON.parse(json);
-    return typeof payload.sub === 'string' && payload.sub ? payload.sub : null;
+    return jwtSubject(payload);
   } catch {
     return null;
   }
@@ -492,7 +505,7 @@ function decodeAccessTokenUserId(token) {
     const normalized = part.replace(/-/g, '+').replace(/_/g, '/');
     const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
     const payload = JSON.parse(atob(padded));
-    return typeof payload?.userId === 'string' && payload.userId ? payload.userId : null;
+    return jwtSubject(payload);
   } catch {
     return null;
   }
@@ -715,18 +728,46 @@ function isPublicListApiPath(url) {
  * يحمل destination='image' لأنه ليس طلب موارد فرعي حقيقي من HTML. */
 function isImageRequest(request, url) {
   if (request.destination === 'image') return true;
-  return url.hostname.includes('cloudinary.com');
+  // FIX SW-IMG-HOST-01: `includes` also matched evil-cloudinary.com.attacker.io.
+  const host = String(url.hostname || '').toLowerCase();
+  return host === 'cloudinary.com' || host.endsWith('.cloudinary.com');
 }
 
-/** طلب RSC (تنقّل SPA ناعم) — Next.js App Router يرسله برأس RSC:'1' بدل
- * navigate كامل. انظر PHASE-3-B في lib/offlineRouteShells.ts للتفصيل. */
-/** FIX QUEUE-CSRF-OFFLINE-SESSION-01: كل طلب كتابة يحتاج CSRF عند الإرسال —
- * لا فقط ما حمل ترويسة x-csrf-token وقت الحفظ. في جلسة "أوفلاين بصرية"
- * (الصفحة فُتحت بلا نت فلم يجرِ /auth/refresh) يكون توكن الـCSRF بالذاكرة
- * فارغًا، فيُحفظ الطلب بلا x-csrf-token و needsCsrf=false؛ عند الإعادة
- * يُرسَل بلا الترويسة بينما كوكي csrfToken الخاص بالباك-إند يلحقه المتصفح
- * تلقائيًا (credentials:'include') فيرفضه csrfProtection بـ 403 ويُعلَّم
- * "failed" نهائيًا. */
+// FIX SW-API-ORIGIN-01: `/api/` anywhere in the path used to make the SW
+// intercept, cache (and even queue) requests to ANY third-party origin.
+// The client calls the API same-origin ('/api/v1', see lib/constants.ts);
+// extra origins can be allow-listed via MARKET_CACHE_POLICY.apiOrigins.
+const EXTRA_API_ORIGINS = new Set(
+  Array.isArray(self.MARKET_CACHE_POLICY?.apiOrigins)
+    ? self.MARKET_CACHE_POLICY.apiOrigins.filter((o) => typeof o === 'string')
+    : [],
+);
+
+function isTrustedApiOrigin(url) {
+  return url.origin === self.location.origin || EXTRA_API_ORIGINS.has(url.origin);
+}
+
+/** A queued URL is replayed WITH credentials + a fresh Bearer token, so it
+ * must still point at our API even if IndexedDB was tampered with (XSS). */
+function isTrustedQueueUrl(rawUrl) {
+  try {
+    const u = new URL(String(rawUrl));
+    return (u.protocol === 'https:' || u.protocol === 'http:') &&
+      isTrustedApiOrigin(u) &&
+      u.pathname.startsWith(`${API_PATH_PREFIX}/`);
+  } catch { return false; }
+}
+
+/** Notification/push URLs must stay on our origin (no phishing redirects). */
+function safeSameOriginUrl(raw, fallback = '/') {
+  try {
+    const parsed = new URL(String(raw ?? ''), self.location.origin);
+    if (parsed.origin !== self.location.origin) return fallback;
+    return parsed.pathname + parsed.search + parsed.hash;
+  } catch { return fallback; }
+}
+
+/** POST /api/v1/batch is a read-only envelope of safe GETs — never queued. */
 function isReadBatchRequest(url, request) {
   return request.method === 'POST' && url.pathname === READ_BATCH_PATH;
 }
@@ -736,6 +777,8 @@ function isUnsafeMethod(method) {
   return m !== 'GET' && m !== 'HEAD' && m !== 'OPTIONS';
 }
 
+/** طلب RSC (تنقّل SPA ناعم) — Next.js App Router يرسله برأس RSC:'1' بدل
+ * navigate كامل. انظر PHASE-3-B في lib/offlineRouteShells.ts للتفصيل. */
 function isRscShellRequest(request) {
   return request.headers.get('RSC') === '1';
 }
@@ -1058,14 +1101,21 @@ async function staleWhileRevalidate(event, request, cacheKey) {
   const cachedResponse = await cache.match(cacheKey);
 
   const networkFetch = fetch(request)
-    .then(async (response) => {
+    .then((response) => {
       if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
-        const toStore = isRscShellRequest(request)
-          ? await stripVaryAndClone(response.clone())
-          : response.clone();
-        // FIX SW-MEMORY-01: putTimestamped + trim بدل cache.put.
-        await putTimestamped(cache, cacheKey, toStore);
-        await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+        // FIX SW-NONBLOCKING-CACHE-01: clone synchronously, write in the
+        // background. Before, the page waited for the WHOLE body to be
+        // buffered (blob()) + written + trimmed before getting the response.
+        const snapshot = response.clone();
+        const isRsc = isRscShellRequest(request);
+        event.waitUntil((async () => {
+          try {
+            const toStore = isRsc ? await stripVaryAndClone(snapshot) : snapshot;
+            // FIX SW-MEMORY-01: putTimestamped + trim بدل cache.put.
+            await putTimestamped(cache, cacheKey, toStore);
+            await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+          } catch { /* best-effort cache fill */ }
+        })());
       }
       return response;
     })
@@ -1200,12 +1250,16 @@ async function networkFirstPage(event, request, cacheKey) {
         // committed by cacheVisitedDocumentShell.
         event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE));
       } else {
-        const toStore = await stripVaryAndClone(response.clone());
-        event.waitUntil(
-          putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined).then(() =>
-            trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES),
-          ),
-        );
+        // FIX SW-NONBLOCKING-CACHE-01: don't buffer the RSC body before returning.
+        const snapshot = response.clone();
+        const shellSource = isRscShellRequest(request) ? 'rsc' : undefined;
+        event.waitUntil((async () => {
+          try {
+            const toStore = await stripVaryAndClone(snapshot);
+            await putTimestamped(cache, cacheKey, toStore, shellSource);
+            await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+          } catch { /* best-effort cache fill */ }
+        })());
         if (isRealRscNavigation(request)) {
           event.waitUntil(cacheVisitedDocumentShell(url, cache, undefined, STATIC_CACHE));
         }
@@ -1339,9 +1393,16 @@ async function handleProtectedPage(event, request, url) {
         // The document is published only after all initial dependencies exist.
         event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE));
       } else {
-        const toStore = await stripVaryAndClone(response.clone());
-        await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
-        await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+        // FIX SW-NONBLOCKING-CACHE-01: cache in the background (see networkFirstPage).
+        const snapshot = response.clone();
+        const shellSource = isRscShellRequest(request) ? 'rsc' : undefined;
+        event.waitUntil((async () => {
+          try {
+            const toStore = await stripVaryAndClone(snapshot);
+            await putTimestamped(cache, cacheKey, toStore, shellSource);
+            await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
+          } catch { /* best-effort cache fill */ }
+        })());
         if (isRealRscNavigation(request)) {
           event.waitUntil(cacheVisitedDocumentShell(url, cache, undefined, PERSONAL_SHELL_CACHE));
         }
@@ -1485,7 +1546,8 @@ async function cacheFirstImage(event, request, url) {
     const inner = url.searchParams.get('url');
     if (inner) {
       try {
-        const rawHit = await savedCache.match(decodeURIComponent(inner));
+        // searchParams.get() already decoded once; decoding again corrupts %XX.
+        const rawHit = await savedCache.match(inner);
         if (rawHit) return rawHit;
       } catch {
         // رابط ?url= مُرمَّز بشكل غير صالح — تجاهل والمتابعة للشبكة.
@@ -1514,13 +1576,16 @@ async function cacheFirstImage(event, request, url) {
       const lenNum = len ? Number(len) : 0;
       const tooLarge = Number.isFinite(lenNum) && lenNum > 2.5 * 1024 * 1024;
       if (!tooLarge) {
+        // FIX SW-CLONE-RACE-01: clone() throws once the page started reading
+        // the body; it used to run after an async estimate() round-trip.
+        const toCache = response.clone();
         event.waitUntil(
           shouldSkipDisposableCacheWrite(IMAGE_CACHE).then((skip) => {
             if (skip) return;
-            return putTimestamped(cache, request, response.clone()).then(() =>
+            return putTimestamped(cache, request, toCache).then(() =>
               trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
             );
-          }),
+          }).catch(() => {}),
         );
       }
     }
@@ -1548,7 +1613,7 @@ async function cacheFirstImage(event, request, url) {
         // ignore — fall through to the error below
       }
     }
-    console.error('[SW IMAGE] NETWORK ERROR', request.url, error);
+    console.warn('[SW IMAGE] network error', request.url, error && error.message);
     return Response.error();
   }
 }
@@ -1894,11 +1959,12 @@ async function networkFirstApi(event, request, url) {
 
   try {
     const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
-    event.waitUntil(storeIfAllowed(response).catch(() => {}));
+    // FIX SW-CLONE-RACE-01: snapshot synchronously (see cacheFirstImage).
+    event.waitUntil(storeIfAllowed(response.clone()).catch(() => {}));
     return response;
   } catch (err) {
     const timedOut = !!(err && err.name === 'SwTimeoutError');
-    if (timedOut) event.waitUntil(fetchPromise.then(storeIfAllowed).catch(() => {}));
+    if (timedOut) event.waitUntil(fetchPromise.then((late) => storeIfAllowed(late.clone())).catch(() => {}));
 
     // Never satisfy an authenticated private request from the shared cache:
     // only its subject-partitioned cache may supply a stale offline response.
@@ -2243,7 +2309,9 @@ async function refreshAccessToken(sampleUrl) {
   } catch { /* best-effort; fall through and refresh ourselves */ }
   let origin;
   try {
-    origin = new URL(sampleUrl).origin;
+    const parsed = new URL(sampleUrl);
+    // Never send the refresh cookie to an origin we do not trust.
+    origin = isTrustedApiOrigin(parsed) ? parsed.origin : self.location.origin;
   } catch {
     return null;
   }
@@ -2372,6 +2440,14 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       };
     }
     if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
+    // FIX SW-QUEUE-URL-01: never ship cookies + a fresh Bearer to a URL that is
+    // not our API (a tampered IndexedDB row would otherwise exfiltrate them).
+    if (!isTrustedQueueUrl(entry.url)) {
+      const message = 'عنوان العملية غير مسموح به ولن تُرسل.';
+      await markQueuedEntry(entry.id, { status: 'failed', lastError: { status: 400, message } });
+      await notifyClients({ type: 'QUEUE_ITEM_FAILED', id: entry.id, url: entry.url, status: 400, message, operationId: entry.operationId || null });
+      return 'failed';
+    }
     // Defense-in-depth for shared devices: the queue records the user id
     // from the access token at enqueue time, without storing the token. If
     // a stale row survives an account switch, never send it as the new user.
@@ -2537,7 +2613,10 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       // Without this, a single transient network failure during refresh
       // turned a soft 401 into a terminal 'failed', losing all retries -
       // on exactly the audience this queue was built for.
-      if (!fresh || fresh.reason === 'network') {
+      // FIX SW-PAGE-PRIORITY-FAIL-01: 'page-priority' (a visible page owns the
+      // refresh) also means "session not proven dead" - it used to fall through
+      // to the 4xx branch and mark the entry permanently `failed`.
+      if (!fresh || fresh.reason === 'network' || fresh.reason === 'page-priority') {
         return 'still-offline';
       }
       // فشل التجديد نفسه (refreshToken بالكوكي منتهي/غير موجود) — جلسة
@@ -3302,7 +3381,11 @@ self.addEventListener('install', (event) => {
           assetUrls.map(async (assetUrl) => {
             try {
               const assetResponse = await fetch(assetUrl, { credentials: 'same-origin' });
-              if (assetResponse.ok) await cache.put(assetUrl, assetResponse.clone());
+              const assetType = (assetResponse.headers.get('content-type') || '').toLowerCase();
+              // FIX SW-CAPTIVE-03: a captive portal answers JS/CSS URLs with HTML.
+              if (assetResponse.ok && isSameOriginResponse(assetResponse) && !assetType.includes('text/html')) {
+                await cache.put(assetUrl, assetResponse.clone());
+              }
             } catch {
               // أصل واحد فاشل لا يوقف تخزين الباقي.
             }
@@ -3792,13 +3875,16 @@ self.addEventListener('push', (event) => {
   } catch {
     data = {};
   }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
 
-  const title = data.title || 'سوق غزة';
-  const targetUrl = data.url || '/';
+  // FIX SW-PUSH-VALIDATE-01: never trust payload shape/URL blindly.
+  const title = (typeof data.title === 'string' && data.title.trim() ? data.title : 'سوق غزة').slice(0, 120);
+  const targetUrl = safeSameOriginUrl(data.url);
+  const pushTag = typeof data.tag === 'string' && data.tag ? data.tag.slice(0, 100) : undefined;
   const options = {
-    body: data.body || '',
-    tag: data.tag,
-    renotify: Boolean(data.tag),
+    body: typeof data.body === 'string' ? data.body.slice(0, 400) : '',
+    tag: pushTag,
+    renotify: Boolean(pushTag),
     timestamp: Date.now(),
     data: { url: targetUrl, type: typeof data.type === 'string' ? data.type : 'GENERAL' },
     icon: '/icon-192',
@@ -3862,7 +3948,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   if (action === 'dismiss') return;
 
-  const rawUrl = (event.notification.data && event.notification.data.url) || '/';
+  const rawUrl = safeSameOriginUrl(event.notification.data && event.notification.data.url);
 
   // FIX SW-CLICK-URL-MATCH-01: previous matching used
   // `client.url.includes(url)`, which:
@@ -3913,7 +3999,11 @@ self.addEventListener('notificationclick', (event) => {
       }
       if (sameOriginFallback && 'focus' in sameOriginFallback) {
         if ('navigate' in sameOriginFallback) {
-          return sameOriginFallback.navigate(rawUrl);
+          // FIX SW-CLICK-FOCUS-01: navigate() alone left the window in the
+          // background and rejected (uncontrolled client) without fallback.
+          return Promise.resolve(sameOriginFallback.navigate(rawUrl))
+            .then((c) => (c && 'focus' in c ? c.focus() : sameOriginFallback.focus()))
+            .catch(() => (self.clients.openWindow ? self.clients.openWindow(rawUrl) : undefined));
         }
         return sameOriginFallback.focus();
       }
@@ -3940,16 +4030,22 @@ self.addEventListener('fetch', (event) => {
   // CORS reasons and the page saw 'network error response'.
   if (
     url.origin !== self.location.origin &&
-    !isApiRequest(url) &&
+    !(isApiRequest(url) && isTrustedApiOrigin(url)) &&
     !isImageRequest(request, url)
   ) {
     return;
   }
 
+  // FIX SW-RANGE-01: a cached full 200 answering a Range request breaks
+  // audio/video seeking. FIX SW-ONLY-IF-CACHED-01: Chrome DevTools quirk
+  // (only-if-cached + cross-origin mode) throws inside the SW.
+  if (request.headers.has('range')) return;
+  if (request.cache === 'only-if-cached' && request.mode !== 'same-origin') return;
+
   // FIX SW-OPTIONS-01: استثناء OPTIONS (CORS preflight) — إدخاله في
   // الطابور لا فائدة له، فهو سؤال عن الصلاحيات لا طلب فعلي.
   if (request.method !== 'GET' && request.method !== 'OPTIONS') {
-    if (isApiRequest(url) && !isNeverCache(url)) {
+    if (isApiRequest(url) && isTrustedApiOrigin(url) && !isNeverCache(url)) {
       event.respondWith(handleMutation(request));
     }
     return;
@@ -3973,7 +4069,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isApiRequest(url)) {
+  if (isApiRequest(url) && isTrustedApiOrigin(url)) {
     event.respondWith(networkFirstApi(event, request, url));
     return;
   }
