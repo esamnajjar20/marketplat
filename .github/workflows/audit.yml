@@ -1,0 +1,29 @@
+name: NPM Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - working-directory: backend
+        run: |
+          npm ci
+          npm audit --audit-level=high || true
+
+  audit-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - working-directory: frontend
+        run: |
+          npm ci
+          npm audit --audit-level=high || true
