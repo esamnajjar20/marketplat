@@ -193,7 +193,7 @@ describe('authCookies', () => {
       expect(res.cookie).toHaveBeenCalledWith(
         'csrfToken',
         expect.any(String),
-        expect.objectContaining({ httpOnly: false, path: '/' }),
+        expect.objectContaining({ httpOnly: true, path: '/' }),
       );
     });
 
@@ -231,7 +231,7 @@ describe('authCookies', () => {
       clearCsrfCookie(res as Response);
 
       expect(res.clearCookie).toHaveBeenCalledWith('csrfToken', {
-        httpOnly: false,
+        httpOnly: true,
         secure: true,
         sameSite: 'none',
         path: '/',
@@ -257,7 +257,7 @@ describe('authCookies', () => {
       setSessionHintCookie(res as Response);
 
       expect(res.cookie).toHaveBeenCalledWith('app_has_session', '1', {
-        httpOnly: false,
+        httpOnly: true,
         secure: true, // DEPLOY-FIX-01: always true, sameSite:'none' requires it
         sameSite: 'none',
         path: '/',
@@ -291,7 +291,7 @@ describe('authCookies', () => {
       clearSessionHintCookie(res as Response);
 
       expect(res.clearCookie).toHaveBeenCalledWith('app_has_session', {
-        httpOnly: false,
+        httpOnly: true,
         secure: true,
         sameSite: 'none',
         path: '/',

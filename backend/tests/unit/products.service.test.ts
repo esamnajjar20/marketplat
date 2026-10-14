@@ -30,6 +30,18 @@ jest.mock('../../src/modules/notifications/notifications.service');
 jest.mock('../../src/modules/promotions/promotions.service');
 jest.mock('../../src/config/cloudinary');
 jest.mock('../../src/shared/utils/cloudinaryHelpers');
+jest.mock('../../src/modules/store-types/store-type-fields.service', () => ({
+  storeTypeFieldsService: {
+    validateAttributes: jest.fn().mockResolvedValue({}),
+  },
+}));
+jest.mock('../../src/shared/utils/publicListCache', () => ({
+  cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
+    fetcher()
+  ),
+  bumpPublicListCache: jest.fn().mockResolvedValue(undefined),
+  hidePublicEntities: jest.fn().mockResolvedValue(undefined),
+}));
 
 const mockEffectivePrice = {
   price: 100,
@@ -41,7 +53,8 @@ const mockEffectivePrice = {
 };
 
 const mockActiveStore = { id: 'store-1', status: 'ACTIVE', plan: 'FREE', name: 'My Store', storeTypeId: 'st_general' };
-const mockCategory = { id: 'cat-1', isActive: true };
+// storeTypeId null = category available for every store type (matches service check)
+const mockCategory = { id: 'cat-1', isActive: true, storeTypeId: null };
 
 const validFiles = [{ buffer: Buffer.from('product-image') }] as any;
 

@@ -1,4 +1,4 @@
-import { storesRepository } from '../../src/modules/stores/stores.repository';
+import { storesRepository, storeWithSeller } from '../../src/modules/stores/stores.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({
@@ -16,6 +16,36 @@ jest.mock('../../src/config/prisma', () => ({
 
 const storeId = 'store-1';
 const sellerProfileId = 'seller-profile-1';
+
+// Matches storeWithSellerAndCounts in the repository (public surfaces).
+const storeWithSellerAndCounts = {
+  sellerProfile: true,
+  storeType: {
+    include: {
+      fields: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      },
+    },
+  },
+  _count: {
+    select: {
+      followers: true,
+      products: { where: { status: 'ACTIVE' } },
+    },
+  },
+};
+
+const storeTypeWithFields = {
+  storeType: {
+    include: {
+      fields: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      },
+    },
+  },
+};
 
 const createData = {
   name: 'My Store',
@@ -40,16 +70,19 @@ describe('storesRepository', () => {
       await storesRepository.findBySellerProfileId(sellerProfileId);
       expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({
         where: { sellerProfileId },
-        include: { storeType: true },
+        include: storeTypeWithFields,
       });
     });
   });
 
   describe('findById', () => {
-    it('queries storeDetails by id with no include', async () => {
+    it('queries storeDetails by id with storeType fields', async () => {
       (prisma.storeDetails.findUnique as jest.Mock).mockResolvedValue(null);
       await storesRepository.findById(storeId);
-      expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({ where: { id: storeId }, include: { storeType: true } });
+      expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({
+        where: { id: storeId },
+        include: storeTypeWithFields,
+      });
     });
   });
 
@@ -59,11 +92,7 @@ describe('storesRepository', () => {
       await storesRepository.findPublicById(storeId);
       expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({
         where: { id: storeId },
-        include: {
-          sellerProfile: true,
-          storeType: true,
-          _count: { select: { followers: true, products: true } },
-        },
+        include: storeWithSellerAndCounts,
       });
     });
   });
@@ -152,7 +181,7 @@ describe('storesRepository', () => {
 
       expect(prisma.storeDetails.findMany).toHaveBeenCalledWith({
         where: { status: 'ACTIVE', sellerProfile: { suspended: false } },
-        include: { sellerProfile: true, storeType: true },
+        include: storeWithSeller,
         orderBy: [{ plan: 'desc' }, { createdAt: 'desc' }],
         skip: 0,
         take: 20,

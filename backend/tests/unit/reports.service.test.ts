@@ -10,6 +10,9 @@ jest.mock('../../src/modules/reports/reports.repository');
 jest.mock('../../src/modules/ads/ads.service');
 jest.mock('../../src/modules/users');
 jest.mock('../../src/modules/stores');
+jest.mock('../../src/modules/notifications/notifications.service', () => ({
+  notificationEvents: { onModerationDecision: jest.fn().mockResolvedValue(undefined) },
+}));
 
 const mockAd = { id: 'ad-1', userId: 'owner-1', status: 'ACTIVE' };
 const mockReport = {
@@ -20,6 +23,8 @@ const mockReport = {
   adId: 'ad-1',
   reason: 'SCAM',
   status: 'PENDING',
+  user: { id: 'reporter-1' },
+  ad: { userId: 'owner-1' },
 };
 
 describe('ReportsService', () => {

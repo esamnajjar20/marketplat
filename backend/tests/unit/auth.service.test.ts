@@ -115,7 +115,7 @@ describe('AuthService', () => {
     });
 
     it('should throw when IP is rate limited', async () => {
-      (tokenStore.getIpStats as jest.Mock).mockResolvedValue({ attempts: 50, distinctEmails: 0 });
+      (tokenStore.getIpStats as jest.Mock).mockResolvedValue({ attempts: 500, distinctEmails: 0 });
       await expect(authService.login({ email: 'test@example.com', password: 'password123' }))
         .rejects.toThrow('Too many requests from this network');
     });

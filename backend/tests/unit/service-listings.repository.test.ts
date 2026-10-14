@@ -8,7 +8,24 @@ jest.mock('../../src/config/prisma', () => ({
       update: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      create: jest.fn(),
     },
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    $executeRaw: jest.fn().mockResolvedValue(0),
+    $transaction: jest.fn(async (arg: unknown) => {
+      if (typeof arg === 'function') {
+        return (arg as (tx: unknown) => unknown)({
+          serviceListing: {
+            findUnique: jest.fn(),
+            update: jest.fn(),
+            findMany: jest.fn(),
+            count: jest.fn(),
+            create: jest.fn(),
+          },
+        });
+      }
+      return arg;
+    }),
   },
 }));
 

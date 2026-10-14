@@ -132,3 +132,8 @@ export const unreadNotificationsCache = {
     }
   },
 };
+
+/** Test-only: clear in-process L1 so tests don't leak state across cases. */
+export function clearUnreadNotificationsCacheL1ForTests(): void {
+  L1.clear();
+}

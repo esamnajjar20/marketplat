@@ -262,3 +262,11 @@ export const userCache = {
     return fetchPromise;
   },
 };
+
+/** Test-only: clear in-process L1 + generation + inflight state so tests don't leak across cases. */
+export function clearUserCacheL1ForTests(): void {
+  L1.clear();
+  GEN.clear();
+  inflightMap.clear();
+  genCounter = 0;
+}

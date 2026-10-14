@@ -129,8 +129,9 @@ describe('redisMemoryMonitor', () => {
     await jest.advanceTimersByTimeAsync(0);
     expect(logger.warn).toHaveBeenCalledTimes(1);
 
-    // Past the 5-minute (300_000ms) cooldown.
+    // Past the 5-minute (300_000ms) cooldown, then one more poll tick.
     await jest.advanceTimersByTimeAsync(300_001);
+    await jest.advanceTimersByTimeAsync(30_000);
 
     expect(logger.warn).toHaveBeenCalledTimes(2);
     redisMemoryMonitor.stop();

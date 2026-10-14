@@ -685,10 +685,14 @@ describe('AdminService', () => {
 
   describe('getOpsQueue', () => {
     it('returns aggregated action counts', async () => {
-      jest.spyOn(prisma.report, 'count').mockResolvedValue(2);
-      jest.spyOn(prisma.storeDetails, 'count').mockResolvedValue(3);
-      jest.spyOn(prisma.sellerProfile, 'count').mockResolvedValue(1);
-      jest.spyOn(prisma.fraudSignal, 'count').mockResolvedValue(4);
+      jest.spyOn(prisma, '$queryRaw').mockResolvedValue([
+        {
+          openReports: 2n,
+          pendingStores: 3n,
+          pendingSellers: 1n,
+          unreviewedFraud: 4n,
+        },
+      ] as any);
 
       const queue = await adminService.getOpsQueue();
 

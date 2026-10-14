@@ -303,6 +303,16 @@ afterEach(async () => {
   // close it so one test's simulated Redis failures never bleed into the next.
   const { resetCacheGuard } = await import('../src/shared/utils/cacheGuard');
   resetCacheGuard();
+  // Clear in-process L1 caches so unit tests that populate them do not
+  // leak state into subsequent cases (or suites that share the module).
+  try {
+    const { clearUserCacheL1ForTests } = await import('../src/shared/utils/userCache');
+    clearUserCacheL1ForTests();
+  } catch { /* module may not be loaded */ }
+  try {
+    const { clearUnreadNotificationsCacheL1ForTests } = await import('../src/shared/utils/unreadNotificationsCache');
+    clearUnreadNotificationsCacheL1ForTests();
+  } catch { /* module may not be loaded */ }
   if (skipDb) return;
 
   // audit_logs is intentionally append-only at the DB level (see

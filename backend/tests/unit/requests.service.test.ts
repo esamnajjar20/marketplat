@@ -21,10 +21,16 @@ jest.mock('../../src/modules/conversations/conversations.service', () => ({
 }));
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
-    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
-    request: { findUniqueOrThrow: jest.fn() },
+    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        request: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn(), update: jest.fn() },
+        requestOffer: { update: jest.fn() },
+      })
+    ),
+    request: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
     requestOffer: { update: jest.fn() },
     serviceProviderServiceType: { findFirst: jest.fn() },
+    user: { findUnique: jest.fn().mockResolvedValue({ name: 'User' }) },
   },
 }));
 

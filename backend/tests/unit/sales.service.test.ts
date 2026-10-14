@@ -8,7 +8,26 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 jest.mock('../../src/modules/sales/sales.repository');
 jest.mock('../../src/modules/sales/invoices.service');
 jest.mock('../../src/modules/stores/store-members.service');
-jest.mock('../../src/config/prisma', () => ({ prisma: { saleRecord: { findFirst: jest.fn() }, product: { findUnique: jest.fn() }, ad: { findUnique: jest.fn() }, serviceListing: { findUnique: jest.fn() }, $transaction: jest.fn() } }));
+jest.mock('../../src/config/prisma', () => ({
+  prisma: {
+    saleRecord: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    product: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
+    ad: { findUnique: jest.fn() },
+    serviceListing: { findUnique: jest.fn() },
+    serviceRequest: { findUnique: jest.fn() },
+    user: {
+      findUnique: jest.fn().mockResolvedValue({ salesCostTrackingEnabled: false }),
+      update: jest.fn(),
+    },
+    storeDetails: { findFirst: jest.fn() },
+    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        saleRecord: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+      })
+    ),
+    $queryRaw: jest.fn().mockResolvedValue([]),
+  },
+}));
 
 const tx = {
   customer: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },

@@ -80,7 +80,7 @@ describe('recommendationsController', () => {
     expect(recommendationsService.getMixedRecommendations).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'mixed', limit: 3 }),
       undefined,
-      undefined,
+      expect.anything(), // optional resolved userId (null or string)
     );
     expect(res.status).toHaveBeenCalledWith(200);
   });

@@ -145,11 +145,13 @@ describe('pushService', () => {
       expect(mockSendNotification).toHaveBeenCalledTimes(2);
       expect(mockSendNotification).toHaveBeenCalledWith(
         { endpoint: 'https://push/1', keys: { p256dh: 'p1', auth: 'a1' } },
-        JSON.stringify({ title: payload.title, body: payload.body, url: payload.url, tag: payload.tag })
+        JSON.stringify({ title: payload.title, body: payload.body, url: payload.url, tag: payload.tag }),
+        expect.objectContaining({ TTL: expect.any(Number) })
       );
       expect(mockSendNotification).toHaveBeenCalledWith(
         { endpoint: 'https://push/2', keys: { p256dh: 'p2', auth: 'a2' } },
-        JSON.stringify({ title: payload.title, body: payload.body, url: payload.url, tag: payload.tag })
+        JSON.stringify({ title: payload.title, body: payload.body, url: payload.url, tag: payload.tag }),
+        expect.objectContaining({ TTL: expect.any(Number) })
       );
     });
 

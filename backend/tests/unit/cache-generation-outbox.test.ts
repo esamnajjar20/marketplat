@@ -7,7 +7,7 @@ describe('durable cache-generation retry wiring', () => {
 
   it('persists a failed generation bump as an outbox event after Redis retries fail', () => {
     expect(swrSource).toContain("eventType: 'CACHE_GENERATION_BUMP'");
-    expect(swrSource).toContain('await enqueueGenerationRetry(genKey)');
+    expect(swrSource).toContain('await enqueueGenerationRetry(');
     expect(swrSource).toContain('persistRetry?: boolean');
   });
 

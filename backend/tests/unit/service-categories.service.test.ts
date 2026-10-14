@@ -321,7 +321,7 @@ describe('serviceCategoriesService', () => {
       (serviceCategoriesRepository.countListings as jest.Mock).mockResolvedValue(3);
 
       await expect(serviceCategoriesService.deleteServiceCategory('cat-1')).rejects.toThrow(
-        'Cannot delete category with 3 service listings'
+        'Cannot delete category with 3 active listings'
       );
       expect(serviceCategoriesRepository.delete).not.toHaveBeenCalled();
     });

@@ -36,41 +36,24 @@ describe('recommendationsRepository', () => {
   // include/where through `ad:` — see recommendations.repository.ts's
   // own comment on favoritedCategoryIds.
   describe('favoritedCategoryIds', () => {
-    it('returns [] without a second query when the user has no AD favorites', async () => {
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([]);
+    it('returns [] when the raw query finds no favorited categories', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
 
       const result = await recommendationsRepository.favoritedCategoryIds('user-1');
 
-      expect(prisma.favorite.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', entityType: 'AD' },
-        select: { entityId: true },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-      });
+      expect(prisma.$queryRaw).toHaveBeenCalled();
       expect(result).toEqual([]);
-      expect(prisma.ad.findMany).not.toHaveBeenCalled();
     });
 
-    it('excludes deleted ads and null categories on the follow-up ad lookup', async () => {
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([
-        { entityId: 'ad-1' },
-        { entityId: 'ad-2' },
-      ]);
-      (prisma.ad.findMany as jest.Mock).mockResolvedValue([
+    it('maps categoryId rows from the raw join query', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
         { categoryId: 'cat-1' },
         { categoryId: 'cat-2' },
+        { categoryId: null },
       ]);
 
       const result = await recommendationsRepository.favoritedCategoryIds('user-1');
 
-      expect(prisma.ad.findMany).toHaveBeenCalledWith({
-        where: {
-          id: { in: ['ad-1', 'ad-2'] },
-          status: { not: 'DELETED' },
-          categoryId: { not: null },
-        },
-        select: { categoryId: true },
-      });
       expect(result).toEqual(['cat-1', 'cat-2']);
     });
   });

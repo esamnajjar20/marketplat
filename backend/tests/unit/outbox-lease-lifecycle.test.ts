@@ -22,6 +22,6 @@ describe('outbox lease lifecycle safeguards', () => {
     expect(source).toContain('Outbox lease lost before acknowledgement');
     expect(source).toContain('Outbox lease lost before notification acknowledgement');
     expect(source).toContain('Outbox lease lost before cache-generation acknowledgement');
-    expect(source).toContain('Math.min(1_000 * (2 ** exponent), MAX_BACKOFF_MS)');
+    expect(source).toContain('Math.min(1_000 * 2 ** exponent, MAX_BACKOFF_MS)');
   });
 });

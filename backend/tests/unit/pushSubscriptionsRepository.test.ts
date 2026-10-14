@@ -50,17 +50,17 @@ describe('pushSubscriptionsRepository', () => {
 
       expect(prisma.pushSubscription.upsert).toHaveBeenCalledWith({
         where: { endpoint: input.endpoint },
-        create: {
+        create: expect.objectContaining({
           userId: input.userId,
           endpoint: input.endpoint,
           p256dh: input.p256dh,
           auth: input.auth,
-        },
-        update: {
+        }),
+        update: expect.objectContaining({
           userId: input.userId,
           p256dh: input.p256dh,
           auth: input.auth,
-        },
+        }),
       });
     });
 

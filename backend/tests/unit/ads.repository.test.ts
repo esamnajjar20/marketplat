@@ -34,7 +34,13 @@ describe('adsRepository', () => {
       await adsRepository.create(userId, data, ['https://example.com/1.jpg'], 'seller-profile-1');
 
       expect(prisma.ad.create).toHaveBeenCalledWith({
-        data: { ...data, userId, images: ['https://example.com/1.jpg'], sellerProfileId: 'seller-profile-1' },
+        data: expect.objectContaining({
+          ...data,
+          userId,
+          images: ['https://example.com/1.jpg'],
+          sellerProfileId: 'seller-profile-1',
+          expiresAt: expect.any(Date),
+        }),
         include: expect.any(Object),
       });
     });
@@ -57,7 +63,7 @@ describe('adsRepository', () => {
       await adsRepository.findMany({});
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith({
-        where: { status: AdStatus.ACTIVE, sellerProfile: { suspended: false } },
+        where: expect.objectContaining({ status: AdStatus.ACTIVE, sellerProfile: { suspended: false } }),
         select: expect.any(Object),
         orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
         skip: 0,
@@ -74,13 +80,13 @@ describe('adsRepository', () => {
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
+          where: expect.objectContaining({
             status: AdStatus.ACTIVE,
             city: 'Gaza',
             categoryId: 'cat-1',
             condition: 'NEW',
             sellerProfile: { suspended: false },
-          },
+          }),
         })
       );
     });
@@ -93,11 +99,11 @@ describe('adsRepository', () => {
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
+          where: expect.objectContaining({
             status: AdStatus.ACTIVE,
             price: { gte: 10, lte: 100 },
             sellerProfile: { suspended: false },
-          },
+          }),
         })
       );
     });
@@ -110,7 +116,7 @@ describe('adsRepository', () => {
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: AdStatus.ACTIVE, price: { gte: 10 }, sellerProfile: { suspended: false } },
+          where: expect.objectContaining({ status: AdStatus.ACTIVE, price: { gte: 10 }, sellerProfile: { suspended: false } }),
         })
       );
     });
@@ -145,7 +151,7 @@ describe('adsRepository', () => {
 
       expect(prisma.ad.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: AdStatus.ACTIVE, isFeatured: true, sellerProfile: { suspended: false } },
+          where: expect.objectContaining({ status: AdStatus.ACTIVE, isFeatured: true, sellerProfile: { suspended: false } }),
         })
       );
     });
@@ -231,7 +237,7 @@ describe('adsRepository', () => {
 
     // regression test: guards against a future edit
     // reintroducing a bare to_tsvector(coalesce(...)) column expression
-    // or an un-normalized plainto_tsquery(...) search term — either
+    // or an un-normalized to_tsquery(...) search term — either
     // would still return *correct* results for already-normalized
     // input, but would silently stop matching ads_search_idx's rebuilt
     // GIN expression (degrading to a sequential scan) with no
@@ -262,7 +268,7 @@ describe('adsRepository', () => {
       const columnWraps = (capturedSql.match(/to_tsvector\('simple', arabic_normalize\(coalesce\(/g) ?? []).length;
       expect(columnWraps).toBe(2); // title + description
 
-      expect(capturedSql).toContain("plainto_tsquery('simple', arabic_normalize(");
+      expect(capturedSql).toContain("to_tsquery('simple', arabic_normalize(");
     });
 
     // AUDIT-FIX (ads-feature review): the search branch previously had

@@ -81,7 +81,7 @@ describe('conversationsController', () => {
 
       await conversationsController.startConversation(req, res, next);
 
-      expect(conversationsService.startFromUser).toHaveBeenCalledWith('buyer-1', 'seller-1');
+      expect(conversationsService.startFromUser).toHaveBeenCalledWith('buyer-1', 'seller-1', undefined);
       expect(conversationsService.startFromAd).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(
@@ -231,7 +231,7 @@ describe('conversationsController', () => {
       await conversationsController.sendMessage(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(conversationsService.sendMessage).toHaveBeenCalledWith('buyer-1', 'conv-1', 'Hi');
+      expect(conversationsService.sendMessage).toHaveBeenCalledWith('buyer-1', 'conv-1', { body: 'Hi', imageUrl: undefined }, null);
     });
 
     it('calls next(error) when the message body is empty', async () => {

@@ -87,7 +87,7 @@ describe('productCategoriesRepository', () => {
       (prisma.productCategory.findUnique as jest.Mock).mockResolvedValue(null);
       await productCategoriesRepository.findBySlug('electronics');
       expect(prisma.productCategory.findUnique).toHaveBeenCalledWith({
-        where: { slug: 'electronics' },
+        where: { slug: 'electronics', isActive: true },
       });
     });
   });

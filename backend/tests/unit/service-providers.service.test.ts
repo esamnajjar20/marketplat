@@ -16,6 +16,13 @@ jest.mock('../../src/shared/utils/serviceProviderLock');
 jest.mock('../../src/config/prisma', () => ({
   prisma: { $transaction: jest.fn() },
 }));
+jest.mock('../../src/shared/utils/publicListCache', () => ({
+  cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
+    fetcher()
+  ),
+  bumpPublicListCache: jest.fn().mockResolvedValue(undefined),
+  hidePublicEntities: jest.fn().mockResolvedValue(undefined),
+}));
 
 const userId = 'user-1';
 const mockSellerProfile = { id: 'seller-profile-1', userId, suspended: false } as any;

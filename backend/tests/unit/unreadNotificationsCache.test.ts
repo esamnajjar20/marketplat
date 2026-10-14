@@ -1,4 +1,4 @@
-import { unreadNotificationsCache } from '../../src/shared/utils/unreadNotificationsCache';
+import { unreadNotificationsCache, clearUnreadNotificationsCacheL1ForTests } from '../../src/shared/utils/unreadNotificationsCache';
 import { redis } from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => ({
@@ -12,7 +12,10 @@ jest.mock('../../src/config/redis', () => ({
 }));
 
 describe('unreadNotificationsCache', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearUnreadNotificationsCacheL1ForTests();
+  });
 
   it('get returns null on cache miss', async () => {
     (redis.get as jest.Mock).mockResolvedValue(null);

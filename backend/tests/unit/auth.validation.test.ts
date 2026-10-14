@@ -7,7 +7,7 @@ import {
 
 describe('auth.validation', () => {
   describe('registerSchema', () => {
-    const valid = { name: 'Test User', email: 'test@example.com', password: 'Password123' };
+    const valid = { name: 'Test User', email: 'test@example.com', password: 'Str0ng!Pass#9xQ' };
 
     it('accepts a valid body with only required fields', () => {
       expect(() => registerSchema.parse({ body: valid })).not.toThrow();
@@ -93,7 +93,7 @@ describe('auth.validation', () => {
   });
 
   describe('resetPasswordSchema', () => {
-    const valid = { token: 'reset-token-abc', newPassword: 'NewPassword123' };
+    const valid = { token: 'reset-token-abc', newPassword: 'NewStr0ng!Pass#9xQ' };
 
     it('accepts a valid token and newPassword', () => {
       expect(() => resetPasswordSchema.parse({ body: valid })).not.toThrow();

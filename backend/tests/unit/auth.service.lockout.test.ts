@@ -59,7 +59,7 @@ describe('AuthService.login — account-lockout branches', () => {
 
     await expect(
       authService.login({ email: 'nobody@example.com', password: 'whatever' }, '1.2.3.4', 'ua')
-    ).rejects.toThrow('Invalid email or password');
+    ).rejects.toThrow('Account temporarily locked. Try again in 30 minutes');
 
     expect(tokenStore.lockAccount).toHaveBeenCalledWith('nobody@example.com', 30 * 60);
   });

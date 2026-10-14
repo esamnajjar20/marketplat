@@ -1,4 +1,4 @@
-import { searchService } from '../../src/modules/search/search.service';
+import { searchService, clearSearchSuggestL1ForTests } from '../../src/modules/search/search.service';
 import { searchRepository } from '../../src/modules/search/search.repository';
 import { redis } from '../../src/config/redis';
 import type { RawSearchRow } from '../../src/modules/search/search.types';

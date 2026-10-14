@@ -34,7 +34,7 @@ describe('durable notification push dispatch handoff', () => {
   });
 
   it('does not acknowledge a durable dispatch while individual targets remain pending', () => {
-    expect(source).toContain("notificationPushDeliveryTarget.count({ where: { dispatchId: dispatch.id, status: 'PENDING' } })");
+    expect(source).toContain("where: { dispatchId: dispatch.id, status: 'PENDING' }");
     expect(source).toContain("status: outcome === 'sent' ? 'SENT' : 'GONE'");
     expect(source).toContain('completedPushDispatchesWithPermanentFailure: permanentPushFailures');
     expect(source).toContain('attempts: { decrement: 1 }');

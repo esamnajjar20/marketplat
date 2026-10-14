@@ -19,7 +19,9 @@ jest.mock('../../src/shared/utils/pushService', () => ({
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     user: { findMany: jest.fn(), findUnique: jest.fn() },
-    notification: { groupBy: jest.fn(), count: jest.fn() },
+    notification: { groupBy: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
+    conversationUserSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   },
 }));
 jest.mock('../../src/shared/utils/notificationStream', () => ({

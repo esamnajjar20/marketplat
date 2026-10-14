@@ -38,7 +38,10 @@ describe('serviceCategoriesRepository', () => {
 
       expect(prisma.serviceCategory.findMany).toHaveBeenCalledWith({
         where: { parentId: null, isActive: true },
-        include: { children: { where: { isActive: true } } },
+        include: {
+          children: { where: { isActive: true } },
+          serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
+        },
         orderBy: { name: 'asc' },
       });
     });
@@ -50,7 +53,10 @@ describe('serviceCategoriesRepository', () => {
       await serviceCategoriesRepository.findById('cat-1');
       expect(prisma.serviceCategory.findUnique).toHaveBeenCalledWith({
         where: { id: 'cat-1' },
-        include: { children: true },
+        include: {
+          children: true,
+          serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
+        },
       });
     });
   });
@@ -59,7 +65,7 @@ describe('serviceCategoriesRepository', () => {
     it('queries by slug', async () => {
       (prisma.serviceCategory.findUnique as jest.Mock).mockResolvedValue(null);
       await serviceCategoriesRepository.findBySlug('plumbing');
-      expect(prisma.serviceCategory.findUnique).toHaveBeenCalledWith({ where: { slug: 'plumbing' } });
+      expect(prisma.serviceCategory.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ slug: 'plumbing' }) }));
     });
   });
 

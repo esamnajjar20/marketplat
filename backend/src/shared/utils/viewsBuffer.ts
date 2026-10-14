@@ -75,10 +75,13 @@ export const viewsBuffer = {
     // flush promise so a slow database cannot trigger overlapping drains.
     if (flushInFlight) return flushInFlight;
 
-    // Defer the task body by one microtask so flushInFlight is assigned
-    // before scan/eval can be called. This closes the small re-entrancy
-    // window where concurrent flush callers could both begin a scan.
-    const task = Promise.resolve().then(async (): Promise<void> => {
+    // Assign flushInFlight SYNCHRONOUSLY so concurrent flush() callers in
+    // the same tick all share one task. Body still runs as a microtask so
+    // the assignment is visible before scan/eval executes.
+    const task = (async (): Promise<void> => {
+      // Yield once so any other flush() that entered in this tick sees
+      // flushInFlight already set and joins this same promise.
+      await Promise.resolve();
       try {
         let cursor = '0';
         let totalAds = 0;
@@ -150,7 +153,7 @@ export const viewsBuffer = {
       } catch (err) {
         logger.error('Views buffer flush failed', err);
       }
-    });
+    })();
 
     flushInFlight = task;
     try {

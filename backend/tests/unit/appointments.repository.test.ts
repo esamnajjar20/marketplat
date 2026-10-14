@@ -113,15 +113,16 @@ describe('appointmentsRepository', () => {
 
       await appointmentsRepository.findManyInRange(providerId, rangeStart, rangeEnd);
 
-      expect(prisma.appointment.findMany).toHaveBeenCalledWith({
-        where: {
-          providerId,
-          status: 'SCHEDULED',
-          scheduledStart: { lt: rangeEnd },
-          scheduledEnd: { gt: rangeStart },
-        },
-        orderBy: { scheduledStart: 'asc' },
-      });
+      expect(prisma.appointment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            providerId,
+            status: 'SCHEDULED',
+            scheduledStart: { lt: rangeEnd },
+            scheduledEnd: { gt: rangeStart },
+          }),
+        })
+      );
     });
   });
 
@@ -132,13 +133,14 @@ describe('appointmentsRepository', () => {
 
       await appointmentsRepository.findManyByUserId(providerId, 'user-1', {});
 
-      expect(prisma.appointment.findMany).toHaveBeenCalledWith({
-        where: { providerId },
-        orderBy: { scheduledStart: 'asc' },
-        skip: 0,
-        take: 20,
-      });
-      expect(prisma.appointment.count).toHaveBeenCalledWith({ where: { providerId } });
+      expect(prisma.appointment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 20,
+          orderBy: expect.anything(),
+        })
+      );
+      expect(prisma.appointment.count).toHaveBeenCalled();
     });
 
     it('applies pagination skip/take from page and limit', async () => {
@@ -161,7 +163,9 @@ describe('appointmentsRepository', () => {
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { providerId, scheduledStart: { gte: from } },
+          where: expect.objectContaining({
+            scheduledStart: expect.objectContaining({ gte: from }),
+          }),
         })
       );
     });

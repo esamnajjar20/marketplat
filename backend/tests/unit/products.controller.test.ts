@@ -39,7 +39,8 @@ describe('productsController', () => {
       expect(productsService.createProduct).toHaveBeenCalledWith(
         'user-1',
         expect.objectContaining({ name: 'Phone' }),
-        files
+        files,
+        null
       );
     });
 
@@ -51,7 +52,7 @@ describe('productsController', () => {
 
       await productsController.createProduct(req, res, next);
 
-      expect(productsService.createProduct).toHaveBeenCalledWith('user-1', expect.anything(), []);
+      expect(productsService.createProduct).toHaveBeenCalledWith('user-1', expect.anything(), [], null);
     });
 
     it('calls next(error) when unauthenticated', async () => {

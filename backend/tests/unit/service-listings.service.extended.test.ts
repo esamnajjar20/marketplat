@@ -15,6 +15,13 @@ jest.mock('../../src/modules/service-categories/service-categories.repository');
 jest.mock('../../src/modules/service-types/service-types.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/config/cloudinary');
+jest.mock('../../src/shared/utils/publicListCache', () => ({
+  cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
+    fetcher()
+  ),
+  bumpPublicListCache: jest.fn().mockResolvedValue(undefined),
+  hidePublicEntities: jest.fn().mockResolvedValue(undefined),
+}));
 
 const mockSellerProfile = { id: 'seller-profile-1', userId: 'user-1', suspended: false };
 const mockProvider = {

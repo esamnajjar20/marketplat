@@ -2,16 +2,18 @@ import { authenticate } from '../../src/middlewares/auth.middleware';
 import * as jwtUtils from '../../src/shared/utils/jwt';
 import { redis } from '../../src/config/redis';
 import { userCache } from '../../src/shared/utils/userCache';
-import { tokenStore } from '../../src/shared/utils/tokenStore';
+import * as tokenStoreModule from '../../src/shared/utils/tokenStore';
 import { env } from '../../src/config/env';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { Request, Response, NextFunction } from 'express';
+
+const { tokenStore } = tokenStoreModule;
 
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
-  describe('authenticate middleware', () => {
+describe('authenticate middleware', () => {
   const res = {} as Response;
   const next = jest.fn() as NextFunction;
 
@@ -22,7 +24,11 @@ jest.mock('../../src/shared/utils/logger', () => ({
       sessionId: 's1',
     } as jwtUtils.JwtPayload);
     jest.spyOn(userCache, 'getOrFetch').mockResolvedValue({ id: 'u1', role: 'USER', isActive: true });
+    jest.spyOn(userCache, 'peek').mockReturnValue(null);
+    jest.spyOn(userCache, 'set').mockResolvedValue(undefined);
     jest.spyOn(tokenStore, 'updateSessionLastSeen').mockResolvedValue(undefined);
+    jest.spyOn(tokenStoreModule, 'peekBlacklistL1').mockReturnValue(undefined);
+    jest.spyOn(tokenStoreModule, 'rememberBlacklistL1').mockImplementation(() => undefined);
   });
 
   afterEach(() => jest.restoreAllMocks());

@@ -40,7 +40,15 @@ jest.mock('../../src/shared/utils/storeLock');
 jest.mock('../../src/modules/promotions/promotions.repository');
 jest.mock('../../src/modules/products/products.repository');
 jest.mock('../../src/modules/store-types/store-types.repository');
+jest.mock('../../src/modules/store-types/store-type-fields.service', () => ({
+  storeTypeFieldsService: {
+    validateAttributes: jest.fn().mockResolvedValue({}),
+  },
+}));
 jest.mock('../../src/shared/utils/publicListCache', () => ({
+  cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
+    fetcher()
+  ),
   bumpPublicListCache: jest.fn().mockResolvedValue(undefined),
   hidePublicEntities: jest.fn().mockResolvedValue(undefined),
 }));
@@ -49,6 +57,7 @@ jest.mock('../../src/config/prisma', () => ({
     $transaction: jest.fn(),
     userBlock: { count: jest.fn().mockResolvedValue(0) },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
+    storeTypeField: { findMany: jest.fn().mockResolvedValue([]) },
   },
 }));
 

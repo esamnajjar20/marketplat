@@ -78,17 +78,17 @@ describe('analyticsRepository', () => {
   });
 
   it('searchToContactSessions counts distinct sessions', async () => {
-    (prisma.analyticsEvent.findMany as jest.Mock)
-      .mockResolvedValueOnce([{ sessionId: 'a' }, { sessionId: 'b' }])
-      .mockResolvedValueOnce([{ sessionId: 'a' }]);
+    (runWithQueryTimeout as jest.Mock).mockResolvedValue([
+      { searchSessions: 2n, contactSessions: 1n },
+    ]);
     const result = await analyticsRepository.searchToContactSessions(from, to);
     expect(result).toEqual({ searchSessions: 2, contactSessions: 1 });
   });
 
   it('signupFunnelSessions counts started vs completed', async () => {
-    (prisma.analyticsEvent.findMany as jest.Mock)
-      .mockResolvedValueOnce([{ sessionId: 'x' }, { sessionId: 'y' }])
-      .mockResolvedValueOnce([{ sessionId: 'x' }]);
+    (runWithQueryTimeout as jest.Mock).mockResolvedValue([
+      { startedSessions: 2n, completedSessions: 1n },
+    ]);
     const result = await analyticsRepository.signupFunnelSessions(from, to);
     expect(result).toEqual({ startedSessions: 2, completedSessions: 1 });
   });

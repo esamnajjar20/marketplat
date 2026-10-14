@@ -113,7 +113,7 @@ describe('searchRepository', () => {
       expect(columnWraps).toBeGreaterThanOrEqual(8);
 
       // The shared search-term wrap from buildTsQuery.
-      expect(capturedSql).toContain("plainto_tsquery('simple', arabic_normalize(");
+      expect(capturedSql).toContain("to_tsquery('simple', arabic_normalize(");
     });
 
     // AUDIT-FIX (ads-feature review): all four branches LEFT JOIN

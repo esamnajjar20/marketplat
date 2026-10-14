@@ -1,10 +1,11 @@
-import { userCache } from '../../src/shared/utils/userCache';
+import { userCache, clearUserCacheL1ForTests } from '../../src/shared/utils/userCache';
 import { redis } from '../../src/config/redis';
 import { prisma } from '../../src/config/prisma';
 
 describe('userCache', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    clearUserCacheL1ForTests();
     jest.spyOn(redis, 'get').mockResolvedValue(null);
     jest.spyOn(redis, 'setex').mockResolvedValue('OK');
     jest.spyOn(redis, 'del').mockResolvedValue(1);

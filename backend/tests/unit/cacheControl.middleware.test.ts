@@ -6,13 +6,16 @@ describe('cacheControl middleware', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('sets short cache headers', () => {
+  it('sets short cache headers (publicLive policy: 30s + swr 30s)', () => {
     const req = {} as Request;
     const res = { setHeader: jest.fn() } as unknown as Response;
 
     CACHE.SHORT(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=90'));
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Cache-Control',
+      'public, max-age=30, stale-while-revalidate=30'
+    );
     expect(next).toHaveBeenCalled();
   });
 
@@ -25,22 +28,28 @@ describe('cacheControl middleware', () => {
     expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
   });
 
-  it('sets long cache headers', () => {
+  it('sets long cache headers (reference policy: 300s + swr 600s)', () => {
     const req = {} as Request;
     const res = { setHeader: jest.fn() } as unknown as Response;
 
     CACHE.LONG(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=3600'));
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Cache-Control',
+      'public, max-age=300, stale-while-revalidate=600'
+    );
   });
 
-  it('sets medium cache headers', () => {
+  it('sets medium cache headers (publicDetail policy: 30s + swr 30s)', () => {
     const req = {} as Request;
     const res = { setHeader: jest.fn() } as unknown as Response;
 
     CACHE.MEDIUM(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('max-age=120'));
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Cache-Control',
+      'public, max-age=30, stale-while-revalidate=30'
+    );
   });
 
   it('sets live (short-lived) cache headers with Vary: Authorization', () => {
@@ -51,7 +60,7 @@ describe('cacheControl middleware', () => {
 
     expect(res.setHeader).toHaveBeenCalledWith(
       'Cache-Control',
-      'public, max-age=30, stale-while-revalidate=30',
+      'public, max-age=30, stale-while-revalidate=30'
     );
     expect(res.setHeader).toHaveBeenCalledWith('Vary', 'Authorization');
   });

@@ -140,3 +140,8 @@ export const searchService = {
     return suggestions;
   },
 };
+
+/** Test-only: clear in-process suggestions L1 so tests don't leak across cases. */
+export function clearSearchSuggestL1ForTests(): void {
+  _suggestL1.clear();
+}

@@ -5,12 +5,22 @@ describe('presence', () => {
   afterEach(() => jest.restoreAllMocks());
 
   describe('touch', () => {
-    it('sets a TTL-bound key for the user', async () => {
+    it('sets a TTL-bound presence key and a longer last-seen key with ISO timestamps', async () => {
       const setexSpy = jest.spyOn(redis, 'setex').mockResolvedValue('OK');
 
       await presence.touch('user-1');
 
-      expect(setexSpy).toHaveBeenCalledWith('presence:user-1', 90, '1');
+      expect(setexSpy).toHaveBeenCalledTimes(2);
+      expect(setexSpy).toHaveBeenCalledWith(
+        'presence:user-1',
+        90,
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
+      );
+      expect(setexSpy).toHaveBeenCalledWith(
+        'presence:last-seen:user-1',
+        30 * 24 * 60 * 60,
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
+      );
     });
 
     it('swallows redis errors rather than throwing', async () => {
@@ -31,7 +41,8 @@ describe('presence', () => {
     });
 
     it('returns only the ids whose presence key exists', async () => {
-      jest.spyOn(redis, 'mget')
+      jest
+        .spyOn(redis, 'mget')
         .mockResolvedValueOnce(['1', null, '1'])
         .mockResolvedValueOnce([null, null, null]);
 
@@ -52,12 +63,15 @@ describe('presence', () => {
       expect(mgetSpy).toHaveBeenCalledWith('presence:user-1', 'presence:user-2');
     });
 
-    it('returns an empty set (everyone offline) when redis fails', async () => {
+    it('returns everyone offline (with null lastSeen) when redis fails', async () => {
       jest.spyOn(redis, 'mget').mockRejectedValue(new Error('redis down'));
 
       const result = await presence.getPresence(['user-1', 'user-2']);
 
-      expect(result).toEqual({});
+      expect(result).toEqual({
+        'user-1': { online: false, lastSeenAt: null },
+        'user-2': { online: false, lastSeenAt: null },
+      });
     });
   });
 });

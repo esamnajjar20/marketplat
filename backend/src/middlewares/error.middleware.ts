@@ -48,57 +48,10 @@ export const errorMiddleware = (
   // adapter-based responses safe without changing the public error contract.
   res.locals = res.locals ?? {};
 
-  // express.json() throws SyntaxError with
-  // err.status=400 / err.type='entity.parse.failed' on malformed JSON.
-  // Before this, the middleware fell through to the generic 500 path,
-  // which polluted Sentry with "Unhandled error" alerts for what is
-  // actually a 400 client error. Respect err.status / err.statusCode
-  // when present (this also covers any other middleware that assigns
-  // a status to its thrown error).
-  const rawStatus =
-    typeof (err as unknown as { status?: unknown }).status === 'number'
-      ? (err as unknown as { status: number }).status
-      : typeof (err as unknown as { statusCode?: unknown }).statusCode === 'number'
-        ? (err as unknown as { statusCode: number }).statusCode
-        : undefined;
-  if (rawStatus && rawStatus >= 400 && rawStatus < 600) {
-    const code =
-      CODE_BY_STATUS[rawStatus] ??
-      (rawStatus < 500 ? ErrorCode.BAD_REQUEST : ErrorCode.INTERNAL_ERROR);
-    const safeMessage =
-      rawStatus >= 500
-        ? rawStatus === 503
-          ? 'Service temporarily unavailable, please try again shortly'
-          : 'Internal server error'
-        : rawStatus === 400
-          ? 'Request could not be processed.'
-          : rawStatus === 401
-            ? 'Authentication required.'
-            : rawStatus === 403
-              ? 'Forbidden.'
-              : rawStatus === 404
-                ? 'Resource not found.'
-                : rawStatus === 409
-                  ? 'Request conflicts with the current resource state.'
-                  : rawStatus === 422
-                    ? 'Request could not be processed.'
-                    : rawStatus === 429
-                      ? 'Too many requests.'
-                      : rawStatus === 413
-                        ? 'Request payload is too large.'
-                        : rawStatus === 415
-                          ? 'Unsupported media type.'
-                          : rawStatus === 408
-                            ? 'Request timed out.'
-                            : 'Request could not be processed.';
-    // Express initializes `locals`, but lightweight middleware unit-test
-    // doubles may omit it. Preserve the response contract without requiring
-    // every test double to reproduce the entire Express response object.
-    res.locals.errorCode = code;
-    res.status(rawStatus).json(buildApiErrorBody(req, rawStatus, code, safeMessage));
-    return;
-  }
-
+  // AppError and ZodError must be handled BEFORE the generic
+  // status/statusCode branch below: AppError always carries statusCode,
+  // so treating it as a "raw middleware status error" would wipe its
+  // intentional message/code and replace them with sanitized generics.
   if (err instanceof ZodError) {
     const errors: Record<string, string[]> = {};
     // errorMeta carries the same per-field issues as
@@ -165,6 +118,55 @@ export const errorMiddleware = (
     res
       .status(err.statusCode)
       .json(buildApiErrorBody(req, err.statusCode, code, clientMessage, err.meta));
+    return;
+  }
+
+  // express.json() throws SyntaxError with
+  // err.status=400 / err.type='entity.parse.failed' on malformed JSON.
+  // Before this, the middleware fell through to the generic 500 path,
+  // which polluted Sentry with "Unhandled error" alerts for what is
+  // actually a 400 client error. Respect err.status / err.statusCode
+  // when present (this also covers any other middleware that assigns
+  // a status to its thrown error). Runs AFTER AppError/ZodError so
+  // operational errors keep their intentional message and code.
+  const rawStatus =
+    typeof (err as unknown as { status?: unknown }).status === 'number'
+      ? (err as unknown as { status: number }).status
+      : typeof (err as unknown as { statusCode?: unknown }).statusCode === 'number'
+        ? (err as unknown as { statusCode: number }).statusCode
+        : undefined;
+  if (rawStatus && rawStatus >= 400 && rawStatus < 600) {
+    const code =
+      CODE_BY_STATUS[rawStatus] ??
+      (rawStatus < 500 ? ErrorCode.BAD_REQUEST : ErrorCode.INTERNAL_ERROR);
+    const safeMessage =
+      rawStatus >= 500
+        ? rawStatus === 503
+          ? 'Service temporarily unavailable, please try again shortly'
+          : 'Internal server error'
+        : rawStatus === 400
+          ? 'Request could not be processed.'
+          : rawStatus === 401
+            ? 'Authentication required.'
+            : rawStatus === 403
+              ? 'Forbidden.'
+              : rawStatus === 404
+                ? 'Resource not found.'
+                : rawStatus === 409
+                  ? 'Request conflicts with the current resource state.'
+                  : rawStatus === 422
+                    ? 'Request could not be processed.'
+                    : rawStatus === 429
+                      ? 'Too many requests.'
+                      : rawStatus === 413
+                        ? 'Request payload is too large.'
+                        : rawStatus === 415
+                          ? 'Unsupported media type.'
+                          : rawStatus === 408
+                            ? 'Request timed out.'
+                            : 'Request could not be processed.';
+    res.locals.errorCode = code;
+    res.status(rawStatus).json(buildApiErrorBody(req, rawStatus, code, safeMessage));
     return;
   }
 

@@ -68,9 +68,22 @@ describe('serviceRequestsRepository', () => {
       expect(prisma.serviceRequest.findUnique).toHaveBeenCalledWith({
         where: { id: requestId },
         include: {
-          listing: { include: { provider: { include: { sellerProfile: true } } } },
+          listing: { include: { provider: { include: { sellerProfile: true } }, serviceType: true } },
           customer: { select: { id: true, name: true, avatarUrl: true } },
           review: { select: { id: true } },
+          appointment: {
+            select: {
+              id: true,
+              providerId: true,
+              requestId: true,
+              scheduledStart: true,
+              scheduledEnd: true,
+              status: true,
+              notes: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
       });
     });

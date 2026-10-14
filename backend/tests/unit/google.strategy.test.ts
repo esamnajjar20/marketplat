@@ -73,7 +73,7 @@ describe('google.strategy', () => {
 
     it('throws if the Google profile has no email at all', () => {
       expect(() => extractGoogleProfile(buildProfile({ emails: [] }))).toThrow(
-        'Google account has no accessible email address'
+        'Google did not provide a verified email address for this account'
       );
     });
 

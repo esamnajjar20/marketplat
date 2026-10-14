@@ -51,13 +51,15 @@ describe('authRepository — Google OAuth methods', () => {
       await authRepository.createWithGoogle(googleData);
 
       expect(prisma.user.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           name: googleData.name,
           email: googleData.email,
           googleId: googleData.googleId,
           avatarUrl: googleData.avatarUrl,
           provider: 'google',
-        },
+          emailVerified: true,
+          needsProfileCompletion: true,
+        }),
       });
       // Confirms passwordHash is never part of the create payload for
       // an OAuth-only signup — Prisma will apply the column's own

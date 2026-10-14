@@ -14,6 +14,14 @@ jest.mock('../../src/config/env', () => ({
     frontendUrl: 'http://localhost:3000',
     googleOAuth: { isConfigured: true, clientId: 'x', clientSecret: 'y', callbackUrl: 'z' },
     ads: { maxPerUser: 50, imageLockTtlSeconds: 30 },
+    jwt: {
+      secret: 'test-secret',
+      refreshSecret: 'test-refresh-secret',
+      expiresIn: '15m',
+      refreshExpiresIn: '7d',
+      refreshExpiresInSeconds: 7 * 24 * 60 * 60,
+    },
+    nodeEnv: 'test',
   },
 }));
 

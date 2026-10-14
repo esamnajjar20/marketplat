@@ -42,6 +42,8 @@ jest.mock('../../src/config/env', () => ({
       secret: 'test-only-jwt-secret-not-for-real-use-0000000000000000',
       refreshSecret: 'test-only-jwt-refresh-secret-not-for-real-use-000000',
       expiresIn: '15m',
+      refreshExpiresIn: '7d',
+      refreshExpiresInSeconds: 7 * 24 * 60 * 60,
     },
     rateLimit: { disabled: true },
   },

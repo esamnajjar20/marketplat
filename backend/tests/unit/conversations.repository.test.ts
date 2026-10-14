@@ -19,6 +19,35 @@ jest.mock('../../src/config/prisma', () => ({
       count: jest.fn(),
       updateMany: jest.fn(),
     },
+    conversationUserSetting: {
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      findMany: jest.fn().mockResolvedValue([]),
+      upsert: jest.fn(),
+    },
+    $transaction: jest.fn(async (arg: unknown) => {
+      if (typeof arg === 'function') {
+        return (arg as (tx: unknown) => unknown)({
+          conversation: {
+            findUnique: jest.fn(),
+            findFirst: jest.fn(),
+            create: jest.fn().mockResolvedValue({ id: 'conv-1' }),
+            findMany: jest.fn(),
+            count: jest.fn(),
+            update: jest.fn(),
+          },
+          message: {
+            create: jest.fn(),
+            findMany: jest.fn(),
+            count: jest.fn(),
+            updateMany: jest.fn(),
+          },
+          conversationUserSetting: {
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        });
+      }
+      return arg;
+    }),
   },
 }));
 

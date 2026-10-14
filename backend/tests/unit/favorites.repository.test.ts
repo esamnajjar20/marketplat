@@ -58,14 +58,22 @@ describe('favoritesRepository', () => {
       ).toBe(true);
     });
 
-    it('applies pagination skip/take from page and limit', async () => {
+    it('paginates in memory over active rows (no skip/take on favorite.findMany)', async () => {
+      // Implementation fetches all favorite rows then slices active ones
+      // in memory so soft-deleted entities never produce short pages.
       (prisma.favorite.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
 
       await favoritesRepository.findManyByUserId(userId, { page: 3, limit: 10 });
 
       expect(prisma.favorite.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 20, take: 10 })
+        expect.not.objectContaining({ skip: expect.anything(), take: expect.anything() })
+      );
+      expect(prisma.favorite.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId, entityType: 'AD' }),
+          orderBy: { createdAt: 'desc' },
+        })
       );
     });
 

@@ -37,7 +37,7 @@ describe('adsController', () => {
 
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: mockAd }));
-      expect(adsService.createAd).toHaveBeenCalledWith('user-1', expect.any(Object), [mockFile]);
+      expect(adsService.createAd).toHaveBeenCalledWith('user-1', expect.any(Object), [mockFile], null);
     });
 
     // / TRACK-IMG-HOSTING: re-enabled under

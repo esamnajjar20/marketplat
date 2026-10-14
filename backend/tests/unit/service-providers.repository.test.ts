@@ -47,10 +47,15 @@ describe('serviceProvidersRepository', () => {
     it('queries by id and includes sellerProfile', async () => {
       (prisma.serviceProviderDetails.findUnique as jest.Mock).mockResolvedValue(null);
       await serviceProvidersRepository.findPublicById(providerId);
-      expect(prisma.serviceProviderDetails.findUnique).toHaveBeenCalledWith({
-        where: { id: providerId },
-        include: { sellerProfile: true },
-      });
+      expect(prisma.serviceProviderDetails.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: providerId },
+          select: expect.objectContaining({
+            id: true,
+            sellerProfile: expect.any(Object),
+          }),
+        })
+      );
     });
 
     it('returns null when no provider matches', async () => {
