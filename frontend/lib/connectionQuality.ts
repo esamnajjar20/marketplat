@@ -17,20 +17,52 @@ const samples: number[] = [];
 let consecutiveFailures = 0;
 const listeners = new Set<() => void>();
 
+// CONNECTIVITY-SUSPECT-01: navigator.onLine only says a network interface is
+// up, not that the internet is reachable ("lie-fi": captive portal, dead
+// uplink behind a live router). We never probe the network for this — that
+// would spend data/battery on very slow links — we only read the failure
+// streak real requests already produce.
+const SUSPECT_FAILURE_THRESHOLD = 3;
+/** A streak older than this no longer counts: with no traffic we know nothing. */
+export const SUSPECT_WINDOW_MS = 2 * 60 * 1000;
+let lastNetworkFailureAt = 0;
+
 /** Call when an API request fails or hits a soft timeout (not SW cache hits). */
 export function recordRequestStartedSample(): void {
   recordRequestStarted();
 }
 
 export function recordRequestFailure(durationMs?: number, failureType: RequestFailureType = 'network'): void {
-  if (failureType === 'network') consecutiveFailures += 1;
+  if (failureType === 'network') {
+    consecutiveFailures += 1;
+    lastNetworkFailureAt = Date.now();
+  }
   recordRequestCompleted(durationMs ?? 0, false, failureType);
   notify();
 }
 
 /** Call when a network request succeeds (real RTT recorded). */
 export function recordRequestSuccess(): void {
+  const wasSuspect = isConnectivitySuspect();
   consecutiveFailures = 0;
+  // Let subscribers (the status banner) clear the warning right away.
+  if (wasSuspect) notify();
+}
+
+/**
+ * True when the browser reports "online" but several consecutive real
+ * requests failed at the network level very recently — i.e. probably
+ * connected to a network with no working internet. Never true while
+ * navigator.onLine is false (that case is plain offline). This is a hint for
+ * the UI only; it deliberately does not change the online snapshot or the
+ * network tier, so queueing/requests keep trying and can self-heal.
+ */
+export function isConnectivitySuspect(now: number = Date.now()): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  return (
+    consecutiveFailures >= SUSPECT_FAILURE_THRESHOLD &&
+    now - lastNetworkFailureAt < SUSPECT_WINDOW_MS
+  );
 }
 
 export function getConsecutiveFailures(): number {

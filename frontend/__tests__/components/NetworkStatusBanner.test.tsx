@@ -6,15 +6,20 @@ import { render, screen, act } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useConnectivitySuspect } from '@/hooks/useConnectivitySuspect';
 
 vi.mock('@/hooks/useOnlineStatus', () => ({
   useOnlineStatus: vi.fn(() => true),
+}));
+vi.mock('@/hooks/useConnectivitySuspect', () => ({
+  useConnectivitySuspect: vi.fn(() => false),
 }));
 
 describe('NetworkStatusBanner', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.mocked(useOnlineStatus).mockReturnValue(true);
+    vi.mocked(useConnectivitySuspect).mockReturnValue(false);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -75,5 +80,18 @@ describe('NetworkStatusBanner', () => {
     const user = setupUser();
     await user.click(screen.getByLabelText('إغلاق الرسالة'));
     expect(screen.queryByText('عاد الاتصال')).not.toBeInTheDocument();
+  });
+
+  it('shows the warning chip when online but connectivity is suspect', () => {
+    vi.mocked(useConnectivitySuspect).mockReturnValue(true);
+    render(<NetworkStatusBanner />);
+    expect(screen.getByText('الاتصال لا يستجيب')).toBeInTheDocument();
+    expect(screen.queryByText('لا يوجد اتصال بالإنترنت')).not.toBeInTheDocument();
+    expect(screen.queryByText('غير متصل')).not.toBeInTheDocument();
+  });
+
+  it('shows no warning chip when connectivity is not suspect', () => {
+    render(<NetworkStatusBanner />);
+    expect(screen.queryByText('الاتصال لا يستجيب')).not.toBeInTheDocument();
   });
 });

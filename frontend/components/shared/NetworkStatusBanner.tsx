@@ -5,6 +5,8 @@
  *
  * - أوفلاين: شريط كامل ثم شارة جانبية «غير متصل».
  * - عودة الاتصال: شريط أخضر مؤقت.
+ * - متصل ظاهرياً لكن الطلبات تفشل (شبكة بلا إنترنت فعلي): شارة تحذير
+ *   صفراء، لا تغيّر حالة «متصل» ولا تحجب أي طلب (CONNECTIVITY-SUSPECT-01).
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -12,6 +14,7 @@ import Link from 'next/link';
 import { Archive, FileText, Wifi, WifiOff, X } from 'lucide-react';
 
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useConnectivitySuspect } from '@/hooks/useConnectivitySuspect';
 import { cn } from '@/lib/utils';
 import { getLastOfflineQueryCacheSavedAt } from '@/lib/offlineQueryCache';
 import { formatOfflineSavedAt } from '@/lib/offlineFreshness';
@@ -23,6 +26,7 @@ type OfflinePhase = 'full' | 'compact';
 
 export function NetworkStatusBanner() {
   const isOnline = useOnlineStatus();
+  const connectivitySuspect = useConnectivitySuspect();
   const [showBackOnline, setShowBackOnline] = useState(false);
   const [offlinePhase, setOfflinePhase] = useState<OfflinePhase | null>(null);
   const [offlineQuerySavedAt, setOfflineQuerySavedAt] = useState<number | null>(null);
@@ -133,6 +137,30 @@ export function NetworkStatusBanner() {
           <WifiOff className="h-3.5 w-3.5" aria-hidden />
           <span>غير متصل</span>
           {offlineQuerySavedAt != null && <span className="max-w-[30vw] truncate font-normal opacity-90">· {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
+          <Link
+            href="/offline?tab=saved"
+            aria-label="فتح المحفوظات دون اتصال"
+            className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Archive className="h-3 w-3" aria-hidden />
+            <span>المحفوظات</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Online per the browser, but real requests keep failing */}
+      {connectivitySuspect && !showBackOnline && (
+        <div
+          role="status"
+          aria-atomic="true"
+          className={cn(
+            'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] start-3 z-[60] flex items-center gap-1.5 rounded-full',
+            'bg-warning text-warning-foreground px-3 py-1.5 text-xs font-medium shadow-lg',
+            'sm:bottom-6',
+          )}
+        >
+          <WifiOff className="h-3.5 w-3.5" aria-hidden />
+          <span>الاتصال لا يستجيب</span>
           <Link
             href="/offline?tab=saved"
             aria-label="فتح المحفوظات دون اتصال"
