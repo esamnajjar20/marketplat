@@ -70,7 +70,11 @@ export const sellersController = {
     }
   },
 
-  getPublicSellerProfile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getPublicSellerProfile: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { params } = sellerIdSchema.parse({ params: req.params });
       const profile = await sellersService.getPublicSellerProfile(params.id);
@@ -143,7 +147,12 @@ export const sellersController = {
     try {
       const admin = requireUser(req);
       const { params, body } = suspendSellerSchema.parse({ params: req.params, body: req.body });
-      const profile = await sellersService.setSuspension(params.id, body.suspended, admin.userId, body.reason);
+      const profile = await sellersService.setSuspension(
+        params.id,
+        body.suspended,
+        admin.userId,
+        body.reason
+      );
       res.status(200).json(successResponse('Seller suspension updated', profile));
     } catch (error) {
       next(error);
@@ -159,7 +168,7 @@ export const sellersController = {
     try {
       const admin = requireUser(req);
       const { body } = bulkVerifySellersSchema.parse({ body: req.body });
-      const result = await runBulk(body.sellerProfileIds, (id) =>
+      const result = await runBulk(body.sellerProfileIds, id =>
         sellersService.setVerification(id, body.verified, admin.userId)
       );
       res.status(200).json(
@@ -184,9 +193,9 @@ export const sellersController = {
       // single-seller already passes it — only the bulk
       // path diverged. Net effect: an admin suspending 100 sellers
       // with a clear reason saw it validate at the schema layer, then
-      // vanish before the audit log. Same class of bug already 
+      // vanish before the audit log. Same class of bug already
       // on stores' bulk status update.
-      const result = await runBulk(body.sellerProfileIds, (id) =>
+      const result = await runBulk(body.sellerProfileIds, id =>
         sellersService.setSuspension(id, body.suspended, admin.userId, body.reason)
       );
       res.status(200).json(

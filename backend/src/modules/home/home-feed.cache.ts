@@ -19,7 +19,7 @@ const keyFor = (query: GetHomepageQuery, userId: string | null): string => {
 
 export function getCachedHomeFeedWithStatus(
   query: GetHomepageQuery,
-  authHeader: string | undefined,
+  authHeader: string | undefined
 ): Promise<{ value: HomeFeedResult; status: SwrStatus }> {
   const userId = resolveOptionalUserId(authHeader);
   return swrGetWithStatus<HomeFeedResult>({
@@ -39,12 +39,18 @@ export function getCachedHomeFeedWithStatus(
      * next hard-TTL expiry. Skipping the write here means the next request
      * retries the failing section immediately.
      */
-    shouldCache: (value) => {
+    shouldCache: value => {
       const c = value.bootstrap?.categories;
       const car = value.featured?.carousel;
       return Boolean(
-        c && c.ads !== null && c.products !== null && c.services !== null
-          && car && car.ads !== null && car.products !== null && car.stores !== null,
+        c &&
+        c.ads !== null &&
+        c.products !== null &&
+        c.services !== null &&
+        car &&
+        car.ads !== null &&
+        car.products !== null &&
+        car.stores !== null
       );
     },
   });

@@ -39,10 +39,7 @@ export const createStoreSchema = z.object({
     description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
     city: z.string().min(1, 'City is required').max(100),
     address: z.string().max(200).optional(),
-    phone: z
-      .string()
-      .min(7, 'Phone number is too short')
-      .max(20, 'Phone number is too long'),
+    phone: z.string().min(7, 'Phone number is too short').max(20, 'Phone number is too long'),
     logoUrl: z.string().url('logoUrl must be a valid URL').optional(),
     coverImageUrl: z.string().url('coverImageUrl must be a valid URL').optional(),
     latitude: z.coerce.number().min(-90).max(90).optional(),
@@ -89,7 +86,12 @@ export const getStoresSchema = z.object({
     search: z.string().min(1).max(200).optional(),
     sortBy: z.enum(STORE_SORT_FIELDS).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
-    type: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).optional(),
+    type: z
+      .string()
+      .min(1)
+      .max(50)
+      .regex(/^[a-z0-9-]+$/)
+      .optional(),
     // Featured stores surface first when this isn't explicitly disabled
     // — see stores.repository.ts's findMany orderBy.
   }),
@@ -111,7 +113,7 @@ export const adminGetStoresSchema = z.object({
     featureRequested: z
       .union([z.literal('true'), z.literal('1'), z.literal('false'), z.literal('0')])
       .optional()
-      .transform((v) => v === 'true' || v === '1'),
+      .transform(v => v === 'true' || v === '1'),
   }),
 });
 
@@ -121,18 +123,20 @@ export type AdminGetStoresQuery = z.infer<typeof adminGetStoresSchema>['query'];
 // as sellers.validation.ts's verifySellerSchema/suspendSellerSchema.
 export const updateStoreStatusSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),
-  body: z.object({
-    status: z.nativeEnum(StoreStatus),
-    reason: z.string().trim().min(3).max(500).optional(),
-  }).superRefine((body, ctx) => {
-    if (body.status === 'BLOCKED' && !body.reason) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Reason is required when blocking a store',
-        path: ['reason'],
-      });
-    }
-  }),
+  body: z
+    .object({
+      status: z.nativeEnum(StoreStatus),
+      reason: z.string().trim().min(3).max(500).optional(),
+    })
+    .superRefine((body, ctx) => {
+      if (body.status === 'BLOCKED' && !body.reason) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Reason is required when blocking a store',
+          path: ['reason'],
+        });
+      }
+    }),
 });
 
 export type UpdateStoreStatusInput = z.infer<typeof updateStoreStatusSchema>['body'];
@@ -155,31 +159,38 @@ export type UpdateStorePlanInput = z.infer<typeof updateStorePlanSchema>['body']
 // admin.validation.ts's bulkIdsSchema / sellers.validation.ts's
 // bulkSellerIdsSchema — same reasoning as those, duplicated locally
 // rather than shared across modules for one array shape.
-const bulkStoreIdsSchema = z.array(z.string().min(1)).min(1, 'At least one id is required').max(100);
+const bulkStoreIdsSchema = z
+  .array(z.string().min(1))
+  .min(1, 'At least one id is required')
+  .max(100);
 
 export const bulkUpdateStoreStatusSchema = z.object({
-  body: z.object({
-    storeIds: bulkStoreIdsSchema,
-    status: z.nativeEnum(StoreStatus),
-    reason: z.string().trim().min(3).max(500).optional(),
-  }).superRefine((body, ctx) => {
-    if (body.status === 'BLOCKED' && !body.reason) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Reason is required when blocking stores',
-        path: ['reason'],
-      });
-    }
-  }),
+  body: z
+    .object({
+      storeIds: bulkStoreIdsSchema,
+      status: z.nativeEnum(StoreStatus),
+      reason: z.string().trim().min(3).max(500).optional(),
+    })
+    .superRefine((body, ctx) => {
+      if (body.status === 'BLOCKED' && !body.reason) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Reason is required when blocking stores',
+          path: ['reason'],
+        });
+      }
+    }),
 });
 
 export type BulkUpdateStoreStatusInput = z.infer<typeof bulkUpdateStoreStatusSchema>['body'];
 
 export const updateStoreTypeSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),
-  body: z.object({
-    storeTypeId: z.string().min(1),
-  }).strict(),
+  body: z
+    .object({
+      storeTypeId: z.string().min(1),
+    })
+    .strict(),
 });
 
 export type UpdateStoreTypeInput = z.infer<typeof updateStoreTypeSchema>['body'];

@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   console.log(`[expire-ads] warned=${warningAds.length} expired=${expired}`);
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error('[expire-ads] failed:', error);
   process.exitCode = 1;
 });

@@ -21,16 +21,13 @@ export const createRequestSchema = z.object({
       serviceTypeId: z.string().min(1).optional(),
     })
     .refine(
-      (b) =>
-        b.budgetMin === undefined ||
-        b.budgetMax === undefined ||
-        b.budgetMin <= b.budgetMax,
-      { message: 'budgetMin must be <= budgetMax', path: ['budgetMin'] },
+      b => b.budgetMin === undefined || b.budgetMax === undefined || b.budgetMin <= b.budgetMax,
+      { message: 'budgetMin must be <= budgetMax', path: ['budgetMin'] }
     )
-    .refine(
-      (b) => b.serviceTypeId === undefined || b.type === 'SERVICE',
-      { message: 'serviceTypeId requires type=SERVICE', path: ['serviceTypeId'] },
-    ),
+    .refine(b => b.serviceTypeId === undefined || b.type === 'SERVICE', {
+      message: 'serviceTypeId requires type=SERVICE',
+      path: ['serviceTypeId'],
+    }),
 });
 
 export type CreateRequestInput = z.infer<typeof createRequestSchema>['body'];
@@ -40,27 +37,24 @@ export const requestIdSchema = z.object({
 });
 
 /** Open-feed sort — must match frontend RequestSort / API query `sort`. */
-export const openRequestSortEnum = z.enum([
-  'newest',
-  'expiring',
-  'budget_high',
-  'fewest_offers',
-]);
+export const openRequestSortEnum = z.enum(['newest', 'expiring', 'budget_high', 'fewest_offers']);
 
 export const getOpenRequestsSchema = z.object({
-  query: z.object({
-    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
-    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    type: requestTypeEnum.optional(),
-    categoryId: z.string().min(1).optional(),
-    serviceTypeId: z.string().min(1).optional(),
-    city: z.string().min(1).optional(),
-    q: z.string().min(1).max(100).optional(),
-    sort: openRequestSortEnum.optional(),
-  }).refine(
-    (q) => q.serviceTypeId === undefined || q.type === 'SERVICE',
-    { message: 'serviceTypeId requires type=SERVICE', path: ['serviceTypeId'] },
-  ),
+  query: z
+    .object({
+      page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+      limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+      type: requestTypeEnum.optional(),
+      categoryId: z.string().min(1).optional(),
+      serviceTypeId: z.string().min(1).optional(),
+      city: z.string().min(1).optional(),
+      q: z.string().min(1).max(100).optional(),
+      sort: openRequestSortEnum.optional(),
+    })
+    .refine(q => q.serviceTypeId === undefined || q.type === 'SERVICE', {
+      message: 'serviceTypeId requires type=SERVICE',
+      path: ['serviceTypeId'],
+    }),
 });
 
 export type GetOpenRequestsQuery = z.infer<typeof getOpenRequestsSchema>['query'];

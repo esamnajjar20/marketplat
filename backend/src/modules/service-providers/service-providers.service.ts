@@ -2,7 +2,10 @@ import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { ServiceProviderDetails, ServiceListing } from '@prisma/client';
 import { uploadServiceProviderLogo, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  cleanupUploadedImages,
+} from '../../shared/utils/cloudinaryHelpers';
 import {
   serviceProvidersRepository,
   NearbyServiceProviderRow,
@@ -23,8 +26,16 @@ import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { withServiceProviderCreationLock } from '../../shared/utils/serviceProviderLock';
-import { getPaginationParams, PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
-import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
+import {
+  getPaginationParams,
+  PaginationMeta,
+  buildPaginationMeta,
+} from '../../shared/utils/pagination';
+import {
+  cachedPublicList,
+  bumpPublicListCache,
+  hidePublicEntities,
+} from '../../shared/utils/publicListCache';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { validateServiceProviderAttributes } from '../service-types/service-types.service';
 
@@ -65,7 +76,8 @@ export const serviceProvidersService = {
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!provider)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     const since =
       period === '7d'
@@ -74,16 +86,23 @@ export const serviceProvidersService = {
           ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           : undefined;
 
-    const [listingStats, topListings, pendingRequests, terminalStats, revenue, upcomingAppointments, rating] =
-      await Promise.all([
-        serviceListingsRepository.getStatsByProviderId(provider.id),
-        serviceListingsRepository.findTopByProviderId(provider.id, 5),
-        serviceRequestsRepository.countPendingByProviderId(provider.id),
-        serviceRequestsRepository.countTerminalStatsByProviderId(provider.id, since),
-        serviceRequestsRepository.sumRevenueByProviderId(provider.id, since),
-        appointmentsRepository.countUpcomingByProviderId(provider.id),
-        serviceReviewsRepository.getRatingSummary(sellerProfile.id),
-      ]);
+    const [
+      listingStats,
+      topListings,
+      pendingRequests,
+      terminalStats,
+      revenue,
+      upcomingAppointments,
+      rating,
+    ] = await Promise.all([
+      serviceListingsRepository.getStatsByProviderId(provider.id),
+      serviceListingsRepository.findTopByProviderId(provider.id, 5),
+      serviceRequestsRepository.countPendingByProviderId(provider.id),
+      serviceRequestsRepository.countTerminalStatsByProviderId(provider.id, since),
+      serviceRequestsRepository.sumRevenueByProviderId(provider.id, since),
+      appointmentsRepository.countUpcomingByProviderId(provider.id),
+      serviceReviewsRepository.getRatingSummary(sellerProfile.id),
+    ]);
 
     const totalTerminal = terminalStats.completed + terminalStats.cancelledOrRejected;
 
@@ -93,7 +112,9 @@ export const serviceProvidersService = {
       pendingRequests,
       completedRequests: terminalStats.completed,
       fulfillmentRate:
-        totalTerminal > 0 ? Math.round((terminalStats.completed / totalTerminal) * 10000) / 100 : null,
+        totalTerminal > 0
+          ? Math.round((terminalStats.completed / totalTerminal) * 10000) / 100
+          : null,
       upcomingAppointments,
       averageRating: rating.avg,
       reviewCount: rating.count,
@@ -108,7 +129,6 @@ export const serviceProvidersService = {
     };
   },
 
-
   // services-design.md §1: ServiceProviderDetails is built on top of an
   // existing SellerProfile, never created independently of one — the
   // same "eligibility gate" SellerProfile itself already enforces
@@ -120,9 +140,7 @@ export const serviceProvidersService = {
   ): Promise<ServiceProviderDetails> => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
     if (!sellerProfile) {
-      throw new BadRequestError(
-        'You need a seller profile before becoming a service provider.'
-      );
+      throw new BadRequestError('You need a seller profile before becoming a service provider.');
     }
     // AUDIT-FIX: same suspension gate as service-listings.service.ts's
     // requireOwnProvider and sellersService.ensureSellerProfileForAdCreation.
@@ -134,7 +152,10 @@ export const serviceProvidersService = {
     // sellersService.createSellerProfile's own pattern.
     const existing = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
     if (existing) {
-      throw new ConflictError('You already have a service provider profile.', 'SERVICE_PROVIDER_ALREADY_EXISTS');
+      throw new ConflictError(
+        'You already have a service provider profile.',
+        'SERVICE_PROVIDER_ALREADY_EXISTS'
+      );
     }
 
     const created = await withServiceProviderCreationLock(sellerProfile.id, async () => {
@@ -142,7 +163,10 @@ export const serviceProvidersService = {
         sellerProfile.id
       );
       if (stillExisting) {
-        throw new ConflictError('You already have a service provider profile.', 'SERVICE_PROVIDER_ALREADY_EXISTS');
+        throw new ConflictError(
+          'You already have a service provider profile.',
+          'SERVICE_PROVIDER_ALREADY_EXISTS'
+        );
       }
 
       try {
@@ -164,7 +188,10 @@ export const serviceProvidersService = {
         // sellersService guards against — the DB's @unique on
         // sellerProfileId is the last line of defense.
         if (error?.code === 'P2002') {
-          throw new ConflictError('You already have a service provider profile.', 'SERVICE_PROVIDER_ALREADY_EXISTS');
+          throw new ConflictError(
+            'You already have a service provider profile.',
+            'SERVICE_PROVIDER_ALREADY_EXISTS'
+          );
         }
         throw error;
       }
@@ -180,35 +207,49 @@ export const serviceProvidersService = {
     const sellerProfile = await sellersRepository.findByUserId(userId);
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
     const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!provider)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
     return serviceProvidersRepository.findServiceTypeProfiles(provider.id);
   },
 
   updateMyServiceTypeProfile: async (
     userId: string,
     serviceTypeId: string,
-    input: { attributes: Record<string, unknown>; isActive?: boolean },
+    input: { attributes: Record<string, unknown>; isActive?: boolean }
   ) => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
-    if (sellerProfile.suspended) throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
+    if (sellerProfile.suspended)
+      throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
     const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!provider)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
     const serviceType = await serviceTypesRepository.findById(serviceTypeId);
     if (!serviceType) throw new NotFoundError('Service type not found', 'SERVICE_TYPE_NOT_FOUND');
-    const hasListingForType = await prisma.serviceListing.count({ where: { providerId: provider.id, serviceTypeId } });
+    const hasListingForType = await prisma.serviceListing.count({
+      where: { providerId: provider.id, serviceTypeId },
+    });
     if (!hasListingForType) {
-      throw new BadRequestError('Create a service listing for this service type before editing provider-specific fields.', 'SERVICE_TYPE_NOT_IN_PROVIDER_CATALOG');
+      throw new BadRequestError(
+        'Create a service listing for this service type before editing provider-specific fields.',
+        'SERVICE_TYPE_NOT_IN_PROVIDER_CATALOG'
+      );
     }
     if (!serviceType.isActive && input.isActive !== false) {
-      throw new BadRequestError('Inactive service types cannot be enabled for a provider.', 'SERVICE_TYPE_INVALID');
+      throw new BadRequestError(
+        'Inactive service types cannot be enabled for a provider.',
+        'SERVICE_TYPE_INVALID'
+      );
     }
-    await validateServiceProviderAttributes(serviceTypeId, input.attributes, { allowInactive: !serviceType.isActive, allowInactiveFields: true });
+    await validateServiceProviderAttributes(serviceTypeId, input.attributes, {
+      allowInactive: !serviceType.isActive,
+      allowInactiveFields: true,
+    });
     return serviceProvidersRepository.upsertServiceTypeProfile(
       provider.id,
       serviceTypeId,
       input.attributes as unknown as import('@prisma/client').Prisma.InputJsonValue,
-      input.isActive ?? true,
+      input.isActive ?? true
     );
   },
 
@@ -217,7 +258,8 @@ export const serviceProvidersService = {
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const details = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!details)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
     return details;
   },
 
@@ -229,7 +271,8 @@ export const serviceProvidersService = {
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const details = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!details)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     const updated = await serviceProvidersRepository.update(details.id, input);
     // UNAVAILABLE providers are excluded from the public directory. Treat this
@@ -249,12 +292,16 @@ export const serviceProvidersService = {
   // with an already-hosted URL. Mirrors storesService.uploadLogo and,
   // one module further back, usersService.uploadAvatar exactly: upload
   // first, persist the URL, clean up whichever side fails.
-  uploadLogo: async (userId: string, file: Express.Multer.File): Promise<ServiceProviderDetails> => {
+  uploadLogo: async (
+    userId: string,
+    file: Express.Multer.File
+  ): Promise<ServiceProviderDetails> => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const details = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!details) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!details)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     const { url, publicId } = await uploadServiceProviderLogo(file.buffer);
 
@@ -263,7 +310,13 @@ export const serviceProvidersService = {
       await bumpPublicListCache('service-providers');
       if (details.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(details.logoUrl);
-        if (oldPublicId) await deleteImage(oldPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/service-providers/service-providers.service.ts', error));
+        if (oldPublicId)
+          await deleteImage(oldPublicId).catch(error =>
+            reportBackgroundFailure(
+              'backend/src/modules/service-providers/service-providers.service.ts',
+              error
+            )
+          );
       }
       return updated;
     } catch (error) {
@@ -292,9 +345,14 @@ export const serviceProvidersService = {
   // silently truncate without any signal today.
   getPublicServiceProvider: async (
     id: string
-  ): Promise<NonNullable<Awaited<ReturnType<typeof serviceProvidersRepository.findPublicById>>> & { listings: ServiceListing[] }> => {
+  ): Promise<
+    NonNullable<Awaited<ReturnType<typeof serviceProvidersRepository.findPublicById>>> & {
+      listings: ServiceListing[];
+    }
+  > => {
     const details = await serviceProvidersRepository.findPublicById(id);
-    if (!details) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!details)
+      throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     // SEC-FIX: same gap products.service.ts's getProductById already
     // closed for suspended-seller products, now also closed on
     // stores.service.ts's getPublicStore — findMany/findNearby above
@@ -302,7 +360,7 @@ export const serviceProvidersService = {
     // path, but this direct-by-id lookup didn't, so admin-suspending a
     // seller (the only moderation lever this feature has) left their
     // provider page fully live at its direct URL. Treated as 404, same
-    // as the other two 
+    // as the other two
     if (details.sellerProfile.suspended) {
       throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     }

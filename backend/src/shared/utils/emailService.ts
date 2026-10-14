@@ -113,11 +113,11 @@ async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${env.email.resendApiKey}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           from,
@@ -130,10 +130,10 @@ async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
 
       if (res.ok) return true;
 
-      const body = await res.text().catch(() => "");
+      const body = await res.text().catch(() => '');
       // 4xx is deterministic; do not waste a retry.
       if (res.status >= 400 && res.status < 500) {
-        logger.error("[RESEND ERROR] Deterministic failure, not retrying", {
+        logger.error('[RESEND ERROR] Deterministic failure, not retrying', {
           to: options.to,
           status: res.status,
           body,
@@ -141,7 +141,7 @@ async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
         return false;
       }
 
-      logger.warn("[RESEND RETRY] Transient failure", {
+      logger.warn('[RESEND RETRY] Transient failure', {
         to: options.to,
         status: res.status,
         body,
@@ -150,7 +150,7 @@ async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
       lastError = new Error(`Resend ${res.status}: ${body}`);
     } catch (err) {
       lastError = err;
-      logger.warn("[RESEND RETRY] Network failure", {
+      logger.warn('[RESEND RETRY] Network failure', {
         to: options.to,
         attempt: attempt + 1,
         error: err instanceof Error ? err.message : String(err),
@@ -161,7 +161,7 @@ async function sendViaResend(options: SendEmailOptions): Promise<boolean> {
     if (delay !== undefined) await sleep(delay);
   }
 
-  logger.error("[RESEND FAILED] All attempts exhausted", {
+  logger.error('[RESEND FAILED] All attempts exhausted', {
     to: options.to,
     lastError: lastError instanceof Error ? lastError.message : String(lastError),
   });
@@ -281,7 +281,7 @@ async function sendViaGmailOAuth(options: SendEmailOptions): Promise<boolean> {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ raw }),
-        },
+        }
       );
 
       if (res.ok) return true;
@@ -394,7 +394,11 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     try {
       await t.sendMail(mail);
       if (attempt > 1) {
-        logger.info('Email sent after retry', { to: options.to, subject: options.subject, attempt });
+        logger.info('Email sent after retry', {
+          to: options.to,
+          subject: options.subject,
+          attempt,
+        });
       }
       return true;
     } catch (err) {
@@ -504,7 +508,10 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-function securityAlertEmail(event: string, details: Record<string, unknown>): { html: string; text: string } {
+function securityAlertEmail(
+  event: string,
+  details: Record<string, unknown>
+): { html: string; text: string } {
   const eventLabels: Record<string, string> = {
     TOKEN_REUSE: 'تم اكتشاف إعادة استخدام رمز الجلسة — تم إلغاء جميع الجلسات',
     ACCOUNT_LOCKED: 'تم قفل حسابك مؤقتاً بسبب محاولات تسجيل دخول فاشلة متكررة',
@@ -522,7 +529,9 @@ function securityAlertEmail(event: string, details: Record<string, unknown>): { 
       details.ip ? `عنوان IP: ${details.ip}` : '',
       '',
       'إذا لم يكن هذا أنت، يُرجى تغيير كلمة المرور فوراً.',
-    ].filter(Boolean).join('\n'),
+    ]
+      .filter(Boolean)
+      .join('\n'),
     html: `
       <div dir="rtl" style="font-family: Tahoma, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
         <h2 style="margin-bottom: 16px; color: #dc2626;">تنبيه أمني بخصوص حسابك</h2>
@@ -540,14 +549,14 @@ function securityAlertEmail(event: string, details: Record<string, unknown>): { 
 function notificationDigestEmail(
   summary: { shown: { title: string; body: string }[]; more: number },
   inboxUrl: string,
-  settingsUrl: string,
+  settingsUrl: string
 ): { html: string; text: string } {
-  const lines = summary.shown.map((i) => `• ${i.title}: ${i.body}`);
+  const lines = summary.shown.map(i => `• ${i.title}: ${i.body}`);
   const moreLine = summary.more > 0 ? `و${summary.more} إشعارات أخرى غير مقروءة.` : '';
   const rows = summary.shown
     .map(
-      (i) =>
-        `<li style="margin:0 0 12px;"><strong>${escapeHtml(i.title)}</strong><br><span style="color:#444;">${escapeHtml(i.body)}</span></li>`,
+      i =>
+        `<li style="margin:0 0 12px;"><strong>${escapeHtml(i.title)}</strong><br><span style="color:#444;">${escapeHtml(i.body)}</span></li>`
     )
     .join('');
   return {
@@ -623,7 +632,7 @@ export const emailService = {
   sendSecurityAlertEmail: async (
     toEmail: string,
     event: string,
-    details: Record<string, unknown>,
+    details: Record<string, unknown>
   ): Promise<void> => {
     const { html, text } = securityAlertEmail(event, details);
     await sendEmail({
@@ -641,12 +650,12 @@ export const emailService = {
    */
   sendNotificationDigestEmail: async (
     toEmail: string,
-    summary: { subject: string; shown: { title: string; body: string }[]; more: number },
+    summary: { subject: string; shown: { title: string; body: string }[]; more: number }
   ): Promise<boolean> => {
     const { html, text } = notificationDigestEmail(
       summary,
       `${env.frontendUrl}/notifications`,
-      `${env.frontendUrl}/settings?tab=notifications`,
+      `${env.frontendUrl}/settings?tab=notifications`
     );
     return sendEmail({ to: toEmail, subject: summary.subject, html, text });
   },

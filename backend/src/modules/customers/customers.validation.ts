@@ -4,7 +4,10 @@ import { paginationQuerySchema } from '../../shared/utils/pagination';
 export const listCustomersSchema = z.object({
   query: paginationQuerySchema.extend({
     q: z.string().trim().max(100).optional(),
-    dueOnly: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
+    dueOnly: z
+      .enum(['true', 'false'])
+      .transform(v => v === 'true')
+      .optional(),
   }),
 });
 

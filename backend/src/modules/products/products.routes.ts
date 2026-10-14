@@ -32,7 +32,8 @@ productsRouter.get('/stock/history', authenticate, CACHE.NONE, productsStockCont
 // Protected — owner-only, enforced in products.service.ts
 productsRouter.post(
   '/',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createProductRateLimit,
   uploadMultipleMiddleware,
   productsController.createProduct
@@ -63,7 +64,8 @@ productsRouter.patch(
 // limit, multer, then controller).
 productsRouter.post(
   '/:id/images',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   addProductImagesRateLimit,
   uploadMultipleMiddleware,
   productsController.addImages

@@ -1,10 +1,18 @@
-import { uploadMiddleware, uploadAudioMiddleware, uploadMessageFileMiddleware } from '../../middlewares/upload.middleware';
+import {
+  uploadMiddleware,
+  uploadAudioMiddleware,
+  uploadMessageFileMiddleware,
+} from '../../middlewares/upload.middleware';
 import { Router } from 'express';
 import { conversationsController } from './conversations.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
-import { startConversationRateLimit, sendMessageRateLimit, typingRateLimit } from '../../middlewares/rateLimit.middleware';
+import {
+  startConversationRateLimit,
+  sendMessageRateLimit,
+  typingRateLimit,
+} from '../../middlewares/rateLimit.middleware';
 
 export const conversationsRouter = Router();
 
@@ -21,11 +29,17 @@ conversationsRouter.get(
 );
 conversationsRouter.post(
   '/',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   startConversationRateLimit,
   conversationsController.startConversation
 );
-conversationsRouter.get('/:id', authenticate, CACHE.NONE, conversationsController.getConversationById);
+conversationsRouter.get(
+  '/:id',
+  authenticate,
+  CACHE.NONE,
+  conversationsController.getConversationById
+);
 conversationsRouter.get(
   '/:id/messages',
   authenticate,
@@ -81,10 +95,30 @@ conversationsRouter.post(
   uploadMiddleware,
   conversationsController.sendMessageImage
 );
-conversationsRouter.post('/:id/messages/:messageId/pin', authenticate, sendMessageRateLimit, conversationsController.pinMessage);
-conversationsRouter.delete('/:id/messages/:messageId/pin', authenticate, sendMessageRateLimit, conversationsController.unpinMessage);
-conversationsRouter.post('/:id/messages/:messageId/star', authenticate, sendMessageRateLimit, conversationsController.starMessage);
-conversationsRouter.delete('/:id/messages/:messageId/star', authenticate, sendMessageRateLimit, conversationsController.unstarMessage);
+conversationsRouter.post(
+  '/:id/messages/:messageId/pin',
+  authenticate,
+  sendMessageRateLimit,
+  conversationsController.pinMessage
+);
+conversationsRouter.delete(
+  '/:id/messages/:messageId/pin',
+  authenticate,
+  sendMessageRateLimit,
+  conversationsController.unpinMessage
+);
+conversationsRouter.post(
+  '/:id/messages/:messageId/star',
+  authenticate,
+  sendMessageRateLimit,
+  conversationsController.starMessage
+);
+conversationsRouter.delete(
+  '/:id/messages/:messageId/star',
+  authenticate,
+  sendMessageRateLimit,
+  conversationsController.unstarMessage
+);
 
 conversationsRouter.delete(
   '/:id/messages/:messageId',
@@ -99,7 +133,12 @@ conversationsRouter.delete(
   sendMessageRateLimit,
   conversationsController.deleteMessage
 );
-conversationsRouter.delete('/:id', authenticate, sendMessageRateLimit, conversationsController.deleteConversation);
+conversationsRouter.delete(
+  '/:id',
+  authenticate,
+  sendMessageRateLimit,
+  conversationsController.deleteConversation
+);
 conversationsRouter.patch(
   '/:id/flags',
   authenticate,

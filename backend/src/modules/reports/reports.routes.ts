@@ -43,7 +43,12 @@ reportsRouter.patch(
   reportsController.bulkUpdateReportStatus
 );
 
-reportsRouter.get('/:id', authenticate, requireMinRole(ROLES.MODERATOR), reportsController.getReportById);
+reportsRouter.get(
+  '/:id',
+  authenticate,
+  requireMinRole(ROLES.MODERATOR),
+  reportsController.getReportById
+);
 reportsRouter.patch(
   '/:id/status',
   authenticate,

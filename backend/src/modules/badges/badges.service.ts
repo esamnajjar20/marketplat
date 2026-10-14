@@ -40,16 +40,16 @@ export const badgesService = {
   // search endpoints already query StoreDetails with sellerProfile +
   // counts included) rather than re-fetching, so this stays a pure
   // "add badges to what you already have" step.
-  getBadgesForStores: async (
-    stores: StoreWithSellerAndCounts[]
-  ): Promise<Map<string, Badge[]>> => {
+  getBadgesForStores: async (stores: StoreWithSellerAndCounts[]): Promise<Map<string, Badge[]>> => {
     const ratings = await storeReviewsRepository.getRatingSummaries(
       stores.map(s => s.sellerProfileId)
     );
     return new Map(
       stores.map(store => [
         store.id,
-        computeBadges(toBadgeInput(store, ratings.get(store.sellerProfileId) ?? { avg: null, count: 0 })),
+        computeBadges(
+          toBadgeInput(store, ratings.get(store.sellerProfileId) ?? { avg: null, count: 0 })
+        ),
       ])
     );
   },

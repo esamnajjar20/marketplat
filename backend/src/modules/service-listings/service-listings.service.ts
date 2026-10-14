@@ -17,10 +17,16 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { uploadImage, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  cleanupUploadedImages,
+} from '../../shared/utils/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
-import { validateServiceListingAttributes, validateServiceTypeCapabilities } from '../service-types/service-types.service';
+import {
+  validateServiceListingAttributes,
+  validateServiceTypeCapabilities,
+} from '../service-types/service-types.service';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { activityService, activityTemplates } from '../activity';
@@ -31,7 +37,11 @@ import { withServiceListingImagesLock } from '../../shared/utils/adLock';
 import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
 import { logger } from '../../shared/utils/logger';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
-import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
+import {
+  cachedPublicList,
+  bumpPublicListCache,
+  hidePublicEntities,
+} from '../../shared/utils/publicListCache';
 import { ConflictError } from '../../shared/errors/ConflictError';
 
 const MAX_LISTING_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images — see config/limits.ts
@@ -78,7 +88,7 @@ export const serviceListingsService = {
     userId: string,
     input: CreateServiceListingInput,
     files: Express.Multer.File[],
-    offlineOperationId?: string | null,
+    offlineOperationId?: string | null
   ): Promise<ServiceListing> => {
     if (offlineOperationId) {
       const existing = await prisma.serviceListing.findUnique({
@@ -89,7 +99,7 @@ export const serviceListingsService = {
         if (existing.providerId !== provider.id) {
           throw new BadRequestError(
             'Offline operation id already used by another provider',
-            'OFFLINE_OP_ID_CONFLICT',
+            'OFFLINE_OP_ID_CONFLICT'
           );
         }
         return existing;
@@ -102,10 +112,9 @@ export const serviceListingsService = {
     if (!files?.length) {
       throw new BadRequestError(
         'At least one service image is required.',
-        'LISTING_IMAGE_REQUIRED',
+        'LISTING_IMAGE_REQUIRED'
       );
     }
-
 
     // AUDIT-FIX (#8/#10): createServiceListing previously used the
     // generic requireOwnProvider (ownership + suspension only) and never
@@ -130,10 +139,14 @@ export const serviceListingsService = {
 
     const serviceTypeId = input.serviceTypeId ?? category.serviceTypeId;
     if (serviceTypeId !== category.serviceTypeId) {
-      throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
+      throw new BadRequestError(
+        'The selected service type does not match the selected category.',
+        'SERVICE_TYPE_CATEGORY_MISMATCH'
+      );
     }
     const serviceType = await serviceTypesRepository.findActiveById(serviceTypeId);
-    if (!serviceType) throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
+    if (!serviceType)
+      throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
     validateServiceTypeCapabilities(serviceType, input.pricingType, input.serviceLocation);
     await validateServiceListingAttributes(serviceTypeId, input.attributes);
 
@@ -142,24 +155,32 @@ export const serviceListingsService = {
     }
 
     // P-01 pattern (ads.service.ts): parallel uploads before the DB write.
-    const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'service-listings')));
+    const uploads = await Promise.all(
+      files.map(file => uploadImage(file.buffer, 'service-listings'))
+    );
 
     let listing: ServiceListing;
     // Only the request that wins the unique insert should publish create side effects.
     let createdNew = true;
     try {
       listing = await prisma.$transaction(async tx => {
-        const lockedCategory = await serviceCategoriesRepository.lockForListingCreation(tx, input.categoryId);
+        const lockedCategory = await serviceCategoriesRepository.lockForListingCreation(
+          tx,
+          input.categoryId
+        );
         if (!lockedCategory || !lockedCategory.isActive) {
           throw new BadRequestError('Invalid or inactive service category.');
         }
         if (lockedCategory.serviceTypeId !== serviceTypeId) {
           throw new BadRequestError(
             'The selected service type no longer matches the selected category.',
-            'SERVICE_TYPE_CATEGORY_MISMATCH',
+            'SERVICE_TYPE_CATEGORY_MISMATCH'
           );
         }
-        const lockedServiceTypeActive = await serviceTypesRepository.lockForListingCreation(tx, serviceTypeId);
+        const lockedServiceTypeActive = await serviceTypesRepository.lockForListingCreation(
+          tx,
+          serviceTypeId
+        );
         if (lockedServiceTypeActive !== true) {
           throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
         }
@@ -179,8 +200,17 @@ export const serviceListingsService = {
         });
 
         await tx.serviceProviderServiceType.upsert({
-          where: { providerId_serviceTypeId: { providerId: provider.id, serviceTypeId: lockedCategory.serviceTypeId } },
-          create: { providerId: provider.id, serviceTypeId: lockedCategory.serviceTypeId, attributes: {} },
+          where: {
+            providerId_serviceTypeId: {
+              providerId: provider.id,
+              serviceTypeId: lockedCategory.serviceTypeId,
+            },
+          },
+          create: {
+            providerId: provider.id,
+            serviceTypeId: lockedCategory.serviceTypeId,
+            attributes: {},
+          },
           update: {},
         });
 
@@ -216,17 +246,33 @@ export const serviceListingsService = {
       // Gap #10: fire-and-forget, see activityService.record()'s own doc
       // comment. Logged for `userId` (the acting caller), not
       // provider.id — activity rows are always keyed by the real user.
-      activityService.record({ userId, ...activityTemplates.serviceCreated(listing.id, listing.title) });
+      activityService.record({
+        userId,
+        ...activityTemplates.serviceCreated(listing.id, listing.title),
+      });
 
-      void followsService.notifyActivityForTargets(
-        [
-          { targetType: FollowTargetType.USER, targetId: userId },
-          { targetType: FollowTargetType.CATEGORY, targetId: `SERVICE:${listing.categoryId}` },
-        ],
-        'خدمة جديدة',
-        `${listing.title} أصبحت متاحة الآن`,
-        { targetType: FollowTargetType.USER, targetId: userId, contentType: 'SERVICE', contentId: listing.id, categoryId: listing.categoryId },
-      ).catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
+      void followsService
+        .notifyActivityForTargets(
+          [
+            { targetType: FollowTargetType.USER, targetId: userId },
+            { targetType: FollowTargetType.CATEGORY, targetId: `SERVICE:${listing.categoryId}` },
+          ],
+          'خدمة جديدة',
+          `${listing.title} أصبحت متاحة الآن`,
+          {
+            targetType: FollowTargetType.USER,
+            targetId: userId,
+            contentType: 'SERVICE',
+            contentId: listing.id,
+            categoryId: listing.categoryId,
+          }
+        )
+        .catch(error =>
+          reportBackgroundFailure(
+            'backend/src/modules/service-listings/service-listings.service.ts',
+            error
+          )
+        );
 
       fraudService
         .scoreListing({
@@ -238,20 +284,24 @@ export const serviceListingsService = {
           price: listing.price != null ? Number(listing.price) : null,
           categoryId: listing.categoryId,
         })
-        .catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
+        .catch(error =>
+          reportBackgroundFailure(
+            'backend/src/modules/service-listings/service-listings.service.ts',
+            error
+          )
+        );
 
       // PLATFORM-WIDE-01: notify saved-search owners (type 'services')
       // whose criteria match this new listing — same fire-and-forget
       // contract as ads.service.ts's createAd -> savedSearchEvents
       // .onAdCreated / products.service.ts's createProduct ->
       // .onProductCreated.
-      savedSearchEvents.onServiceListingCreated(listing, userId).catch((err) =>
+      savedSearchEvents.onServiceListingCreated(listing, userId).catch(err =>
         logger.error('Failed to process saved-search matches for new service listing', {
           err,
           listingId: listing.id,
         })
       );
-
     }
 
     return listing;
@@ -281,18 +331,26 @@ export const serviceListingsService = {
   ): Promise<PaginatedResult<ServiceListingWithProvider>> => {
     if (query.attributeFilters && Object.keys(query.attributeFilters).length > 0) {
       if (!query.serviceTypeId) {
-        throw new BadRequestError('A service type is required when filtering by service-specific attributes.', 'ATTRIBUTE_FILTER_SERVICE_TYPE_REQUIRED');
+        throw new BadRequestError(
+          'A service type is required when filtering by service-specific attributes.',
+          'ATTRIBUTE_FILTER_SERVICE_TYPE_REQUIRED'
+        );
       }
       const type = await serviceTypesRepository.findByIdWithFields(query.serviceTypeId);
       if (!type || !type.isActive) {
         throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
       }
-      const listingFields = type.fields.filter((field) => field.isActive && field.scope === 'LISTING');
-      const fieldMap = new Map(listingFields.map((field) => [field.key, field]));
+      const listingFields = type.fields.filter(
+        field => field.isActive && field.scope === 'LISTING'
+      );
+      const fieldMap = new Map(listingFields.map(field => [field.key, field]));
       for (const [key, value] of Object.entries(query.attributeFilters)) {
         const field = fieldMap.get(key);
         if (!field) {
-          throw new BadRequestError(`Unknown attribute filter: ${key}`, 'ATTRIBUTE_FILTER_NOT_ALLOWED');
+          throw new BadRequestError(
+            `Unknown attribute filter: ${key}`,
+            'ATTRIBUTE_FILTER_NOT_ALLOWED'
+          );
         }
         if (value === null || value === undefined) continue;
         if (field.type === 'BOOLEAN' && typeof value !== 'boolean') {
@@ -301,16 +359,27 @@ export const serviceListingsService = {
         if (field.type === 'NUMBER' && (typeof value !== 'number' || !Number.isFinite(value))) {
           throw new BadRequestError(`Invalid value for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
         }
-        if ((field.type === 'SELECT' || field.type === 'MULTI_SELECT') && !Array.isArray(field.options)) {
-          throw new BadRequestError(`Field ${key} is not configured with options.`, 'ATTRIBUTE_FILTER_INVALID');
+        if (
+          (field.type === 'SELECT' || field.type === 'MULTI_SELECT') &&
+          !Array.isArray(field.options)
+        ) {
+          throw new BadRequestError(
+            `Field ${key} is not configured with options.`,
+            'ATTRIBUTE_FILTER_INVALID'
+          );
         }
         if (field.type === 'SELECT' && typeof value === 'string') {
-          const allowed = (field.options as Array<{ value: string }>).some((option) => option.value === value);
-          if (!allowed) throw new BadRequestError(`Invalid option for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
+          const allowed = (field.options as Array<{ value: string }>).some(
+            option => option.value === value
+          );
+          if (!allowed)
+            throw new BadRequestError(`Invalid option for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
         }
         if (field.type === 'MULTI_SELECT' && Array.isArray(value)) {
-          const allowed = new Set((field.options as Array<{ value: string }>).map((option) => option.value));
-          if (!value.every((item) => typeof item === 'string' && allowed.has(item))) {
+          const allowed = new Set(
+            (field.options as Array<{ value: string }>).map(option => option.value)
+          );
+          if (!value.every(item => typeof item === 'string' && allowed.has(item))) {
             throw new BadRequestError(`Invalid option for ${key}.`, 'ATTRIBUTE_FILTER_INVALID');
           }
         }
@@ -367,7 +436,14 @@ export const serviceListingsService = {
       throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
-    serviceListingsRepository.incrementViews(id).catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
+    serviceListingsRepository
+      .incrementViews(id)
+      .catch(error =>
+        reportBackgroundFailure(
+          'backend/src/modules/service-listings/service-listings.service.ts',
+          error
+        )
+      );
     return {
       ...listing,
       provider: {
@@ -391,7 +467,10 @@ export const serviceListingsService = {
     }
 
     if (listing.status === 'DELETED') {
-      throw new BadRequestError('Deleted service listings cannot be edited.', 'SERVICE_LISTING_DELETED');
+      throw new BadRequestError(
+        'Deleted service listings cannot be edited.',
+        'SERVICE_LISTING_DELETED'
+      );
     }
 
     let finalServiceTypeId = listing.serviceTypeId;
@@ -402,18 +481,25 @@ export const serviceListingsService = {
       }
       const categoryServiceType = await serviceTypesRepository.findById(category.serviceTypeId);
       if (!categoryServiceType || !categoryServiceType.isActive) {
-        throw new BadRequestError('The selected service category belongs to an inactive service type.', 'SERVICE_TYPE_INVALID');
+        throw new BadRequestError(
+          'The selected service category belongs to an inactive service type.',
+          'SERVICE_TYPE_INVALID'
+        );
       }
       finalServiceTypeId = category.serviceTypeId;
     }
     if (input.serviceTypeId && input.serviceTypeId !== finalServiceTypeId) {
-      throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
+      throw new BadRequestError(
+        'The selected service type does not match the selected category.',
+        'SERVICE_TYPE_CATEGORY_MISMATCH'
+      );
     }
     const serviceTypeChanged = finalServiceTypeId !== listing.serviceTypeId;
     const effectiveServiceType = serviceTypeChanged
       ? await serviceTypesRepository.findActiveById(finalServiceTypeId)
       : await serviceTypesRepository.findByIdWithFields(finalServiceTypeId);
-    if (!effectiveServiceType) throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
+    if (!effectiveServiceType)
+      throw new BadRequestError('Invalid or inactive service type.', 'SERVICE_TYPE_INVALID');
 
     // Deactivating a ServiceType is a publication/configuration switch, not
     // a historical-data lock. Existing listings must remain editable so an
@@ -421,33 +507,45 @@ export const serviceListingsService = {
     // requires an active type, and active types keep their full capability
     // checks.
     if (effectiveServiceType.isActive) {
-      validateServiceTypeCapabilities(effectiveServiceType, input.pricingType ?? listing.pricingType, input.serviceLocation ?? listing.serviceLocation);
+      validateServiceTypeCapabilities(
+        effectiveServiceType,
+        input.pricingType ?? listing.pricingType,
+        input.serviceLocation ?? listing.serviceLocation
+      );
     }
 
-    const attributesToValidate = input.attributes !== undefined
-      ? input.attributes
-      : serviceTypeChanged
-        ? undefined
-        : (listing.attributes as Record<string, unknown> | null) ?? undefined;
-    await validateServiceListingAttributes(
-      finalServiceTypeId,
-      attributesToValidate,
-      { allowInactive: !serviceTypeChanged, allowInactiveFields: !serviceTypeChanged },
-    );
+    const attributesToValidate =
+      input.attributes !== undefined
+        ? input.attributes
+        : serviceTypeChanged
+          ? undefined
+          : ((listing.attributes as Record<string, unknown> | null) ?? undefined);
+    await validateServiceListingAttributes(finalServiceTypeId, attributesToValidate, {
+      allowInactive: !serviceTypeChanged,
+      allowInactiveFields: !serviceTypeChanged,
+    });
 
     const finalPricingType = input.pricingType ?? listing.pricingType;
     const finalPrice = input.price !== undefined ? input.price : listing.price;
     if (finalPricingType !== 'NEGOTIABLE' && (finalPrice == null || Number(finalPrice) <= 0)) {
-      throw new BadRequestError('A positive price is required for this pricing type.', 'PRICE_REQUIRED');
+      throw new BadRequestError(
+        'A positive price is required for this pricing type.',
+        'PRICE_REQUIRED'
+      );
     }
     if (finalPricingType === 'NEGOTIABLE' && input.price !== undefined && input.price !== null) {
-      throw new BadRequestError('Negotiable services should not include a fixed price.', 'PRICE_NOT_ALLOWED');
+      throw new BadRequestError(
+        'Negotiable services should not include a fixed price.',
+        'PRICE_NOT_ALLOWED'
+      );
     }
 
     const updated = await serviceListingsRepository.update(id, input);
     if (serviceTypeChanged) {
       await prisma.serviceProviderServiceType.upsert({
-        where: { providerId_serviceTypeId: { providerId: provider.id, serviceTypeId: finalServiceTypeId } },
+        where: {
+          providerId_serviceTypeId: { providerId: provider.id, serviceTypeId: finalServiceTypeId },
+        },
         create: { providerId: provider.id, serviceTypeId: finalServiceTypeId, attributes: {} },
         update: {},
       });
@@ -459,7 +557,10 @@ export const serviceListingsService = {
     }
 
     // Gap #10: fire-and-forget, see createServiceListing's own comment.
-    activityService.record({ userId, ...activityTemplates.serviceUpdated(updated.id, updated.title) });
+    activityService.record({
+      userId,
+      ...activityTemplates.serviceUpdated(updated.id, updated.title),
+    });
 
     fraudService
       .scoreListing({
@@ -471,7 +572,12 @@ export const serviceListingsService = {
         price: updated.price != null ? Number(updated.price) : null,
         categoryId: updated.categoryId,
       })
-      .catch((error) => reportBackgroundFailure('backend/src/modules/service-listings/service-listings.service.ts', error));
+      .catch(error =>
+        reportBackgroundFailure(
+          'backend/src/modules/service-listings/service-listings.service.ts',
+          error
+        )
+      );
 
     return updated;
   },
@@ -486,12 +592,15 @@ export const serviceListingsService = {
 
     await prisma.$transaction(async tx => {
       const openRequestCount = await tx.serviceRequest.count({
-        where: { listingId: id, status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'DISPUTED'] } },
+        where: {
+          listingId: id,
+          status: { in: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'DISPUTED'] },
+        },
       });
       if (openRequestCount > 0) {
         throw new ConflictError(
           'This service listing has open requests and cannot be deleted. Pause it instead.',
-          'SERVICE_LISTING_HAS_OPEN_REQUESTS',
+          'SERVICE_LISTING_HAS_OPEN_REQUESTS'
         );
       }
       await tx.serviceListing.update({ where: { id }, data: { status: 'DELETED' } });
@@ -499,7 +608,10 @@ export const serviceListingsService = {
     await hidePublicEntities('service-listings');
 
     // Gap #10: fire-and-forget, see createServiceListing's own comment.
-    activityService.record({ userId, ...activityTemplates.serviceDeleted(listing.id, listing.title) });
+    activityService.record({
+      userId,
+      ...activityTemplates.serviceDeleted(listing.id, listing.title),
+    });
 
     // Keep listing images after soft-delete: historical service requests
     // retain listing references and must not render broken Cloudinary URLs.
@@ -516,7 +628,11 @@ export const serviceListingsService = {
     files: Express.Multer.File[]
   ): Promise<ServiceListing> => {
     const provider = await requireOwnProvider(userId);
-    return listingImageOperations.addImages(listingId, listing => listing.providerId === provider.id, files);
+    return listingImageOperations.addImages(
+      listingId,
+      listing => listing.providerId === provider.id,
+      files
+    );
   },
 
   // Gap #3 fix: mirrors ads.service.ts's removeImage, including the
@@ -528,7 +644,11 @@ export const serviceListingsService = {
     imageUrl: string
   ): Promise<ServiceListing> => {
     const provider = await requireOwnProvider(userId);
-    return listingImageOperations.removeImage(listingId, listing => listing.providerId === provider.id, imageUrl);
+    return listingImageOperations.removeImage(
+      listingId,
+      listing => listing.providerId === provider.id,
+      imageUrl
+    );
   },
 
   // Gap #11: delegates to the shared factory's reorderImages.
@@ -538,6 +658,10 @@ export const serviceListingsService = {
     orderedImages: string[]
   ): Promise<ServiceListing> => {
     const provider = await requireOwnProvider(userId);
-    return listingImageOperations.reorderImages(listingId, listing => listing.providerId === provider.id, orderedImages);
+    return listingImageOperations.reorderImages(
+      listingId,
+      listing => listing.providerId === provider.id,
+      orderedImages
+    );
   },
 };

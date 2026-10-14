@@ -25,23 +25,58 @@ import { stableSerialize } from './cacheKey';
 /** Must stay below `hardTtl - KEEP_WARM_INTERVAL_MS`-style safety: 600s vs a 240s cycle. */
 export const WARMED_LIST_HARD_TTL_SECONDS = 600;
 
-export type WarmedListScope = 'ads' | 'products' | 'stores' | 'service-listings' | 'service-providers';
+export type WarmedListScope =
+  'ads' | 'products' | 'stores' | 'service-listings' | 'service-providers';
 
-export const WARMED_ADS_DEFAULT_QUERY = { page: 1, sortBy: 'createdAt', sortOrder: 'desc' } as const;
+export const WARMED_ADS_DEFAULT_QUERY = {
+  page: 1,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+} as const;
 export const WARMED_ADS_FEATURED_QUERY = { isFeatured: true, limit: 4 } as const;
-export const WARMED_PRODUCTS_DEFAULT_QUERY = { page: 1, limit: 12, sortBy: 'createdAt', sortOrder: 'desc' } as const;
+export const WARMED_PRODUCTS_DEFAULT_QUERY = {
+  page: 1,
+  limit: 12,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+} as const;
 /** Home-page product strip: /products?limit=8&sortBy=createdAt&sortOrder=desc */
-export const WARMED_PRODUCTS_HOME_QUERY = { limit: 8, sortBy: 'createdAt', sortOrder: 'desc' } as const;
-export const WARMED_STORES_DEFAULT_QUERY = { page: 1, sortBy: 'createdAt', sortOrder: 'desc' } as const;
+export const WARMED_PRODUCTS_HOME_QUERY = {
+  limit: 8,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+} as const;
+export const WARMED_STORES_DEFAULT_QUERY = {
+  page: 1,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+} as const;
 /** Home-page store strip: /stores?limit=6&sortBy=createdAt&sortOrder=desc */
-export const WARMED_STORES_HOME_QUERY = { limit: 6, sortBy: 'createdAt', sortOrder: 'desc' } as const;
-export const WARMED_SERVICE_LISTINGS_DEFAULT_QUERY = { page: 1, sortBy: 'createdAt', sortOrder: 'desc' } as const;
+export const WARMED_STORES_HOME_QUERY = {
+  limit: 6,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+} as const;
+export const WARMED_SERVICE_LISTINGS_DEFAULT_QUERY = {
+  page: 1,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+} as const;
 export const WARMED_SERVICE_PROVIDERS_DEFAULT_QUERY = { page: 1 } as const;
 
 const WARMED_SHAPE_IDS: Readonly<Record<WarmedListScope, ReadonlySet<string>>> = {
-  ads: new Set([stableSerialize(WARMED_ADS_DEFAULT_QUERY), stableSerialize(WARMED_ADS_FEATURED_QUERY)]),
-  products: new Set([stableSerialize(WARMED_PRODUCTS_DEFAULT_QUERY), stableSerialize(WARMED_PRODUCTS_HOME_QUERY)]),
-  stores: new Set([stableSerialize(WARMED_STORES_DEFAULT_QUERY), stableSerialize(WARMED_STORES_HOME_QUERY)]),
+  ads: new Set([
+    stableSerialize(WARMED_ADS_DEFAULT_QUERY),
+    stableSerialize(WARMED_ADS_FEATURED_QUERY),
+  ]),
+  products: new Set([
+    stableSerialize(WARMED_PRODUCTS_DEFAULT_QUERY),
+    stableSerialize(WARMED_PRODUCTS_HOME_QUERY),
+  ]),
+  stores: new Set([
+    stableSerialize(WARMED_STORES_DEFAULT_QUERY),
+    stableSerialize(WARMED_STORES_HOME_QUERY),
+  ]),
   'service-listings': new Set([stableSerialize(WARMED_SERVICE_LISTINGS_DEFAULT_QUERY)]),
   'service-providers': new Set([stableSerialize(WARMED_SERVICE_PROVIDERS_DEFAULT_QUERY)]),
 };
@@ -55,5 +90,7 @@ export function isWarmedListQuery(scope: WarmedListScope, query: unknown): boole
  * rebuilds, the policy default for everything else.
  */
 export function listHardTtlSec(scope: WarmedListScope, query: unknown, defaultSec: number): number {
-  return isWarmedListQuery(scope, query) ? Math.max(defaultSec, WARMED_LIST_HARD_TTL_SECONDS) : defaultSec;
+  return isWarmedListQuery(scope, query)
+    ? Math.max(defaultSec, WARMED_LIST_HARD_TTL_SECONDS)
+    : defaultSec;
 }

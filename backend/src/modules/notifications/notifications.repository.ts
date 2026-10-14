@@ -1,8 +1,17 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, Notification, NotificationType, PushSubscription, FcmDeviceToken } from '@prisma/client';
+import {
+  Prisma,
+  Notification,
+  NotificationType,
+  PushSubscription,
+  FcmDeviceToken,
+} from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
-import { publishNotificationEvent, publishNotificationEventsToMany } from '../../shared/utils/notificationStream';
+import {
+  publishNotificationEvent,
+  publishNotificationEventsToMany,
+} from '../../shared/utils/notificationStream';
 import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
 // NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
 import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
@@ -110,7 +119,7 @@ export const notificationsRepository = {
       await Promise.all(
         recipientIds
           .slice(i, i + INVALIDATE_CONCURRENCY)
-          .map(userId => unreadNotificationsCache.invalidate(userId)),
+          .map(userId => unreadNotificationsCache.invalidate(userId))
       );
     }
 
@@ -118,7 +127,7 @@ export const notificationsRepository = {
     // notification id actually stored in PostgreSQL. The stream helper keeps
     // the existing bounded replay behavior for large fan-outs.
     void publishNotificationEventsToMany(
-      created.map((notification) => ({
+      created.map(notification => ({
         userId: notification.userId,
         event: {
           type: 'notification' as const,
@@ -129,7 +138,7 @@ export const notificationsRepository = {
           body: notification.body,
           data: asLiveData(notification.data),
         },
-      })),
+      }))
     );
 
     return result;
@@ -153,7 +162,12 @@ export const notificationsRepository = {
     };
 
     const [notifications, total] = await Promise.all([
-      prisma.notification.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
+      prisma.notification.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
       prisma.notification.count({ where }),
     ]);
     return { notifications, total };
@@ -249,7 +263,6 @@ export const notificationsRepository = {
     });
     return result.count;
   },
-
 
   /**
    * Marks every unread NEW_MESSAGE notification for this conversation as

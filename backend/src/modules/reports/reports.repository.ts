@@ -42,7 +42,10 @@ export const reportsRepository = {
       },
     }),
 
-  countDistinctPendingReporters: async (targetType: ReportTargetType, targetId: string): Promise<number> => {
+  countDistinctPendingReporters: async (
+    targetType: ReportTargetType,
+    targetId: string
+  ): Promise<number> => {
     return prisma.report.count({
       where: { targetType, targetId, status: ReportStatus.PENDING },
     });
@@ -138,7 +141,7 @@ export const reportsRepository = {
     status: ReportStatus
   ): Promise<{ updated: ReportWithDetails[]; failed: { id: string; reason: string }[] }> => {
     const results = await Promise.allSettled(
-      ids.map((id) =>
+      ids.map(id =>
         prisma.report.update({ where: { id }, data: { status }, include: reportWithDetails })
       )
     );

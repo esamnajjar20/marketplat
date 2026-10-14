@@ -176,7 +176,10 @@ export const fraudRepository = {
   },
 
   findUserCreatedAt: async (userId: string): Promise<Date | null> => {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { createdAt: true },
+    });
     return user?.createdAt ?? null;
   },
 };

@@ -34,7 +34,11 @@ export const authenticate = async (
     const localUser = userCache.peek(payload.userId);
     if (localBl === false && localUser && localUser.isActive) {
       req.user = { ...payload, role: localUser.role };
-      tokenStore.updateSessionLastSeen(payload.userId, payload.sessionId).catch((error) => reportBackgroundFailure('backend/src/middlewares/auth.middleware.ts', error));
+      tokenStore
+        .updateSessionLastSeen(payload.userId, payload.sessionId)
+        .catch(error =>
+          reportBackgroundFailure('backend/src/middlewares/auth.middleware.ts', error)
+        );
       next();
       return;
     }
@@ -117,7 +121,9 @@ export const authenticate = async (
     req.user = { ...payload, role: user.role };
 
     // Update lastSeen async — fire and forget, never blocks response
-    tokenStore.updateSessionLastSeen(payload.userId, payload.sessionId).catch((error) => reportBackgroundFailure('backend/src/middlewares/auth.middleware.ts', error));
+    tokenStore
+      .updateSessionLastSeen(payload.userId, payload.sessionId)
+      .catch(error => reportBackgroundFailure('backend/src/middlewares/auth.middleware.ts', error));
 
     next();
   } catch (error) {

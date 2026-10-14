@@ -137,7 +137,7 @@ test.describe('Logout', () => {
 
 
 test.describe('Session cookie resilience (COOKIE-POLICY-01)', () => {
-  test('session survives full reload after a short idle (refresh cookie still valid)', async ({ page, context }) => {
+  test('session survives full reload after a short idle (refresh cookie still valid)', async ({ page, _context }) => {
     const user = makeTestUser();
     await registerViaUI(page, user);
 

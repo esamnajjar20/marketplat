@@ -30,7 +30,9 @@ export async function bumpAdsCacheVersion(): Promise<void> {
 export async function bumpAdsCacheHard(): Promise<boolean> {
   const ok = await bumpGeneration(ADS_GEN_HARD_KEY, { retryDependentGenKeys: [HOME_GEN_KEY] });
   if (!ok) {
-    logger.error('Ads hard cache invalidation failed; removed or unavailable ads may remain in cached lists until hard TTL');
+    logger.error(
+      'Ads hard cache invalidation failed; removed or unavailable ads may remain in cached lists until hard TTL'
+    );
   }
   return ok;
 }
@@ -52,7 +54,9 @@ export async function bumpAdsCacheVersionAndHome(): Promise<void> {
     // Do not trigger homepage listeners/re-warming from a potentially stale ad-list
     // cache. Keeping the old homepage until TTL is safer than republishing removed ads
     // under a new homepage generation while Redis invalidation is failing.
-    logger.error('Homepage invalidation skipped because ad-list hard invalidation failed; avoid rewarming homepage from stale ad cache');
+    logger.error(
+      'Homepage invalidation skipped because ad-list hard invalidation failed; avoid rewarming homepage from stale ad cache'
+    );
     return;
   }
   await invalidateHomeCache();

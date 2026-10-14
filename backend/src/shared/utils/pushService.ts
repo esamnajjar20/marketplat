@@ -116,7 +116,7 @@ export const resolveQuietTimeZone = resolveQuietTimeZoneImpl;
  */
 async function loadQuietHoursDecision(
   userId: string,
-  urgent?: boolean,
+  urgent?: boolean
 ): Promise<QuietHoursDecision> {
   try {
     const { prisma } = await import('../../config/prisma');
@@ -139,7 +139,7 @@ const queueEnabled = (): boolean => env.notificationQueue?.enabled === true;
  * falls back to inline delivery. A push must degrade, never disappear.
  */
 async function viaQueue(
-  op: (q: typeof import('../queue/notificationQueue')) => Promise<void>,
+  op: (q: typeof import('../queue/notificationQueue')) => Promise<void>
 ): Promise<boolean> {
   try {
     const q = await import('../queue/notificationQueue');
@@ -209,7 +209,7 @@ function pushOptions(payload: PushPayload): {
 async function sendWithRetry(
   subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
   body: string,
-  options: { TTL: number; urgency: 'very-low' | 'low' | 'normal' | 'high'; topic?: string },
+  options: { TTL: number; urgency: 'very-low' | 'low' | 'normal' | 'high'; topic?: string }
 ): Promise<'sent' | 'gone' | 'failed'> {
   try {
     await webpush.sendNotification(subscription, body, options);
@@ -226,7 +226,7 @@ async function sendWithRetry(
       return 'failed';
     }
 
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1500));
     try {
       await webpush.sendNotification(subscription, body, options);
       return 'sent';
@@ -266,7 +266,7 @@ export const pushService = {
       if (queueEnabled()) {
         // Copy out of the narrowed `let` — TS drops narrowing inside closures.
         const resumeInMs = quiet.resumeInMs;
-        const deferred = await viaQueue((q) => q.deferPush(userId, payload, resumeInMs));
+        const deferred = await viaQueue(q => q.deferPush(userId, payload, resumeInMs));
         if (deferred) return;
       }
       logger.info('[PUSH SKIPPED — quiet hours]', { userId, title: payload.title });
@@ -274,7 +274,7 @@ export const pushService = {
     }
 
     if (queueEnabled()) {
-      const queued = await viaQueue((q) => q.enqueuePush(userId, payload));
+      const queued = await viaQueue(q => q.enqueuePush(userId, payload));
       if (queued) return;
     }
     await pushService.deliverInline(userId, payload);
@@ -288,15 +288,18 @@ export const pushService = {
   sendToSubscriptionForOutbox: async (
     subscriptionId: string,
     userId: string,
-    payload: PushPayload,
+    payload: PushPayload
   ): Promise<'sent' | 'gone' | 'transient' | 'failed' | 'unconfigured' | 'missing'> => {
     const subscription = await pushSubscriptionsRepository.findByIdForUser(subscriptionId, userId);
     if (!subscription) return 'missing';
-    return pushService.sendToSubscription({
-      endpoint: subscription.endpoint,
-      p256dh: subscription.p256dh,
-      auth: subscription.auth,
-    }, payload);
+    return pushService.sendToSubscription(
+      {
+        endpoint: subscription.endpoint,
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+      },
+      payload
+    );
   },
 
   /**
@@ -309,7 +312,9 @@ export const pushService = {
     // below (own try/catch, own graceful-degradation, see
     // fcmPushService.ts). Fire-and-forget here too, matching this
     // whole function's own contract with ITS callers.
-    void fcmPushService.notifyUser(userId, payload).catch((error) => reportBackgroundFailure('backend/src/shared/utils/pushService.ts', error));
+    void fcmPushService
+      .notifyUser(userId, payload)
+      .catch(error => reportBackgroundFailure('backend/src/shared/utils/pushService.ts', error));
 
     // wraps the whole body (not just the per-subscription
     // sendNotification below, which already had its own try/catch) so
@@ -345,7 +350,7 @@ export const pushService = {
       const stats = { sent: 0, gone: 0, failed: 0 };
 
       await Promise.all(
-        subscriptions.map(async (sub) => {
+        subscriptions.map(async sub => {
           const result = await sendWithRetry(
             {
               endpoint: sub.endpoint,
@@ -379,7 +384,7 @@ export const pushService = {
       if (staleEndpoints.length > 0) {
         await pushSubscriptionsRepository
           .deleteByEndpoints(staleEndpoints)
-          .catch((err) => logger.warn('Failed to prune stale push subscriptions', { err }));
+          .catch(err => logger.warn('Failed to prune stale push subscriptions', { err }));
       }
     } catch (err) {
       // Catches anything not already handled above — chiefly a failed
@@ -402,21 +407,21 @@ export const pushService = {
    */
   sendToSubscription: async (
     sub: { endpoint: string; p256dh: string; auth: string },
-    payload: PushPayload,
+    payload: PushPayload
   ): Promise<'sent' | 'gone' | 'transient' | 'failed' | 'unconfigured'> => {
     if (!ensureConfigured()) return 'unconfigured';
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         buildPushBody(payload),
-        pushOptions(payload),
+        pushOptions(payload)
       );
       return 'sent';
     } catch (err) {
       if (isGoneError(err)) {
         await pushSubscriptionsRepository
           .deleteByEndpoints([sub.endpoint])
-          .catch((e) => logger.warn('Failed to prune stale push subscription', { err: e }));
+          .catch(e => logger.warn('Failed to prune stale push subscription', { err: e }));
         return 'gone';
       }
       const statusCode = (err as WebPushError)?.statusCode;
@@ -450,7 +455,7 @@ export const pushService = {
     const unique = Array.from(new Set(userIds));
     for (let i = 0; i < unique.length; i += FANOUT_CONCURRENCY) {
       const chunk = unique.slice(i, i + FANOUT_CONCURRENCY);
-      await Promise.all(chunk.map((userId) => pushService.notifyUser(userId, payload)));
+      await Promise.all(chunk.map(userId => pushService.notifyUser(userId, payload)));
     }
   },
 };

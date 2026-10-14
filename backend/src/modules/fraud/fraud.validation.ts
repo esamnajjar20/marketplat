@@ -2,12 +2,7 @@ import { z } from 'zod';
 import { FraudSignalType } from '@prisma/client';
 
 const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z
-    .string()
-    .regex(/^\d+$/)
-    .transform(Number)
-    .pipe(schema)
-    .optional();
+  z.string().regex(/^\d+$/).transform(Number).pipe(schema).optional();
 
 const optionalQueryBoolean = () =>
   z

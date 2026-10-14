@@ -1,6 +1,9 @@
 import { prisma } from '../../config/prisma';
 import { ProductCategory } from '@prisma/client';
-import { CreateProductCategoryInput, UpdateProductCategoryInput } from './product-categories.validation';
+import {
+  CreateProductCategoryInput,
+  UpdateProductCategoryInput,
+} from './product-categories.validation';
 
 export type ProductCategoryWithChildren = ProductCategory & { children?: ProductCategory[] };
 

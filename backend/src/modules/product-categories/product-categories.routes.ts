@@ -25,7 +25,11 @@ productCategoriesRouter.get(
   CACHE.NONE,
   productCategoriesController.getProductCategoriesForAdmin
 );
-productCategoriesRouter.get('/:id', CACHE.STATIC, productCategoriesController.getProductCategoryById);
+productCategoriesRouter.get(
+  '/:id',
+  CACHE.STATIC,
+  productCategoriesController.getProductCategoryById
+);
 productCategoriesRouter.post(
   '/',
   authenticate,

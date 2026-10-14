@@ -26,16 +26,17 @@ export type AuditLogSortField = (typeof AUDIT_LOG_SORT_FIELDS)[number];
 // caller narrowing to "what happened to this user" both use the same
 // param against the same column.
 export const getAuditLogsSchema = z.object({
-  query: z.object({
-    page: optionalQueryNumber(z.number().int().min(1).max(1000)),
-    limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    event: z.nativeEnum(AuditEventType).optional(),
-    userId: z.string().trim().min(1).optional(),
-    from: z.coerce.date().optional(),
-    to: z.coerce.date().optional(),
-    sortBy: z.enum(AUDIT_LOG_SORT_FIELDS).optional(),
-    sortOrder: z.enum(['asc', 'desc']).optional(),
-  })
+  query: z
+    .object({
+      page: optionalQueryNumber(z.number().int().min(1).max(1000)),
+      limit: optionalQueryNumber(z.number().int().min(1).max(100)),
+      event: z.nativeEnum(AuditEventType).optional(),
+      userId: z.string().trim().min(1).optional(),
+      from: z.coerce.date().optional(),
+      to: z.coerce.date().optional(),
+      sortBy: z.enum(AUDIT_LOG_SORT_FIELDS).optional(),
+      sortOrder: z.enum(['asc', 'desc']).optional(),
+    })
     // A `from` after `to` can never match anything — reject rather than
     // silently returning an empty page, so a caller finds out immediately
     // instead of concluding the log is empty.

@@ -85,9 +85,7 @@ export const sellerResponseTimeService = {
       // responseRate: smooth toward 100 on each first-reply observed
       const prevRate = profile.responseRate != null ? Number(profile.responseRate) : 0;
       const nextRate =
-        Math.round(
-          Math.min(100, (prevRate * RATE_WINDOW + 100) / (RATE_WINDOW + 1)) * 100
-        ) / 100;
+        Math.round(Math.min(100, (prevRate * RATE_WINDOW + 100) / (RATE_WINDOW + 1)) * 100) / 100;
 
       await prisma.sellerProfile.update({
         where: { id: profile.id },

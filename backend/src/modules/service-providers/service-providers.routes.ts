@@ -29,13 +29,15 @@ serviceProvidersRouter.get(
 // modules. All mutating routes here now gate on the same rule.
 serviceProvidersRouter.post(
   '/me',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createServiceProviderRateLimit,
   serviceProvidersController.createServiceProvider
 );
 serviceProvidersRouter.patch(
   '/me',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   serviceProviderMutationRateLimit,
   CACHE.NONE,
   serviceProvidersController.updateMyServiceProvider
@@ -50,7 +52,8 @@ serviceProvidersRouter.get(
 
 serviceProvidersRouter.patch(
   '/me/service-types/:serviceTypeId',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   serviceProviderMutationRateLimit,
   CACHE.NONE,
   serviceProvidersController.updateMyServiceTypeProfile
@@ -71,7 +74,8 @@ serviceProvidersRouter.get(
 // it's never swallowed as the public /:id route below.
 serviceProvidersRouter.post(
   '/me/logo',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   serviceProviderImagesRateLimit,
   uploadMiddleware,
   serviceProvidersController.uploadLogo
@@ -88,4 +92,8 @@ serviceProvidersRouter.get('/', CACHE.SHORT, serviceProvidersController.getServi
 serviceProvidersRouter.get('/nearby', CACHE.SHORT, serviceProvidersController.getNearby);
 
 // Public — anyone can view a service provider's page, no auth required.
-serviceProvidersRouter.get('/:id', CACHE.MEDIUM, serviceProvidersController.getPublicServiceProvider);
+serviceProvidersRouter.get(
+  '/:id',
+  CACHE.MEDIUM,
+  serviceProvidersController.getPublicServiceProvider
+);

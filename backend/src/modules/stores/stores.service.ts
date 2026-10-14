@@ -3,7 +3,10 @@ import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { StoreDetails, Prisma } from '@prisma/client';
 import { uploadStoreLogo, uploadStoreCover, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  cleanupUploadedImages,
+} from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
 import { followsRepository } from '../follows/follows.repository';
@@ -33,7 +36,11 @@ import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { activityService, activityTemplates } from '../activity';
 import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
+import {
+  cachedPublicList,
+  bumpPublicListCache,
+  hidePublicEntities,
+} from '../../shared/utils/publicListCache';
 import { isOpenAt } from '../../shared/utils/marketTime';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
@@ -129,8 +136,13 @@ export const storesService = {
       const slug = await generateUniqueSlug(input.name);
       const storeType = await storeTypesRepository.findById(input.storeTypeId ?? 'st_general');
       if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
-      if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
-      const attributes = await storeTypeFieldsService.validateAttributes(storeType.id, input.attributes, true);
+      if (!storeType.isActive)
+        throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+      const attributes = await storeTypeFieldsService.validateAttributes(
+        storeType.id,
+        input.attributes,
+        true
+      );
 
       try {
         return await prisma.$transaction(async tx =>
@@ -185,22 +197,33 @@ export const storesService = {
       if (store.status !== 'PENDING') {
         throw new BadRequestError(
           'Store type can only be changed while the store is pending.',
-          'STORE_TYPE_CHANGE_NOT_ALLOWED',
+          'STORE_TYPE_CHANGE_NOT_ALLOWED'
         );
       }
       const storeType = await storeTypesRepository.findById(input.storeTypeId);
       if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
-      if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
-      const attributes = await storeTypeFieldsService.validateAttributes(storeType.id, input.attributes ?? store.attributes, true);
+      if (!storeType.isActive)
+        throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+      const attributes = await storeTypeFieldsService.validateAttributes(
+        storeType.id,
+        input.attributes ?? store.attributes,
+        true
+      );
       if (attributes !== null) (input as any).attributes = attributes;
     } else if (input.attributes !== undefined) {
-      const attributes = await storeTypeFieldsService.validateAttributes(store.storeTypeId, input.attributes, false);
+      const attributes = await storeTypeFieldsService.validateAttributes(
+        store.storeTypeId,
+        input.attributes,
+        false
+      );
       (input as any).attributes = attributes;
     }
 
     const updated = await storesRepository.update(store.id, {
       ...input,
-      ...(input.attributes !== undefined ? { attributes: input.attributes as Prisma.InputJsonValue } : {}),
+      ...(input.attributes !== undefined
+        ? { attributes: input.attributes as Prisma.InputJsonValue }
+        : {}),
     });
     await bumpPublicListCache('stores');
 
@@ -226,7 +249,10 @@ export const storesService = {
       await bumpPublicListCache('stores');
       if (store.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.logoUrl);
-        if (oldPublicId) await deleteImage(oldPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error));
+        if (oldPublicId)
+          await deleteImage(oldPublicId).catch(error =>
+            reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error)
+          );
       }
       return updated;
     } catch (error) {
@@ -244,7 +270,10 @@ export const storesService = {
       await bumpPublicListCache('stores');
       if (store.coverImageUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.coverImageUrl);
-        if (oldPublicId) await deleteImage(oldPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error));
+        if (oldPublicId)
+          await deleteImage(oldPublicId).catch(error =>
+            reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error)
+          );
       }
       return updated;
     } catch (error) {
@@ -288,7 +317,11 @@ export const storesService = {
     // STORE-VIEWS: fire-and-forget, same "don't fail the read on a
     // failed counter bump" convention as products.service.ts's
     // getProductById.
-    storesRepository.incrementViews(store.id).catch((error) => reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error));
+    storesRepository
+      .incrementViews(store.id)
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/stores/stores.service.ts', error)
+      );
     return { ...store, isOpen: computeIsOpen(store.workingHours) };
   },
 
@@ -303,9 +336,10 @@ export const storesService = {
     });
   },
 
-  getFeaturedStores: async (
-    params: { limit: number; city?: string }
-  ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
+  getFeaturedStores: async (params: {
+    limit: number;
+    city?: string;
+  }): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
     const { limit, city } = params;
     return cachedPublicList('stores', { __op: 'featured', limit, city }, async () => {
       const { stores, total } = await storesRepository.findFeatured({ limit, city });
@@ -379,7 +413,11 @@ export const storesService = {
     void auditLog({
       event: AuditEvent.ADMIN_STORE_STATUS_CHANGED,
       userId: adminUserId,
-      details: { storeId: id, status: input.status, ...(input.reason ? { reason: input.reason } : {}) },
+      details: {
+        storeId: id,
+        status: input.status,
+        ...(input.reason ? { reason: input.reason } : {}),
+      },
     });
 
     return updated;
@@ -391,18 +429,19 @@ export const storesService = {
   // once it exists). Mirrors updateStoreStatus above: existence check,
   // repository write, audit trail via the new ADMIN_STORE_PLAN_CHANGED
   // event.
-  
+
   updateStoreType: async (
     id: string,
     input: UpdateStoreTypeInput,
-    adminUserId: string,
+    adminUserId: string
   ): Promise<StoreDetails> => {
     const store = await storesRepository.findById(id);
     if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
 
     const storeType = await storeTypesRepository.findById(input.storeTypeId);
     if (!storeType) throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
-    if (!storeType.isActive) throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
+    if (!storeType.isActive)
+      throw new BadRequestError('Store type is inactive', 'STORE_TYPE_INACTIVE');
     if (store.storeTypeId === storeType.id) return store;
 
     const productCount = await prisma.product.count({
@@ -411,7 +450,7 @@ export const storesService = {
     if (productCount > 0) {
       throw new BadRequestError(
         `Store type cannot be changed while the store has ${productCount} existing products. Archive or remove the products first.`,
-        'STORE_TYPE_CHANGE_HAS_PRODUCTS',
+        'STORE_TYPE_CHANGE_HAS_PRODUCTS'
       );
     }
 
@@ -425,7 +464,7 @@ export const storesService = {
       store.attributes ?? {},
       false,
       'STORE',
-      { dropUnknownKeys: true },
+      { dropUnknownKeys: true }
     );
     if (attributes !== null) {
       await storesRepository.update(id, { attributes: attributes as Prisma.InputJsonValue });
@@ -464,7 +503,7 @@ export const storesService = {
     return storesRepository.setFeatureRequestedAt(store.id, new Date());
   },
 
-updateStorePlan: async (
+  updateStorePlan: async (
     id: string,
     input: UpdateStorePlanInput,
     adminUserId: string
@@ -506,7 +545,10 @@ updateStorePlan: async (
       } catch (err) {
         if (!isPrismaError(err, 'P2025')) throw err;
       }
-      activityService.record({ userId, ...activityTemplates.storeUnfollowed(store.id, store.name) });
+      activityService.record({
+        userId,
+        ...activityTemplates.storeUnfollowed(store.id, store.name),
+      });
       return { action: 'unfollowed' };
     }
 
@@ -569,7 +611,8 @@ updateStorePlan: async (
     }
 
     const existing = await storeReviewsRepository.findBySellerAndRater(sellerProfile.id, raterId);
-    if (existing) throw new ConflictError('You have already reviewed this store.', 'ALREADY_REVIEWED_STORE');
+    if (existing)
+      throw new ConflictError('You have already reviewed this store.', 'ALREADY_REVIEWED_STORE');
 
     try {
       await prisma.$transaction(async tx => {
@@ -641,7 +684,7 @@ updateStorePlan: async (
       newFollowers7d,
       newFollowers30d,
       activeProducts,
-      activePromotions: promotionSummary.find((row) => row.status === 'ACTIVE')?._count._all ?? 0,
+      activePromotions: promotionSummary.find(row => row.status === 'ACTIVE')?._count._all ?? 0,
       promotionUses: promotionSummary.reduce((sum, row) => sum + (row._sum.usageCount ?? 0), 0),
       topProducts: topProducts.map(p => ({
         id: p.id,

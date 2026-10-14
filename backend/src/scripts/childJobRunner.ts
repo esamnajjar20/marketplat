@@ -22,7 +22,7 @@ export function runChildJob(name: string): Promise<void> {
 
     process.once('SIGINT', onSigint);
     process.once('SIGTERM', onSigterm);
-    child.once('error', (error) => finish(error));
+    child.once('error', error => finish(error));
     child.once('close', (code, signal) => {
       if (code === 0) finish();
       else finish(new Error(`Scheduled job ${name} failed: ${signal ?? `exit code ${code}`}`));

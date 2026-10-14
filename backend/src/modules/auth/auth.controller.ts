@@ -212,15 +212,18 @@ export const authController = {
     }
   },
 
-
   forgotPassword: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { body } = forgotPasswordSchema.parse({ body: req.body });
       await authService.forgotPassword(body.email);
       // Always return 200 to prevent email enumeration
-      res.status(200).json(successResponse(
-        'If this email is registered, a password reset link will arrive within minutes',
-      ));
+      res
+        .status(200)
+        .json(
+          successResponse(
+            'If this email is registered, a password reset link will arrive within minutes'
+          )
+        );
     } catch (error) {
       next(error);
     }
@@ -341,7 +344,11 @@ export const authController = {
       }
 
       // Default flow: sign-in (or sign-up), unchanged.
-      const result = await authService.loginWithGoogle(profile, getClientIp(req), getUserAgent(req));
+      const result = await authService.loginWithGoogle(
+        profile,
+        getClientIp(req),
+        getUserAgent(req)
+      );
       setSessionCookies(res, result.tokens.refreshToken);
 
       // FEAT-GOOGLE-COMPLETE-PROFILE: a brand-new Google signup (Case 3

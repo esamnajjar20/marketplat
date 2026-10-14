@@ -1,5 +1,11 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, Request as RequestRow, RequestOffer, RequestStatus, RequestOfferStatus } from '@prisma/client';
+import {
+  Prisma,
+  Request as RequestRow,
+  RequestOffer,
+  RequestStatus,
+  RequestOfferStatus,
+} from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 
 const offererSelect = {
@@ -60,7 +66,7 @@ export const requestsRepository = {
       serviceTypeId?: string | null;
       expiresAt?: Date | null;
       offlineOperationId?: string | null;
-    },
+    }
   ): Promise<RequestRow> =>
     prisma.request.create({
       data: {
@@ -96,7 +102,16 @@ export const requestsRepository = {
     q?: string;
     sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
   }): Promise<{ requests: RequestListItem[]; total: number }> => {
-    const { page = 1, limit = 20, type, categoryId, serviceTypeId, city, q, sort = 'newest' } = query;
+    const {
+      page = 1,
+      limit = 20,
+      type,
+      categoryId,
+      serviceTypeId,
+      city,
+      q,
+      sort = 'newest',
+    } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const now = new Date();
     const search = q?.trim();
@@ -149,7 +164,7 @@ export const requestsRepository = {
 
   findManyByCustomerId: async (
     customerId: string,
-    query: { page?: number; limit?: number; status?: RequestStatus },
+    query: { page?: number; limit?: number; status?: RequestStatus }
   ): Promise<{ requests: RequestListItem[]; total: number }> => {
     const { page = 1, limit = 20, status } = query;
     const { skip, take } = getPaginationParams(page, limit);
@@ -196,7 +211,7 @@ export const requestsRepository = {
     tx: Prisma.TransactionClient,
     requestId: string,
     offerId: string,
-    now = new Date(),
+    now = new Date()
   ): Promise<Prisma.BatchPayload> =>
     tx.request.updateMany({
       where: {
@@ -222,7 +237,7 @@ export const requestOffersRepository = {
   create: (
     requestId: string,
     offererUserId: string,
-    data: { price: number; message?: string; meta?: Prisma.InputJsonValue },
+    data: { price: number; message?: string; meta?: Prisma.InputJsonValue }
   ): Promise<RequestOffer> =>
     prisma.requestOffer.create({
       data: {
@@ -236,7 +251,7 @@ export const requestOffersRepository = {
 
   update: (
     id: string,
-    data: { price: number; message?: string; meta?: Prisma.InputJsonValue },
+    data: { price: number; message?: string; meta?: Prisma.InputJsonValue }
   ): Promise<RequestOffer> =>
     prisma.requestOffer.update({
       where: { id },
@@ -253,14 +268,21 @@ export const requestOffersRepository = {
       include: {
         offerer: { select: offererSelect },
         request: {
-          select: { id: true, title: true, type: true, serviceTypeId: true, status: true, city: true },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            serviceTypeId: true,
+            status: true,
+            city: true,
+          },
         },
       },
     }),
 
   findByRequestAndOfferer: (
     requestId: string,
-    offererUserId: string,
+    offererUserId: string
   ): Promise<RequestOffer | null> =>
     prisma.requestOffer.findUnique({
       where: { requestId_offererUserId: { requestId, offererUserId } },
@@ -280,7 +302,7 @@ export const requestOffersRepository = {
   declineOthers: (
     tx: Prisma.TransactionClient,
     requestId: string,
-    acceptedOfferId: string,
+    acceptedOfferId: string
   ): Promise<Prisma.BatchPayload> =>
     tx.requestOffer.updateMany({
       where: { requestId, id: { not: acceptedOfferId }, status: 'PENDING' },
@@ -303,7 +325,7 @@ export const requestOffersRepository = {
 
   findManyByOfferer: async (
     offererUserId: string,
-    query: { page?: number; limit?: number; status?: RequestOfferStatus },
+    query: { page?: number; limit?: number; status?: RequestOfferStatus }
   ): Promise<{ offers: OfferWithOfferer[]; total: number }> => {
     const { page = 1, limit = 20, status } = query;
     const { skip, take } = getPaginationParams(page, limit);

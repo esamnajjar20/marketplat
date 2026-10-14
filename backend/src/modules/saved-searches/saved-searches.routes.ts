@@ -15,4 +15,9 @@ savedSearchesRouter.post(
   savedSearchRateLimit,
   savedSearchesController.createSavedSearch
 );
-savedSearchesRouter.delete('/:id', authenticate, deleteSavedSearchRateLimit, savedSearchesController.deleteSavedSearch);
+savedSearchesRouter.delete(
+  '/:id',
+  authenticate,
+  deleteSavedSearchRateLimit,
+  savedSearchesController.deleteSavedSearch
+);

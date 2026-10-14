@@ -113,7 +113,9 @@ if (errorReporterUrl) {
     }
   }
 
-  logger.add(new WebhookErrorReporterTransport({ level: 'error', format: errors({ stack: true }) }));
+  logger.add(
+    new WebhookErrorReporterTransport({ level: 'error', format: errors({ stack: true }) })
+  );
 }
 
 /**

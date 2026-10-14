@@ -97,9 +97,10 @@ export const analyticsService = {
       nameAr: categoryById.get(c.categoryId)?.nameAr ?? null,
     }));
 
-    const totals = Object.fromEntries(
-      Object.values(AnalyticsEventType).map(e => [e, 0])
-    ) as Record<AnalyticsEventType, number>;
+    const totals = Object.fromEntries(Object.values(AnalyticsEventType).map(e => [e, 0])) as Record<
+      AnalyticsEventType,
+      number
+    >;
     for (const { event, count } of eventCounts) totals[event] = count;
 
     return {

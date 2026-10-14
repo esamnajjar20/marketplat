@@ -1,7 +1,16 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
-import { sellersRepository, SellerProfileWithAds, SellerRatingWithRater } from './sellers.repository';
-import { CreateSellerProfileInput, UpdateSellerProfileInput, CreateRatingInput, GetSellerRatingsQuery } from './sellers.validation';
+import {
+  sellersRepository,
+  SellerProfileWithAds,
+  SellerRatingWithRater,
+} from './sellers.repository';
+import {
+  CreateSellerProfileInput,
+  UpdateSellerProfileInput,
+  CreateRatingInput,
+  GetSellerRatingsQuery,
+} from './sellers.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -25,7 +34,10 @@ export const sellersService = {
     // lock. The authoritative check is the one inside the lock below.
     const existing = await sellersRepository.findByUserId(userId);
     if (existing) {
-      throw new ConflictError('You already have a seller profile.', 'SELLER_PROFILE_ALREADY_EXISTS');
+      throw new ConflictError(
+        'You already have a seller profile.',
+        'SELLER_PROFILE_ALREADY_EXISTS'
+      );
     }
 
     const user = await usersRepository.findById(userId);
@@ -45,7 +57,10 @@ export const sellersService = {
       // race the unlocked pre-check above can't close on its own.
       const stillExisting = await sellersRepository.findByUserId(userId);
       if (stillExisting) {
-        throw new ConflictError('You already have a seller profile.', 'SELLER_PROFILE_ALREADY_EXISTS');
+        throw new ConflictError(
+          'You already have a seller profile.',
+          'SELLER_PROFILE_ALREADY_EXISTS'
+        );
       }
 
       try {
@@ -62,7 +77,10 @@ export const sellersService = {
         // constraint on userId is the last line of defense — surfaced as
         // a clean business error, not a raw Prisma P2002 leak.
         if (error?.code === 'P2002') {
-          throw new ConflictError('You already have a seller profile.', 'SELLER_PROFILE_ALREADY_EXISTS');
+          throw new ConflictError(
+            'You already have a seller profile.',
+            'SELLER_PROFILE_ALREADY_EXISTS'
+          );
         }
         throw error;
       }
@@ -92,7 +110,9 @@ export const sellersService = {
     });
   },
 
-  getMyAttention: async (userId: string): Promise<{
+  getMyAttention: async (
+    userId: string
+  ): Promise<{
     adsMissingImages: number;
     productsOutOfStock: number;
     productsMissingImages: number;
@@ -109,9 +129,12 @@ export const sellersService = {
             WHERE "userId" = ${userId}
               AND status = 'ACTIVE'
               AND cardinality(images) = 0
-          `.then((rows) => Number(rows[0]?.c ?? 0)),
+          `.then(rows => Number(rows[0]?.c ?? 0)),
       profile
-        ? prisma.storeDetails.findUnique({ where: { sellerProfileId: profile.id }, select: { id: true } })
+        ? prisma.storeDetails.findUnique({
+            where: { sellerProfileId: profile.id },
+            select: { id: true },
+          })
         : Promise.resolve(null),
       profile
         ? prisma.serviceProviderDetails.findUnique({
@@ -134,7 +157,7 @@ export const sellersService = {
           WHERE "storeId" = ${store.id}
             AND status = 'ACTIVE'
             AND cardinality(images) = 0
-        `.then((rows) => Number(rows[0]?.c ?? 0)),
+        `.then(rows => Number(rows[0]?.c ?? 0)),
       ]);
       productsOutOfStock = oos;
       productsMissingImages = noImg;
@@ -157,7 +180,6 @@ export const sellersService = {
     };
   },
 
-
   // PLAN-P1-4: verification was previously admin-initiated only —
   // an admin had to already know/decide a seller deserved it, with
   // no signal from the seller side that they wanted it. This is the
@@ -173,7 +195,10 @@ export const sellersService = {
       throw new ConflictError('This seller is already verified.', 'SELLER_ALREADY_VERIFIED');
     }
     if (profile.verificationStatus === 'PENDING') {
-      throw new ConflictError('A verification request is already pending review.', 'VERIFICATION_ALREADY_PENDING');
+      throw new ConflictError(
+        'A verification request is already pending review.',
+        'VERIFICATION_ALREADY_PENDING'
+      );
     }
     return sellersRepository.requestVerification(profile.id);
   },
@@ -223,7 +248,10 @@ export const sellersService = {
 
     // Self-rating guard — a seller can never rate their own profile.
     if (profile.userId === raterId) {
-      throw new ForbiddenError('You cannot rate your own seller profile.', 'CANNOT_RATE_OWN_PROFILE');
+      throw new ForbiddenError(
+        'You cannot rate your own seller profile.',
+        'CANNOT_RATE_OWN_PROFILE'
+      );
     }
 
     // SECURITY FIX (blocked-user coverage gap): same gap closed on
@@ -250,7 +278,10 @@ export const sellersService = {
       // this is the DB-level backstop against duplicate ratings for the
       // same seller+deal from the same rater.
       if (error?.code === 'P2002') {
-        throw new ConflictError('You have already rated this seller for this transaction.', 'ALREADY_RATED');
+        throw new ConflictError(
+          'You have already rated this seller for this transaction.',
+          'ALREADY_RATED'
+        );
       }
       throw error;
     }
@@ -327,7 +358,9 @@ export const sellersService = {
       event: AuditEvent.ADMIN_SELLER_VERIFIED,
       userId: adminUserId,
       details: { sellerProfileId, verified },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/sellers/sellers.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/sellers/sellers.service.ts', error)
+    );
 
     return updated;
   },
@@ -344,7 +377,7 @@ export const sellersService = {
     sellerProfileId: string,
     suspended: boolean,
     adminUserId?: string,
-    reason?: string,
+    reason?: string
   ): Promise<SellerProfile> => {
     const profile = await sellersRepository.findById(sellerProfileId);
     if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
@@ -364,7 +397,9 @@ export const sellersService = {
       event: AuditEvent.ADMIN_SELLER_SUSPENDED,
       userId: adminUserId,
       details: { sellerProfileId, suspended, ...(reason ? { reason } : {}) },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/sellers/sellers.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/sellers/sellers.service.ts', error)
+    );
 
     return updated;
   },

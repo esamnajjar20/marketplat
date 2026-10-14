@@ -16,24 +16,26 @@
 /** Local copy of normalizeSearchText — avoid circular import with searchTextMatch. */
 function normalizeSearchText(input: string | null | undefined): string {
   if (!input) return '';
-  return input
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ى/g, 'ي')
-  // removed the ة -> ه fold. SQL's
-  // arabic_normalize (see migrations/20260805212538_arabic_search_
-  // normalization) deliberately does NOT fold ta marbuta -> ha —
-  // the two Arabic letters change gender and meaning often enough
-  // that folding trades a small precision loss for a larger one.
-  // The JS side folding it anyway meant 'سيارة' (the user's input,
-  // folded to 'سياره') went to to_tsquery as 'سياره' while the
-  // GIN index held the untouched 'سيارة' — every Arabic word
-  // ending in ta marbuta was unsearchable via FTS: cars, schools,
-  // stores, images, services, rooms, shirts, etc. Removing this
-  // line makes JS normalization a strict subset of SQL's, which
-  // is the invariant the query path requires.
-    .replace(/[\u0640\u064B-\u0652]/g, '')
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-    .toLowerCase();
+  return (
+    input
+      .replace(/[أإآٱ]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      // removed the ة -> ه fold. SQL's
+      // arabic_normalize (see migrations/20260805212538_arabic_search_
+      // normalization) deliberately does NOT fold ta marbuta -> ha —
+      // the two Arabic letters change gender and meaning often enough
+      // that folding trades a small precision loss for a larger one.
+      // The JS side folding it anyway meant 'سيارة' (the user's input,
+      // folded to 'سياره') went to to_tsquery as 'سياره' while the
+      // GIN index held the untouched 'سيارة' — every Arabic word
+      // ending in ta marbuta was unsearchable via FTS: cars, schools,
+      // stores, images, services, rooms, shirts, etc. Removing this
+      // line makes JS normalization a strict subset of SQL's, which
+      // is the invariant the query path requires.
+      .replace(/[\u0640\u064B-\u0652]/g, '')
+      .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .toLowerCase()
+  );
 }
 
 // ─── مرادفات (كل مجموعة = مفهوم واحد) ────────────────────────────────
@@ -61,18 +63,59 @@ const SYNONYM_GROUPS: readonly (readonly string[])[] = [
   ['موتور', 'دراجةنارية', 'موتوسيكل', 'motorcycle', 'scooter', 'سكوتر'],
   ['قطع', 'قطعغيار', 'spare', 'parts', 'ميكانيك'],
   // عقارات
-  ['شقة', 'شقه', 'apartment', 'flat', 'بيت', 'منزل', 'دار', 'فيلا', 'villa', 'ارض', 'أرض', 'plot', 'عقار', 'عقارات'],
+  [
+    'شقة',
+    'شقه',
+    'apartment',
+    'flat',
+    'بيت',
+    'منزل',
+    'دار',
+    'فيلا',
+    'villa',
+    'ارض',
+    'أرض',
+    'plot',
+    'عقار',
+    'عقارات',
+  ],
   ['ايجار', 'إيجار', 'rent', 'مستأجر', 'للايجار'],
   ['بيع', 'sale', 'للبيع'],
   // أثاث ومنزل
-  ['اثاث', 'أثاث', 'furniture', 'كنب', 'sofa', 'طاولة', 'طاوله', 'مكتب', 'خزانة', 'خزانه', 'سرير', 'غرفةنوم'],
+  [
+    'اثاث',
+    'أثاث',
+    'furniture',
+    'كنب',
+    'sofa',
+    'طاولة',
+    'طاوله',
+    'مكتب',
+    'خزانة',
+    'خزانه',
+    'سرير',
+    'غرفةنوم',
+  ],
   ['مطبخ', 'kitchen', 'اجهزةمطبخ'],
   // ملابس
   ['ملابس', 'لبسة', 'لبسه', 'قميص', 'بنطلون', 'حذاء', 'احذية', 'shoes', 'clothes', 'كوتشي', 'جزمة'],
   ['ساعة', 'ساعات', 'watch', 'smartwatch', 'ساعةذكية'],
   ['شنطة', 'حقيبة', 'bag', 'backpack'],
   // كهربائيات
-  ['ثلاجة', 'ثلاجه', 'fridge', 'refrigerator', 'غسالة', 'غساله', 'washer', 'فرن', 'ميكروويف', 'تكييف', 'مكيف', 'ac'],
+  [
+    'ثلاجة',
+    'ثلاجه',
+    'fridge',
+    'refrigerator',
+    'غسالة',
+    'غساله',
+    'washer',
+    'فرن',
+    'ميكروويف',
+    'تكييف',
+    'مكيف',
+    'ac',
+  ],
   ['مروحة', 'fan', 'دفاية', 'heater', 'سخان'],
   // دراجات وأطفال
   ['دراجة', 'دراجة', 'بسكليت', 'بسكليته', 'bike', 'bicycle', 'سكوتر'],
@@ -192,11 +235,11 @@ const STOP_WORDS = new Set(
     'in',
     'of',
     'to',
-  ].map((w) => normalizeSearchText(w)),
+  ].map(w => normalizeSearchText(w))
 );
 
 const INTENT_STORE = new Set(
-  ['متجر', 'محل', 'دكان', 'store', 'shop', 'market', 'سوق', 'بقالة'].map(normalizeSearchText),
+  ['متجر', 'محل', 'دكان', 'store', 'shop', 'market', 'سوق', 'بقالة'].map(normalizeSearchText)
 );
 const INTENT_SERVICE = new Set(
   [
@@ -216,10 +259,10 @@ const INTENT_SERVICE = new Set(
     'repair',
     'دروس',
     'تدريس',
-  ].map(normalizeSearchText),
+  ].map(normalizeSearchText)
 );
 const INTENT_PRODUCT = new Set(
-  ['منتج', 'سلعة', 'سلعه', 'product', 'جديد', 'مستعمل'].map(normalizeSearchText),
+  ['منتج', 'سلعة', 'سلعه', 'product', 'جديد', 'مستعمل'].map(normalizeSearchText)
 );
 const INTENT_AD = new Set(['اعلان', 'إعلان', 'ads', 'ad', 'post'].map(normalizeSearchText));
 
@@ -289,7 +332,7 @@ function synonymExpand(token: string): string[] {
     t = fixed;
   }
   for (const group of SYNONYM_GROUPS) {
-    const normalizedGroup = group.map((g) => normalizeSearchText(g));
+    const normalizedGroup = group.map(g => normalizeSearchText(g));
     if (normalizedGroup.includes(t)) {
       for (const g of normalizedGroup) out.add(g);
     }
@@ -348,12 +391,18 @@ export interface IntelligentSearchQuery {
 export function analyzeSearchQuery(raw: string | null | undefined): IntelligentSearchQuery {
   const normalized = normalizeSearchText(raw ?? '');
   if (!normalized.trim()) {
-    return { normalized: '', concepts: [], tsQueryString: null, preferredTypes: [], expanded: false };
+    return {
+      normalized: '',
+      concepts: [],
+      tsQueryString: null,
+      preferredTypes: [],
+      expanded: false,
+    };
   }
 
   const rawTokens = normalized
     .split(TOKEN_SEPARATORS)
-    .map((t) => t.trim())
+    .map(t => t.trim())
     .filter(Boolean);
 
   const preferredTypes = detectIntent(rawTokens);
@@ -365,7 +414,7 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
     if (variants.length === 0) continue;
     if (variants.length > 1) expanded = true;
 
-    const baseOnly = variants.map((v) => v.replace(/:\*$/, ''));
+    const baseOnly = variants.map(v => v.replace(/:\*$/, ''));
     if (baseOnly.length > 1) expanded = true;
 
     concepts.push(variants);
@@ -387,7 +436,7 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
 
   // (a|b|c) & (d|e)
   const tsQueryString = concepts
-    .map((alts) => {
+    .map(alts => {
       const cleaned = [...new Set(alts.filter(Boolean))];
       if (cleaned.length === 0) return null;
       if (cleaned.length === 1) return cleaned[0];
@@ -420,7 +469,5 @@ export function analyzeSearchQuery(raw: string | null | undefined): IntelligentS
  */
 export function expandedRequiredConcepts(rawQuery: string): string[][] {
   const { concepts } = analyzeSearchQuery(rawQuery);
-  return concepts.map((c) =>
-    c.map((x) => x.replace(/:\*$/, '')).filter(Boolean),
-  );
+  return concepts.map(c => c.map(x => x.replace(/:\*$/, '')).filter(Boolean));
 }

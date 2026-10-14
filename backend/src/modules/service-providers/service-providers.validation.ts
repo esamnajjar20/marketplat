@@ -39,7 +39,7 @@ export const createServiceProviderSchema = z.object({
       .array(z.string().min(1))
       .min(1, 'At least one service area city is required')
       .max(30, 'At most 30 service area cities')
-      .transform((cities) => Array.from(new Set(cities))),
+      .transform(cities => Array.from(new Set(cities))),
     workingHours: workingHoursSchema,
     contactPhone: z.string().min(6, 'contactPhone is required').max(30),
     latitude: z.number().min(-90).max(90).optional(),
@@ -59,7 +59,7 @@ export const updateServiceProviderSchema = z.object({
       .array(z.string().min(1))
       .min(1)
       .max(30)
-      .transform((cities) => Array.from(new Set(cities)))
+      .transform(cities => Array.from(new Set(cities)))
       .optional(),
     workingHours: workingHoursSchema.optional(),
     contactPhone: z.string().min(6).max(30).optional(),
@@ -119,7 +119,9 @@ export const serviceProviderAnalyticsQuerySchema = z.object({
   }),
 });
 
-export type ServiceProviderAnalyticsQuery = z.infer<typeof serviceProviderAnalyticsQuerySchema>['query'];
+export type ServiceProviderAnalyticsQuery = z.infer<
+  typeof serviceProviderAnalyticsQuerySchema
+>['query'];
 
 export const serviceProviderServiceTypeIdSchema = z.object({
   params: z.object({ serviceTypeId: z.string().min(1, 'Service type ID is required') }),
@@ -127,8 +129,10 @@ export const serviceProviderServiceTypeIdSchema = z.object({
 
 export const updateServiceProviderServiceTypeSchema = z.object({
   params: z.object({ serviceTypeId: z.string().min(1, 'Service type ID is required') }),
-  body: z.object({
-    attributes: z.record(z.string(), z.unknown()).default({}),
-    isActive: z.boolean().optional(),
-  }).strict(),
+  body: z
+    .object({
+      attributes: z.record(z.string(), z.unknown()).default({}),
+      isActive: z.boolean().optional(),
+    })
+    .strict(),
 });

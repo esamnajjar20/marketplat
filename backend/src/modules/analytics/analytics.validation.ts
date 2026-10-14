@@ -17,10 +17,10 @@ const analyticsEventSchema = z.object({
   // just data hygiene. 10KB is generous for the small key/value shapes
   // documented on the Prisma model (adId, query text, categoryId, step
   // name) and rejects anything trying to smuggle a large blob through.
-  metadata: z.record(z.unknown()).optional().refine(
-    val => !val || JSON.stringify(val).length <= 10_000,
-    { message: 'metadata too large' }
-  ),
+  metadata: z
+    .record(z.unknown())
+    .optional()
+    .refine(val => !val || JSON.stringify(val).length <= 10_000, { message: 'metadata too large' }),
   path: z.string().trim().max(500).optional(),
   referrer: z.string().trim().max(500).optional(),
 });

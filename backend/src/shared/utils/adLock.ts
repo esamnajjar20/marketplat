@@ -43,7 +43,11 @@ const RELEASE_SCRIPT = `
 // that could silently diverge" between modules.
 export const LOCK_NOT_ACQUIRED: unique symbol = Symbol('LOCK_NOT_ACQUIRED');
 
-export async function withRedisLock<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T | typeof LOCK_NOT_ACQUIRED> {
+export async function withRedisLock<T>(
+  key: string,
+  ttlSeconds: number,
+  fn: () => Promise<T>
+): Promise<T | typeof LOCK_NOT_ACQUIRED> {
   const token = crypto.randomUUID();
 
   const acquired = await redis.set(key, token, 'EX', ttlSeconds, 'NX');
@@ -70,7 +74,7 @@ export async function withRedisLock<T>(key: string, ttlSeconds: number, fn: () =
       if (released === 0) {
         logger.warn(
           'Redis lock expired before its holder finished — TTL is too short for the locked operation',
-          { key, ttlSeconds },
+          { key, ttlSeconds }
         );
       }
     } catch (err) {
@@ -123,7 +127,10 @@ const AD_CREATION_LOCK_TTL_SECONDS = 10;
 
 export class AdCreationLockedError extends AppError {
   constructor() {
-    super('Another ad creation request is already in progress for this account — please try again in a moment', 409);
+    super(
+      'Another ad creation request is already in progress for this account — please try again in a moment',
+      409
+    );
   }
 }
 
@@ -160,11 +167,17 @@ const ENTITY_IMAGE_LOCK_TTL_SECONDS = IMAGE_LOCK_TTL_SECONDS;
 
 export class EntityImagesLockedError extends AppError {
   constructor(entityId: string) {
-    super(`Item ${entityId} is currently being updated by another request — try again shortly`, 409);
+    super(
+      `Item ${entityId} is currently being updated by another request — try again shortly`,
+      409
+    );
   }
 }
 
-export async function withProductImagesLock<T>(productId: string, fn: () => Promise<T>): Promise<T> {
+export async function withProductImagesLock<T>(
+  productId: string,
+  fn: () => Promise<T>
+): Promise<T> {
   const result = await withRedisLock(
     `${PRODUCT_IMAGE_LOCK_PREFIX}${productId}`,
     ENTITY_IMAGE_LOCK_TTL_SECONDS,
@@ -176,7 +189,10 @@ export async function withProductImagesLock<T>(productId: string, fn: () => Prom
   return result;
 }
 
-export async function withServiceListingImagesLock<T>(listingId: string, fn: () => Promise<T>): Promise<T> {
+export async function withServiceListingImagesLock<T>(
+  listingId: string,
+  fn: () => Promise<T>
+): Promise<T> {
   const result = await withRedisLock(
     `${LISTING_IMAGE_LOCK_PREFIX}${listingId}`,
     ENTITY_IMAGE_LOCK_TTL_SECONDS,
@@ -208,7 +224,10 @@ const STORE_PRODUCT_CREATION_LOCK_TTL_SECONDS = 10;
 
 export class StoreProductCreationLockedError extends AppError {
   constructor() {
-    super('Another product creation request is already in progress for this store — please try again in a moment', 409);
+    super(
+      'Another product creation request is already in progress for this store — please try again in a moment',
+      409
+    );
   }
 }
 
@@ -223,7 +242,10 @@ export class StoreProductCreationLockedError extends AppError {
  * fast-path to avoid uploading images for an obviously-over-the-cap
  * request).
  */
-export async function withStoreProductCreationLock<T>(storeId: string, fn: () => Promise<T>): Promise<T> {
+export async function withStoreProductCreationLock<T>(
+  storeId: string,
+  fn: () => Promise<T>
+): Promise<T> {
   const result = await withRedisLock(
     `${STORE_PRODUCT_CREATION_LOCK_PREFIX}${storeId}`,
     STORE_PRODUCT_CREATION_LOCK_TTL_SECONDS,
@@ -254,7 +276,10 @@ const SAVED_SEARCH_CREATION_LOCK_TTL_SECONDS = 5;
 
 export class SavedSearchCreationLockedError extends AppError {
   constructor() {
-    super('Another saved-search request is already in progress for this account — please try again in a moment', 409);
+    super(
+      'Another saved-search request is already in progress for this account — please try again in a moment',
+      409
+    );
   }
 }
 
@@ -269,7 +294,10 @@ export class SavedSearchCreationLockedError extends AppError {
  * slow I/O (no file uploads) to fast-fail before, so a single
  * check-inside-the-lock is enough.
  */
-export async function withSavedSearchCreationLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+export async function withSavedSearchCreationLock<T>(
+  userId: string,
+  fn: () => Promise<T>
+): Promise<T> {
   const result = await withRedisLock(
     `${SAVED_SEARCH_CREATION_LOCK_PREFIX}${userId}`,
     SAVED_SEARCH_CREATION_LOCK_TTL_SECONDS,

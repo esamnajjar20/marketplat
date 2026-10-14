@@ -42,7 +42,11 @@ export const serviceCategoriesController = {
     }
   },
 
-  getServiceCategoryById: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getServiceCategoryById: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { params } = serviceCategoryIdSchema.parse({ params: req.params });
       const category = await serviceCategoriesService.getServiceCategoryById(params.id);
@@ -52,7 +56,11 @@ export const serviceCategoriesController = {
     }
   },
 
-  getServiceCategoryBySlug: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getServiceCategoryBySlug: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       // T445 — was reading req.params.slug raw, bypassing the same
       // slug rules createServiceCategorySchema enforces on write.

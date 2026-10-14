@@ -38,7 +38,10 @@ export async function recordFailedTask(
     backgroundTaskFailuresTotal.inc({ task_type: taskType.slice(0, 100), outcome: 'recorded' });
   } catch (persistError) {
     backgroundTaskFailurePersistenceTotal.inc({ task_type: taskType.slice(0, 100) });
-    backgroundTaskFailuresTotal.inc({ task_type: taskType.slice(0, 100), outcome: 'persistence_failed' });
+    backgroundTaskFailuresTotal.inc({
+      task_type: taskType.slice(0, 100),
+      outcome: 'persistence_failed',
+    });
     logger.error('Failed to persist FailedBackgroundTask record itself', {
       taskType,
       persistError: persistError instanceof Error ? persistError.message : String(persistError),

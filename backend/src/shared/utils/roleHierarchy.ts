@@ -33,7 +33,11 @@ import { Role, ROLE_RANK } from '../constants/roles';
  *     explicitly by the caller (changeRole) since this function has no
  *     way to know actor and target are the same user from ranks alone.
  */
-export function canManageRole(actorRole: Role, targetCurrentRole: Role, targetNewRole: Role): boolean {
+export function canManageRole(
+  actorRole: Role,
+  targetCurrentRole: Role,
+  targetNewRole: Role
+): boolean {
   const actorRank = ROLE_RANK[actorRole];
   const targetCurrentRank = ROLE_RANK[targetCurrentRole];
   const targetNewRank = ROLE_RANK[targetNewRole];

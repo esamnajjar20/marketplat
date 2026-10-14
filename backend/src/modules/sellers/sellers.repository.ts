@@ -40,14 +40,14 @@ export const sellersRepository = {
     suspended?: boolean;
     verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
     q?: string;
-  }): Promise<
-    Array<SellerProfile & { user: { id: string; name: string; email: string } }>
-  > =>
+  }): Promise<Array<SellerProfile & { user: { id: string; name: string; email: string } }>> =>
     prisma.sellerProfile.findMany({
       where: {
         ...(params.verified !== undefined && { verified: params.verified }),
         ...(params.suspended !== undefined && { suspended: params.suspended }),
-        ...(params.verificationStatus !== undefined && { verificationStatus: params.verificationStatus }),
+        ...(params.verificationStatus !== undefined && {
+          verificationStatus: params.verificationStatus,
+        }),
         // Same tradeoff noted in admin.service.ts's getAllAds/getAllUsers:
         // no index covers this pattern-match, acceptable for a
         // low-QPS admin-only endpoint.
@@ -75,7 +75,9 @@ export const sellersRepository = {
       where: {
         ...(params.verified !== undefined && { verified: params.verified }),
         ...(params.suspended !== undefined && { suspended: params.suspended }),
-        ...(params.verificationStatus !== undefined && { verificationStatus: params.verificationStatus }),
+        ...(params.verificationStatus !== undefined && {
+          verificationStatus: params.verificationStatus,
+        }),
         ...(params.q && {
           OR: [
             { displayName: { contains: params.q, mode: 'insensitive' as const } },
@@ -115,11 +117,13 @@ export const sellersRepository = {
         ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
         ...(data.bio !== undefined ? { bio: data.bio } : {}),
         ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
-        ...(data.paymentMethods !== undefined ? { paymentMethods: data.paymentMethods ?? Prisma.JsonNull } : {}),
+        ...(data.paymentMethods !== undefined
+          ? { paymentMethods: data.paymentMethods ?? Prisma.JsonNull }
+          : {}),
       },
     }),
 
-    // Called inside the same transaction as ad creation (see ads.service.ts)
+  // Called inside the same transaction as ad creation (see ads.service.ts)
   // so totalAds/activeAds never drift from the actual number of ads
   // referencing this sellerProfileId.
   incrementStatsOnAdCreated: (
@@ -164,7 +168,11 @@ export const sellersRepository = {
   // that distinction survives; un-verifying an already-VERIFIED
   // seller still resets to UNVERIFIED (that's a status revocation,
   // not a rejection of a request).
-  setVerification: (id: string, verified: boolean, currentStatus: SellerVerificationStatus): Promise<SellerProfile> =>
+  setVerification: (
+    id: string,
+    verified: boolean,
+    currentStatus: SellerVerificationStatus
+  ): Promise<SellerProfile> =>
     prisma.sellerProfile.update({
       where: { id },
       data: {

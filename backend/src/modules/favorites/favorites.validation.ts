@@ -27,10 +27,10 @@ const ENTITY_TYPE_PARAM_MAP: Record<string, FavoriteEntityType> = {
 
 const entityTypeParam = z
   .string()
-  .refine((val) => val in ENTITY_TYPE_PARAM_MAP, {
+  .refine(val => val in ENTITY_TYPE_PARAM_MAP, {
     message: 'Unsupported favorite entity type. Use: ads, products, stores, or services.',
   })
-  .transform((val) => ENTITY_TYPE_PARAM_MAP[val]);
+  .transform(val => ENTITY_TYPE_PARAM_MAP[val]);
 
 export const favoriteEntitySchema = z.object({
   params: z.object({

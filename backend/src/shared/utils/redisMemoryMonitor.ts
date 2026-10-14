@@ -87,13 +87,13 @@ async function pollOnce(): Promise<void> {
       lastWarnedAt = now;
       logger.warn(
         `⚠️  Redis memory usage at ${(ratio * 100).toFixed(1)}% of maxmemory ` +
-        `(${usedBytes} / ${maxBytes} bytes). This Redis instance runs with ` +
-        `maxmemory-policy=noeviction (see docker-compose.yml) — once maxmemory is ` +
-        `reached, NEW WRITES WILL BE REJECTED (sessions, rate limiting, caching all ` +
-        `depend on Redis writes succeeding). Raise REDIS_MAXMEMORY or investigate what's ` +
-        `consuming space (a growing keyspace despite every key carrying a TTL would ` +
-        `indicate a bug, not just organic growth) before this becomes a production incident.`,
-        { usedBytes, maxBytes, ratio },
+          `(${usedBytes} / ${maxBytes} bytes). This Redis instance runs with ` +
+          `maxmemory-policy=noeviction (see docker-compose.yml) — once maxmemory is ` +
+          `reached, NEW WRITES WILL BE REJECTED (sessions, rate limiting, caching all ` +
+          `depend on Redis writes succeeding). Raise REDIS_MAXMEMORY or investigate what's ` +
+          `consuming space (a growing keyspace despite every key carrying a TTL would ` +
+          `indicate a bug, not just organic growth) before this becomes a production incident.`,
+        { usedBytes, maxBytes, ratio }
       );
     }
   } catch (err) {
@@ -126,4 +126,3 @@ export const redisMemoryMonitor = {
     }
   },
 };
-

@@ -13,7 +13,11 @@ const appointmentPublicInclude = {
 } as const;
 
 export type AppointmentWithRequest = Appointment & {
-  request: { id: string; customerId: string; listing: { id: string; title: string; providerId: string } } | null;
+  request: {
+    id: string;
+    customerId: string;
+    listing: { id: string; title: string; providerId: string };
+  } | null;
 };
 
 export const appointmentsRepository = {
@@ -78,10 +82,7 @@ export const appointmentsRepository = {
     const { page = 1, limit = 20, from, to } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.AppointmentWhereInput = {
-      OR: [
-        ...(providerId ? [{ providerId }] : []),
-        { request: { customerId: userId } },
-      ],
+      OR: [...(providerId ? [{ providerId }] : []), { request: { customerId: userId } }],
       ...((from || to) && {
         scheduledStart: {
           ...(from && { gte: from }),
@@ -91,7 +92,13 @@ export const appointmentsRepository = {
     };
 
     const [appointments, total] = await Promise.all([
-      prisma.appointment.findMany({ where, include: appointmentPublicInclude, orderBy: [{ scheduledStart: 'asc' }, { id: 'asc' }], skip, take }),
+      prisma.appointment.findMany({
+        where,
+        include: appointmentPublicInclude,
+        orderBy: [{ scheduledStart: 'asc' }, { id: 'asc' }],
+        skip,
+        take,
+      }),
       prisma.appointment.count({ where }),
     ]);
     return { appointments, total };

@@ -15,4 +15,4 @@ import { z } from 'zod';
 // helper's plain `Number(value)`. That's a real behavioral difference,
 // not a duplicate, so it's left as-is rather than merged in here.
 export const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.preprocess((value) => (value === undefined ? undefined : Number(value)), schema.optional());
+  z.preprocess(value => (value === undefined ? undefined : Number(value)), schema.optional());

@@ -42,7 +42,7 @@ async function withCityFallback<TQuery, TResult>(
   cityQuery: TQuery,
   generalQuery: TQuery,
   fetch: (query: TQuery) => Promise<TResult>,
-  hasItems: (result: TResult) => boolean,
+  hasItems: (result: TResult) => boolean
 ): Promise<TResult & { source: HomeLocationSource }> {
   if (!city) {
     const result = await fetch(generalQuery);
@@ -82,7 +82,9 @@ const LATEST: Sortable = { sortBy: 'createdAt', sortOrder: 'desc' };
 async function homeStats(): Promise<{ activeAds: number; adsLast24h: number }> {
   const [activeAds, adsLast24h] = await Promise.all([
     prisma.ad.count({ where: { status: 'ACTIVE' } }),
-    prisma.ad.count({ where: { status: 'ACTIVE', createdAt: { gte: new Date(Date.now() - DAY_MS) } } }),
+    prisma.ad.count({
+      where: { status: 'ACTIVE', createdAt: { gte: new Date(Date.now() - DAY_MS) } },
+    }),
   ]);
   return { activeAds, adsLast24h };
 }
@@ -94,28 +96,28 @@ export const homeService = {
     // Legacy /home keeps its guest trending shelf; /home/feed uses one
     // mixed recommendation call instead and never enters this path.
     const guestTrendingPromise = Promise.all([
-          settle(
-            'guestTrendingAds',
-            recommendationsService.getRecommendations(
-              { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
-              undefined,
-            ),
-          ),
-          settle(
-            'guestTrendingProducts',
-            recommendationsService.getProductRecommendations(
-              { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
-              undefined,
-            ),
-          ),
-          settle(
-            'guestTrendingServices',
-            recommendationsService.getServiceListingRecommendations(
-              { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
-              undefined,
-            ),
-          ),
-        ]).then(([ads, products, services]) => ({ ads, products, services }));
+      settle(
+        'guestTrendingAds',
+        recommendationsService.getRecommendations(
+          { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
+          undefined
+        )
+      ),
+      settle(
+        'guestTrendingProducts',
+        recommendationsService.getProductRecommendations(
+          { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
+          undefined
+        )
+      ),
+      settle(
+        'guestTrendingServices',
+        recommendationsService.getServiceListingRecommendations(
+          { limit: GUEST_TRENDING_PER_TYPE, ...(query.city ? { city: query.city } : {}) },
+          undefined
+        )
+      ),
+    ]).then(([ads, products, services]) => ({ ads, products, services }));
 
     const [
       featuredAds,
@@ -142,9 +144,9 @@ export const homeService = {
           query.city,
           { limit: HOME_ADS_LIMIT, ...LATEST, ...cityFilter },
           { limit: HOME_ADS_LIMIT, ...LATEST },
-          (params) => adsService.getAds(params),
-          (result) => result.items.length > 0,
-        ),
+          params => adsService.getAds(params),
+          result => result.items.length > 0
+        )
       ),
       settle(
         'recentProducts',
@@ -152,15 +154,15 @@ export const homeService = {
           query.city,
           { limit: SECTION_LIMIT, ...LATEST, ...cityFilter },
           { limit: SECTION_LIMIT, ...LATEST },
-          (params) => productsService.getProducts(params),
-          (result) => result.items.length > 0,
-        ),
+          params => productsService.getProducts(params),
+          result => result.items.length > 0
+        )
       ),
       // Promotions are marketplace-wide — not city-filtered. One query feeds
       // both the promoted rail and the carousel's product slides.
       settle(
         'promotedProducts',
-        productsService.getProducts({ limit: SECTION_LIMIT, ...LATEST, hasPromotion: true }),
+        productsService.getProducts({ limit: SECTION_LIMIT, ...LATEST, hasPromotion: true })
       ),
       settle(
         'homeServices',
@@ -168,9 +170,9 @@ export const homeService = {
           query.city,
           { limit: SECTION_LIMIT, ...LATEST, ...cityFilter },
           { limit: SECTION_LIMIT, ...LATEST },
-          (params) => serviceListingsService.getServiceListings(params),
-          (result) => result.items.length > 0,
-        ),
+          params => serviceListingsService.getServiceListings(params),
+          result => result.items.length > 0
+        )
       ),
       settle(
         'featuredStores',
@@ -178,9 +180,9 @@ export const homeService = {
           query.city,
           { limit: STORES_SECTION_LIMIT, ...cityFilter },
           { limit: STORES_SECTION_LIMIT },
-          (params) => storesService.getStores(params),
-          (result) => result.stores.length > 0,
-        ),
+          params => storesService.getStores(params),
+          result => result.stores.length > 0
+        )
       ),
       settle(
         'nearbyProviders',
@@ -188,9 +190,9 @@ export const homeService = {
           query.city,
           { limit: PROVIDERS_SECTION_LIMIT, ...cityFilter },
           { limit: PROVIDERS_SECTION_LIMIT },
-          (params) => serviceProvidersService.getServiceProviders(params),
-          (result) => result.providers.length > 0,
-        ),
+          params => serviceProvidersService.getServiceProviders(params),
+          result => result.providers.length > 0
+        )
       ),
       // Real counters for the trust strip. Cosmetic: a failure yields null.
       settle('stats', homeStats()),
@@ -213,7 +215,7 @@ export const homeService = {
     ];
     // Everything failed → this is an outage, not a degraded page: surface a
     // real error instead of a 200 full of nulls that would be cached.
-    if (sections.every((section) => section === null)) {
+    if (sections.every(section => section === null)) {
       throw new Error('Homepage: all sections failed');
     }
 
@@ -221,7 +223,10 @@ export const homeService = {
       featuredCarousel: {
         ads: featuredAds,
         products: promotedProducts
-          ? { items: promotedProducts.items.slice(0, CAROUSEL_PRODUCTS_LIMIT), meta: promotedProducts.meta }
+          ? {
+              items: promotedProducts.items.slice(0, CAROUSEL_PRODUCTS_LIMIT),
+              meta: promotedProducts.meta,
+            }
           : null,
         stores: carouselFeaturedStores
           ? { items: carouselFeaturedStores.stores, meta: carouselFeaturedStores.meta }
@@ -241,10 +246,18 @@ export const homeService = {
         promotedProducts,
         homeServices,
         featuredStores: featuredStores
-          ? { items: featuredStores.stores, meta: featuredStores.meta, source: featuredStores.source }
+          ? {
+              items: featuredStores.stores,
+              meta: featuredStores.meta,
+              source: featuredStores.source,
+            }
           : null,
         nearbyProviders: nearbyProviders
-          ? { items: nearbyProviders.providers, meta: nearbyProviders.meta, source: nearbyProviders.source }
+          ? {
+              items: nearbyProviders.providers,
+              meta: nearbyProviders.meta,
+              source: nearbyProviders.source,
+            }
           : null,
       },
     };
@@ -257,25 +270,35 @@ export const homeService = {
    * needed.
    */
   getHomepageBootstrap: async (query: GetHomepageQuery) => {
-    const [featuredAds, carouselFeaturedStores, productPromotions, adCategories, productCategories, serviceCategories, stats] =
-      await Promise.all([
-        settle('featuredAds', adsService.getAds({ isFeatured: true, limit: CAROUSEL_LIMIT })),
-        settle('carouselStores', storesService.getFeaturedStores({ limit: CAROUSEL_LIMIT })),
-        settle(
-          'promotedProducts',
-          productsService.getProducts({ limit: SECTION_LIMIT, ...LATEST, hasPromotion: true }),
-        ),
-        settle('adCategories', categoriesService.getCategories()),
-        settle('productCategories', productCategoriesService.getProductCategories()),
-        settle('serviceCategories', serviceCategoriesService.getServiceCategories()),
-        settle('stats', homeStats()),
-      ]);
+    const [
+      featuredAds,
+      carouselFeaturedStores,
+      productPromotions,
+      adCategories,
+      productCategories,
+      serviceCategories,
+      stats,
+    ] = await Promise.all([
+      settle('featuredAds', adsService.getAds({ isFeatured: true, limit: CAROUSEL_LIMIT })),
+      settle('carouselStores', storesService.getFeaturedStores({ limit: CAROUSEL_LIMIT })),
+      settle(
+        'promotedProducts',
+        productsService.getProducts({ limit: SECTION_LIMIT, ...LATEST, hasPromotion: true })
+      ),
+      settle('adCategories', categoriesService.getCategories()),
+      settle('productCategories', productCategoriesService.getProductCategories()),
+      settle('serviceCategories', serviceCategoriesService.getServiceCategories()),
+      settle('stats', homeStats()),
+    ]);
 
     return {
       featuredCarousel: {
         ads: featuredAds,
         products: productPromotions
-          ? { items: productPromotions.items.slice(0, CAROUSEL_PRODUCTS_LIMIT), meta: productPromotions.meta }
+          ? {
+              items: productPromotions.items.slice(0, CAROUSEL_PRODUCTS_LIMIT),
+              meta: productPromotions.meta,
+            }
           : null,
         stores: carouselFeaturedStores
           ? { items: carouselFeaturedStores.stores, meta: carouselFeaturedStores.meta }
@@ -289,7 +312,6 @@ export const homeService = {
       stats,
     };
   },
-
 };
 
 export type HomepageResult = Awaited<ReturnType<typeof homeService.getHomepage>>;
@@ -304,5 +326,5 @@ export function isHomepageDegraded(payload: HomepageResult): boolean {
     ...Object.values(guestTrending),
     adsForHome,
     ...Object.values(belowFold),
-  ].some((section) => section === null);
+  ].some(section => section === null);
 }

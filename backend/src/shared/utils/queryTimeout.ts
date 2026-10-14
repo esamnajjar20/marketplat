@@ -42,7 +42,10 @@ const isQueryCanceledError = (error: unknown): boolean => {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.meta?.code === '57014') return true;
     if (typeof error.message === 'string' && error.message.includes('57014')) return true;
-    if (typeof error.message === 'string' && error.message.toLowerCase().includes('query_canceled')) {
+    if (
+      typeof error.message === 'string' &&
+      error.message.toLowerCase().includes('query_canceled')
+    ) {
       return true;
     }
   }
@@ -56,7 +59,12 @@ const isQueryCanceledError = (error: unknown): boolean => {
  * of letting Postgres's raw cancellation error reach the caller.
  */
 export const runWithQueryTimeout = async <T>(
-  fn: (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => Promise<T>,
+  fn: (
+    tx: Omit<
+      PrismaClient,
+      '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+    >
+  ) => Promise<T>,
   timeoutMs: number = 10_000
 ): Promise<T> => {
   // Defense in depth for the string interpolation below: SET LOCAL

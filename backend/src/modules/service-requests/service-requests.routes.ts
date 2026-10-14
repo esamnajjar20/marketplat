@@ -24,11 +24,17 @@ serviceRequestsRouter.get(
   CACHE.NONE,
   serviceRequestsController.getMyRequestsAsProvider
 );
-serviceRequestsRouter.get('/:id', authenticate, CACHE.NONE, serviceRequestsController.getRequestById);
+serviceRequestsRouter.get(
+  '/:id',
+  authenticate,
+  CACHE.NONE,
+  serviceRequestsController.getRequestById
+);
 
 serviceRequestsRouter.post(
   '/',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createServiceRequestRateLimit,
   serviceRequestsController.createRequest
 );
@@ -43,7 +49,8 @@ serviceRequestsRouter.post(
 // request) — respond now has its own, more generous bucket.
 serviceRequestsRouter.patch(
   '/:id/respond',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   respondServiceRequestRateLimit,
   serviceRequestsController.respondToRequest
 );

@@ -1,6 +1,10 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Notification, NotificationType, Prisma } from '@prisma/client';
-import { notificationsRepository, PushSubscriptionInput, RegisterFcmTokenInput } from './notifications.repository';
+import {
+  notificationsRepository,
+  PushSubscriptionInput,
+  RegisterFcmTokenInput,
+} from './notifications.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
@@ -82,7 +86,7 @@ async function filterUserIdsByPref(userIds: string[], key: PrefKey): Promise<str
     where: { id: { in: unique } },
     select: { id: true, notificationPreferences: true },
   });
-  return rows.filter((u) => readPref(u.notificationPreferences, key)).map((u) => u.id);
+  return rows.filter(u => readPref(u.notificationPreferences, key)).map(u => u.id);
 }
 
 // FIX NOTIF-USER-PREF-HOT-PATH-01: dedicated single-user path instead
@@ -142,10 +146,16 @@ export const notificationsService = {
           'APPOINTMENT_UPDATE',
         ],
         sales: [
-          'SALES_DAILY_REMINDER','SALES_LOW_STOCK','SALES_OVERDUE_INSTALLMENT',
-          'SALES_DEBT_REMINDER','SALES_WEEKLY_REPORT',
-          'SALES_OVERDUE_DEBT','SALES_UPCOMING_INSTALLMENT','SALES_INACTIVE_CUSTOMER',
-          'SALES_DAILY_SUMMARY','SALES_SMART_INSIGHT',
+          'SALES_DAILY_REMINDER',
+          'SALES_LOW_STOCK',
+          'SALES_OVERDUE_INSTALLMENT',
+          'SALES_DEBT_REMINDER',
+          'SALES_WEEKLY_REPORT',
+          'SALES_OVERDUE_DEBT',
+          'SALES_UPCOMING_INSTALLMENT',
+          'SALES_INACTIVE_CUSTOMER',
+          'SALES_DAILY_SUMMARY',
+          'SALES_SMART_INSIGHT',
         ],
         system: [
           'PROMOTION',
@@ -170,16 +180,34 @@ export const notificationsService = {
 
   userAllowsPreference: userAllowsPref,
 
-  createSellerAlert: async (userId: string, key: PrefKey, type: NotificationType, title: string, body: string, data?: Prisma.InputJsonValue) => {
+  createSellerAlert: async (
+    userId: string,
+    key: PrefKey,
+    type: NotificationType,
+    title: string,
+    body: string,
+    data?: Prisma.InputJsonValue
+  ) => {
     if (!(await userAllowsPref(userId, key))) return null;
     const notification = await notificationsRepository.create({ userId, type, title, body, data });
     void pushService.notifyUsers([userId], { title, body, url: '/account/sales', tag: type, type });
     return notification;
   },
 
-  createSellerAlertOnce: async (userId: string, key: PrefKey, type: NotificationType, title: string, body: string, since: Date, data?: Prisma.InputJsonValue) => {
+  createSellerAlertOnce: async (
+    userId: string,
+    key: PrefKey,
+    type: NotificationType,
+    title: string,
+    body: string,
+    since: Date,
+    data?: Prisma.InputJsonValue
+  ) => {
     if (!(await userAllowsPref(userId, key))) return null;
-    const existing = await prisma.notification.findFirst({ where: { userId, type, title, createdAt: { gte: since } }, select: { id: true } });
+    const existing = await prisma.notification.findFirst({
+      where: { userId, type, title, createdAt: { gte: since } },
+      select: { id: true },
+    });
     if (existing) return null;
     const notification = await notificationsRepository.create({ userId, type, title, body, data });
     void pushService.notifyUsers([userId], { title, body, url: '/account/sales', tag: type, type });
@@ -222,7 +250,7 @@ export const notificationsService = {
     if (userIds.length === 0) return 0;
 
     // Process broadcasts in 500-user slices to bound query size, memory use,
-// and transaction duration while allowing completed slices to remain.
+    // and transaction duration while allowing completed slices to remain.
     const BROADCAST_CHUNK_SIZE = 500;
     const unique = Array.from(new Set(userIds));
     let totalCreated = 0;
@@ -238,7 +266,7 @@ export const notificationsService = {
       // In-app rows first, then push (a push never refers to a row that
       // failed to insert). Web Push + FCM stay fire-and-forget.
       const result = await notificationsRepository.createMany(
-        recipients.map((userId) => ({ userId, type: 'PROMOTION' as const, title, body }))
+        recipients.map(userId => ({ userId, type: 'PROMOTION' as const, title, body }))
       );
       totalCreated += result.count;
 
@@ -252,7 +280,12 @@ export const notificationsService = {
             type: 'PROMOTION',
           })
         )
-        .catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+        .catch(error =>
+          reportBackgroundFailure(
+            'backend/src/modules/notifications/notifications.service.ts',
+            error
+          )
+        );
     }
 
     void pushChain;
@@ -298,7 +331,8 @@ export const notificationsService = {
     if (devices === 0) return { devices: 0 };
     testPushLastSent.set(userId, now);
     if (testPushLastSent.size > 5000) {
-      for (const [k, t] of testPushLastSent) if (now - t > TEST_PUSH_COOLDOWN_MS) testPushLastSent.delete(k);
+      for (const [k, t] of testPushLastSent)
+        if (now - t > TEST_PUSH_COOLDOWN_MS) testPushLastSent.delete(k);
     }
     await pushService.notifyUser(userId, {
       title: 'إشعار تجريبي',
@@ -326,7 +360,7 @@ export const notificationsService = {
       fcmDeviceTokensRepository.listForUser(userId),
     ]);
     const devices: NotificationDevice[] = [
-      ...web.map((d) => ({
+      ...web.map(d => ({
         id: d.id,
         kind: 'web' as const,
         label: d.label,
@@ -335,7 +369,7 @@ export const notificationsService = {
         createdAt: d.createdAt,
         lastSeenAt: d.lastSeenAt,
       })),
-      ...native.map((d) => ({
+      ...native.map(d => ({
         id: d.id,
         kind: 'native' as const,
         label: d.label,
@@ -349,7 +383,12 @@ export const notificationsService = {
   },
 
   /** PATCH /notifications/devices/:kind/:id — rename one of the caller's devices. */
-  renameDevice: async (userId: string, kind: DeviceKind, id: string, label: string): Promise<void> => {
+  renameDevice: async (
+    userId: string,
+    kind: DeviceKind,
+    id: string,
+    label: string
+  ): Promise<void> => {
     const repo = kind === 'web' ? pushSubscriptionsRepository : fcmDeviceTokensRepository;
     const result = await repo.renameForUser(userId, id, label);
     if (result.count === 0) throw new NotFoundError('Device not found', 'DEVICE_NOT_FOUND');
@@ -423,10 +462,11 @@ export const notificationsService = {
     const totalInWindow = Number(rows[0]?.total ?? 0n);
     const unreadTotal = Number(rows[0]?.unread ?? 0n);
     const byType = rows
-      .filter((row): row is typeof row & { type: string; typeCount: bigint } =>
-        row.type !== null && row.typeCount !== null
+      .filter(
+        (row): row is typeof row & { type: string; typeCount: bigint } =>
+          row.type !== null && row.typeCount !== null
       )
-      .map((row) => ({ type: row.type as NotificationType, count: Number(row.typeCount) }))
+      .map(row => ({ type: row.type as NotificationType, count: Number(row.typeCount) }))
       .sort((a, b) => b.count - a.count);
     return {
       days,
@@ -485,9 +525,11 @@ async function fanOutSameContentNotification(
       type,
       ...(pushImage ? { image: pushImage } : {}),
     })
-    .catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    .catch(error =>
+      reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+    );
   return notificationsRepository.createMany(
-    recipients.map((userId) => ({ userId, type, title, body, data }))
+    recipients.map(userId => ({ userId, type, title, body, data }))
   );
 }
 
@@ -498,14 +540,25 @@ const SERVICE_REQUEST_COPY: Record<
   string,
   Partial<Record<ServiceRequestActor, { title: string; body: (t: string) => string }>>
 > = {
-  ACCEPTED: { customer: { title: 'تم قبول طلبك', body: (t) => `قبل مقدم الخدمة طلبك على "${t}" — اطّلع على السعر المقترح` } },
-  REJECTED: { customer: { title: 'تم رفض طلبك', body: (t) => `اعتذر مقدم الخدمة عن طلبك على "${t}"` } },
-  IN_PROGRESS: { customer: { title: 'بدأ تنفيذ طلبك', body: (t) => `بدأ مقدم الخدمة العمل على طلبك "${t}"` } },
-  COMPLETED: { customer: { title: 'اكتمل طلبك', body: (t) => `اكتمل طلبك "${t}" — يمكنك الآن تقييم الخدمة` } },
+  ACCEPTED: {
+    customer: {
+      title: 'تم قبول طلبك',
+      body: t => `قبل مقدم الخدمة طلبك على "${t}" — اطّلع على السعر المقترح`,
+    },
+  },
+  REJECTED: {
+    customer: { title: 'تم رفض طلبك', body: t => `اعتذر مقدم الخدمة عن طلبك على "${t}"` },
+  },
+  IN_PROGRESS: {
+    customer: { title: 'بدأ تنفيذ طلبك', body: t => `بدأ مقدم الخدمة العمل على طلبك "${t}"` },
+  },
+  COMPLETED: {
+    customer: { title: 'اكتمل طلبك', body: t => `اكتمل طلبك "${t}" — يمكنك الآن تقييم الخدمة` },
+  },
   // CANCELLED is symmetrical: the recipient is whoever did NOT cancel.
   CANCELLED: {
-    customer: { title: 'تم إلغاء الطلب', body: (t) => `ألغى مقدم الخدمة الطلب على "${t}"` },
-    provider: { title: 'تم إلغاء الطلب', body: (t) => `ألغى العميل طلبه على "${t}"` },
+    customer: { title: 'تم إلغاء الطلب', body: t => `ألغى مقدم الخدمة الطلب على "${t}"` },
+    provider: { title: 'تم إلغاء الطلب', body: t => `ألغى العميل طلبه على "${t}"` },
   },
 };
 
@@ -523,18 +576,34 @@ const formatGazaDateTime = (d: Date): string => {
 
 /** Running unread-message count stored on a NEW_MESSAGE row's `data.count`. */
 const unreadMessageCount = (data: unknown): number => {
-  const raw = data && typeof data === 'object' ? (data as Record<string, unknown>).count : undefined;
+  const raw =
+    data && typeof data === 'object' ? (data as Record<string, unknown>).count : undefined;
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
 };
 
 export const notificationEvents = {
   /** Seller-facing lifecycle warning, emitted once per ad. */
-  onAdExpiringSoon: async (userId: string, adId: string, adTitle: string, expiresAt: Date): Promise<void> => {
+  onAdExpiringSoon: async (
+    userId: string,
+    adId: string,
+    adTitle: string,
+    expiresAt: Date
+  ): Promise<void> => {
     const title = 'إعلانك يقترب من الانتهاء';
     const body = `سينتهي إعلان "${adTitle}" خلال 7 أيام تقريبًا`;
     const data = { adId, expiresAt: expiresAt.toISOString(), event: 'expiring' };
     await notificationsRepository.create({ userId, type: 'AD_EXPIRING_SOON', title, body, data });
-    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expiry-${adId}`, type: 'AD_EXPIRING_SOON' }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(userId, {
+        title,
+        body,
+        url: `/ads/${adId}`,
+        tag: `ad-expiry-${adId}`,
+        type: 'AD_EXPIRING_SOON',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
   },
 
   /** Seller-facing terminal lifecycle event. */
@@ -543,7 +612,17 @@ export const notificationEvents = {
     const body = `انتهت مدة نشر "${adTitle}". يمكنك تجديده من إعلاناتك.`;
     const data = { adId, event: 'expired' };
     await notificationsRepository.create({ userId, type: 'AD_EXPIRED', title, body, data });
-    void pushService.notifyUser(userId, { title, body, url: `/ads/${adId}`, tag: `ad-expired-${adId}`, type: 'AD_EXPIRED' }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(userId, {
+        title,
+        body,
+        url: `/ads/${adId}`,
+        tag: `ad-expired-${adId}`,
+        type: 'AD_EXPIRED',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
   },
 
   /** Moderation queue: every moderator/admin gets a durable in-app row and a push. */
@@ -558,42 +637,86 @@ export const notificationEvents = {
       where: { role: { in: ['MODERATOR', 'ADMIN', 'SUPER_ADMIN'] } },
       select: { id: true },
     });
-    const userIds = moderators.map((m) => m.id);
+    const userIds = moderators.map(m => m.id);
     if (userIds.length === 0) return { count: 0 };
     const title = input.autoHidden ? 'تم إخفاء محتوى تلقائيًا' : 'بلاغ جديد يحتاج مراجعة';
     const body = `${input.targetLabel} تلقى بلاغًا جديدًا${input.autoHidden ? ' وتم إخفاؤه مؤقتًا' : ''}`;
-    const data = { reportId: input.reportId, targetType: input.targetType, targetId: input.targetId };
-    void pushService.notifyUsers(userIds, {
-      title, body, url: '/admin?tab=reports', tag: `report-${input.reportId}`, type: 'MODERATION_REPORT_RECEIVED',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
-    return notificationsRepository.createMany(userIds.map((userId) => ({
-      userId, type: 'MODERATION_REPORT_RECEIVED' as const, title, body, data,
-    })));
+    const data = {
+      reportId: input.reportId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+    };
+    void pushService
+      .notifyUsers(userIds, {
+        title,
+        body,
+        url: '/admin?tab=reports',
+        tag: `report-${input.reportId}`,
+        type: 'MODERATION_REPORT_RECEIVED',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
+    return notificationsRepository.createMany(
+      userIds.map(userId => ({
+        userId,
+        type: 'MODERATION_REPORT_RECEIVED' as const,
+        title,
+        body,
+        data,
+      }))
+    );
   },
-
 
   /** Report outcome for the reporter and, for ad reports, the affected owner. */
   onModerationDecision: async (input: {
-    userIds: string[]; reportId: string; targetType: string; targetId: string; status: string; targetTitle: string;
+    userIds: string[];
+    reportId: string;
+    targetType: string;
+    targetId: string;
+    status: string;
+    targetTitle: string;
   }): Promise<{ count: number }> => {
     const resolved = input.status === 'RESOLVED';
     const title = resolved ? 'تمت مراجعة البلاغ' : 'تمت مراجعة البلاغ';
     const body = resolved
       ? `تم اتخاذ إجراء بشأن البلاغ المتعلق بـ"${input.targetTitle}"`
       : `تمت مراجعة البلاغ المتعلق بـ"${input.targetTitle}" دون إجراء نشر جديد`;
-    const data = { reportId: input.reportId, targetType: input.targetType, targetId: input.targetId, status: input.status };
-    void pushService.notifyUsers(input.userIds, {
-      title, body, url: '/notifications', tag: `moderation-${input.reportId}`, type: 'MODERATION_DECISION',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
-    return notificationsRepository.createMany(input.userIds.map((userId) => ({
-      userId, type: 'MODERATION_DECISION' as const, title, body, data,
-    })));
+    const data = {
+      reportId: input.reportId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      status: input.status,
+    };
+    void pushService
+      .notifyUsers(input.userIds, {
+        title,
+        body,
+        url: '/notifications',
+        tag: `moderation-${input.reportId}`,
+        type: 'MODERATION_DECISION',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
+    return notificationsRepository.createMany(
+      input.userIds.map(userId => ({
+        userId,
+        type: 'MODERATION_DECISION' as const,
+        title,
+        body,
+        data,
+      }))
+    );
   },
 
   /** Social follow: notify a user that another user followed them. */
   onNewFollower: async (recipientUserId: string, followerUserId: string) => {
     if (!(await userAllowsPref(recipientUserId, 'followUpdates'))) return null;
-    const follower = await prisma.user.findUnique({ where: { id: followerUserId }, select: { name: true } });
+    const follower = await prisma.user.findUnique({
+      where: { id: followerUserId },
+      select: { name: true },
+    });
     if (!follower) return null;
     const title = 'متابع جديد';
     const body = `${follower.name} بدأ بمتابعتك`;
@@ -603,14 +726,14 @@ export const notificationEvents = {
       { title, body, data: { followerId: followerUserId } },
       `/profile/${followerUserId}`,
       `follow-${followerUserId}`,
-      'followUpdates',
+      'followUpdates'
     );
   },
 
   /** Social follow: shared activity notification for followers of a target. */
   onFollowedActivity: async (
     userIds: string[],
-    input: { title: string; body: string; data: Prisma.InputJsonValue; type?: NotificationType },
+    input: { title: string; body: string; data: Prisma.InputJsonValue; type?: NotificationType }
   ) =>
     fanOutSameContentNotification(
       userIds,
@@ -618,7 +741,7 @@ export const notificationEvents = {
       input,
       '/?feed=following',
       'followed-activity',
-      'followUpdates',
+      'followUpdates'
     ),
 
   /** conversations.service.ts's sendMessage calls this after a message is created — notifies the OTHER party in the thread, never the sender. */
@@ -627,7 +750,11 @@ export const notificationEvents = {
       where: { conversationId_userId: { conversationId, userId: recipientUserId } },
       select: { mutedUntil: true, deletedAt: true },
     });
-    if (conversationMute?.deletedAt || (conversationMute?.mutedUntil && conversationMute.mutedUntil > new Date())) return null;
+    if (
+      conversationMute?.deletedAt ||
+      (conversationMute?.mutedUntil && conversationMute.mutedUntil > new Date())
+    )
+      return null;
     if (!(await userAllowsPref(recipientUserId, 'newMessage'))) return null;
     const title = 'رسالة جديدة';
     const body = `${senderName} أرسل لك رسالة`;
@@ -642,14 +769,18 @@ export const notificationEvents = {
       body,
     });
     const count = unreadMessageCount(row.data);
-    void pushService.notifyUser(recipientUserId, {
-      title: count > 1 ? `${count} رسائل جديدة` : title,
-      body: count > 1 ? `${count} رسائل من ${senderName}` : body,
-      url: `/messages/${conversationId}`,
-      tag: `conversation-${conversationId}`,
-      urgent: true,
-      type: 'NEW_MESSAGE',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(recipientUserId, {
+        title: count > 1 ? `${count} رسائل جديدة` : title,
+        body: count > 1 ? `${count} رسائل من ${senderName}` : body,
+        url: `/messages/${conversationId}`,
+        tag: `conversation-${conversationId}`,
+        urgent: true,
+        type: 'NEW_MESSAGE',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return row;
   },
 
@@ -726,8 +857,13 @@ export const notificationEvents = {
     entity: { type: 'ad' | 'product' | 'service'; id: string; title: string }
   ): Promise<{ count: number }> => {
     if (matches.length === 0) return { count: 0 };
-    const allowedIds = new Set(await filterUserIdsByPref(matches.map((m) => m.userId), 'savedSearch'));
-    matches = matches.filter((m) => allowedIds.has(m.userId));
+    const allowedIds = new Set(
+      await filterUserIdsByPref(
+        matches.map(m => m.userId),
+        'savedSearch'
+      )
+    );
+    matches = matches.filter(m => allowedIds.has(m.userId));
     if (matches.length === 0) return { count: 0 };
 
     const { url, entityData, title } = ((): {
@@ -781,7 +917,9 @@ export const notificationEvents = {
           type: 'SAVED_SEARCH_MATCH',
         })
       )
-    ).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    ).catch(error =>
+      reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+    );
     return notificationsRepository.createMany(
       matches.map(({ userId, savedSearchId, label }) => ({
         userId,
@@ -806,7 +944,11 @@ export const notificationEvents = {
     fanOutSameContentNotification(
       followerUserIds,
       'STORE_NEW_PRODUCT',
-      { title: 'منتج جديد', body: `متجر "${storeName}" أضاف منتجًا جديدًا: ${productName}`, data: { storeId } },
+      {
+        title: 'منتج جديد',
+        body: `متجر "${storeName}" أضاف منتجًا جديدًا: ${productName}`,
+        data: { storeId },
+      },
       `/stores/${storeId}`,
       `store-${storeId}`,
       'storeUpdates'
@@ -878,13 +1020,17 @@ export const notificationEvents = {
     if (!(await userAllowsPref(targetUserId, 'storeUpdates'))) return null;
     const title = 'دعوة انضمام لمتجر';
     const body = `تمت دعوتك للانضمام إلى فريق متجر \"${storeName}\"`;
-    void pushService.notifyUser(targetUserId, {
-      title,
-      body,
-      url: '/my-store?tab=members',
-      tag: `store-invite-${memberId}`,
-      type: 'STORE_MEMBER_INVITED',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(targetUserId, {
+        title,
+        body,
+        url: '/my-store?tab=members',
+        tag: `store-invite-${memberId}`,
+        type: 'STORE_MEMBER_INVITED',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return notificationsRepository.create({
       userId: targetUserId,
       type: 'STORE_MEMBER_INVITED',
@@ -905,13 +1051,17 @@ export const notificationEvents = {
     if (!(await userAllowsPref(customerId, 'serviceQuotes'))) return null;
     const title = 'عرض جديد على طلبك';
     const body = `${offererName} أرسل عرضًا على طلبك "${requestTitle}"`;
-    void pushService.notifyUser(customerId, {
-      title,
-      body,
-      url: `/requests/${requestId}`,
-      tag: `request-${requestId}`,
-      type: 'NEW_REQUEST_OFFER',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(customerId, {
+        title,
+        body,
+        url: `/requests/${requestId}`,
+        tag: `request-${requestId}`,
+        type: 'NEW_REQUEST_OFFER',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return notificationsRepository.create({
       userId: customerId,
       type: 'NEW_REQUEST_OFFER',
@@ -931,13 +1081,17 @@ export const notificationEvents = {
     if (!(await userAllowsPref(offererUserId, 'serviceQuotes'))) return null;
     const title = 'تم قبول عرضك';
     const body = `تم قبول عرضك على طلب "${requestTitle}"`;
-    void pushService.notifyUser(offererUserId, {
-      title,
-      body,
-      url: `/requests/${requestId}`,
-      tag: `request-${requestId}`,
-      type: 'REQUEST_OFFER_ACCEPTED',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(offererUserId, {
+        title,
+        body,
+        url: `/requests/${requestId}`,
+        tag: `request-${requestId}`,
+        type: 'REQUEST_OFFER_ACCEPTED',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return notificationsRepository.create({
       userId: offererUserId,
       type: 'REQUEST_OFFER_ACCEPTED',
@@ -960,13 +1114,17 @@ export const notificationEvents = {
       'عميل';
     const title = 'طلب خدمة جديد';
     const body = `${customerName} أرسل طلبًا على "${listingTitle}"`;
-    void pushService.notifyUser(providerUserId, {
-      title,
-      body,
-      url: `/service-requests/${requestId}`,
-      tag: `service-request-${requestId}`,
-      type: 'SERVICE_REQUEST_NEW',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(providerUserId, {
+        title,
+        body,
+        url: `/service-requests/${requestId}`,
+        tag: `service-request-${requestId}`,
+        type: 'SERVICE_REQUEST_NEW',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return notificationsRepository.create({
       userId: providerUserId,
       type: 'SERVICE_REQUEST_NEW',
@@ -991,13 +1149,17 @@ export const notificationEvents = {
     if (!(await userAllowsPref(recipientUserId, 'serviceQuotes'))) return null;
     const title = copy.title;
     const body = copy.body(listingTitle);
-    void pushService.notifyUser(recipientUserId, {
-      title,
-      body,
-      url: `/service-requests/${requestId}`,
-      tag: `service-request-${requestId}`,
-      type: 'SERVICE_REQUEST_UPDATE',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(recipientUserId, {
+        title,
+        body,
+        url: `/service-requests/${requestId}`,
+        tag: `service-request-${requestId}`,
+        type: 'SERVICE_REQUEST_UPDATE',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return notificationsRepository.create({
       userId: recipientUserId,
       type: 'SERVICE_REQUEST_UPDATE',
@@ -1021,13 +1183,17 @@ export const notificationEvents = {
     const title = 'انتهت مهلة طلبك';
     // FIX SR-EXPIRY-BODY (audit H4): no hardcoded 7 — follows the TTL constant.
     const body = `لم يردّ مقدم الخدمة على طلبك \"${listingTitle}\" خلال ${ttlDays} أيام فتم إغلاقه — يمكنك تقديم طلب جديد أو اختيار مقدم خدمة آخر`;
-    void pushService.notifyUser(customerUserId, {
-      title,
-      body,
-      url: `/service-requests/${requestId}`,
-      tag: `service-request-${requestId}`,
-      type: 'SERVICE_REQUEST_UPDATE',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(customerUserId, {
+        title,
+        body,
+        url: `/service-requests/${requestId}`,
+        tag: `service-request-${requestId}`,
+        type: 'SERVICE_REQUEST_UPDATE',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return notificationsRepository.create({
       userId: customerUserId,
       type: 'SERVICE_REQUEST_UPDATE',
@@ -1054,13 +1220,17 @@ export const notificationEvents = {
       kind === 'booked'
         ? `تم تحديد موعد لطلبك "${listingTitle}" — ${when}`
         : `أُلغي الموعد المحدد لطلبك "${listingTitle}" (${when})`;
-    void pushService.notifyUser(customerUserId, {
-      title,
-      body,
-      url: `/service-requests/${requestId}`,
-      tag: `service-request-${requestId}`,
-      type: 'APPOINTMENT_UPDATE',
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error));
+    void pushService
+      .notifyUser(customerUserId, {
+        title,
+        body,
+        url: `/service-requests/${requestId}`,
+        tag: `service-request-${requestId}`,
+        type: 'APPOINTMENT_UPDATE',
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/notifications/notifications.service.ts', error)
+      );
     return notificationsRepository.create({
       userId: customerUserId,
       type: 'APPOINTMENT_UPDATE',

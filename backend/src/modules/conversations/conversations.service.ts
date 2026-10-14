@@ -1,6 +1,11 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Conversation, Message } from '@prisma/client';
-import { conversationsRepository, messagesRepository, ConversationWithRelations, ConversationListItem } from './conversations.repository';
+import {
+  conversationsRepository,
+  messagesRepository,
+  ConversationWithRelations,
+  ConversationListItem,
+} from './conversations.repository';
 import { adsRepository } from '../ads/ads.repository';
 import { usersRepository } from '../users/users.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
@@ -37,9 +42,7 @@ const assertParty = (conversation: Conversation, userId: string): void => {
  * own response, since a message can be deleted by one party and then
  * read by the other via getMessages moments later. */
 const redactIfDeleted = (message: Message): Message =>
-  message.deletedAt
-    ? { ...message, body: '', imageUrl: null, audioUrl: null }
-    : message;
+  message.deletedAt ? { ...message, body: '', imageUrl: null, audioUrl: null } : message;
 
 // same high-signal scam phrasing the ad fraud scorer
 // uses — applied here so steering payment off-platform in chat can't
@@ -59,7 +62,7 @@ const MESSAGE_SCAM_PATTERNS: RegExp[] = [
 ];
 
 const assertMessageBodySafe = (body: string): void => {
-  if (MESSAGE_SCAM_PATTERNS.some((p) => p.test(body))) {
+  if (MESSAGE_SCAM_PATTERNS.some(p => p.test(body))) {
     throw new BadRequestError(
       'Message blocked: content matches known scam patterns. Keep negotiation on-platform.',
       'MESSAGE_CONTENT_BLOCKED'
@@ -88,7 +91,10 @@ export const conversationsService = {
 
     const sellerId = ad.userId;
     if (sellerId === buyerId) {
-      throw new BadRequestError('You cannot message yourself about your own ad.', 'CANNOT_MESSAGE_SELF');
+      throw new BadRequestError(
+        'You cannot message yourself about your own ad.',
+        'CANNOT_MESSAGE_SELF'
+      );
     }
 
     // Checked in either direction — a blocked user shouldn't be able to
@@ -120,7 +126,11 @@ export const conversationsService = {
    * this also reopens a thread that started the other way around (the
    * target previously messaged buyerId's ad or profile first).
    */
-  startFromUser: async (buyerId: string, targetUserId: string, context?: { type: 'product' | 'service'; id: string }): Promise<Conversation> => {
+  startFromUser: async (
+    buyerId: string,
+    targetUserId: string,
+    context?: { type: 'product' | 'service'; id: string }
+  ): Promise<Conversation> => {
     const target = await usersRepository.findPublicById(targetUserId);
     if (!target || !target.isActive) {
       throw new NotFoundError('User not found', 'USER_NOT_FOUND');
@@ -142,14 +152,26 @@ export const conversationsService = {
       if (!product || product.status !== 'ACTIVE' || ownerId !== sellerId) {
         throw new BadRequestError('Product context is invalid.', 'INVALID_MESSAGE_CONTEXT');
       }
-      listingContext = { type: 'product', id: product.id, title: product.name, imageUrl: product.images?.[0] ?? null, url: `/products/${product.id}` };
+      listingContext = {
+        type: 'product',
+        id: product.id,
+        title: product.name,
+        imageUrl: product.images?.[0] ?? null,
+        url: `/products/${product.id}`,
+      };
     } else if (context?.type === 'service') {
       const listing = await serviceListingsRepository.findPublicById(context.id);
       const ownerId = listing?.provider?.sellerProfile?.userId;
       if (!listing || listing.status !== 'ACTIVE' || ownerId !== sellerId) {
         throw new BadRequestError('Service context is invalid.', 'INVALID_MESSAGE_CONTEXT');
       }
-      listingContext = { type: 'service', id: listing.id, title: listing.title, imageUrl: listing.images?.[0] ?? null, url: `/services/${listing.id}` };
+      listingContext = {
+        type: 'service',
+        id: listing.id,
+        title: listing.title,
+        imageUrl: listing.images?.[0] ?? null,
+        url: `/services/${listing.id}`,
+      };
     }
 
     return conversationsRepository.findOrCreate(buyerId, sellerId, { listingContext });
@@ -175,7 +197,10 @@ export const conversationsService = {
    * specific request already exist", since a request has exactly one
    * customer and one provider).
    */
-  startFromServiceRequest: async (userId: string, serviceRequestId: string): Promise<Conversation> => {
+  startFromServiceRequest: async (
+    userId: string,
+    serviceRequestId: string
+  ): Promise<Conversation> => {
     const request = await serviceRequestsRepository.findById(serviceRequestId);
     if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
 
@@ -183,7 +208,10 @@ export const conversationsService = {
     const customerId = request.customerId;
 
     if (userId !== customerId && userId !== providerUserId) {
-      throw new ForbiddenError('You are not a party to this service request.', 'NOT_YOUR_SERVICE_REQUEST');
+      throw new ForbiddenError(
+        'You are not a party to this service request.',
+        'NOT_YOUR_SERVICE_REQUEST'
+      );
     }
 
     // A provider can't message themselves about their own request (the
@@ -214,7 +242,8 @@ export const conversationsService = {
     const conversation = await conversationsRepository.findByIdForUser(id, userId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
-    if (conversation.mySettings?.deletedAt) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    if (conversation.mySettings?.deletedAt)
+      throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     return conversation;
   },
 
@@ -250,8 +279,13 @@ export const conversationsService = {
   sendMessage: async (
     userId: string,
     conversationId: string,
-    input: { body?: string; imageUrl?: string; audioUrl?: string; file?: { url: string; name: string; mimeType: string; size: number } },
-    offlineOperationId?: string | null,
+    input: {
+      body?: string;
+      imageUrl?: string;
+      audioUrl?: string;
+      file?: { url: string; name: string; mimeType: string; size: number };
+    },
+    offlineOperationId?: string | null
   ): Promise<Message> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
@@ -262,7 +296,8 @@ export const conversationsService = {
     // while leaving every already-open thread free to keep receiving
     // messages, which defeats the point of blocking someone you're
     // already talking to.
-    const otherPartyId = conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
+    const otherPartyId =
+      conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
     if (await blockedUsersService.isBlockedEitherDirection(userId, otherPartyId)) {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
@@ -313,18 +348,11 @@ export const conversationsService = {
       const cacheKey = `msg:op:${userId}:${opId}`;
       try {
         // Atomic claim — only the first concurrent request proceeds to CREATE.
-        const claimed = await cacheRedis.set(
-          cacheKey,
-          MSG_OP_PENDING,
-          'EX',
-          MSG_OP_TTL_SEC,
-          'NX',
-        );
+        const claimed = await cacheRedis.set(cacheKey, MSG_OP_PENDING, 'EX', MSG_OP_TTL_SEC, 'NX');
 
         if (claimed !== 'OK') {
           // Peer holds the key (pending or final messageId).
-          const sleep = (ms: number) =>
-            new Promise<void>((r) => setTimeout(r, ms));
+          const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
           // was 12 attempts (up to ~2.35s block on
           // a slow peer). 4 attempts cap the worst case at ~500ms — enough
@@ -339,7 +367,7 @@ export const conversationsService = {
                 MSG_OP_PENDING,
                 'EX',
                 MSG_OP_TTL_SEC,
-                'NX',
+                'NX'
               );
               if (reclaimed === 'OK') {
                 claimedOpKey = cacheKey;
@@ -363,7 +391,7 @@ export const conversationsService = {
                 MSG_OP_PENDING,
                 'EX',
                 MSG_OP_TTL_SEC,
-                'NX',
+                'NX'
               );
               if (reclaimed === 'OK') {
                 claimedOpKey = cacheKey;
@@ -395,7 +423,7 @@ export const conversationsService = {
             });
             throw new ServiceUnavailableError(
               'Message operation is still being processed. Please retry shortly.',
-              'OFFLINE_OPERATION_IN_FLIGHT',
+              'OFFLINE_OPERATION_IN_FLIGHT'
             );
           }
         } else {
@@ -423,10 +451,26 @@ export const conversationsService = {
     // rather than masking the successful send.
     let message: Message;
     try {
-      const messageBody = body || (imageUrl ? '📷' : audioUrl ? '🎤 رسالة صوتية' : file ? `📎 ${file.name}` : '');
+      const messageBody =
+        body || (imageUrl ? '📷' : audioUrl ? '🎤 رسالة صوتية' : file ? `📎 ${file.name}` : '');
       message = opId
-        ? await messagesRepository.create(conversationId, userId, messageBody, imageUrl, audioUrl, file, opId)
-        : await messagesRepository.create(conversationId, userId, messageBody, imageUrl, audioUrl, file);
+        ? await messagesRepository.create(
+            conversationId,
+            userId,
+            messageBody,
+            imageUrl,
+            audioUrl,
+            file,
+            opId
+          )
+        : await messagesRepository.create(
+            conversationId,
+            userId,
+            messageBody,
+            imageUrl,
+            audioUrl,
+            file
+          );
     } catch (err) {
       // The composite unique index is the final race-proof boundary. If two
       // requests reached PostgreSQL together, the loser reuses the winner.
@@ -437,7 +481,11 @@ export const conversationsService = {
             throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
           }
           if (claimedOpKey) {
-            try { await cacheRedis.set(claimedOpKey, existing.id, 'EX', MSG_OP_TTL_SEC); } catch { /* ignore */ }
+            try {
+              await cacheRedis.set(claimedOpKey, existing.id, 'EX', MSG_OP_TTL_SEC);
+            } catch {
+              /* ignore */
+            }
           }
           return existing;
         }
@@ -467,12 +515,7 @@ export const conversationsService = {
       // We created without holding a claim (Redis miss path) — still
       // best-effort record the id for later retries within the window.
       try {
-        await cacheRedis.set(
-          `msg:op:${userId}:${opId}`,
-          message.id,
-          'EX',
-          MSG_OP_TTL_SEC,
-        );
+        await cacheRedis.set(`msg:op:${userId}:${opId}`, message.id, 'EX', MSG_OP_TTL_SEC);
       } catch {
         /* ignore */
       }
@@ -529,14 +572,19 @@ export const conversationsService = {
 
     notificationEvents
       .onNewMessage(recipient.id, conversationId, sender.name)
-      .catch((err) => logger.error('Failed to create NEW_MESSAGE notification', { err, conversationId }));
+      .catch(err =>
+        logger.error('Failed to create NEW_MESSAGE notification', { err, conversationId })
+      );
 
     // Gap #10: fire-and-forget, see activityService.record()'s own doc
     // comment. Every message the caller sends adds a timeline row —
     // acceptable volume (bounded by how many messages one user actually
     // sends, same order of magnitude as their own Message rows already
     // in the DB), unlike AnalyticsEvent's anonymous-traffic volume.
-    activityService.record({ userId, ...activityTemplates.messageSent(conversationId, recipient.name) });
+    activityService.record({
+      userId,
+      ...activityTemplates.messageSent(conversationId, recipient.name),
+    });
 
     // TRACK-RESPONSE-TIME: first seller reply updates EMA on SellerProfile
     void sellerResponseTimeService.recordSellerFirstReply(
@@ -557,7 +605,11 @@ export const conversationsService = {
    * calling this twice just returns the same already-redacted result
    * rather than erroring, since the end state either way is "deleted".
    */
-  deleteMessage: async (userId: string, conversationId: string, messageId: string): Promise<Message> => {
+  deleteMessage: async (
+    userId: string,
+    conversationId: string,
+    messageId: string
+  ): Promise<Message> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
@@ -626,7 +678,11 @@ export const conversationsService = {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
-    await conversationsRepository.upsertUserSetting(conversationId, userId, { deletedAt: new Date(), archivedAt: new Date(), pinnedAt: null });
+    await conversationsRepository.upsertUserSetting(conversationId, userId, {
+      deletedAt: new Date(),
+      archivedAt: new Date(),
+      pinnedAt: null,
+    });
   },
 
   /** Ephemeral typing signal — no DB write; SSE only. */
@@ -638,8 +694,7 @@ export const conversationsService = {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
-    const otherId =
-      conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
+    const otherId = conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
     void publishNotificationEvent(otherId, {
       type: 'typing',
       conversationId,
@@ -659,8 +714,13 @@ export const conversationsService = {
     userId: string,
     conversationId: string,
     messageId: string,
-    kind: 'image' | 'audio' | 'file',
-  ): Promise<{ url: string; mimeType: string; fileName: string | null; fileSize: number | null }> => {
+    kind: 'image' | 'audio' | 'file'
+  ): Promise<{
+    url: string;
+    mimeType: string;
+    fileName: string | null;
+    fileSize: number | null;
+  }> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
@@ -670,28 +730,43 @@ export const conversationsService = {
       throw new NotFoundError('Message media not found', 'MESSAGE_MEDIA_NOT_FOUND');
     }
 
-    const url = kind === 'image' ? message.imageUrl : kind === 'audio' ? message.audioUrl : message.fileUrl;
+    const url =
+      kind === 'image' ? message.imageUrl : kind === 'audio' ? message.audioUrl : message.fileUrl;
     if (!url) throw new NotFoundError('Message media not found', 'MESSAGE_MEDIA_NOT_FOUND');
     try {
       const parsed = new URL(url);
-      const cloudinaryHost = parsed.hostname === 'cloudinary.com' || parsed.hostname.endsWith('.cloudinary.com');
+      const cloudinaryHost =
+        parsed.hostname === 'cloudinary.com' || parsed.hostname.endsWith('.cloudinary.com');
       const belongsToConfiguredCloud = parsed.pathname.includes(`/${env.cloudinary.cloudName}/`);
       if (parsed.protocol !== 'https:' || !cloudinaryHost || !belongsToConfiguredCloud) {
         throw new Error('Unsupported media provider');
       }
     } catch {
-      throw new NotFoundError('Message media provider is not supported', 'MESSAGE_MEDIA_PROVIDER_UNSUPPORTED');
+      throw new NotFoundError(
+        'Message media provider is not supported',
+        'MESSAGE_MEDIA_PROVIDER_UNSUPPORTED'
+      );
     }
 
     return {
       url,
-      mimeType: kind === 'file' ? (message.fileMimeType || 'application/octet-stream') : kind === 'audio' ? 'audio/mpeg' : 'image/*',
+      mimeType:
+        kind === 'file'
+          ? message.fileMimeType || 'application/octet-stream'
+          : kind === 'audio'
+            ? 'audio/mpeg'
+            : 'image/*',
       fileName: message.fileName ?? null,
       fileSize: message.fileSize ?? null,
     };
   },
 
-  setMessagePin: async (userId: string, conversationId: string, messageId: string, pinned: boolean): Promise<void> => {
+  setMessagePin: async (
+    userId: string,
+    conversationId: string,
+    messageId: string,
+    pinned: boolean
+  ): Promise<void> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
@@ -703,7 +778,12 @@ export const conversationsService = {
     else await messagesRepository.unpinMessage(messageId);
   },
 
-  setMessageStar: async (userId: string, conversationId: string, messageId: string, starred: boolean): Promise<void> => {
+  setMessageStar: async (
+    userId: string,
+    conversationId: string,
+    messageId: string,
+    starred: boolean
+  ): Promise<void> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
@@ -719,7 +799,11 @@ export const conversationsService = {
     userId: string,
     conversationId: string,
     query: { page?: number; limit?: number; before?: string }
-  ): Promise<PaginatedResult<Message> & { meta: PaginatedResult<Message>['meta'] & { nextCursor: string | null } }> => {
+  ): Promise<
+    PaginatedResult<Message> & {
+      meta: PaginatedResult<Message>['meta'] & { nextCursor: string | null };
+    }
+  > => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
@@ -732,13 +816,17 @@ export const conversationsService = {
     // Sync bell: mark NEW_MESSAGE notifications for this conversation read.
     void notificationsService
       .markConversationNotificationsRead(userId, conversationId)
-      .catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.service.ts', error));
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/conversations/conversations.service.ts', error)
+      );
 
     return {
-      items: messages.map((message) => ({
+      items: messages.map(message => ({
         ...redactIfDeleted(message),
         isPinned: Boolean((message as Message & { pin?: unknown }).pin),
-        isStarredByMe: Array.isArray((message as Message & { stars?: unknown[] }).stars) && (message as Message & { stars?: unknown[] }).stars!.length > 0,
+        isStarredByMe:
+          Array.isArray((message as Message & { stars?: unknown[] }).stars) &&
+          (message as Message & { stars?: unknown[] }).stars!.length > 0,
       })),
       meta: {
         ...buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),

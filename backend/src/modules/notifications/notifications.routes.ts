@@ -15,12 +15,7 @@ notificationsRouter.get(
   CACHE.NONE,
   notificationsController.getUnreadCount
 );
-notificationsRouter.get(
-  '/stream',
-  authenticate,
-  CACHE.STREAM,
-  notificationsController.stream
-);
+notificationsRouter.get('/stream', authenticate, CACHE.STREAM, notificationsController.stream);
 notificationsRouter.patch('/read-all', authenticate, notificationsController.markAllRead);
 notificationsRouter.delete('/read', authenticate, notificationsController.deleteAllRead);
 notificationsRouter.patch('/:id/read', authenticate, notificationsController.markRead);
@@ -45,19 +40,15 @@ notificationsRouter.post('/push-test', authenticate, notificationsController.sen
 
 // NEW — native (Capacitor/FCM) device-token registration, counterpart
 // to the push-subscriptions pair above. See lib/capacitor/nativePush.ts.
-notificationsRouter.post(
-  '/fcm-tokens',
-  authenticate,
-  notificationsController.registerFcmToken
-);
-notificationsRouter.delete(
-  '/fcm-tokens',
-  authenticate,
-  notificationsController.unregisterFcmToken
-);
+notificationsRouter.post('/fcm-tokens', authenticate, notificationsController.registerFcmToken);
+notificationsRouter.delete('/fcm-tokens', authenticate, notificationsController.unregisterFcmToken);
 
 // Device list (UX) — the caller's own browser + native registrations.
 // Three path segments for the id routes, so they cannot shadow '/:id/read'.
 notificationsRouter.get('/devices', authenticate, CACHE.NONE, notificationsController.listDevices);
 notificationsRouter.patch('/devices/:kind/:id', authenticate, notificationsController.renameDevice);
-notificationsRouter.delete('/devices/:kind/:id', authenticate, notificationsController.removeDevice);
+notificationsRouter.delete(
+  '/devices/:kind/:id',
+  authenticate,
+  notificationsController.removeDevice
+);

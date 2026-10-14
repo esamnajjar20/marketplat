@@ -7,8 +7,32 @@ import {
 } from './store-types.validation';
 
 const DEFAULT_PRESENTATION = {
-  card: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
-  page: { title: 'متجر', subtitle: '', products: 'المنتجات', offers: 'العروض', collections: 'المجموعات', ads: 'الإعلانات', reviews: 'التقييمات', about: 'عن المتجر', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
+  card: {
+    title: 'متجر',
+    subtitle: '',
+    products: 'المنتجات',
+    offers: 'العروض',
+    collections: 'المجموعات',
+    ads: 'الإعلانات',
+    reviews: 'التقييمات',
+    about: 'عن المتجر',
+    details: 'التفاصيل',
+    contact: 'التواصل',
+    location: 'الموقع',
+  },
+  page: {
+    title: 'متجر',
+    subtitle: '',
+    products: 'المنتجات',
+    offers: 'العروض',
+    collections: 'المجموعات',
+    ads: 'الإعلانات',
+    reviews: 'التقييمات',
+    about: 'عن المتجر',
+    details: 'التفاصيل',
+    contact: 'التواصل',
+    location: 'الموقع',
+  },
 } as const;
 
 export type StoreTypeWithCount = StoreType & { _count: { stores: number } };
@@ -66,8 +90,12 @@ export const storeTypesRepository = {
         ...(input.nameAr !== undefined ? { nameAr: input.nameAr } : {}),
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
         ...(input.labels !== undefined ? { labels: input.labels as Prisma.InputJsonValue } : {}),
-        ...(input.presentation !== undefined ? { presentation: input.presentation as Prisma.InputJsonValue } : {}),
-        ...(input.freeProductLimit !== undefined ? { freeProductLimit: input.freeProductLimit } : {}),
+        ...(input.presentation !== undefined
+          ? { presentation: input.presentation as Prisma.InputJsonValue }
+          : {}),
+        ...(input.freeProductLimit !== undefined
+          ? { freeProductLimit: input.freeProductLimit }
+          : {}),
         ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
       },
     }),

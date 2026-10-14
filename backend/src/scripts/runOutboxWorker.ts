@@ -12,7 +12,7 @@ process.once('SIGINT', stop);
 process.once('SIGTERM', stop);
 
 runOutboxWorker(() => stopping)
-  .catch((error) => {
+  .catch(error => {
     logger.error('Transactional outbox worker terminated unexpectedly', { error });
     process.exitCode = 1;
   })

@@ -171,8 +171,12 @@ export class CircuitBreaker {
     this.nextAttemptAt = Date.now() + this.resetTimeoutMs;
     logger.warn(
       `Circuit breaker "${this.name}" OPEN after ${this.consecutiveFailures} consecutive ` +
-      `failures — rejecting calls without attempting them for ${this.resetTimeoutMs}ms`,
-      { name: this.name, consecutiveFailures: this.consecutiveFailures, resetTimeoutMs: this.resetTimeoutMs },
+        `failures — rejecting calls without attempting them for ${this.resetTimeoutMs}ms`,
+      {
+        name: this.name,
+        consecutiveFailures: this.consecutiveFailures,
+        resetTimeoutMs: this.resetTimeoutMs,
+      }
     );
   }
 

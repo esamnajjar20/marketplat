@@ -9,7 +9,8 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Home, Package, Wrench, Store, MapPin, Tag, AlertTriangle } from 'lucide-react';
+import type { Home} from 'lucide-react';
+import { Package, Wrench, Store, MapPin, Tag, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import {

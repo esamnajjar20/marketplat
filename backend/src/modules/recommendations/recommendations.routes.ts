@@ -23,5 +23,5 @@ recommendationsRouter.get(
   '/',
   recommendationsRateLimit,
   CACHE.NONE,
-  recommendationsController.getRecommendations,
+  recommendationsController.getRecommendations
 );

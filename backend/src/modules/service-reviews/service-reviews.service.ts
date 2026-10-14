@@ -1,9 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { ServiceReview } from '@prisma/client';
-import {
-  serviceReviewsRepository,
-  ServiceReviewWithRater,
-} from './service-reviews.repository';
+import { serviceReviewsRepository, ServiceReviewWithRater } from './service-reviews.repository';
 import { CreateServiceReviewInput, GetServiceReviewsQuery } from './service-reviews.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
@@ -28,14 +25,18 @@ export const serviceReviewsService = {
     if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
 
     if (request.customerId !== raterId) {
-      throw new ForbiddenError('Only the customer of this request can leave a review.', 'NOT_YOUR_REQUEST_TO_REVIEW');
+      throw new ForbiddenError(
+        'Only the customer of this request can leave a review.',
+        'NOT_YOUR_REQUEST_TO_REVIEW'
+      );
     }
     if (request.status !== 'COMPLETED') {
       throw new BadRequestError('You can only review a completed service request.');
     }
 
     const existing = await serviceReviewsRepository.findByRequestId(input.requestId);
-    if (existing) throw new ConflictError('This request has already been reviewed.', 'ALREADY_REVIEWED');
+    if (existing)
+      throw new ConflictError('This request has already been reviewed.', 'ALREADY_REVIEWED');
 
     const sellerProfileId = request.listing.provider.sellerProfileId;
 

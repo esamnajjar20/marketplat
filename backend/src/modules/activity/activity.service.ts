@@ -67,8 +67,12 @@ export const activityService = {
    * this stays a thin, non-throwing wrapper exactly as before.
    */
   record: (input: CreateActivityInput): void => {
-    activityBuffer.push(input).catch((err) => {
-      logger.error('Failed to write user activity', { err, userId: input.userId, type: input.type });
+    activityBuffer.push(input).catch(err => {
+      logger.error('Failed to write user activity', {
+        err,
+        userId: input.userId,
+        type: input.type,
+      });
     });
   },
 
@@ -76,8 +80,7 @@ export const activityService = {
     userId: string,
     query: GetMyActivityQuery
   ): Promise<PaginatedResult<UserActivity>> => {
-    const groupTypes =
-      query.group && query.group !== 'ALL' ? GROUP_TYPES[query.group] : undefined;
+    const groupTypes = query.group && query.group !== 'ALL' ? GROUP_TYPES[query.group] : undefined;
     const { activities, total } = await activityRepository.findManyForUser(
       userId,
       query,

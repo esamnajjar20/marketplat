@@ -70,8 +70,7 @@ export type StoreAccess =
 /** Resolve store by id or slug (same convention as getPublicStore). */
 const resolveStore = async (idOrSlug: string): Promise<StoreDetails> => {
   const store =
-    (await storesRepository.findById(idOrSlug)) ??
-    (await storesRepository.findBySlug(idOrSlug));
+    (await storesRepository.findById(idOrSlug)) ?? (await storesRepository.findBySlug(idOrSlug));
   if (!store) throw new NotFoundError('Store not found.', 'STORE_NOT_FOUND');
   return store;
 };
@@ -110,10 +109,7 @@ export const requireStoreAccess = async (
   if (capability) {
     const ownerProfile = await sellersRepository.findById(store.sellerProfileId);
     if (ownerProfile?.suspended) {
-      throw new ForbiddenError(
-        "This store's owner account is suspended.",
-        'STORE_OWNER_SUSPENDED'
-      );
+      throw new ForbiddenError("This store's owner account is suspended.", 'STORE_OWNER_SUSPENDED');
     }
   }
 
@@ -169,10 +165,7 @@ export const storeMembersService = {
 
     // Only the owner may invite someone as MANAGER (prevents privilege escalation).
     if (input.role === 'MANAGER' && access.kind !== 'owner') {
-      throw new ForbiddenError(
-        'Only the store owner can invite a MANAGER.',
-        'STORE_OWNER_ONLY'
-      );
+      throw new ForbiddenError('Only the store owner can invite a MANAGER.', 'STORE_OWNER_ONLY');
     }
 
     const targetUser = await prisma.user.findUnique({
@@ -191,10 +184,7 @@ export const storeMembersService = {
     }
 
     if (await isStoreOwner(targetUser.id, store)) {
-      throw new ConflictError(
-        'This user is already the store owner.',
-        'ALREADY_STORE_OWNER'
-      );
+      throw new ConflictError('This user is already the store owner.', 'ALREADY_STORE_OWNER');
     }
 
     // the pre-insert check (findActiveOrPending)
@@ -213,7 +203,7 @@ export const storeMembersService = {
     let member;
     try {
       member = await prisma.$transaction(
-        async (tx) => {
+        async tx => {
           const existing = await tx.storeMember.findFirst({
             where: {
               storeId: store.id,
@@ -257,7 +247,7 @@ export const storeMembersService = {
             },
           });
         },
-        { isolationLevel: 'Serializable' },
+        { isolationLevel: 'Serializable' }
       );
     } catch (e: unknown) {
       if (
@@ -268,7 +258,7 @@ export const storeMembersService = {
       ) {
         throw new ConflictError(
           'An invitation is already pending for this user.',
-          'ALREADY_MEMBER',
+          'ALREADY_MEMBER'
         );
       }
       throw e;
@@ -283,14 +273,18 @@ export const storeMembersService = {
         targetUserId: targetUser.id,
         role: input.role,
       },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error)
+    );
 
     // FIX (audit #21): implemented — see notifications.service.ts's
     // onStoreMemberInvited. Fire-and-forget, same as the auditLog call
     // above, so a notification-service hiccup never blocks the invite.
     void notificationEvents
       .onStoreMemberInvited(targetUser.id, store.id, member.id, store.name)
-      .catch((error) => reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error));
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error)
+      );
 
     return member;
   },
@@ -339,10 +333,7 @@ export const storeMembersService = {
 
     // MANAGER cannot demote/change another MANAGER — only the owner can.
     if (access.kind === 'member' && member.role === 'MANAGER') {
-      throw new ForbiddenError(
-        'Only the store owner can change a MANAGER.',
-        'STORE_OWNER_ONLY'
-      );
+      throw new ForbiddenError('Only the store owner can change a MANAGER.', 'STORE_OWNER_ONLY');
     }
 
     return storeMembersRepository.updateRole(memberId, input.role);
@@ -354,11 +345,7 @@ export const storeMembersService = {
    * - MANAGER can remove STAFF / EDITOR only.
    * - Member can leave themselves (any role).
    */
-  remove: async (
-    actorUserId: string,
-    storeIdOrSlug: string,
-    memberId: string
-  ): Promise<void> => {
+  remove: async (actorUserId: string, storeIdOrSlug: string, memberId: string): Promise<void> => {
     const store = await resolveStore(storeIdOrSlug);
     const member = await storeMembersRepository.findById(memberId);
     if (!member || member.storeId !== store.id) {
@@ -378,16 +365,10 @@ export const storeMembersService = {
 
     if (!isSelf && !owner) {
       if (access?.kind !== 'member' || access.role !== 'MANAGER') {
-        throw new ForbiddenError(
-          'You cannot remove this member.',
-          'STORE_ACCESS_DENIED'
-        );
+        throw new ForbiddenError('You cannot remove this member.', 'STORE_ACCESS_DENIED');
       }
       if (member.role === 'MANAGER') {
-        throw new ForbiddenError(
-          'Only the store owner can remove a MANAGER.',
-          'STORE_OWNER_ONLY'
-        );
+        throw new ForbiddenError('Only the store owner can remove a MANAGER.', 'STORE_OWNER_ONLY');
       }
     }
 
@@ -402,7 +383,9 @@ export const storeMembersService = {
         removedUserId: member.userId,
         wasSelf: isSelf,
       },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/stores/store-members.service.ts', error)
+    );
   },
 
   list: async (
@@ -482,11 +465,8 @@ export const requireStoreAccessForProducts = async (
   // EDITOR may manage products but not promotions/collections).
   const memberships = await storeMembersRepository.findActiveByUserId(userId);
   const productCapable = memberships
-    .filter((m) => ROLE_CAPABILITIES[m.role][capability])
-    .sort(
-      (a, b) =>
-        new Date(a.invitedAt).getTime() - new Date(b.invitedAt).getTime()
-    );
+    .filter(m => ROLE_CAPABILITIES[m.role][capability])
+    .sort((a, b) => new Date(a.invitedAt).getTime() - new Date(b.invitedAt).getTime());
 
   for (const m of productCapable) {
     const store = await storesRepository.findById(m.storeId);
@@ -495,10 +475,7 @@ export const requireStoreAccessForProducts = async (
     // Block writes if the *owning* seller is suspended.
     const ownerProfile = await sellersRepository.findById(store.sellerProfileId);
     if (ownerProfile?.suspended) {
-      throw new ForbiddenError(
-        'This store\'s owner account is suspended.',
-        'STORE_OWNER_SUSPENDED'
-      );
+      throw new ForbiddenError("This store's owner account is suspended.", 'STORE_OWNER_SUSPENDED');
     }
     return store;
   }

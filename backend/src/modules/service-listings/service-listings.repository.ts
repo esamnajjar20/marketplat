@@ -35,7 +35,20 @@ const serviceListingListSelect = {
   views: true,
   createdAt: true,
   updatedAt: true,
-  serviceType: { select: { id: true, slug: true, nameAr: true, icon: true, capabilities: true, presentation: true, fields: { where: { isActive: true, scope: 'LISTING' }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } } },
+  serviceType: {
+    select: {
+      id: true,
+      slug: true,
+      nameAr: true,
+      icon: true,
+      capabilities: true,
+      presentation: true,
+      fields: {
+        where: { isActive: true, scope: 'LISTING' },
+        orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+      },
+    },
+  },
   attributes: true,
   provider: {
     select: {
@@ -57,8 +70,6 @@ const serviceListingListSelect = {
   },
   category: { select: { id: true, name: true, nameAr: true } },
 } satisfies Prisma.ServiceListingSelect;
-
-
 
 export const serviceListingsRepository = {
   create: (
@@ -119,7 +130,11 @@ export const serviceListingsRepository = {
       attributes?: Record<string, unknown>;
       status: ServiceListingStatus;
     }>
-  ): Promise<ServiceListing> => prisma.serviceListing.update({ where: { id }, data: data as unknown as Prisma.ServiceListingUncheckedUpdateInput }),
+  ): Promise<ServiceListing> =>
+    prisma.serviceListing.update({
+      where: { id },
+      data: data as unknown as Prisma.ServiceListingUncheckedUpdateInput,
+    }),
 
   // Soft delete, same convention as ads (status DELETED rather than a
   // row removal) — keeps historical service_requests referencing this
@@ -130,7 +145,11 @@ export const serviceListingsRepository = {
   // Gap #3 fix: mirrors ads.repository.ts's addImages exactly — atomic
   // array append via raw SQL (no SELECT + UPDATE race), existing images
   // always ordered first so overflow trims new uploads, never existing ones.
-  addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<ServiceListing> => {
+  addImages: async (
+    id: string,
+    newImages: string[],
+    maxImages = MAX_IMAGES_PER_ENTITY
+  ): Promise<ServiceListing> => {
     // maxImages is interpolated
     // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
     // be a bound parameter without restructuring the whole statement,
@@ -232,7 +251,7 @@ export const serviceListingsRepository = {
             setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."description", ''))), 'B')
           ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))
       `;
-      ftsIds = idRows.map((r) => r.id);
+      ftsIds = idRows.map(r => r.id);
       if (ftsIds.length === 0) {
         return { listings: [], total: 0 };
       }
@@ -291,7 +310,6 @@ export const serviceListingsRepository = {
             })),
           }
         : {}),
-
     };
 
     const [listings, total] = await Promise.all([
@@ -333,7 +351,9 @@ export const serviceListingsRepository = {
   ): Promise<{ activeCount: number; totalViews: number }> => {
     // Keep both metrics in one round-trip. The active count is filtered,
     // while total views intentionally include every status.
-    const rows = await prisma.$queryRaw<Array<{ activeCount: bigint; totalViews: number | bigint | null }>>`
+    const rows = await prisma.$queryRaw<
+      Array<{ activeCount: bigint; totalViews: number | bigint | null }>
+    >`
       SELECT
         COUNT(*) FILTER (WHERE "status" = 'ACTIVE') AS "activeCount",
         COALESCE(SUM("views"), 0) AS "totalViews"
@@ -372,7 +392,12 @@ export const serviceListingsRepository = {
     };
 
     const [listings, total] = await Promise.all([
-      prisma.serviceListing.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
+      prisma.serviceListing.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
       prisma.serviceListing.count({ where }),
     ]);
 

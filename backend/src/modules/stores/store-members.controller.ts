@@ -82,11 +82,7 @@ export const storeMembersController = {
     }
   },
 
-  listMyPendingInvites: async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  listMyPendingInvites: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
       const invites = await storeMembersService.listMyPendingInvites(user.userId);

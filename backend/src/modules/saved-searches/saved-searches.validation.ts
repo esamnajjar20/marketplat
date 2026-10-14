@@ -37,18 +37,17 @@ export const savedSearchFiltersSchema = z
     minPrice: z.number().min(0).optional(),
     maxPrice: z.number().min(0).optional(),
   })
-  .refine(
-    (f) => f.minPrice === undefined || f.maxPrice === undefined || f.minPrice <= f.maxPrice,
-    { message: 'minPrice must not exceed maxPrice', path: ['minPrice'] }
-  )
+  .refine(f => f.minPrice === undefined || f.maxPrice === undefined || f.minPrice <= f.maxPrice, {
+    message: 'minPrice must not exceed maxPrice',
+    path: ['minPrice'],
+  })
   // At least one real criterion — an empty filter set would match every
   // future ad/product/service and turn into a de facto "notify me about
   // everything". `type` itself doesn't count (it's metadata, not a
   // criterion), so it's excluded from this check.
-  .refine(
-    (f) => Object.entries(f).some(([k, v]) => k !== 'type' && v !== undefined),
-    { message: 'At least one filter is required' }
-  );
+  .refine(f => Object.entries(f).some(([k, v]) => k !== 'type' && v !== undefined), {
+    message: 'At least one filter is required',
+  });
 
 export const createSavedSearchSchema = z.object({
   body: z.object({

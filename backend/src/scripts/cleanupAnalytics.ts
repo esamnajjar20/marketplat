@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   const cutoff = new Date(Date.now() - env.analytics.retentionDays * 24 * 60 * 60 * 1000);
   let deleted = 0;
 
-  while (true) {
+  for (;;) {
     const rows = await prisma.$queryRaw<{ id: string }[]>`
       WITH doomed AS (
         SELECT id
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
 }
 
 main()
-  .catch((error) => {
+  .catch(error => {
     console.error('[analytics-retention] cleanup failed:', error);
     process.exitCode = 1;
   })

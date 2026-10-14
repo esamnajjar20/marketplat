@@ -17,9 +17,4 @@ analyticsRouter.post('/events', analyticsEventsRateLimit, analyticsController.tr
 export const analyticsAdminRouter = Router();
 
 // Admin-only — same guard pattern as auditLogsRouter.
-analyticsAdminRouter.get(
-  '/summary',
-  authenticate,
-  requireAdmin,
-  analyticsController.getSummary
-);
+analyticsAdminRouter.get('/summary', authenticate, requireAdmin, analyticsController.getSummary);

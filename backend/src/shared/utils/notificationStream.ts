@@ -117,7 +117,7 @@ let subscriber: Redis | null = null;
 let redisReady: Promise<void> | null = null;
 
 function replayOptions(): ReplayOptions {
-  // Optional chaining: some unit-test mocks of `env` predate 
+  // Optional chaining: some unit-test mocks of `env` predate
   return {
     maxEvents: env.sseReplay?.maxEvents ?? 100,
     ttlSeconds: env.sseReplay?.ttlSeconds ?? 3600,
@@ -152,7 +152,8 @@ function writeSse(res: Response, event: string, data: unknown, id?: string): voi
 /** Writes one event to one client, skipping anything it has already been sent. */
 function sendToClient(client: Client, payload: LiveStreamEvent, id?: string): void {
   // dedup only during replay; live order is not guaranteed.
-  if (client.duringReplay && id && client.lastSentId && compareEventIds(id, client.lastSentId) <= 0) return;
+  if (client.duringReplay && id && client.lastSentId && compareEventIds(id, client.lastSentId) <= 0)
+    return;
   try {
     writeSse(client.res, eventNameFor(payload), payload, id);
     if (id) client.lastSentId = id;
@@ -186,7 +187,7 @@ function ensureRedisSub(): Promise<void> {
   redisReady = (async () => {
     try {
       subscriber = redis.duplicate();
-      subscriber.on('error', (err) => {
+      subscriber.on('error', err => {
         logger.warn('notificationStream subscriber error', { err });
       });
       if (subscriber.status === 'wait') {
@@ -225,7 +226,7 @@ async function bufferEvent(userId: string, event: LiveStreamEvent): Promise<stri
   try {
     return await withTimeout(
       appendReplayEvent(cacheRedis as unknown as ReplayRedis, userId, event, replayOptions()),
-      REPLAY_IO_TIMEOUT_MS,
+      REPLAY_IO_TIMEOUT_MS
     );
   } catch (err) {
     logger.warn('notificationStream replay append failed — live-only', {
@@ -241,13 +242,22 @@ async function bufferEvent(userId: string, event: LiveStreamEvent): Promise<stri
  * Everything from the first `await` result to `ready = true` is synchronous,
  * so no live event can slip between "replayed" and "live".
  */
-async function replayThenGoLive(userId: string, client: Client, lastEventId?: string): Promise<void> {
+async function replayThenGoLive(
+  userId: string,
+  client: Client,
+  lastEventId?: string
+): Promise<void> {
   let gap = false;
   if (lastEventId && parseEventId(lastEventId)) {
     try {
       const result = await withTimeout(
-        readReplayEvents(cacheRedis as unknown as ReplayRedis, userId, lastEventId, replayOptions()),
-        REPLAY_READ_TIMEOUT_MS,
+        readReplayEvents(
+          cacheRedis as unknown as ReplayRedis,
+          userId,
+          lastEventId,
+          replayOptions()
+        ),
+        REPLAY_READ_TIMEOUT_MS
       );
       gap = result.gap;
       // On a gap the client refetches everything anyway; replaying a partial
@@ -307,7 +317,7 @@ async function replayThenGoLive(userId: string, client: Client, lastEventId?: st
 export function addNotificationStreamClient(
   userId: string,
   res: Response,
-  opts: { lastEventId?: string } = {},
+  opts: { lastEventId?: string } = {}
 ): () => void {
   void ensureRedisSub();
 
@@ -352,10 +362,9 @@ export function addNotificationStreamClient(
 export async function publishNotificationEvent(
   userId: string,
   event: LiveStreamEvent,
-  opts: { buffer?: boolean } = {},
+  opts: { buffer?: boolean } = {}
 ): Promise<void> {
-  const id =
-    opts.buffer !== false && isReplayable(event) ? await bufferEvent(userId, event) : null;
+  const id = opts.buffer !== false && isReplayable(event) ? await bufferEvent(userId, event) : null;
 
   deliverLocal(userId, event, id ?? undefined);
 
@@ -380,9 +389,9 @@ async function appendBulkGapMarker(userId: string): Promise<void> {
         cacheRedis as unknown as ReplayRedis,
         userId,
         { __bulkGap: true },
-        replayOptions(),
+        replayOptions()
       ),
-      REPLAY_IO_TIMEOUT_MS,
+      REPLAY_IO_TIMEOUT_MS
     );
   } catch (err) {
     logger.warn('notificationStream bulk gap marker failed — client may miss the resync', {
@@ -392,29 +401,24 @@ async function appendBulkGapMarker(userId: string): Promise<void> {
   }
 }
 
-
 export async function publishNotificationEventsToMany(
-  entries: Array<{ userId: string; event: LiveStreamEvent }>,
+  entries: Array<{ userId: string; event: LiveStreamEvent }>
 ): Promise<void> {
   if (entries.length === 0) return;
-  const unique = Array.from(new Set(entries.map((entry) => entry.userId)));
+  const unique = Array.from(new Set(entries.map(entry => entry.userId)));
   const buffer = unique.length <= BULK_NO_BUFFER_THRESHOLD;
   if (!buffer) {
-    await Promise.all(unique.map((userId) => appendBulkGapMarker(userId)));
+    await Promise.all(unique.map(userId => appendBulkGapMarker(userId)));
   }
   await Promise.all(
-    entries.map((entry) =>
-      publishNotificationEvent(entry.userId, entry.event, { buffer }),
-    ),
+    entries.map(entry => publishNotificationEvent(entry.userId, entry.event, { buffer }))
   );
 }
 
 export async function publishNotificationEventToMany(
   userIds: string[],
-  event: LiveStreamEvent,
+  event: LiveStreamEvent
 ): Promise<void> {
   const unique = Array.from(new Set(userIds));
-  await publishNotificationEventsToMany(
-    unique.map((userId) => ({ userId, event })),
-  );
+  await publishNotificationEventsToMany(unique.map(userId => ({ userId, event })));
 }

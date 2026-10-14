@@ -4,10 +4,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { bumpPublicListCache } from '../../shared/utils/publicListCache';
-import {
-  storeTypesRepository,
-  StoreTypePublic,
-} from './store-types.repository';
+import { storeTypesRepository, StoreTypePublic } from './store-types.repository';
 import {
   CreateStoreTypeInput,
   UpdateStoreTypeInput,
@@ -17,7 +14,9 @@ import {
 const CACHE_KEY = 'store_types:active:v1';
 const CACHE_TTL_SECONDS = 30 * 60;
 
-const publicSummary = (type: Awaited<ReturnType<typeof storeTypesRepository.findActive>>[number]): StoreTypePublic => ({
+const publicSummary = (
+  type: Awaited<ReturnType<typeof storeTypesRepository.findActive>>[number]
+): StoreTypePublic => ({
   id: type.id,
   slug: type.slug,
   nameAr: type.nameAr,
@@ -57,7 +56,8 @@ export const storeTypesService = {
 
   create: async (input: CreateStoreTypeInput) => {
     const existing = await storeTypesRepository.findBySlug(input.slug);
-    if (existing) throw new BadRequestError('Store type slug already exists', 'STORE_TYPE_SLUG_EXISTS');
+    if (existing)
+      throw new BadRequestError('Store type slug already exists', 'STORE_TYPE_SLUG_EXISTS');
     try {
       const created = await storeTypesRepository.create(input);
       await invalidate();

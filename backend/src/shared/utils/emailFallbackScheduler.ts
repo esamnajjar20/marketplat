@@ -17,11 +17,11 @@ export function maybeScheduleEmailFallback(userId: string, type: string): void {
   if (env.notificationQueue?.enabled !== true) return;
   if (!isEmailFallbackType(type)) return;
   void import('../queue/notificationQueue')
-    .then((q) => q.scheduleEmailFallback(userId))
-    .catch((err) =>
+    .then(q => q.scheduleEmailFallback(userId))
+    .catch(err =>
       logger.warn('Email fallback scheduling failed', {
         userId,
         err: err instanceof Error ? err.message : String(err),
-      }),
+      })
     );
 }

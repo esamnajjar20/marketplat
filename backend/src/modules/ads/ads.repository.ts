@@ -297,10 +297,7 @@ export const adsRepository = {
       // Personal ads (no store) keep using sellerProfile.suspended only.
       AND: [
         {
-          OR: [
-            { storeId: null },
-            { store: { status: 'ACTIVE' } },
-          ],
+          OR: [{ storeId: null }, { store: { status: 'ACTIVE' } }],
         },
       ],
       // exact match, not contains — see the identical fix
@@ -311,7 +308,7 @@ export const adsRepository = {
       ...(categoryId && { categoryId }),
       ...(condition && { condition }),
       // previously there was no server-side way to ask for
-      // only featured ads — FeaturedAds.tsx (frontend) fetched a 
+      // only featured ads — FeaturedAds.tsx (frontend) fetched a
       // page of the default-sorted list (which already sorts isPinned
       // DESC, isFeatured DESC — see orderBy below) and filtered
       // isFeatured client-side. That broke once fewer than the page
@@ -370,11 +367,13 @@ export const adsRepository = {
     // The status counts and lifetime view total share the same user/status
     // predicate. A single filtered aggregate avoids two concurrent pool
     // requests every time the seller dashboard loads.
-    const rows = await prisma.$queryRaw<Array<{
-      activeAds: bigint;
-      soldAds: bigint;
-      totalViews: bigint | number | null;
-    }>>`
+    const rows = await prisma.$queryRaw<
+      Array<{
+        activeAds: bigint;
+        soldAds: bigint;
+        totalViews: bigint | number | null;
+      }>
+    >`
       SELECT
         COUNT(*) FILTER (WHERE "status" = 'ACTIVE'::"AdStatus") AS "activeAds",
         COUNT(*) FILTER (WHERE "status" = 'SOLD'::"AdStatus") AS "soldAds",
@@ -396,7 +395,13 @@ export const adsRepository = {
     userId: string,
     query: GetAdsQuery & { statusFilter?: AdStatus; personalOnly?: boolean; storeId?: string }
   ): Promise<{ ads: AdListRow[]; total: number }> => {
-    const { page = 1, limit = 20, statusFilter, personalOnly, storeId } = query as GetAdsQuery & {
+    const {
+      page = 1,
+      limit = 20,
+      statusFilter,
+      personalOnly,
+      storeId,
+    } = query as GetAdsQuery & {
       statusFilter?: AdStatus;
       personalOnly?: boolean;
       storeId?: string;
@@ -442,10 +447,7 @@ export const adsRepository = {
       sellerProfile: { suspended: false },
       AND: [
         {
-          OR: [
-            { storeId: null },
-            { store: { status: 'ACTIVE' } },
-          ],
+          OR: [{ storeId: null }, { store: { status: 'ACTIVE' } }],
         },
       ],
       OR: [...(categoryId ? [{ categoryId }] : []), { city }],
@@ -473,7 +475,11 @@ export const adsRepository = {
   // their original order — new images fill remaining slots in upload order —
   // then re-aggregates with an explicit row number so the final array order
   // is deterministic rather than relying on unspecified aggregate behavior.
-  addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<AdWithAuthor> => {
+  addImages: async (
+    id: string,
+    newImages: string[],
+    maxImages = MAX_IMAGES_PER_ENTITY
+  ): Promise<AdWithAuthor> => {
     // maxImages is interpolated
     // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
     // be a bound parameter without restructuring the whole statement,

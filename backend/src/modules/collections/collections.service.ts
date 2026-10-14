@@ -62,7 +62,10 @@ export const collectionsService = {
       // guards against in stores.service.ts — the retry loop above
       // makes this vanishingly unlikely, not impossible.
       if (collectionsRepository.isUniqueConstraintError(error)) {
-        throw new ConflictError('A collection with this name already exists.', 'COLLECTION_SLUG_TAKEN');
+        throw new ConflictError(
+          'A collection with this name already exists.',
+          'COLLECTION_SLUG_TAKEN'
+        );
       }
       throw error;
     }
@@ -116,7 +119,7 @@ export const collectionsService = {
       input.orderedIds.length !== owned.length ||
       !input.orderedIds.every(id => ownedIds.has(id))
     ) {
-      throw new BadRequestError('orderedIds must match this store\'s collections exactly.');
+      throw new BadRequestError("orderedIds must match this store's collections exactly.");
     }
 
     await collectionsRepository.reorder(store.id, input.orderedIds);

@@ -20,5 +20,5 @@ export const observabilityRouter = Router();
 observabilityRouter.post(
   '/client-error',
   analyticsEventsRateLimit,
-  observabilityController.clientError,
+  observabilityController.clientError
 );

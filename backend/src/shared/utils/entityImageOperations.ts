@@ -54,8 +54,16 @@ interface EntityImageOperationsConfig<TEntity extends ImageOwningEntity> {
 }
 
 export interface EntityImageOperations<TEntity extends ImageOwningEntity> {
-  addImages: (entityId: string, ownerCheck: (entity: TEntity) => boolean, files: Express.Multer.File[]) => Promise<TEntity>;
-  removeImage: (entityId: string, ownerCheck: (entity: TEntity) => boolean, imageUrl: string) => Promise<TEntity>;
+  addImages: (
+    entityId: string,
+    ownerCheck: (entity: TEntity) => boolean,
+    files: Express.Multer.File[]
+  ) => Promise<TEntity>;
+  removeImage: (
+    entityId: string,
+    ownerCheck: (entity: TEntity) => boolean,
+    imageUrl: string
+  ) => Promise<TEntity>;
   /**
    * Gap #11: reorders an entity's images in place. `orderedImages` must
    * be a permutation of the entity's current `images` — same URLs, new
@@ -63,13 +71,18 @@ export interface EntityImageOperations<TEntity extends ImageOwningEntity> {
    * rather than silently accepting a partial/foreign list (which would
    * effectively let a "reorder" call delete or inject images).
    */
-  reorderImages: (entityId: string, ownerCheck: (entity: TEntity) => boolean, orderedImages: string[]) => Promise<TEntity>;
+  reorderImages: (
+    entityId: string,
+    ownerCheck: (entity: TEntity) => boolean,
+    orderedImages: string[]
+  ) => Promise<TEntity>;
 }
 
 export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
   config: EntityImageOperationsConfig<TEntity>
 ): EntityImageOperations<TEntity> {
-  const { repository, withLock, uploadFolder, maxImages, entityLabel, notFoundCode, notOwnedCode } = config;
+  const { repository, withLock, uploadFolder, maxImages, entityLabel, notFoundCode, notOwnedCode } =
+    config;
 
   const findActiveOrThrow = async (entityId: string): Promise<TEntity> => {
     const entity = await repository.findById(entityId);
@@ -109,13 +122,16 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
         // may still succeed and leave untracked Cloudinary assets. Wait for all
         // attempts to settle so every successful upload can be cleaned up.
         const uploadResults = await Promise.allSettled(
-          files.map(file => uploadImage(file.buffer, uploadFolder)),
+          files.map(file => uploadImage(file.buffer, uploadFolder))
         );
         const uploads = uploadResults
-          .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> => result.status === 'fulfilled')
+          .filter(
+            (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> =>
+              result.status === 'fulfilled'
+          )
           .map(result => result.value);
         const uploadFailure = uploadResults.find(
-          (result): result is PromiseRejectedResult => result.status === 'rejected',
+          (result): result is PromiseRejectedResult => result.status === 'rejected'
         );
 
         if (uploadFailure) {
@@ -123,17 +139,23 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
             try {
               await cleanupUploadedImages(uploads.map(upload => upload.publicId));
             } catch (cleanupError) {
-              logger.warn(`Failed to clean up successful uploads after ${entityLabel} image upload failure`, {
-                entityId,
-                cleanupError,
-              });
+              logger.warn(
+                `Failed to clean up successful uploads after ${entityLabel} image upload failure`,
+                {
+                  entityId,
+                  cleanupError,
+                }
+              );
             }
           }
           throw uploadFailure.reason;
         }
 
         try {
-          return await repository.addImages(entityId, uploads.map(upload => upload.url));
+          return await repository.addImages(
+            entityId,
+            uploads.map(upload => upload.url)
+          );
         } catch (error) {
           await cleanupUploadedImages(uploads.map(upload => upload.publicId));
           throw error;

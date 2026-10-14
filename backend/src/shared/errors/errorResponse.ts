@@ -19,7 +19,7 @@ export function buildApiErrorBody(
   message: string,
   meta?: Record<string, unknown>,
   errors?: Record<string, string[]>,
-  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>,
+  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>
 ): ApiErrorBody {
   return {
     success: false,
@@ -41,13 +41,19 @@ export function sendApiError(
   message: string,
   meta?: Record<string, unknown>,
   errors?: Record<string, string[]>,
-  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>,
+  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>
 ): void {
   const requestId = req.requestId;
   res.locals.errorCode = code;
   const retryAfterSeconds = meta?.retryAfterSeconds;
-  if (typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
+  if (
+    typeof retryAfterSeconds === 'number' &&
+    Number.isFinite(retryAfterSeconds) &&
+    retryAfterSeconds >= 0
+  ) {
     res.setHeader('Retry-After', String(Math.ceil(retryAfterSeconds)));
   }
-  res.status(statusCode).json(buildApiErrorBody(req, statusCode, code, message, meta, errors, errorMeta));
+  res
+    .status(statusCode)
+    .json(buildApiErrorBody(req, statusCode, code, message, meta, errors, errorMeta));
 }

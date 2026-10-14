@@ -29,9 +29,18 @@ export const cacheControl =
   };
 
 /** Route-level owner of HTTP cache headers. Controllers must never set Cache-Control. */
-type HttpCachePolicyName = 'publicLive' | 'publicDetail' | 'publicHome' | 'recommendations' | 'reference' | 'personal' | 'messages' | 'security';
+type HttpCachePolicyName =
+  | 'publicLive'
+  | 'publicDetail'
+  | 'publicHome'
+  | 'recommendations'
+  | 'reference'
+  | 'personal'
+  | 'messages'
+  | 'security';
 
-export const cachePolicyControl = (policyName: HttpCachePolicyName) =>
+export const cachePolicyControl =
+  (policyName: HttpCachePolicyName) =>
   (_req: Request, res: Response, next: NextFunction): void => {
     const policy = cachePolicy(policyName);
     const http = policy.http;
@@ -42,8 +51,12 @@ export const cachePolicyControl = (policyName: HttpCachePolicyName) =>
       return;
     }
     const directives = ['public', `max-age=${http.maxAgeSec}`];
-    if (http.staleWhileRevalidateSec) directives.push(`stale-while-revalidate=${http.staleWhileRevalidateSec}`);
-    const hasAuth = Boolean(_req.headers.authorization || /(?:^|;\s*)(?:refreshToken|app_has_session)=/.test(_req.headers.cookie ?? ''));
+    if (http.staleWhileRevalidateSec)
+      directives.push(`stale-while-revalidate=${http.staleWhileRevalidateSec}`);
+    const hasAuth = Boolean(
+      _req.headers.authorization ||
+      /(?:^|;\s*)(?:refreshToken|app_has_session)=/.test(_req.headers.cookie ?? '')
+    );
     if (hasAuth) {
       res.setHeader('Cache-Control', 'private, no-cache, no-transform');
       res.setHeader('Vary', 'Authorization, Cookie');

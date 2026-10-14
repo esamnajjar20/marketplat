@@ -34,26 +34,33 @@ storesRouter.get('/me/followed', authenticate, CACHE.NONE, storesController.getM
 // STORE-ANALYTICS (Foundation v1): owner-only, same registration-order
 // reasoning as /me/followed above.
 storesRouter.get('/me/analytics', authenticate, CACHE.NONE, storesController.getMyStoreAnalytics);
-storesRouter.post('/me/feature-request', authenticate, requireVerifiedEmail, CACHE.NONE, storesController.requestFeature);
+storesRouter.post(
+  '/me/feature-request',
+  authenticate,
+  requireVerifiedEmail,
+  CACHE.NONE,
+  storesController.requestFeature
+);
 
 // Logo/cover upload — same single-image pattern as POST /users/me/avatar.
 // Registered alongside the other /me routes for the same "never
 // swallowed as :id" reason.
 storesRouter.post(
   '/me/logo',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   storeImagesRateLimit,
   uploadMiddleware,
   storesController.uploadLogo
 );
 storesRouter.post(
   '/me/cover',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   storeImagesRateLimit,
   uploadMiddleware,
   storesController.uploadCover
 );
-
 
 // ─── Store members (staff permissions) ───────────────────────────────────────
 // Before /:id so "me/member-invites" is never swallowed as an :id.
@@ -69,16 +76,17 @@ storesRouter.post(
   storeMembersController.acceptInvite
 );
 
-storesRouter.post('/', authenticate, requireVerifiedEmail, createStoreRateLimit, storesController.createStore);
+storesRouter.post(
+  '/',
+  authenticate,
+  requireVerifiedEmail,
+  createStoreRateLimit,
+  storesController.createStore
+);
 
 // Members of a store — before generic /:id sub-routes that might conflict is fine;
 // path is /:id/members so must stay after /me/* only.
-storesRouter.get(
-  '/:id/members',
-  authenticate,
-  CACHE.NONE,
-  storeMembersController.listMembers
-);
+storesRouter.get('/:id/members', authenticate, CACHE.NONE, storeMembersController.listMembers);
 storesRouter.post(
   '/:id/members',
   authenticate,
@@ -103,33 +111,23 @@ storesRouter.delete(
   storeMembersController.removeMember
 );
 
-
 // Public store page
 storesRouter.get('/:id', CACHE.MEDIUM, storesController.getPublicStore);
 
 // Admin-only approval/blocking
 // Admin store-type assignment lives under /admin/stores/:id/type; this
 // public router intentionally exposes no admin mutation.
-storesRouter.patch(
-  '/:id/status',
-  authenticate,
-  requireAdmin,
-  storesController.updateStoreStatus
-);
+storesRouter.patch('/:id/status', authenticate, requireAdmin, storesController.updateStoreStatus);
 
 // Follow / unfollow
-storesRouter.post(
-  '/:id/follow',
-  authenticate,
-  storeFollowRateLimit,
-  storesController.toggleFollow
-);
+storesRouter.post('/:id/follow', authenticate, storeFollowRateLimit, storesController.toggleFollow);
 
 // Reviews
 storesRouter.get('/:id/reviews', CACHE.SHORT, storesController.getStoreReviews);
 storesRouter.post(
   '/:id/reviews',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   storeReviewRateLimit,
   storesController.createReview
 );

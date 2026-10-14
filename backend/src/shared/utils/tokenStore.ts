@@ -114,7 +114,7 @@ export function initBlacklistInvalidationSubscriber(): void {
   subscriberReady = (async () => {
     try {
       subscriber = redis.duplicate();
-      subscriber.on('error', (err) => {
+      subscriber.on('error', err => {
         logger.warn('blacklist invalidation subscriber error', { err });
       });
       if (subscriber.status === 'wait') {
@@ -133,7 +133,7 @@ export function initBlacklistInvalidationSubscriber(): void {
     } catch (err) {
       logger.warn(
         'blacklist invalidation subscriber unavailable — L1 will only be cleared on the worker handling the invalidation',
-        { err },
+        { err }
       );
       subscriber = null;
     }
@@ -152,7 +152,6 @@ export function stopBlacklistInvalidationSubscriber(): void {
     }
   }
 }
-
 
 // IP Masking — GDPR friendly
 export const maskIp = (ip: string): string => {
@@ -331,7 +330,7 @@ export const tokenStore = {
       zsetKey,
       userId,
       REFRESH_PREFIX,
-      SESSION_META_PREFIX,
+      SESSION_META_PREFIX
     );
   },
 
@@ -548,9 +547,7 @@ export const tokenStore = {
   // tower (high attempts, low distinct-email count) from a spray
   // (high attempts, high distinct-email count). Both reads batched
   // into one round-trip to keep the login path's Redis cost flat.
-  getIpStats: async (
-    ip: string
-  ): Promise<{ attempts: number; distinctEmails: number }> => {
+  getIpStats: async (ip: string): Promise<{ attempts: number; distinctEmails: number }> => {
     const pipeline = redis.pipeline();
     pipeline.get(`${FAILED_IP_PREFIX}${ip}`);
     pipeline.scard(`${FAILED_IP_EMAILS_PREFIX}${ip}`);

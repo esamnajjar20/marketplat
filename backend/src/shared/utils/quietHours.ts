@@ -31,7 +31,7 @@ export function resolveQuietTimeZone(tz: unknown): string {
 /** Local wall-clock time in the given IANA zone. */
 export function wallClockIn(
   timeZone: string,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): { hours: number; minutes: number; seconds: number } {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone,
@@ -40,14 +40,14 @@ export function wallClockIn(
     second: '2-digit',
     hour12: false,
   }).formatToParts(now);
-  const num = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? '0');
+  const num = (type: string) => Number(parts.find(p => p.type === type)?.value ?? '0');
   // Some ICU builds render midnight as "24" with hour12:false.
   return { hours: num('hour') % 24, minutes: num('minute'), seconds: num('second') };
 }
 
 export function parseHm(value: unknown, fallback: string): { h: number; m: number } {
   const raw = typeof value === 'string' && /^\d{1,2}:\d{2}$/.test(value) ? value : fallback;
-  const [h, m] = raw.split(':').map((n) => Number(n));
+  const [h, m] = raw.split(':').map(n => Number(n));
   return {
     h: Number.isFinite(h) ? Math.min(23, Math.max(0, h)) : 22,
     m: Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0,
@@ -67,7 +67,7 @@ export function parseHm(value: unknown, fallback: string): { h: number; m: numbe
 export function evaluateQuietHours(
   prefs: unknown,
   urgent: boolean | undefined,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): QuietHoursDecision {
   const p =
     prefs && typeof prefs === 'object' && !Array.isArray(prefs)
@@ -86,7 +86,9 @@ export function evaluateQuietHours(
   // start === end means "no window" (same as the pre-behaviour).
   if (startMin === endMin) return { blocked: false };
   const inside =
-    startMin < endMin ? nowMin >= startMin && nowMin < endMin : nowMin >= startMin || nowMin < endMin;
+    startMin < endMin
+      ? nowMin >= startMin && nowMin < endMin
+      : nowMin >= startMin || nowMin < endMin;
   if (!inside) return { blocked: false };
 
   const minutesToEnd = (endMin - nowMin + 24 * 60) % (24 * 60);

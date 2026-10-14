@@ -29,7 +29,11 @@ export const categoriesController = {
   },
 
   // GET /categories/admin/all
-  getCategoriesForAdmin: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getCategoriesForAdmin: async (
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const categories = await categoriesService.getCategoriesForAdmin();
       res.status(200).json(successResponse('Categories fetched', categories));

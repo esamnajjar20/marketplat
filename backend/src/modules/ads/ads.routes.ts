@@ -25,13 +25,21 @@ adsRouter.get('/:id/related', CACHE.LIVE, adsController.getRelatedAds);
 // Protected
 adsRouter.post(
   '/',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createAdRateLimit,
   uploadMultipleMiddleware,
   adsController.createAd
 );
 adsRouter.patch('/:id', authenticate, adsController.updateAd);
-adsRouter.post('/:id/images', authenticate, requireVerifiedEmail, addAdImagesRateLimit, uploadMultipleMiddleware, adsController.addImages);
+adsRouter.post(
+  '/:id/images',
+  authenticate,
+  requireVerifiedEmail,
+  addAdImagesRateLimit,
+  uploadMultipleMiddleware,
+  adsController.addImages
+);
 adsRouter.delete('/:id/images', authenticate, adsController.removeImage);
 // Gap #11: JSON body only (no files), so no multer/upload rate limit —
 // just auth, same as PATCH /:id above.
@@ -44,7 +52,8 @@ adsRouter.patch('/:id/pin', authenticate, adsPinController.setPinned);
 // TRACK-REPUBLISH — clone SOLD/DELETED into a new ACTIVE ad
 adsRouter.post(
   '/:id/republish',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createAdRateLimit,
   adsRepublishController.republish
 );

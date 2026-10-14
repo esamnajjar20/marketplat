@@ -1,4 +1,7 @@
-import { serviceListingsRepository, ServiceListingWithProvider } from './service-listings.repository';
+import {
+  serviceListingsRepository,
+  ServiceListingWithProvider,
+} from './service-listings.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 
 export interface ServiceListingMatch extends ServiceListingWithProvider {
@@ -30,8 +33,8 @@ export const serviceListingMatchesService = {
     const sourceCategory = source.categoryId;
     const sourceCity = source.provider.serviceAreaCities[0] ?? null;
     return candidates.listings
-      .filter((candidate) => candidate.id !== source.id && candidate.providerId !== source.providerId)
-      .map((candidate) => {
+      .filter(candidate => candidate.id !== source.id && candidate.providerId !== source.providerId)
+      .map(candidate => {
         let score = 50;
         const reasons: string[] = ['نفس مجال الخدمة'];
         if (candidate.categoryId === sourceCategory) {
@@ -50,7 +53,11 @@ export const serviceListingMatchesService = {
         if (rating >= 4.5) score += 5;
         return { ...candidate, matchScore: score, matchReasons: reasons };
       })
-      .sort((a, b) => b.matchScore - a.matchScore || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort(
+        (a, b) =>
+          b.matchScore - a.matchScore ||
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       .slice(0, limit);
   },
 };

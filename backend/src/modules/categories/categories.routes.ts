@@ -22,9 +22,27 @@ categoriesRouter.get(
   authenticate,
   requireAdmin,
   CACHE.NONE,
-  categoriesController.getCategoriesForAdmin,
+  categoriesController.getCategoriesForAdmin
 );
 categoriesRouter.get('/:id', CACHE.STATIC, categoriesController.getCategoryById);
-categoriesRouter.post('/', authenticate, requireAdmin, categoryMutationRateLimit, categoriesController.createCategory);
-categoriesRouter.patch('/:id', authenticate, requireAdmin, categoryMutationRateLimit, categoriesController.updateCategory);
-categoriesRouter.delete('/:id', authenticate, requireAdmin, categoryDeleteRateLimit, categoriesController.deleteCategory);
+categoriesRouter.post(
+  '/',
+  authenticate,
+  requireAdmin,
+  categoryMutationRateLimit,
+  categoriesController.createCategory
+);
+categoriesRouter.patch(
+  '/:id',
+  authenticate,
+  requireAdmin,
+  categoryMutationRateLimit,
+  categoriesController.updateCategory
+);
+categoriesRouter.delete(
+  '/:id',
+  authenticate,
+  requireAdmin,
+  categoryDeleteRateLimit,
+  categoriesController.deleteCategory
+);

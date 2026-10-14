@@ -44,7 +44,7 @@ const roundCoord = (n: number): number => Number(n.toFixed(COORD_DECIMALS));
 
 /** Canonical query: trimmed city, rounded coordinates. Pass THIS to the builder. */
 export const normalizeRecommendationsQuery = (
-  query: GetRecommendationsQuery,
+  query: GetRecommendationsQuery
 ): GetRecommendationsQuery => {
   const city = query.city?.trim();
   return {
@@ -57,7 +57,7 @@ export const normalizeRecommendationsQuery = (
 
 export const recommendationsCacheKey = (
   query: GetRecommendationsQuery,
-  userId: string | null,
+  userId: string | null
 ): string => {
   const body = [
     query.type ?? 'ad',
@@ -94,7 +94,7 @@ export function getCachedRecommendations<T>(
   query: GetRecommendationsQuery,
   userId: string | null,
   build: (normalized: GetRecommendationsQuery) => Promise<T>,
-  shouldCache?: (value: T) => boolean,
+  shouldCache?: (value: T) => boolean
 ): Promise<{ value: T; status: SwrStatus }> {
   const normalized = normalizeRecommendationsQuery(query);
   return swrGetWithStatus<T>({

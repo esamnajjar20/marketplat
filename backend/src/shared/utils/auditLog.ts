@@ -47,20 +47,21 @@ export const auditLog = async (entry: AuditLogEntry): Promise<void> => {
   // instead of disappearing after the first transient DB/connection error.
   void runBackgroundTask(
     'audit-log.persist',
-    () => prisma.auditLog.create({
-      data: {
-        event: entry.event,
-        userId: entry.userId,
-        sessionId: entry.sessionId,
-        ip: entry.ip,
-        userAgent: entry.userAgent,
-        details: safeDetails ?? undefined,
-      },
-    }),
+    () =>
+      prisma.auditLog.create({
+        data: {
+          event: entry.event,
+          userId: entry.userId,
+          sessionId: entry.sessionId,
+          ip: entry.ip,
+          userAgent: entry.userAgent,
+          details: safeDetails ?? undefined,
+        },
+      }),
     {
       taskType: 'AUDIT_LOG_WRITE',
       payload: { event: entry.event, userId: entry.userId, sessionId: entry.sessionId },
       retries: 2,
-    },
+    }
   );
 };

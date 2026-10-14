@@ -59,13 +59,13 @@ export function MessageInput({ conversationId, disabled }: Props) {
   // conversationId change (which the useEffect above already handles).
   useEffect(() => {
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+       
       setImagePreview((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {
@@ -339,7 +339,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
       {attachmentFile && <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs"><Paperclip className="h-4 w-4 text-primary"/><span className="min-w-0 flex-1 truncate">{attachmentFile.name}</span><button type="button" onClick={clearAttachment} disabled={composerBusy} className="rounded-full p-1 hover:bg-background" aria-label="إزالة الملف"><X className="h-4 w-4"/></button></div>}
       {imagePreview && (
         <div className="flex items-center gap-2 border-b px-3 py-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          { }
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg">
             <img src={imagePreview} alt="معاينة الصورة" className="h-full w-full object-cover" />
             {uploading && <div className="absolute inset-0 flex items-center justify-center bg-black/45"><Loader2 className="h-5 w-5 animate-spin text-white" aria-hidden /></div>}

@@ -305,7 +305,7 @@ const envSchema = z.object({
   FRAUD_NEW_ACCOUNT_WINDOW_HOURS: z.string().regex(/^\d+$/).default('24'),
   // Ad riskScore (0-100) at or above this auto-sets flaggedForReview.
   FRAUD_AUTO_FLAG_THRESHOLD: z.string().regex(/^\d+$/).default('60'),
-  // Report-driven moderation: unique user reports needed to 
+  // Report-driven moderation: unique user reports needed to
   // hide an ACTIVE ad. Kept configurable so a small marketplace can use 3
   // while a larger one can raise the threshold without a code change.
   AD_REPORT_AUTO_HIDE_THRESHOLD: z.string().regex(/^\d+$/).default('3'),
@@ -488,7 +488,8 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['JWT_SECRET'],
-        message: 'JWT_SECRET must be a non-placeholder secret of at least 32 non-whitespace characters in production',
+        message:
+          'JWT_SECRET must be a non-placeholder secret of at least 32 non-whitespace characters in production',
       });
     }
 
@@ -496,7 +497,8 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['JWT_REFRESH_SECRET'],
-        message: 'JWT_REFRESH_SECRET must be a non-placeholder secret of at least 32 non-whitespace characters in production',
+        message:
+          'JWT_REFRESH_SECRET must be a non-placeholder secret of at least 32 non-whitespace characters in production',
       });
     }
 
@@ -678,7 +680,7 @@ export const env = {
       (_env.GOOGLE_CALLBACK_URL || '').trim()
     ),
   },
-  // CENTRALIZE-04 + 
+  // CENTRALIZE-04 +
   rateLimit: {
     disabled: _env.DISABLE_RATE_LIMIT,
     // configurable max for
@@ -743,9 +745,12 @@ export const env = {
     // are all present — partial config (e.g. just a from-address) isn't
     // enough to attempt a real SMTP connection.
     // "configured" now means any of the
-    // three senders is usable: Gmail OAuth, Resend, or 
+    // three senders is usable: Gmail OAuth, Resend, or
     isConfigured: Boolean(
-      (_env.GMAIL_USER && _env.GOOGLE_REFRESH_TOKEN && _env.GOOGLE_CLIENT_ID && _env.GOOGLE_CLIENT_SECRET) ||
+      (_env.GMAIL_USER &&
+        _env.GOOGLE_REFRESH_TOKEN &&
+        _env.GOOGLE_CLIENT_ID &&
+        _env.GOOGLE_CLIENT_SECRET) ||
       (_env.RESEND_API_KEY && _env.SMTP_FROM_EMAIL) ||
       (_env.SMTP_HOST && _env.SMTP_USER && _env.SMTP_PASSWORD && _env.SMTP_FROM_EMAIL)
     ),
@@ -760,8 +765,14 @@ export const env = {
     enabled: _env.NOTIFICATION_QUEUE_ENABLED,
     workerEnabled: _env.NOTIFICATION_WORKER_ENABLED,
     concurrency: Math.max(1, parseInt(_env.NOTIFICATION_QUEUE_CONCURRENCY, 10)),
-    emailFallbackDelayMinutes: Math.max(1, parseInt(_env.NOTIFICATION_EMAIL_FALLBACK_DELAY_MINUTES, 10)),
-    emailFallbackGapMinutes: Math.max(1, parseInt(_env.NOTIFICATION_EMAIL_FALLBACK_GAP_MINUTES, 10)),
+    emailFallbackDelayMinutes: Math.max(
+      1,
+      parseInt(_env.NOTIFICATION_EMAIL_FALLBACK_DELAY_MINUTES, 10)
+    ),
+    emailFallbackGapMinutes: Math.max(
+      1,
+      parseInt(_env.NOTIFICATION_EMAIL_FALLBACK_GAP_MINUTES, 10)
+    ),
   },
   sseReplay: {
     maxEvents: parseInt(_env.SSE_REPLAY_MAX_EVENTS, 10),

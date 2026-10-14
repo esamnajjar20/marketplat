@@ -23,7 +23,12 @@ export const serviceListingsController = {
         (req.headers['x-offline-op-id'] as string | undefined) ||
         (req.headers['X-Offline-Op-Id'] as string | undefined) ||
         null;
-      const listing = await serviceListingsService.createServiceListing(user.userId, body, files, offlineOpId);
+      const listing = await serviceListingsService.createServiceListing(
+        user.userId,
+        body,
+        files,
+        offlineOpId
+      );
       res.status(201).json(successResponse('Service listing created', listing));
     } catch (error) {
       next(error);
@@ -35,13 +40,11 @@ export const serviceListingsController = {
       const user = requireUser(req);
       const { query } = getServiceListingsSchema.parse({ query: req.query });
       const result = await serviceListingsService.getMyServiceListings(user.userId, query);
-      res
-        .status(200)
-        .json(
-          successResponse('My service listings fetched', result.items, {
-            pagination: result.meta,
-          })
-        );
+      res.status(200).json(
+        successResponse('My service listings fetched', result.items, {
+          pagination: result.meta,
+        })
+      );
     } catch (error) {
       next(error);
     }
@@ -61,7 +64,11 @@ export const serviceListingsController = {
     }
   },
 
-  getServiceListingMatches: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getServiceListingMatches: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { params } = serviceListingIdSchema.parse({ params: req.params });
       const limit = Math.min(Math.max(Number(req.query.limit ?? 8), 1), 12);
@@ -89,7 +96,11 @@ export const serviceListingsController = {
         params: req.params,
         body: req.body,
       });
-      const listing = await serviceListingsService.updateServiceListing(user.userId, params.id, body);
+      const listing = await serviceListingsService.updateServiceListing(
+        user.userId,
+        params.id,
+        body
+      );
       res.status(200).json(successResponse('Service listing updated', listing));
     } catch (error) {
       next(error);
@@ -129,7 +140,11 @@ export const serviceListingsController = {
         params: req.params,
         body: req.body,
       });
-      const listing = await serviceListingsService.removeImage(params.id, user.userId, body.imageUrl);
+      const listing = await serviceListingsService.removeImage(
+        params.id,
+        user.userId,
+        body.imageUrl
+      );
       res.status(200).json(successResponse('Image removed', listing));
     } catch (error) {
       next(error);
@@ -144,7 +159,11 @@ export const serviceListingsController = {
         params: req.params,
         body: req.body,
       });
-      const listing = await serviceListingsService.reorderImages(params.id, user.userId, body.images);
+      const listing = await serviceListingsService.reorderImages(
+        params.id,
+        user.userId,
+        body.images
+      );
       res.status(200).json(successResponse('Images reordered', listing));
     } catch (error) {
       next(error);

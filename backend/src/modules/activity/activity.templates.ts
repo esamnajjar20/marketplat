@@ -135,7 +135,7 @@ export const activityTemplates = {
 
   // FEAT-FAVORITE-POLYMORPHIC PR2: generalized from (adId, title) to
   // (entityType, entityId, title) — UserActivityType.FAVORITE_ADDED/
-  // REMOVED were already entity-generic, only these two 
+  // REMOVED were already entity-generic, only these two
   // functions were hardcoded to AD. Both call sites live in
   // favorites.service.ts and are updated in the same change.
   favoriteAdded: (
@@ -185,7 +185,10 @@ export const activityTemplates = {
   // recipient's name is passed straight into description as-is by the
   // caller, so it stays accurate even if the recipient later renames
   // their profile.
-  messageSent: (conversationId: string, recipientName: string): Omit<CreateActivityInput, 'userId'> => ({
+  messageSent: (
+    conversationId: string,
+    recipientName: string
+  ): Omit<CreateActivityInput, 'userId'> => ({
     type: UserActivityType.MESSAGE_SENT,
     title: 'أرسلت رسالة',
     description: `إلى ${recipientName}`,

@@ -97,7 +97,7 @@ const TOKEN_SEPARATORS = /[\s,،؛;/\\|]+/;
 function tokenize(query: string): string[] {
   return normalizeSearchText(query)
     .split(TOKEN_SEPARATORS)
-    .map((t) => t.trim())
+    .map(t => t.trim())
     .filter(Boolean);
 }
 
@@ -119,12 +119,38 @@ function tokenize(query: string): string[] {
  */
 const OPTIONAL_MODIFIER_WORDS = new Set([
   // Colors
-  'اسود', 'ابيض', 'احمر', 'ازرق', 'اخضر', 'اصفر', 'بني', 'رمادي',
-  'ذهبي', 'فضي', 'بنفسجي', 'برتقالي', 'وردي', 'كحلي', 'بيج', 'كريمي',
+  'اسود',
+  'ابيض',
+  'احمر',
+  'ازرق',
+  'اخضر',
+  'اصفر',
+  'بني',
+  'رمادي',
+  'ذهبي',
+  'فضي',
+  'بنفسجي',
+  'برتقالي',
+  'وردي',
+  'كحلي',
+  'بيج',
+  'كريمي',
   // Condition / quality
-  'جديد', 'جديدة', 'مستعمل', 'مستعملة', 'مستخدم', 'مستخدمة',
-  'ممتاز', 'ممتازة', 'نظيف', 'نظيفة', 'اصلي', 'اصلية', 'خام',
-  'ممتازه', 'نظيفه',
+  'جديد',
+  'جديدة',
+  'مستعمل',
+  'مستعملة',
+  'مستخدم',
+  'مستخدمة',
+  'ممتاز',
+  'ممتازة',
+  'نظيف',
+  'نظيفة',
+  'اصلي',
+  'اصلية',
+  'خام',
+  'ممتازه',
+  'نظيفه',
 ]);
 
 /**
@@ -165,8 +191,8 @@ function levenshteinDistance(a: string, b: string): number {
         Math.min(
           currentRow[j - 1] + 1, // insertion
           prevRow[j] + 1, // deletion
-          prevRow[j - 1] + cost, // substitution
-        ),
+          prevRow[j - 1] + cost // substitution
+        )
       );
     }
     prevRow = currentRow;
@@ -204,7 +230,7 @@ function tokenMatches(haystackText: string, haystackWords: string[], token: stri
   const maxDistance = allowedEditDistance(token.length);
   if (maxDistance === 0) return false;
 
-  return haystackWords.some((word) => levenshteinDistance(token, word) <= maxDistance);
+  return haystackWords.some(word => levenshteinDistance(token, word) <= maxDistance);
 }
 
 /**
@@ -218,14 +244,20 @@ function tokenMatches(haystackText: string, haystackWords: string[], token: stri
  * name A, description B) — weighting itself doesn't matter here since
  * this is a boolean match, not a ranked result.
  */
-export function matchesSearchQuery(haystacks: Array<string | null | undefined>, rawQuery: string): boolean {
+export function matchesSearchQuery(
+  haystacks: Array<string | null | undefined>,
+  rawQuery: string
+): boolean {
   const haystackText = normalizeSearchText(haystacks.filter(Boolean).join(' '));
   const tokens = tokenize(rawQuery);
   if (tokens.length === 0) return true;
 
-  const haystackWords = haystackText.split(TOKEN_SEPARATORS).map((w) => w.trim()).filter(Boolean);
+  const haystackWords = haystackText
+    .split(TOKEN_SEPARATORS)
+    .map(w => w.trim())
+    .filter(Boolean);
 
-  const coreTokens = tokens.filter((t) => !isOptionalModifier(t));
+  const coreTokens = tokens.filter(t => !isOptionalModifier(t));
   // If every word in the saved search happens to be a modifier word
   // (e.g. a saved search that's just "اسود"), there's no core word
   // left to anchor precision on — fall back to requiring every word,
@@ -236,15 +268,15 @@ export function matchesSearchQuery(haystacks: Array<string | null | undefined>, 
   // saved search for "جوال" still matches an ad titled "موبايل".
   const concepts = expandedRequiredConcepts(rawQuery);
   if (concepts.length > 0) {
-    const coreConcepts = concepts.filter((alts) => {
-      const bases = alts.map((a) => a.replace(/^ال/, ''));
-      return !bases.every((b) => isOptionalModifier(b));
+    const coreConcepts = concepts.filter(alts => {
+      const bases = alts.map(a => a.replace(/^ال/, ''));
+      return !bases.every(b => isOptionalModifier(b));
     });
     const required = coreConcepts.length > 0 ? coreConcepts : concepts;
-    return required.every((alts) =>
-      alts.some((token) => tokenMatches(haystackText, haystackWords, token)),
+    return required.every(alts =>
+      alts.some(token => tokenMatches(haystackText, haystackWords, token))
     );
   }
 
-  return requiredTokens.every((token) => tokenMatches(haystackText, haystackWords, token));
+  return requiredTokens.every(token => tokenMatches(haystackText, haystackWords, token));
 }

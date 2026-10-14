@@ -53,11 +53,7 @@ app.use(
         env.nodeEnv !== 'production'
           ? ['https://marketplat.esamnajjar6.workers.dev', 'http://localhost:3000']
           : [];
-      const allowedOrigins = new Set<string>([
-        env.frontendUrl,
-        ...extraOrigins,
-        ...devFallbacks,
-      ]);
+      const allowedOrigins = new Set<string>([env.frontendUrl, ...extraOrigins, ...devFallbacks]);
       if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
@@ -85,7 +81,14 @@ app.use(
     // GET routes, delete, markAsSold — none of which send this header)
     // worked normally.
     // Last-Event-ID: the SSE client resumes /notifications/stream with it (cross-origin → needs preflight approval).
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-CSRF-Token', 'X-Offline-Op-Id', 'Last-Event-ID'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-Id',
+      'X-CSRF-Token',
+      'X-Offline-Op-Id',
+      'Last-Event-ID',
+    ],
     exposedHeaders: ['X-Request-Id'],
   })
 );

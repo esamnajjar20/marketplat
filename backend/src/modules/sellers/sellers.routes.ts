@@ -25,7 +25,8 @@ sellersRouter.get('/me/profile', authenticate, CACHE.NONE, sellersController.get
 // ads/products/service-listings/service-providers.
 sellersRouter.patch(
   '/me/profile',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createSellerProfileRateLimit,
   CACHE.NONE,
   sellersController.updateMySellerProfile
@@ -33,7 +34,8 @@ sellersRouter.patch(
 sellersRouter.get('/me/attention', authenticate, CACHE.NONE, sellersController.getMyAttention);
 sellersRouter.post(
   '/me/profile',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createSellerProfileRateLimit,
   sellersController.createSellerProfile
 );
@@ -44,7 +46,8 @@ sellersRouter.post(
 // this one can never set `verified` itself.
 sellersRouter.post(
   '/me/profile/verification-request',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   requestVerificationRateLimit,
   sellersController.requestVerification
 );
@@ -57,7 +60,8 @@ sellersRouter.get('/:id', CACHE.MEDIUM, sellersController.getPublicSellerProfile
 
 sellersRouter.post(
   '/:id/ratings',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   sellerRatingRateLimit,
   sellersController.createRating
 );

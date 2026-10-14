@@ -6,13 +6,25 @@ export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
   include: {
     listing: {
       include: {
-        provider: { include: { sellerProfile: true } },
-        serviceType: true,
+        provider: { include: { sellerProfile: true } };
+        serviceType: true;
       };
     };
     customer: { select: { id: true; name: true; avatarUrl: true } };
     review: { select: { id: true } };
-    appointment: { select: { id: true; providerId: true; requestId: true; scheduledStart: true; scheduledEnd: true; status: true; notes: true; createdAt: true; updatedAt: true } };
+    appointment: {
+      select: {
+        id: true;
+        providerId: true;
+        requestId: true;
+        scheduledStart: true;
+        scheduledEnd: true;
+        status: true;
+        notes: true;
+        createdAt: true;
+        updatedAt: true;
+      };
+    };
   };
 }>;
 
@@ -23,7 +35,19 @@ const requestWithRelations = {
   // submitted" instead of a review button without a second round-trip —
   // { select: { id: true } } keeps this cheap since only presence matters.
   review: { select: { id: true } },
-  appointment: { select: { id: true, providerId: true, requestId: true, scheduledStart: true, scheduledEnd: true, status: true, notes: true, createdAt: true, updatedAt: true } },
+  appointment: {
+    select: {
+      id: true,
+      providerId: true,
+      requestId: true,
+      scheduledStart: true,
+      scheduledEnd: true,
+      status: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
 } as const;
 
 export const serviceRequestsRepository = {
@@ -83,7 +107,7 @@ export const serviceRequestsRepository = {
   // services-design.md §7: the WHERE clause includes the expected
   // current status, so the update silently no-ops (count=0) if the
   // status changed between the read above and this write — same
-  // atomic-conditional-update philosophy as the concurrency 
+  // atomic-conditional-update philosophy as the concurrency
   // ads.service.ts, without needing a Redis lock here since this
   // single UPDATE is atomic by construction.
   transitionStatus: (
@@ -91,7 +115,12 @@ export const serviceRequestsRepository = {
     id: string,
     from: ServiceRequestStatus,
     to: ServiceRequestStatus,
-    extra?: { quotedPrice?: number; agreedPrice?: number; cancelledBy?: 'CUSTOMER' | 'PROVIDER'; disputeReason?: string }
+    extra?: {
+      quotedPrice?: number;
+      agreedPrice?: number;
+      cancelledBy?: 'CUSTOMER' | 'PROVIDER';
+      disputeReason?: string;
+    }
   ): Promise<Prisma.BatchPayload> =>
     tx.serviceRequest.updateMany({
       where: { id, status: from },
@@ -100,12 +129,19 @@ export const serviceRequestsRepository = {
         // Customer cancellation is not a provider response — keep
         // respondedAt unchanged so response-time / fulfilment stats
         // never treat a customer-initiated cancel as provider activity.
-        ...((to !== 'CANCELLED' || extra?.cancelledBy !== 'CUSTOMER') && { respondedAt: new Date() }),
+        ...((to !== 'CANCELLED' || extra?.cancelledBy !== 'CUSTOMER') && {
+          respondedAt: new Date(),
+        }),
         ...(extra?.quotedPrice !== undefined && { quotedPrice: extra.quotedPrice }),
         ...(extra?.agreedPrice !== undefined && { agreedPrice: extra.agreedPrice }),
         // Only meaningful for CANCELLED — ignored for every other target.
         ...(to === 'CANCELLED' && extra?.cancelledBy && { cancelledBy: extra.cancelledBy }),
-        ...(to === 'DISPUTED' && extra?.disputeReason && { disputeReason: extra.disputeReason, disputedAt: new Date(), disputedBy: 'CUSTOMER' }),
+        ...(to === 'DISPUTED' &&
+          extra?.disputeReason && {
+            disputeReason: extra.disputeReason,
+            disputedAt: new Date(),
+            disputedBy: 'CUSTOMER',
+          }),
       },
     }),
 
@@ -180,10 +216,7 @@ export const serviceRequestsRepository = {
               // 'CUSTOMER') is not a fulfilment failure. Legacy rows have no
               // cancelledBy (NULL) — they keep the old rule (respondedAt set)
               // since who cancelled them is unknowable.
-              OR: [
-                { cancelledBy: 'PROVIDER' },
-                { cancelledBy: null, respondedAt: { not: null } },
-              ],
+              OR: [{ cancelledBy: 'PROVIDER' }, { cancelledBy: null, respondedAt: { not: null } }],
             },
           ],
           ...sinceFilter,

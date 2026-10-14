@@ -19,11 +19,21 @@ export const followsRepository = {
     });
   },
 
-  listFollowing: async (followerId: string, targetType: FollowTargetType | undefined, page = 1, limit = 20) => {
+  listFollowing: async (
+    followerId: string,
+    targetType: FollowTargetType | undefined,
+    page = 1,
+    limit = 20
+  ) => {
     const { skip, take } = getPaginationParams(page, limit);
     const where: Prisma.FollowWhereInput = { followerId, ...(targetType ? { targetType } : {}) };
     const [items, total] = await Promise.all([
-      prisma.follow.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
+      prisma.follow.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
       prisma.follow.count({ where }),
     ]);
     return { items, total };
@@ -32,14 +42,23 @@ export const followsRepository = {
   listFollowersOfUser: async (targetId: string, page = 1, limit = 20) =>
     followsRepository.listFollowers(FollowTargetType.USER, targetId, page, limit),
 
-  listFollowersOfTarget: async (targetType: FollowTargetType, targetId: string, page = 1, limit = 20) =>
-    followsRepository.listFollowers(targetType, targetId, page, limit),
+  listFollowersOfTarget: async (
+    targetType: FollowTargetType,
+    targetId: string,
+    page = 1,
+    limit = 20
+  ) => followsRepository.listFollowers(targetType, targetId, page, limit),
 
   listFollowers: async (targetType: FollowTargetType, targetId: string, page = 1, limit = 20) => {
     const { skip, take } = getPaginationParams(page, limit);
     const where = { targetType, targetId };
     const [items, total] = await Promise.all([
-      prisma.follow.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
+      prisma.follow.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
       prisma.follow.count({ where }),
     ]);
     return { items, total };
@@ -51,7 +70,7 @@ export const followsRepository = {
       where: { targetType, targetId: { in: targetIds } },
       select: { followerId: true },
     });
-    return Array.from(new Set(rows.map((row) => row.followerId)));
+    return Array.from(new Set(rows.map(row => row.followerId)));
   },
 
   countFollowers: (targetType: FollowTargetType, targetId: string) =>

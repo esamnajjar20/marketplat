@@ -17,7 +17,7 @@ export const favoriteListsService = {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: { _count: { select: { favorites: true } } },
     });
-    return lists.map((l) => ({
+    return lists.map(l => ({
       id: l.id,
       name: l.name,
       sortOrder: l.sortOrder,

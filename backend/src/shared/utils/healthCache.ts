@@ -43,10 +43,7 @@ const HEALTH_CHECK_TIMEOUT_MS = 2_000;
 const checkOkWithTimeout = async (fn: () => Promise<unknown>): Promise<boolean> => {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error('health check timed out')),
-      HEALTH_CHECK_TIMEOUT_MS,
-    );
+    timer = setTimeout(() => reject(new Error('health check timed out')), HEALTH_CHECK_TIMEOUT_MS);
     timer.unref();
   });
   try {

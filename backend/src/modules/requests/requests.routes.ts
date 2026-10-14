@@ -20,14 +20,36 @@ requestsRouter.get('/me', authenticate, CACHE.NONE, requestsController.getMyRequ
 requestsRouter.get('/offers/me', authenticate, CACHE.NONE, requestsController.getMyOffers);
 requestsRouter.get('/:id', optionalAuthenticate, CACHE.NONE, requestsController.getById);
 
-requestsRouter.post('/', authenticate, requireVerifiedEmail, createOpenRequestRateLimit, requestsController.create);
-requestsRouter.patch('/:id/cancel', authenticate, cancelRequestRateLimit, requestsController.cancel);
+requestsRouter.post(
+  '/',
+  authenticate,
+  requireVerifiedEmail,
+  createOpenRequestRateLimit,
+  requestsController.create
+);
+requestsRouter.patch(
+  '/:id/cancel',
+  authenticate,
+  cancelRequestRateLimit,
+  requestsController.cancel
+);
 
 requestsRouter.post(
   '/:id/offers',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   submitRequestOfferRateLimit,
-  requestsController.submitOffer,
+  requestsController.submitOffer
 );
-requestsRouter.delete('/:id/offers/:offerId', authenticate, withdrawOfferRateLimit, requestsController.withdrawOffer);
-requestsRouter.patch('/:id/offers/:offerId/accept', authenticate, acceptOfferRateLimit, requestsController.acceptOffer);
+requestsRouter.delete(
+  '/:id/offers/:offerId',
+  authenticate,
+  withdrawOfferRateLimit,
+  requestsController.withdrawOffer
+);
+requestsRouter.patch(
+  '/:id/offers/:offerId/accept',
+  authenticate,
+  acceptOfferRateLimit,
+  requestsController.acceptOffer
+);

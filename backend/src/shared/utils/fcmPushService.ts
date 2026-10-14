@@ -75,7 +75,10 @@ interface FcmSendError {
 
 function isDeadTokenError(err: unknown): boolean {
   const code = (err as FcmSendError)?.errorInfo?.code;
-  return code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token';
+  return (
+    code === 'messaging/registration-token-not-registered' ||
+    code === 'messaging/invalid-registration-token'
+  );
 }
 
 export type FcmSendOutcome = 'sent' | 'gone' | 'transient' | 'failed' | 'unconfigured';
@@ -90,7 +93,7 @@ export const fcmPushService = {
    */
   sendToToken: async (
     deviceToken: { token: string },
-    payload: FcmPushPayload,
+    payload: FcmPushPayload
   ): Promise<FcmSendOutcome> => {
     if (!(await ensureConfigured())) return 'unconfigured';
     try {
@@ -105,7 +108,7 @@ export const fcmPushService = {
       if (isDeadTokenError(err)) {
         await fcmDeviceTokensRepository
           .deleteByTokens([deviceToken.token])
-          .catch((e) => logger.warn('Failed to prune stale FCM token', { err: e }));
+          .catch(e => logger.warn('Failed to prune stale FCM token', { err: e }));
         return 'gone';
       }
       const code = (err as FcmSendError)?.errorInfo?.code;
@@ -139,7 +142,7 @@ export const fcmPushService = {
       const staleTokens: string[] = [];
 
       await Promise.all(
-        tokens.map(async (deviceToken) => {
+        tokens.map(async deviceToken => {
           const sendArgs = {
             token: deviceToken.token,
             notification: { title: payload.title, body: payload.body },
@@ -175,7 +178,7 @@ export const fcmPushService = {
               return;
             }
 
-            await new Promise((r) => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1500));
             try {
               await messaging.send(sendArgs);
             } catch (retryErr) {
@@ -192,7 +195,7 @@ export const fcmPushService = {
       if (staleTokens.length > 0) {
         await fcmDeviceTokensRepository
           .deleteByTokens(staleTokens)
-          .catch((err) => logger.warn('Failed to prune stale FCM tokens', { err }));
+          .catch(err => logger.warn('Failed to prune stale FCM tokens', { err }));
       }
     } catch (err) {
       logger.error('fcmPushService.notifyUser failed unexpectedly', { userId, err });
@@ -201,6 +204,6 @@ export const fcmPushService = {
 
   notifyUsers: async (userIds: string[], payload: FcmPushPayload): Promise<void> => {
     if (userIds.length === 0) return;
-    await Promise.all(userIds.map((userId) => fcmPushService.notifyUser(userId, payload)));
+    await Promise.all(userIds.map(userId => fcmPushService.notifyUser(userId, payload)));
   },
 };

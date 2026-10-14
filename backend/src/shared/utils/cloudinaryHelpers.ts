@@ -21,12 +21,12 @@ export function extractCloudinaryPublicId(imageUrl: string): string | null {
     const pathParts = url.pathname.split('/').filter(Boolean);
     if (env.cloudinary.cloudName && pathParts[0] !== env.cloudinary.cloudName) return null;
 
-    const uploadIndex = pathParts.findIndex((part) => part === 'upload');
+    const uploadIndex = pathParts.findIndex(part => part === 'upload');
     if (uploadIndex === -1) return null;
 
     const publicIdParts = pathParts
       .slice(uploadIndex + 1)
-      .filter((part) => part && !/^v\d+$/.test(part));
+      .filter(part => part && !/^v\d+$/.test(part));
 
     if (publicIdParts.length === 0) return null;
     return publicIdParts.join('/').replace(/\.[^/.]+$/, '');
@@ -41,5 +41,11 @@ export function extractCloudinaryPublicId(imageUrl: string): string | null {
  * asset is a minor storage cost, not worth failing the whole request over.
  */
 export async function cleanupUploadedImages(publicIds: string[]): Promise<void> {
-  await Promise.all(publicIds.map((publicId) => deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/shared/utils/cloudinaryHelpers.ts', error))));
+  await Promise.all(
+    publicIds.map(publicId =>
+      deleteImage(publicId).catch(error =>
+        reportBackgroundFailure('backend/src/shared/utils/cloudinaryHelpers.ts', error)
+      )
+    )
+  );
 }

@@ -51,7 +51,6 @@ export { register };
 // Default process/runtime metrics are registered once in metricsRegistry.ts
 // so cache telemetry can share the same Prometheus registry without cycles.
 
-
 export const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests, labeled by method, route, and status code',
@@ -171,16 +170,27 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
 
     if (res.statusCode >= 400) {
       const fallbackCode =
-        res.statusCode === 400 ? 'BAD_REQUEST' :
-        res.statusCode === 401 ? 'UNAUTHORIZED' :
-        res.statusCode === 403 ? 'FORBIDDEN' :
-        res.statusCode === 404 ? 'RESOURCE_NOT_FOUND' :
-        res.statusCode === 409 ? 'CONFLICT' :
-        res.statusCode === 422 ? 'UNPROCESSABLE_ENTITY' :
-        res.statusCode === 429 ? 'RATE_LIMIT_EXCEEDED' :
-        res.statusCode === 503 ? 'SERVICE_UNAVAILABLE' :
-        res.statusCode >= 500 ? 'INTERNAL_ERROR' : 'HTTP_ERROR';
-      const responseCode = typeof res.locals?.errorCode === 'string' ? res.locals.errorCode : fallbackCode;
+        res.statusCode === 400
+          ? 'BAD_REQUEST'
+          : res.statusCode === 401
+            ? 'UNAUTHORIZED'
+            : res.statusCode === 403
+              ? 'FORBIDDEN'
+              : res.statusCode === 404
+                ? 'RESOURCE_NOT_FOUND'
+                : res.statusCode === 409
+                  ? 'CONFLICT'
+                  : res.statusCode === 422
+                    ? 'UNPROCESSABLE_ENTITY'
+                    : res.statusCode === 429
+                      ? 'RATE_LIMIT_EXCEEDED'
+                      : res.statusCode === 503
+                        ? 'SERVICE_UNAVAILABLE'
+                        : res.statusCode >= 500
+                          ? 'INTERNAL_ERROR'
+                          : 'HTTP_ERROR';
+      const responseCode =
+        typeof res.locals?.errorCode === 'string' ? res.locals.errorCode : fallbackCode;
       httpErrorsTotal.inc({
         method: req.method,
         route: route.length <= 200 ? route : 'unmatched',

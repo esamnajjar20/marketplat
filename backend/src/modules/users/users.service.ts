@@ -14,7 +14,10 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { prisma } from '../../config/prisma';
 import { AdStatus } from '@prisma/client';
 import { uploadAvatar, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  cleanupUploadedImages,
+} from '../../shared/utils/cloudinaryHelpers';
 import { presence } from '../../shared/utils/presence';
 import { notificationsService } from '../notifications/notifications.service';
 import { conversationsService } from '../conversations/conversations.service';
@@ -23,7 +26,6 @@ import { storesService } from '../stores/stores.service';
 import { serviceProvidersService } from '../service-providers/service-providers.service';
 import { favoritesService } from '../favorites/favorites.service';
 import { bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
-
 
 export const usersService = {
   /** PATCH /users/me/presence — heartbeat. No DB write, no response
@@ -35,7 +37,10 @@ export const usersService = {
 
   /** GET /users/presence?ids=... — bulk online lookup for however many
    * user IDs the caller's current view needs a dot for. */
-  getPresence: async (userIds: string[]): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> => presence.getPresence(userIds),
+  getPresence: async (
+    userIds: string[]
+  ): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> =>
+    presence.getPresence(userIds),
 
   getMe: async (userId: string): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);
@@ -74,9 +79,7 @@ export const usersService = {
     ] = await Promise.all([
       soft(() => notificationsService.getUnreadCount(userId)),
       soft(async () => (await conversationsService.getUnreadCount(userId)).count),
-      soft(() =>
-        notificationsService.getMyNotifications(userId, { page: 1, limit: 10 }),
-      ),
+      soft(() => notificationsService.getMyNotifications(userId, { page: 1, limit: 10 })),
       soft(() => sellersService.getMySellerProfile(userId)),
       soft(() => sellersService.getMyAttention(userId)),
       soft(() => adsService.getMyStats(userId)),
@@ -125,18 +128,19 @@ export const usersService = {
     // If a future feature needs to expose payment methods to a specific
     // viewer, gate it on a real authorization check (owner/blocked/etc)
     // rather than undoing this strip.
-    const sellerProfile = user.sellerProfile && !user.sellerProfile.suspended
-      ? {
-          ...user.sellerProfile,
-          paymentMethods: [] as typeof user.sellerProfile.paymentMethods,
-          serviceProviderDetails: user.sellerProfile.serviceProviderDetails
-            ? {
-                ...user.sellerProfile.serviceProviderDetails,
-                contactPhone: '',
-              }
-            : null,
-        }
-      : null;
+    const sellerProfile =
+      user.sellerProfile && !user.sellerProfile.suspended
+        ? {
+            ...user.sellerProfile,
+            paymentMethods: [] as typeof user.sellerProfile.paymentMethods,
+            serviceProviderDetails: user.sellerProfile.serviceProviderDetails
+              ? {
+                  ...user.sellerProfile.serviceProviderDetails,
+                  contactPhone: '',
+                }
+              : null,
+          }
+        : null;
     return {
       id: user.id,
       name: user.name,
@@ -191,7 +195,7 @@ export const usersService = {
    */
   updateNotificationPreferences: async (
     userId: string,
-    input: UpdateNotificationPreferencesInput,
+    input: UpdateNotificationPreferencesInput
   ): Promise<SafeUser> => {
     const user = await usersRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
@@ -218,7 +222,9 @@ export const usersService = {
     // the source of truth, the images are recoverable from the audit
     // trail if a cleanup is ever needed later).
     const [avatarPublicId, adImages] = await Promise.all([
-      user.avatarUrl ? Promise.resolve(extractCloudinaryPublicId(user.avatarUrl)) : Promise.resolve(null),
+      user.avatarUrl
+        ? Promise.resolve(extractCloudinaryPublicId(user.avatarUrl))
+        : Promise.resolve(null),
       prisma.ad.findMany({
         where: { userId },
         select: { images: true },
@@ -283,15 +289,13 @@ export const usersService = {
     // DB state is authoritative; the images are orphaned-by-design
     // once the row is anonymized) and best-effort (a Cloudinary
     // failure must never fail a deletion that already succeeded).
-    const toDelete = [
-      ...(avatarPublicId ? [avatarPublicId] : []),
-      ...adPublicIds,
-    ];
+    const toDelete = [...(avatarPublicId ? [avatarPublicId] : []), ...adPublicIds];
     if (toDelete.length > 0) {
-      await cleanupUploadedImages(toDelete).catch((error) => reportBackgroundFailure('backend/src/modules/users/users.service.ts', error));
+      await cleanupUploadedImages(toDelete).catch(error =>
+        reportBackgroundFailure('backend/src/modules/users/users.service.ts', error)
+      );
     }
   },
-
 
   /**
    * previously changePassword only updated passwordHash and
@@ -311,9 +315,12 @@ export const usersService = {
     userId: string,
     currentPassword: string,
     newPassword: string,
-    currentAccessToken?: string,
+    currentAccessToken?: string
   ): Promise<void> => {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, passwordHash: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true },
+    });
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
 
     // passwordHash is null for OAuth-only accounts (no
@@ -327,7 +334,8 @@ export const usersService = {
     }
 
     const valid = await comparePassword(currentPassword, user.passwordHash);
-    if (!valid) throw new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID');
+    if (!valid)
+      throw new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID');
 
     const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -346,7 +354,9 @@ export const usersService = {
         : Promise.resolve(),
     ]);
 
-    auditLog({ event: AuditEvent.PASSWORD_CHANGED, userId }).catch((error) => reportBackgroundFailure('backend/src/modules/users/users.service.ts', error));
+    auditLog({ event: AuditEvent.PASSWORD_CHANGED, userId }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/users/users.service.ts', error)
+    );
 
     // Gap #10: fire-and-forget, see activityService.record()'s own doc
     // comment — same call site as the auditLog() line directly above,
@@ -375,7 +385,10 @@ export const usersService = {
       // Best-effort: delete the previous avatar now that the new one is saved.
       if (user.avatarUrl) {
         const oldPublicId = extractCloudinaryPublicId(user.avatarUrl);
-        if (oldPublicId) await deleteImage(oldPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/users/users.service.ts', error));
+        if (oldPublicId)
+          await deleteImage(oldPublicId).catch(error =>
+            reportBackgroundFailure('backend/src/modules/users/users.service.ts', error)
+          );
       }
 
       return updated;

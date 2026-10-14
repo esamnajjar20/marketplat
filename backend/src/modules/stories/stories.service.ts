@@ -13,7 +13,10 @@ const MAX_ACTIVE_STORIES = 20;
 
 const userSummary = { id: true, name: true, avatarUrl: true } as const;
 
-async function canView(story: { userId: string; visibility: StoryVisibility }, viewerId: string | null) {
+async function canView(
+  story: { userId: string; visibility: StoryVisibility },
+  viewerId: string | null
+) {
   if (story.visibility === StoryVisibility.PUBLIC) return true;
   if (!viewerId) return false;
   if (story.userId === viewerId) return true;
@@ -38,12 +41,23 @@ function shapeStory(story: any, viewerId: string) {
 }
 
 export const storiesService = {
-  create: async (userId: string, input: { text?: string; background?: string; visibility: StoryVisibility }, file?: Express.Multer.File) => {
+  create: async (
+    userId: string,
+    input: { text?: string; background?: string; visibility: StoryVisibility },
+    file?: Express.Multer.File
+  ) => {
     const text = input.text?.trim() || null;
-    if (!file && !text) throw new BadRequestError('Story must contain an image or text', 'STORY_CONTENT_REQUIRED');
+    if (!file && !text)
+      throw new BadRequestError('Story must contain an image or text', 'STORY_CONTENT_REQUIRED');
 
-    const activeCount = await prisma.story.count({ where: { userId, expiresAt: { gt: new Date() } } });
-    if (activeCount >= MAX_ACTIVE_STORIES) throw new BadRequestError(`You can have at most ${MAX_ACTIVE_STORIES} active stories`, 'STORY_LIMIT_REACHED');
+    const activeCount = await prisma.story.count({
+      where: { userId, expiresAt: { gt: new Date() } },
+    });
+    if (activeCount >= MAX_ACTIVE_STORIES)
+      throw new BadRequestError(
+        `You can have at most ${MAX_ACTIVE_STORIES} active stories`,
+        'STORY_LIMIT_REACHED'
+      );
 
     let uploaded: { url: string; publicId: string } | null = null;
     try {
@@ -57,10 +71,16 @@ export const storiesService = {
         visibility: input.visibility,
         expiresAt: new Date(Date.now() + STORY_TTL_MS),
       });
-      const full = await prisma.story.findUnique({ where: { id: story.id }, include: { user: { select: userSummary }, _count: { select: { views: true } } } });
+      const full = await prisma.story.findUnique({
+        where: { id: story.id },
+        include: { user: { select: userSummary }, _count: { select: { views: true } } },
+      });
       return shapeStory(full, userId);
     } catch (error) {
-      if (uploaded?.publicId) void deleteMedia(uploaded.publicId).catch((error) => reportBackgroundFailure('backend/src/modules/stories/stories.service.ts', error));
+      if (uploaded?.publicId)
+        void deleteMedia(uploaded.publicId).catch(error =>
+          reportBackgroundFailure('backend/src/modules/stories/stories.service.ts', error)
+        );
       throw error;
     }
   },
@@ -69,12 +89,25 @@ export const storiesService = {
     const followed = await followsService.getFollowedTargetIds(userId, FollowTargetType.USER);
     const userIds = Array.from(new Set([userId, ...followed]));
     const rows = await storiesRepository.listActiveForUsers(userIds);
-    const viewed = await prisma.storyView.findMany({ where: { viewerId: userId, storyId: { in: rows.map((r) => r.id) } }, select: { storyId: true } });
-    const viewedIds = new Set(viewed.map((v) => v.storyId));
-    const stories = rows.filter((story) => story.userId === userId || story.visibility === StoryVisibility.PUBLIC || followed.includes(story.userId));
+    const viewed = await prisma.storyView.findMany({
+      where: { viewerId: userId, storyId: { in: rows.map(r => r.id) } },
+      select: { storyId: true },
+    });
+    const viewedIds = new Set(viewed.map(v => v.storyId));
+    const stories = rows.filter(
+      story =>
+        story.userId === userId ||
+        story.visibility === StoryVisibility.PUBLIC ||
+        followed.includes(story.userId)
+    );
     const groups = new Map<string, any>();
     for (const story of stories) {
-      const current = groups.get(story.userId) ?? { user: story.user, stories: [], hasUnseen: false, latestCreatedAt: story.createdAt };
+      const current = groups.get(story.userId) ?? {
+        user: story.user,
+        stories: [],
+        hasUnseen: false,
+        latestCreatedAt: story.createdAt,
+      };
       const shaped = shapeStory({ ...story, views: viewedIds.has(story.id) ? [{}] : [] }, userId);
       current.stories.push(shaped);
       if (!viewedIds.has(story.id) && story.userId !== userId) current.hasUnseen = true;
@@ -90,7 +123,10 @@ export const storiesService = {
   },
 
   userStories: async (viewerId: string | null, userId: string) => {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, isActive: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true },
+    });
     if (!user?.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
     const rows = await storiesRepository.listActiveForUser(userId);
     // Every row belongs to the same author, so the follow relationship is
@@ -98,39 +134,50 @@ export const storiesService = {
     // one SELECT per story (N+1). Public stories and the owner's own stories
     // remain visible without a follow lookup.
     const followsAuthor = Boolean(
-      viewerId && viewerId !== userId &&
-      await followsService.status(viewerId, FollowTargetType.USER, userId)
+      viewerId &&
+      viewerId !== userId &&
+      (await followsService.status(viewerId, FollowTargetType.USER, userId))
     );
-    const visible = rows.filter((story) =>
-      story.visibility === StoryVisibility.PUBLIC ||
-      story.userId === viewerId ||
-      followsAuthor
+    const visible = rows.filter(
+      story =>
+        story.visibility === StoryVisibility.PUBLIC || story.userId === viewerId || followsAuthor
     );
-    if (!viewerId) return visible.map((story) => shapeStory({ ...story, views: [] }, ''));
-    const viewed = await prisma.storyView.findMany({ where: { viewerId, storyId: { in: visible.map((r) => r.id) } }, select: { storyId: true } });
-    const viewedIds = new Set(viewed.map((v) => v.storyId));
-    return visible.map((story) => shapeStory({ ...story, views: viewedIds.has(story.id) ? [{}] : [] }, viewerId));
+    if (!viewerId) return visible.map(story => shapeStory({ ...story, views: [] }, ''));
+    const viewed = await prisma.storyView.findMany({
+      where: { viewerId, storyId: { in: visible.map(r => r.id) } },
+      select: { storyId: true },
+    });
+    const viewedIds = new Set(viewed.map(v => v.storyId));
+    return visible.map(story =>
+      shapeStory({ ...story, views: viewedIds.has(story.id) ? [{}] : [] }, viewerId)
+    );
   },
 
   view: async (viewerId: string, storyId: string) => {
     const story = await storiesRepository.findActiveById(storyId);
     if (!story) throw new NotFoundError('Story not found or expired', 'STORY_NOT_FOUND');
-    if (!(await canView(story, viewerId))) throw new ForbiddenError('You cannot view this story', 'STORY_NOT_VISIBLE');
+    if (!(await canView(story, viewerId)))
+      throw new ForbiddenError('You cannot view this story', 'STORY_NOT_VISIBLE');
     await storiesRepository.createView(storyId, viewerId);
     return { storyId, viewed: true };
   },
 
   delete: async (userId: string, storyId: string) => {
     const story = await storiesRepository.findById(storyId);
-    if (!story || story.userId !== userId) throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
+    if (!story || story.userId !== userId)
+      throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
     const result = await storiesRepository.delete(storyId, userId);
     if (!result.count) throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
-    if (story.mediaPublicId) void deleteMedia(story.mediaPublicId).catch((error) => reportBackgroundFailure('backend/src/modules/stories/stories.service.ts', error));
+    if (story.mediaPublicId)
+      void deleteMedia(story.mediaPublicId).catch(error =>
+        reportBackgroundFailure('backend/src/modules/stories/stories.service.ts', error)
+      );
   },
 
   viewers: async (userId: string, storyId: string) => {
     const story = await storiesRepository.findById(storyId);
-    if (!story || story.userId !== userId) throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
+    if (!story || story.userId !== userId)
+      throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
     return storiesRepository.listViewers(storyId);
   },
 };

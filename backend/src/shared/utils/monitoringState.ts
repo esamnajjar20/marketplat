@@ -42,7 +42,10 @@ const MAX_SAMPLES = 24 * 60;
 
 /** Keep diagnostic metadata bounded and free of URL/query or control data. */
 function sanitizeRouteLabel(value: string): string {
-  const route = value.split(/[?#]/, 1)[0].replace(/[\r\n\t\u0000-\u001f\u007f]/g, '').trim();
+  const route = value
+    .split(/[?#]/, 1)[0]
+    .replace(/[\r\n\t\u0000-\u001f\u007f]/g, '')
+    .trim();
   if (!route.startsWith('/')) return '/unknown';
   return route.slice(0, 200);
 }
@@ -53,7 +56,10 @@ function sanitizeMethod(value: string): string {
 }
 const events: MonitoringEvent[] = [];
 const samples: MonitoringSample[] = [];
-const alertStates = new Map<string, { status: 'active' | 'acknowledged' | 'resolved'; firstSeenAt: string; updatedAt: string }>();
+const alertStates = new Map<
+  string,
+  { status: 'active' | 'acknowledged' | 'resolved'; firstSeenAt: string; updatedAt: string }
+>();
 let eventSequence = 0;
 let minuteBucket = -1;
 let minuteRequests = 0;
@@ -86,10 +92,17 @@ export function recordRequestObservation(input: {
       requestId: input.requestId.slice(0, 64),
       method: sanitizeMethod(input.method),
       route: sanitizeRouteLabel(input.route),
-      statusCode: Number.isInteger(input.statusCode) && input.statusCode >= 100 && input.statusCode <= 599 ? input.statusCode : 500,
-      durationMs: Number.isFinite(input.durationMs) ? Math.max(0, Math.min(Math.round(input.durationMs), 86_400_000)) : 0,
+      statusCode:
+        Number.isInteger(input.statusCode) && input.statusCode >= 100 && input.statusCode <= 599
+          ? input.statusCode
+          : 500,
+      durationMs: Number.isFinite(input.durationMs)
+        ? Math.max(0, Math.min(Math.round(input.durationMs), 86_400_000))
+        : 0,
       kind: input.statusCode >= 400 ? 'http-error' : 'slow-request',
-      ...(input.statusCode >= 400 && input.errorCode ? { errorCode: input.errorCode.slice(0, 80) } : {}),
+      ...(input.statusCode >= 400 && input.errorCode
+        ? { errorCode: input.errorCode.slice(0, 80) }
+        : {}),
     });
     if (events.length > MAX_EVENTS) events.length = MAX_EVENTS;
   }
@@ -141,25 +154,54 @@ export function getMonitoringEvents(limit = 100): MonitoringEvent[] {
   return events.slice(0, safeLimit);
 }
 
-export function getMonitoringHistory(limit = 60): { processLocal: true; retentionMinutes: number; samples: MonitoringSample[] } {
+export function getMonitoringHistory(limit = 60): {
+  processLocal: true;
+  retentionMinutes: number;
+  samples: MonitoringSample[];
+} {
   const safeLimit = Number.isInteger(limit) ? Math.min(1440, Math.max(1, limit)) : 60;
-  return { processLocal: true, retentionMinutes: 1440, samples: samples.slice(0, safeLimit).reverse() };
+  return {
+    processLocal: true,
+    retentionMinutes: 1440,
+    samples: samples.slice(0, safeLimit).reverse(),
+  };
 }
 
 export function getMonitoringAlerts(): MonitoringAlert[] {
   const now = Date.now();
   const windowStart = now - 5 * 60_000;
-  const recent = events.filter((event) => Date.parse(event.timestamp) >= windowStart);
-  const recentServerErrors = recent.filter((event) => event.statusCode >= 500).length;
-  const recentHttpErrors = recent.filter((event) => event.statusCode >= 400).length;
+  const recent = events.filter(event => Date.parse(event.timestamp) >= windowStart);
+  const recentServerErrors = recent.filter(event => event.statusCode >= 500).length;
+  const recentHttpErrors = recent.filter(event => event.statusCode >= 400).length;
   const slowThresholdMs = safeThreshold('MONITORING_SLOW_REQUEST_MS', 2000);
-  const recentSlow = recent.filter((event) => event.durationMs >= slowThresholdMs).length;
+  const recentSlow = recent.filter(event => event.durationMs >= slowThresholdMs).length;
   const rules = [
-    { id: 'server-errors', title: 'أخطاء الخادم 5xx', severity: 'critical' as const, description: 'عدد أخطاء الخادم المسجّلة في آخر 5 دقائق', value: recentServerErrors, threshold: safeThreshold('MONITORING_ALERT_5XX_THRESHOLD', 5) },
-    { id: 'http-errors', title: 'أخطاء HTTP', severity: 'warning' as const, description: 'أخطاء HTTP 4xx و5xx المسجّلة في آخر 5 دقائق', value: recentHttpErrors, threshold: safeThreshold('MONITORING_ALERT_HTTP_ERROR_THRESHOLD', 20) },
-    { id: 'slow-requests', title: 'طلبات بطيئة', severity: 'warning' as const, description: 'طلبات تجاوزت عتبة البطء في آخر 5 دقائق', value: recentSlow, threshold: safeThreshold('MONITORING_ALERT_SLOW_THRESHOLD', 20) },
+    {
+      id: 'server-errors',
+      title: 'أخطاء الخادم 5xx',
+      severity: 'critical' as const,
+      description: 'عدد أخطاء الخادم المسجّلة في آخر 5 دقائق',
+      value: recentServerErrors,
+      threshold: safeThreshold('MONITORING_ALERT_5XX_THRESHOLD', 5),
+    },
+    {
+      id: 'http-errors',
+      title: 'أخطاء HTTP',
+      severity: 'warning' as const,
+      description: 'أخطاء HTTP 4xx و5xx المسجّلة في آخر 5 دقائق',
+      value: recentHttpErrors,
+      threshold: safeThreshold('MONITORING_ALERT_HTTP_ERROR_THRESHOLD', 20),
+    },
+    {
+      id: 'slow-requests',
+      title: 'طلبات بطيئة',
+      severity: 'warning' as const,
+      description: 'طلبات تجاوزت عتبة البطء في آخر 5 دقائق',
+      value: recentSlow,
+      threshold: safeThreshold('MONITORING_ALERT_SLOW_THRESHOLD', 20),
+    },
   ];
-  return rules.map((rule) => {
+  return rules.map(rule => {
     const triggered = rule.value >= rule.threshold;
     const previous = alertStates.get(rule.id);
     const updatedAt = new Date(now).toISOString();
@@ -169,8 +211,10 @@ export function getMonitoringAlerts(): MonitoringAlert[] {
       return { ...rule, status: 'resolved' as const, firstSeenAt, updatedAt };
     }
 
-    const firstSeenAt = previous && previous.status !== 'resolved' ? previous.firstSeenAt : updatedAt;
-    const status: MonitoringAlert['status'] = previous?.status === 'acknowledged' ? 'acknowledged' : 'active';
+    const firstSeenAt =
+      previous && previous.status !== 'resolved' ? previous.firstSeenAt : updatedAt;
+    const status: MonitoringAlert['status'] =
+      previous?.status === 'acknowledged' ? 'acknowledged' : 'active';
     alertStates.set(rule.id, { status, firstSeenAt, updatedAt });
     return { ...rule, status, firstSeenAt, updatedAt };
   });
@@ -180,6 +224,10 @@ export function acknowledgeMonitoringAlert(id: string): boolean {
   if (!['server-errors', 'http-errors', 'slow-requests'].includes(id)) return false;
   const now = new Date().toISOString();
   const previous = alertStates.get(id);
-  alertStates.set(id, { status: 'acknowledged', firstSeenAt: previous?.firstSeenAt ?? now, updatedAt: now });
+  alertStates.set(id, {
+    status: 'acknowledged',
+    firstSeenAt: previous?.firstSeenAt ?? now,
+    updatedAt: now,
+  });
   return true;
 }

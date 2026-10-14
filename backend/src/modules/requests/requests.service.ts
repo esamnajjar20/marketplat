@@ -1,5 +1,11 @@
 import { prisma } from '../../config/prisma';
-import { Prisma, Request as RequestRow, RequestOffer, RequestType, RequestOfferStatus } from '@prisma/client';
+import {
+  Prisma,
+  Request as RequestRow,
+  RequestOffer,
+  RequestType,
+  RequestOfferStatus,
+} from '@prisma/client';
 import {
   requestsRepository,
   requestOffersRepository,
@@ -83,7 +89,7 @@ async function assertCanSubmitOffer(type: RequestType, userId: string): Promise<
       type === 'SERVICE'
         ? 'Only service providers can offer on service requests.'
         : 'Create a seller profile before offering on product or rental requests.',
-      type === 'SERVICE' ? 'NOT_A_SERVICE_PROVIDER' : 'NOT_A_SELLER',
+      type === 'SERVICE' ? 'NOT_A_SERVICE_PROVIDER' : 'NOT_A_SELLER'
     );
   }
   if (type === 'SERVICE') {
@@ -91,7 +97,7 @@ async function assertCanSubmitOffer(type: RequestType, userId: string): Promise<
     if (!provider) {
       throw new ForbiddenError(
         'Only service providers can offer on service requests.',
-        'NOT_A_SERVICE_PROVIDER',
+        'NOT_A_SERVICE_PROVIDER'
       );
     }
   }
@@ -101,7 +107,7 @@ export const requestsService = {
   create: async (
     customerId: string,
     input: CreateRequestInput,
-    offlineOperationId?: string | null,
+    offlineOperationId?: string | null
   ): Promise<RequestRow> => {
     if (offlineOperationId) {
       const existing = await prisma.request.findUnique({ where: { offlineOperationId } });
@@ -119,10 +125,16 @@ export const requestsService = {
     if (input.type === 'SERVICE') {
       const category = await serviceCategoriesRepository.findById(input.categoryId);
       if (!category?.serviceTypeId) {
-        throw new BadRequestError('The selected service category has no service type.', 'SERVICE_TYPE_REQUIRED');
+        throw new BadRequestError(
+          'The selected service category has no service type.',
+          'SERVICE_TYPE_REQUIRED'
+        );
       }
       if (input.serviceTypeId && input.serviceTypeId !== category.serviceTypeId) {
-        throw new BadRequestError('The selected service type does not match the selected category.', 'SERVICE_TYPE_CATEGORY_MISMATCH');
+        throw new BadRequestError(
+          'The selected service type does not match the selected category.',
+          'SERVICE_TYPE_CATEGORY_MISMATCH'
+        );
       }
       serviceTypeId = category.serviceTypeId;
       const serviceType = await serviceTypesRepository.findById(serviceTypeId);
@@ -130,17 +142,23 @@ export const requestsService = {
         throw new BadRequestError('The selected service type is inactive.', 'SERVICE_TYPE_INVALID');
       }
       if (getServiceTypeCapabilities(serviceType.capabilities).requestQuote === false) {
-        throw new BadRequestError('This service type does not accept open service requests.', 'SERVICE_REQUESTS_NOT_SUPPORTED');
+        throw new BadRequestError(
+          'This service type does not accept open service requests.',
+          'SERVICE_REQUESTS_NOT_SUPPORTED'
+        );
       }
     } else if (input.serviceTypeId) {
-      throw new BadRequestError('serviceTypeId is only valid for service requests.', 'SERVICE_TYPE_NOT_ALLOWED');
+      throw new BadRequestError(
+        'serviceTypeId is only valid for service requests.',
+        'SERVICE_TYPE_NOT_ALLOWED'
+      );
     }
 
     const openCount = await requestsRepository.countOpenByCustomer(customerId);
     if (openCount >= MAX_OPEN_REQUESTS) {
       throw new ConflictError(
         `You already have ${MAX_OPEN_REQUESTS} open requests. Close or wait for one to expire.`,
-        'MAX_OPEN_REQUESTS',
+        'MAX_OPEN_REQUESTS'
       );
     }
 
@@ -175,9 +193,7 @@ export const requestsService = {
     }
   },
 
-  getOpenFeed: async (
-    query: GetOpenRequestsQuery,
-  ): Promise<PaginatedResult<RequestListItem>> => {
+  getOpenFeed: async (query: GetOpenRequestsQuery): Promise<PaginatedResult<RequestListItem>> => {
     const { requests, total } = await requestsRepository.findOpenFeed(query);
     return {
       items: requests,
@@ -187,7 +203,7 @@ export const requestsService = {
 
   getMyRequests: async (
     userId: string,
-    query: GetMyRequestsQuery,
+    query: GetMyRequestsQuery
   ): Promise<PaginatedResult<RequestListItem>> => {
     const { requests, total } = await requestsRepository.findManyByCustomerId(userId, query);
     return {
@@ -201,10 +217,7 @@ export const requestsService = {
    * An offerer sees only their own offer; other authenticated users see
    * offer count via _count but no prices/names/messages.
    */
-  getById: async (
-    id: string,
-    viewerUserId?: string | null,
-  ): Promise<RequestWithRelations> => {
+  getById: async (id: string, viewerUserId?: string | null): Promise<RequestWithRelations> => {
     const row = await requestsRepository.findById(id);
     if (!row) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
 
@@ -213,7 +226,7 @@ export const requestsService = {
     }
 
     if (viewerUserId) {
-      const mine = (row.offers ?? []).filter((o) => o.offererUserId === viewerUserId);
+      const mine = (row.offers ?? []).filter(o => o.offererUserId === viewerUserId);
       return { ...row, offers: mine };
     }
 
@@ -225,7 +238,10 @@ export const requestsService = {
     const row = await requestsRepository.findById(id);
     if (!row) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
     if (row.customerId !== userId) {
-      throw new ForbiddenError('Only the customer who posted this can cancel it.', 'NOT_YOUR_REQUEST');
+      throw new ForbiddenError(
+        'Only the customer who posted this can cancel it.',
+        'NOT_YOUR_REQUEST'
+      );
     }
     // T353 — conditional write closes the read→write race against acceptOffer.
     const result = await requestsRepository.cancelIfOpen(id, userId);
@@ -238,7 +254,7 @@ export const requestsService = {
   submitOffer: async (
     userId: string,
     requestId: string,
-    input: SubmitOfferInput,
+    input: SubmitOfferInput
   ): Promise<RequestOffer> => {
     const request = await requestsRepository.findById(requestId);
     if (!request) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
@@ -249,26 +265,40 @@ export const requestsService = {
       throw new ConflictError('This request has expired.', 'REQUEST_EXPIRED');
     }
     if (request.customerId === userId) {
-      throw new BadRequestError('You cannot offer on your own request.', 'CANNOT_OFFER_OWN_REQUEST');
+      throw new BadRequestError(
+        'You cannot offer on your own request.',
+        'CANNOT_OFFER_OWN_REQUEST'
+      );
     }
 
     await assertCanSubmitOffer(request.type, userId);
 
     if (request.type === 'SERVICE' && request.serviceTypeId) {
       const seller = await sellersRepository.findByUserId(userId);
-      const provider = seller ? await serviceProvidersRepository.findBySellerProfileId(seller.id) : null;
+      const provider = seller
+        ? await serviceProvidersRepository.findBySellerProfileId(seller.id)
+        : null;
       if (!provider) {
-        throw new ForbiddenError('Only service providers can offer on service requests.', 'NOT_A_SERVICE_PROVIDER');
+        throw new ForbiddenError(
+          'Only service providers can offer on service requests.',
+          'NOT_A_SERVICE_PROVIDER'
+        );
       }
       const supported = await prisma.serviceProviderServiceType.findFirst({
         where: { providerId: provider.id, serviceTypeId: request.serviceTypeId, isActive: true },
         select: { id: true },
       });
       if (!supported) {
-        throw new ForbiddenError('Your service provider profile does not support this service type.', 'SERVICE_TYPE_NOT_SUPPORTED');
+        throw new ForbiddenError(
+          'Your service provider profile does not support this service type.',
+          'SERVICE_TYPE_NOT_SUPPORTED'
+        );
       }
       if (request.city && !provider.serviceAreaCities.includes(request.city)) {
-        throw new ForbiddenError('You do not currently serve the requested city.', 'SERVICE_CITY_NOT_SUPPORTED');
+        throw new ForbiddenError(
+          'You do not currently serve the requested city.',
+          'SERVICE_CITY_NOT_SUPPORTED'
+        );
       }
     }
 
@@ -305,14 +335,18 @@ export const requestsService = {
       'مستخدم';
     notificationEvents
       .onNewRequestOffer(request.customerId, requestId, created.id, offererName, request.title)
-      .catch((err) =>
-        logger.error('Failed to create NEW_REQUEST_OFFER notification', { err, requestId }),
+      .catch(err =>
+        logger.error('Failed to create NEW_REQUEST_OFFER notification', { err, requestId })
       );
 
     return created;
   },
 
-  withdrawOffer: async (userId: string, requestId: string, offerId: string): Promise<RequestOffer> => {
+  withdrawOffer: async (
+    userId: string,
+    requestId: string,
+    offerId: string
+  ): Promise<RequestOffer> => {
     const offer = await requestOffersRepository.findById(offerId);
     if (!offer || offer.requestId !== requestId) {
       throw new NotFoundError('Offer not found on this request.', 'OFFER_NOT_FOUND');
@@ -331,7 +365,7 @@ export const requestsService = {
   acceptOffer: async (
     userId: string,
     requestId: string,
-    offerId: string,
+    offerId: string
   ): Promise<RequestRow & { conversationId?: string }> => {
     const request = await requestsRepository.findById(requestId);
     if (!request) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
@@ -354,7 +388,7 @@ export const requestsService = {
       throw new ConflictError('This offer is no longer available.', 'OFFER_NOT_PENDING');
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async tx => {
       const acceptResult = await requestsRepository.markAccepted(tx, requestId, offerId, now);
       if (acceptResult.count === 0) {
         throw new ConflictError('This request has already been decided.', 'REQUEST_NOT_OPEN');
@@ -370,8 +404,8 @@ export const requestsService = {
 
     notificationEvents
       .onRequestOfferAccepted(offer.offererUserId, requestId, offerId, request.title)
-      .catch((err) =>
-        logger.error('Failed to create REQUEST_OFFER_ACCEPTED notification', { err, requestId }),
+      .catch(err =>
+        logger.error('Failed to create REQUEST_OFFER_ACCEPTED notification', { err, requestId })
       );
 
     let conversationId: string | undefined;
@@ -390,7 +424,7 @@ export const requestsService = {
 
   getMyOffers: async (
     userId: string,
-    query: { page?: number; limit?: number; status?: RequestOfferStatus },
+    query: { page?: number; limit?: number; status?: RequestOfferStatus }
   ): Promise<PaginatedResult<OfferWithOfferer>> => {
     const { offers, total } = await requestOffersRepository.findManyByOfferer(userId, query);
     return {

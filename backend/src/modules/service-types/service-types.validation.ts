@@ -2,31 +2,65 @@ import { z } from 'zod';
 import { ServiceTypeFieldScope, ServiceTypeFieldType } from '@prisma/client';
 
 const jsonValue = z.record(z.string(), z.unknown());
-const capabilitiesSchema = z.object({
-  appointments: z.boolean().optional(), requestQuote: z.boolean().optional(), remote: z.boolean().optional(),
-  atCustomer: z.boolean().optional(), atProvider: z.boolean().optional(),
-  allowedPricingTypes: z.array(z.enum(['FIXED','STARTING_FROM','NEGOTIABLE'])).min(1).max(3).superRefine((values, ctx) => {
-    if (new Set(values).size !== values.length) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'allowedPricingTypes must not contain duplicates' });
+const capabilitiesSchema = z
+  .object({
+    appointments: z.boolean().optional(),
+    requestQuote: z.boolean().optional(),
+    remote: z.boolean().optional(),
+    atCustomer: z.boolean().optional(),
+    atProvider: z.boolean().optional(),
+    allowedPricingTypes: z
+      .array(z.enum(['FIXED', 'STARTING_FROM', 'NEGOTIABLE']))
+      .min(1)
+      .max(3)
+      .superRefine((values, ctx) => {
+        if (new Set(values).size !== values.length) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'allowedPricingTypes must not contain duplicates',
+          });
+        }
+      })
+      .optional(),
+    allowedLocations: z
+      .array(z.enum(['AT_CUSTOMER', 'AT_PROVIDER', 'REMOTE']))
+      .min(1)
+      .max(3)
+      .superRefine((values, ctx) => {
+        if (new Set(values).size !== values.length) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'allowedLocations must not contain duplicates',
+          });
+        }
+      })
+      .optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const allowed = value.allowedLocations;
+    if (value.remote === false && allowed?.includes('REMOTE')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['allowedLocations'],
+        message: 'REMOTE cannot be allowed when remote is false',
+      });
     }
-  }).optional(),
-  allowedLocations: z.array(z.enum(['AT_CUSTOMER','AT_PROVIDER','REMOTE'])).min(1).max(3).superRefine((values, ctx) => {
-    if (new Set(values).size !== values.length) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'allowedLocations must not contain duplicates' });
+    if (value.atCustomer === false && allowed?.includes('AT_CUSTOMER')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['allowedLocations'],
+        message: 'AT_CUSTOMER cannot be allowed when atCustomer is false',
+      });
     }
-  }).optional(),
-}).strict().superRefine((value, ctx) => {
-  const allowed = value.allowedLocations;
-  if (value.remote === false && allowed?.includes('REMOTE')) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['allowedLocations'], message: 'REMOTE cannot be allowed when remote is false' });
-  }
-  if (value.atCustomer === false && allowed?.includes('AT_CUSTOMER')) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['allowedLocations'], message: 'AT_CUSTOMER cannot be allowed when atCustomer is false' });
-  }
-  if (value.atProvider === false && allowed?.includes('AT_PROVIDER')) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['allowedLocations'], message: 'AT_PROVIDER cannot be allowed when atProvider is false' });
-  }
-});
+    if (value.atProvider === false && allowed?.includes('AT_PROVIDER')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['allowedLocations'],
+        message: 'AT_PROVIDER cannot be allowed when atProvider is false',
+      });
+    }
+  });
 
 export function validateServiceTypeCapabilitiesDefinition(capabilities: unknown): void {
   const result = capabilitiesSchema.safeParse(capabilities);
@@ -35,35 +69,49 @@ export function validateServiceTypeCapabilitiesDefinition(capabilities: unknown)
   }
 }
 
-const serviceTypeFieldOptionsSchema = z.array(
-  z.object({
-    value: z.string().min(1).max(100),
+const serviceTypeFieldOptionsSchema = z
+  .array(
+    z
+      .object({
+        value: z.string().min(1).max(100),
+        labelAr: z.string().min(1).max(100),
+      })
+      .strict()
+  )
+  .max(100)
+  .superRefine((options, ctx) => {
+    const values = options.map(option => option.value);
+    if (new Set(values).size !== values.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Field option values must be unique' });
+    }
+  });
+
+const serviceTypeFieldBaseSchema = z
+  .object({
+    key: z
+      .string()
+      .min(2)
+      .max(100)
+      .regex(/^[a-z][a-z0-9_]*$/),
+    scope: z.nativeEnum(ServiceTypeFieldScope).default('LISTING'),
+    label: z.string().min(1).max(100),
     labelAr: z.string().min(1).max(100),
-  }).strict()
-).max(100).superRefine((options, ctx) => {
-  const values = options.map((option) => option.value);
-  if (new Set(values).size !== values.length) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Field option values must be unique' });
-  }
-});
+    cardLabelAr: z.string().max(100).nullable().optional(),
+    pageLabelAr: z.string().max(100).nullable().optional(),
+    type: z.nativeEnum(ServiceTypeFieldType),
+    required: z.boolean().optional(),
+    showOnCard: z.boolean().optional(),
+    showOnPage: z.boolean().optional(),
+    options: serviceTypeFieldOptionsSchema.nullable().optional(),
+    sortOrder: z.number().int().min(0).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
 
-const serviceTypeFieldBaseSchema = z.object({
-  key: z.string().min(2).max(100).regex(/^[a-z][a-z0-9_]*$/),
-  scope: z.nativeEnum(ServiceTypeFieldScope).default('LISTING'),
-  label: z.string().min(1).max(100),
-  labelAr: z.string().min(1).max(100),
-  cardLabelAr: z.string().max(100).nullable().optional(),
-  pageLabelAr: z.string().max(100).nullable().optional(),
-  type: z.nativeEnum(ServiceTypeFieldType),
-  required: z.boolean().optional(),
-  showOnCard: z.boolean().optional(),
-  showOnPage: z.boolean().optional(),
-  options: serviceTypeFieldOptionsSchema.nullable().optional(),
-  sortOrder: z.number().int().min(0).optional(),
-  isActive: z.boolean().optional(),
-}).strict();
-
-export function validateServiceTypeFieldDefinition(input: { type: ServiceTypeFieldType; options?: Array<{ value: string; labelAr: string }> | null }): void {
+export function validateServiceTypeFieldDefinition(input: {
+  type: ServiceTypeFieldType;
+  options?: Array<{ value: string; labelAr: string }> | null;
+}): void {
   const needsOptions = input.type === 'SELECT' || input.type === 'MULTI_SELECT';
   if (needsOptions && (!input.options || input.options.length === 0)) {
     throw new Error('SELECT and MULTI_SELECT fields require at least one option');
@@ -73,22 +121,29 @@ export function validateServiceTypeFieldDefinition(input: { type: ServiceTypeFie
   }
   if (input.options) {
     const result = serviceTypeFieldOptionsSchema.safeParse(input.options);
-    if (!result.success) throw new Error(result.error.issues[0]?.message ?? 'Invalid field options');
+    if (!result.success)
+      throw new Error(result.error.issues[0]?.message ?? 'Invalid field options');
   }
 }
 
 export const createServiceTypeSchema = z.object({
-  body: z.object({
-    slug: z.string().min(2).max(100).regex(/^[a-z0-9-]+$/),
-    name: z.string().min(2).max(100),
-    nameAr: z.string().min(2).max(100),
-    icon: z.string().max(100).nullable().optional(),
-    labels: jsonValue.optional(),
-    capabilities: capabilitiesSchema.optional(),
-    presentation: jsonValue.optional(),
-    sortOrder: z.number().int().min(0).optional(),
-    isActive: z.boolean().optional(),
-  }).strict(),
+  body: z
+    .object({
+      slug: z
+        .string()
+        .min(2)
+        .max(100)
+        .regex(/^[a-z0-9-]+$/),
+      name: z.string().min(2).max(100),
+      nameAr: z.string().min(2).max(100),
+      icon: z.string().max(100).nullable().optional(),
+      labels: jsonValue.optional(),
+      capabilities: capabilitiesSchema.optional(),
+      presentation: jsonValue.optional(),
+      sortOrder: z.number().int().min(0).optional(),
+      isActive: z.boolean().optional(),
+    })
+    .strict(),
 });
 
 export const updateServiceTypeSchema = z.object({

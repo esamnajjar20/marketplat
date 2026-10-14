@@ -35,21 +35,57 @@ adminRouter.use(adminRateLimit);
 
 // Catalog moderation (products + service listings)
 adminRouter.get('/products', requireMinRole(ROLES.MODERATOR), adminController.getAdminProducts);
-adminRouter.patch('/products/:id/status', requireMinRole(ROLES.MODERATOR), adminController.setProductStatus);
-adminRouter.get('/service-listings', requireMinRole(ROLES.MODERATOR), adminController.getAdminServiceListings);
-adminRouter.patch('/service-listings/:id/status', requireMinRole(ROLES.MODERATOR), adminController.setServiceListingStatus);
+adminRouter.patch(
+  '/products/:id/status',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.setProductStatus
+);
+adminRouter.get(
+  '/service-listings',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.getAdminServiceListings
+);
+adminRouter.patch(
+  '/service-listings/:id/status',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.setServiceListingStatus
+);
 
 // سوق الطلبات — قائمة + إلغاء إداري لطلب مفتوح
-adminRouter.get('/service-request-disputes', requireMinRole(ROLES.MODERATOR), adminController.getServiceRequestDisputes);
-adminRouter.patch('/service-request-disputes/:id/resolve', requireMinRole(ROLES.MODERATOR), adminController.resolveServiceRequestDispute);
+adminRouter.get(
+  '/service-request-disputes',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.getServiceRequestDisputes
+);
+adminRouter.patch(
+  '/service-request-disputes/:id/resolve',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.resolveServiceRequestDispute
+);
 
-adminRouter.get('/open-requests', requireMinRole(ROLES.MODERATOR), adminController.getAdminOpenRequests);
-adminRouter.patch('/open-requests/:id/cancel', requireMinRole(ROLES.MODERATOR), adminController.adminCancelOpenRequest);
+adminRouter.get(
+  '/open-requests',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.getAdminOpenRequests
+);
+adminRouter.patch(
+  '/open-requests/:id/cancel',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.adminCancelOpenRequest
+);
 
 adminRouter.get('/trends', requireMinRole(ROLES.ADMIN), adminController.getPlatformTrends);
 adminRouter.get('/system-health', requireMinRole(ROLES.ADMIN), adminController.getSystemHealth);
-adminRouter.get('/developer-tools/setting', requireMinRole(ROLES.ADMIN), adminController.getDeveloperToolsSetting);
-adminRouter.patch('/developer-tools/setting', requireMinRole(ROLES.ADMIN), adminController.setDeveloperToolsSetting);
+adminRouter.get(
+  '/developer-tools/setting',
+  requireMinRole(ROLES.ADMIN),
+  adminController.getDeveloperToolsSetting
+);
+adminRouter.patch(
+  '/developer-tools/setting',
+  requireMinRole(ROLES.ADMIN),
+  adminController.setDeveloperToolsSetting
+);
 
 // Monitoring responses contain operational metadata and must never be cached
 // by browsers, reverse proxies, or shared intermediaries. Keep the stricter
@@ -65,28 +101,32 @@ adminRouter.get(
   '/monitoring/events',
   requireMinRole(ROLES.ADMIN),
   monitoringNoStore,
-  adminController.getMonitoringEvents,
+  adminController.getMonitoringEvents
 );
 adminRouter.get(
   '/monitoring/alerts',
   requireMinRole(ROLES.ADMIN),
   monitoringNoStore,
-  adminController.getMonitoringAlerts,
+  adminController.getMonitoringAlerts
 );
 adminRouter.patch(
   '/monitoring/alerts/:id/acknowledge',
   requireMinRole(ROLES.ADMIN),
   monitoringNoStore,
-  adminController.acknowledgeMonitoringAlert,
+  adminController.acknowledgeMonitoringAlert
 );
 adminRouter.get(
   '/monitoring/history',
   requireMinRole(ROLES.ADMIN),
   monitoringNoStore,
-  adminController.getMonitoringHistory,
+  adminController.getMonitoringHistory
 );
 adminRouter.get('/export/users.csv', requireMinRole(ROLES.ADMIN), adminController.exportUsersCsv);
-adminRouter.get('/export/reports.csv', requireMinRole(ROLES.ADMIN), adminController.exportReportsCsv);
+adminRouter.get(
+  '/export/reports.csv',
+  requireMinRole(ROLES.ADMIN),
+  adminController.exportReportsCsv
+);
 
 adminRouter.get('/ops-queue', requireMinRole(ROLES.MODERATOR), adminController.getOpsQueue);
 adminRouter.get('/stats', requireMinRole(ROLES.ADMIN), adminController.getStats);
@@ -97,11 +137,23 @@ adminRouter.get('/ads', requireMinRole(ROLES.MODERATOR), adminController.getAllA
 
 // Bulk routes must precede /ads/:id/... because Express matches routes
 // in registration order and would otherwise treat "bulk" as :id.
-adminRouter.patch('/ads/bulk/featured', requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdFeatured);
-adminRouter.patch('/ads/bulk/pinned', requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdPinned);
+adminRouter.patch(
+  '/ads/bulk/featured',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.bulkSetAdFeatured
+);
+adminRouter.patch(
+  '/ads/bulk/pinned',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.bulkSetAdPinned
+);
 adminRouter.delete('/ads/bulk', requireMinRole(ROLES.MODERATOR), adminController.bulkDeleteAds);
 
-adminRouter.patch('/ads/:id/featured', requireMinRole(ROLES.MODERATOR), adminController.setAdFeatured);
+adminRouter.patch(
+  '/ads/:id/featured',
+  requireMinRole(ROLES.MODERATOR),
+  adminController.setAdFeatured
+);
 adminRouter.patch('/ads/:id/pinned', requireMinRole(ROLES.MODERATOR), adminController.setAdPinned);
 adminRouter.delete('/ads/:id', requireMinRole(ROLES.MODERATOR), adminController.deleteAd);
 
@@ -119,9 +171,17 @@ adminRouter.get('/users', requireMinRole(ROLES.ADMIN), adminController.getAllUse
 // ROUTE-ORDER FIX: registered before /users/:id/active for the same
 // reason as the /ads/bulk/... reorder above — /users/bulk/active and
 // /users/:id/active collide at 3 segments.
-adminRouter.patch('/users/bulk/active', requireMinRole(ROLES.ADMIN), adminController.bulkToggleUserActive);
+adminRouter.patch(
+  '/users/bulk/active',
+  requireMinRole(ROLES.ADMIN),
+  adminController.bulkToggleUserActive
+);
 
-adminRouter.patch('/users/:id/active', requireMinRole(ROLES.ADMIN), adminController.toggleUserActive);
+adminRouter.patch(
+  '/users/:id/active',
+  requireMinRole(ROLES.ADMIN),
+  adminController.toggleUserActive
+);
 // changeRole additionally self-checks the actor/target/newRole rank
 // relationship inside adminService.changeRole (see roleHierarchy.ts) —
 // requireMinRole(ADMIN) here is just the entry gate (MODERATOR can't
@@ -147,19 +207,35 @@ adminRouter.get('/sellers', requireMinRole(ROLES.ADMIN), sellersController.getAl
 // surfacing, while the single-row buttons worked fine. The /ads/bulk/...
 // routes above already avoid this by registration order; this brings
 // /sellers/bulk/... in line with that same discipline.
-adminRouter.patch('/sellers/bulk/verify', requireMinRole(ROLES.ADMIN), sellersController.bulkVerifySellers);
-adminRouter.patch('/sellers/bulk/suspend', requireMinRole(ROLES.ADMIN), sellersController.bulkSuspendSellers);
+adminRouter.patch(
+  '/sellers/bulk/verify',
+  requireMinRole(ROLES.ADMIN),
+  sellersController.bulkVerifySellers
+);
+adminRouter.patch(
+  '/sellers/bulk/suspend',
+  requireMinRole(ROLES.ADMIN),
+  sellersController.bulkSuspendSellers
+);
 
 // Seller verification — separate from any public/self-service seller
 // route; only an admin can flip `verified`. See seller-profile-design.md
 // §12: no route anywhere lets a client write trustScore/stats directly.
-adminRouter.patch('/sellers/:id/verify', requireMinRole(ROLES.ADMIN), sellersController.verifySeller);
+adminRouter.patch(
+  '/sellers/:id/verify',
+  requireMinRole(ROLES.ADMIN),
+  sellersController.verifySeller
+);
 
 // AUDIT-FIX: admin-only suspend/unsuspend — the previously-missing
 // "remove seller status" mechanism. Soft suspension rather than
 // deletion, since SellerProfile is the parent of Ad/SellerRating/
 // ServiceProviderDetails records that must not be cascade-deleted.
-adminRouter.patch('/sellers/:id/suspend', requireMinRole(ROLES.ADMIN), sellersController.suspendSeller);
+adminRouter.patch(
+  '/sellers/:id/suspend',
+  requireMinRole(ROLES.ADMIN),
+  sellersController.suspendSeller
+);
 
 // AUDIT-FIX (issue #1): GET /admin/stores — was missing entirely, so
 // stores created via POST /stores stayed PENDING forever with no way
@@ -174,11 +250,26 @@ adminRouter.get('/stores', requireMinRole(ROLES.ADMIN), storesController.getAllS
 adminRouter.get('/store-types', requireMinRole(ROLES.ADMIN), storeTypesController.getAllForAdmin);
 adminRouter.post('/store-types', requireMinRole(ROLES.ADMIN), storeTypesController.create);
 adminRouter.patch('/store-types/:id', requireMinRole(ROLES.ADMIN), storeTypesController.update);
-adminRouter.patch('/store-types/:id/status', requireMinRole(ROLES.ADMIN), storeTypesController.updateStatus);
-adminRouter.get('/store-types/:storeTypeId/fields', requireMinRole(ROLES.ADMIN), storeTypeFieldsController.getAdmin);
-adminRouter.post('/store-types/:storeTypeId/fields', requireMinRole(ROLES.ADMIN), storeTypeFieldsController.create);
-adminRouter.patch('/store-types/:storeTypeId/fields/:fieldId', requireMinRole(ROLES.ADMIN), storeTypeFieldsController.update);
-
+adminRouter.patch(
+  '/store-types/:id/status',
+  requireMinRole(ROLES.ADMIN),
+  storeTypesController.updateStatus
+);
+adminRouter.get(
+  '/store-types/:storeTypeId/fields',
+  requireMinRole(ROLES.ADMIN),
+  storeTypeFieldsController.getAdmin
+);
+adminRouter.post(
+  '/store-types/:storeTypeId/fields',
+  requireMinRole(ROLES.ADMIN),
+  storeTypeFieldsController.create
+);
+adminRouter.patch(
+  '/store-types/:storeTypeId/fields/:fieldId',
+  requireMinRole(ROLES.ADMIN),
+  storeTypeFieldsController.update
+);
 
 // BULK-ADMIN (item 17): bulk status update — same shape as the others.
 //
@@ -188,16 +279,36 @@ adminRouter.patch('/store-types/:storeTypeId/fields/:fieldId', requireMinRole(RO
 // first wins the match (with :id="bulk" if the parameterized route
 // were first). Latent copy of the same bug the seller routes actually
 // hit; fixing it here pre-emptively before it surfaces the same way.
-adminRouter.patch('/stores/bulk/status', requireMinRole(ROLES.ADMIN), storesController.bulkUpdateStoreStatus);
+adminRouter.patch(
+  '/stores/bulk/status',
+  requireMinRole(ROLES.ADMIN),
+  storesController.bulkUpdateStoreStatus
+);
 
-adminRouter.patch('/stores/:id/status', requireMinRole(ROLES.ADMIN), storesController.updateStoreStatus);
-adminRouter.patch('/stores/:id/type', requireMinRole(ROLES.ADMIN), storesController.updateStoreType);
+adminRouter.patch(
+  '/stores/:id/status',
+  requireMinRole(ROLES.ADMIN),
+  storesController.updateStoreStatus
+);
+adminRouter.patch(
+  '/stores/:id/type',
+  requireMinRole(ROLES.ADMIN),
+  storesController.updateStoreType
+);
 // FIX BUG-02: StorePlan.FEATURED was rendered across the store UI but
 // unreachable — no code path ever set it. This closes that gap.
-adminRouter.patch('/stores/:id/plan', requireMinRole(ROLES.ADMIN), storesController.updateStorePlan);
+adminRouter.patch(
+  '/stores/:id/plan',
+  requireMinRole(ROLES.ADMIN),
+  storesController.updateStorePlan
+);
 
 // Epic 6: manual PROMOTION broadcast — see notifications.service.ts's
 // broadcastPromotion doc comment for why this has no automatic trigger.
 // ADMIN+ (Gap #20: a mass broadcast to users is outside the MODERATOR
 // tier).
-adminRouter.post('/notifications/broadcast', requireMinRole(ROLES.ADMIN), adminController.broadcastNotification);
+adminRouter.post(
+  '/notifications/broadcast',
+  requireMinRole(ROLES.ADMIN),
+  adminController.broadcastNotification
+);

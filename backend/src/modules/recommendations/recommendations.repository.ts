@@ -14,7 +14,12 @@ import {
   StorePlan,
 } from '@prisma/client';
 import { AdListRow } from '../ads/ads.repository';
-import { ProductWithStore, productWithRelations, ProductWithStoreLite, productWithRelationsLite } from '../products/products.repository';
+import {
+  ProductWithStore,
+  productWithRelations,
+  ProductWithStoreLite,
+  productWithRelationsLite,
+} from '../products/products.repository';
 import {
   ServiceListingWithProvider,
   listingWithRelations,
@@ -91,8 +96,7 @@ const BEHAVIOR_DECAY = [
 ] as const;
 
 const getBehaviorDecay = (createdAt: Date, nowMs: number): number => {
-  const ageDays =
-    (nowMs - createdAt.getTime()) / (24 * 60 * 60 * 1000);
+  const ageDays = (nowMs - createdAt.getTime()) / (24 * 60 * 60 * 1000);
 
   for (const bucket of BEHAVIOR_DECAY) {
     if (ageDays <= bucket.maxDays) return bucket.multiplier;
@@ -107,17 +111,14 @@ const addCategoryInterest = (
   signalWeight: number,
   createdAt: Date,
   nowMs: number,
-  applyDecay = true,
+  applyDecay = true
 ): void => {
   if (!categoryId) return;
 
   const decay = applyDecay ? getBehaviorDecay(createdAt, nowMs) : 1;
   if (decay <= 0) return;
 
-  target.set(
-    categoryId,
-    (target.get(categoryId) ?? 0) + signalWeight * decay,
-  );
+  target.set(categoryId, (target.get(categoryId) ?? 0) + signalWeight * decay);
 };
 
 const aggregateCategorySignals = (
@@ -126,7 +127,7 @@ const aggregateCategorySignals = (
     signalWeight: number;
     createdAt: Date;
     applyDecay?: boolean;
-  }>,
+  }>
 ): CategoryInterest[] => {
   const scores = new Map<string, number>();
   const nowMs = Date.now();
@@ -138,7 +139,7 @@ const aggregateCategorySignals = (
       row.signalWeight,
       row.createdAt,
       nowMs,
-      row.applyDecay ?? true,
+      row.applyDecay ?? true
     );
   }
 
@@ -219,7 +220,7 @@ function rankTrendingCandidates<T extends TrendingCandidate>(
   pools: T[][],
   limit: number,
   tierKeys?: (item: T) => boolean[],
-  cityMatch?: (item: T) => boolean,
+  cityMatch?: (item: T) => boolean
 ): T[] {
   const byId = new Map<string, T>();
   for (const pool of pools) {
@@ -240,7 +241,8 @@ function rankTrendingCandidates<T extends TrendingCandidate>(
     const cityScoreA = cityMatch?.(a) ? 0.1 : 0;
     const cityScoreB = cityMatch?.(b) ? 0.1 : 0;
     const scoreDiff =
-      (trendingCompositeScore(b, nowMs) + cityScoreB) -
+      trendingCompositeScore(b, nowMs) +
+      cityScoreB -
       (trendingCompositeScore(a, nowMs) + cityScoreA);
     if (scoreDiff !== 0) return scoreDiff;
     const createdAtDiff = b.createdAt.getTime() - a.createdAt.getTime();
@@ -301,12 +303,8 @@ function rankTrendingCandidates<T extends TrendingCandidate>(
 export const productRecommendationsRepository = {
   // Phase 1: accumulate recent product behavior into category interest.
   // Ranking does not consume this profile yet; that is the next phase.
-  getProductCategoryInterest: async (
-    userId: string,
-  ): Promise<CategoryInterest[]> => {
-    const since = new Date(
-      Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
-    );
+  getProductCategoryInterest: async (userId: string): Promise<CategoryInterest[]> => {
+    const since = new Date(Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
 
     const rows = await prisma.$queryRaw<
       {
@@ -453,7 +451,10 @@ export const productRecommendationsRepository = {
         where: { store: { sellerProfile: { userId } } },
         select: { id: true },
       }),
-      prisma.favorite.findMany({ where: { userId, entityType: 'PRODUCT' }, select: { entityId: true } }),
+      prisma.favorite.findMany({
+        where: { userId, entityType: 'PRODUCT' },
+        select: { entityId: true },
+      }),
     ]);
     return [...owned.map(p => p.id), ...favorited.map(f => f.entityId)];
   },
@@ -468,7 +469,7 @@ export const productRecommendationsRepository = {
     excludeIds: string[],
     limit: number,
     city?: string | null,
-    followedStoreIds: string[] = [],
+    followedStoreIds: string[] = []
   ): Promise<ProductWithStoreLite[]> => {
     if (weights.length === 0) return [];
     const weightValues = Prisma.join(
@@ -486,9 +487,10 @@ export const productRecommendationsRepository = {
     const cityBoost = trimmedCity
       ? Prisma.sql`CASE WHEN sd."city" = ${trimmedCity} THEN 2::float ELSE 0::float END`
       : Prisma.sql`0::float`;
-    const followedStoreBoost = followedStoreIds.length > 0
-      ? Prisma.sql`CASE WHEN p."storeId" IN (${Prisma.join(followedStoreIds)}) THEN 1.5::float ELSE 0::float END`
-      : Prisma.sql`0::float`;
+    const followedStoreBoost =
+      followedStoreIds.length > 0
+        ? Prisma.sql`CASE WHEN p."storeId" IN (${Prisma.join(followedStoreIds)}) THEN 1.5::float ELSE 0::float END`
+        : Prisma.sql`0::float`;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT p."id"
@@ -523,7 +525,7 @@ export const productRecommendationsRepository = {
   findTrending: async (
     excludeIds: string[],
     limit: number,
-    city?: string | null,
+    city?: string | null
   ): Promise<ProductWithStoreLite[]> => {
     const where: Prisma.ProductWhereInput = {
       status: ProductStatus.ACTIVE,
@@ -549,9 +551,7 @@ export const productRecommendationsRepository = {
       [topByViews, mostRecent],
       limit,
       undefined,
-      trimmedCity
-        ? product => product.store.city === trimmedCity
-        : undefined,
+      trimmedCity ? product => product.store.city === trimmedCity : undefined
     );
   },
 };
@@ -559,12 +559,8 @@ export const productRecommendationsRepository = {
 export const serviceListingRecommendationsRepository = {
   // Phase 1: accumulate recent service behavior into category interest.
   // Ranking does not consume this profile yet; that is the next phase.
-  getServiceCategoryInterest: async (
-    userId: string,
-  ): Promise<CategoryInterest[]> => {
-    const since = new Date(
-      Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
-    );
+  getServiceCategoryInterest: async (userId: string): Promise<CategoryInterest[]> => {
+    const since = new Date(Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
 
     const rows = await prisma.$queryRaw<
       {
@@ -727,7 +723,7 @@ export const serviceListingRecommendationsRepository = {
     excludeIds: string[],
     limit: number,
     city?: string | null,
-    serviceTypeId?: string | null,
+    serviceTypeId?: string | null
   ): Promise<ServiceListingWithProvider[]> => {
     if (weights.length === 0) return [];
     const weightValues = Prisma.join(
@@ -778,7 +774,7 @@ export const serviceListingRecommendationsRepository = {
     excludeIds: string[],
     limit: number,
     city?: string | null,
-    serviceTypeId?: string | null,
+    serviceTypeId?: string | null
   ): Promise<ServiceListingWithProvider[]> => {
     const where: Prisma.ServiceListingWhereInput = {
       status: ServiceListingStatus.ACTIVE,
@@ -805,9 +801,7 @@ export const serviceListingRecommendationsRepository = {
       [topByViews, mostRecent],
       limit,
       undefined,
-      trimmedCity
-        ? listing => listing.provider.serviceAreaCities.includes(trimmedCity)
-        : undefined,
+      trimmedCity ? listing => listing.provider.serviceAreaCities.includes(trimmedCity) : undefined
     );
   },
 };
@@ -834,12 +828,8 @@ export const recommendationsRepository = {
   // Each event contributes its signal weight multiplied by time decay.
   // This method only builds the interest profile; ranking is unchanged
   // until the next recommendation phase.
-  getAdCategoryInterest: async (
-    userId: string,
-  ): Promise<CategoryInterest[]> => {
-    const since = new Date(
-      Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
-    );
+  getAdCategoryInterest: async (userId: string): Promise<CategoryInterest[]> => {
+    const since = new Date(Date.now() - VIEW_SIGNAL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
 
     const rows = await prisma.$queryRaw<
       {
@@ -1028,7 +1018,7 @@ export const recommendationsRepository = {
     weights: CategoryWeight[],
     excludeIds: string[],
     limit: number,
-    city?: string | null,
+    city?: string | null
   ): Promise<AdListRow[]> => {
     if (weights.length === 0) return [];
 
@@ -1076,7 +1066,10 @@ export const recommendationsRepository = {
     const ids = idRows.map(r => r.id);
     if (ids.length === 0) return [];
 
-    const ads = await prisma.ad.findMany({ where: { id: { in: ids } }, select: recommendationAdSelect });
+    const ads = await prisma.ad.findMany({
+      where: { id: { in: ids } },
+      select: recommendationAdSelect,
+    });
     const byId = new Map(ads.map(a => [a.id, a]));
     // Preserve the ranked order from idRows — findMany's `in` filter
     // gives no ordering guarantee of its own (same pattern as
@@ -1101,7 +1094,7 @@ export const recommendationsRepository = {
   findTrending: async (
     excludeIds: string[],
     limit: number,
-    city?: string | null,
+    city?: string | null
   ): Promise<AdListRow[]> => {
     const baseWhere: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
@@ -1127,11 +1120,7 @@ export const recommendationsRepository = {
       prisma.ad.findMany({
         where: baseWhere,
         select: recommendationAdSelect,
-        orderBy: [
-          { isPinned: 'desc' },
-          { isFeatured: 'desc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ isPinned: 'desc' }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
         take: TRENDING_POOL_SIZE,
       }),
     ]);
@@ -1140,12 +1129,9 @@ export const recommendationsRepository = {
       [topByViews, mostRecent],
       limit,
       ad => [ad.isPinned, ad.isFeatured],
-      trimmedCity
-        ? ad => ad.city === trimmedCity
-        : undefined,
+      trimmedCity ? ad => ad.city === trimmedCity : undefined
     );
   },
-
 };
 
 // PR4B (Store Recommendations) — audited against schema.prisma before
@@ -1244,20 +1230,25 @@ export interface StoreRankingParams {
 }
 
 export const serviceProviderRecommendationsRepository = {
-  findRanked: async (params: { city?: string | null; interestCategoryIds?: string[]; limit: number }): Promise<ServiceProviderDetails[]> => {
+  findRanked: async (params: {
+    city?: string | null;
+    interestCategoryIds?: string[];
+    limit: number;
+  }): Promise<ServiceProviderDetails[]> => {
     const { city, interestCategoryIds = [], limit } = params;
     const trimmedCity = city?.trim() || null;
     const cityScore = trimmedCity
       ? Prisma.sql`CASE WHEN ${trimmedCity} = ANY(spd."serviceAreaCities") THEN 2.0 ELSE 0.0 END`
       : Prisma.sql`0.0::float`;
-    const interestScore = interestCategoryIds.length > 0
-      ? Prisma.sql`CASE WHEN EXISTS (
+    const interestScore =
+      interestCategoryIds.length > 0
+        ? Prisma.sql`CASE WHEN EXISTS (
           SELECT 1 FROM "service_listings" isl
           WHERE isl."providerId" = spd."id"
             AND isl."status" = ${ServiceListingStatus.ACTIVE}::"ServiceListingStatus"
             AND isl."categoryId" IN (${Prisma.join(interestCategoryIds)})
         ) THEN 1.5 ELSE 0.0 END`
-      : Prisma.sql`0.0::float`;
+        : Prisma.sql`0.0::float`;
 
     const idRows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT spd."id"
@@ -1399,9 +1390,10 @@ export const storeRecommendationsRepository = {
     const cityBoostExpr = trimmedCity
       ? Prisma.sql`(CASE WHEN sd."city" = ${trimmedCity} THEN 2.0 ELSE 0.0 END)`
       : Prisma.sql`0.0`;
-    const interestBoostExpr = interestCategoryIds.length > 0
-      ? Prisma.sql`(CASE WHEN BOOL_OR(p."categoryId" IN (${Prisma.join(interestCategoryIds)})) THEN 1.5 ELSE 0.0 END)`
-      : Prisma.sql`0.0`;
+    const interestBoostExpr =
+      interestCategoryIds.length > 0
+        ? Prisma.sql`(CASE WHEN BOOL_OR(p."categoryId" IN (${Prisma.join(interestCategoryIds)})) THEN 1.5 ELSE 0.0 END)`
+        : Prisma.sql`0.0`;
     const freshnessTimestampExpr = Prisma.sql`GREATEST(sd."updatedAt", COALESCE(MAX(p."createdAt"), sd."updatedAt"))`;
     const freshnessScoreExpr = storeFreshnessScoreExprSql(freshnessTimestampExpr);
     const distanceScoreExpr = Prisma.sql`(1.0 / (1.0 + (${distanceExprSql}) / ${STORE_DISTANCE_SCORE_DECAY_KM}::float))`;
@@ -1444,7 +1436,7 @@ export const storeRecommendationsRepository = {
           sd."id" ASC
         LIMIT ${limit}
       `,
-      env.analytics.queryTimeoutMs,
+      env.analytics.queryTimeoutMs
     );
 
     const ids = idRows.map(r => r.id);

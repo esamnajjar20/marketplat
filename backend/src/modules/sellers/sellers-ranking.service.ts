@@ -38,8 +38,7 @@ function scoreRow(row: {
         ? row.responseRate.toNumber!()
         : Number(row.responseRate);
 
-  const responseTimeHours =
-    row.responseTimeMinutes != null ? row.responseTimeMinutes / 60 : 48; // unknown → neutral-slow
+  const responseTimeHours = row.responseTimeMinutes != null ? row.responseTimeMinutes / 60 : 48; // unknown → neutral-slow
   const ageDays = Math.max(
     0,
     (Date.now() - new Date(row.joinedSellingAt).getTime()) / (1000 * 60 * 60 * 24)
@@ -84,7 +83,7 @@ export const sellersRankingService = {
     });
 
     const ranked = rows
-      .map((r) => ({
+      .map(r => ({
         sellerProfileId: r.id,
         userId: r.user.id,
         displayName: r.displayName,

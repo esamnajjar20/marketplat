@@ -14,7 +14,8 @@ const saleInclude = {
 
 export const salesRepository = {
   findById: (id: string) => prisma.saleRecord.findUnique({ where: { id }, include: saleInclude }),
-  findByIdTx: (tx: Prisma.TransactionClient, id: string) => tx.saleRecord.findUnique({ where: { id }, include: saleInclude }),
+  findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
+    tx.saleRecord.findUnique({ where: { id }, include: saleInclude }),
 
   findForSeller: async (sellerId: string, query: ListSalesQuery) => {
     const { page, limit, skip, take } = getPaginationParams(query);
@@ -24,21 +25,48 @@ export const salesRepository = {
       ...(query.entityType ? { entityType: query.entityType } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.storeId ? { storeId: query.storeId } : {}),
-      ...(query.from || query.to ? { soldAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}),
+      ...(query.from || query.to
+        ? {
+            soldAt: {
+              ...(query.from ? { gte: query.from } : {}),
+              ...(query.to ? { lte: query.to } : {}),
+            },
+          }
+        : {}),
     };
     const [items, total] = await prisma.$transaction([
-      prisma.saleRecord.findMany({ where, include: saleInclude, orderBy: [{ soldAt: 'desc' }, { id: 'desc' }], skip, take }),
+      prisma.saleRecord.findMany({
+        where,
+        include: saleInclude,
+        orderBy: [{ soldAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
       prisma.saleRecord.count({ where }),
     ]);
-    return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit), hasNextPage: page < Math.ceil(total / limit), hasPrevPage: page > 1 } };
+    return {
+      items,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
+    };
   },
 
-  create: (tx: Prisma.TransactionClient, data: Prisma.SaleRecordCreateInput) => tx.saleRecord.create({ data, include: saleInclude }),
-  update: (id: string, data: Prisma.SaleRecordUpdateInput) => prisma.saleRecord.update({ where: { id }, data, include: saleInclude }),
+  create: (tx: Prisma.TransactionClient, data: Prisma.SaleRecordCreateInput) =>
+    tx.saleRecord.create({ data, include: saleInclude }),
+  update: (id: string, data: Prisma.SaleRecordUpdateInput) =>
+    prisma.saleRecord.update({ where: { id }, data, include: saleInclude }),
   delete: (tx: Prisma.TransactionClient, id: string) => tx.saleRecord.delete({ where: { id } }),
 
-  addPayment: (tx: Prisma.TransactionClient, data: Prisma.SalePaymentCreateInput) => tx.salePayment.create({ data }),
-  addReturn: (tx: Prisma.TransactionClient, data: Prisma.SaleReturnCreateInput) => tx.saleReturn.create({ data }),
+  addPayment: (tx: Prisma.TransactionClient, data: Prisma.SalePaymentCreateInput) =>
+    tx.salePayment.create({ data }),
+  addReturn: (tx: Prisma.TransactionClient, data: Prisma.SaleReturnCreateInput) =>
+    tx.saleReturn.create({ data }),
 
   summary: async (sellerId: string, from: Date, to: Date) => {
     const where: Prisma.SaleRecordWhereInput = { sellerId, soldAt: { gte: from, lt: to } };
@@ -48,15 +76,29 @@ export const salesRepository = {
       prisma.saleRecord.aggregate({
         where,
         _count: { _all: true },
-        _sum: { totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true, quantity: true },
+        _sum: {
+          totalPrice: true,
+          refundedAmount: true,
+          paidAmount: true,
+          dueAmount: true,
+          quantity: true,
+        },
       }),
       prisma.saleItem.findMany({
         where: { sale: { sellerId, soldAt: { gte: from, lt: to } } },
         select: { quantity: true, returnedQuantity: true, costPrice: true },
       }),
     ]);
-    const totalRevenue = Number(sales._sum.totalPrice ?? 0) - Number(sales._sum.refundedAmount ?? 0);
-    const totalCost = items.reduce((sum, item) => sum + (item.costPrice === null ? 0 : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)), 0);
+    const totalRevenue =
+      Number(sales._sum.totalPrice ?? 0) - Number(sales._sum.refundedAmount ?? 0);
+    const totalCost = items.reduce(
+      (sum, item) =>
+        sum +
+        (item.costPrice === null
+          ? 0
+          : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)),
+      0
+    );
     const totalRefunded = Number(sales._sum.refundedAmount ?? 0);
     return {
       salesCount: sales._count._all,
@@ -70,11 +112,31 @@ export const salesRepository = {
     };
   },
 
-  chart: async (sellerId: string, from: Date, to: Date, period: 'day' | 'week' | 'month' | 'year' = 'day') => {
+  chart: async (
+    sellerId: string,
+    from: Date,
+    to: Date,
+    period: 'day' | 'week' | 'month' | 'year' = 'day'
+  ) => {
     // `period` is a closed union, and the selected SQL unit comes only from this whitelist.
     // Aggregate by UTC bucket in PostgreSQL so wide date ranges do not transfer every sale row.
-    const unit = period === 'year' ? 'year' : period === 'month' ? 'month' : period === 'week' ? 'week' : 'day';
-    return prisma.$queryRaw<Array<{ date: Date; revenue: Prisma.Decimal; paid: Prisma.Decimal; due: Prisma.Decimal; count: bigint }>>`
+    const unit =
+      period === 'year'
+        ? 'year'
+        : period === 'month'
+          ? 'month'
+          : period === 'week'
+            ? 'week'
+            : 'day';
+    return prisma.$queryRaw<
+      Array<{
+        date: Date;
+        revenue: Prisma.Decimal;
+        paid: Prisma.Decimal;
+        due: Prisma.Decimal;
+        count: bigint;
+      }>
+    >`
       SELECT
         date_trunc(${unit}, "soldAt" AT TIME ZONE 'UTC') AS date,
         COALESCE(SUM("totalPrice" - "refundedAmount"), 0) AS revenue,
@@ -94,13 +156,15 @@ export const salesRepository = {
     // Aggregate historical line items in PostgreSQL instead of transferring every item to Node.
     // Product-backed rows group by productId; deleted/unlinked products group by their sale-time title.
     const safeLimit = Math.min(100, Math.max(1, Math.trunc(Number.isFinite(limit) ? limit : 10)));
-    const rows = await prisma.$queryRaw<Array<{
-      productId: string | null;
-      title: string;
-      quantity: bigint;
-      revenue: Prisma.Decimal;
-      profit: Prisma.Decimal;
-    }>>`
+    const rows = await prisma.$queryRaw<
+      Array<{
+        productId: string | null;
+        title: string;
+        quantity: bigint;
+        revenue: Prisma.Decimal;
+        profit: Prisma.Decimal;
+      }>
+    >`
       SELECT
         si."productId" AS "productId",
         CASE WHEN si."productId" IS NOT NULL THEN MAX(si."title") ELSE si."title" END AS "title",
@@ -128,7 +192,7 @@ export const salesRepository = {
       ORDER BY "revenue" DESC
       LIMIT ${safeLimit}
     `;
-    return rows.map((row) => ({
+    return rows.map(row => ({
       productId: row.productId,
       title: row.title,
       quantity: Number(row.quantity),
@@ -137,7 +201,15 @@ export const salesRepository = {
     }));
   },
 
-  topCustomers: async (sellerId: string, limit: number) => prisma.saleRecord.groupBy({ by: ['customerId', 'buyerName'], where: { sellerId, customerId: { not: null } }, _sum: { totalPrice: true }, _count: { id: true }, orderBy: { _sum: { totalPrice: 'desc' } }, take: limit }),
+  topCustomers: async (sellerId: string, limit: number) =>
+    prisma.saleRecord.groupBy({
+      by: ['customerId', 'buyerName'],
+      where: { sellerId, customerId: { not: null } },
+      _sum: { totalPrice: true },
+      _count: { id: true },
+      orderBy: { _sum: { totalPrice: 'desc' } },
+      take: limit,
+    }),
 
   debts: async (sellerId: string, page = 1, limit = 20) => {
     const safePage = Math.min(1000, Math.max(1, Math.trunc(page)));

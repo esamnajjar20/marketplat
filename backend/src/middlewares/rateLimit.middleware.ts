@@ -32,9 +32,11 @@ import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import { redis } from '../config/redis';
 import { env } from '../config/env';
 
-const rateLimitHandler = (message: string) => (req: Request, res: Response): void => {
-  sendApiError(req, res, 429, ErrorCode.RATE_LIMIT_EXCEEDED, message);
-};
+const rateLimitHandler =
+  (message: string) =>
+  (req: Request, res: Response): void => {
+    sendApiError(req, res, 429, ErrorCode.RATE_LIMIT_EXCEEDED, message);
+  };
 
 // CENTRALIZE-06: windowMs literals below were previously repeated as
 // bare `15 * 60 * 1000` (6x) / `60 * 60 * 1000` (3x) across this file.
@@ -112,7 +114,7 @@ export const globalRateLimit = bypassRateLimit
   : rateLimit({
       windowMs: FIFTEEN_MIN_MS,
       // 600/15min is a coarse backstop for normal multi-request browsing;
-// sensitive endpoints retain stricter per-route limits.
+      // sensitive endpoints retain stricter per-route limits.
       max: 600,
       standardHeaders: true,
       legacyHeaders: false,

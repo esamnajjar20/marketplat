@@ -2,8 +2,8 @@ import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { AdStatus, AuditEventType, ReportStatus, Role, Prisma } from '@prisma/client';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
-import { NotFoundError }   from '../../shared/errors/NotFoundError';
-import { ForbiddenError }  from '../../shared/errors/ForbiddenError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { userCache } from '../../shared/utils/userCache';
 import { tokenStore } from '../../shared/utils/tokenStore';
@@ -128,10 +128,12 @@ export const adminService = {
       // counter), so this remains the best available approximation
       // without adding a views-history table. Flagged here rather than
       // silently presented as exact.
-      prisma.ad.aggregate({
-        _sum: { views: true },
-        where: { createdAt: { gte: startOfToday } },
-      }).then(r => r._sum.views ?? 0),
+      prisma.ad
+        .aggregate({
+          _sum: { views: true },
+          where: { createdAt: { gte: startOfToday } },
+        })
+        .then(r => r._sum.views ?? 0),
       // FEAT: all three read User.createdAt directly — registration
       // time, not last-login (this schema has no lastLoginAt column at
       // all, so "دخل الموقع" is read as "joined/registered", the same
@@ -240,7 +242,9 @@ export const adminService = {
         event: AuditEventType.ADMIN_AD_FEATURED,
         userId: adminUserId,
         details: { adId, isFeatured },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error)
+      );
       // BUGFIX: without this, GET /ads keeps serving the pre-change
       // isFeatured value from cache for up to its 30s TTL — a featured
       // ad wouldn't actually appear "featured" to browsing users right
@@ -266,7 +270,9 @@ export const adminService = {
         event: AuditEventType.ADMIN_AD_PINNED,
         userId: adminUserId,
         details: { adId, isPinned },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error)
+      );
       // BUGFIX: same reasoning as setAdFeatured above.
       await bumpAdsCacheVersion();
       return ad;
@@ -295,7 +301,9 @@ export const adminService = {
         event: AuditEventType.ADMIN_AD_DELETED,
         userId: adminUserId,
         details: { adId, reason: reason ?? null },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error)
+      );
       // BUGFIX (found during a post-implementation code audit):
       // previously missing entirely — the regular, user-initiated
       // deleteAd (ads.service.ts) already calls this, but this admin
@@ -379,62 +387,71 @@ export const adminService = {
       // the conflict: the second transaction to commit fails with
       // P2034 and is retried/rejected rather than silently succeeding
       // alongside the first.
-      const user = await prisma.$transaction(async (tx) => {
-        if (!isActive) {
-          const target = await tx.user.findUnique({
+      const user = await prisma.$transaction(
+        async tx => {
+          if (!isActive) {
+            const target = await tx.user.findUnique({
+              where: { id: userId },
+              select: { role: true },
+            });
+
+            // Gap #20: deactivation is a form of "managing" another
+            // account, same as a role change — an actor must not be able
+            // to deactivate someone at or above their own rank (e.g. an
+            // ADMIN silencing a SUPER_ADMIN's account instead of going
+            // through the blocked role-change path). Reuses the exact
+            // same rank rule as changeRole via canManageRole, checked
+            // against the target's *current* role for both sides (a
+            // deactivation doesn't change role, so "new role" == "current
+            // role" here — canManageRole(adminRole, target.role,
+            // target.role) reduces to the single targetCurrentRank <
+            // actorRank comparison that's actually meaningful for this
+            // action).
+            if (target && !canManageRole(adminRole, target.role, target.role)) {
+              throw new ForbiddenError(
+                'You do not have permission to deactivate this user',
+                'DEACTIVATE_NOT_PERMITTED'
+              );
+            }
+
+            // Gap #20: SUPER_ADMIN is now a distinct rank above ADMIN
+            // with its own exclusive capability (granting/revoking
+            // admin-tier roles), so it needs the same last-one-standing
+            // protection ADMIN already had — deactivating the last active
+            // SUPER_ADMIN would leave nobody able to ever create another
+            // ADMIN or SUPER_ADMIN again.
+            if (target?.role === 'SUPER_ADMIN') {
+              const activeCount = await tx.user.count({
+                where: { role: 'SUPER_ADMIN', isActive: true },
+              });
+              if (activeCount <= 1) {
+                throw new BadRequestError(
+                  'Cannot deactivate the last active super admin in the system',
+                  'CANNOT_DEACTIVATE_LAST_SUPER_ADMIN'
+                );
+              }
+            }
+            if (target?.role === 'ADMIN') {
+              const activeAdminCount = await tx.user.count({
+                where: { role: 'ADMIN', isActive: true },
+              });
+              if (activeAdminCount <= 1) {
+                throw new BadRequestError(
+                  'Cannot deactivate the last active admin in the system',
+                  'CANNOT_DEACTIVATE_LAST_ADMIN'
+                );
+              }
+            }
+          }
+
+          return tx.user.update({
             where: { id: userId },
-            select: { role: true },
+            data: { isActive },
+            select: { id: true, name: true, email: true, isActive: true },
           });
-
-          // Gap #20: deactivation is a form of "managing" another
-          // account, same as a role change — an actor must not be able
-          // to deactivate someone at or above their own rank (e.g. an
-          // ADMIN silencing a SUPER_ADMIN's account instead of going
-          // through the blocked role-change path). Reuses the exact
-          // same rank rule as changeRole via canManageRole, checked
-          // against the target's *current* role for both sides (a
-          // deactivation doesn't change role, so "new role" == "current
-          // role" here — canManageRole(adminRole, target.role,
-          // target.role) reduces to the single targetCurrentRank <
-          // actorRank comparison that's actually meaningful for this
-          // action).
-          if (target && !canManageRole(adminRole, target.role, target.role)) {
-            throw new ForbiddenError(
-              'You do not have permission to deactivate this user',
-              'DEACTIVATE_NOT_PERMITTED'
-            );
-          }
-
-          // Gap #20: SUPER_ADMIN is now a distinct rank above ADMIN
-          // with its own exclusive capability (granting/revoking
-          // admin-tier roles), so it needs the same last-one-standing
-          // protection ADMIN already had — deactivating the last active
-          // SUPER_ADMIN would leave nobody able to ever create another
-          // ADMIN or SUPER_ADMIN again.
-          if (target?.role === 'SUPER_ADMIN') {
-            const activeCount = await tx.user.count({
-              where: { role: 'SUPER_ADMIN', isActive: true },
-            });
-            if (activeCount <= 1) {
-              throw new BadRequestError('Cannot deactivate the last active super admin in the system', 'CANNOT_DEACTIVATE_LAST_SUPER_ADMIN');
-            }
-          }
-          if (target?.role === 'ADMIN') {
-            const activeAdminCount = await tx.user.count({
-              where: { role: 'ADMIN', isActive: true },
-            });
-            if (activeAdminCount <= 1) {
-              throw new BadRequestError('Cannot deactivate the last active admin in the system', 'CANNOT_DEACTIVATE_LAST_ADMIN');
-            }
-          }
-        }
-
-        return tx.user.update({
-          where: { id: userId },
-          data: { isActive },
-          select: { id: true, name: true, email: true, isActive: true },
-        });
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
 
       // If deactivating: immediately invalidate all active sessions + cache
       if (!isActive) {
@@ -448,7 +465,9 @@ export const adminService = {
         event: AuditEventType.ADMIN_USER_STATUS_CHANGED,
         userId: adminUserId,
         details: { targetUserId: userId, isActive },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error)
+      );
 
       return user;
     } catch (e: any) {
@@ -458,7 +477,10 @@ export const adminService = {
       // change racing this one. Safe to surface as a client-retryable
       // error rather than a generic 500.
       if (e?.code === 'P2034') {
-        throw new BadRequestError('This action conflicted with another operation, please try again', 'CONCURRENT_UPDATE_CONFLICT');
+        throw new BadRequestError(
+          'This action conflicted with another operation, please try again',
+          'CONCURRENT_UPDATE_CONFLICT'
+        );
       }
       throw e;
     }
@@ -522,60 +544,60 @@ export const adminService = {
       // concurrent role changes can't both pass their guard and both
       // commit, which could leave the system without anyone able to
       // manage roles.
-      const user = await prisma.$transaction(async (tx) => {
-        const target = await tx.user.findUnique({
-          where: { id: userId },
-          select: { role: true },
-        });
-        if (!target) {
-          throw new NotFoundError('User not found', 'USER_NOT_FOUND');
-        }
-
-        if (!canManageRole(adminRole, target.role, role)) {
-          throw new ForbiddenError(
-            'You do not have permission to assign this role to this user',
-            'ROLE_CHANGE_NOT_PERMITTED'
-          );
-        }
-
-        // System-lockout prevention: demoting the last active ADMIN
-        // would leave nobody able to manage MODERATOR/USER roles
-        // day-to-day. (There is no equivalent SUPER_ADMIN guard here —
-        // canManageRole above already makes a SUPER_ADMIN target
-        // unreachable through this endpoint entirely, for any actor,
-        // including another SUPER_ADMIN: targetCurrentRank(3) is never
-        // < actorRank when the max rank is 3. SUPER_ADMIN's role can
-        // only ever be changed directly in the database, which is the
-        // intended break-glass model — see this function's own doc
-        // comment.)
-        if (target.role === 'ADMIN' && role !== 'ADMIN') {
-          const activeCount = await tx.user.count({
-            where: { role: 'ADMIN', isActive: true },
+      const user = await prisma.$transaction(
+        async tx => {
+          const target = await tx.user.findUnique({
+            where: { id: userId },
+            select: { role: true },
           });
-          if (activeCount <= 1) {
-            throw new BadRequestError(
-              'Cannot demote the last active admin in the system',
-              'CANNOT_DEMOTE_LAST_ADMIN'
+          if (!target) {
+            throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+          }
+
+          if (!canManageRole(adminRole, target.role, role)) {
+            throw new ForbiddenError(
+              'You do not have permission to assign this role to this user',
+              'ROLE_CHANGE_NOT_PERMITTED'
             );
           }
-        }
 
-        const updated = await tx.user.update({
-          where: { id: userId },
-          data: { role },
-          select: { id: true, name: true, email: true, role: true },
-        });
-        return { updated, previousRole: target.role };
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+          // System-lockout prevention: demoting the last active ADMIN
+          // would leave nobody able to manage MODERATOR/USER roles
+          // day-to-day. (There is no equivalent SUPER_ADMIN guard here —
+          // canManageRole above already makes a SUPER_ADMIN target
+          // unreachable through this endpoint entirely, for any actor,
+          // including another SUPER_ADMIN: targetCurrentRank(3) is never
+          // < actorRank when the max rank is 3. SUPER_ADMIN's role can
+          // only ever be changed directly in the database, which is the
+          // intended break-glass model — see this function's own doc
+          // comment.)
+          if (target.role === 'ADMIN' && role !== 'ADMIN') {
+            const activeCount = await tx.user.count({
+              where: { role: 'ADMIN', isActive: true },
+            });
+            if (activeCount <= 1) {
+              throw new BadRequestError(
+                'Cannot demote the last active admin in the system',
+                'CANNOT_DEMOTE_LAST_ADMIN'
+              );
+            }
+          }
+
+          const updated = await tx.user.update({
+            where: { id: userId },
+            data: { role },
+            select: { id: true, name: true, email: true, role: true },
+          });
+          return { updated, previousRole: target.role };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
 
       // Role changed → cached role (used by middleware-adjacent checks)
       // must not keep serving the old value, and a demoted admin's
       // existing sessions should not retain elevated access for up to
       // their remaining 15-minute access-token lifetime.
-      await Promise.all([
-        userCache.invalidate(userId),
-        tokenStore.deleteAllRefreshTokens(userId),
-      ]);
+      await Promise.all([userCache.invalidate(userId), tokenStore.deleteAllRefreshTokens(userId)]);
 
       // Full before/after/actor/ip trail, per Gap #20's spec — who
       // changed it, the target, old role, new role, when (auditLog
@@ -592,13 +614,18 @@ export const adminService = {
           previousRole: user.previousRole,
           newRole: role,
         },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error)
+      );
 
       return user.updated;
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('User not found', 'USER_NOT_FOUND');
       if (e?.code === 'P2034') {
-        throw new BadRequestError('This action conflicted with another operation, please try again', 'CONCURRENT_UPDATE_CONFLICT');
+        throw new BadRequestError(
+          'This action conflicted with another operation, please try again',
+          'CONCURRENT_UPDATE_CONFLICT'
+        );
       }
       throw e;
     }
@@ -615,7 +642,7 @@ export const adminService = {
    * isActive users — a disabled account has no reason to receive one. */
   getAllActiveUserIds: async (): Promise<string[]> => {
     const users = await prisma.user.findMany({ where: { isActive: true }, select: { id: true } });
-    return users.map((u) => u.id);
+    return users.map(u => u.id);
   },
 
   /**
@@ -646,9 +673,7 @@ export const adminService = {
     const skip = (page - 1) * limit;
     const where: Prisma.ProductWhereInput = {
       ...(query.status ? { status: query.status } : { status: { not: 'DELETED' } }),
-      ...(query.q
-        ? { name: { contains: query.q, mode: 'insensitive' as const } }
-        : {}),
+      ...(query.q ? { name: { contains: query.q, mode: 'insensitive' as const } } : {}),
     };
     const [items, total] = await Promise.all([
       prisma.product.findMany({
@@ -675,7 +700,7 @@ export const adminService = {
     productId: string,
     status: 'ACTIVE' | 'PAUSED' | 'DELETED',
     adminUserId: string,
-    reason?: string,
+    reason?: string
   ) => {
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
@@ -688,7 +713,7 @@ export const adminService = {
       event: AuditEventType.ADMIN_AD_DELETED, // closest existing event; details carry product
       userId: adminUserId,
       details: { productId, status, reason: reason ?? null, kind: 'product' },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
     return updated;
   },
 
@@ -705,9 +730,7 @@ export const adminService = {
     const skip = (page - 1) * limit;
     const where: Prisma.ServiceListingWhereInput = {
       ...(query.status ? { status: query.status } : { status: { not: 'DELETED' } }),
-      ...(query.q
-        ? { title: { contains: query.q, mode: 'insensitive' as const } }
-        : {}),
+      ...(query.q ? { title: { contains: query.q, mode: 'insensitive' as const } } : {}),
     };
     const [items, total] = await Promise.all([
       prisma.serviceListing.findMany({
@@ -740,7 +763,7 @@ export const adminService = {
     listingId: string,
     status: 'ACTIVE' | 'PAUSED' | 'DELETED',
     adminUserId: string,
-    reason?: string,
+    reason?: string
   ) => {
     const listing = await prisma.serviceListing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
@@ -753,16 +776,17 @@ export const adminService = {
       event: AuditEventType.ADMIN_AD_DELETED,
       userId: adminUserId,
       details: { listingId, status, reason: reason ?? null, kind: 'service_listing' },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
     return updated;
   },
-
 
   /**
    * Daily counts for users / ads / reports over the last N days —
    * powers the admin trend bars without a charting library.
    */
-  getPlatformTrends: async (days = 30): Promise<{
+  getPlatformTrends: async (
+    days = 30
+  ): Promise<{
     days: number;
     series: Array<{ date: string; users: number; ads: number; reports: number }>;
   }> => {
@@ -795,9 +819,9 @@ export const adminService = {
       }
       return m;
     };
-    const uMap = mapCount(trendRows.filter((r) => r.kind === 'users'));
-    const aMap = mapCount(trendRows.filter((r) => r.kind === 'ads'));
-    const rMap = mapCount(trendRows.filter((r) => r.kind === 'reports'));
+    const uMap = mapCount(trendRows.filter(r => r.kind === 'users'));
+    const aMap = mapCount(trendRows.filter(r => r.kind === 'ads'));
+    const rMap = mapCount(trendRows.filter(r => r.kind === 'reports'));
 
     const series: Array<{ date: string; users: number; ads: number; reports: number }> = [];
     for (let i = 0; i < safeDays; i++) {
@@ -849,10 +873,7 @@ export const adminService = {
     };
   }> => {
     // UPSTASH-SAVE: كاش دقيقة واحدة — فتح الصفحة عدة مرات لا يضرب Redis/DB
-    if (
-      _systemHealthMem &&
-      Date.now() - _systemHealthMem.at < 60_000
-    ) {
+    if (_systemHealthMem && Date.now() - _systemHealthMem.at < 60_000) {
       return _systemHealthMem.value;
     }
 
@@ -871,7 +892,11 @@ export const adminService = {
       const { redis } = await import('../../config/redis');
       const t0 = nowMs();
       if (redis.status !== 'ready') {
-        await redis.connect().catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+        await redis
+          .connect()
+          .catch(error =>
+            reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error)
+          );
       }
       // UPSTASH-SAVE: PING واحد بعد التأكد من الاتصال (بدل 4 أوامر)
       const s0 = nowMs();
@@ -880,11 +905,9 @@ export const adminService = {
       redisMs = Math.round(nowMs() - t0);
       redisOk = true;
       if (redisMs >= 80 && redisCmdMs < 25) {
-        redisNote =
-          'زمن الاتصال/الشبكة مرتفع، لكن أوامر Redis سريعة — الكاش نفسه ليس بطيئًا.';
+        redisNote = 'زمن الاتصال/الشبكة مرتفع، لكن أوامر Redis سريعة — الكاش نفسه ليس بطيئًا.';
       } else if (redisCmdMs >= 50) {
-        redisNote =
-          'أوامر Redis بطيئة نسبيًا — غالبًا بسبب استضافة بعيدة (RTT) أو ضغط على الخادم.';
+        redisNote = 'أوامر Redis بطيئة نسبيًا — غالبًا بسبب استضافة بعيدة (RTT) أو ضغط على الخادم.';
       }
     } catch {
       // Never return raw infrastructure exceptions to the admin browser: some
@@ -902,8 +925,7 @@ export const adminService = {
       dbMs = Math.round(nowMs() - s0);
       dbOk = true;
       if (dbMs >= 80) {
-        dbNote =
-          'استجابة DB أعلى من المعتاد محليًا — قد يكون الخادم بعيدًا أو تحت ضغط.';
+        dbNote = 'استجابة DB أعلى من المعتاد محليًا — قد يكون الخادم بعيدًا أو تحت ضغط.';
       }
     } catch {
       // Keep SQL/driver details in server logs rather than the browser response.
@@ -938,20 +960,21 @@ export const adminService = {
     };
     try {
       const staleBefore = new Date(Date.now() - 5 * 60 * 1000);
-      const [pendingOutbox, deadLetterOutbox, staleOutbox, unresolvedFailedTasks] = await Promise.all([
-        prisma.outboxEvent.count({ where: { processedAt: null, deadLetterAt: null } }),
-        prisma.outboxEvent.count({ where: { processedAt: null, deadLetterAt: { not: null } } }),
-        prisma.outboxEvent.count({
-          where: {
-            processedAt: null,
-            deadLetterAt: null,
-            createdAt: { lt: staleBefore },
-            availableAt: { lte: new Date() },
-            OR: [{ lockedAt: null }, { lockedAt: { lt: staleBefore } }],
-          },
-        }),
-        prisma.failedBackgroundTask.count({ where: { resolved: false } }),
-      ]);
+      const [pendingOutbox, deadLetterOutbox, staleOutbox, unresolvedFailedTasks] =
+        await Promise.all([
+          prisma.outboxEvent.count({ where: { processedAt: null, deadLetterAt: null } }),
+          prisma.outboxEvent.count({ where: { processedAt: null, deadLetterAt: { not: null } } }),
+          prisma.outboxEvent.count({
+            where: {
+              processedAt: null,
+              deadLetterAt: null,
+              createdAt: { lt: staleBefore },
+              availableAt: { lte: new Date() },
+              OR: [{ lockedAt: null }, { lockedAt: { lt: staleBefore } }],
+            },
+          }),
+          prisma.failedBackgroundTask.count({ where: { resolved: false } }),
+        ]);
       backgroundWork = {
         available: true,
         pendingOutbox,
@@ -979,7 +1002,10 @@ export const adminService = {
         memoryRssBytes: runtimeMemory.rss,
         memoryHeapUsedBytes: runtimeMemory.heapUsed,
         memoryHeapTotalBytes: runtimeMemory.heapTotal,
-        memoryHeapUsedPercent: runtimeMemory.heapTotal > 0 ? Math.round((runtimeMemory.heapUsed / runtimeMemory.heapTotal) * 1000) / 10 : 0,
+        memoryHeapUsedPercent:
+          runtimeMemory.heapTotal > 0
+            ? Math.round((runtimeMemory.heapUsed / runtimeMemory.heapTotal) * 1000) / 10
+            : 0,
         nodeVersion: runtimeNodeVersion,
         environment: runtimeEnvironment,
       },
@@ -1004,12 +1030,12 @@ export const adminService = {
       },
     });
     const header = 'id,email,name,role,isActive,createdAt';
-    const lines = users.map((u) =>
+    const lines = users.map(u =>
       // every cell goes through escapeCsvCell —
-      // see its own doc comment for the two bugs it 
+      // see its own doc comment for the two bugs it
       [u.id, u.email, u.name, u.role, u.isActive, u.createdAt.toISOString()]
         .map(escapeCsvCell)
-        .join(','),
+        .join(',')
     );
     return [header, ...lines].join('\n');
   },
@@ -1030,7 +1056,7 @@ export const adminService = {
       },
     });
     const header = 'id,reason,status,targetType,targetId,userId,notes,createdAt';
-    const lines = reports.map((r) =>
+    const lines = reports.map(r =>
       // see exportUsersCsv above.
       [
         r.id,
@@ -1043,7 +1069,7 @@ export const adminService = {
         r.createdAt.toISOString(),
       ]
         .map(escapeCsvCell)
-        .join(','),
+        .join(',')
     );
     return [header, ...lines].join('\n');
   },
@@ -1058,12 +1084,14 @@ export const adminService = {
     // These counters are independent and read-only, so a single aggregate
     // round-trip is cheaper than four concurrent pool checkouts on every
     // admin operations-center refresh. Keep each model's original predicate.
-    const rows = await prisma.$queryRaw<Array<{
-      openReports: bigint;
-      pendingStores: bigint;
-      pendingSellers: bigint;
-      unreviewedFraud: bigint;
-    }>>`
+    const rows = await prisma.$queryRaw<
+      Array<{
+        openReports: bigint;
+        pendingStores: bigint;
+        pendingSellers: bigint;
+        unreviewedFraud: bigint;
+      }>
+    >`
       SELECT
         (SELECT COUNT(*) FROM "reports" WHERE "status" = 'PENDING') AS "openReports",
         (SELECT COUNT(*) FROM "store_details" WHERE "status" = 'PENDING') AS "pendingStores",
@@ -1097,7 +1125,10 @@ export const adminService = {
    * Open Requests marketplace admin list (SERVICE | PRODUCT | RENTAL).
    * Separate from service-broadcasts (feed).
    */
-  getServiceRequestDisputes: async (query: { page?: number; limit?: number }): Promise<{ items: unknown[]; meta: ReturnType<typeof buildPaginationMeta> }> => {
+  getServiceRequestDisputes: async (query: {
+    page?: number;
+    limit?: number;
+  }): Promise<{ items: unknown[]; meta: ReturnType<typeof buildPaginationMeta> }> => {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(100, Math.max(1, query.limit ?? 20));
     const skip = (page - 1) * limit;
@@ -1110,7 +1141,19 @@ export const adminService = {
         take: limit,
         include: {
           customer: { select: { id: true, name: true, avatarUrl: true } },
-          listing: { select: { id: true, title: true, provider: { select: { id: true, businessName: true, sellerProfile: { select: { userId: true, displayName: true } } } } } },
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              provider: {
+                select: {
+                  id: true,
+                  businessName: true,
+                  sellerProfile: { select: { userId: true, displayName: true } },
+                },
+              },
+            },
+          },
         },
       }),
       prisma.serviceRequest.count({ where }),
@@ -1122,34 +1165,64 @@ export const adminService = {
     id: string,
     adminUserId: string,
     resolution: 'COMPLETED' | 'CANCELLED',
-    note?: string,
+    note?: string
   ): Promise<unknown> => {
     return prisma.$transaction(async tx => {
       const request = await tx.serviceRequest.findUnique({
         where: { id },
         select: {
-          id: true, status: true, listingId: true, customerId: true, quotedPrice: true, agreedPrice: true,
-          listing: { select: { pricingType: true, price: true, provider: { select: { sellerProfile: { select: { userId: true } } } } } },
+          id: true,
+          status: true,
+          listingId: true,
+          customerId: true,
+          quotedPrice: true,
+          agreedPrice: true,
+          listing: {
+            select: {
+              pricingType: true,
+              price: true,
+              provider: { select: { sellerProfile: { select: { userId: true } } } },
+            },
+          },
         },
       });
-      if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
+      if (!request)
+        throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
       if (request.status !== 'DISPUTED') {
-        throw new BadRequestError('Only disputed service requests can be resolved.', 'SERVICE_REQUEST_NOT_DISPUTED');
+        throw new BadRequestError(
+          'Only disputed service requests can be resolved.',
+          'SERVICE_REQUEST_NOT_DISPUTED'
+        );
       }
       let agreedPrice = request.agreedPrice;
       if (resolution === 'COMPLETED' && agreedPrice == null) {
-        agreedPrice = request.quotedPrice ?? (request.listing.pricingType === 'FIXED' ? request.listing.price : null);
+        agreedPrice =
+          request.quotedPrice ??
+          (request.listing.pricingType === 'FIXED' ? request.listing.price : null);
         if (agreedPrice == null) {
-          throw new BadRequestError('A final agreed price is required before resolving the dispute as completed.', 'AGREED_PRICE_REQUIRED');
+          throw new BadRequestError(
+            'A final agreed price is required before resolving the dispute as completed.',
+            'AGREED_PRICE_REQUIRED'
+          );
         }
       }
       const updated = await tx.serviceRequest.update({
         where: { id },
-        data: { status: resolution, respondedAt: new Date(), agreedPrice: resolution === 'COMPLETED' ? agreedPrice : request.agreedPrice, disputeResolutionNote: note, disputeResolvedAt: new Date(), disputeResolvedBy: adminUserId },
+        data: {
+          status: resolution,
+          respondedAt: new Date(),
+          agreedPrice: resolution === 'COMPLETED' ? agreedPrice : request.agreedPrice,
+          disputeResolutionNote: note,
+          disputeResolvedAt: new Date(),
+          disputeResolvedBy: adminUserId,
+        },
         include: { customer: { select: { id: true, name: true } } },
       });
       if (resolution === 'COMPLETED' || resolution === 'CANCELLED') {
-        await tx.appointment.updateMany({ where: { requestId: id, status: 'SCHEDULED' }, data: { status: resolution } });
+        await tx.appointment.updateMany({
+          where: { requestId: id, status: 'SCHEDULED' },
+          data: { status: resolution },
+        });
       }
       logger.info('Service request dispute resolved', { requestId: id, adminUserId, resolution });
       return updated;
@@ -1199,7 +1272,7 @@ export const adminService = {
   adminCancelOpenRequest: async (
     id: string,
     adminUserId: string,
-    reason?: string,
+    reason?: string
   ): Promise<unknown> => {
     const existing = await prisma.request.findUnique({
       where: { id },
@@ -1210,7 +1283,7 @@ export const adminService = {
     if (existing.status === 'ACCEPTED') {
       throw new BadRequestError(
         'Cannot cancel an ACCEPTED request — resolve the accepted offer first',
-        'REQUEST_ALREADY_ACCEPTED',
+        'REQUEST_ALREADY_ACCEPTED'
       );
     }
 
@@ -1240,9 +1313,8 @@ export const adminService = {
         reason: reason ?? null,
         kind: 'open-request',
       },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error));
 
     return updated;
   },
-
 };

@@ -28,10 +28,7 @@ export const analyticsRepository = {
   // Fire-and-forget from the controller (see analytics.service.ts) —
   // createMany over N individual creates: one insert statement instead
   // of N round-trips for what's usually a small same-page-load batch.
-  createMany: async (
-    events: TrackEventInput[],
-    userId: string | null
-  ): Promise<void> => {
+  createMany: async (events: TrackEventInput[], userId: string | null): Promise<void> => {
     await prisma.analyticsEvent.createMany({
       data: events.map(e => ({
         event: e.event,
@@ -65,11 +62,7 @@ export const analyticsRepository = {
   // doc comment. A wide admin-selected [from, to) range times out
   // cleanly (AnalyticsQueryTimeoutError -> 503) instead of holding a
   // connection indefinitely.
-  trendByEvent: async (
-    from: Date,
-    to: Date,
-    bucket: 'day' | 'week'
-  ): Promise<TrendPoint[]> => {
+  trendByEvent: async (from: Date, to: Date, bucket: 'day' | 'week'): Promise<TrendPoint[]> => {
     const rows = await runWithQueryTimeout(
       tx =>
         tx.$queryRaw<{ bucket: Date; event: AnalyticsEventType; count: bigint }[]>`

@@ -11,7 +11,10 @@ const normalizePhone = (phone?: string | null) => {
 
 export const customersService = {
   normalizePhone,
-  list: (sellerId: string, query: { page?: number; limit?: number; q?: string; dueOnly?: boolean }) => customersRepository.list(sellerId, query),
+  list: (
+    sellerId: string,
+    query: { page?: number; limit?: number; q?: string; dueOnly?: boolean }
+  ) => customersRepository.list(sellerId, query),
   summary: (sellerId: string) => customersRepository.summary(sellerId),
   search: (sellerId: string, q: string) => customersRepository.search(sellerId, q),
   getById: async (sellerId: string, id: string) => {
@@ -23,7 +26,11 @@ export const customersService = {
     const phone = normalizePhone(input.phone);
     if (phone) {
       const existing = await customersRepository.findByPhone(sellerId, phone);
-      if (existing) throw new ConflictError('A customer with this phone already exists.', 'CUSTOMER_PHONE_EXISTS');
+      if (existing)
+        throw new ConflictError(
+          'A customer with this phone already exists.',
+          'CUSTOMER_PHONE_EXISTS'
+        );
     }
     return customersRepository.create({
       seller: { connect: { id: sellerId } },
@@ -41,9 +48,16 @@ export const customersService = {
     const phone = input.phone === undefined ? undefined : normalizePhone(input.phone);
     if (phone) {
       const existing = await customersRepository.findByPhone(sellerId, phone);
-      if (existing && existing.id !== id) throw new ConflictError('A customer with this phone already exists.', 'CUSTOMER_PHONE_EXISTS');
+      if (existing && existing.id !== id)
+        throw new ConflictError(
+          'A customer with this phone already exists.',
+          'CUSTOMER_PHONE_EXISTS'
+        );
     }
-    const data: Prisma.CustomerUpdateInput = { ...input, ...(input.phone !== undefined ? { phone } : {}) };
+    const data: Prisma.CustomerUpdateInput = {
+      ...input,
+      ...(input.phone !== undefined ? { phone } : {}),
+    };
     return customersRepository.update(id, data);
   },
 };

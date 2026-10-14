@@ -59,7 +59,7 @@ export const sendSecurityAlert = async (payload: SecurityAlertPayload): Promise<
   // no-op if SECURITY_ALERT_WEBHOOK_URL isn't configured.
   //
   // BUGFIX (found during a post-implementation code audit): this fetch()
-  // had no timeout at all — the exact same class of gap 
+  // had no timeout at all — the exact same class of gap
   // closed for Cloudinary uploads and SMTP (see config/cloudinary.ts and
   // emailService.ts's own comments for the full reasoning). Left
   // unfixed here, it was arguably worse: this path fires on every

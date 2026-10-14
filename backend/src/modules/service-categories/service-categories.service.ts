@@ -3,7 +3,10 @@ import {
   ServiceCategoryWithChildren,
 } from './service-categories.repository';
 import { ServiceCategory } from '@prisma/client';
-import { CreateServiceCategoryInput, UpdateServiceCategoryInput } from './service-categories.validation';
+import {
+  CreateServiceCategoryInput,
+  UpdateServiceCategoryInput,
+} from './service-categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
@@ -54,7 +57,7 @@ export const serviceCategoriesService = {
       if (parent.parentId !== null) {
         throw new BadRequestError(
           'Service categories support only two levels (top-level + direct children).',
-          'CATEGORY_DEPTH_EXCEEDED',
+          'CATEGORY_DEPTH_EXCEEDED'
         );
       }
     }
@@ -110,13 +113,15 @@ export const serviceCategoriesService = {
     // T510 — public read: a deactivated category must 404 here even
     // though it still resolves through the admin-facing findById.
     const category = await serviceCategoriesRepository.findPublicById(id);
-    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
     return category;
   },
 
   getServiceCategoryBySlug: async (slug: string): Promise<ServiceCategory> => {
     const category = await serviceCategoriesRepository.findBySlug(slug);
-    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
     return category;
   },
 
@@ -125,7 +130,8 @@ export const serviceCategoriesService = {
     input: UpdateServiceCategoryInput
   ): Promise<ServiceCategory> => {
     const category = await serviceCategoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
 
     // T441 — cycle guard, mirroring categoriesService and
     // productCategoriesService. This module shipped WITHOUT one, so a
@@ -133,7 +139,10 @@ export const serviceCategoriesService = {
     // walking the chain would hang.
     if (input.parentId && input.parentId !== category.parentId) {
       if (input.parentId === id) {
-        throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
+        throw new BadRequestError(
+          'A category cannot be its own parent',
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
       }
       // T442 — verify the target parent exists first; an unknown id
       // returned an empty chain and passed the cycle check silently.
@@ -145,13 +154,13 @@ export const serviceCategoriesService = {
       if (proposedParent.parentId !== null) {
         throw new BadRequestError(
           'Service categories support only two levels (top-level + direct children).',
-          'CATEGORY_DEPTH_EXCEEDED',
+          'CATEGORY_DEPTH_EXCEEDED'
         );
       }
       const ancestorChain = await serviceCategoriesRepository.findParentChain(input.parentId);
       if (ancestorChain.includes(id)) {
         throw new BadRequestError(
-          'Cannot set parent to one of this category\'s own subcategories',
+          "Cannot set parent to one of this category's own subcategories",
           'CIRCULAR_CATEGORY_REFERENCE'
         );
       }
@@ -172,7 +181,7 @@ export const serviceCategoriesService = {
       if (listingsCount > 0) {
         throw new BadRequestError(
           `Cannot change service type while the category has ${listingsCount} active listings.`,
-          'CATEGORY_SERVICE_TYPE_LOCKED',
+          'CATEGORY_SERVICE_TYPE_LOCKED'
         );
       }
     }
@@ -210,7 +219,8 @@ export const serviceCategoriesService = {
   // service-listings exists).
   deleteServiceCategory: async (id: string): Promise<void> => {
     const category = await serviceCategoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Service category not found', 'SERVICE_CATEGORY_NOT_FOUND');
 
     const listingsCount = await serviceCategoriesRepository.countListings(id);
     if (listingsCount > 0) {

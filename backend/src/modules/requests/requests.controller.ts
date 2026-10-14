@@ -32,7 +32,9 @@ export const requestsController = {
     try {
       const { query } = getOpenRequestsSchema.parse({ query: req.query });
       const result = await requestsService.getOpenFeed(query);
-      res.status(200).json(successResponse('Open requests fetched', result.items, { pagination: result.meta }));
+      res
+        .status(200)
+        .json(successResponse('Open requests fetched', result.items, { pagination: result.meta }));
     } catch (error) {
       next(error);
     }
@@ -43,7 +45,9 @@ export const requestsController = {
       const user = requireUser(req);
       const { query } = getMyRequestsSchema.parse({ query: req.query });
       const result = await requestsService.getMyRequests(user.userId, query);
-      res.status(200).json(successResponse('My requests fetched', result.items, { pagination: result.meta }));
+      res
+        .status(200)
+        .json(successResponse('My requests fetched', result.items, { pagination: result.meta }));
     } catch (error) {
       next(error);
     }
@@ -55,7 +59,9 @@ export const requestsController = {
       // T352 — was reusing getMyRequestsSchema whose status enum never matched.
       const { query } = getMyOffersSchema.parse({ query: req.query });
       const result = await requestsService.getMyOffers(user.userId, query);
-      res.status(200).json(successResponse('My offers fetched', result.items, { pagination: result.meta }));
+      res
+        .status(200)
+        .json(successResponse('My offers fetched', result.items, { pagination: result.meta }));
     } catch (error) {
       next(error);
     }

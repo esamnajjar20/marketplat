@@ -45,7 +45,8 @@ export const adsController = {
       // photo. Now carries its own code so the frontend (see
       // ar/errors.ts's IMAGE_REQUIRED entry) can show a message that
       // actually names the problem.
-      if (files.length === 0) throw new BadRequestError('At least one image is required', 'IMAGE_REQUIRED');
+      if (files.length === 0)
+        throw new BadRequestError('At least one image is required', 'IMAGE_REQUIRED');
       // forward client offline op id for dedup
       const offlineOpId =
         (req.headers['x-offline-op-id'] as string | undefined) ||

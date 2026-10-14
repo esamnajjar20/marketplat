@@ -41,13 +41,17 @@ function loadBcryptImpl(): { impl: BcryptLike; isNative: boolean } {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const native = require('bcrypt') as BcryptLike;
-    logger.info('Using native bcrypt for password hashing (worker-thread offload, event loop not blocked)');
+    logger.info(
+      'Using native bcrypt for password hashing (worker-thread offload, event loop not blocked)'
+    );
     return { impl: native, isNative: true };
   } catch {
     // Expected on Termux/Android (no prebuilt binary, native build
     // fails) or any environment where the optional dependency simply
     // wasn't installed — not an error, just the documented fallback.
-    logger.info('Native bcrypt not available — falling back to bcryptjs (pure JS, blocks event loop per hash)');
+    logger.info(
+      'Native bcrypt not available — falling back to bcryptjs (pure JS, blocks event loop per hash)'
+    );
     return { impl: bcryptjs, isNative: false };
   }
 }
@@ -82,7 +86,7 @@ let dummyTimingHashPromise: Promise<string> | null = null;
 
 export async function comparePasswordOrDummy(
   password: string,
-  hashed: string | null | undefined,
+  hashed: string | null | undefined
 ): Promise<boolean> {
   if (hashed) {
     return bcrypt.compare(password, hashed);
@@ -90,7 +94,7 @@ export async function comparePasswordOrDummy(
   if (!dummyTimingHashPromise) {
     dummyTimingHashPromise = bcrypt.hash(
       'dummy-timing-constant-never-matches-any-real-password',
-      SALT_ROUNDS,
+      SALT_ROUNDS
     );
   }
   const dummy = await dummyTimingHashPromise;

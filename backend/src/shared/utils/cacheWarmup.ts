@@ -82,16 +82,40 @@ const homeTask = (city: string | undefined): WarmupTask => ({
 export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   homeTask(undefined),
   { name: 'categories', priority: 95, run: () => categoriesService.getCategories() },
-  { name: 'product-categories', priority: 94, run: () => productCategoriesService.getProductCategories() },
-  { name: 'service-categories', priority: 93, run: () => serviceCategoriesService.getServiceCategories() },
+  {
+    name: 'product-categories',
+    priority: 94,
+    run: () => productCategoriesService.getProductCategories(),
+  },
+  {
+    name: 'service-categories',
+    priority: 93,
+    run: () => serviceCategoriesService.getServiceCategories(),
+  },
   // Default first pages only (no filters/search) — the exact shapes live in
   // shared/cache/warmedListQueries.ts, which is also what gives these keys the
   // 600s hard TTL that lets a 240s cycle actually hold them (FIX WARM-LIST-HARD-TTL-01).
   // Shapes match the frontend warming contract (lib/warmingQueryContract.ts).
-  { name: 'ads:list:default', priority: 92, run: () => adsService.getAds(WARMED_ADS_DEFAULT_QUERY) },
-  { name: 'ads:list:featured', priority: 91, run: () => adsService.getAds(WARMED_ADS_FEATURED_QUERY) },
-  { name: 'products:list:default', priority: 88, run: () => productsService.getProducts(WARMED_PRODUCTS_DEFAULT_QUERY) },
-  { name: 'stores:list:default', priority: 87, run: () => storesService.getStores(WARMED_STORES_DEFAULT_QUERY) },
+  {
+    name: 'ads:list:default',
+    priority: 92,
+    run: () => adsService.getAds(WARMED_ADS_DEFAULT_QUERY),
+  },
+  {
+    name: 'ads:list:featured',
+    priority: 91,
+    run: () => adsService.getAds(WARMED_ADS_FEATURED_QUERY),
+  },
+  {
+    name: 'products:list:default',
+    priority: 88,
+    run: () => productsService.getProducts(WARMED_PRODUCTS_DEFAULT_QUERY),
+  },
+  {
+    name: 'stores:list:default',
+    priority: 87,
+    run: () => storesService.getStores(WARMED_STORES_DEFAULT_QUERY),
+  },
   {
     name: 'service-listings:list:default',
     priority: 86,
@@ -105,8 +129,16 @@ export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   // Home-page strips (frontend queries /products?limit=8… and /stores?limit=6…).
   // They were never warmed server-side, so the first home visitor after every
   // expiry paid two DB list queries (FIX WARM-HOME-STRIPS-01).
-  { name: 'products:list:home', priority: 84, run: () => productsService.getProducts(WARMED_PRODUCTS_HOME_QUERY) },
-  { name: 'stores:list:home', priority: 83, run: () => storesService.getStores(WARMED_STORES_HOME_QUERY) },
+  {
+    name: 'products:list:home',
+    priority: 84,
+    run: () => productsService.getProducts(WARMED_PRODUCTS_HOME_QUERY),
+  },
+  {
+    name: 'stores:list:home',
+    priority: 83,
+    run: () => storesService.getStores(WARMED_STORES_HOME_QUERY),
+  },
   ...HOME_CITIES.map(city => homeTask(city)),
 ];
 
@@ -114,7 +146,7 @@ const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 
 export async function warmPublicCaches(
   tasks: ReadonlyArray<WarmupTask> = WARMUP_TASKS,
-  pauseMs = 0,
+  pauseMs = 0
 ): Promise<{ ok: number; failed: number }> {
   let ok = 0;
   let failed = 0;
@@ -133,7 +165,10 @@ export async function warmPublicCaches(
       cacheWarmupTasksTotal.inc({ task: task.name, outcome: 'failure' });
       logger.warn(`[cache-warmup] ${task.name} failed`, error);
     } finally {
-      cacheWarmupTaskDurationSeconds.observe({ task: task.name }, Number(process.hrtime.bigint() - taskStartedAt) / 1e9);
+      cacheWarmupTaskDurationSeconds.observe(
+        { task: task.name },
+        Number(process.hrtime.bigint() - taskStartedAt) / 1e9
+      );
     }
     if (pauseMs > 0 && i < orderedTasks.length - 1) await sleep(pauseMs);
   }
@@ -146,7 +181,13 @@ export async function warmPublicCaches(
 async function acquireLeadership(intervalMs: number): Promise<boolean> {
   try {
     const res = await guardedCache(() =>
-      cacheClient().set(KEEP_WARM_LEADER_KEY, String(process.pid), 'PX', Math.max(1_000, intervalMs - 5_000), 'NX'),
+      cacheClient().set(
+        KEEP_WARM_LEADER_KEY,
+        String(process.pid),
+        'PX',
+        Math.max(1_000, intervalMs - 5_000),
+        'NX'
+      )
     );
     return res === 'OK';
   } catch {
@@ -155,7 +196,7 @@ async function acquireLeadership(intervalMs: number): Promise<boolean> {
 }
 
 export async function runKeepWarmCycle(
-  intervalMs = KEEP_WARM_INTERVAL_MS,
+  intervalMs = KEEP_WARM_INTERVAL_MS
 ): Promise<{ ok: number; failed: number } | null> {
   if (!(await acquireLeadership(intervalMs))) return null;
   const result = await warmPublicCaches(WARMUP_TASKS, WARMUP_PAUSE_MS);
@@ -171,7 +212,7 @@ export async function runKeepWarmCycle(
  * unref()'d so they never delay a graceful shutdown. Returns a stop function.
  */
 export function startCacheKeepWarm(
-  options: { initialDelayMs?: number; intervalMs?: number } = {},
+  options: { initialDelayMs?: number; intervalMs?: number } = {}
 ): () => void {
   const { initialDelayMs = 2_000, intervalMs = KEEP_WARM_INTERVAL_MS } = options;
   let running = false;

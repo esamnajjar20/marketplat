@@ -56,7 +56,7 @@ export function initUnreadNotificationsCacheInvalidationSubscriber(): void {
   subscriberReady = (async () => {
     try {
       subscriber = redis.duplicate();
-      subscriber.on('error', (err) => {
+      subscriber.on('error', err => {
         logger.warn('unreadNotificationsCache invalidation subscriber error', { err });
       });
       if (subscriber.status === 'wait') {
@@ -71,7 +71,7 @@ export function initUnreadNotificationsCacheInvalidationSubscriber(): void {
     } catch (err) {
       logger.warn(
         'unreadNotificationsCache invalidation subscriber unavailable — L1 will only be cleared on the worker handling the invalidation',
-        { err },
+        { err }
       );
       subscriber = null;
     }

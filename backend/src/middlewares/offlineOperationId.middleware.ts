@@ -15,7 +15,7 @@ const OFFLINE_OPERATION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 export const offlineOperationIdMiddleware = (
   req: Request,
   _res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): void => {
   const raw = req.headers['x-offline-op-id'];
   if (raw === undefined) return next();
@@ -24,8 +24,8 @@ export const offlineOperationIdMiddleware = (
     return next(
       new BadRequestError(
         'X-Offline-Op-Id must be a single token of 1-128 safe characters',
-        'OFFLINE_OP_ID_INVALID',
-      ),
+        'OFFLINE_OP_ID_INVALID'
+      )
     );
   }
 

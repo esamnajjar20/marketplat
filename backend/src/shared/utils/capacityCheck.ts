@@ -67,7 +67,7 @@ function estimateInstanceCount(): number {
   // re-import specifically to observe such changes) and expects this
   // function to see each new value on its very next call. Reading
   // process.env directly here — same live-per-call-read pattern as
-  // frontend/lib/pwa.ts's getVapidPublicKey (see its own 
+  // frontend/lib/pwa.ts's getVapidPublicKey (see its own
   // comment) — is what the existing test suite actually requires.
   // PM2_INSTANCES is still validated/documented in config/env.ts's
   // schema; this is the one deliberate call site that doesn't consume
@@ -82,8 +82,8 @@ export function checkConnectionCapacity(databaseUrl: string): void {
   if (connectionLimit === null) {
     logger.warn(
       'DATABASE_URL has no explicit connection_limit param — Prisma defaults to ' +
-      'num_physical_cpus*2+1 per instance, which is usually too low under real ' +
-      'concurrent load. See the connection_limit note in .env.example.',
+        'num_physical_cpus*2+1 per instance, which is usually too low under real ' +
+        'concurrent load. See the connection_limit note in .env.example.'
     );
     return;
   }
@@ -95,23 +95,23 @@ export function checkConnectionCapacity(databaseUrl: string): void {
   if (estimatedTotal > threshold) {
     logger.warn(
       `⚠️  Estimated total DB connections (${instances} instances × ` +
-      `connection_limit=${connectionLimit} = ${estimatedTotal}) may exceed ` +
-      `Postgres's configured max_connections (${DEFAULT_POSTGRES_MAX_CONNECTIONS}), ` +
-      `leaving less than the recommended ${SAFETY_MARGIN}-connection safety margin ` +
-      `for migrations, admin tools, and backup jobs. This is a heuristic based on ` +
-      `os.cpus().length (${os.cpus().length} detected) and this repo's docker-compose.yml ` +
-      `Postgres setting (max_connections=200, see PROD-FIX-04) — if this deployment ` +
-      `runs a different Postgres (managed service, custom max_connections) or fixed ` +
-      `PM2_INSTANCES to a smaller number, this warning may not apply. Otherwise, lower ` +
-      `connection_limit in DATABASE_URL, set PM2_INSTANCES explicitly, or raise ` +
-      `Postgres max_connections to match.`,
-      { instances, connectionLimit, estimatedTotal, threshold },
+        `connection_limit=${connectionLimit} = ${estimatedTotal}) may exceed ` +
+        `Postgres's configured max_connections (${DEFAULT_POSTGRES_MAX_CONNECTIONS}), ` +
+        `leaving less than the recommended ${SAFETY_MARGIN}-connection safety margin ` +
+        `for migrations, admin tools, and backup jobs. This is a heuristic based on ` +
+        `os.cpus().length (${os.cpus().length} detected) and this repo's docker-compose.yml ` +
+        `Postgres setting (max_connections=200, see PROD-FIX-04) — if this deployment ` +
+        `runs a different Postgres (managed service, custom max_connections) or fixed ` +
+        `PM2_INSTANCES to a smaller number, this warning may not apply. Otherwise, lower ` +
+        `connection_limit in DATABASE_URL, set PM2_INSTANCES explicitly, or raise ` +
+        `Postgres max_connections to match.`,
+      { instances, connectionLimit, estimatedTotal, threshold }
     );
   } else {
     logger.info(
       `DB connection capacity check passed: ${instances} instances × ` +
-      `connection_limit=${connectionLimit} = ${estimatedTotal} ` +
-      `(within configured max_connections=${DEFAULT_POSTGRES_MAX_CONNECTIONS})`,
+        `connection_limit=${connectionLimit} = ${estimatedTotal} ` +
+        `(within configured max_connections=${DEFAULT_POSTGRES_MAX_CONNECTIONS})`
     );
   }
 }

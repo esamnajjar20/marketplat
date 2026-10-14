@@ -13,18 +13,65 @@ import { z } from 'zod';
  * "password123" collapse to the same entry.
  */
 const COMMON_WEAK_PASSWORDS = new Set([
-  'password', 'password1', 'password123', 'password!', 'passw0rd',
-  'p@ssword', 'p@ssw0rd', '12345678', '123456789', '1234567890',
-  'qwerty', 'qwerty123', 'qwertyuiop', 'qwer1234', 'qwerty1',
-  'abc12345', 'abc123456', 'a1b2c3d4', '1q2w3e4r', 'zaq12wsx',
-  '11111111', '00000000', '12121212', '12341234', '123123123',
-  'iloveyou', 'iloveyou1', 'sunshine', 'princess', 'monkey123',
-  'welcome', 'welcome1', 'welcome123', 'letmein', 'letmein1',
-  'admin123', 'admin1234', 'administrator', 'root1234',
-  'football', 'baseball', 'superman', 'batman123', 'whatever',
-  'trustno1', 'master123', 'shadow123', 'michael1', 'jordan23',
-  'asdfghjkl', 'zxcvbnm123', 'qazwsxedc', '1qaz2wsx',
-  'palestine', 'gaza', 'غزة', 'فلسطين', 'محمد', 'احمد',
+  'password',
+  'password1',
+  'password123',
+  'password!',
+  'passw0rd',
+  'p@ssword',
+  'p@ssw0rd',
+  '12345678',
+  '123456789',
+  '1234567890',
+  'qwerty',
+  'qwerty123',
+  'qwertyuiop',
+  'qwer1234',
+  'qwerty1',
+  'abc12345',
+  'abc123456',
+  'a1b2c3d4',
+  '1q2w3e4r',
+  'zaq12wsx',
+  '11111111',
+  '00000000',
+  '12121212',
+  '12341234',
+  '123123123',
+  'iloveyou',
+  'iloveyou1',
+  'sunshine',
+  'princess',
+  'monkey123',
+  'welcome',
+  'welcome1',
+  'welcome123',
+  'letmein',
+  'letmein1',
+  'admin123',
+  'admin1234',
+  'administrator',
+  'root1234',
+  'football',
+  'baseball',
+  'superman',
+  'batman123',
+  'whatever',
+  'trustno1',
+  'master123',
+  'shadow123',
+  'michael1',
+  'jordan23',
+  'asdfghjkl',
+  'zxcvbnm123',
+  'qazwsxedc',
+  '1qaz2wsx',
+  'palestine',
+  'gaza',
+  'غزة',
+  'فلسطين',
+  'محمد',
+  'احمد',
 ]);
 
 // exported so users.validation's
@@ -36,8 +83,8 @@ export const passwordSchema = z
   .min(8, 'Password must be at least 8 characters')
   .max(100, 'Password must be at most 100 characters')
   .refine(
-    (v) => !COMMON_WEAK_PASSWORDS.has(v.toLowerCase()),
-    'This password is too common — please choose a stronger one.',
+    v => !COMMON_WEAK_PASSWORDS.has(v.toLowerCase()),
+    'This password is too common — please choose a stronger one.'
   );
 
 export const registerSchema = z.object({
@@ -97,7 +144,7 @@ export const resendVerificationSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   body: z.object({
-    token:       z.string().min(1, 'Reset token is required'),
+    token: z.string().min(1, 'Reset token is required'),
     newPassword: passwordSchema,
   }),
 });
@@ -112,4 +159,4 @@ export const resetPasswordSchema = z.object({
 // imports passwordSchema from this file for the weak-password check.
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>['body'];
-export type ResetPasswordInput  = z.infer<typeof resetPasswordSchema>['body'];
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];

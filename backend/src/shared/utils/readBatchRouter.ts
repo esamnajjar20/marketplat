@@ -82,11 +82,7 @@ function isAllowedPath(rawUrl: string): boolean {
     return false;
   }
 
-  return ALLOWED_PREFIXES.some(
-    (prefix) =>
-      pathname === prefix ||
-      pathname.startsWith(`${prefix}/`),
-  );
+  return ALLOWED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function appendParams(url: string, params?: Record<string, unknown>): string {
@@ -123,18 +119,17 @@ function cloneRequest(req: Request, url: string): Request {
   // a GET has no body. Clear it so no controller accidentally
   // reads { requests: [...] } from the batch envelope.
   const qIndex = url.indexOf('?');
-  const query = qIndex >= 0
-    ? Object.fromEntries(new URLSearchParams(url.slice(qIndex + 1)).entries())
-    : {};
+  const query =
+    qIndex >= 0 ? Object.fromEntries(new URLSearchParams(url.slice(qIndex + 1)).entries()) : {};
 
   Object.defineProperties(child, {
-    method:      { configurable: true, value: 'GET', writable: true },
-    url:         { configurable: true, value: url, writable: true },
+    method: { configurable: true, value: 'GET', writable: true },
+    url: { configurable: true, value: url, writable: true },
     originalUrl: { configurable: true, value: url, writable: true },
-    baseUrl:     { configurable: true, value: '', writable: true },
-    path:        { configurable: true, value: url.split('?')[0], writable: true },
-    query:       { configurable: true, value: query, writable: true },
-    body:        { configurable: true, value: {}, writable: true },
+    baseUrl: { configurable: true, value: '', writable: true },
+    path: { configurable: true, value: url.split('?')[0], writable: true },
+    query: { configurable: true, value: query, writable: true },
+    body: { configurable: true, value: {}, writable: true },
   });
   return child;
 }
@@ -207,17 +202,14 @@ function captureResponse(): {
 
   return {
     response,
-    finish: () =>
-      finished
-        ? { status, body, headers: Object.fromEntries(headers) }
-        : null,
+    finish: () => (finished ? { status, body, headers: Object.fromEntries(headers) } : null),
   };
 }
 
 function runSubrequest(
   router: Router,
   parent: Request,
-  item: BatchItem,
+  item: BatchItem
 ): Promise<CapturedResponse> {
   const url = appendParams(item.url, item.params);
 
@@ -238,7 +230,7 @@ function runSubrequest(
           status: 504,
           body: null,
           headers: { 'content-type': 'application/json' },
-        }),
+        })
       );
     }, ITEM_TIMEOUT_MS);
 
@@ -265,9 +257,11 @@ function runSubrequest(
     // cookie headers, so the child cannot bypass auth by using batching.
     // express Router.handle exists at runtime (it's how express itself
     // dispatches) but is not exposed in the public @types/express.
-    (router as unknown as {
-      handle: (req: Request, res: Response, next: (err?: unknown) => void) => void;
-    }).handle(child, response, done);
+    (
+      router as unknown as {
+        handle: (req: Request, res: Response, next: (err?: unknown) => void) => void;
+      }
+    ).handle(child, response, done);
   });
 }
 
@@ -316,19 +310,14 @@ export function createReadBatchHandler(router: Router): RequestHandler {
         };
       });
 
-      const uniqueIds = new Set(items.map((item) => item.id));
+      const uniqueIds = new Set(items.map(item => item.id));
       if (uniqueIds.size !== items.length) {
         throw new Error('Batch item ids must be unique.');
       }
 
-      const settled = await Promise.allSettled(
-        items.map((item) => runSubrequest(router, req, item)),
-      );
+      const settled = await Promise.allSettled(items.map(item => runSubrequest(router, req, item)));
 
-      const responses: Record<
-        string,
-        CapturedResponse | { status: number; error: string }
-      > = {};
+      const responses: Record<string, CapturedResponse | { status: number; error: string }> = {};
 
       settled.forEach((result, index) => {
         const id = items[index].id;
@@ -343,14 +332,13 @@ export function createReadBatchHandler(router: Router): RequestHandler {
         // 401 refresh-and-retry flow in apiClient.batchGet from firing.
         // Only genuine 5xx responses get the generic message so we never
         // leak server internals through the batch envelope.
-        const reason = result.reason as
-          | { statusCode?: number; message?: string }
-          | undefined;
+        const reason = result.reason as { statusCode?: number; message?: string } | undefined;
         const raw = typeof reason?.statusCode === 'number' ? reason.statusCode : 500;
         const status = raw >= 400 && raw < 600 ? raw : 500;
-        responses[id] = status >= 500
-          ? { status, error: 'Batched request failed.' }
-          : { status, error: reason?.message ?? 'Request failed.' };
+        responses[id] =
+          status >= 500
+            ? { status, error: 'Batched request failed.' }
+            : { status, error: reason?.message ?? 'Request failed.' };
       });
 
       res.setHeader('X-App-Batch-Size', String(items.length));

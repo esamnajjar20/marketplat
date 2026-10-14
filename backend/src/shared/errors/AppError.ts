@@ -19,7 +19,7 @@ export class AppError extends Error {
     statusCode: number,
     code?: string,
     meta?: Record<string, unknown>,
-    isOperational = true,
+    isOperational = true
   ) {
     super(message);
     this.statusCode = statusCode;

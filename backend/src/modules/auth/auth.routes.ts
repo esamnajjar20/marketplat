@@ -38,7 +38,13 @@ export const authRouter = Router();
  */
 function requireGoogleOAuthConfigured(req: Request, res: Response, next: NextFunction): void {
   if (!env.googleOAuth.isConfigured) {
-    sendApiError(req, res, 503, ErrorCode.GOOGLE_OAUTH_NOT_CONFIGURED, 'Google OAuth is not configured on this server');
+    sendApiError(
+      req,
+      res,
+      503,
+      ErrorCode.GOOGLE_OAUTH_NOT_CONFIGURED,
+      'Google OAuth is not configured on this server'
+    );
     return;
   }
   next();
@@ -181,7 +187,7 @@ authRouter.post(
   '/resend-verification',
   authenticate,
   resendVerificationRateLimit,
-  authController.resendVerification,
+  authController.resendVerification
 );
 
 /**

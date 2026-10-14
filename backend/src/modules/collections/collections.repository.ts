@@ -76,7 +76,8 @@ export const collectionsRepository = {
   // removed (unlike Promotion's cancel-not-delete convention, which
   // exists to preserve usageCount/audit data this table has none of).
   // The join rows cascade via the FK's ON DELETE CASCADE.
-  delete: (id: string): Promise<StoreCollection> => prisma.storeCollection.delete({ where: { id } }),
+  delete: (id: string): Promise<StoreCollection> =>
+    prisma.storeCollection.delete({ where: { id } }),
 
   reorder: (storeId: string, orderedIds: string[]): Promise<Prisma.BatchPayload[]> =>
     prisma.$transaction(
@@ -102,7 +103,11 @@ export const collectionsRepository = {
 
   findMemberIds: (collectionId: string): Promise<string[]> =>
     prisma.storeCollectionProduct
-      .findMany({ where: { collectionId }, select: { productId: true }, orderBy: { sortOrder: 'asc' } })
+      .findMany({
+        where: { collectionId },
+        select: { productId: true },
+        orderBy: { sortOrder: 'asc' },
+      })
       .then(rows => rows.map(r => r.productId)),
 
   isMember: (collectionId: string, productId: string): Promise<boolean> =>

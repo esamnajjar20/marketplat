@@ -17,8 +17,19 @@ usersRouter.patch('/me', authenticate, usersController.updateMe);
 usersRouter.delete('/me', authenticate, usersController.deleteMe);
 // stricter, fail-closed rate limit on top of the general
 // usersRateLimit — see changePasswordRateLimit's definition for why.
-usersRouter.post('/me/password', authenticate, changePasswordRateLimit, usersController.changePassword);
-usersRouter.post('/me/avatar', authenticate, requireVerifiedEmail, uploadMiddleware, usersController.uploadAvatar);
+usersRouter.post(
+  '/me/password',
+  authenticate,
+  changePasswordRateLimit,
+  usersController.changePassword
+);
+usersRouter.post(
+  '/me/avatar',
+  authenticate,
+  requireVerifiedEmail,
+  uploadMiddleware,
+  usersController.uploadAvatar
+);
 usersRouter.patch('/me/notifications', authenticate, usersController.updateNotificationPreferences);
 usersRouter.patch('/me/presence', authenticate, usersController.touchPresence);
 

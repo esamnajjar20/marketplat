@@ -42,21 +42,28 @@ export const presence = {
 
   /** Bulk existence check — one round trip for however many user IDs
    * ChatWindow/ConversationList needs a dot for, rather than N GETs. */
-  getPresence: async (userIds: string[]): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> => {
+  getPresence: async (
+    userIds: string[]
+  ): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> => {
     if (userIds.length === 0) return {};
     try {
-      const onlineKeys = userIds.map((id) => `${PRESENCE_PREFIX}${id}`);
-      const lastSeenKeys = userIds.map((id) => `${LAST_SEEN_PREFIX}${id}`);
+      const onlineKeys = userIds.map(id => `${PRESENCE_PREFIX}${id}`);
+      const lastSeenKeys = userIds.map(id => `${LAST_SEEN_PREFIX}${id}`);
       const [onlineValues, lastSeenValues] = await Promise.all([
         redis.mget(...onlineKeys),
         redis.mget(...lastSeenKeys),
       ]);
-      return Object.fromEntries(userIds.map((id, i) => [id, {
-        online: onlineValues[i] !== null,
-        lastSeenAt: lastSeenValues[i] ?? null,
-      }]));
+      return Object.fromEntries(
+        userIds.map((id, i) => [
+          id,
+          {
+            online: onlineValues[i] !== null,
+            lastSeenAt: lastSeenValues[i] ?? null,
+          },
+        ])
+      );
     } catch {
-      return Object.fromEntries(userIds.map((id) => [id, { online: false, lastSeenAt: null }]));
+      return Object.fromEntries(userIds.map(id => [id, { online: false, lastSeenAt: null }]));
     }
   },
 };

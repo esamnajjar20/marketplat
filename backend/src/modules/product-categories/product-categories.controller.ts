@@ -41,7 +41,11 @@ export const productCategoriesController = {
     }
   },
 
-  getProductCategoryById: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getProductCategoryById: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { params } = productCategoryIdSchema.parse({ params: req.params });
       const category = await productCategoriesService.getProductCategoryById(params.id);
@@ -51,7 +55,11 @@ export const productCategoriesController = {
     }
   },
 
-  getProductCategoryBySlug: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getProductCategoryBySlug: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       // T433 — was reading req.params.slug raw, bypassing the same
       // slug rules createProductCategorySchema enforces on write.

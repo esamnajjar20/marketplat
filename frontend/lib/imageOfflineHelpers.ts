@@ -45,7 +45,7 @@ export async function bestEffortCompressPublish(files: File[]): Promise<File[]> 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<File[]>((resolve) => {
     timer = setTimeout(() => {
-      // eslint-disable-next-line no-console
+       
       console.warn('[image-offline] compress timeout — using originals');
       resolve(files);
     }, COMPRESS_TOTAL_TIMEOUT_MS);
@@ -79,7 +79,7 @@ export async function bestEffortCompressPreviews(
   const timeout = new Promise<PromiseSettledResult<{ name: string; blob: Blob }>[]>(
     (resolve) => {
       timer = setTimeout(() => {
-        // eslint-disable-next-line no-console
+         
         console.warn('[image-offline] preview compress timeout — skipping previews');
         resolve([]);
       }, COMPRESS_TOTAL_TIMEOUT_MS);

@@ -1,5 +1,12 @@
 import { randomUUID } from 'crypto';
-import { ActivityEntityType, FollowTargetType, NotificationType, OutboxEvent, Prisma, UserActivityType } from '@prisma/client';
+import {
+  ActivityEntityType,
+  FollowTargetType,
+  NotificationType,
+  OutboxEvent,
+  Prisma,
+  UserActivityType,
+} from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { logger } from '../utils/logger';
 import { unreadNotificationsCache } from '../utils/unreadNotificationsCache';
@@ -41,8 +48,10 @@ async function invalidateUnreadCachesBestEffort(userIds: string[], eventId: stri
   const uniqueIds = Array.from(new Set(userIds));
   for (let i = 0; i < uniqueIds.length; i += POST_COMMIT_BATCH_SIZE) {
     const batch = uniqueIds.slice(i, i + POST_COMMIT_BATCH_SIZE);
-    const results = await Promise.allSettled(batch.map((userId) => unreadNotificationsCache.invalidate(userId)));
-    const failures = results.filter((result) => result.status === 'rejected').length;
+    const results = await Promise.allSettled(
+      batch.map(userId => unreadNotificationsCache.invalidate(userId))
+    );
+    const failures = results.filter(result => result.status === 'rejected').length;
     if (failures > 0) {
       // Cache invalidation is a post-commit hint. It must not prevent SSE/push
       // delivery after the durable notification rows and outbox acknowledgement committed.
@@ -54,7 +63,6 @@ async function invalidateUnreadCachesBestEffort(userIds: string[], eventId: stri
     }
   }
 }
-
 
 interface ActivityPayload {
   userId: string;
@@ -86,9 +94,12 @@ function parseActivityPayload(value: unknown): ActivityPayload {
   const payload = value as Record<string, unknown>;
   const activityTypes = Object.values(UserActivityType) as string[];
   if (
-    typeof payload.userId !== 'string' || !payload.userId ||
-    typeof payload.type !== 'string' || !activityTypes.includes(payload.type) ||
-    typeof payload.title !== 'string' || !payload.title
+    typeof payload.userId !== 'string' ||
+    !payload.userId ||
+    typeof payload.type !== 'string' ||
+    !activityTypes.includes(payload.type) ||
+    typeof payload.title !== 'string' ||
+    !payload.title
   ) {
     throw new Error('Outbox activity payload is missing valid userId, type, or title');
   }
@@ -97,8 +108,11 @@ function parseActivityPayload(value: unknown): ActivityPayload {
       throw new Error(`Outbox activity payload field ${key} must be a string or null`);
     }
   }
-  if (payload.entityType !== undefined && payload.entityType !== null
-    && !Object.values(ActivityEntityType).includes(payload.entityType as ActivityEntityType)) {
+  if (
+    payload.entityType !== undefined &&
+    payload.entityType !== null &&
+    !Object.values(ActivityEntityType).includes(payload.entityType as ActivityEntityType)
+  ) {
     throw new Error('Outbox activity payload field entityType is not a valid ActivityEntityType');
   }
   return payload as unknown as ActivityPayload;
@@ -115,12 +129,20 @@ function parseFollowedActivityPayload(value: unknown): FollowedActivityPayload {
     NotificationType.FOLLOWED_STORE_ACTIVITY,
     NotificationType.FOLLOWED_CATEGORY_ACTIVITY,
   ] as string[];
-  if (!Array.isArray(payload.targets) || !payload.targets.every((target) => {
-    if (!target || typeof target !== 'object' || Array.isArray(target)) return false;
-    const item = target as Record<string, unknown>;
-    return typeof item.targetType === 'string' && targetTypes.includes(item.targetType)
-      && typeof item.targetId === 'string' && item.targetId.length > 0;
-  })) throw new Error('Followed-activity outbox targets are invalid');
+  if (
+    !Array.isArray(payload.targets) ||
+    !payload.targets.every(target => {
+      if (!target || typeof target !== 'object' || Array.isArray(target)) return false;
+      const item = target as Record<string, unknown>;
+      return (
+        typeof item.targetType === 'string' &&
+        targetTypes.includes(item.targetType) &&
+        typeof item.targetId === 'string' &&
+        item.targetId.length > 0
+      );
+    })
+  )
+    throw new Error('Followed-activity outbox targets are invalid');
   if (typeof payload.title !== 'string' || !payload.title || typeof payload.body !== 'string') {
     throw new Error('Followed-activity outbox title/body are invalid');
   }
@@ -144,16 +166,29 @@ function parseSavedSearchMatchPayload(value: unknown): SavedSearchMatchPayload {
     throw new Error('Saved-search outbox payload must be an object');
   }
   const payload = value as Record<string, unknown>;
-  if (typeof payload.adId !== 'string' || !payload.adId || typeof payload.adTitle !== 'string' || !payload.adTitle) {
+  if (
+    typeof payload.adId !== 'string' ||
+    !payload.adId ||
+    typeof payload.adTitle !== 'string' ||
+    !payload.adTitle
+  ) {
     throw new Error('Saved-search outbox payload is missing adId or adTitle');
   }
-  if (!Array.isArray(payload.matches) || !payload.matches.every((match) => {
-    if (!match || typeof match !== 'object' || Array.isArray(match)) return false;
-    const row = match as Record<string, unknown>;
-    return typeof row.userId === 'string' && row.userId.length > 0
-      && typeof row.savedSearchId === 'string' && row.savedSearchId.length > 0
-      && typeof row.label === 'string';
-  })) throw new Error('Saved-search outbox matches are invalid');
+  if (
+    !Array.isArray(payload.matches) ||
+    !payload.matches.every(match => {
+      if (!match || typeof match !== 'object' || Array.isArray(match)) return false;
+      const row = match as Record<string, unknown>;
+      return (
+        typeof row.userId === 'string' &&
+        row.userId.length > 0 &&
+        typeof row.savedSearchId === 'string' &&
+        row.savedSearchId.length > 0 &&
+        typeof row.label === 'string'
+      );
+    })
+  )
+    throw new Error('Saved-search outbox matches are invalid');
   return payload as unknown as SavedSearchMatchPayload;
 }
 
@@ -167,22 +202,32 @@ function preferenceAllowsSavedSearch(value: unknown): boolean {
 
 async function processSavedSearchMatchEvent(event: OutboxEvent, workerId: string): Promise<void> {
   const payload = parseSavedSearchMatchPayload(event.payload);
-  const created = await prisma.$transaction(async (tx) => {
-    const userIds = Array.from(new Set(payload.matches.map((match) => match.userId)));
+  const created = await prisma.$transaction(async tx => {
+    const userIds = Array.from(new Set(payload.matches.map(match => match.userId)));
     const users = userIds.length
-      ? await tx.user.findMany({ where: { id: { in: userIds } }, select: { id: true, notificationPreferences: true } })
+      ? await tx.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, notificationPreferences: true },
+        })
       : [];
-    const allowed = new Set(users.filter((user) => preferenceAllowsSavedSearch(user.notificationPreferences)).map((user) => user.id));
-    const eligibleMatches = payload.matches.filter((match) => allowed.has(match.userId));
+    const allowed = new Set(
+      users
+        .filter(user => preferenceAllowsSavedSearch(user.notificationPreferences))
+        .map(user => user.id)
+    );
+    const eligibleMatches = payload.matches.filter(match => allowed.has(match.userId));
     const title = 'إعلان جديد يطابق بحثك المحفوظ';
     const inserted = eligibleMatches.length
       ? await tx.notification.createManyAndReturn({
-          data: eligibleMatches.map((match) => ({
+          data: eligibleMatches.map(match => ({
             userId: match.userId,
             type: NotificationType.SAVED_SEARCH_MATCH,
             title,
             body: `\"${payload.adTitle}\" يطابق بحثك المحفوظ \"${match.label}\"`,
-            data: { adId: payload.adId, savedSearchId: match.savedSearchId } as Prisma.InputJsonValue,
+            data: {
+              adId: payload.adId,
+              savedSearchId: match.savedSearchId,
+            } as Prisma.InputJsonValue,
             idempotencyKey: `outbox:${event.id}:saved-search:${match.savedSearchId}:recipient:${match.userId}`,
           })),
           skipDuplicates: true,
@@ -191,7 +236,7 @@ async function processSavedSearchMatchEvent(event: OutboxEvent, workerId: string
       : [];
     if (inserted.length) {
       await tx.notificationPushDispatch.createMany({
-        data: inserted.map((row) => {
+        data: inserted.map(row => {
           const data = asLiveData(row.data);
           const savedSearchId = data?.savedSearchId ? String(data.savedSearchId) : event.id;
           const pushPayload: PushPayload = {
@@ -211,42 +256,55 @@ async function processSavedSearchMatchEvent(event: OutboxEvent, workerId: string
         skipDuplicates: true,
       });
     }
-    const searchIds = Array.from(new Set(payload.matches.map((match) => match.savedSearchId)));
+    const searchIds = Array.from(new Set(payload.matches.map(match => match.savedSearchId)));
     if (searchIds.length) {
-      await tx.savedSearch.updateMany({ where: { id: { in: searchIds } }, data: { lastNotifiedAt: new Date() } });
+      await tx.savedSearch.updateMany({
+        where: { id: { in: searchIds } },
+        data: { lastNotifiedAt: new Date() },
+      });
     }
     const acknowledged = await tx.outboxEvent.updateMany({
       where: { id: event.id, lockedBy: workerId, processedAt: null },
       data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
     });
-    if (acknowledged.count !== 1) throw new Error('Outbox lease lost before saved-search acknowledgement');
+    if (acknowledged.count !== 1)
+      throw new Error('Outbox lease lost before saved-search acknowledgement');
     return inserted;
   });
 
   if (!created.length) return;
-  const recipientIds = Array.from(new Set(created.map((row) => row.userId)));
+  const recipientIds = Array.from(new Set(created.map(row => row.userId)));
   await invalidateUnreadCachesBestEffort(recipientIds, event.id);
   try {
-    void publishNotificationEventsToMany(created.map((row) => ({
-      userId: row.userId,
-      event: {
-        type: 'notification' as const,
-        action: 'created' as const,
-        notificationId: row.id,
-        notificationType: row.type,
-        title: row.title,
-        body: row.body,
-        data: asLiveData(row.data),
-      },
-    }))).catch((error) => logger.warn('Saved-search outbox SSE publish failed after durable commit', { eventId: event.id, error }));
+    void publishNotificationEventsToMany(
+      created.map(row => ({
+        userId: row.userId,
+        event: {
+          type: 'notification' as const,
+          action: 'created' as const,
+          notificationId: row.id,
+          notificationType: row.type,
+          title: row.title,
+          body: row.body,
+          data: asLiveData(row.data),
+        },
+      }))
+    ).catch(error =>
+      logger.warn('Saved-search outbox SSE publish failed after durable commit', {
+        eventId: event.id,
+        error,
+      })
+    );
   } catch (error) {
-    logger.warn('Saved-search outbox SSE publish failed after durable commit', { eventId: event.id, error });
+    logger.warn('Saved-search outbox SSE publish failed after durable commit', {
+      eventId: event.id,
+      error,
+    });
   }
   // Push handoff is written to notification_push_dispatches in the same transaction
   // as the durable notification rows and source-event acknowledgement. The dedicated
   // dispatcher below resumes after process crashes; SSE remains best-effort because
   // the durable notification API is the source of truth for reconnect/resync.
-
 }
 
 /**
@@ -255,7 +313,11 @@ async function processSavedSearchMatchEvent(event: OutboxEvent, workerId: string
  * verifies lockedBy inside the event's transaction, so a lost lease cannot
  * commit transactional side effects.
  */
-async function withLeaseHeartbeat<T>(event: OutboxEvent, workerId: string, work: () => Promise<T>): Promise<T> {
+async function withLeaseHeartbeat<T>(
+  event: OutboxEvent,
+  workerId: string,
+  work: () => Promise<T>
+): Promise<T> {
   let heartbeatInFlight = false;
   const timer = setInterval(() => {
     if (heartbeatInFlight) return;
@@ -265,22 +327,29 @@ async function withLeaseHeartbeat<T>(event: OutboxEvent, workerId: string, work:
       UPDATE "outbox_events" SET "lockedAt" = NOW()
       WHERE "id" = ${event.id} AND "lockedBy" = ${workerId} AND "processedAt" IS NULL
       RETURNING "id"
-    `.then((rows) => {
-      if (rows.length !== 1) {
-        logger.warn('Outbox lease heartbeat found that event ownership was lost', {
+    `
+      .then(rows => {
+        if (rows.length !== 1) {
+          logger.warn('Outbox lease heartbeat found that event ownership was lost', {
+            eventId: event.id,
+            eventType: event.eventType,
+            workerId,
+          });
+          clearInterval(timer);
+        }
+      })
+      .catch(error => {
+        // Do not falsely extend a lease when the database did not confirm it.
+        // Event acknowledgement remains ownership-checked and will fail safely.
+        logger.warn('Outbox lease heartbeat failed', {
           eventId: event.id,
           eventType: event.eventType,
-          workerId,
+          error,
         });
-        clearInterval(timer);
-      }
-    }).catch((error) => {
-      // Do not falsely extend a lease when the database did not confirm it.
-      // Event acknowledgement remains ownership-checked and will fail safely.
-      logger.warn('Outbox lease heartbeat failed', { eventId: event.id, eventType: event.eventType, error });
-    }).finally(() => {
-      heartbeatInFlight = false;
-    });
+      })
+      .finally(() => {
+        heartbeatInFlight = false;
+      });
   }, LEASE_HEARTBEAT_INTERVAL_MS);
   try {
     return await work();
@@ -314,18 +383,22 @@ async function claimBatch(workerId: string): Promise<OutboxEvent[]> {
 
 async function processActivityEvent(event: OutboxEvent, workerId: string): Promise<void> {
   const payload = parseActivityPayload(event.payload);
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async tx => {
     await tx.userActivity.createMany({
-      data: [{
-        userId: payload.userId,
-        type: payload.type,
-        title: payload.title,
-        description: payload.description ?? null,
-        entityType: payload.entityType ?? null,
-        entityId: payload.entityId ?? null,
-        ...(payload.metadata !== undefined ? { metadata: payload.metadata as Prisma.InputJsonValue } : {}),
-        idempotencyKey: `outbox:${event.idempotencyKey}`,
-      }],
+      data: [
+        {
+          userId: payload.userId,
+          type: payload.type,
+          title: payload.title,
+          description: payload.description ?? null,
+          entityType: payload.entityType ?? null,
+          entityId: payload.entityId ?? null,
+          ...(payload.metadata !== undefined
+            ? { metadata: payload.metadata as Prisma.InputJsonValue }
+            : {}),
+          idempotencyKey: `outbox:${event.idempotencyKey}`,
+        },
+      ],
       skipDuplicates: true,
     });
     const acknowledged = await tx.outboxEvent.updateMany({
@@ -346,34 +419,37 @@ function preferenceAllowsFollowUpdates(value: unknown): boolean {
 
 function asLiveData(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : null;
 }
 
 async function processFollowedActivityEvent(event: OutboxEvent, workerId: string): Promise<void> {
   const payload = parseFollowedActivityPayload(event.payload);
-  const created = await prisma.$transaction(async (tx) => {
-    const targetConditions = payload.targets.map((target) => ({
+  const created = await prisma.$transaction(async tx => {
+    const targetConditions = payload.targets.map(target => ({
       targetType: target.targetType,
       targetId: target.targetId,
     }));
     const followers = targetConditions.length
       ? await tx.follow.findMany({ where: { OR: targetConditions }, select: { followerId: true } })
       : [];
-    const candidateIds = Array.from(new Set(followers.map((row) => row.followerId)));
+    const candidateIds = Array.from(new Set(followers.map(row => row.followerId)));
     const users = candidateIds.length
-      ? await tx.user.findMany({ where: { id: { in: candidateIds } }, select: { id: true, notificationPreferences: true } })
+      ? await tx.user.findMany({
+          where: { id: { in: candidateIds } },
+          select: { id: true, notificationPreferences: true },
+        })
       : [];
     const allowedIds = users
-      .filter((user) => preferenceAllowsFollowUpdates(user.notificationPreferences))
-      .map((user) => user.id);
+      .filter(user => preferenceAllowsFollowUpdates(user.notificationPreferences))
+      .map(user => user.id);
 
     // Notification rows and event acknowledgement commit together. A worker
     // crash cannot leave a committed notification with an unacknowledged event,
     // and the unique per-recipient key is a second line of defence on retries.
     const inserted = allowedIds.length
       ? await tx.notification.createManyAndReturn({
-          data: allowedIds.map((userId) => ({
+          data: allowedIds.map(userId => ({
             userId,
             type: payload.type,
             title: payload.title,
@@ -387,16 +463,16 @@ async function processFollowedActivityEvent(event: OutboxEvent, workerId: string
       : [];
     if (inserted.length) {
       await tx.notificationPushDispatch.createMany({
-        data: inserted.map((row) => ({
+        data: inserted.map(row => ({
           notificationId: row.id,
           userId: row.userId,
-          payload: ({
+          payload: {
             title: row.title,
             body: row.body,
             url: '/?feed=following',
             tag: `followed-activity-${event.aggregateId}`,
             type: row.type,
-          }) as unknown as Prisma.InputJsonValue,
+          } as unknown as Prisma.InputJsonValue,
           idempotencyKey: `notification-push:${row.id}`,
         })),
         skipDuplicates: true,
@@ -406,29 +482,40 @@ async function processFollowedActivityEvent(event: OutboxEvent, workerId: string
       where: { id: event.id, lockedBy: workerId, processedAt: null },
       data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
     });
-    if (acknowledged.count !== 1) throw new Error('Outbox lease lost before notification acknowledgement');
+    if (acknowledged.count !== 1)
+      throw new Error('Outbox lease lost before notification acknowledgement');
     return inserted;
   });
 
   if (!created.length) return;
-  const recipientIds = Array.from(new Set(created.map((row) => row.userId)));
+  const recipientIds = Array.from(new Set(created.map(row => row.userId)));
   // Cache invalidation is best-effort and must not short-circuit post-commit SSE/push.
   await invalidateUnreadCachesBestEffort(recipientIds, event.id);
   try {
-    void publishNotificationEventsToMany(created.map((row) => ({
-      userId: row.userId,
-      event: {
-        type: 'notification' as const,
-        action: 'created' as const,
-        notificationId: row.id,
-        notificationType: row.type,
-        title: row.title,
-        body: row.body,
-        data: asLiveData(row.data),
-      },
-    }))).catch((error) => logger.warn('Outbox notification SSE publish failed after durable commit', { eventId: event.id, error }));
+    void publishNotificationEventsToMany(
+      created.map(row => ({
+        userId: row.userId,
+        event: {
+          type: 'notification' as const,
+          action: 'created' as const,
+          notificationId: row.id,
+          notificationType: row.type,
+          title: row.title,
+          body: row.body,
+          data: asLiveData(row.data),
+        },
+      }))
+    ).catch(error =>
+      logger.warn('Outbox notification SSE publish failed after durable commit', {
+        eventId: event.id,
+        error,
+      })
+    );
   } catch (error) {
-    logger.warn('Outbox notification SSE publish failed after durable commit', { eventId: event.id, error });
+    logger.warn('Outbox notification SSE publish failed after durable commit', {
+      eventId: event.id,
+      error,
+    });
   }
   // Push dispatch intents were committed atomically with notification rows above.
 }
@@ -498,17 +585,25 @@ function startPushDispatchLeaseHeartbeat(dispatchId: string, workerId: string): 
       WHERE "id" = ${dispatchId} AND "lockedBy" = ${workerId}
         AND "processedAt" IS NULL AND "deadLetterAt" IS NULL
       RETURNING "id"
-    `.then((rows) => {
-      if (rows.length !== 1) {
-        logger.warn('Push dispatch lease heartbeat found that dispatch ownership was lost', { dispatchId, workerId });
-        stopped = true;
-        clearInterval(timer);
-      }
-    }).catch((error) => {
-      // A failed heartbeat does not extend the lease. The final acknowledgement
-      // remains conditional on lockedBy, and a later worker may recover after expiry.
-      logger.warn('Push dispatch lease heartbeat failed', { dispatchId, workerId, error });
-    }).finally(() => { heartbeatInFlight = false; });
+    `
+      .then(rows => {
+        if (rows.length !== 1) {
+          logger.warn('Push dispatch lease heartbeat found that dispatch ownership was lost', {
+            dispatchId,
+            workerId,
+          });
+          stopped = true;
+          clearInterval(timer);
+        }
+      })
+      .catch(error => {
+        // A failed heartbeat does not extend the lease. The final acknowledgement
+        // remains conditional on lockedBy, and a later worker may recover after expiry.
+        logger.warn('Push dispatch lease heartbeat failed', { dispatchId, workerId, error });
+      })
+      .finally(() => {
+        heartbeatInFlight = false;
+      });
   }, LEASE_HEARTBEAT_INTERVAL_MS);
   return () => {
     stopped = true;
@@ -519,7 +614,10 @@ function startPushDispatchLeaseHeartbeat(dispatchId: string, workerId: string): 
 const PUSH_TARGET_MAX_ATTEMPTS = 12;
 const PUSH_TARGET_BATCH_SIZE = 50;
 
-async function seedPushDeliveryTargets(dispatch: NotificationPushDispatchRow, workerId: string): Promise<void> {
+async function seedPushDeliveryTargets(
+  dispatch: NotificationPushDispatchRow,
+  workerId: string
+): Promise<void> {
   if (dispatch.targetsSeededAt) return;
   // Snapshot the registered device row IDs once. Secrets (endpoint/token) never
   // enter this ledger; each attempt resolves the current row by id + userId.
@@ -529,8 +627,12 @@ async function seedPushDeliveryTargets(dispatch: NotificationPushDispatchRow, wo
   ]);
   await prisma.notificationPushDeliveryTarget.createMany({
     data: [
-      ...subscriptions.map((row) => ({ dispatchId: dispatch.id, channel: 'WEB_PUSH', targetId: row.id })),
-      ...tokens.map((row) => ({ dispatchId: dispatch.id, channel: 'FCM', targetId: row.id })),
+      ...subscriptions.map(row => ({
+        dispatchId: dispatch.id,
+        channel: 'WEB_PUSH',
+        targetId: row.id,
+      })),
+      ...tokens.map(row => ({ dispatchId: dispatch.id, channel: 'FCM', targetId: row.id })),
     ],
     skipDuplicates: true,
   });
@@ -538,7 +640,8 @@ async function seedPushDeliveryTargets(dispatch: NotificationPushDispatchRow, wo
     where: { id: dispatch.id, lockedBy: workerId, processedAt: null, deadLetterAt: null },
     data: { targetsSeededAt: new Date() },
   });
-  if (seeded.count !== 1) throw new Error('Push dispatch lease lost while seeding delivery targets');
+  if (seeded.count !== 1)
+    throw new Error('Push dispatch lease lost while seeding delivery targets');
 }
 
 interface ClaimedPushDeliveryTarget {
@@ -551,7 +654,10 @@ interface ClaimedPushDeliveryTarget {
   availableAt: Date;
 }
 
-async function claimPushDeliveryTargets(dispatchId: string, workerId: string): Promise<ClaimedPushDeliveryTarget[]> {
+async function claimPushDeliveryTargets(
+  dispatchId: string,
+  workerId: string
+): Promise<ClaimedPushDeliveryTarget[]> {
   return prisma.$queryRaw<ClaimedPushDeliveryTarget[]>`
     WITH candidates AS (
       SELECT "id" FROM "notification_push_delivery_targets"
@@ -572,7 +678,11 @@ async function claimPushDeliveryTargets(dispatchId: string, workerId: string): P
   `;
 }
 
-async function withPushTargetLeaseHeartbeat<T>(dispatchId: string, workerId: string, work: () => Promise<T>): Promise<T> {
+async function withPushTargetLeaseHeartbeat<T>(
+  dispatchId: string,
+  workerId: string,
+  work: () => Promise<T>
+): Promise<T> {
   let heartbeatInFlight = false;
   const timer = setInterval(() => {
     if (heartbeatInFlight) return;
@@ -590,13 +700,22 @@ async function withPushTargetLeaseHeartbeat<T>(dispatchId: string, workerId: str
             AND dispatch."lockedAt" >= NOW() - (${LEASE_SECONDS} * INTERVAL '1 second')
         )
       RETURNING target."id"
-    `.then((rows) => {
-      if (rows.length === 0) {
-        logger.warn('Push target lease heartbeat stopped because target or parent dispatch ownership was lost', { dispatchId, workerId });
-        clearInterval(timer);
-      }
-    }).catch((error) => logger.warn('Push target lease heartbeat failed', { dispatchId, workerId, error }))
-      .finally(() => { heartbeatInFlight = false; });
+    `
+      .then(rows => {
+        if (rows.length === 0) {
+          logger.warn(
+            'Push target lease heartbeat stopped because target or parent dispatch ownership was lost',
+            { dispatchId, workerId }
+          );
+          clearInterval(timer);
+        }
+      })
+      .catch(error =>
+        logger.warn('Push target lease heartbeat failed', { dispatchId, workerId, error })
+      )
+      .finally(() => {
+        heartbeatInFlight = false;
+      });
   }, LEASE_HEARTBEAT_INTERVAL_MS);
   try {
     return await work();
@@ -625,7 +744,11 @@ async function processPushDispatchBatch(): Promise<number> {
             AND "processedAt" IS NULL AND "deadLetterAt" IS NULL
           RETURNING "id"
         `;
-        if (deferred.length !== 1) logger.warn('Quiet-hours push deferral lost its lease', { dispatchId: dispatch.id, workerId });
+        if (deferred.length !== 1)
+          logger.warn('Quiet-hours push deferral lost its lease', {
+            dispatchId: dispatch.id,
+            workerId,
+          });
         continue;
       }
 
@@ -647,26 +770,42 @@ async function processPushDispatchBatch(): Promise<number> {
           AND ("lockedAt" IS NULL OR "lockedAt" < NOW() - (${LEASE_SECONDS} * INTERVAL '1 second'))
       `;
       const targets = await claimPushDeliveryTargets(dispatch.id, workerId);
-      const outcomes = await withPushTargetLeaseHeartbeat(dispatch.id, workerId, () => Promise.all(targets.map(async (target) => {
-        try {
-          if (target.channel === 'WEB_PUSH') {
-            if (!env.webPush.isConfigured) return { target, outcome: 'unconfigured' as const };
-            const outcome = await pushService.sendToSubscriptionForOutbox(target.targetId, dispatch.userId, payload);
-            return { target, outcome };
-          }
-          if (target.channel === 'FCM') {
-            if (!env.fcm.isConfigured) return { target, outcome: 'unconfigured' as const };
-            const token = await fcmDeviceTokensRepository.findByIdForUser(target.targetId, dispatch.userId);
-            if (!token) return { target, outcome: 'missing' as const };
-            const outcome = await fcmPushService.sendToToken(token, payload);
-            return { target, outcome };
-          }
-          return { target, outcome: 'failed' as const };
-        } catch (error) {
-          logger.warn('Individual push target delivery threw', { dispatchId: dispatch.id, channel: target.channel, targetId: target.targetId, error });
-          return { target, outcome: 'transient' as const };
-        }
-      })));
+      const outcomes = await withPushTargetLeaseHeartbeat(dispatch.id, workerId, () =>
+        Promise.all(
+          targets.map(async target => {
+            try {
+              if (target.channel === 'WEB_PUSH') {
+                if (!env.webPush.isConfigured) return { target, outcome: 'unconfigured' as const };
+                const outcome = await pushService.sendToSubscriptionForOutbox(
+                  target.targetId,
+                  dispatch.userId,
+                  payload
+                );
+                return { target, outcome };
+              }
+              if (target.channel === 'FCM') {
+                if (!env.fcm.isConfigured) return { target, outcome: 'unconfigured' as const };
+                const token = await fcmDeviceTokensRepository.findByIdForUser(
+                  target.targetId,
+                  dispatch.userId
+                );
+                if (!token) return { target, outcome: 'missing' as const };
+                const outcome = await fcmPushService.sendToToken(token, payload);
+                return { target, outcome };
+              }
+              return { target, outcome: 'failed' as const };
+            } catch (error) {
+              logger.warn('Individual push target delivery threw', {
+                dispatchId: dispatch.id,
+                channel: target.channel,
+                targetId: target.targetId,
+                error,
+              });
+              return { target, outcome: 'transient' as const };
+            }
+          })
+        )
+      );
 
       for (const { target, outcome } of outcomes) {
         const attemptedCount = target.attempts;
@@ -679,11 +818,19 @@ async function processPushDispatchBatch(): Promise<number> {
               AND "status" = 'PENDING' AND "lockedBy" = ${workerId}
             RETURNING "id"
           `;
-          if (persisted.length !== 1) logger.warn('Push target outcome was not persisted because target lease ownership was lost', {
-            dispatchId: dispatch.id, targetId: target.id, channel: target.channel, workerId, outcome,
-          });
+          if (persisted.length !== 1)
+            logger.warn(
+              'Push target outcome was not persisted because target lease ownership was lost',
+              {
+                dispatchId: dispatch.id,
+                targetId: target.id,
+                channel: target.channel,
+                workerId,
+                outcome,
+              }
+            );
         } else if (outcome === 'transient' && attemptedCount < PUSH_TARGET_MAX_ATTEMPTS) {
-          const retryDelayMs = Math.min(1_000 * (2 ** Math.min(attemptedCount, 12)), MAX_BACKOFF_MS);
+          const retryDelayMs = Math.min(1_000 * 2 ** Math.min(attemptedCount, 12), MAX_BACKOFF_MS);
           const persisted = await prisma.$queryRaw<Array<{ id: string }>>`
             UPDATE "notification_push_delivery_targets"
             SET "availableAt" = NOW() + (${retryDelayMs} * INTERVAL '1 millisecond'),
@@ -692,12 +839,23 @@ async function processPushDispatchBatch(): Promise<number> {
               AND "status" = 'PENDING' AND "lockedBy" = ${workerId}
             RETURNING "id"
           `;
-          if (persisted.length !== 1) logger.warn('Push target retry was not persisted because target lease ownership was lost', {
-            dispatchId: dispatch.id, targetId: target.id, channel: target.channel, workerId,
-          });
+          if (persisted.length !== 1)
+            logger.warn(
+              'Push target retry was not persisted because target lease ownership was lost',
+              {
+                dispatchId: dispatch.id,
+                targetId: target.id,
+                channel: target.channel,
+                workerId,
+              }
+            );
         } else {
-          const message = outcome === 'unconfigured' ? `Provider not configured: ${target.channel}`
-            : outcome === 'failed' ? 'Permanent provider failure' : 'Transient retry limit reached';
+          const message =
+            outcome === 'unconfigured'
+              ? `Provider not configured: ${target.channel}`
+              : outcome === 'failed'
+                ? 'Permanent provider failure'
+                : 'Transient retry limit reached';
           const persisted = await prisma.$queryRaw<Array<{ id: string }>>`
             UPDATE "notification_push_delivery_targets"
             SET "status" = 'FAILED', "processedAt" = NOW(), "lastError" = ${message.slice(0, 1000)},
@@ -706,15 +864,26 @@ async function processPushDispatchBatch(): Promise<number> {
               AND "status" = 'PENDING' AND "lockedBy" = ${workerId}
             RETURNING "id"
           `;
-          if (persisted.length !== 1) logger.warn('Push target failure was not persisted because target lease ownership was lost', {
-            dispatchId: dispatch.id, targetId: target.id, channel: target.channel, workerId,
-          });
+          if (persisted.length !== 1)
+            logger.warn(
+              'Push target failure was not persisted because target lease ownership was lost',
+              {
+                dispatchId: dispatch.id,
+                targetId: target.id,
+                channel: target.channel,
+                workerId,
+              }
+            );
         }
       }
 
       const [pendingCount, failedCount, totalCount] = await Promise.all([
-        prisma.notificationPushDeliveryTarget.count({ where: { dispatchId: dispatch.id, status: 'PENDING' } }),
-        prisma.notificationPushDeliveryTarget.count({ where: { dispatchId: dispatch.id, status: 'FAILED' } }),
+        prisma.notificationPushDeliveryTarget.count({
+          where: { dispatchId: dispatch.id, status: 'PENDING' },
+        }),
+        prisma.notificationPushDeliveryTarget.count({
+          where: { dispatchId: dispatch.id, status: 'FAILED' },
+        }),
         prisma.notificationPushDeliveryTarget.count({ where: { dispatchId: dispatch.id } }),
       ]);
       if (pendingCount > 0) {
@@ -734,7 +903,11 @@ async function processPushDispatchBatch(): Promise<number> {
             AND dispatch."processedAt" IS NULL AND dispatch."deadLetterAt" IS NULL
           RETURNING dispatch."id"
         `;
-        if (retry.length !== 1) logger.warn('Push dispatch retry could not be persisted because the lease was lost', { dispatchId: dispatch.id, workerId });
+        if (retry.length !== 1)
+          logger.warn('Push dispatch retry could not be persisted because the lease was lost', {
+            dispatchId: dispatch.id,
+            workerId,
+          });
         continue;
       }
 
@@ -754,24 +927,42 @@ async function processPushDispatchBatch(): Promise<number> {
         RETURNING dispatch."id"
       `;
       if (acknowledged.length !== 1) {
-        logger.warn('Push dispatch was not acknowledged because lease ownership was lost or pending targets remain', { dispatchId: dispatch.id, workerId });
+        logger.warn(
+          'Push dispatch was not acknowledged because lease ownership was lost or pending targets remain',
+          { dispatchId: dispatch.id, workerId }
+        );
       } else {
         processed += 1;
-        if (failedCount > 0) logger.error('Push dispatch completed with per-target failures', { dispatchId: dispatch.id, failedCount, totalCount });
+        if (failedCount > 0)
+          logger.error('Push dispatch completed with per-target failures', {
+            dispatchId: dispatch.id,
+            failedCount,
+            totalCount,
+          });
       }
     } catch (error) {
       const message = (error instanceof Error ? error.message : String(error)).slice(0, 1000);
-      await prisma.notificationPushDeliveryTarget.updateMany({
-        where: { dispatchId: dispatch.id, status: 'PENDING', lockedBy: workerId },
-        data: { lockedAt: null, lockedBy: null },
-      }).catch((releaseError) => logger.warn('Could not release push target leases after dispatch failure', { dispatchId: dispatch.id, workerId, error: releaseError }));
+      await prisma.notificationPushDeliveryTarget
+        .updateMany({
+          where: { dispatchId: dispatch.id, status: 'PENDING', lockedBy: workerId },
+          data: { lockedAt: null, lockedBy: null },
+        })
+        .catch(releaseError =>
+          logger.warn('Could not release push target leases after dispatch failure', {
+            dispatchId: dispatch.id,
+            workerId,
+            error: releaseError,
+          })
+        );
       if (dispatch.attempts >= PUSH_DISPATCH_MAX_ATTEMPTS) {
         // Do not quarantine a parent while another worker may still be delivering
         // one of its targets. Otherwise that active target could lose the chance to
         // persist SENT, while its now-dead-lettered parent can never be reclaimed.
         // Parent quarantine and terminalization of abandoned PENDING targets are
         // one SQL statement: either both happen, or neither does.
-        const quarantined = await prisma.$queryRaw<Array<{ id: string; terminalizedTargetCount: number }>>`
+        const quarantined = await prisma.$queryRaw<
+          Array<{ id: string; terminalizedTargetCount: number }>
+        >`
           WITH quarantined_dispatch AS (
             UPDATE "notification_push_dispatches" AS dispatch
             SET "deadLetterAt" = NOW(), "lockedAt" = NULL, "lockedBy" = NULL, "lastError" = ${message}
@@ -798,7 +989,9 @@ async function processPushDispatchBatch(): Promise<number> {
         `;
         if (quarantined.length === 1) {
           logger.error('Notification push dispatch quarantined after bounded retries', {
-            dispatchId: dispatch.id, attempts: dispatch.attempts, error: message,
+            dispatchId: dispatch.id,
+            attempts: dispatch.attempts,
+            error: message,
             terminalizedTargetCount: quarantined[0].terminalizedTargetCount,
           });
         } else {
@@ -813,11 +1006,19 @@ async function processPushDispatchBatch(): Promise<number> {
               AND "processedAt" IS NULL AND "deadLetterAt" IS NULL
             RETURNING "id"
           `;
-          if (deferred.length === 1) logger.warn('Push dispatch quarantine deferred while target lease remains active', { dispatchId: dispatch.id, workerId });
-          else logger.warn('Push dispatch was not quarantined because this worker no longer owns its lease', { dispatchId: dispatch.id, workerId });
+          if (deferred.length === 1)
+            logger.warn('Push dispatch quarantine deferred while target lease remains active', {
+              dispatchId: dispatch.id,
+              workerId,
+            });
+          else
+            logger.warn(
+              'Push dispatch was not quarantined because this worker no longer owns its lease',
+              { dispatchId: dispatch.id, workerId }
+            );
         }
       } else {
-        const delayMs = Math.min(1_000 * (2 ** Math.min(dispatch.attempts, 12)), MAX_BACKOFF_MS);
+        const delayMs = Math.min(1_000 * 2 ** Math.min(dispatch.attempts, 12), MAX_BACKOFF_MS);
         const retry = await prisma.$queryRaw<Array<{ id: string }>>`
           UPDATE "notification_push_dispatches"
           SET "availableAt" = NOW() + (${delayMs} * INTERVAL '1 millisecond'),
@@ -826,7 +1027,11 @@ async function processPushDispatchBatch(): Promise<number> {
             AND "processedAt" IS NULL AND "deadLetterAt" IS NULL
           RETURNING "id"
         `;
-        if (retry.length !== 1) logger.warn('Push dispatch retry could not be persisted because the lease was lost', { dispatchId: dispatch.id, workerId });
+        if (retry.length !== 1)
+          logger.warn('Push dispatch retry could not be persisted because the lease was lost', {
+            dispatchId: dispatch.id,
+            workerId,
+          });
       }
     } finally {
       stopDispatchHeartbeat();
@@ -848,26 +1053,32 @@ async function markRetry(event: OutboxEvent, workerId: string, error: unknown): 
       },
     });
     if (quarantined.count !== 1) {
-      logger.warn('Outbox event was not quarantined because this worker no longer owns the event lease', {
-        eventId: event.id,
-        eventType: event.eventType,
-        workerId,
-        attempts: event.attempts,
-      });
+      logger.warn(
+        'Outbox event was not quarantined because this worker no longer owns the event lease',
+        {
+          eventId: event.id,
+          eventType: event.eventType,
+          workerId,
+          attempts: event.attempts,
+        }
+      );
       return;
     }
-    logger.error('Outbox event moved to dead-letter quarantine after bounded retries; payload retained for recovery', {
-      eventId: event.id,
-      eventType: event.eventType,
-      attempts: event.attempts,
-      deadLetterAt: new Date().toISOString(),
-      error,
-    });
+    logger.error(
+      'Outbox event moved to dead-letter quarantine after bounded retries; payload retained for recovery',
+      {
+        eventId: event.id,
+        eventType: event.eventType,
+        attempts: event.attempts,
+        deadLetterAt: new Date().toISOString(),
+        error,
+      }
+    );
     return;
   }
 
   const exponent = Math.min(Math.max(event.attempts - 1, 0), 12);
-  const delayMs = Math.min(1_000 * (2 ** exponent), MAX_BACKOFF_MS);
+  const delayMs = Math.min(1_000 * 2 ** exponent, MAX_BACKOFF_MS);
   const updated = await prisma.$queryRaw<Array<{ id: string }>>`
     UPDATE "outbox_events"
     SET "lockedAt" = NULL, "lockedBy" = NULL,
@@ -877,12 +1088,15 @@ async function markRetry(event: OutboxEvent, workerId: string, error: unknown): 
     RETURNING "id"
   `;
   if (updated.length !== 1) {
-    logger.warn('Outbox retry was not scheduled because this worker no longer owns the event lease', {
-      eventId: event.id,
-      eventType: event.eventType,
-      workerId,
-      attempts: event.attempts,
-    });
+    logger.warn(
+      'Outbox retry was not scheduled because this worker no longer owns the event lease',
+      {
+        eventId: event.id,
+        eventType: event.eventType,
+        workerId,
+        attempts: event.attempts,
+      }
+    );
     return;
   }
   logger.error('Outbox event processing failed; retry persisted', {
@@ -902,7 +1116,8 @@ async function markRetry(event: OutboxEvent, workerId: string, error: unknown): 
  */
 async function pruneProcessedOutboxEvents(): Promise<number> {
   const cutoff = new Date(Date.now() - OUTBOX_PROCESSED_RETENTION_MS);
-  return prisma.$transaction(async (tx) => tx.$executeRaw`
+  return prisma.$transaction(
+    async tx => tx.$executeRaw`
     DELETE FROM "outbox_events" AS event
     WHERE event."id" IN (
       SELECT candidate."id"
@@ -913,7 +1128,8 @@ async function pruneProcessedOutboxEvents(): Promise<number> {
       LIMIT ${OUTBOX_RETENTION_BATCH_SIZE}
       FOR UPDATE SKIP LOCKED
     )
-  `);
+  `
+  );
 }
 
 /**
@@ -924,7 +1140,8 @@ async function pruneProcessedOutboxEvents(): Promise<number> {
  */
 async function pruneProcessedPushDispatches(): Promise<number> {
   const cutoff = new Date(Date.now() - PUSH_DISPATCH_RETENTION_MS);
-  return prisma.$transaction(async (tx) => tx.$executeRaw`
+  return prisma.$transaction(
+    async tx => tx.$executeRaw`
     DELETE FROM "notification_push_dispatches" AS dispatch
     WHERE dispatch."id" IN (
       SELECT candidate."id"
@@ -935,7 +1152,8 @@ async function pruneProcessedPushDispatches(): Promise<number> {
       LIMIT ${OUTBOX_RETENTION_BATCH_SIZE}
       FOR UPDATE SKIP LOCKED
     )
-  `);
+  `
+  );
 }
 
 /** Emit anomaly-focused queue health without logging every normal polling cycle. */
@@ -944,7 +1162,20 @@ async function reportOutboxHealth(): Promise<void> {
   const staleBefore = new Date(now.getTime() - STALE_EVENT_AGE_MS);
   const expiredLeaseBefore = new Date(now.getTime() - LEASE_SECONDS * 1_000);
   const recentFailureSince = new Date(now.getTime() - PUSH_FAILURE_HEALTH_WINDOW_MS);
-  const [pending, staleReady, repeatedFailures, expiredLeases, deadLetterCount, pushDispatchPending, stalePushDispatches, deadLetterPushDispatches, permanentPushFailures, pendingPushTargets, pushTargetLeaseHealthRows, failedPushTargets] = await Promise.all([
+  const [
+    pending,
+    staleReady,
+    repeatedFailures,
+    expiredLeases,
+    deadLetterCount,
+    pushDispatchPending,
+    stalePushDispatches,
+    deadLetterPushDispatches,
+    permanentPushFailures,
+    pendingPushTargets,
+    pushTargetLeaseHealthRows,
+    failedPushTargets,
+  ] = await Promise.all([
     prisma.outboxEvent.aggregate({
       where: { processedAt: null, deadLetterAt: null },
       _count: { _all: true },
@@ -964,16 +1195,30 @@ async function reportOutboxHealth(): Promise<void> {
       where: { processedAt: null, deadLetterAt: null, attempts: { gte: HIGH_ATTEMPT_THRESHOLD } },
     }),
     prisma.outboxEvent.count({
-      where: { processedAt: null, deadLetterAt: null, lockedAt: { lt: expiredLeaseBefore }, lockedBy: { not: null } },
+      where: {
+        processedAt: null,
+        deadLetterAt: null,
+        lockedAt: { lt: expiredLeaseBefore },
+        lockedBy: { not: null },
+      },
     }),
     prisma.outboxEvent.count({ where: { processedAt: null, deadLetterAt: { not: null } } }),
     prisma.notificationPushDispatch.count({ where: { processedAt: null, deadLetterAt: null } }),
     prisma.notificationPushDispatch.count({
-      where: { processedAt: null, deadLetterAt: null, createdAt: { lt: staleBefore }, availableAt: { lte: now },
-        OR: [{ lockedAt: null }, { lockedAt: { lt: expiredLeaseBefore } }] },
+      where: {
+        processedAt: null,
+        deadLetterAt: null,
+        createdAt: { lt: staleBefore },
+        availableAt: { lte: now },
+        OR: [{ lockedAt: null }, { lockedAt: { lt: expiredLeaseBefore } }],
+      },
     }),
-    prisma.notificationPushDispatch.count({ where: { processedAt: null, deadLetterAt: { not: null } } }),
-    prisma.notificationPushDispatch.count({ where: { processedAt: { gte: recentFailureSince }, lastError: { not: null } } }),
+    prisma.notificationPushDispatch.count({
+      where: { processedAt: null, deadLetterAt: { not: null } },
+    }),
+    prisma.notificationPushDispatch.count({
+      where: { processedAt: { gte: recentFailureSince }, lastError: { not: null } },
+    }),
     prisma.notificationPushDeliveryTarget.count({ where: { status: 'PENDING' } }),
     prisma.$queryRaw<Array<{ stalePushTargetLeases: number; exhaustedPendingPushTargets: number }>>`
       SELECT
@@ -988,14 +1233,27 @@ async function reportOutboxHealth(): Promise<void> {
       FROM "notification_push_delivery_targets"
       WHERE "status" = 'PENDING'
     `,
-    prisma.notificationPushDeliveryTarget.count({ where: { status: 'FAILED', processedAt: { gte: recentFailureSince } } }),
+    prisma.notificationPushDeliveryTarget.count({
+      where: { status: 'FAILED', processedAt: { gte: recentFailureSince } },
+    }),
   ]);
   const stalePushTargetLeases = pushTargetLeaseHealthRows[0]?.stalePushTargetLeases ?? 0;
-  const exhaustedPendingPushTargets = pushTargetLeaseHealthRows[0]?.exhaustedPendingPushTargets ?? 0;
+  const exhaustedPendingPushTargets =
+    pushTargetLeaseHealthRows[0]?.exhaustedPendingPushTargets ?? 0;
 
-  if (staleReady === 0 && repeatedFailures === 0 && expiredLeases === 0 && deadLetterCount === 0
-    && stalePushDispatches === 0 && deadLetterPushDispatches === 0 && permanentPushFailures === 0
-    && stalePushTargetLeases === 0 && exhaustedPendingPushTargets === 0 && failedPushTargets === 0) return;
+  if (
+    staleReady === 0 &&
+    repeatedFailures === 0 &&
+    expiredLeases === 0 &&
+    deadLetterCount === 0 &&
+    stalePushDispatches === 0 &&
+    deadLetterPushDispatches === 0 &&
+    permanentPushFailures === 0 &&
+    stalePushTargetLeases === 0 &&
+    exhaustedPendingPushTargets === 0 &&
+    failedPushTargets === 0
+  )
+    return;
   logger.warn('Outbox / notification push dispatch health anomaly detected', {
     pendingCount: pending._count._all,
     oldestPendingCreatedAt: pending._min.createdAt,
@@ -1019,8 +1277,10 @@ async function reportOutboxHealth(): Promise<void> {
   });
 }
 
-
-async function processCacheGenerationBumpEvent(event: OutboxEvent, workerId: string): Promise<void> {
+async function processCacheGenerationBumpEvent(
+  event: OutboxEvent,
+  workerId: string
+): Promise<void> {
   const payload = event.payload;
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new Error('Cache-generation outbox payload must be an object');
@@ -1032,11 +1292,11 @@ async function processCacheGenerationBumpEvent(event: OutboxEvent, workerId: str
   }
   const requiredValue = eventPayload.retryRequiredGenKeys;
   const dependentValue = eventPayload.retryDependentGenKeys;
-  const isGenerationKeyList = (value: unknown): value is string[] => value === undefined || (
-    Array.isArray(value)
-    && value.length <= 10
-    && value.every((key) => typeof key === 'string' && key.length > 0 && key.length <= 512)
-  );
+  const isGenerationKeyList = (value: unknown): value is string[] =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.length <= 10 &&
+      value.every(key => typeof key === 'string' && key.length > 0 && key.length <= 512));
   if (!isGenerationKeyList(requiredValue)) {
     throw new Error('Cache-generation outbox payload has invalid required generation keys');
   }
@@ -1051,28 +1311,36 @@ async function processCacheGenerationBumpEvent(event: OutboxEvent, workerId: str
   if (!succeeded) throw new Error(`Redis generation bump failed for ${genKey}`);
   for (const requiredGenKey of (requiredValue as string[] | undefined) ?? []) {
     const requiredSucceeded = await bumpGeneration(requiredGenKey, { persistRetry: false });
-    if (!requiredSucceeded) throw new Error(`Redis required generation bump failed for ${requiredGenKey}`);
+    if (!requiredSucceeded)
+      throw new Error(`Redis required generation bump failed for ${requiredGenKey}`);
   }
   for (const dependentGenKey of (dependentValue as string[] | undefined) ?? []) {
     const dependentSucceeded = await bumpGeneration(dependentGenKey, { persistRetry: false });
-    if (!dependentSucceeded) throw new Error(`Redis dependent generation bump failed for ${dependentGenKey}`);
+    if (!dependentSucceeded)
+      throw new Error(`Redis dependent generation bump failed for ${dependentGenKey}`);
   }
   const acknowledged = await prisma.outboxEvent.updateMany({
     where: { id: event.id, lockedBy: workerId, processedAt: null },
     data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
   });
-  if (acknowledged.count !== 1) throw new Error('Outbox lease lost before cache-generation acknowledgement');
+  if (acknowledged.count !== 1)
+    throw new Error('Outbox lease lost before cache-generation acknowledgement');
 }
 
-export async function processOutboxBatch(workerId = `outbox-${process.pid}-${randomUUID()}`): Promise<number> {
+export async function processOutboxBatch(
+  workerId = `outbox-${process.pid}-${randomUUID()}`
+): Promise<number> {
   const events = await claimBatch(workerId);
   for (const event of events) {
     try {
       await withLeaseHeartbeat(event, workerId, async () => {
         if (event.eventType === 'USER_ACTIVITY_RECORD') await processActivityEvent(event, workerId);
-        else if (event.eventType === 'FOLLOWED_ACTIVITY_NOTIFICATION') await processFollowedActivityEvent(event, workerId);
-        else if (event.eventType === 'SAVED_SEARCH_MATCH_NOTIFICATION') await processSavedSearchMatchEvent(event, workerId);
-        else if (event.eventType === 'CACHE_GENERATION_BUMP') await processCacheGenerationBumpEvent(event, workerId);
+        else if (event.eventType === 'FOLLOWED_ACTIVITY_NOTIFICATION')
+          await processFollowedActivityEvent(event, workerId);
+        else if (event.eventType === 'SAVED_SEARCH_MATCH_NOTIFICATION')
+          await processSavedSearchMatchEvent(event, workerId);
+        else if (event.eventType === 'CACHE_GENERATION_BUMP')
+          await processCacheGenerationBumpEvent(event, workerId);
         else throw new Error(`Unsupported outbox event type: ${event.eventType}`);
       });
     } catch (error) {
@@ -1098,46 +1366,54 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
   let lastHealthReportAt = 0;
   let lastRetentionRunAt = 0;
   while (!shouldStop()) {
-    const count = await processOutboxBatch().catch((error) => {
+    const count = await processOutboxBatch().catch(error => {
       logger.error('Outbox batch claim failed', { error });
       return 0;
     });
-    const pushDispatchCount = await processPushDispatchBatch().catch((error) => {
+    const pushDispatchCount = await processPushDispatchBatch().catch(error => {
       logger.error('Notification push dispatch batch failed', { error });
       return 0;
     });
     const now = Date.now();
     if (now - lastHealthReportAt >= HEALTH_REPORT_INTERVAL_MS) {
       lastHealthReportAt = now;
-      await reportOutboxHealth().catch((error) => {
+      await reportOutboxHealth().catch(error => {
         logger.error('Outbox queue health report failed', { error });
       });
     }
     if (now - lastRetentionRunAt >= OUTBOX_RETENTION_INTERVAL_MS) {
       lastRetentionRunAt = now;
-      await pruneProcessedOutboxEvents().then((deletedCount) => {
-        if (deletedCount > 0) {
-          logger.info('Pruned processed outbox event rows while preserving idempotency keys', {
-            deletedCount,
-            retentionDays: OUTBOX_PROCESSED_RETENTION_MS / (24 * 60 * 60 * 1_000),
-            batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
-          });
-        }
-      }).catch((error) => {
-        logger.error('Processed outbox retention cleanup failed; events were not acknowledged or discarded', { error });
-      });
-      await pruneProcessedPushDispatches().then((deletedCount) => {
-        if (deletedCount > 0) {
-          logger.info('Pruned completed push dispatches', {
-            deletedCount,
-            retentionDays: PUSH_DISPATCH_RETENTION_MS / (24 * 60 * 60 * 1_000),
-            batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
-          });
-        }
-      }).catch((error) => {
-        logger.error('Completed push dispatch retention cleanup failed', { error });
-      });
+      await pruneProcessedOutboxEvents()
+        .then(deletedCount => {
+          if (deletedCount > 0) {
+            logger.info('Pruned processed outbox event rows while preserving idempotency keys', {
+              deletedCount,
+              retentionDays: OUTBOX_PROCESSED_RETENTION_MS / (24 * 60 * 60 * 1_000),
+              batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
+            });
+          }
+        })
+        .catch(error => {
+          logger.error(
+            'Processed outbox retention cleanup failed; events were not acknowledged or discarded',
+            { error }
+          );
+        });
+      await pruneProcessedPushDispatches()
+        .then(deletedCount => {
+          if (deletedCount > 0) {
+            logger.info('Pruned completed push dispatches', {
+              deletedCount,
+              retentionDays: PUSH_DISPATCH_RETENTION_MS / (24 * 60 * 60 * 1_000),
+              batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
+            });
+          }
+        })
+        .catch(error => {
+          logger.error('Completed push dispatch retention cleanup failed', { error });
+        });
     }
-    if (count === 0 && pushDispatchCount === 0) await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    if (count === 0 && pushDispatchCount === 0)
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 }

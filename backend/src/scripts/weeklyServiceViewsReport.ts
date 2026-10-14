@@ -89,7 +89,9 @@ async function main(): Promise<void> {
           tag: 'weekly-service-views-report',
           type: 'WEEKLY_SERVICE_VIEWS_REPORT',
         })
-        .catch((error) => reportBackgroundFailure('backend/src/scripts/weeklyServiceViewsReport.ts', error));
+        .catch(error =>
+          reportBackgroundFailure('backend/src/scripts/weeklyServiceViewsReport.ts', error)
+        );
 
       await prisma.notification.create({
         data: {

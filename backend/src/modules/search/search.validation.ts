@@ -38,7 +38,10 @@ const baseSearchQuerySchema = z.object({
 });
 
 const searchQueryObjectSchema = baseSearchQuerySchema
-  .refine(q => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, { message: 'minPrice must not exceed maxPrice', path: ['minPrice'] })
+  .refine(q => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    message: 'minPrice must not exceed maxPrice',
+    path: ['minPrice'],
+  })
   .refine(q => (q.lat === undefined) === (q.lng === undefined), {
     message: 'lat and lng must be provided together',
     path: ['lat'],
@@ -66,4 +69,3 @@ export const searchSuggestionsQuerySchema = z.object({
 });
 
 export type SearchSuggestionsQuery = z.infer<typeof searchSuggestionsQuerySchema>['query'];
-

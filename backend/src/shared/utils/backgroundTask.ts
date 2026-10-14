@@ -16,14 +16,24 @@ export interface BackgroundTaskOptions {
   isRetryable?: (error: unknown) => boolean;
 }
 
-function errorDetails(error: unknown): { message: string; stack?: string; code?: string; status?: number } {
+function errorDetails(error: unknown): {
+  message: string;
+  stack?: string;
+  code?: string;
+  status?: number;
+} {
   if (error instanceof Error) {
     const value = error as Error & { code?: unknown; status?: unknown; statusCode?: unknown };
     return {
       message: value.message,
       stack: value.stack,
       code: typeof value.code === 'string' ? value.code : undefined,
-      status: typeof value.status === 'number' ? value.status : typeof value.statusCode === 'number' ? value.statusCode : undefined,
+      status:
+        typeof value.status === 'number'
+          ? value.status
+          : typeof value.statusCode === 'number'
+            ? value.statusCode
+            : undefined,
     };
   }
   return { message: String(error) };
@@ -40,13 +50,21 @@ export function isTransientBackgroundError(error: unknown): boolean {
     return details.status === 408 || details.status === 429 || details.status >= 500;
   }
   return new Set([
-    'ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'EAI_AGAIN',
-    'ENETUNREACH', 'EHOSTUNREACH', 'P1001', 'P1002', 'P1008', 'P1017',
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ECONNREFUSED',
+    'EAI_AGAIN',
+    'ENETUNREACH',
+    'EHOSTUNREACH',
+    'P1001',
+    'P1002',
+    'P1008',
+    'P1017',
   ]).has(details.code ?? '');
 }
 
 function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -58,7 +76,7 @@ function delay(ms: number): Promise<void> {
 export async function runBackgroundTask<T>(
   context: string,
   task: () => Promise<T>,
-  options: BackgroundTaskOptions = {},
+  options: BackgroundTaskOptions = {}
 ): Promise<T | undefined> {
   const retries = Math.max(0, Math.min(5, Math.trunc(options.retries ?? 2)));
   const baseDelay = Math.max(100, Math.trunc(options.backoffMs ?? 750));
@@ -83,10 +101,14 @@ export async function runBackgroundTask<T>(
 
       if (finalAttempt) {
         if (options.taskType) {
-          await recordFailedTask(options.taskType, {
-            context,
-            ...(options.payload ?? {}),
-          }, error);
+          await recordFailedTask(
+            options.taskType,
+            {
+              context,
+              ...(options.payload ?? {}),
+            },
+            error
+          );
         }
         return undefined;
       }
@@ -106,7 +128,7 @@ export async function runBackgroundTask<T>(
 export function reportBackgroundFailure(
   context: string,
   error: unknown,
-  meta?: Record<string, unknown>,
+  meta?: Record<string, unknown>
 ): void {
   const normalized = errorDetails(error);
   logger.warn('Background task failed', {

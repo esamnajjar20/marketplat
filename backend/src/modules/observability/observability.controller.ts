@@ -4,7 +4,8 @@ import { logger } from '../../shared/utils/logger';
 import { getClientIp } from '../../shared/utils/getClientIp';
 import { successResponse } from '../../shared/types/api-response.types';
 
-const SENSITIVE_CONTEXT_KEY = /(?:password|passwd|secret|token|authorization|cookie|session|api[-_]?key|credential|refresh|access[-_]?token)/i;
+const SENSITIVE_CONTEXT_KEY =
+  /(?:password|passwd|secret|token|authorization|cookie|session|api[-_]?key|credential|refresh|access[-_]?token)/i;
 const MAX_CONTEXT_DEPTH = 5;
 
 /**
@@ -16,7 +17,7 @@ const MAX_CONTEXT_DEPTH = 5;
 export const sanitizeClientErrorContext = (value: unknown, depth = 0): unknown => {
   if (depth >= MAX_CONTEXT_DEPTH) return '[truncated]';
   if (Array.isArray(value)) {
-    return value.slice(0, 50).map((item) => sanitizeClientErrorContext(item, depth + 1));
+    return value.slice(0, 50).map(item => sanitizeClientErrorContext(item, depth + 1));
   }
   if (value && typeof value === 'object') {
     const output: Record<string, unknown> = {};
@@ -35,11 +36,17 @@ export const sanitizeClientErrorContext = (value: unknown, depth = 0): unknown =
   return String(value).slice(0, 200);
 };
 
-export const sanitizeDiagnosticText = (value: string | undefined, maxLength: number): string | undefined => {
+export const sanitizeDiagnosticText = (
+  value: string | undefined,
+  maxLength: number
+): string | undefined => {
   if (value === undefined) return undefined;
   return value
     .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi, 'Bearer [redacted]')
-    .replace(/([?&](?:access_token|refresh_token|token|api_key|password|secret)=)[^&#\s]*/gi, '$1[redacted]')
+    .replace(
+      /([?&](?:access_token|refresh_token|token|api_key|password|secret)=)[^&#\s]*/gi,
+      '$1[redacted]'
+    )
     .slice(0, maxLength);
 };
 
@@ -107,7 +114,8 @@ export const observabilityController = {
         // Context is namespaced under `clientContext` so it can't
         // collide with the backend's own request metadata that logger
         // may attach (service, environment, ...).
-        clientContext: body.context === undefined ? undefined : sanitizeClientErrorContext(body.context),
+        clientContext:
+          body.context === undefined ? undefined : sanitizeClientErrorContext(body.context),
         clientUrl: sanitizeClientUrl(body.url),
         clientUserAgent: body.userAgent,
         clientTimestamp: body.timestamp,

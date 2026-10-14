@@ -42,11 +42,10 @@ export const createAdSchema = z.object({
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
     // Optional store publisher — empty string from FormData → undefined
-    storeId: z
-      .preprocess(
-        (v) => (v === '' || v === null || v === undefined ? undefined : v),
-        z.string().cuid().optional()
-      ),
+    storeId: z.preprocess(
+      v => (v === '' || v === null || v === undefined ? undefined : v),
+      z.string().cuid().optional()
+    ),
   }),
 });
 
@@ -119,16 +118,10 @@ const adsQuerySchema = adsQueryBaseSchema
   .extend({
     storeId: z.string().cuid().optional(),
   })
-  .refine(
-    (q) =>
-      q.minPrice === undefined ||
-      q.maxPrice === undefined ||
-      q.minPrice <= q.maxPrice,
-    {
-      message: 'minPrice must not exceed maxPrice',
-      path: ['minPrice'],
-    },
-  );
+  .refine(q => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    message: 'minPrice must not exceed maxPrice',
+    path: ['minPrice'],
+  });
 
 export const getAdsSchema = z.object({
   query: adsQuerySchema,

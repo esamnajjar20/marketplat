@@ -11,7 +11,10 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { uploadImage, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  cleanupUploadedImages,
+} from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository } from '../stores/stores.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 import { requireStoreAccessForProducts } from '../stores/store-members.service';
@@ -27,7 +30,11 @@ import { promotionsService, EffectivePrice } from '../promotions/promotions.serv
 import { fraudService } from '../fraud';
 import { followsService } from '../follows/follows.service';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
-import { cachedPublicList, bumpPublicListCache, hidePublicEntities } from '../../shared/utils/publicListCache';
+import {
+  cachedPublicList,
+  bumpPublicListCache,
+  hidePublicEntities,
+} from '../../shared/utils/publicListCache';
 
 const MAX_PRODUCT_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images / service-listings.images — see config/limits.ts
 
@@ -48,7 +55,10 @@ const productImageOperations = createEntityImageOperations({
 
 // The free-plan cap is defined by StoreType so different store types can
 // have different inventory allowances. null means no cap.
-function getFreeProductLimit(store: { plan: string; storeType?: { freeProductLimit: number | null } | null }): number | null {
+function getFreeProductLimit(store: {
+  plan: string;
+  storeType?: { freeProductLimit: number | null } | null;
+}): number | null {
   if (store.plan !== 'FREE') return null;
   return store.storeType?.freeProductLimit ?? null;
 }
@@ -62,7 +72,7 @@ export type ProductWithEffectivePrice<T> = T & { effectivePrice: EffectivePrice 
 
 function deriveAvailabilityFromStock(
   stock: number | null | undefined,
-  fallback: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' | undefined,
+  fallback: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' | undefined
 ): 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' {
   if (stock === undefined || stock === null) return fallback ?? 'IN_STOCK';
   if (stock <= 0) return 'OUT_OF_STOCK';
@@ -75,7 +85,7 @@ export const productsService = {
     userId: string,
     input: CreateProductInput,
     files: Express.Multer.File[],
-    offlineOperationId?: string | null,
+    offlineOperationId?: string | null
   ): Promise<Product> => {
     if (offlineOperationId) {
       const existing = await prisma.product.findUnique({
@@ -86,7 +96,7 @@ export const productsService = {
         if (existing.storeId !== store.id) {
           throw new BadRequestError(
             'Offline operation id already used by another store',
-            'OFFLINE_OP_ID_CONFLICT',
+            'OFFLINE_OP_ID_CONFLICT'
           );
         }
         return existing;
@@ -107,7 +117,7 @@ export const productsService = {
     if (!files?.length) {
       throw new BadRequestError(
         'At least one product image is required.',
-        'PRODUCT_IMAGE_REQUIRED',
+        'PRODUCT_IMAGE_REQUIRED'
       );
     }
 
@@ -117,7 +127,7 @@ export const productsService = {
       store.storeTypeId,
       input.attributes,
       true,
-      'PRODUCT',
+      'PRODUCT'
     );
     if (!category || !category.isActive) {
       throw new BadRequestError('Invalid or inactive product category.');
@@ -125,7 +135,7 @@ export const productsService = {
     if (category.storeTypeId !== null && category.storeTypeId !== store.storeTypeId) {
       throw new BadRequestError(
         'This product category is not available for this store type.',
-        'PRODUCT_CATEGORY_STORE_TYPE_MISMATCH',
+        'PRODUCT_CATEGORY_STORE_TYPE_MISMATCH'
       );
     }
 
@@ -237,29 +247,49 @@ export const productsService = {
       // convention as every other notificationEvents caller.
       storeFollowersRepository
         .findUserIdsByStoreId(store.id)
-        .then(followerIds => notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name))
-        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+        .then(followerIds =>
+          notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name)
+        )
+        .catch(error =>
+          reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+        );
 
-      void followsService.notifyActivityForTargets(
-        [{ targetType: FollowTargetType.CATEGORY, targetId: `PRODUCT:${product.categoryId}` }],
-        'منتج جديد',
-        `${product.name} أُضيف إلى متجر ${store.name}`,
-        { targetType: FollowTargetType.STORE, targetId: store.id, contentType: 'PRODUCT', contentId: product.id, categoryId: product.categoryId },
-      ).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+      void followsService
+        .notifyActivityForTargets(
+          [{ targetType: FollowTargetType.CATEGORY, targetId: `PRODUCT:${product.categoryId}` }],
+          'منتج جديد',
+          `${product.name} أُضيف إلى متجر ${store.name}`,
+          {
+            targetType: FollowTargetType.STORE,
+            targetId: store.id,
+            contentType: 'PRODUCT',
+            contentId: product.id,
+            categoryId: product.categoryId,
+          }
+        )
+        .catch(error =>
+          reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+        );
 
       // PLATFORM-WIDE-01: notify saved-search owners (type 'products')
       // whose criteria match this new product — same fire-and-forget
       // contract as ads.service.ts's createAd -> savedSearchEvents
       // .onAdCreated call, for the same reason: a matching failure must
       // never fail product creation itself.
-      savedSearchEvents.onProductCreated(product, userId).catch((err) =>
-        logger.error('Failed to process saved-search matches for new product', { err, productId: product.id })
+      savedSearchEvents.onProductCreated(product, userId).catch(err =>
+        logger.error('Failed to process saved-search matches for new product', {
+          err,
+          productId: product.id,
+        })
       );
 
       // Gap #10: fire-and-forget, same contract as activityService
       // .record()'s own doc comment — never awaited, never fails product
       // creation. Logged for `userId` (the store owner), not store.id.
-      activityService.record({ userId, ...activityTemplates.productCreated(product.id, product.name) });
+      activityService.record({
+        userId,
+        ...activityTemplates.productCreated(product.id, product.name),
+      });
 
       // Fraud scoring (content heuristics) — fire-and-forget, same contract as ads.service scoreAd
       fraudService
@@ -272,8 +302,9 @@ export const productsService = {
           price: product.price != null ? Number(product.price) : null,
           categoryId: product.categoryId,
         })
-        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
-
+        .catch(error =>
+          reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+        );
     }
 
     return product;
@@ -356,7 +387,11 @@ export const productsService = {
       throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
-    productsRepository.incrementViews(id).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+    productsRepository
+      .incrementViews(id)
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+      );
     const effectivePrice = await promotionsService.getEffectivePrice(product);
     return { ...product, effectivePrice };
   },
@@ -384,7 +419,7 @@ export const productsService = {
       if (category.storeTypeId && category.storeTypeId !== store.storeTypeId) {
         throw new BadRequestError(
           'This product category is not available for this store type.',
-          'PRODUCT_CATEGORY_STORE_TYPE_MISMATCH',
+          'PRODUCT_CATEGORY_STORE_TYPE_MISMATCH'
         );
       }
     }
@@ -392,37 +427,44 @@ export const productsService = {
     const patch = { ...input };
     if (input.attributes !== undefined) {
       const currentAttributes =
-        product.attributes && typeof product.attributes === 'object' && !Array.isArray(product.attributes)
+        product.attributes &&
+        typeof product.attributes === 'object' &&
+        !Array.isArray(product.attributes)
           ? (product.attributes as Record<string, unknown>)
           : {};
       const validatedAttributes = await storeTypeFieldsService.validateAttributes(
         store.storeTypeId,
         { ...currentAttributes, ...input.attributes },
         true,
-        'PRODUCT',
+        'PRODUCT'
       );
       patch.attributes = validatedAttributes ?? {};
     }
     if (input.stockQuantity !== undefined) {
       patch.availability = deriveAvailabilityFromStock(
         input.stockQuantity,
-        input.availability ?? product.availability,
+        input.availability ?? product.availability
       );
     }
 
-    // Validate the final persisted pricing state, not just the 
+    // Validate the final persisted pricing state, not just the
     // A partial update can otherwise make an existing discount >= price or
     // leave only one half of the wholesale pair populated.
     const finalPrice = input.price ?? Number(product.price);
-    const finalDiscountPrice = input.discountPrice === undefined
-      ? (product.discountPrice == null ? null : Number(product.discountPrice))
-      : input.discountPrice;
-    const finalWholesalePrice = input.wholesalePrice === undefined
-      ? (product.wholesalePrice == null ? null : Number(product.wholesalePrice))
-      : input.wholesalePrice;
-    const finalWholesaleMinQty = input.wholesaleMinQty === undefined
-      ? product.wholesaleMinQty
-      : input.wholesaleMinQty;
+    const finalDiscountPrice =
+      input.discountPrice === undefined
+        ? product.discountPrice == null
+          ? null
+          : Number(product.discountPrice)
+        : input.discountPrice;
+    const finalWholesalePrice =
+      input.wholesalePrice === undefined
+        ? product.wholesalePrice == null
+          ? null
+          : Number(product.wholesalePrice)
+        : input.wholesalePrice;
+    const finalWholesaleMinQty =
+      input.wholesaleMinQty === undefined ? product.wholesaleMinQty : input.wholesaleMinQty;
 
     if (finalDiscountPrice !== null && finalDiscountPrice >= finalPrice) {
       throw new BadRequestError('discountPrice must be less than price', 'INVALID_DISCOUNT_PRICE');
@@ -432,19 +474,20 @@ export const productsService = {
     if (wholesalePricePresent !== wholesaleQtyPresent) {
       throw new BadRequestError(
         'wholesalePrice and wholesaleMinQty must be provided together',
-        'INVALID_WHOLESALE_PRICING',
+        'INVALID_WHOLESALE_PRICING'
       );
     }
 
-    const updated = input.stockQuantity !== undefined
-      ? await productsRepository.updateWithStockMovement(
-          id,
-          store.id,
-          userId,
-          patch,
-          'MANUAL_ADJUSTMENT',
-        )
-      : await productsRepository.update(id, store.id, patch);
+    const updated =
+      input.stockQuantity !== undefined
+        ? await productsRepository.updateWithStockMovement(
+            id,
+            store.id,
+            userId,
+            patch,
+            'MANUAL_ADJUSTMENT'
+          )
+        : await productsRepository.update(id, store.id, patch);
     // Edits (incl. stock/availability): soft invalidation (stale once, then
     // refreshed). A status change away from ACTIVE must hide the product now.
     if (patch.status && patch.status !== 'ACTIVE') {
@@ -454,7 +497,10 @@ export const productsService = {
     }
 
     // Gap #10: fire-and-forget, see createProduct's own comment above.
-    activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });
+    activityService.record({
+      userId,
+      ...activityTemplates.productUpdated(updated.id, updated.name),
+    });
 
     fraudService
       .scoreListing({
@@ -466,7 +512,9 @@ export const productsService = {
         price: updated.price != null ? Number(updated.price) : null,
         categoryId: updated.categoryId,
       })
-      .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+      );
 
     // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fires once, on the
     // OUT_OF_STOCK -> (IN_STOCK | LIMITED) edge only — checked against
@@ -478,9 +526,16 @@ export const productsService = {
       storeFollowersRepository
         .findUserIdsByStoreId(store.id)
         .then(followerIds =>
-          notificationEvents.onStoreProductRestocked(followerIds, store.id, updated.id, updated.name)
+          notificationEvents.onStoreProductRestocked(
+            followerIds,
+            store.id,
+            updated.id,
+            updated.name
+          )
         )
-        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+        .catch(error =>
+          reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+        );
     }
 
     return updated;
@@ -490,7 +545,7 @@ export const productsService = {
     userId: string,
     id: string,
     stockQuantity: number | null,
-    reason = 'MANUAL_ADJUSTMENT',
+    reason = 'MANUAL_ADJUSTMENT'
   ): Promise<Product> => {
     const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const product = await productsRepository.findById(id);
@@ -505,19 +560,29 @@ export const productsService = {
       store.id,
       userId,
       { stockQuantity, availability },
-      reason,
+      reason
     );
 
     await bumpPublicListCache('products');
-    activityService.record({ userId, ...activityTemplates.productUpdated(updated.id, updated.name) });
+    activityService.record({
+      userId,
+      ...activityTemplates.productUpdated(updated.id, updated.name),
+    });
 
     if (product.availability === 'OUT_OF_STOCK' && updated.availability !== 'OUT_OF_STOCK') {
       storeFollowersRepository
         .findUserIdsByStoreId(store.id)
         .then(followerIds =>
-          notificationEvents.onStoreProductRestocked(followerIds, store.id, updated.id, updated.name)
+          notificationEvents.onStoreProductRestocked(
+            followerIds,
+            store.id,
+            updated.id,
+            updated.name
+          )
         )
-        .catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error));
+        .catch(error =>
+          reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+        );
     }
 
     return updated;
@@ -530,7 +595,7 @@ export const productsService = {
 
   getStockHistory: async (
     userId: string,
-    query: { page?: number; limit?: number; productId?: string },
+    query: { page?: number; limit?: number; productId?: string }
   ) => {
     const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const { page, limit } = getPaginationParams(query, 20);
@@ -555,12 +620,19 @@ export const productsService = {
     await Promise.all(
       product.images.map(imageUrl => {
         const publicId = extractCloudinaryPublicId(imageUrl);
-        return publicId ? deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)) : undefined;
+        return publicId
+          ? deleteImage(publicId).catch(error =>
+              reportBackgroundFailure('backend/src/modules/products/products.service.ts', error)
+            )
+          : undefined;
       })
     );
 
     // Gap #10: fire-and-forget, see createProduct's own comment above.
-    activityService.record({ userId, ...activityTemplates.productDeleted(product.id, product.name) });
+    activityService.record({
+      userId,
+      ...activityTemplates.productDeleted(product.id, product.name),
+    });
   },
 
   // Gap #3 fix: closes the report's finding — products had no way to
@@ -575,20 +647,24 @@ export const productsService = {
     files: Express.Multer.File[]
   ): Promise<Product> => {
     const store = await requireStoreAccessForProducts(userId, 'manageProducts');
-    return productImageOperations.addImages(productId, product => product.storeId === store.id, files);
+    return productImageOperations.addImages(
+      productId,
+      product => product.storeId === store.id,
+      files
+    );
   },
 
   // Gap #3 fix: mirrors ads.service.ts's removeImage, including the
   // "can't remove the last image" guard (EPIC 1.5's rationale applies
   // identically here — a product must always keep at least one image).
   // Delegates to the shared factory ().
-  removeImage: async (
-    productId: string,
-    userId: string,
-    imageUrl: string
-  ): Promise<Product> => {
+  removeImage: async (productId: string, userId: string, imageUrl: string): Promise<Product> => {
     const store = await requireStoreAccessForProducts(userId, 'manageProducts');
-    return productImageOperations.removeImage(productId, product => product.storeId === store.id, imageUrl);
+    return productImageOperations.removeImage(
+      productId,
+      product => product.storeId === store.id,
+      imageUrl
+    );
   },
 
   // Gap #11: delegates to the shared factory's reorderImages —
@@ -600,6 +676,10 @@ export const productsService = {
     orderedImages: string[]
   ): Promise<Product> => {
     const store = await requireStoreAccessForProducts(userId, 'manageProducts');
-    return productImageOperations.reorderImages(productId, product => product.storeId === store.id, orderedImages);
+    return productImageOperations.reorderImages(
+      productId,
+      product => product.storeId === store.id,
+      orderedImages
+    );
   },
 };

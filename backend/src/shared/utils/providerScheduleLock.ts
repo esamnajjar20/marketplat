@@ -19,7 +19,9 @@ export async function withProviderScheduleLock<T>(
   const key = `${PROVIDER_SCHEDULE_LOCK_PREFIX}${providerId}`;
   const result = await withRedisLock(key, PROVIDER_SCHEDULE_LOCK_TTL_SECONDS, fn);
   if (result === LOCK_NOT_ACQUIRED) {
-    throw new ConflictError('This provider\u2019s schedule is being updated — please try again shortly.');
+    throw new ConflictError(
+      'This provider\u2019s schedule is being updated — please try again shortly.'
+    );
   }
   return result as T;
 }

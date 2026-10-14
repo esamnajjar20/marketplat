@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
     // received it). Now always reported; the console.error stays for dev
     // visibility only.
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+       
       console.error('ErrorBoundary', error, info);
     }
     reportClientError(error, {

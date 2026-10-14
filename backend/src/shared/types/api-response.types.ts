@@ -10,4 +10,3 @@ export const successResponse = <T>(
   data?: T,
   meta?: Record<string, unknown>
 ): ApiResponse<T> => ({ success: true, message, data, meta });
-

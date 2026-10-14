@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 const optionalQueryBoolean = z.preprocess(
-  (value) => (value === undefined ? undefined : value === 'true' || value === true),
+  value => (value === undefined ? undefined : value === 'true' || value === true),
   z.boolean().optional()
 );
 
@@ -84,7 +84,12 @@ export const NOTIFICATION_CATEGORY_TYPES = {
     'SERVICE_REQUEST_UPDATE',
     'APPOINTMENT_UPDATE',
   ],
-  following: ['NEW_FOLLOWER', 'FOLLOWED_USER_ACTIVITY', 'FOLLOWED_STORE_ACTIVITY', 'FOLLOWED_CATEGORY_ACTIVITY'],
+  following: [
+    'NEW_FOLLOWER',
+    'FOLLOWED_USER_ACTIVITY',
+    'FOLLOWED_STORE_ACTIVITY',
+    'FOLLOWED_CATEGORY_ACTIVITY',
+  ],
   system: [
     'PROMOTION',
     'WEEKLY_AD_VIEWS_REPORT',

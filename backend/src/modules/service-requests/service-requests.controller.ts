@@ -36,35 +36,39 @@ export const serviceRequestsController = {
     }
   },
 
-  getMyRequestsAsCustomer: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getMyRequestsAsCustomer: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { query } = getServiceRequestsSchema.parse({ query: req.query });
       const result = await serviceRequestsService.getMyRequestsAsCustomer(user.userId, query);
-      res
-        .status(200)
-        .json(
-          successResponse('My service requests fetched', result.items, {
-            pagination: result.meta,
-          })
-        );
+      res.status(200).json(
+        successResponse('My service requests fetched', result.items, {
+          pagination: result.meta,
+        })
+      );
     } catch (error) {
       next(error);
     }
   },
 
-  getMyRequestsAsProvider: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getMyRequestsAsProvider: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { query } = getServiceRequestsSchema.parse({ query: req.query });
       const result = await serviceRequestsService.getMyRequestsAsProvider(user.userId, query);
-      res
-        .status(200)
-        .json(
-          successResponse('Incoming service requests fetched', result.items, {
-            pagination: result.meta,
-          })
-        );
+      res.status(200).json(
+        successResponse('Incoming service requests fetched', result.items, {
+          pagination: result.meta,
+        })
+      );
     } catch (error) {
       next(error);
     }

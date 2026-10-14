@@ -7,7 +7,19 @@ import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 
 export type ProductWithStore = Prisma.ProductGetPayload<{
   include: {
-    store: { include: { sellerProfile: true, storeType: { include: { fields: { where: { isActive: true, scope: 'PRODUCT' }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] } } } } };
+    store: {
+      include: {
+        sellerProfile: true;
+        storeType: {
+          include: {
+            fields: {
+              where: { isActive: true; scope: 'PRODUCT' };
+              orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }];
+            };
+          };
+        };
+      };
+    };
     category: { select: { id: true; name: true; nameAr: true } };
   };
 }>;
@@ -20,7 +32,19 @@ export type ProductWithStore = Prisma.ProductGetPayload<{
 // Prisma's orderBy tuple readonly (rejected by SortOrder typing). Narrow
 // only the literals Prisma needs ('PRODUCT', 'asc'/'desc').
 export const productWithRelations = {
-  store: { include: { sellerProfile: true, storeType: { include: { fields: { where: { isActive: true, scope: 'PRODUCT' as const }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] } } } } },
+  store: {
+    include: {
+      sellerProfile: true,
+      storeType: {
+        include: {
+          fields: {
+            where: { isActive: true, scope: 'PRODUCT' as const },
+            orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+          },
+        },
+      },
+    },
+  },
   category: { select: { id: true, name: true, nameAr: true } },
 };
 
@@ -85,8 +109,6 @@ const productListSelect = {
   category: { select: { id: true, name: true, nameAr: true } },
 } as const;
 
-
-
 export const productsRepository = {
   create: (
     tx: Prisma.TransactionClient,
@@ -126,8 +148,7 @@ export const productsRepository = {
       },
     }),
 
-  findById: (id: string): Promise<Product | null> =>
-    prisma.product.findUnique({ where: { id } }),
+  findById: (id: string): Promise<Product | null> => prisma.product.findUnique({ where: { id } }),
 
   findPublicById: (id: string): Promise<ProductWithStore | null> =>
     prisma.product.findUnique({ where: { id }, include: productWithRelations }),
@@ -138,7 +159,10 @@ export const productsRepository = {
   // STORE-ANALYTICS (Foundation v1): "top products" tile on the store
   // owner's analytics endpoint — cheap, since Product.views is already
   // a plain indexed-by-implication scalar column, no join needed.
-  findTopByStoreId: (storeId: string, limit: number): Promise<Pick<Product, 'id' | 'name' | 'views' | 'images'>[]> =>
+  findTopByStoreId: (
+    storeId: string,
+    limit: number
+  ): Promise<Pick<Product, 'id' | 'name' | 'views' | 'images'>[]> =>
     prisma.product.findMany({
       where: { storeId, status: 'ACTIVE' },
       select: { id: true, name: true, views: true, images: true },
@@ -185,44 +209,47 @@ export const productsRepository = {
       status: ProductStatus;
       attributes: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
     }>,
-    reason = 'MANUAL_ADJUSTMENT',
-  ): Promise<Product> => prisma.$transaction(async tx => {
-    const current = await tx.product.findUnique({ where: { id } });
-    if (!current || current.storeId !== storeId) throw new Error('PRODUCT_NOT_FOUND');
+    reason = 'MANUAL_ADJUSTMENT'
+  ): Promise<Product> =>
+    prisma.$transaction(async tx => {
+      const current = await tx.product.findUnique({ where: { id } });
+      if (!current || current.storeId !== storeId) throw new Error('PRODUCT_NOT_FOUND');
 
-    const updated = await tx.product.update({ where: { id, storeId }, data });
-    if (data.stockQuantity !== undefined && current.stockQuantity !== updated.stockQuantity) {
-      const previousQuantity = current.stockQuantity;
-      const newQuantity = updated.stockQuantity;
-      await tx.stockMovement.create({
-        data: {
-          productId: id,
-          storeId,
-          changedByUserId,
-          previousQuantity,
-          newQuantity,
-          delta:
-            previousQuantity != null && newQuantity != null
-              ? newQuantity - previousQuantity
-              : null,
-          reason,
-        },
-      });
-    }
-    return updated;
-  }),
+      const updated = await tx.product.update({ where: { id, storeId }, data });
+      if (data.stockQuantity !== undefined && current.stockQuantity !== updated.stockQuantity) {
+        const previousQuantity = current.stockQuantity;
+        const newQuantity = updated.stockQuantity;
+        await tx.stockMovement.create({
+          data: {
+            productId: id,
+            storeId,
+            changedByUserId,
+            previousQuantity,
+            newQuantity,
+            delta:
+              previousQuantity != null && newQuantity != null
+                ? newQuantity - previousQuantity
+                : null,
+            reason,
+          },
+        });
+      }
+      return updated;
+    }),
 
   getStockSummary: async (storeId: string) => {
     // Keep all inventory counters on one database round-trip. The ACTIVE
     // enum literal is intentionally static; storeId remains parameterized.
-    const [summary] = await prisma.$queryRaw<Array<{
-      totalProducts: bigint;
-      trackedProducts: bigint;
-      inStock: bigint;
-      limited: bigint;
-      outOfStock: bigint;
-      totalUnits: bigint | number | null;
-    }>>`
+    const [summary] = await prisma.$queryRaw<
+      Array<{
+        totalProducts: bigint;
+        trackedProducts: bigint;
+        inStock: bigint;
+        limited: bigint;
+        outOfStock: bigint;
+        totalUnits: bigint | number | null;
+      }>
+    >`
       SELECT
         COUNT(*) AS "totalProducts",
         COUNT(*) FILTER (WHERE "stockQuantity" IS NOT NULL) AS "trackedProducts",
@@ -247,12 +274,7 @@ export const productsRepository = {
     };
   },
 
-  getStockHistory: async (
-    storeId: string,
-    page: number,
-    limit: number,
-    productId?: string,
-  ) => {
+  getStockHistory: async (storeId: string, page: number, limit: number, productId?: string) => {
     const where = { storeId, ...(productId ? { productId } : {}) };
     const [total, items] = await Promise.all([
       prisma.stockMovement.count({ where }),
@@ -287,7 +309,11 @@ export const productsRepository = {
   // via raw SQL (no SELECT + UPDATE race), with existing images always
   // ordered first (source/position tagging) so overflow trims new
   // uploads rather than silently dropping existing ones.
-  addImages: async (id: string, newImages: string[], maxImages = MAX_IMAGES_PER_ENTITY): Promise<Product> => {
+  addImages: async (
+    id: string,
+    newImages: string[],
+    maxImages = MAX_IMAGES_PER_ENTITY
+  ): Promise<Product> => {
     // maxImages is interpolated
     // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
     // be a bound parameter without restructuring the whole statement,
@@ -383,7 +409,7 @@ export const productsRepository = {
             setweight(to_tsvector('simple', arabic_normalize(coalesce(p."description", ''))), 'B')
           ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))
       `;
-      ftsIds = idRows.map((r) => r.id);
+      ftsIds = idRows.map(r => r.id);
       if (ftsIds.length === 0) {
         return { products: [], total: 0 };
       }
@@ -474,7 +500,12 @@ export const productsRepository = {
     };
 
     const [products, total] = await Promise.all([
-      prisma.product.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take }),
+      prisma.product.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
       prisma.product.count({ where }),
     ]);
 

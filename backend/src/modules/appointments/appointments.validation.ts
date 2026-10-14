@@ -18,7 +18,9 @@ export const createAppointmentSchema = z.object({
       path: ['scheduledEnd'],
     })
     .refine(
-      data => data.scheduledEnd.getTime() - data.scheduledStart.getTime() <= MAX_APPOINTMENT_MINUTES * 60_000,
+      data =>
+        data.scheduledEnd.getTime() - data.scheduledStart.getTime() <=
+        MAX_APPOINTMENT_MINUTES * 60_000,
       {
         message: `appointment cannot be longer than ${MAX_APPOINTMENT_MINUTES / 60} hours`,
         path: ['scheduledEnd'],

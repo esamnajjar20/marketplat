@@ -58,7 +58,7 @@ export async function processFanout(job: Job<FanoutJobData>): Promise<void> {
         {
           delay: decision.resumeInMs + Math.floor(Math.random() * 60_000),
           ...(job.id ? { jobId: `${job.id}_r` } : {}),
-        },
+        }
       );
       return;
     }
@@ -82,11 +82,11 @@ export async function processFanout(job: Job<FanoutJobData>): Promise<void> {
   }
 
   const jobs = [
-    ...web.map((sub) => ({
+    ...web.map(sub => ({
       name: 'web' as const,
       data: { userId, subscriptionId: sub.id, payload } satisfies WebJobData,
     })),
-    ...native.map((tok) => ({
+    ...native.map(tok => ({
       name: 'fcm' as const,
       data: { userId, tokenId: tok.id, payload } satisfies FcmJobData,
     })),
@@ -140,7 +140,11 @@ export async function processEmailFallback(job: Job<EmailFallbackJobData>): Prom
   if (quiet.blocked) {
     if (deferrals >= MAX_EMAIL_DEFERRALS) return;
     const { scheduleEmailFallback } = await import('./notificationQueue');
-    await scheduleEmailFallback(userId, deferrals + 1, quiet.resumeInMs + Math.floor(Math.random() * 60_000));
+    await scheduleEmailFallback(
+      userId,
+      deferrals + 1,
+      quiet.resumeInMs + Math.floor(Math.random() * 60_000)
+    );
     return;
   }
 
@@ -172,14 +176,21 @@ export async function processEmailFallback(job: Job<EmailFallbackJobData>): Prom
     '1',
     'EX',
     env.notificationQueue.emailFallbackGapMinutes * 60,
-    'NX',
+    'NX'
   );
   if (claimed !== 'OK') return;
 
-  const sent = await emailService.sendNotificationDigestEmail(user.email, summarizeDigest(items, total));
+  const sent = await emailService.sendNotificationDigestEmail(
+    user.email,
+    summarizeDigest(items, total)
+  );
   if (!sent) {
     // Release the claim so the retry (or the next notification) can try again.
-    await redis.del(gapKey).catch((error) => reportBackgroundFailure('backend/src/shared/queue/notificationProcessors.ts', error));
+    await redis
+      .del(gapKey)
+      .catch(error =>
+        reportBackgroundFailure('backend/src/shared/queue/notificationProcessors.ts', error)
+      );
     throw new Error('Notification digest email was not sent');
   }
 }

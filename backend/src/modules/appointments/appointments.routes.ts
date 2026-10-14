@@ -31,13 +31,15 @@ appointmentsRouter.get('/me', authenticate, CACHE.NONE, appointmentsController.g
 // sibling modules has both.
 appointmentsRouter.post(
   '/',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createAppointmentRateLimit,
   appointmentsController.createAppointment
 );
 appointmentsRouter.patch(
   '/:id/status',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   appointmentUpdateRateLimit,
   appointmentsController.updateAppointmentStatus
 );

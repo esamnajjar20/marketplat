@@ -84,7 +84,10 @@ export const activityBuffer = {
       // error.
       const results = await redis
         .pipeline()
-        .rpush(BUFFER_KEY, JSON.stringify({ ...input, idempotencyKey, createdAt: new Date().toISOString() }))
+        .rpush(
+          BUFFER_KEY,
+          JSON.stringify({ ...input, idempotencyKey, createdAt: new Date().toISOString() })
+        )
         .expire(BUFFER_KEY, BUFFER_TTL_SECONDS)
         .exec();
       const commandError = results?.find(([err]) => err)?.[0];
@@ -96,7 +99,7 @@ export const activityBuffer = {
       // outage degrades to "back to today's per-row insert cost"
       // rather than silently dropping the activity entirely.
       logger.warn('activityBuffer push failed, falling back to direct write', { err });
-      await prisma.userActivity.create({ data: { ...input, idempotencyKey } }).catch((createErr) => {
+      await prisma.userActivity.create({ data: { ...input, idempotencyKey } }).catch(createErr => {
         logger.error('Failed to write user activity (buffer + direct fallback both failed)', {
           err: createErr,
           userId: input.userId,
@@ -128,7 +131,7 @@ export const activityBuffer = {
 
         let parseFailures = 0;
         const entries = raw
-          .map((item) => {
+          .map(item => {
             try {
               return JSON.parse(item) as CreateActivityInput & { createdAt: string };
             } catch {
@@ -176,9 +179,12 @@ export const activityBuffer = {
           // the popped array reversed restores the original head order
           // ([a,b,c] popped → LPUSH c b a → [a,b,c,...rest]).
           try {
-            await redis.lpush(BUFFER_KEY, ...entries.map((e) =>
-              JSON.stringify({ ...e, createdAt: new Date(e.createdAt).toISOString() })
-            ).reverse());
+            await redis.lpush(
+              BUFFER_KEY,
+              ...entries
+                .map(e => JSON.stringify({ ...e, createdAt: new Date(e.createdAt).toISOString() }))
+                .reverse()
+            );
             // LPOP may have removed the last list item and its TTL. LPUSH
             // recreates the list without an expiry, so restore the safety TTL.
             await redis.expire(BUFFER_KEY, BUFFER_TTL_SECONDS);
@@ -189,7 +195,7 @@ export const activityBuffer = {
           } catch (repushErr) {
             logger.error(
               'Activity buffer flush failed during re-push/TTL restore — inspect buffered entries',
-              { count: entries.length, createErr, repushErr },
+              { count: entries.length, createErr, repushErr }
             );
           }
         }
@@ -208,7 +214,11 @@ export const activityBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      activityBuffer.flush().catch((error) => reportBackgroundFailure('backend/src/shared/utils/activityBuffer.ts', error));
+      activityBuffer
+        .flush()
+        .catch(error =>
+          reportBackgroundFailure('backend/src/shared/utils/activityBuffer.ts', error)
+        );
     }, FLUSH_INTERVAL);
     flushTimer.unref(); // don't keep process alive
     logger.info(`Activity buffer flush timer started (every ${FLUSH_INTERVAL / 1000}s)`);
@@ -235,7 +245,7 @@ export const activityBuffer = {
     if (remaining > 0) {
       logger.warn(
         'Activity buffer drain hit MAX_DRAIN_ITERATIONS before emptying — remaining entries stay buffered for next worker/boot',
-        { remaining, iterations },
+        { remaining, iterations }
       );
     }
   },

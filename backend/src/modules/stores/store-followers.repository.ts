@@ -58,13 +58,15 @@ export const storeFollowersRepository = {
   countAnalyticsByStoreId: async (
     storeId: string,
     since7d: Date,
-    since30d: Date,
+    since30d: Date
   ): Promise<{ followers: number; newFollowers7d: number; newFollowers30d: number }> => {
-    const rows = await prisma.$queryRaw<Array<{
-      followers: bigint;
-      newFollowers7d: bigint;
-      newFollowers30d: bigint;
-    }>>`
+    const rows = await prisma.$queryRaw<
+      Array<{
+        followers: bigint;
+        newFollowers7d: bigint;
+        newFollowers30d: bigint;
+      }>
+    >`
       SELECT
         COUNT(*) AS "followers",
         COUNT(*) FILTER (WHERE "createdAt" >= ${since7d}) AS "newFollowers7d",

@@ -34,11 +34,7 @@ import { logger } from './logger';
  *        becomes unusable immediately (generation token, see swrCache.ts).
  *    Both are called AFTER the DB write.
  */
-export type PublicListNamespace =
-  | 'stores'
-  | 'products'
-  | 'service-listings'
-  | 'service-providers';
+export type PublicListNamespace = 'stores' | 'products' | 'service-listings' | 'service-providers';
 
 export const ALL_PUBLIC_LIST_NAMESPACES: readonly PublicListNamespace[] = [
   'stores',
@@ -81,23 +77,27 @@ const isCacheableQuery = (query: unknown): boolean => {
   });
 };
 
-
 export const publicListCacheKey = (ns: PublicListNamespace, query: unknown): string => {
   const domain = getCacheDomain(DOMAIN_BY_NAMESPACE[ns]);
-  return canonicalCacheKey(domain.namespace, domain.scope as 'public' | 'personal' | 'private', query);
+  return canonicalCacheKey(
+    domain.namespace,
+    domain.scope as 'public' | 'personal' | 'private',
+    query
+  );
 };
 
 export function cachedPublicList<T>(
   ns: PublicListNamespace,
   query: unknown,
-  build: () => Promise<T>,
+  build: () => Promise<T>
 ): Promise<T> {
   return swrGet<T>({
     name: `list:${ns}`,
     key: publicListCacheKey(ns, query),
     hardGenKey: hardGenKey(ns),
     softGenKey: softGenKey(ns),
-    softTtlMs: () => PUBLIC_LIST_SOFT_TTL_MS + Math.floor(Math.random() * (PUBLIC_LIST_SOFT_JITTER_MS + 1)),
+    softTtlMs: () =>
+      PUBLIC_LIST_SOFT_TTL_MS + Math.floor(Math.random() * (PUBLIC_LIST_SOFT_JITTER_MS + 1)),
     // FIX WARM-LIST-HARD-TTL-01: the exact first-page shapes keep-warm rebuilds live
     // long enough to survive the 240s cycle; every other key keeps the short TTL.
     hardTtlSec: listHardTtlSec(ns, query, PUBLIC_LIST_HARD_TTL_SECONDS),
@@ -119,19 +119,24 @@ export async function bumpPublicListCache(...namespaces: PublicListNamespace[]):
  * homepage rebuild reads through the list caches.
  */
 export async function hidePublicEntities(...namespaces: PublicListNamespace[]): Promise<void> {
-  const results = await Promise.all(namespaces.map(async ns => ({
-    ns,
-    ok: await bumpGeneration(hardGenKey(ns), {
-      retryRequiredGenKeys: namespaces.map(hardGenKey).filter((key) => key !== hardGenKey(ns)),
-      retryDependentGenKeys: [HOME_GEN_KEY],
-    }),
-  })));
+  const results = await Promise.all(
+    namespaces.map(async ns => ({
+      ns,
+      ok: await bumpGeneration(hardGenKey(ns), {
+        retryRequiredGenKeys: namespaces.map(hardGenKey).filter(key => key !== hardGenKey(ns)),
+        retryDependentGenKeys: [HOME_GEN_KEY],
+      }),
+    }))
+  );
   const failed = results.filter(result => !result.ok).map(result => result.ns);
   if (failed.length > 0) {
     // The underlying mutation is already committed. Surface the exact namespaces
     // whose hard invalidation could not be confirmed; a generic SWR warning alone
     // does not identify which public list may still serve a hidden entity.
-    logger.error('Public-list hard cache invalidation failed; stale hidden entities may remain until hard TTL', { namespaces: failed });
+    logger.error(
+      'Public-list hard cache invalidation failed; stale hidden entities may remain until hard TTL',
+      { namespaces: failed }
+    );
     // Do not bump/rewarm the homepage from a namespace whose old generation may
     // still be readable. That would turn a failed invalidation into a fresh homepage
     // envelope containing the hidden entity. The existing homepage expires by TTL.

@@ -16,8 +16,24 @@ export const promotionsRouter = Router();
 // through products.controller.ts's effectivePrice fields, not through
 // this module directly (see promotions.controller.ts's getMyPromotions
 // doc comment).
-promotionsRouter.post('/', authenticate, requireVerifiedEmail, createPromotionRateLimit, promotionsController.createPromotion);
+promotionsRouter.post(
+  '/',
+  authenticate,
+  requireVerifiedEmail,
+  createPromotionRateLimit,
+  promotionsController.createPromotion
+);
 promotionsRouter.get('/me', authenticate, promotionsController.getMyPromotions);
 promotionsRouter.get('/:id', authenticate, promotionsController.getPromotionById);
-promotionsRouter.patch('/:id', authenticate, updatePromotionRateLimit, promotionsController.updatePromotion);
-promotionsRouter.delete('/:id', authenticate, cancelPromotionRateLimit, promotionsController.cancelPromotion);
+promotionsRouter.patch(
+  '/:id',
+  authenticate,
+  updatePromotionRateLimit,
+  promotionsController.updatePromotion
+);
+promotionsRouter.delete(
+  '/:id',
+  authenticate,
+  cancelPromotionRateLimit,
+  promotionsController.cancelPromotion
+);

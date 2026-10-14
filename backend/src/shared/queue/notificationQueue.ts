@@ -72,7 +72,7 @@ export function getNotificationQueue(): Queue<NotificationJobData> {
       removeOnFail: { age: 24 * 3600, count: 500 },
     },
   });
-  queue.on('error', (err) => logger.error('Notification queue error', { err: err.message }));
+  queue.on('error', err => logger.error('Notification queue error', { err: err.message }));
   return queue;
 }
 
@@ -90,11 +90,12 @@ export async function enqueuePush(userId: string, payload: PushPayload): Promise
 export async function deferPush(
   userId: string,
   payload: PushPayload,
-  resumeInMs: number,
+  resumeInMs: number
 ): Promise<void> {
   const q = getNotificationQueue();
   const jobId = deferredPushJobId(userId, payload.tag);
-  const delay = Math.max(1_000, Math.round(resumeInMs)) + Math.floor(Math.random() * DEFER_JITTER_MS);
+  const delay =
+    Math.max(1_000, Math.round(resumeInMs)) + Math.floor(Math.random() * DEFER_JITTER_MS);
 
   await withTimeout(
     (async () => {
@@ -113,7 +114,11 @@ export async function deferPush(
             state === 'completed' ||
             state === 'waiting'
           ) {
-            await existing.remove().catch((error) => reportBackgroundFailure('backend/src/shared/queue/notificationQueue.ts', error));
+            await existing
+              .remove()
+              .catch(error =>
+                reportBackgroundFailure('backend/src/shared/queue/notificationQueue.ts', error)
+              );
           } else if (state === 'active') {
             effectiveJobId = `${jobId}_${Date.now()}`;
           }
@@ -123,7 +128,7 @@ export async function deferPush(
       await q.add('fanout', data, { delay, ...(effectiveJobId ? { jobId: effectiveJobId } : {}) });
     })(),
     ENQUEUE_TIMEOUT_MS,
-    'deferPush',
+    'deferPush'
   );
 }
 
@@ -132,7 +137,11 @@ export async function deferPush(
  * user. Later eligible notifications inside the window find the job already
  * there (same jobId → add() is a no-op) and simply join its digest.
  */
-export async function scheduleEmailFallback(userId: string, deferrals = 0, delayMs?: number): Promise<void> {
+export async function scheduleEmailFallback(
+  userId: string,
+  deferrals = 0,
+  delayMs?: number
+): Promise<void> {
   const data: EmailFallbackJobData = { userId, deferrals };
   const delay = delayMs ?? env.notificationQueue.emailFallbackDelayMinutes * 60_000;
   await withTimeout(
@@ -143,7 +152,7 @@ export async function scheduleEmailFallback(userId: string, deferrals = 0, delay
       backoff: { type: 'exponential', delay: 30_000 },
     }),
     ENQUEUE_TIMEOUT_MS,
-    'scheduleEmailFallback',
+    'scheduleEmailFallback'
   );
 }
 
@@ -158,7 +167,10 @@ async function dispatch(job: Job<NotificationJobData>): Promise<void> {
     case 'email-fallback':
       return processEmailFallback(job as Job<EmailFallbackJobData>);
     default:
-      logger.warn('Notification worker: unknown job name, dropping', { name: job.name, id: job.id });
+      logger.warn('Notification worker: unknown job name, dropping', {
+        name: job.name,
+        id: job.id,
+      });
   }
 }
 
@@ -172,7 +184,7 @@ export function startNotificationWorker(): void {
     concurrency: env.notificationQueue.concurrency,
   });
 
-  worker.on('error', (err) => logger.error('Notification worker error', { err: err.message }));
+  worker.on('error', err => logger.error('Notification worker error', { err: err.message }));
   worker.on('failed', (job, err) => {
     if (!job) return;
     const attempts = job.opts.attempts ?? 1;
@@ -196,7 +208,7 @@ export function startNotificationWorker(): void {
           tokenId: d.tokenId,
           tag: (job.data as { payload?: PushPayload }).payload?.tag,
         },
-        err,
+        err
       );
     }
   });

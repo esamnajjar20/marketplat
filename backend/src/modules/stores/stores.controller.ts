@@ -139,7 +139,7 @@ export const storesController = {
 
   // admin-only endpoint that finally makes StorePlan.FEATURED
   // reachable — see stores.service.ts's updateStorePlan doc comment.
-  
+
   requestFeature: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
@@ -149,7 +149,7 @@ export const storesController = {
       next(error);
     }
   },
-updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const admin = requireUser(req);
       const { params, body } = updateStorePlanSchema.parse({
@@ -181,11 +181,11 @@ updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promis
       // status=BLOCKED), and then vanish before the audit log was
       // written. Undermines the entire point of the required-reason
       // check the schema enforces two layers up.
-      const result = await runBulk(body.storeIds, (id) =>
+      const result = await runBulk(body.storeIds, id =>
         storesService.updateStoreStatus(
           id,
           { status: body.status, reason: body.reason },
-          admin.userId,
+          admin.userId
         )
       );
       res.status(200).json(
@@ -217,7 +217,9 @@ updateStorePlan: async (req: Request, res: Response, next: NextFunction): Promis
       const result = await storesService.getMyFollowedStores(user.userId, query);
       res
         .status(200)
-        .json(successResponse('Followed stores fetched', result.items, { pagination: result.meta }));
+        .json(
+          successResponse('Followed stores fetched', result.items, { pagination: result.meta })
+        );
     } catch (error) {
       next(error);
     }

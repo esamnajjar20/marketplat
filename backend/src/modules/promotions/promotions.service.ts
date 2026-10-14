@@ -14,7 +14,7 @@ import { ConflictError } from '../../shared/errors/ConflictError';
 // ACTIVE once that time passes, with no separate write required for
 // every promotion on every clock tick. resolveStatus is called on
 // every read/write path (so an individual product's price is always
-// correct even between sweeps), and — as of 
+// correct even between sweeps), and — as of
 // myPromotionsExpiring.ts also runs promotionsRepository's
 // findDueForActivation/findDueForExpiry as a scheduled sweep (same
 // invocation model as weeklyAdViewsReport.ts) so the stored `status`
@@ -36,7 +36,11 @@ const resolveStatus = (promotion: Promotion, now: Date): Promotion['status'] => 
 const syncStatus = (promotion: Promotion, now: Date): Promotion => {
   const resolved = resolveStatus(promotion, now);
   if (resolved !== promotion.status) {
-    promotionsRepository.update(promotion.id, { status: resolved }).catch((error) => reportBackgroundFailure('backend/src/modules/promotions/promotions.service.ts', error));
+    promotionsRepository
+      .update(promotion.id, { status: resolved })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/promotions/promotions.service.ts', error)
+      );
     return { ...promotion, status: resolved };
   }
   return promotion;
@@ -180,10 +184,7 @@ export const promotionsService = {
         ? Number(input.discountValue)
         : Number(existing.discountValue);
     if (nextType === 'PERCENTAGE' && nextValue > 100) {
-      throw new ConflictError(
-        'A percentage discount cannot exceed 100.',
-        'INVALID_DISCOUNT_VALUE',
-      );
+      throw new ConflictError('A percentage discount cannot exceed 100.', 'INVALID_DISCOUNT_VALUE');
     }
 
     // T386 — window consistency: same class of bug as T384. If either
@@ -192,10 +193,7 @@ export const promotionsService = {
     const nextStartsAt = input.startsAt ?? existing.startsAt;
     const nextEndsAt = input.endsAt ?? existing.endsAt;
     if (nextEndsAt <= nextStartsAt) {
-      throw new ConflictError(
-        'endsAt must be after startsAt.',
-        'INVALID_PROMOTION_WINDOW',
-      );
+      throw new ConflictError('endsAt must be after startsAt.', 'INVALID_PROMOTION_WINDOW');
     }
 
     // T385 — the caller can move startsAt/endsAt across "now" in a
@@ -205,7 +203,7 @@ export const promotionsService = {
     const now = new Date();
     const resolvedStatus = resolveStatus(
       { ...existing, startsAt: nextStartsAt, endsAt: nextEndsAt },
-      now,
+      now
     );
 
     const patch: Parameters<typeof promotionsRepository.update>[1] = { ...input };

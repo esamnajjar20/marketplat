@@ -1,5 +1,12 @@
 import { prisma } from '../../config/prisma';
-import { recommendationsRepository, CategoryWeight, productRecommendationsRepository, serviceListingRecommendationsRepository, storeRecommendationsRepository, serviceProviderRecommendationsRepository } from './recommendations.repository';
+import {
+  recommendationsRepository,
+  CategoryWeight,
+  productRecommendationsRepository,
+  serviceListingRecommendationsRepository,
+  storeRecommendationsRepository,
+  serviceProviderRecommendationsRepository,
+} from './recommendations.repository';
 import { adsService } from '../ads/ads.service';
 import { productsService } from '../products/products.service';
 import { serviceListingsService } from '../service-listings/service-listings.service';
@@ -37,7 +44,7 @@ export const resolveOptionalUserId = (authHeader: string | undefined): string | 
 // the pre-existing behaviour (resolve from the header).
 const resolveUserId = (
   authHeader: string | undefined,
-  userIdOverride: string | null | undefined,
+  userIdOverride: string | null | undefined
 ): string | null =>
   userIdOverride !== undefined ? userIdOverride : resolveOptionalUserId(authHeader);
 
@@ -64,7 +71,7 @@ export const recommendationsService = {
   getRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
-    userIdOverride?: string | null,
+    userIdOverride?: string | null
   ): Promise<AdListRow[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveUserId(authHeader, userIdOverride);
@@ -126,12 +133,9 @@ export const recommendationsService = {
 
     const categoryWeights: CategoryWeight[] = Array.from(
       categoryInterests.reduce((scores, interest) => {
-        scores.set(
-          interest.categoryId,
-          (scores.get(interest.categoryId) ?? 0) + interest.score,
-        );
+        scores.set(interest.categoryId, (scores.get(interest.categoryId) ?? 0) + interest.score);
         return scores;
-      }, new Map<string, number>()),
+      }, new Map<string, number>())
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
 
     const hardExcludeIds = Array.from(excludeIds);
@@ -143,12 +147,17 @@ export const recommendationsService = {
       // matches first, then use the same interest profile across Gaza to
       // fill any remaining slots.
       personalized = await recommendationsRepository.findByWeightedCategories(
-        categoryWeights, excludeIdList, limit, city,
+        categoryWeights,
+        excludeIdList,
+        limit,
+        city
       );
       if (city && personalized.length < limit) {
         const more = await recommendationsRepository.findByWeightedCategories(
-          categoryWeights, [...excludeIdList, ...personalized.map(ad => ad.id)],
-          limit - personalized.length, null,
+          categoryWeights,
+          [...excludeIdList, ...personalized.map(ad => ad.id)],
+          limit - personalized.length,
+          null
         );
         personalized = [...personalized, ...more];
       }
@@ -168,7 +177,7 @@ export const recommendationsService = {
     const generalTrending = await recommendationsRepository.findTrending(
       [...excludeIdList, ...afterCity.map(ad => ad.id)],
       limit - afterCity.length,
-      null,
+      null
     );
     const ranked = [...afterCity, ...generalTrending];
     if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
@@ -176,10 +185,16 @@ export const recommendationsService = {
     // Last resort: bring back owned/favorited items (never the reference
     // item itself) so the rail is not left nearly empty.
     const rest = await recommendationsRepository.findTrending(
-      [...hardExcludeIds, ...ranked.map(ad => ad.id)], limit - ranked.length, null,
+      [...hardExcludeIds, ...ranked.map(ad => ad.id)],
+      limit - ranked.length,
+      null
     );
     if (rest.length > 0) {
-      logger.debug('[recommendations] last-resort backfill used', { kind: 'ad', userId, restored: rest.length });
+      logger.debug('[recommendations] last-resort backfill used', {
+        kind: 'ad',
+        userId,
+        restored: rest.length,
+      });
     }
     return [...ranked, ...rest];
   },
@@ -192,7 +207,7 @@ export const recommendationsService = {
   getProductRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
-    userIdOverride?: string | null,
+    userIdOverride?: string | null
   ): Promise<ProductWithStoreLite[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveUserId(authHeader, userIdOverride);
@@ -224,7 +239,9 @@ export const recommendationsService = {
 
     if (query.excludeProductId) {
       excludeIds.add(query.excludeProductId);
-      const referenceProduct = await productsService.findProductForReference(query.excludeProductId);
+      const referenceProduct = await productsService.findProductForReference(
+        query.excludeProductId
+      );
       if (referenceProduct?.categoryId) {
         categoryInterests.push({
           categoryId: referenceProduct.categoryId,
@@ -253,12 +270,9 @@ export const recommendationsService = {
 
     const categoryWeights: CategoryWeight[] = Array.from(
       categoryInterests.reduce((scores, interest) => {
-        scores.set(
-          interest.categoryId,
-          (scores.get(interest.categoryId) ?? 0) + interest.score,
-        );
+        scores.set(interest.categoryId, (scores.get(interest.categoryId) ?? 0) + interest.score);
         return scores;
-      }, new Map<string, number>()),
+      }, new Map<string, number>())
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
     const hardExcludeIds = Array.from(excludeIds);
     const excludeIdList = [...hardExcludeIds, ...softExcludeIds];
@@ -266,12 +280,19 @@ export const recommendationsService = {
 
     if (categoryWeights.length > 0) {
       personalized = await productRecommendationsRepository.findByWeightedCategories(
-        categoryWeights, excludeIdList, limit, city, followedStoreIds,
+        categoryWeights,
+        excludeIdList,
+        limit,
+        city,
+        followedStoreIds
       );
       if (city && personalized.length < limit) {
         const more = await productRecommendationsRepository.findByWeightedCategories(
-          categoryWeights, [...excludeIdList, ...personalized.map(p => p.id)],
-          limit - personalized.length, null, followedStoreIds,
+          categoryWeights,
+          [...excludeIdList, ...personalized.map(p => p.id)],
+          limit - personalized.length,
+          null,
+          followedStoreIds
         );
         personalized = [...personalized, ...more];
       }
@@ -281,13 +302,19 @@ export const recommendationsService = {
 
     const cityExclude = [...excludeIdList, ...personalized.map(p => p.id)];
     const cityTrending = city
-      ? await productRecommendationsRepository.findTrending(cityExclude, limit - personalized.length, city)
+      ? await productRecommendationsRepository.findTrending(
+          cityExclude,
+          limit - personalized.length,
+          city
+        )
       : [];
     const afterCity = [...personalized, ...cityTrending];
     if (afterCity.length >= limit) return afterCity;
 
     const generalTrending = await productRecommendationsRepository.findTrending(
-      [...excludeIdList, ...afterCity.map(p => p.id)], limit - afterCity.length, null,
+      [...excludeIdList, ...afterCity.map(p => p.id)],
+      limit - afterCity.length,
+      null
     );
     const ranked = [...afterCity, ...generalTrending];
     if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
@@ -295,10 +322,16 @@ export const recommendationsService = {
     // Last resort: bring back owned/favorited items (never the reference
     // item itself) so the rail is not left nearly empty.
     const rest = await productRecommendationsRepository.findTrending(
-      [...hardExcludeIds, ...ranked.map(p => p.id)], limit - ranked.length, null,
+      [...hardExcludeIds, ...ranked.map(p => p.id)],
+      limit - ranked.length,
+      null
     );
     if (rest.length > 0) {
-      logger.debug('[recommendations] last-resort backfill used', { kind: 'product', userId, restored: rest.length });
+      logger.debug('[recommendations] last-resort backfill used', {
+        kind: 'product',
+        userId,
+        restored: rest.length,
+      });
     }
     return [...ranked, ...rest];
   },
@@ -308,7 +341,7 @@ export const recommendationsService = {
   getServiceListingRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
-    userIdOverride?: string | null,
+    userIdOverride?: string | null
   ): Promise<ServiceListingWithProvider[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveUserId(authHeader, userIdOverride);
@@ -366,12 +399,9 @@ export const recommendationsService = {
 
     const categoryWeights: CategoryWeight[] = Array.from(
       categoryInterests.reduce((scores, interest) => {
-        scores.set(
-          interest.categoryId,
-          (scores.get(interest.categoryId) ?? 0) + interest.score,
-        );
+        scores.set(interest.categoryId, (scores.get(interest.categoryId) ?? 0) + interest.score);
         return scores;
-      }, new Map<string, number>()),
+      }, new Map<string, number>())
     ).map(([categoryId, weight]) => ({ categoryId, weight }));
     const hardExcludeIds = Array.from(excludeIds);
     const excludeIdList = [...hardExcludeIds, ...softExcludeIds];
@@ -379,12 +409,19 @@ export const recommendationsService = {
 
     if (categoryWeights.length > 0) {
       personalized = await serviceListingRecommendationsRepository.findByWeightedCategories(
-        categoryWeights, excludeIdList, limit, city, query.serviceTypeId,
+        categoryWeights,
+        excludeIdList,
+        limit,
+        city,
+        query.serviceTypeId
       );
       if (city && personalized.length < limit) {
         const more = await serviceListingRecommendationsRepository.findByWeightedCategories(
-          categoryWeights, [...excludeIdList, ...personalized.map(l => l.id)],
-          limit - personalized.length, null, query.serviceTypeId,
+          categoryWeights,
+          [...excludeIdList, ...personalized.map(l => l.id)],
+          limit - personalized.length,
+          null,
+          query.serviceTypeId
         );
         personalized = [...personalized, ...more];
       }
@@ -394,13 +431,21 @@ export const recommendationsService = {
 
     const cityExclude = [...excludeIdList, ...personalized.map(l => l.id)];
     const cityTrending = city
-      ? await serviceListingRecommendationsRepository.findTrending(cityExclude, limit - personalized.length, city, query.serviceTypeId)
+      ? await serviceListingRecommendationsRepository.findTrending(
+          cityExclude,
+          limit - personalized.length,
+          city,
+          query.serviceTypeId
+        )
       : [];
     const afterCity = [...personalized, ...cityTrending];
     if (afterCity.length >= limit) return afterCity;
 
     const generalTrending = await serviceListingRecommendationsRepository.findTrending(
-      [...excludeIdList, ...afterCity.map(l => l.id)], limit - afterCity.length, null, query.serviceTypeId,
+      [...excludeIdList, ...afterCity.map(l => l.id)],
+      limit - afterCity.length,
+      null,
+      query.serviceTypeId
     );
     const ranked = [...afterCity, ...generalTrending];
     if (ranked.length >= limit || softExcludeIds.size === 0) return ranked;
@@ -408,10 +453,17 @@ export const recommendationsService = {
     // Last resort: bring back owned/favorited items (never the reference
     // item itself) so the rail is not left nearly empty.
     const rest = await serviceListingRecommendationsRepository.findTrending(
-      [...hardExcludeIds, ...ranked.map(l => l.id)], limit - ranked.length, null, query.serviceTypeId,
+      [...hardExcludeIds, ...ranked.map(l => l.id)],
+      limit - ranked.length,
+      null,
+      query.serviceTypeId
     );
     if (rest.length > 0) {
-      logger.debug('[recommendations] last-resort backfill used', { kind: 'service', userId, restored: rest.length });
+      logger.debug('[recommendations] last-resort backfill used', {
+        kind: 'service',
+        userId,
+        restored: rest.length,
+      });
     }
     return [...ranked, ...rest];
   },
@@ -427,7 +479,7 @@ export const recommendationsService = {
   getMixedRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
-    userIdOverride?: string | null,
+    userIdOverride?: string | null
   ): Promise<MixedRecommendations> => {
     const userId = resolveUserId(authHeader, userIdOverride);
 
@@ -463,10 +515,10 @@ export const recommendationsService = {
     const [ads, products, services] = await Promise.all([
       settle('ads', () => recommendationsService.getRecommendations(shared, authHeader, userId)),
       settle('products', () =>
-        recommendationsService.getProductRecommendations(shared, authHeader, userId),
+        recommendationsService.getProductRecommendations(shared, authHeader, userId)
       ),
       settle('services', () =>
-        recommendationsService.getServiceListingRecommendations(shared, authHeader, userId),
+        recommendationsService.getServiceListingRecommendations(shared, authHeader, userId)
       ),
     ]);
 
@@ -491,7 +543,7 @@ export const recommendationsService = {
   getServiceProviderRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
-    userIdOverride?: string | null,
+    userIdOverride?: string | null
   ) => {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveUserId(authHeader, userIdOverride);
@@ -499,19 +551,26 @@ export const recommendationsService = {
     let interestCategoryIds: string[] = [];
 
     if (!city && userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { city: true } }).catch(() => null);
+      const user = await prisma.user
+        .findUnique({ where: { id: userId }, select: { city: true } })
+        .catch(() => null);
       city = user?.city?.trim() || null;
     }
     if (userId) {
       try {
-        const interests = await serviceListingRecommendationsRepository.getServiceCategoryInterest(userId);
+        const interests =
+          await serviceListingRecommendationsRepository.getServiceCategoryInterest(userId);
         interestCategoryIds = interests.map(item => item.categoryId).slice(0, 12);
       } catch (err) {
         logger.error('Failed to gather service-provider recommendation signals', { err, userId });
       }
     }
 
-    const cityItems = await serviceProviderRecommendationsRepository.findRanked({ city, interestCategoryIds, limit });
+    const cityItems = await serviceProviderRecommendationsRepository.findRanked({
+      city,
+      interestCategoryIds,
+      limit,
+    });
     if (!city || cityItems.length >= limit) return cityItems;
 
     const general = await serviceProviderRecommendationsRepository.findRanked({
@@ -526,7 +585,7 @@ export const recommendationsService = {
   getStoreRecommendations: async (
     query: GetRecommendationsQuery,
     authHeader: string | undefined,
-    userIdOverride?: string | null,
+    userIdOverride?: string | null
   ): Promise<StoreWithSeller[]> => {
     const limit = query.limit ?? DEFAULT_LIMIT;
     const userId = resolveUserId(authHeader, userIdOverride);
@@ -542,7 +601,10 @@ export const recommendationsService = {
 
     if (!city && userId) {
       try {
-        const user = await prisma.user.findUnique({ where: { id: userId }, select: { city: true } });
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { city: true },
+        });
         city = user?.city?.trim() || null;
       } catch (err) {
         logger.error('Failed to resolve user city for store recommendations', { err, userId });

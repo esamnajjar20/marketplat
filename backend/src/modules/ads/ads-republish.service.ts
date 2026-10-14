@@ -55,7 +55,10 @@ export const adsRepublishService = {
       throw new ForbiddenError('You can only republish your own ads.', 'NOT_YOUR_AD');
     }
     if (![AdStatus.SOLD, AdStatus.DELETED, AdStatus.EXPIRED].includes(source.status)) {
-      throw new BadRequestError('Ad cannot be republished from this status.', 'AD_NOT_REPUBLISHABLE');
+      throw new BadRequestError(
+        'Ad cannot be republished from this status.',
+        'AD_NOT_REPUBLISHABLE'
+      );
     }
     if (!source.images || source.images.length < 1) {
       throw new BadRequestError('Source ad has no images to copy.', 'AD_NO_IMAGES');
@@ -110,8 +113,7 @@ export const adsRepublishService = {
     }
 
     // Cooldown since source was closed (outside lock — pure time check)
-    const hoursSinceUpdate =
-      (Date.now() - new Date(source.updatedAt).getTime()) / (1000 * 60 * 60);
+    const hoursSinceUpdate = (Date.now() - new Date(source.updatedAt).getTime()) / (1000 * 60 * 60);
     if (hoursSinceUpdate < COOLDOWN_HOURS && source.status === AdStatus.SOLD) {
       throw new BadRequestError(
         `Please wait ${COOLDOWN_HOURS} hours after marking an ad as sold before republishing.`,
@@ -132,7 +134,7 @@ export const adsRepublishService = {
         );
       }
 
-      const created = await prisma.$transaction(async (tx) => {
+      const created = await prisma.$transaction(async tx => {
         // `ad` is passed to
         // savedSearchEvents.onAdCreated() after the transaction commits
         // — that call site expects the AdWithAuthor shape (user +
@@ -194,11 +196,11 @@ export const adsRepublishService = {
       // that already exists.
       await bumpAdsCacheVersion();
 
-      savedSearchEvents.onAdCreated(created).catch((err) =>
+      savedSearchEvents.onAdCreated(created).catch(err =>
         logger.error('Failed to process saved-search matches for republished ad', {
           err,
           adId: created.id,
-        }),
+        })
       );
 
       activityService.record({
@@ -216,7 +218,7 @@ export const adsRepublishService = {
           price: created.price ? Number(created.price) : null,
           categoryId: created.categoryId,
         })
-        .catch((err) => {
+        .catch(err => {
           logger.error('Fraud scoring failed to run for republished ad', {
             err,
             adId: created.id,
@@ -232,8 +234,10 @@ export const adsRepublishService = {
               price: created.price ? Number(created.price) : null,
               categoryId: created.categoryId,
             },
-            err,
-          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads-republish.service.ts', error));
+            err
+          ).catch(error =>
+            reportBackgroundFailure('backend/src/modules/ads/ads-republish.service.ts', error)
+          );
         });
 
       logger.info('Ad republished', {

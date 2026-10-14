@@ -25,7 +25,7 @@ export const adsPinService = {
       if (ad.pinnedByAdmin) {
         throw new ForbiddenError(
           'This ad was pinned by an admin and cannot be unpinned by the seller.',
-          'ADMIN_PINNED',
+          'ADMIN_PINNED'
         );
       }
       return prisma.ad.update({
@@ -44,7 +44,7 @@ export const adsPinService = {
     // Same shape as admin.toggleUserActive's guard.
     try {
       await prisma.$transaction(
-        async (tx) => {
+        async tx => {
           await tx.ad.updateMany({
             where: {
               userId,
@@ -59,7 +59,7 @@ export const adsPinService = {
             data: { isPinned: true, pinnedByAdmin: false },
           });
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
     } catch (e: unknown) {
       if (
@@ -70,7 +70,7 @@ export const adsPinService = {
       ) {
         throw new BadRequestError(
           'Another pin change happened at the same time — please retry.',
-          'CONCURRENT_UPDATE_CONFLICT',
+          'CONCURRENT_UPDATE_CONFLICT'
         );
       }
       throw e;

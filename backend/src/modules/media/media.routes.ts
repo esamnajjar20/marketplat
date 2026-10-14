@@ -14,5 +14,5 @@ mediaRouter.post(
   authenticate,
   mediaUploadRateLimit,
   uploadMultipleMiddleware,
-  mediaController.uploadImages,
+  mediaController.uploadImages
 );

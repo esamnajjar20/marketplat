@@ -22,10 +22,7 @@ export const serviceReviewsController = {
         params: req.params,
         query: req.query,
       });
-      const result = await serviceReviewsService.getReviewsForSeller(
-        params.sellerProfileId,
-        query
-      );
+      const result = await serviceReviewsService.getReviewsForSeller(params.sellerProfileId, query);
       res
         .status(200)
         .json(

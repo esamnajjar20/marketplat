@@ -32,10 +32,10 @@ export const mediaController = {
       // this Same trade-off as every other multi-image upload
       // path in this codebase.
       const uploaded = await Promise.all(
-        files.map(async (file) => {
+        files.map(async file => {
           const result = await uploadImage(file.buffer, 'requests');
           return { url: result.url, publicId: result.publicId };
-        }),
+        })
       );
       res.status(201).json(successResponse('Images uploaded', uploaded));
     } catch (error) {

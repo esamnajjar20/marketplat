@@ -8,7 +8,9 @@ export const invoicesService = {
    */
   nextInvoiceNumber: async (tx: Prisma.TransactionClient, _sellerId: string): Promise<string> => {
     const year = new Date().getFullYear();
-    await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${String(year)}, 0))`);
+    await tx.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${String(year)}, 0))`
+    );
     const counter = await tx.invoiceCounter.upsert({
       where: { year },
       create: { year, nextValue: 2 },

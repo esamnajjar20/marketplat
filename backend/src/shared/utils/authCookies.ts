@@ -88,11 +88,7 @@ const isProduction = env.nodeEnv === 'production';
  * - domain: optional COOKIE_DOMAIN (e.g. ".example.com"). Never set
  *   on Public Suffix hosts — browsers reject Domain=up.railway.app.
  */
-function authCookieBase(opts: {
-  httpOnly: boolean;
-  path: string;
-  maxAge?: number;
-}): {
+function authCookieBase(opts: { httpOnly: boolean; path: string; maxAge?: number }): {
   httpOnly: boolean;
   secure: boolean;
   sameSite: 'none' | 'lax' | 'strict';
@@ -128,7 +124,7 @@ export function setRefreshTokenCookie(res: Response, refreshToken: string): void
       httpOnly: true,
       path: REFRESH_TOKEN_COOKIE_PATH,
       maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-    }),
+    })
   );
 }
 
@@ -140,7 +136,7 @@ export function clearRefreshTokenCookie(res: Response): void {
   // existing one).
   res.clearCookie(
     REFRESH_TOKEN_COOKIE_NAME,
-    authCookieBase({ httpOnly: true, path: REFRESH_TOKEN_COOKIE_PATH }),
+    authCookieBase({ httpOnly: true, path: REFRESH_TOKEN_COOKIE_PATH })
   );
 }
 
@@ -168,16 +164,13 @@ export function setCsrfCookie(res: Response): string {
       httpOnly: false,
       path: '/',
       maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-    }),
+    })
   );
   return csrfToken;
 }
 
 export function clearCsrfCookie(res: Response): void {
-  res.clearCookie(
-    CSRF_COOKIE_NAME,
-    authCookieBase({ httpOnly: false, path: '/' }),
-  );
+  res.clearCookie(CSRF_COOKIE_NAME, authCookieBase({ httpOnly: false, path: '/' }));
 }
 
 export function getCsrfCookieName(): string {
@@ -226,15 +219,12 @@ export function setSessionHintCookie(res: Response): void {
       httpOnly: true,
       path: '/',
       maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-    }),
+    })
   );
 }
 
 export function clearSessionHintCookie(res: Response): void {
-  res.clearCookie(
-    SESSION_HINT_COOKIE_NAME,
-    authCookieBase({ httpOnly: true, path: '/' }),
-  );
+  res.clearCookie(SESSION_HINT_COOKIE_NAME, authCookieBase({ httpOnly: true, path: '/' }));
 }
 
 export function getSessionHintCookieName(): string {

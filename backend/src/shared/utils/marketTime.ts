@@ -72,7 +72,9 @@ export const getZonedParts = (date: Date, tz: string = MARKET_TZ): ZonedParts =>
 
 const offsetMs = (utcMs: number, tz: string): number => {
   const p = getZonedParts(new Date(utcMs), tz);
-  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, 0) - Math.floor(utcMs / 60000) * 60000;
+  return (
+    Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, 0) - Math.floor(utcMs / 60000) * 60000
+  );
 };
 
 /** Convert a wall-clock date + HH:mm in `tz` to the matching UTC instant. */
@@ -105,7 +107,11 @@ export const workingWindowUtc = (
 ): { start: Date; end: Date } => {
   const start = zonedTimeToUtc(dateStr, schedule.open, tz);
   const overnight = schedule.close <= schedule.open;
-  const end = zonedTimeToUtc(overnight ? addDaysToDateStr(dateStr, 1) : dateStr, schedule.close, tz);
+  const end = zonedTimeToUtc(
+    overnight ? addDaysToDateStr(dateStr, 1) : dateStr,
+    schedule.close,
+    tz
+  );
   return { start, end };
 };
 

@@ -15,9 +15,7 @@ export const adsPinController = {
       const user = requireUser(req);
       const { params, body } = schema.parse({ params: req.params, body: req.body });
       const ad = await adsPinService.setPinned(user.userId, params.id, body.isPinned);
-      res.status(200).json(
-        successResponse(body.isPinned ? 'Ad pinned' : 'Ad unpinned', ad)
-      );
+      res.status(200).json(successResponse(body.isPinned ? 'Ad pinned' : 'Ad unpinned', ad));
     } catch (error) {
       next(error);
     }

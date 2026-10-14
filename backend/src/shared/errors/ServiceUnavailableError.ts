@@ -12,7 +12,11 @@ import { AppError } from './AppError';
  * (e.g. show "try again in a moment" rather than a generic error).
  */
 export class ServiceUnavailableError extends AppError {
-  constructor(message = 'Service temporarily unavailable, please try again shortly', code?: string, meta?: Record<string, unknown>) {
+  constructor(
+    message = 'Service temporarily unavailable, please try again shortly',
+    code?: string,
+    meta?: Record<string, unknown>
+  ) {
     super(message, 503, code, meta);
   }
 }

@@ -25,7 +25,11 @@ export const serviceProvidersController = {
     }
   },
 
-  getMyServiceTypeProfiles: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getMyServiceTypeProfiles: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const profiles = await serviceProvidersService.getMyServiceTypeProfiles(user.userId);
@@ -35,11 +39,22 @@ export const serviceProvidersController = {
     }
   },
 
-  updateMyServiceTypeProfile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  updateMyServiceTypeProfile: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { params, body } = updateServiceProviderServiceTypeSchema.parse({ params: req.params, body: req.body });
-      const profile = await serviceProvidersService.updateMyServiceTypeProfile(user.userId, params.serviceTypeId, body);
+      const { params, body } = updateServiceProviderServiceTypeSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const profile = await serviceProvidersService.updateMyServiceTypeProfile(
+        user.userId,
+        params.serviceTypeId,
+        body
+      );
       res.status(200).json(successResponse('Service provider service type updated', profile));
     } catch (error) {
       next(error);
@@ -56,7 +71,11 @@ export const serviceProvidersController = {
     }
   },
 
-  updateMyServiceProvider: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  updateMyServiceProvider: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { body } = updateServiceProviderSchema.parse({ body: req.body });
@@ -79,18 +98,29 @@ export const serviceProvidersController = {
   },
 
   // ANALYTICS: owner-only, mirrors storesController.getMyStoreAnalytics.
-  getMyServiceProviderAnalytics: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getMyServiceProviderAnalytics: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { query } = serviceProviderAnalyticsQuerySchema.parse({ query: req.query });
-      const analytics = await serviceProvidersService.getMyServiceProviderAnalytics(user.userId, query.period);
+      const analytics = await serviceProvidersService.getMyServiceProviderAnalytics(
+        user.userId,
+        query.period
+      );
       res.status(200).json(successResponse('Service provider analytics fetched', analytics));
     } catch (error) {
       next(error);
     }
   },
 
-  getPublicServiceProvider: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getPublicServiceProvider: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { params } = serviceProviderIdSchema.parse({ params: req.params });
       const details = await serviceProvidersService.getPublicServiceProvider(params.id);
@@ -120,9 +150,7 @@ export const serviceProvidersController = {
       const { providers, meta } = await serviceProvidersService.findNearby(query);
       res
         .status(200)
-        .json(
-          successResponse('Nearby service providers fetched', providers, { pagination: meta })
-        );
+        .json(successResponse('Nearby service providers fetched', providers, { pagination: meta }));
     } catch (error) {
       next(error);
     }

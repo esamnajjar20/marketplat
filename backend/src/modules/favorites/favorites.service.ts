@@ -1,4 +1,9 @@
-import { favoritesRepository, FavoriteListRow, FavoriteAdEntity, FavoriteEntity } from './favorites.repository';
+import {
+  favoritesRepository,
+  FavoriteListRow,
+  FavoriteAdEntity,
+  FavoriteEntity,
+} from './favorites.repository';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
 import { productsService } from '../products/products.service';
 import { storesService } from '../stores/stores.service';

@@ -64,7 +64,7 @@ export function extractGoogleProfile(profile: Profile): GoogleProfileData {
   const email = profile.emails?.find(e => e.verified === true)?.value;
   if (!email) {
     const err = new Error(
-      'Google did not provide a verified email address for this account. Please verify your email with Google and try again.',
+      'Google did not provide a verified email address for this account. Please verify your email with Google and try again.'
     );
     (err as Error & { code?: string }).code = 'GOOGLE_EMAIL_NOT_VERIFIED';
     throw err;

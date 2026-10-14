@@ -67,6 +67,8 @@ export const storeReviewsRepository = {
       _avg: { score: true },
       _count: true,
     });
-    return new Map(rows.map(row => [row.sellerProfileId, { avg: row._avg.score, count: row._count }]));
+    return new Map(
+      rows.map(row => [row.sellerProfileId, { avg: row._avg.score, count: row._count }])
+    );
   },
 };

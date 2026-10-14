@@ -1,7 +1,10 @@
 import { prisma } from '../../config/prisma';
 import { logger } from '../../shared/utils/logger';
 import { homeFeedShortRailTotal } from '../../shared/utils/metrics';
-import { resolveOptionalUserId, recommendationsService } from '../recommendations/recommendations.service';
+import {
+  resolveOptionalUserId,
+  recommendationsService,
+} from '../recommendations/recommendations.service';
 import { adsService } from '../ads/ads.service';
 import { productsService } from '../products/products.service';
 import { serviceListingsService } from '../service-listings/service-listings.service';
@@ -41,7 +44,7 @@ const settle = async <T>(name: string, run: () => Promise<T>): Promise<T | null>
  */
 function reportShortRails(
   rails: { ads: unknown[] | null; products: unknown[] | null; services: unknown[] | null },
-  ctx: { userId: string | null; city: string | null },
+  ctx: { userId: string | null; city: string | null }
 ): void {
   const counts = {
     ads: rails.ads?.length ?? 0,
@@ -50,7 +53,7 @@ function reportShortRails(
   };
   const personalized = String(Boolean(ctx.userId));
   const short = (Object.keys(counts) as Array<keyof typeof counts>).filter(
-    (rail) => rails[rail] !== null && counts[rail] < HOME_RAIL_HEALTHY_MIN,
+    rail => rails[rail] !== null && counts[rail] < HOME_RAIL_HEALTHY_MIN
   );
   if (short.length === 0) return;
 
@@ -77,11 +80,10 @@ export const homeFeedService = {
   getHomeFeed: async (
     query: GetHomepageQuery,
     authHeader: string | undefined,
-    userIdOverride?: string | null,
+    userIdOverride?: string | null
   ) => {
-    const userId = userIdOverride !== undefined
-      ? userIdOverride
-      : resolveOptionalUserId(authHeader);
+    const userId =
+      userIdOverride !== undefined ? userIdOverride : resolveOptionalUserId(authHeader);
 
     // three distinct states are possible now —
     //   query.city === undefined → no param sent (fall back to profile)
@@ -113,22 +115,22 @@ export const homeFeedService = {
         recommendationsService.getMixedRecommendations(
           { limit: RAIL_POOL_PER_TYPE, ...effectiveQuery },
           authHeader,
-          userId,
-        ),
+          userId
+        )
       ),
       settle('stores', () =>
         recommendationsService.getStoreRecommendations(
           { limit: STORE_RAIL_LIMIT, ...effectiveQuery },
           authHeader,
-          userId,
-        ),
+          userId
+        )
       ),
       settle('providers', () =>
         recommendationsService.getServiceProviderRecommendations(
           { limit: PROVIDER_RAIL_LIMIT, ...effectiveQuery },
           authHeader,
-          userId,
-        ),
+          userId
+        )
       ),
       settle('storeTypes', () => storeTypesService.getActive()),
     ]);
@@ -142,19 +144,47 @@ export const homeFeedService = {
       needsEntityFallbacks
         ? await Promise.all([
             !mixed?.ads
-              ? settle('fallbackAds', () => adsService.getAds({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) }))
+              ? settle('fallbackAds', () =>
+                  adsService.getAds({
+                    limit: 8,
+                    sortBy: 'createdAt',
+                    sortOrder: 'desc',
+                    ...(city ? { city } : {}),
+                  })
+                )
               : Promise.resolve(null),
             !mixed?.products
-              ? settle('fallbackProducts', () => productsService.getProducts({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) }))
+              ? settle('fallbackProducts', () =>
+                  productsService.getProducts({
+                    limit: 8,
+                    sortBy: 'createdAt',
+                    sortOrder: 'desc',
+                    ...(city ? { city } : {}),
+                  })
+                )
               : Promise.resolve(null),
             !mixed?.services
-              ? settle('fallbackServices', () => serviceListingsService.getServiceListings({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) }))
+              ? settle('fallbackServices', () =>
+                  serviceListingsService.getServiceListings({
+                    limit: 8,
+                    sortBy: 'createdAt',
+                    sortOrder: 'desc',
+                    ...(city ? { city } : {}),
+                  })
+                )
               : Promise.resolve(null),
             !stores
-              ? settle('fallbackStores', () => storesService.getStores({ limit: 6, ...(city ? { city } : {}) }))
+              ? settle('fallbackStores', () =>
+                  storesService.getStores({ limit: 6, ...(city ? { city } : {}) })
+                )
               : Promise.resolve(null),
             !providers
-              ? settle('fallbackProviders', () => serviceProvidersService.getServiceProviders({ limit: 6, ...(city ? { city } : {}) }))
+              ? settle('fallbackProviders', () =>
+                  serviceProvidersService.getServiceProviders({
+                    limit: 6,
+                    ...(city ? { city } : {}),
+                  })
+                )
               : Promise.resolve(null),
           ])
         : [null, null, null, null, null];
@@ -177,7 +207,7 @@ export const homeFeedService = {
     if (mixed) {
       reportShortRails(
         { ads: mixed.ads, products: mixed.products, services: mixed.services },
-        { userId, city: city ?? null },
+        { userId, city: city ?? null }
       );
     }
 
@@ -185,9 +215,7 @@ export const homeFeedService = {
       meta: {
         city: city ?? null,
         citySource:
-          query.city && !isExplicitAll ? 'browse'
-          : city && !query.city ? 'profile'
-          : 'none',
+          query.city && !isExplicitAll ? 'browse' : city && !query.city ? 'profile' : 'none',
         personalized: Boolean(userId),
         explicitAll: isExplicitAll,
       },

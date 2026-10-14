@@ -25,13 +25,10 @@ export const createPromotionSchema = z.object({
     // < price check — catch it at the edge rather than let it produce
     // a negative effectivePrice downstream in promotions.service.ts's
     // computeEffectivePrice.
-    .refine(
-      data => data.discountType !== 'PERCENTAGE' || data.discountValue <= 100,
-      {
-        message: 'A percentage discount cannot exceed 100',
-        path: ['discountValue'],
-      }
-    ),
+    .refine(data => data.discountType !== 'PERCENTAGE' || data.discountValue <= 100, {
+      message: 'A percentage discount cannot exceed 100',
+      path: ['discountValue'],
+    }),
 });
 
 export type CreatePromotionInput = z.infer<typeof createPromotionSchema>['body'];
@@ -55,13 +52,14 @@ export const updatePromotionSchema = z.object({
     })
     .refine(
       data =>
-        data.startsAt === undefined ||
-        data.endsAt === undefined ||
-        data.endsAt > data.startsAt,
+        data.startsAt === undefined || data.endsAt === undefined || data.endsAt > data.startsAt,
       { message: 'endsAt must be after startsAt', path: ['endsAt'] }
     )
     .refine(
-      data => data.discountType !== 'PERCENTAGE' || data.discountValue === undefined || data.discountValue <= 100,
+      data =>
+        data.discountType !== 'PERCENTAGE' ||
+        data.discountValue === undefined ||
+        data.discountValue <= 100,
       { message: 'A percentage discount cannot exceed 100', path: ['discountValue'] }
     ),
 });

@@ -30,7 +30,11 @@ export const conversationsController = {
         ? await conversationsService.startFromAd(user.userId, body.adId)
         : body.serviceRequestId
           ? await conversationsService.startFromServiceRequest(user.userId, body.serviceRequestId)
-          : await conversationsService.startFromUser(user.userId, body.userId as string, body.context);
+          : await conversationsService.startFromUser(
+              user.userId,
+              body.userId as string,
+              body.context
+            );
       res.status(201).json(successResponse('Conversation ready', conversation));
     } catch (error) {
       next(error);
@@ -93,8 +97,7 @@ export const conversationsController = {
       // committed but the response never reached the client.
       // FIX N2-HEADERS-CLEANUP: Node lowercases req.headers keys, so the
       // uppercase lookup was unreachable dead code.
-      const offlineOperationId =
-        (req.headers['x-offline-op-id'] as string | undefined) || null;
+      const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
       const message = await conversationsService.sendMessage(
         user.userId,
         params.id,
@@ -102,7 +105,7 @@ export const conversationsController = {
           body: body.body,
           imageUrl: body.imageUrl,
         },
-        offlineOperationId,
+        offlineOperationId
       );
       res.status(201).json(successResponse('Message sent', message));
     } catch (error) {
@@ -132,20 +135,29 @@ export const conversationsController = {
         return;
       }
 
-      const asset = await conversationsService.getMediaAsset(user.userId, conversationId, messageId, kind);
+      const asset = await conversationsService.getMediaAsset(
+        user.userId,
+        conversationId,
+        messageId,
+        kind
+      );
       const remote = await fetch(asset.url, { redirect: 'follow' });
       if (!remote.ok || !remote.body) {
         sendApiError(req, res, 503, ErrorCode.SERVICE_UNAVAILABLE, 'Media provider unavailable');
         return;
       }
 
-      const contentType = remote.headers.get('content-type') || asset.mimeType || 'application/octet-stream';
+      const contentType =
+        remote.headers.get('content-type') || asset.mimeType || 'application/octet-stream';
       const contentLength = remote.headers.get('content-length');
       if (contentLength) res.setHeader('Content-Length', contentLength);
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', kind === 'file' && asset.fileName
-        ? `inline; filename*=UTF-8''${encodeURIComponent(asset.fileName)}`
-        : 'inline');
+      res.setHeader(
+        'Content-Disposition',
+        kind === 'file' && asset.fileName
+          ? `inline; filename*=UTF-8''${encodeURIComponent(asset.fileName)}`
+          : 'inline'
+      );
       const arrayBuffer = await remote.arrayBuffer();
       res.status(200).send(Buffer.from(arrayBuffer));
     } catch (error) {
@@ -159,7 +171,9 @@ export const conversationsController = {
       const { params } = messageMarkSchema.parse({ params: req.params });
       await conversationsService.setMessagePin(user.userId, params.id, params.messageId, true);
       res.status(200).json(successResponse('Message pinned'));
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   },
 
   unpinMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -168,7 +182,9 @@ export const conversationsController = {
       const { params } = messageMarkSchema.parse({ params: req.params });
       await conversationsService.setMessagePin(user.userId, params.id, params.messageId, false);
       res.status(200).json(successResponse('Message unpinned'));
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   },
 
   starMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -177,7 +193,9 @@ export const conversationsController = {
       const { params } = messageMarkSchema.parse({ params: req.params });
       await conversationsService.setMessageStar(user.userId, params.id, params.messageId, true);
       res.status(200).json(successResponse('Message starred'));
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   },
 
   unstarMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -186,14 +204,20 @@ export const conversationsController = {
       const { params } = messageMarkSchema.parse({ params: req.params });
       await conversationsService.setMessageStar(user.userId, params.id, params.messageId, false);
       res.status(200).json(successResponse('Message unstarred'));
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   },
 
   deleteMessage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
       const { params } = deleteMessageSchema.parse({ params: req.params });
-      const message = await conversationsService.deleteMessage(user.userId, params.id, params.messageId);
+      const message = await conversationsService.deleteMessage(
+        user.userId,
+        params.id,
+        params.messageId
+      );
       res.status(200).json(successResponse('Message deleted', message));
     } catch (error) {
       next(error);
@@ -206,7 +230,9 @@ export const conversationsController = {
       const { params } = conversationIdSchema.parse({ params: req.params });
       await conversationsService.deleteConversationForUser(user.userId, params.id);
       res.status(200).json(successResponse('Conversation deleted'));
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   },
 
   setFlags: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -216,11 +242,15 @@ export const conversationsController = {
         params: req.params,
         body: req.body,
       });
-      const conversation = await conversationsService.setConversationFlags(
-        user.userId,
-        params.id,
-        { ...body, mutedUntil: body.mutedUntil === undefined ? undefined : body.mutedUntil ? new Date(body.mutedUntil) : null }
-      );
+      const conversation = await conversationsService.setConversationFlags(user.userId, params.id, {
+        ...body,
+        mutedUntil:
+          body.mutedUntil === undefined
+            ? undefined
+            : body.mutedUntil
+              ? new Date(body.mutedUntil)
+              : null,
+      });
       res.status(200).json(successResponse('Conversation updated', conversation));
     } catch (error) {
       next(error);
@@ -243,12 +273,10 @@ export const conversationsController = {
       const { uploadImage, deleteImage } = await import('../../config/cloudinary');
       const { extractCloudinaryPublicId } = await import('../../shared/utils/cloudinaryHelpers');
       const uploaded = await uploadImage(file.buffer, 'chat');
-      const caption =
-        typeof req.body?.body === 'string' ? req.body.body : undefined;
+      const caption = typeof req.body?.body === 'string' ? req.body.body : undefined;
 
       try {
-        const offlineOperationId =
-          (req.headers['x-offline-op-id'] as string | undefined) || null;
+        const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
         const message = await conversationsService.sendMessage(
           user.userId,
           params.id,
@@ -256,24 +284,35 @@ export const conversationsController = {
             body: caption,
             imageUrl: uploaded.url,
           },
-          offlineOperationId,
+          offlineOperationId
         );
         // A durable idempotency hit can happen after the upload itself.
         // If PostgreSQL returned an older message, discard this newly uploaded
         // asset instead of leaving an orphan in Cloudinary.
         if (message.imageUrl !== uploaded.url) {
           const publicId = extractCloudinaryPublicId(uploaded.url);
-          if (publicId) deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
+          if (publicId)
+            deleteImage(publicId).catch(error =>
+              reportBackgroundFailure(
+                'backend/src/modules/conversations/conversations.controller.ts',
+                error
+              )
+            );
         }
         res.status(201).json(successResponse('Message sent', message));
       } catch (err) {
         // Best-effort cleanup prevents an uploaded image from becoming an
-// orphaned Cloudinary asset when message creation fails.
+        // orphaned Cloudinary asset when message creation fails.
         // error is what the client should see, so a cleanup failure
         // is logged rather than propagated.
         const publicId = extractCloudinaryPublicId(uploaded.url);
         if (publicId) {
-          deleteImage(publicId).catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
+          deleteImage(publicId).catch(error =>
+            reportBackgroundFailure(
+              'backend/src/modules/conversations/conversations.controller.ts',
+              error
+            )
+          );
         }
         throw err;
       }
@@ -284,19 +323,55 @@ export const conversationsController = {
 
   sendMessageFile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = requireUser(req); const { params } = conversationIdSchema.parse({ params: req.params }); const file = req.file;
-      if (!file) { sendApiError(req, res, 400, ErrorCode.NO_FILE_ATTACHED, 'File required'); return; }
+      const user = requireUser(req);
+      const { params } = conversationIdSchema.parse({ params: req.params });
+      const file = req.file;
+      if (!file) {
+        sendApiError(req, res, 400, ErrorCode.NO_FILE_ATTACHED, 'File required');
+        return;
+      }
       const uploaded = await uploadRawFile(file.buffer, 'chat-files', file.originalname);
       try {
         const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
-        const message = await conversationsService.sendMessage(user.userId, params.id, { body: typeof req.body?.body === 'string' ? req.body.body : undefined, file: { url: uploaded.url, name: file.originalname, mimeType: file.mimetype, size: file.size } }, offlineOperationId);
+        const message = await conversationsService.sendMessage(
+          user.userId,
+          params.id,
+          {
+            body: typeof req.body?.body === 'string' ? req.body.body : undefined,
+            file: {
+              url: uploaded.url,
+              name: file.originalname,
+              mimeType: file.mimetype,
+              size: file.size,
+            },
+          },
+          offlineOperationId
+        );
         if (message.fileUrl !== uploaded.url) {
           const publicId = extractCloudinaryPublicId(uploaded.url);
-          if (publicId) deleteMedia(publicId, 'raw').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
+          if (publicId)
+            deleteMedia(publicId, 'raw').catch(error =>
+              reportBackgroundFailure(
+                'backend/src/modules/conversations/conversations.controller.ts',
+                error
+              )
+            );
         }
         res.status(201).json(successResponse('File message sent', message));
-      } catch (err) { const publicId = extractCloudinaryPublicId(uploaded.url); if (publicId) deleteMedia(publicId, 'raw').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error)); throw err; }
-    } catch (error) { next(error); }
+      } catch (err) {
+        const publicId = extractCloudinaryPublicId(uploaded.url);
+        if (publicId)
+          deleteMedia(publicId, 'raw').catch(error =>
+            reportBackgroundFailure(
+              'backend/src/modules/conversations/conversations.controller.ts',
+              error
+            )
+          );
+        throw err;
+      }
+    } catch (error) {
+      next(error);
+    }
   },
 
   sendMessageAudio: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -315,16 +390,30 @@ export const conversationsController = {
         const message = await conversationsService.sendMessage(
           user.userId,
           params.id,
-          { body: typeof req.body?.body === 'string' ? req.body.body : undefined, audioUrl: uploaded.url },
-          offlineOperationId,
+          {
+            body: typeof req.body?.body === 'string' ? req.body.body : undefined,
+            audioUrl: uploaded.url,
+          },
+          offlineOperationId
         );
         if (message.audioUrl !== uploaded.url && uploaded.publicId) {
-          deleteMedia(uploaded.publicId, 'video').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
+          deleteMedia(uploaded.publicId, 'video').catch(error =>
+            reportBackgroundFailure(
+              'backend/src/modules/conversations/conversations.controller.ts',
+              error
+            )
+          );
         }
         res.status(201).json(successResponse('Voice message sent', message));
       } catch (err) {
         const publicId = uploaded.publicId;
-        if (publicId) deleteMedia(publicId, 'video').catch((error) => reportBackgroundFailure('backend/src/modules/conversations/conversations.controller.ts', error));
+        if (publicId)
+          deleteMedia(publicId, 'video').catch(error =>
+            reportBackgroundFailure(
+              'backend/src/modules/conversations/conversations.controller.ts',
+              error
+            )
+          );
         throw err;
       }
     } catch (error) {

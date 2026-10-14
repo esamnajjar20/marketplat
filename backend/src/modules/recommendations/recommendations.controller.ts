@@ -62,7 +62,7 @@ export const recommendationsController = {
         query,
         userId,
         build,
-        isComplete,
+        isComplete
       );
       res.setHeader('X-App-Cache', status);
 

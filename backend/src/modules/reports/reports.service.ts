@@ -61,26 +61,39 @@ const submitReport = async (
   // previously bubbled up unhandled to a generic 500 instead of the
   // same friendly "already reported" error.
   try {
-    const report = await reportsRepository.create(userId, targetType, targetId, input.reason, input.notes);
+    const report = await reportsRepository.create(
+      userId,
+      targetType,
+      targetId,
+      input.reason,
+      input.notes
+    );
 
     // Only ADs have an existing public visibility flag. Three distinct reporters
     // hide an active ad while leaving the report queue and audit trail
     // intact; moderators can clear the flag after review.
     let autoHidden = false;
     if (targetType === 'AD') {
-      const reportCount = await reportsRepository.countDistinctPendingReporters(targetType, targetId);
+      const reportCount = await reportsRepository.countDistinctPendingReporters(
+        targetType,
+        targetId
+      );
       if (reportCount >= env.fraud.reportAutoHideThreshold) {
         autoHidden = await reportsRepository.autoHideAdIfStillActive(targetId);
       }
     }
 
-    void notificationEvents.onModerationReportReceived({
-      reportId: report.id,
-      targetType,
-      targetId,
-      targetLabel: TARGET_LABEL[targetType],
-      autoHidden,
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/reports/reports.service.ts', error));
+    void notificationEvents
+      .onModerationReportReceived({
+        reportId: report.id,
+        targetType,
+        targetId,
+        targetLabel: TARGET_LABEL[targetType],
+        autoHidden,
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/reports/reports.service.ts', error)
+      );
 
     return report;
   } catch (err) {
@@ -190,14 +203,18 @@ export const reportsService = {
     // a neutral review-result notice; no internal moderation notes are exposed.
     const recipients = new Set<string>([report.user.id]);
     if (report.targetType === 'AD' && report.ad?.userId) recipients.add(report.ad.userId);
-    void notificationEvents.onModerationDecision({
-      userIds: [...recipients],
-      reportId: report.id,
-      targetType: report.targetType,
-      targetId: report.targetId,
-      status: input.status,
-      targetTitle: report.ad?.title ?? TARGET_LABEL[report.targetType],
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/reports/reports.service.ts', error));
+    void notificationEvents
+      .onModerationDecision({
+        userIds: [...recipients],
+        reportId: report.id,
+        targetType: report.targetType,
+        targetId: report.targetId,
+        status: input.status,
+        targetTitle: report.ad?.title ?? TARGET_LABEL[report.targetType],
+      })
+      .catch(error =>
+        reportBackgroundFailure('backend/src/modules/reports/reports.service.ts', error)
+      );
 
     // A resolved/dismissed AD is safe to surface again only when the moderator
     // explicitly clears the review flag; changing report status alone must not

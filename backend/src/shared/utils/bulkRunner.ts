@@ -69,7 +69,7 @@ export async function runBulk<T>(
 ): Promise<BulkResult<T>> {
   if (ids.length > BULK_MAX_IDS) {
     throw new BadRequestError(
-      `Cannot process more than ${BULK_MAX_IDS} items in a single bulk request (received ${ids.length}).`,
+      `Cannot process more than ${BULK_MAX_IDS} items in a single bulk request (received ${ids.length}).`
     );
   }
 
@@ -81,7 +81,7 @@ export async function runBulk<T>(
   const results: PromiseSettledResult<T>[] = [];
   for (let i = 0; i < ids.length; i += BULK_CONCURRENCY) {
     const chunk = ids.slice(i, i + BULK_CONCURRENCY);
-    const chunkResults = await Promise.allSettled(chunk.map((id) => action(id)));
+    const chunkResults = await Promise.allSettled(chunk.map(id => action(id)));
     results.push(...chunkResults);
   }
 

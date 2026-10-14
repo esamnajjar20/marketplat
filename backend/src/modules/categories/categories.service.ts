@@ -53,7 +53,7 @@ export const categoriesService = {
       if (parent.parentId !== null) {
         throw new BadRequestError(
           'Categories support only two levels (top-level + direct children).',
-          'CATEGORY_DEPTH_EXCEEDED',
+          'CATEGORY_DEPTH_EXCEEDED'
         );
       }
     }
@@ -120,12 +120,15 @@ export const categoriesService = {
     const category = await categoriesRepository.findById(id);
     if (!category) throw new NotFoundError('Category not found', 'CATEGORY_NOT_FOUND');
 
-    // BUGFIX (circular category reference) — same 
+    // BUGFIX (circular category reference) — same
     // productCategoriesService.updateProductCategory, applied here for
     // consistency.
     if (input.parentId && input.parentId !== category.parentId) {
       if (input.parentId === id) {
-        throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
+        throw new BadRequestError(
+          'A category cannot be its own parent',
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
       }
       // T421 — verify the target parent actually exists before walking
       // its chain; a nonexistent id would otherwise return an empty
@@ -138,13 +141,13 @@ export const categoriesService = {
       if (proposedParent.parentId !== null) {
         throw new BadRequestError(
           'Categories support only two levels (top-level + direct children).',
-          'CATEGORY_DEPTH_EXCEEDED',
+          'CATEGORY_DEPTH_EXCEEDED'
         );
       }
       const ancestorChain = await categoriesRepository.findParentChain(input.parentId);
       if (ancestorChain.includes(id)) {
         throw new BadRequestError(
-          'Cannot set parent to one of this category\'s own subcategories',
+          "Cannot set parent to one of this category's own subcategories",
           'CIRCULAR_CATEGORY_REFERENCE'
         );
       }
@@ -182,7 +185,7 @@ export const categoriesService = {
     if (adsCount > 0) {
       throw new BadRequestError(`Cannot delete category with ${adsCount} active ads`);
     }
-    // BUGFIX (FK violation on delete) — same 
+    // BUGFIX (FK violation on delete) — same
     // productCategoriesService.deleteProductCategory.
     const childrenCount = await categoriesRepository.countChildren(id);
     if (childrenCount > 0) {

@@ -180,7 +180,6 @@ export type BulkSetAdPinnedInput = z.infer<typeof bulkSetAdPinnedSchema>['body']
 export type BulkDeleteAdsInput = z.infer<typeof bulkDeleteAdsSchema>['body'];
 export type BulkToggleUserActiveInput = z.infer<typeof bulkToggleUserActiveSchema>['body'];
 
-
 export const adminGetServiceRequestDisputesSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1)),

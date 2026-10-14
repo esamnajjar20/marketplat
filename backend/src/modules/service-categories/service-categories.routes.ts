@@ -27,7 +27,11 @@ serviceCategoriesRouter.get(
   CACHE.NONE,
   serviceCategoriesController.getServiceCategoriesForAdmin
 );
-serviceCategoriesRouter.get('/:id', CACHE.STATIC, serviceCategoriesController.getServiceCategoryById);
+serviceCategoriesRouter.get(
+  '/:id',
+  CACHE.STATIC,
+  serviceCategoriesController.getServiceCategoryById
+);
 serviceCategoriesRouter.post(
   '/',
   authenticate,

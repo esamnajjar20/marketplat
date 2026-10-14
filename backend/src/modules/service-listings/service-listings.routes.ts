@@ -25,13 +25,18 @@ serviceListingsRouter.get(
   CACHE.NONE,
   serviceListingsController.getMyServiceListings
 );
-serviceListingsRouter.get('/:id/matches', CACHE.SHORT, serviceListingsController.getServiceListingMatches);
+serviceListingsRouter.get(
+  '/:id/matches',
+  CACHE.SHORT,
+  serviceListingsController.getServiceListingMatches
+);
 serviceListingsRouter.get('/:id', CACHE.MEDIUM, serviceListingsController.getServiceListingById);
 
 // Protected — owner-only, enforced in service-listings.service.ts
 serviceListingsRouter.post(
   '/',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   createServiceListingRateLimit,
   uploadMultipleMiddleware,
   serviceListingsController.createServiceListing
@@ -41,7 +46,8 @@ serviceListingsRouter.post(
 // products got. All mutating routes now gate on the same rule.
 serviceListingsRouter.patch(
   '/:id',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   serviceListingMutationRateLimit,
   serviceListingsController.updateServiceListing
 );
@@ -49,27 +55,31 @@ serviceListingsRouter.patch(
 // POST/DELETE /:id/images exactly.
 serviceListingsRouter.post(
   '/:id/images',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   addServiceListingImagesRateLimit,
   uploadMultipleMiddleware,
   serviceListingsController.addImages
 );
 serviceListingsRouter.delete(
   '/:id/images',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   serviceListingMutationRateLimit,
   serviceListingsController.removeImage
 );
 // Gap #11: JSON body only (no files) — mirrors ads.routes.ts's reorder route.
 serviceListingsRouter.put(
   '/:id/images/reorder',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   serviceListingMutationRateLimit,
   serviceListingsController.reorderImages
 );
 serviceListingsRouter.delete(
   '/:id',
-  authenticate, requireVerifiedEmail,
+  authenticate,
+  requireVerifiedEmail,
   serviceListingMutationRateLimit,
   serviceListingsController.deleteServiceListing
 );

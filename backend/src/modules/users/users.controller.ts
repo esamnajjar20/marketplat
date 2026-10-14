@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { usersService } from './users.service';
-import { updateProfileSchema, getUserByIdSchema, changePasswordSchema, updateNotificationPreferencesSchema, getPresenceSchema } from './users.validation';
+import {
+  updateProfileSchema,
+  getUserByIdSchema,
+  changePasswordSchema,
+  updateNotificationPreferencesSchema,
+  getPresenceSchema,
+} from './users.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { getBearerToken } from '../../middlewares/auth.middleware';
@@ -26,7 +32,6 @@ export const usersController = {
       next(error);
     }
   },
-
 
   touchPresence: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -98,7 +103,9 @@ export const usersController = {
    * frontend's save button had no corresponding endpoint to call.
    */
   updateNotificationPreferences: async (
-    req: Request, res: Response, next: NextFunction
+    req: Request,
+    res: Response,
+    next: NextFunction
   ): Promise<void> => {
     try {
       const user = requireUser(req);
@@ -110,7 +117,6 @@ export const usersController = {
     }
   },
 
-
   changePassword: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
@@ -119,7 +125,12 @@ export const usersController = {
       // blacklist it — same extraction pattern as authController.logoutAll.
       // unified with auth.controller.
       const accessToken = getBearerToken(req);
-      await usersService.changePassword(user.userId, body.currentPassword, body.newPassword, accessToken);
+      await usersService.changePassword(
+        user.userId,
+        body.currentPassword,
+        body.newPassword,
+        accessToken
+      );
       res.status(200).json(successResponse('Password changed successfully'));
     } catch (error) {
       next(error);

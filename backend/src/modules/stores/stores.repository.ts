@@ -33,7 +33,10 @@ export const storeWithSeller = {
   sellerProfile: true,
   storeType: {
     include: {
-      fields: { where: { isActive: true }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] },
+      fields: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+      },
     },
   },
 };
@@ -50,7 +53,6 @@ const storeListInclude = {
     },
   },
 } as const;
-
 
 // per-property `as const` keeps
 // 'asc'/'ACTIVE' narrowed to literal types; without it TS widens to
@@ -85,7 +87,10 @@ export const storesRepository = {
       include: {
         storeType: {
           include: {
-            fields: { where: { isActive: true }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] },
+            fields: {
+              where: { isActive: true },
+              orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+            },
           },
         },
       },
@@ -97,7 +102,10 @@ export const storesRepository = {
       include: {
         storeType: {
           include: {
-            fields: { where: { isActive: true }, orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] },
+            fields: {
+              where: { isActive: true },
+              orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+            },
           },
         },
       },
@@ -192,7 +200,8 @@ export const storesRepository = {
       storeTypeId?: string;
       attributes?: Prisma.InputJsonValue;
     }>
-  ): Promise<StoreDetails> => prisma.storeDetails.update({ where: { id }, data, include: { storeType: true } }),
+  ): Promise<StoreDetails> =>
+    prisma.storeDetails.update({ where: { id }, data, include: { storeType: true } }),
 
   // STORE-VIEWS: fire-and-forget from the service layer, same
   // "increment column, don't fail the read on error" convention as
@@ -204,7 +213,11 @@ export const storesRepository = {
     prisma.storeDetails.update({ where: { id }, data: { status } }),
 
   updateStoreType: (id: string, storeTypeId: string): Promise<StoreDetails> =>
-    prisma.storeDetails.update({ where: { id }, data: { storeTypeId }, include: { storeType: true } }),
+    prisma.storeDetails.update({
+      where: { id },
+      data: { storeTypeId },
+      include: { storeType: true },
+    }),
 
   // the DB write half of the FEATURED-plan admin endpoint.
   setFeatureRequestedAt: (id: string, at: Date | null) =>
@@ -219,14 +232,7 @@ export const storesRepository = {
   findMany: async (
     query: GetStoresQuery
   ): Promise<{ stores: StoreWithSeller[]; total: number }> => {
-    const {
-      page = 1,
-      limit = 20,
-      city,
-      search,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-    } = query;
+    const { page = 1, limit = 20, city, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
     let ftsIds: string[] | undefined;
@@ -244,7 +250,7 @@ export const storesRepository = {
             setweight(to_tsvector('simple', arabic_normalize(coalesce(s."description", ''))), 'B')
           ) @@ to_tsquery('simple', arabic_normalize(${effectiveTs}))
       `;
-      ftsIds = idRows.map((r) => r.id);
+      ftsIds = idRows.map(r => r.id);
       if (ftsIds.length === 0) {
         return { stores: [], total: 0 };
       }
@@ -277,12 +283,10 @@ export const storesRepository = {
     return { stores, total };
   },
 
-  findFeatured: async (
-    params: {
-      limit: number;
-      city?: string;
-    }
-  ): Promise<{ stores: StoreWithSeller[]; total: number }> => {
+  findFeatured: async (params: {
+    limit: number;
+    city?: string;
+  }): Promise<{ stores: StoreWithSeller[]; total: number }> => {
     const { limit, city } = params;
 
     const where: Prisma.StoreDetailsWhereInput = {

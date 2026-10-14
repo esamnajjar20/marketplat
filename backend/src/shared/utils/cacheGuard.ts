@@ -39,7 +39,7 @@ export class CacheTimeoutError extends Error {
 
 export function withCacheTimeout<T>(
   op: () => Promise<T>,
-  timeoutMs: number = CACHE_COMMAND_TIMEOUT_MS,
+  timeoutMs: number = CACHE_COMMAND_TIMEOUT_MS
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new CacheTimeoutError(timeoutMs)), timeoutMs);
@@ -59,7 +59,7 @@ export function withCacheTimeout<T>(
       err => {
         clearTimeout(timer);
         reject(err);
-      },
+      }
     );
   });
 }

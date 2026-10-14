@@ -121,7 +121,7 @@ export function initUserCacheInvalidationSubscriber(): void {
   subscriberReady = (async () => {
     try {
       subscriber = redis.duplicate();
-      subscriber.on('error', (err) => {
+      subscriber.on('error', err => {
         logger.warn('userCache invalidation subscriber error', { err });
       });
       if (subscriber.status === 'wait') {
@@ -142,7 +142,7 @@ export function initUserCacheInvalidationSubscriber(): void {
     } catch (err) {
       logger.warn(
         'userCache invalidation subscriber unavailable — L1 will only be cleared on the worker handling the invalidation',
-        { err },
+        { err }
       );
       subscriber = null;
     }

@@ -10,7 +10,10 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { ROLES } from '../../shared/constants/roles';
 import { uploadImage, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  cleanupUploadedImages,
+} from '../../shared/utils/cloudinaryHelpers';
 import { viewsBuffer } from '../../shared/utils/viewsBuffer';
 import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
 import { swrGet } from '../../shared/utils/swrCache';
@@ -39,7 +42,6 @@ import { FollowTargetType } from '@prisma/client';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
-
 /**
  * Upload ad images without leaking successful Cloudinary uploads when one
  * sibling upload fails. Promise.all rejects early and can hide uploads that
@@ -48,9 +50,14 @@ import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 async function uploadAdImages(files: Express.Multer.File[]) {
   const results = await Promise.allSettled(files.map(file => uploadImage(file.buffer, 'ads')));
   const uploads = results
-    .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> => result.status === 'fulfilled')
+    .filter(
+      (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> =>
+        result.status === 'fulfilled'
+    )
     .map(result => result.value);
-  const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+  const failure = results.find(
+    (result): result is PromiseRejectedResult => result.status === 'rejected'
+  );
   if (failure) {
     await cleanupUploadedImages(uploads.map(upload => upload.publicId));
     throw failure.reason;
@@ -100,7 +107,10 @@ export { bumpAdsCacheVersion, bumpAdsCacheHard, bumpAdsCacheVersionAndHome };
 
 function buildAdsListCacheKey(query: GetAdsQuery): string {
   // Stable key regardless of object key insertion order.
-  const sorted = Object.keys(query).sort().map(k => `${k}=${(query as any)[k]}`).join('&');
+  const sorted = Object.keys(query)
+    .sort()
+    .map(k => `${k}=${(query as any)[k]}`)
+    .join('&');
   // FIX ADS-CACHE-KEY-01: bound the key length (max 200-char `search` + many
   // filters otherwise makes multi-KB Redis keys).
   const body = sorted.length > 120 ? createHash('sha1').update(sorted).digest('hex') : sorted;
@@ -150,7 +160,7 @@ export const adsService = {
     input: CreateAdInput,
     files: Express.Multer.File[],
     // FIX OFFLINE-IDEMPOTENCY-01: optional client op id from X-Offline-Op-Id
-    offlineOperationId?: string | null,
+    offlineOperationId?: string | null
   ): Promise<AdWithAuthor> => {
     // FIX OFFLINE-IDEMPOTENCY-01: if this offline op already created an ad,
     // return it (idempotent replay after flaky ACK / double Background Sync).
@@ -175,7 +185,7 @@ export const adsService = {
         if (existing.userId !== userId) {
           throw new BadRequestError(
             'Offline operation id already used by another account',
-            'OFFLINE_OP_ID_CONFLICT',
+            'OFFLINE_OP_ID_CONFLICT'
           );
         }
         return existing as AdWithAuthor;
@@ -193,7 +203,7 @@ export const adsService = {
       throw new BadRequestError(
         `You have reached the maximum number of active ads (${env.ads.maxPerUser}). Please delete or mark an old ad as sold to add a new one.`,
         'AD_LIMIT_REACHED',
-        { maxPerUser: env.ads.maxPerUser },
+        { maxPerUser: env.ads.maxPerUser }
       );
     }
 
@@ -204,72 +214,205 @@ export const adsService = {
       // concurrent createAd calls for the same user can both pass the
       // count check before either has committed its insert.
       // TRACK-AD-STORE: optional store as visible publisher
-    let resolvedStoreId: string | null = null;
-    if (input.storeId) {
-      const store = await prisma.storeDetails.findUnique({
-        where: { id: input.storeId },
-        include: { sellerProfile: { select: { userId: true } } },
-      });
-      if (!store) {
-        throw new BadRequestError('Store not found.', 'STORE_NOT_FOUND');
-      }
-      // TRACK-AD-STORE (phase 2): owner or a store member with manageAds
-      // (MANAGER/EDITOR) may publish under the store — same gate as
-      // canManageAd applies to editing/deleting an existing store ad.
-      if (store.sellerProfile.userId !== userId) {
-        try {
-          await requireStoreAccess(userId, store.id, 'manageAds');
-        } catch {
-          throw new ForbiddenError('You can only publish under a store you own or manage.', 'NOT_YOUR_STORE');
+      let resolvedStoreId: string | null = null;
+      if (input.storeId) {
+        const store = await prisma.storeDetails.findUnique({
+          where: { id: input.storeId },
+          include: { sellerProfile: { select: { userId: true } } },
+        });
+        if (!store) {
+          throw new BadRequestError('Store not found.', 'STORE_NOT_FOUND');
         }
-      }
-      if (store.status !== 'ACTIVE') {
-        throw new ForbiddenError(
-          'Your store must be approved before publishing ads under it.',
-          'STORE_NOT_ACTIVE',
-        );
-      }
-      resolvedStoreId = store.id;
-    }
-
-    let ad: AdWithAuthor;
-    // Distinguish a winning insert from a concurrent idempotent replay so
-    // create-only side effects are emitted once per persisted operation.
-    let createdNew = true;
-    try {
-      ad = await withUserAdCreationLock(userId, async () => {
-        const activeCount = await adsRepository.countActiveByUserId(userId);
-        if (activeCount >= env.ads.maxPerUser) {
-          throw new BadRequestError(
-            `You have reached the maximum number of active ads (${env.ads.maxPerUser}). Please delete or mark an old ad as sold to add a new one.`,
-            'AD_LIMIT_REACHED',
-            { maxPerUser: env.ads.maxPerUser },
+        // TRACK-AD-STORE (phase 2): owner or a store member with manageAds
+        // (MANAGER/EDITOR) may publish under the store — same gate as
+        // canManageAd applies to editing/deleting an existing store ad.
+        if (store.sellerProfile.userId !== userId) {
+          try {
+            await requireStoreAccess(userId, store.id, 'manageAds');
+          } catch {
+            throw new ForbiddenError(
+              'You can only publish under a store you own or manage.',
+              'NOT_YOUR_STORE'
+            );
+          }
+        }
+        if (store.status !== 'ACTIVE') {
+          throw new ForbiddenError(
+            'Your store must be approved before publishing ads under it.',
+            'STORE_NOT_ACTIVE'
           );
         }
-        // NEW: ad insert + SellerProfile stats increment happen in one
-        // transaction — either both commit or neither does, so
-        // totalAds/activeAds can never drift from the actual ad count
-        // (seller-profile-design.md §15).
-        return prisma.$transaction(async tx => {
-          const created = await tx.ad.create({
-            data: {
-              title: input.title,
-              description: input.description,
-              price: input.price,
-              city: input.city,
-              categoryId: input.categoryId,
-              condition: input.condition,
-              isNegotiable: input.isNegotiable,
-              latitude: input.latitude,
-              longitude: input.longitude,
-              userId,
-              images: uploads.map(upload => upload.url),
-              sellerProfileId: sellerProfile.id,
-              storeId: resolvedStoreId,
-              expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-              expirationNotifiedAt: null,
-              ...(offlineOperationId ? { offlineOperationId } : {}),
-            },
+        resolvedStoreId = store.id;
+      }
+
+      let ad: AdWithAuthor;
+      // Distinguish a winning insert from a concurrent idempotent replay so
+      // create-only side effects are emitted once per persisted operation.
+      let createdNew = true;
+      try {
+        ad = await withUserAdCreationLock(userId, async () => {
+          const activeCount = await adsRepository.countActiveByUserId(userId);
+          if (activeCount >= env.ads.maxPerUser) {
+            throw new BadRequestError(
+              `You have reached the maximum number of active ads (${env.ads.maxPerUser}). Please delete or mark an old ad as sold to add a new one.`,
+              'AD_LIMIT_REACHED',
+              { maxPerUser: env.ads.maxPerUser }
+            );
+          }
+          // NEW: ad insert + SellerProfile stats increment happen in one
+          // transaction — either both commit or neither does, so
+          // totalAds/activeAds can never drift from the actual ad count
+          // (seller-profile-design.md §15).
+          return prisma.$transaction(async tx => {
+            const created = await tx.ad.create({
+              data: {
+                title: input.title,
+                description: input.description,
+                price: input.price,
+                city: input.city,
+                categoryId: input.categoryId,
+                condition: input.condition,
+                isNegotiable: input.isNegotiable,
+                latitude: input.latitude,
+                longitude: input.longitude,
+                userId,
+                images: uploads.map(upload => upload.url),
+                sellerProfileId: sellerProfile.id,
+                storeId: resolvedStoreId,
+                expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+                expirationNotifiedAt: null,
+                ...(offlineOperationId ? { offlineOperationId } : {}),
+              },
+              include: {
+                user: { select: { id: true, name: true, city: true, avatarUrl: true } },
+                category: { select: { id: true, name: true, nameAr: true } },
+                store: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    logoUrl: true,
+                    status: true,
+                  },
+                },
+              },
+            });
+            await sellersRepository.incrementStatsOnAdCreated(tx, sellerProfile.id);
+            // Transactional Outbox (batch 32): the personal activity record is
+            // committed atomically with the ad, so a process crash after commit
+            // cannot silently lose this timeline event. The unique key also
+            // protects the enqueue path from replay.
+            await tx.outboxEvent.create({
+              data: {
+                eventType: 'USER_ACTIVITY_RECORD',
+                aggregateType: 'AD',
+                aggregateId: created.id,
+                ownerUserId: userId,
+                idempotencyKey: `user-activity:ad-created:${created.id}`,
+                payload: {
+                  userId,
+                  type: 'AD_CREATED',
+                  title: 'تم نشر إعلان جديد',
+                  description: created.title,
+                  entityType: 'AD',
+                  entityId: created.id,
+                },
+              },
+            });
+            // Match saved searches and persist their notification intent in the
+            // same transaction as the ad. This replaces the former post-commit
+            // fire-and-forget matcher, which could silently lose alerts on crash.
+            const savedSearches = await tx.savedSearch.findMany({
+              orderBy: { createdAt: 'asc' },
+              take: 5000,
+            });
+            if (savedSearches.length === 5000) {
+              logger.warn(
+                'Saved-search outbox matching reached its 5000-row ceiling; older searches were matched first',
+                {
+                  adId: created.id,
+                }
+              );
+            }
+            const matchingSavedSearches = savedSearches.filter(
+              search =>
+                search.userId !== created.userId &&
+                savedSearchType(search) === 'ads' &&
+                matchesAdFilters(created, search.filters as unknown as SavedSearchFilters)
+            );
+            if (matchingSavedSearches.length > 0) {
+              await tx.outboxEvent.create({
+                data: {
+                  eventType: 'SAVED_SEARCH_MATCH_NOTIFICATION',
+                  aggregateType: 'AD',
+                  aggregateId: created.id,
+                  ownerUserId: userId,
+                  idempotencyKey: `saved-search-match:ad-created:${created.id}`,
+                  payload: {
+                    adId: created.id,
+                    adTitle: created.title,
+                    matches: matchingSavedSearches.map(search => ({
+                      userId: search.userId,
+                      savedSearchId: search.id,
+                      label: search.label,
+                    })),
+                  },
+                },
+              });
+            }
+            // Durable follower-notification intent is committed atomically with
+            // the ad. The worker persists recipient rows and acknowledges this
+            // event in one transaction; push/SSE are best-effort after commit.
+            await tx.outboxEvent.create({
+              data: {
+                eventType: 'FOLLOWED_ACTIVITY_NOTIFICATION',
+                aggregateType: 'AD',
+                aggregateId: created.id,
+                ownerUserId: userId,
+                idempotencyKey: `followed-activity:ad-created:${created.id}`,
+                payload: {
+                  targets: [
+                    { targetType: FollowTargetType.USER, targetId: userId },
+                    ...(created.storeId
+                      ? [{ targetType: FollowTargetType.STORE, targetId: created.storeId }]
+                      : []),
+                    ...(created.categoryId
+                      ? [
+                          {
+                            targetType: FollowTargetType.CATEGORY,
+                            targetId: `AD:${created.categoryId}`,
+                          },
+                        ]
+                      : []),
+                  ],
+                  title: 'محتوى جديد ممن تتابعهم',
+                  body: `${created.title} أصبح متاحًا الآن`,
+                  type: 'FOLLOWED_USER_ACTIVITY',
+                  data: {
+                    targetType: 'USER',
+                    targetId: userId,
+                    contentType: 'AD',
+                    contentId: created.id,
+                    categoryId: created.categoryId,
+                    storeId: created.storeId,
+                  },
+                },
+              },
+            });
+            return created;
+          });
+        });
+      } catch (err: unknown) {
+        // FIX OFFLINE-IDEMPOTENCY-01: concurrent replay of the same X-Offline-Op-Id
+        if (
+          offlineOperationId &&
+          typeof err === 'object' &&
+          err !== null &&
+          'code' in err &&
+          (err as { code?: string }).code === 'P2002'
+        ) {
+          const existing = await prisma.ad.findUnique({
+            where: { offlineOperationId },
             include: {
               user: { select: { id: true, name: true, city: true, avatarUrl: true } },
               category: { select: { id: true, name: true, nameAr: true } },
@@ -284,133 +427,17 @@ export const adsService = {
               },
             },
           });
-          await sellersRepository.incrementStatsOnAdCreated(tx, sellerProfile.id);
-          // Transactional Outbox (batch 32): the personal activity record is
-          // committed atomically with the ad, so a process crash after commit
-          // cannot silently lose this timeline event. The unique key also
-          // protects the enqueue path from replay.
-          await tx.outboxEvent.create({
-            data: {
-              eventType: 'USER_ACTIVITY_RECORD',
-              aggregateType: 'AD',
-              aggregateId: created.id,
-              ownerUserId: userId,
-              idempotencyKey: `user-activity:ad-created:${created.id}`,
-              payload: {
-                userId,
-                type: 'AD_CREATED',
-                title: 'تم نشر إعلان جديد',
-                description: created.title,
-                entityType: 'AD',
-                entityId: created.id,
-              },
-            },
-          });
-          // Match saved searches and persist their notification intent in the
-          // same transaction as the ad. This replaces the former post-commit
-          // fire-and-forget matcher, which could silently lose alerts on crash.
-          const savedSearches = await tx.savedSearch.findMany({
-            orderBy: { createdAt: 'asc' },
-            take: 5000,
-          });
-          if (savedSearches.length === 5000) {
-            logger.warn('Saved-search outbox matching reached its 5000-row ceiling; older searches were matched first', {
-              adId: created.id,
-            });
+          if (existing && existing.userId === userId) {
+            ad = existing as AdWithAuthor;
+            createdNew = false;
+            await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+          } else {
+            throw err;
           }
-          const matchingSavedSearches = savedSearches.filter((search) =>
-            search.userId !== created.userId && savedSearchType(search) === 'ads' &&
-            matchesAdFilters(created, search.filters as unknown as SavedSearchFilters)
-          );
-          if (matchingSavedSearches.length > 0) {
-            await tx.outboxEvent.create({
-              data: {
-                eventType: 'SAVED_SEARCH_MATCH_NOTIFICATION',
-                aggregateType: 'AD',
-                aggregateId: created.id,
-                ownerUserId: userId,
-                idempotencyKey: `saved-search-match:ad-created:${created.id}`,
-                payload: {
-                  adId: created.id,
-                  adTitle: created.title,
-                  matches: matchingSavedSearches.map((search) => ({
-                    userId: search.userId,
-                    savedSearchId: search.id,
-                    label: search.label,
-                  })),
-                },
-              },
-            });
-          }
-          // Durable follower-notification intent is committed atomically with
-          // the ad. The worker persists recipient rows and acknowledges this
-          // event in one transaction; push/SSE are best-effort after commit.
-          await tx.outboxEvent.create({
-            data: {
-              eventType: 'FOLLOWED_ACTIVITY_NOTIFICATION',
-              aggregateType: 'AD',
-              aggregateId: created.id,
-              ownerUserId: userId,
-              idempotencyKey: `followed-activity:ad-created:${created.id}`,
-              payload: {
-                targets: [
-                  { targetType: FollowTargetType.USER, targetId: userId },
-                  ...(created.storeId ? [{ targetType: FollowTargetType.STORE, targetId: created.storeId }] : []),
-                  ...(created.categoryId ? [{ targetType: FollowTargetType.CATEGORY, targetId: `AD:${created.categoryId}` }] : []),
-                ],
-                title: 'محتوى جديد ممن تتابعهم',
-                body: `${created.title} أصبح متاحًا الآن`,
-                type: 'FOLLOWED_USER_ACTIVITY',
-                data: {
-                  targetType: 'USER',
-                  targetId: userId,
-                  contentType: 'AD',
-                  contentId: created.id,
-                  categoryId: created.categoryId,
-                  storeId: created.storeId,
-                },
-              },
-            },
-          });
-          return created;
-        });
-      });
-    } catch (err: unknown) {
-      // FIX OFFLINE-IDEMPOTENCY-01: concurrent replay of the same X-Offline-Op-Id
-      if (
-        offlineOperationId &&
-        typeof err === 'object' &&
-        err !== null &&
-        'code' in err &&
-        (err as { code?: string }).code === 'P2002'
-      ) {
-        const existing = await prisma.ad.findUnique({
-          where: { offlineOperationId },
-          include: {
-            user: { select: { id: true, name: true, city: true, avatarUrl: true } },
-            category: { select: { id: true, name: true, nameAr: true } },
-            store: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                logoUrl: true,
-                status: true,
-              },
-            },
-          },
-        });
-        if (existing && existing.userId === userId) {
-          ad = existing as AdWithAuthor;
-          createdNew = false;
-          await cleanupUploadedImages(uploads.map(upload => upload.publicId));
         } else {
           throw err;
         }
-      } else {
-        throw err;
       }
-    }
       if (createdNew) {
         // FIX AUDIT-V4-06: invalidate cached listings — a newly created
         // active ad must appear in /ads results immediately, not after
@@ -450,7 +477,7 @@ export const adsService = {
             price: ad.price ? Number(ad.price) : null,
             categoryId: ad.categoryId,
           })
-          .catch((err) => {
+          .catch(err => {
             logger.error('Fraud scoring failed to run for new ad', { err, adId: ad.id });
             recordFailedTask(
               'FRAUD_SCORE_AD',
@@ -464,9 +491,10 @@ export const adsService = {
                 categoryId: ad.categoryId,
               },
               err
-            ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
+            ).catch(error =>
+              reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error)
+            );
           });
-
       }
 
       return ad;
@@ -489,7 +517,8 @@ export const adsService = {
       key: buildAdsListCacheKey(query),
       hardGenKey: ADS_GEN_HARD_KEY,
       softGenKey: ADS_GEN_SOFT_KEY,
-      softTtlMs: () => ADS_LIST_SOFT_TTL_MS + Math.floor(Math.random() * (ADS_LIST_SOFT_JITTER_MS + 1)),
+      softTtlMs: () =>
+        ADS_LIST_SOFT_TTL_MS + Math.floor(Math.random() * (ADS_LIST_SOFT_JITTER_MS + 1)),
       hardTtlSec: listHardTtlSec('ads', query, ADS_LIST_HARD_TTL_SECONDS),
       lockTtlMs: ADS_LIST_LOCK_TTL_MS,
       cacheable: !query.search || query.search.length <= ADS_CACHEABLE_SEARCH_MAX,
@@ -573,7 +602,12 @@ export const adsService = {
   // the aggregation detail. Correct at any scale, one request.
   getMyStats: async (
     userId: string
-  ): Promise<{ activeAds: number; soldAds: number; totalViews: number; favoritesCount: number }> => {
+  ): Promise<{
+    activeAds: number;
+    soldAds: number;
+    totalViews: number;
+    favoritesCount: number;
+  }> => {
     const [adStats, favoritesCount] = await Promise.all([
       adsRepository.getStatsByUserId(userId),
       favoritesRepository.countByUserId(userId),
@@ -669,14 +703,19 @@ export const adsService = {
     if (input.price !== undefined && Number(input.price) !== Number(ad.price)) {
       favoritesRepository
         .findUserIdsByAdId(adId)
-        .then((userIds) => notificationEvents.onFavoritedAdPriceChanged(userIds, adId, updated.title, updated.images?.[0]))
-        .catch((err) => {
+        .then(userIds =>
+          notificationEvents.onFavoritedAdPriceChanged(
+            userIds,
+            adId,
+            updated.title,
+            updated.images?.[0]
+          )
+        )
+        .catch(err => {
           logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId });
-          recordFailedTask(
-            'FAVORITED_AD_PRICE_CHANGED',
-            { adId, title: updated.title },
-            err
-          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
+          recordFailedTask('FAVORITED_AD_PRICE_CHANGED', { adId, title: updated.title }, err).catch(
+            error => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error)
+          );
         });
     }
 
@@ -692,14 +731,14 @@ export const adsService = {
     if (justTransitionedToSold) {
       favoritesRepository
         .findUserIdsByAdId(adId)
-        .then((userIds) => notificationEvents.onFavoritedAdSold(userIds, adId, updated.title, updated.images?.[0]))
-        .catch((err) => {
+        .then(userIds =>
+          notificationEvents.onFavoritedAdSold(userIds, adId, updated.title, updated.images?.[0])
+        )
+        .catch(err => {
           logger.error('Failed to create FAV_AD_SOLD notifications', { err, adId });
-          recordFailedTask(
-            'FAVORITED_AD_SOLD',
-            { adId, title: updated.title },
-            err
-          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
+          recordFailedTask('FAVORITED_AD_SOLD', { adId, title: updated.title }, err).catch(error =>
+            reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error)
+          );
         });
     }
 
@@ -750,7 +789,7 @@ export const adsService = {
           price: updated.price ? Number(updated.price) : null,
           categoryId: updated.categoryId,
         })
-        .catch((err) => {
+        .catch(err => {
           logger.error('Fraud scoring failed to run for updated ad', { err, adId: updated.id });
           recordFailedTask(
             'FRAUD_SCORE_AD',
@@ -764,7 +803,9 @@ export const adsService = {
               categoryId: updated.categoryId,
             },
             err
-          ).catch((error) => reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error));
+          ).catch(error =>
+            reportBackgroundFailure('backend/src/modules/ads/ads.service.ts', error)
+          );
         });
     }
 
@@ -798,7 +839,8 @@ export const adsService = {
       // pre-lock check above is just a fast-fail for the common case;
       // this is the authoritative check.
       const freshAd = await adsRepository.findById(adId);
-      if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      if (!freshAd || freshAd.status === 'DELETED')
+        throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       // Store membership/capabilities can change while waiting for the image
       // lock. Re-authorize against the fresh row before any upload or write.
       if (!(await canManageAd(freshAd, userId, userRole))) {
@@ -936,7 +978,7 @@ export const adsService = {
       currentSorted.every((url, i) => url === proposedSorted[i]);
     if (!isSamePermutation) {
       throw new BadRequestError(
-        'The submitted image list must contain exactly the ad\'s current images, reordered.',
+        "The submitted image list must contain exactly the ad's current images, reordered.",
         'IMAGES_MISMATCH'
       );
     }
@@ -948,7 +990,8 @@ export const adsService = {
 
     return withAdImagesLock(adId, async () => {
       const freshAd = await adsRepository.findById(adId);
-      if (!freshAd || freshAd.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+      if (!freshAd || freshAd.status === 'DELETED')
+        throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       if (!(await canManageAd(freshAd, userId, userRole))) {
         throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
       }
@@ -958,7 +1001,7 @@ export const adsService = {
         freshSorted.every((url, i) => url === proposedSorted[i]);
       if (!stillSamePermutation) {
         throw new BadRequestError(
-          'The submitted image list must contain exactly the ad\'s current images, reordered.',
+          "The submitted image list must contain exactly the ad's current images, reordered.",
           'IMAGES_MISMATCH'
         );
       }

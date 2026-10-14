@@ -94,7 +94,7 @@ const newToken = (): string => randomUUID();
 async function enqueueGenerationRetry(
   genKey: string,
   retryRequiredGenKeys: readonly string[] = [],
-  retryDependentGenKeys: readonly string[] = [],
+  retryDependentGenKeys: readonly string[] = []
 ): Promise<void> {
   try {
     await prisma.outboxEvent.create({
@@ -104,7 +104,7 @@ async function enqueueGenerationRetry(
         aggregateId: genKey,
         payload: {
           genKey,
-          retryRequiredGenKeys: [...new Set(retryRequiredGenKeys.filter((key) => key !== genKey))],
+          retryRequiredGenKeys: [...new Set(retryRequiredGenKeys.filter(key => key !== genKey))],
           retryDependentGenKeys: [...new Set(retryDependentGenKeys)],
         },
         idempotencyKey: `cache-generation-bump:${randomUUID()}`,
@@ -114,7 +114,10 @@ async function enqueueGenerationRetry(
   } catch (error) {
     // If both Redis and the database are unavailable, durable recovery cannot be
     // promised. Keep this failure explicit rather than pretending invalidation succeeded.
-    logger.error('[swr] could not persist failed generation bump; stale data may remain until hard TTL', { genKey, error });
+    logger.error(
+      '[swr] could not persist failed generation bump; stale data may remain until hard TTL',
+      { genKey, error }
+    );
   }
 }
 
@@ -125,7 +128,7 @@ export async function bumpGeneration(
     persistRetry?: boolean;
     retryRequiredGenKeys?: readonly string[];
     retryDependentGenKeys?: readonly string[];
-  } = {},
+  } = {}
 ): Promise<boolean> {
   const persistRetry = options.persistRetry ?? true;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -137,8 +140,16 @@ export async function bumpGeneration(
       return true;
     } catch (error) {
       if (attempt === 1) {
-        logger.error(`[swr] generation bump failed for "${genKey}" — invalidation is not guaranteed; stale data may remain until the entry hard TTL expires`, error);
-        if (persistRetry) await enqueueGenerationRetry(genKey, options.retryRequiredGenKeys, options.retryDependentGenKeys);
+        logger.error(
+          `[swr] generation bump failed for "${genKey}" — invalidation is not guaranteed; stale data may remain until the entry hard TTL expires`,
+          error
+        );
+        if (persistRetry)
+          await enqueueGenerationRetry(
+            genKey,
+            options.retryRequiredGenKeys,
+            options.retryDependentGenKeys
+          );
       }
     }
   }
@@ -184,7 +195,7 @@ function parseEnvelope<T>(raw: string | null): Envelope<T> | null {
 function classify<T>(
   o: SwrOptions<T>,
   state: CacheState,
-  envelope: Envelope<T> | null,
+  envelope: Envelope<T> | null
 ): 'fresh' | 'stale' | null {
   if (!envelope || envelope.hard !== state.hard) return null;
   const softMatches = !o.softGenKey || envelope.soft === state.soft;
@@ -210,17 +221,19 @@ async function writeEnvelope<T>(o: SwrOptions<T>, state: CacheState, payload: T)
     // Compare generation tokens and write atomically. Merely stamping the
     // envelope prevents stale reads, but an old build could still overwrite a
     // newer generation's valid envelope and force an avoidable cache miss.
-    await guardedCache(() => cacheClient().eval(
-      WRITE_IF_GENERATION_CURRENT_LUA,
-      3,
-      o.hardGenKey,
-      o.softGenKey ?? o.hardGenKey,
-      o.key,
-      state.hard,
-      state.soft ?? '',
-      JSON.stringify(envelope),
-      String(o.hardTtlSec),
-    ));
+    await guardedCache(() =>
+      cacheClient().eval(
+        WRITE_IF_GENERATION_CURRENT_LUA,
+        3,
+        o.hardGenKey,
+        o.softGenKey ?? o.hardGenKey,
+        o.key,
+        state.hard,
+        state.soft ?? '',
+        JSON.stringify(envelope),
+        String(o.hardTtlSec)
+      )
+    );
   } catch (error) {
     logger.warn(`[swr:${o.name}] cache write failed`, error);
   }
@@ -261,7 +274,7 @@ async function acquireLock<T>(o: SwrOptions<T>): Promise<string | null> {
   const token = newToken();
   try {
     const res = await guardedCache(() =>
-      cacheClient().set(`${o.key}:refresh-lock`, token, 'PX', o.lockTtlMs, 'NX'),
+      cacheClient().set(`${o.key}:refresh-lock`, token, 'PX', o.lockTtlMs, 'NX')
     );
     return res === 'OK' ? token : null;
   } catch {
@@ -273,7 +286,9 @@ async function acquireLock<T>(o: SwrOptions<T>): Promise<string | null> {
 async function releaseLock<T>(o: SwrOptions<T>, token: string): Promise<void> {
   if (token === 'local') return;
   try {
-    await withCacheTimeout(() => cacheClient().eval(RELEASE_LOCK_LUA, 1, `${o.key}:refresh-lock`, token));
+    await withCacheTimeout(() =>
+      cacheClient().eval(RELEASE_LOCK_LUA, 1, `${o.key}:refresh-lock`, token)
+    );
   } catch {
     // Harmless: the lock expires on its own after lockTtlMs.
   }
@@ -301,7 +316,7 @@ async function refreshInBackground<T>(o: SwrOptions<T>, state: CacheState): Prom
 }
 
 export async function swrGetWithStatus<T>(
-  o: SwrOptions<T>,
+  o: SwrOptions<T>
 ): Promise<{ value: T; status: SwrStatus }> {
   const startedAt = process.hrtime.bigint();
   const finish = <R extends { value: T; status: SwrStatus }>(result: R): R => {
@@ -367,7 +382,7 @@ export interface EnsureFreshOptions {
  */
 export async function swrEnsureFresh<T>(
   o: SwrOptions<T>,
-  opts: EnsureFreshOptions = {},
+  opts: EnsureFreshOptions = {}
 ): Promise<'fresh' | 'refreshed' | 'skipped'> {
   const state = await readState(o);
   const envelope = parseEnvelope<T>(state.raw);

@@ -6,38 +6,6 @@ import { logger } from '../shared/utils/logger';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 
-interface ErrorResponse {
-  success: false;
-  message: string;
-  statusCode: number;
-  // Stable, machine-readable code (see shared/errors/errorCodes.ts).
-  // Additive: existing consumers reading `message`/`statusCode` are
-  // unaffected. New frontend code should switch on `code` rather than
-  // comparing the English `message` string, since messages may be
-  // reworded without that being a breaking API change.
-  code: string;
-  requestId?: string;
-  errors?: Record<string, string[]>;
-  // structured, per-field validation detail alongside the
-  // English `errors` strings above. `errors` is kept exactly as before
-  // (existing consumers, including the frontend test suite, depend on
-  // its literal English text) — this is purely additive. Each entry
-  // mirrors the corresponding Zod issue's own `code` (Zod's
-  // ZodIssueCode, e.g. 'too_small' / 'too_big' / 'invalid_string' /
-  // 'invalid_type' / 'custom' / 'invalid_enum_value') plus whatever
-  // numeric/string params that issue carries (minimum/maximum/type/
-  // validation/etc.), so a translator can build a real Arabic sentence
-  // from structure instead of pattern-matching English prose — which
-  // breaks the moment a message here is reworded, and can't handle a
-  // field with no custom message at all (Zod's own default English).
-  errorMeta?: Record<string, { code: string; params?: Record<string, unknown> }[]>;
-  // Structured values (e.g. a numeric limit) for errors whose Arabic
-  // translation needs to interpolate data. Lets the frontend build the
-  // localized message from `meta` instead of parsing it out of the
-  // English `message` text.
-  meta?: Record<string, unknown>;
-}
-
 // Fallback codes for errors that don't carry an explicit AppError.code —
 // e.g. a raw ZodError, an unmapped Prisma error, or a truly unexpected
 // exception. Keeps `code` always present in the response body even when
@@ -177,11 +145,12 @@ export const errorMiddleware = (
       });
     }
     const code = err.code ?? CODE_BY_STATUS[err.statusCode] ?? ErrorCode.INTERNAL_ERROR;
-    const clientMessage = err.statusCode >= 500
-      ? (err.statusCode === 503
+    const clientMessage =
+      err.statusCode >= 500
+        ? err.statusCode === 503
           ? 'Service temporarily unavailable, please try again shortly'
-          : 'Internal server error')
-      : err.message;
+          : 'Internal server error'
+        : err.message;
     res.locals.errorCode = code;
     res
       .status(err.statusCode)
@@ -206,14 +175,16 @@ export const errorMiddleware = (
       method: req.method,
     });
     res.locals.errorCode = ErrorCode.SERVICE_UNAVAILABLE;
-    res.status(503).json(
-      buildApiErrorBody(
-        req,
-        503,
-        ErrorCode.SERVICE_UNAVAILABLE,
-        'Service temporarily unavailable, please try again shortly',
-      ),
-    );
+    res
+      .status(503)
+      .json(
+        buildApiErrorBody(
+          req,
+          503,
+          ErrorCode.SERVICE_UNAVAILABLE,
+          'Service temporarily unavailable, please try again shortly'
+        )
+      );
     return;
   }
 

@@ -59,7 +59,8 @@ export const appointmentsService = {
     if (input.requestId) {
       const request = await serviceRequestsRepository.findById(input.requestId);
       linkedRequest = request;
-      if (!request) throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
+      if (!request)
+        throw new NotFoundError('Service request not found', 'SERVICE_REQUEST_NOT_FOUND');
       if (!['ACCEPTED', 'IN_PROGRESS'].includes(request.status)) {
         throw new BadRequestError('Can only schedule an appointment for an accepted request.');
       }
@@ -68,26 +69,42 @@ export const appointmentsService = {
       if (isCustomer) {
         actingAsCustomer = true;
         provider = await serviceProvidersRepository.findById(request.listing.providerId);
-        if (!provider) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+        if (!provider)
+          throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
       } else {
         provider = await requireOwnProvider(userId);
         if (request.listing.providerId !== provider.id) {
-          throw new ForbiddenError('This request does not belong to your listings.', 'NOT_YOUR_SERVICE_REQUEST');
+          throw new ForbiddenError(
+            'This request does not belong to your listings.',
+            'NOT_YOUR_SERVICE_REQUEST'
+          );
         }
       }
 
       const serviceType = await serviceTypesRepository.findById(request.listing.serviceTypeId);
       if (!serviceType || !serviceType.isActive) {
-        throw new BadRequestError('The service type is inactive and cannot be scheduled.', 'SERVICE_TYPE_INVALID');
+        throw new BadRequestError(
+          'The service type is inactive and cannot be scheduled.',
+          'SERVICE_TYPE_INVALID'
+        );
       }
       if (getServiceTypeCapabilities(serviceType.capabilities).appointments === false) {
-        throw new BadRequestError('This service type does not support appointments.', 'APPOINTMENTS_NOT_SUPPORTED');
+        throw new BadRequestError(
+          'This service type does not support appointments.',
+          'APPOINTMENTS_NOT_SUPPORTED'
+        );
       }
       const counterpartyUserId = isCustomer
         ? request.listing.provider.sellerProfile.userId
         : request.customerId;
-      if (counterpartyUserId && await blockedUsersService.isBlockedEitherDirection(userId, counterpartyUserId)) {
-        throw new ForbiddenError('You cannot schedule an appointment with this user.', 'USER_BLOCKED');
+      if (
+        counterpartyUserId &&
+        (await blockedUsersService.isBlockedEitherDirection(userId, counterpartyUserId))
+      ) {
+        throw new ForbiddenError(
+          'You cannot schedule an appointment with this user.',
+          'USER_BLOCKED'
+        );
       }
     } else {
       // Standalone appointments remain provider-managed; without a request
@@ -95,19 +112,36 @@ export const appointmentsService = {
       provider = await requireOwnProvider(userId);
     }
 
-    if (!provider) throw new BadRequestError('A service provider is required to schedule an appointment.');
+    if (!provider)
+      throw new BadRequestError('A service provider is required to schedule an appointment.');
 
-    if (provider.workingHours && typeof provider.workingHours === 'object' &&
-      !fitsWorkingHours(provider.workingHours, input.scheduledStart, input.scheduledEnd)) {
-      throw new BadRequestError('The appointment must be within your working hours.', 'OUTSIDE_WORKING_HOURS');
+    if (
+      provider.workingHours &&
+      typeof provider.workingHours === 'object' &&
+      !fitsWorkingHours(provider.workingHours, input.scheduledStart, input.scheduledEnd)
+    ) {
+      throw new BadRequestError(
+        'The appointment must be within your working hours.',
+        'OUTSIDE_WORKING_HOURS'
+      );
     }
 
-    const conflict = await appointmentsRepository.findOverlapping(provider.id, input.scheduledStart, input.scheduledEnd);
-    if (conflict) throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
+    const conflict = await appointmentsRepository.findOverlapping(
+      provider.id,
+      input.scheduledStart,
+      input.scheduledEnd
+    );
+    if (conflict)
+      throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
 
     return withProviderScheduleLock(provider.id, async () => {
-      const stillConflict = await appointmentsRepository.findOverlapping(provider!.id, input.scheduledStart, input.scheduledEnd);
-      if (stillConflict) throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
+      const stillConflict = await appointmentsRepository.findOverlapping(
+        provider!.id,
+        input.scheduledStart,
+        input.scheduledEnd
+      );
+      if (stillConflict)
+        throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
 
       let appointment: Appointment;
       try {
@@ -119,24 +153,52 @@ export const appointmentsService = {
         });
       } catch (error: any) {
         if (error?.code === 'P2002' && input.requestId) {
-          throw new ConflictError('This service request already has an appointment.', 'REQUEST_ALREADY_SCHEDULED');
+          throw new ConflictError(
+            'This service request already has an appointment.',
+            'REQUEST_ALREADY_SCHEDULED'
+          );
         }
         throw error;
       }
 
-      activityService.record({ userId, ...activityTemplates.appointmentBooked(appointment.id, appointment.scheduledStart) });
+      activityService.record({
+        userId,
+        ...activityTemplates.appointmentBooked(appointment.id, appointment.scheduledStart),
+      });
 
       if (linkedRequest) {
         const customerRecipient = linkedRequest.customerId;
         if (customerRecipient !== userId) {
-          notificationEvents.onAppointmentChanged(
-            customerRecipient, linkedRequest.id, linkedRequest.listing.title, 'booked', appointment.scheduledStart
-          ).catch((err) => logger.error('Failed to create APPOINTMENT_UPDATE notification', { err, appointmentId: appointment.id }));
+          notificationEvents
+            .onAppointmentChanged(
+              customerRecipient,
+              linkedRequest.id,
+              linkedRequest.listing.title,
+              'booked',
+              appointment.scheduledStart
+            )
+            .catch(err =>
+              logger.error('Failed to create APPOINTMENT_UPDATE notification', {
+                err,
+                appointmentId: appointment.id,
+              })
+            );
         }
         if (actingAsCustomer) {
-          notificationEvents.onAppointmentChanged(
-            linkedRequest.listing.provider.sellerProfile.userId, linkedRequest.id, linkedRequest.listing.title, 'booked', appointment.scheduledStart
-          ).catch((err) => logger.error('Failed to notify provider of customer appointment booking', { err, appointmentId: appointment.id }));
+          notificationEvents
+            .onAppointmentChanged(
+              linkedRequest.listing.provider.sellerProfile.userId,
+              linkedRequest.id,
+              linkedRequest.listing.title,
+              'booked',
+              appointment.scheduledStart
+            )
+            .catch(err =>
+              logger.error('Failed to notify provider of customer appointment booking', {
+                err,
+                appointmentId: appointment.id,
+              })
+            );
         }
       }
       return appointment;
@@ -148,8 +210,14 @@ export const appointmentsService = {
     query: GetAppointmentsQuery
   ): Promise<PaginatedResult<AppointmentWithRequest>> => {
     const sellerProfile = await sellersRepository.findByUserId(userId);
-    const provider = sellerProfile ? await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id) : null;
-    const { appointments, total } = await appointmentsRepository.findManyByUserId(provider?.id ?? null, userId, query);
+    const provider = sellerProfile
+      ? await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id)
+      : null;
+    const { appointments, total } = await appointmentsRepository.findManyByUserId(
+      provider?.id ?? null,
+      userId,
+      query
+    );
     return {
       items: appointments,
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
@@ -178,10 +246,16 @@ export const appointmentsService = {
       throw new ForbiddenError('You do not own this appointment.', 'NOT_YOUR_APPOINTMENT');
     }
     if (isCustomer && status !== 'CANCELLED') {
-      throw new ForbiddenError('Customers can only cancel their appointments.', 'CUSTOMER_APPOINTMENT_ACTION_NOT_ALLOWED');
+      throw new ForbiddenError(
+        'Customers can only cancel their appointments.',
+        'CUSTOMER_APPOINTMENT_ACTION_NOT_ALLOWED'
+      );
     }
     if (appointment.status !== 'SCHEDULED') {
-      throw new ConflictError('Only a scheduled appointment can change status.', 'APPOINTMENT_NOT_SCHEDULED');
+      throw new ConflictError(
+        'Only a scheduled appointment can change status.',
+        'APPOINTMENT_NOT_SCHEDULED'
+      );
     }
     const updated = await appointmentsRepository.updateStatus(id, status);
 
@@ -199,9 +273,20 @@ export const appointmentsService = {
         const recipient = isCustomer
           ? linkedRequest.listing.provider.sellerProfile.userId
           : linkedRequest.customerId;
-        notificationEvents.onAppointmentChanged(
-          recipient, linkedRequest.id, linkedRequest.listing.title, 'cancelled', updated.scheduledStart
-        ).catch((err) => logger.error('Failed to create APPOINTMENT_UPDATE notification', { err, appointmentId: updated.id }));
+        notificationEvents
+          .onAppointmentChanged(
+            recipient,
+            linkedRequest.id,
+            linkedRequest.listing.title,
+            'cancelled',
+            updated.scheduledStart
+          )
+          .catch(err =>
+            logger.error('Failed to create APPOINTMENT_UPDATE notification', {
+              err,
+              appointmentId: updated.id,
+            })
+          );
       }
     }
 
@@ -214,9 +299,14 @@ export const appointmentsService = {
   getAvailability: async (
     providerId: string,
     dateStr: string
-  ): Promise<{ date: string; available: boolean; freeRanges: { start: string; end: string }[] }> => {
+  ): Promise<{
+    date: string;
+    available: boolean;
+    freeRanges: { start: string; end: string }[];
+  }> => {
     const provider = await serviceProvidersRepository.findById(providerId);
-    if (!provider) throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!provider)
+      throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
     // same SEC-every other
     // public read path (getPublicServiceProvider, getPublicStore,
     // getProductById, getAdById). findById returns the bare row
@@ -231,7 +321,10 @@ export const appointmentsService = {
     // free slot by the market's UTC offset (2–3h) and picked the weekday in
     // UTC. The window is now built in Asia/Gaza and converted to UTC.
     const calendarDate = new Date(`${dateStr}T00:00:00.000Z`);
-    if (Number.isNaN(calendarDate.getTime()) || calendarDate.toISOString().slice(0, 10) !== dateStr) {
+    if (
+      Number.isNaN(calendarDate.getTime()) ||
+      calendarDate.toISOString().slice(0, 10) !== dateStr
+    ) {
       return { date: dateStr, available: false, freeRanges: [] };
     }
     const workingHours = provider.workingHours as unknown as WorkingHoursMap | null;

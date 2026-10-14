@@ -40,7 +40,7 @@ const LOCKOUT_DURATION = 30 * 60;
 const FORGOT_PASSWORD_MIN_MS = 700;
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export interface AuthResult {
@@ -73,9 +73,16 @@ export interface AuthResult {
  * shared setup is factored out rather than duplicated in both places.
  */
 async function issueSession(
-  user: { id: string; name: string; email: string; role: string; needsProfileCompletion?: boolean; emailVerified?: boolean },
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    needsProfileCompletion?: boolean;
+    emailVerified?: boolean;
+  },
   ip: string,
-  userAgent: string,
+  userAgent: string
 ): Promise<{ result: AuthResult; sessionId: string }> {
   const tokens = signTokenPair(user.id);
 
@@ -87,13 +94,29 @@ async function issueSession(
     lastSeen: new Date().toISOString(),
   });
 
-  await userCache.set({ id: user.id, role: user.role, isActive: true, emailVerified: user.emailVerified });
+  await userCache.set({
+    id: user.id,
+    role: user.role,
+    isActive: true,
+    emailVerified: user.emailVerified,
+  });
 
   return {
     sessionId: tokens.sessionId,
     result: {
-      tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn },
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, needsProfileCompletion: user.needsProfileCompletion, emailVerified: user.emailVerified },
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+      },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        needsProfileCompletion: user.needsProfileCompletion,
+        emailVerified: user.emailVerified,
+      },
     },
   };
 }
@@ -109,7 +132,8 @@ export const authService = {
 
     if (input.phone) {
       const existingPhone = await authRepository.findByPhone(input.phone);
-      if (existingPhone) throw new BadRequestError('Phone number already in use', 'PHONE_ALREADY_EXISTS');
+      if (existingPhone)
+        throw new BadRequestError('Phone number already in use', 'PHONE_ALREADY_EXISTS');
     }
 
     const passwordHash = await hashPassword(input.password);
@@ -151,7 +175,9 @@ export const authService = {
       throw new AppError('Registration failed, please try again', 503);
     }
 
-    auditLog({ event: AuditEvent.REGISTER, userId: user.id, ip, userAgent }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    auditLog({ event: AuditEvent.REGISTER, userId: user.id, ip, userAgent }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+    );
 
     // FIX FEAT-EMAIL-VERIFY: fire-and-forget (same contract as
     // forgotPassword's dispatch) — a slow or failing verification
@@ -206,7 +232,10 @@ export const authService = {
     ]);
 
     if (isEmailLocked) {
-      throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes', 'ACCOUNT_LOCKED');
+      throw new TooManyRequestsError(
+        'Account temporarily locked. Try again in 30 minutes',
+        'ACCOUNT_LOCKED'
+      );
     }
 
     // FIX IP-NAT-SMART-COUNTER: two independent signals.
@@ -232,7 +261,10 @@ export const authService = {
         attempts: ipStats.attempts,
         distinctEmails: ipStats.distinctEmails,
       });
-      throw new TooManyRequestsError('Too many requests from this network. Please try again later', 'TOO_MANY_ATTEMPTS_FROM_IP');
+      throw new TooManyRequestsError(
+        'Too many requests from this network. Please try again later',
+        'TOO_MANY_ATTEMPTS_FROM_IP'
+      );
     }
 
     if (ipStats.distinctEmails >= MAX_IP_DISTINCT_EMAILS) {
@@ -241,7 +273,10 @@ export const authService = {
         attempts: ipStats.attempts,
         distinctEmails: ipStats.distinctEmails,
       });
-      throw new TooManyRequestsError('Too many requests from this network. Please try again later', 'TOO_MANY_ATTEMPTS_FROM_IP');
+      throw new TooManyRequestsError(
+        'Too many requests from this network. Please try again later',
+        'TOO_MANY_ATTEMPTS_FROM_IP'
+      );
     }
 
     const user = await authRepository.findByEmail(normalizedEmail);
@@ -290,7 +325,7 @@ export const authService = {
         ip,
         userAgent,
         details: { emailAttempts, reason: 'no_such_account' },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+      }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
@@ -300,13 +335,14 @@ export const authService = {
         // only durable record — which is exactly what was missing.
         throw new TooManyRequestsError(
           'Account temporarily locked. Try again in 30 minutes',
-          'ACCOUNT_LOCKED',
+          'ACCOUNT_LOCKED'
         );
       }
       throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
-    if (!user.isActive) throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+    if (!user.isActive)
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
 
     if (!isPasswordValid) {
       const { emailAttempts } = await tokenStore.incrementFailedLogins(normalizedEmail, ip);
@@ -317,7 +353,7 @@ export const authService = {
         ip,
         userAgent,
         details: { emailAttempts },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+      }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
@@ -328,9 +364,14 @@ export const authService = {
           ip,
           event: 'ACCOUNT_LOCKED',
           details: { email: normalizedEmail },
-        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+        }).catch(error =>
+          reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+        );
 
-        throw new TooManyRequestsError('Account temporarily locked. Try again in 30 minutes', 'ACCOUNT_LOCKED');
+        throw new TooManyRequestsError(
+          'Account temporarily locked. Try again in 30 minutes',
+          'ACCOUNT_LOCKED'
+        );
       }
       throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
@@ -345,7 +386,7 @@ export const authService = {
       ip,
       userAgent,
       sessionId,
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
     return result;
   },
@@ -393,9 +434,12 @@ export const authService = {
    */
   linkGoogleFromRefreshToken: async (
     refreshToken: string,
-    profile: GoogleProfileData,
+    profile: GoogleProfileData
   ): Promise<void> => {
-    const genericError = new UnauthorizedError('Session expired. Please login again', 'SESSION_EXPIRED');
+    const genericError = new UnauthorizedError(
+      'Session expired. Please login again',
+      'SESSION_EXPIRED'
+    );
     let payload;
     try {
       payload = verifyRefreshToken(refreshToken);
@@ -403,14 +447,18 @@ export const authService = {
       throw genericError;
     }
 
-    const valid = await tokenStore.validateRefreshToken(payload.userId, payload.sessionId, refreshToken);
+    const valid = await tokenStore.validateRefreshToken(
+      payload.userId,
+      payload.sessionId,
+      refreshToken
+    );
     if (!valid) throw genericError;
 
     const user = await authRepository.findByEmail(profile.email);
     if (!user || user.id !== payload.userId) {
       throw new BadRequestError(
         'The Google account email must match the email on your marketplace account',
-        'GOOGLE_LINK_EMAIL_MISMATCH',
+        'GOOGLE_LINK_EMAIL_MISMATCH'
       );
     }
     if (!user.isActive) {
@@ -422,7 +470,7 @@ export const authService = {
       if (existingGoogleUser && existingGoogleUser.id !== user.id) {
         throw new BadRequestError(
           'This Google account is already linked to another marketplace account',
-          'GOOGLE_ALREADY_LINKED_ELSEWHERE',
+          'GOOGLE_ALREADY_LINKED_ELSEWHERE'
         );
       }
 
@@ -435,7 +483,7 @@ export const authService = {
         userId: user.id,
         sessionId: payload.sessionId,
         details: { provider: 'google', source: 'settings' },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+      }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
     });
   },
 
@@ -462,7 +510,9 @@ export const authService = {
           userAgent,
           sessionId,
           details: { provider: 'google' },
-        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+        }).catch(error =>
+          reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+        );
 
         return result;
       }
@@ -498,11 +548,11 @@ export const authService = {
           // link. Refuse and let an operator resolve manually.
           logger.warn(
             'Google sign-in blocked: account already linked to a different Google identity',
-            { userId: byEmail.id },
+            { userId: byEmail.id }
           );
           throw new UnauthorizedError(
             'This account is already linked to a different Google identity',
-            'GOOGLE_ALREADY_LINKED_ELSEWHERE',
+            'GOOGLE_ALREADY_LINKED_ELSEWHERE'
           );
         }
 
@@ -516,11 +566,11 @@ export const authService = {
           // an explicit link from Settings.
           logger.warn(
             'Google sign-in blocked: local account exists with this email but has no Google link',
-            { userId: byEmail.id },
+            { userId: byEmail.id }
           );
           throw new UnauthorizedError(
             'An account already exists with this email. Sign in with your password, then link Google from Settings.',
-            'OAUTH_EMAIL_ALREADY_REGISTERED',
+            'OAUTH_EMAIL_ALREADY_REGISTERED'
           );
         }
 
@@ -540,7 +590,9 @@ export const authService = {
           userAgent,
           sessionId,
           details: { provider: 'google', previousProvider: byEmail.provider },
-        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+        }).catch(error =>
+          reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+        );
 
         logger.info('Linked Google account to existing user', { userId: linked.id });
 
@@ -565,7 +617,7 @@ export const authService = {
         userAgent,
         sessionId,
         details: { provider: 'google' },
-      }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+      }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
       return result;
     });
@@ -573,7 +625,10 @@ export const authService = {
 
   refresh: async (refreshToken: string): Promise<Omit<TokenPair, 'sessionId'>> => {
     // Unified message for every failure case — we don't reveal the reason
-    const genericError = new UnauthorizedError('Session expired. Please login again', 'SESSION_EXPIRED');
+    const genericError = new UnauthorizedError(
+      'Session expired. Please login again',
+      'SESSION_EXPIRED'
+    );
 
     let payload;
     try {
@@ -668,17 +723,22 @@ export const authService = {
           await tokenStore.extendSession(payload.userId, payload.sessionId);
           await tokenStore.updateSessionLastSeen(payload.userId, payload.sessionId);
         } catch (err) {
-          logger.warn('Failed to extend session / update last-seen after successful token rotation', {
-            userId: payload.userId,
-            sessionId: payload.sessionId,
-            error: err instanceof Error ? err.message : String(err),
-          });
+          logger.warn(
+            'Failed to extend session / update last-seen after successful token rotation',
+            {
+              userId: payload.userId,
+              sessionId: payload.sessionId,
+              error: err instanceof Error ? err.message : String(err),
+            }
+          );
         }
         auditLog({
           event: AuditEvent.TOKEN_REFRESHED,
           userId: payload.userId,
           sessionId: payload.sessionId,
-        }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+        }).catch(error =>
+          reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+        );
         return newTokens;
       }
 
@@ -719,7 +779,9 @@ export const authService = {
             sessionId: payload.sessionId,
             event: 'TOKEN_REUSE',
           }),
-        ]).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+        ]).catch(error =>
+          reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+        );
 
         logger.warn('Refresh token reuse detected — all sessions invalidated', {
           userId: payload.userId,
@@ -750,7 +812,9 @@ export const authService = {
       ttl > 0 ? tokenStore.blacklistAccessToken(accessToken, ttl) : Promise.resolve(),
     ]);
 
-    auditLog({ event: AuditEvent.LOGOUT, userId, sessionId, ip }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    auditLog({ event: AuditEvent.LOGOUT, userId, sessionId, ip }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+    );
   },
 
   logoutAll: async (userId: string, accessToken: string, ip = 'unknown'): Promise<void> => {
@@ -762,7 +826,9 @@ export const authService = {
       ttl > 0 ? tokenStore.blacklistAccessToken(accessToken, ttl) : Promise.resolve(),
     ]);
 
-    auditLog({ event: AuditEvent.LOGOUT_ALL, userId, ip }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    auditLog({ event: AuditEvent.LOGOUT_ALL, userId, ip }).catch(error =>
+      reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error)
+    );
   },
 
   revokeSession: async (userId: string, targetSessionId: string): Promise<void> => {
@@ -776,7 +842,7 @@ export const authService = {
       event: AuditEvent.SESSION_REVOKED,
       userId,
       sessionId: targetSessionId,
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
   },
 
   getSessions: async (userId: string, currentSessionId: string) =>
@@ -823,7 +889,7 @@ export const authService = {
     if (!user) {
       throw new UnauthorizedError(
         'No account found with this email',
-        'GOOGLE_VERIFY_USER_NOT_FOUND',
+        'GOOGLE_VERIFY_USER_NOT_FOUND'
       );
     }
     if (!user.isActive) {
@@ -872,7 +938,7 @@ export const authService = {
       ip: 'unknown',
       userAgent: 'unknown',
       details: { provider: 'google' },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
     return { alreadyVerified: false };
   },
@@ -920,7 +986,7 @@ export const authService = {
       ip: 'unknown',
       userAgent: 'unknown',
       details: { action: 'password_reset_via_google', provider: 'google' },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
 
     return token;
   },
@@ -991,7 +1057,7 @@ export const authService = {
     // registered, a link will arrive" — a send failure is not
     // actionable there anyway. Logged so a real SMTP outage is
     // visible in the logs.
-    emailService.sendPasswordResetEmail(user.email, token).catch((err) => {
+    emailService.sendPasswordResetEmail(user.email, token).catch(err => {
       logger.error('Failed to send password reset email', {
         userId: user.id,
         error: err instanceof Error ? err.message : String(err),
@@ -1029,7 +1095,10 @@ export const authService = {
     });
 
     if (!record || record.expiresAt < new Date() || record.used) {
-      throw new BadRequestError('Password reset link is invalid or has expired', 'INVALID_RESET_TOKEN');
+      throw new BadRequestError(
+        'Password reset link is invalid or has expired',
+        'INVALID_RESET_TOKEN'
+      );
     }
 
     const passwordHash = await hashPassword(newPassword);
@@ -1053,14 +1122,17 @@ export const authService = {
     // a reset after its deadline. The transaction also prevents a DB failure
     // during the user update from consuming the token without changing the
     // password (or changing the password while leaving the token reusable).
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async tx => {
       const claim = await tx.passwordResetToken.updateMany({
         where: { token, used: false, expiresAt: { gt: new Date() } },
         data: { used: true },
       });
 
       if (claim.count === 0) {
-        throw new BadRequestError('Password reset link is invalid or has expired', 'INVALID_RESET_TOKEN');
+        throw new BadRequestError(
+          'Password reset link is invalid or has expired',
+          'INVALID_RESET_TOKEN'
+        );
       }
 
       await tx.user.update({ where: { id: record.userId }, data: { passwordHash } });
@@ -1088,7 +1160,7 @@ export const authService = {
     if (!record || record.expiresAt < new Date() || record.used) {
       throw new BadRequestError(
         'Verification link is invalid or has expired',
-        'INVALID_VERIFICATION_TOKEN',
+        'INVALID_VERIFICATION_TOKEN'
       );
     }
 
@@ -1104,18 +1176,18 @@ export const authService = {
         where: { id: record.userId },
         data: {
           emailVerified: true,
-          emailVerifiedAt: record.user.emailVerified
-            ? record.user.emailVerifiedAt
-            : new Date(),
+          emailVerifiedAt: record.user.emailVerified ? record.user.emailVerifiedAt : new Date(),
         },
       }),
     ]);
 
-    userCache.invalidate(record.userId).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    userCache
+      .invalidate(record.userId)
+      .catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
     auditLog({
       event: AuditEvent.EMAIL_VERIFIED,
       userId: record.userId,
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/auth/auth.service.ts', error));
   },
 
   /**
@@ -1152,5 +1224,4 @@ export const authService = {
     await emailService.sendVerificationEmail(user.email, token);
     logger.info('Verification email re-sent', { userId: user.id });
   },
-
 };

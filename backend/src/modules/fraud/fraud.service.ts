@@ -59,7 +59,7 @@ interface ComputedSignal {
 
 async function computeSignals(
   input: ScoreAdInput,
-  options: { skipDuplicateCheck?: boolean } = {},
+  options: { skipDuplicateCheck?: boolean } = {}
 ): Promise<ComputedSignal[]> {
   const signals: ComputedSignal[] = [];
 
@@ -225,7 +225,6 @@ export const fraudService = {
     }
   },
 
-
   /**
    * Scores a product or service listing with the same content heuristics
    * as scoreAd (price outliers, off-platform contact, scam keywords).
@@ -256,17 +255,17 @@ export const fraudService = {
           price: input.price,
           categoryId: input.categoryId,
         },
-        { skipDuplicateCheck: true },
+        { skipDuplicateCheck: true }
       );
       if (signals.length === 0) return;
 
       const riskScore = Math.min(
         100,
-        signals.reduce((sum, s) => sum + s.weight, 0),
+        signals.reduce((sum, s) => sum + s.weight, 0)
       );
 
       await prisma.fraudSignal.createMany({
-        data: signals.map((s) => ({
+        data: signals.map(s => ({
           type: s.type,
           weight: s.weight,
           metadata: {
@@ -286,7 +285,7 @@ export const fraudService = {
           entityId: input.id,
           userId: input.userId,
           riskScore,
-          signalTypes: signals.map((s) => s.type),
+          signalTypes: signals.map(s => s.type),
         });
       }
     } catch (err) {
@@ -322,10 +321,7 @@ export const fraudService = {
    * been cleared. Use clearAdFlag explicitly once an admin has decided
    * the ad itself is fine.
    */
-  reviewSignal: async (
-    signalId: string,
-    adminUserId: string
-  ): Promise<FraudSignalWithSubjects> => {
+  reviewSignal: async (signalId: string, adminUserId: string): Promise<FraudSignalWithSubjects> => {
     const existing = await fraudRepository.findSignalById(signalId);
     if (!existing) throw new NotFoundError('Fraud signal not found', 'FRAUD_SIGNAL_NOT_FOUND');
 
@@ -335,7 +331,7 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_SIGNAL_REVIEWED,
       userId: adminUserId,
       details: { signalId, signalType: existing.type, adId: existing.adId ?? undefined },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
 
     return updated;
   },
@@ -347,15 +343,11 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_SIGNAL_REVIEWED,
       userId: adminUserId,
       details: { adId, action: 'cleared_flag' },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
   },
 
   /** Manual flag — see FraudSignalType.MANUAL_ADMIN_FLAG's doc comment in schema.prisma. */
-  manualFlag: async (
-    adId: string,
-    input: ManualFlagInput,
-    adminUserId: string
-  ): Promise<void> => {
+  manualFlag: async (adId: string, input: ManualFlagInput, adminUserId: string): Promise<void> => {
     await prisma.$transaction(async tx => {
       const ad = await tx.ad.findUnique({ where: { id: adId }, select: { riskScore: true } });
       if (!ad) throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
@@ -380,6 +372,6 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_MANUAL_FLAG,
       userId: adminUserId,
       details: { adId, reason: input.reason, targetUserId: input.userId ?? undefined },
-    }).catch((error) => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
+    }).catch(error => reportBackgroundFailure('backend/src/modules/fraud/fraud.service.ts', error));
   },
 };

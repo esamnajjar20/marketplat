@@ -36,7 +36,7 @@ function getGazaTime(): { hour: number; minute: number; weekday: number } {
     weekday: 'short',
   }).formatToParts(new Date());
 
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
   const weekdays: Record<string, number> = {
     Sun: 0,
     Mon: 1,
@@ -69,21 +69,23 @@ function isDue(job: Job, now: ReturnType<typeof getGazaTime>): boolean {
 
 async function main(): Promise<void> {
   const now = getGazaTime();
-  const dueJobs = JOBS.filter((job) => isDue(job, now));
+  const dueJobs = JOBS.filter(job => isDue(job, now));
 
   if (dueJobs.length === 0) {
-    console.log(`[cron] No jobs due at ${TIME_ZONE} ${now.hour}:${String(now.minute).padStart(2, '0')}`);
+    console.log(
+      `[cron] No jobs due at ${TIME_ZONE} ${now.hour}:${String(now.minute).padStart(2, '0')}`
+    );
     return;
   }
 
-  console.log(`[cron] Due jobs: ${dueJobs.map((job) => job.name).join(', ')}`);
+  console.log(`[cron] Due jobs: ${dueJobs.map(job => job.name).join(', ')}`);
 
   for (const job of dueJobs) {
     await runChildJob(job.name);
   }
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error('[cron] Scheduled job runner failed:', error);
   process.exitCode = 1;
 });

@@ -80,7 +80,7 @@ export function getCachedHomepage(query: GetHomepageQuery): Promise<HomepageResu
  * cannot distinguish "Redis hit + big JSON" from "DB rebuild".
  */
 export function getCachedHomepageWithStatus(
-  query: GetHomepageQuery,
+  query: GetHomepageQuery
 ): Promise<{ value: HomepageResult; status: SwrStatus }> {
   return swrGetWithStatus(homeOptions(query));
 }
@@ -92,7 +92,7 @@ export function getCachedHomepageWithStatus(
  */
 export function ensureHomepageFresh(
   query: GetHomepageQuery,
-  opts: { maxAgeMs?: number } = {},
+  opts: { maxAgeMs?: number } = {}
 ): Promise<'fresh' | 'refreshed' | 'skipped'> {
   return swrEnsureFresh(homeOptions(query), opts);
 }
@@ -132,7 +132,12 @@ async function rewarmAfterInvalidation(): Promise<void> {
   if (epoch !== rewarmEpoch) return;
 
   const now = Date.now();
-  if (lastCityRewarmCompleted && lastCityRewarmAt !== 0 && now - lastCityRewarmAt < HOME_REWARM_CITIES_MIN_GAP_MS) return;
+  if (
+    lastCityRewarmCompleted &&
+    lastCityRewarmAt !== 0 &&
+    now - lastCityRewarmAt < HOME_REWARM_CITIES_MIN_GAP_MS
+  )
+    return;
   lastCityRewarmAt = now;
   lastCityRewarmCompleted = false;
 

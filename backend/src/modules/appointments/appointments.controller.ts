@@ -34,7 +34,11 @@ export const appointmentsController = {
     }
   },
 
-  updateAppointmentStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  updateAppointmentStatus: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { params, body } = updateAppointmentStatusSchema.parse({

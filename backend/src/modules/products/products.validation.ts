@@ -5,42 +5,39 @@ import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 const productAttributesSchema = z.preprocess(
   value => {
     if (typeof value !== 'string') return value;
-    try { return JSON.parse(value); } catch { return value; }
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
   },
-  z.record(z.union([z.string().max(500), z.number().finite(), z.boolean()])),
+  z.record(z.union([z.string().max(500), z.number().finite(), z.boolean()]))
 );
 
 export const createProductSchema = z.object({
-  body: z.object({
-    categoryId: z.string().min(1, 'categoryId is required'),
-    name: z.string().min(2, 'Product name must be at least 2 characters').max(200),
-    description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
-    price: z.coerce
-      .number()
-      .positive('Price must be a positive number')
-      .multipleOf(0.01, 'Price cannot have more than 2 decimal places'),
-    discountPrice: z.coerce
-      .number()
-      .positive()
-      .multipleOf(0.01)
-      .optional(),
-    wholesalePrice: z.coerce.number().positive().multipleOf(0.01).optional(),
-    costPrice: z.coerce.number().nonnegative().multipleOf(0.01).optional(),
-    wholesaleMinQty: z.coerce.number().int().positive().optional(),
-    availability: z.nativeEnum(ProductAvailability).default('IN_STOCK'),
-    stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
-    attributes: productAttributesSchema.optional(),
-  })
+  body: z
+    .object({
+      categoryId: z.string().min(1, 'categoryId is required'),
+      name: z.string().min(2, 'Product name must be at least 2 characters').max(200),
+      description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
+      price: z.coerce
+        .number()
+        .positive('Price must be a positive number')
+        .multipleOf(0.01, 'Price cannot have more than 2 decimal places'),
+      discountPrice: z.coerce.number().positive().multipleOf(0.01).optional(),
+      wholesalePrice: z.coerce.number().positive().multipleOf(0.01).optional(),
+      costPrice: z.coerce.number().nonnegative().multipleOf(0.01).optional(),
+      wholesaleMinQty: z.coerce.number().int().positive().optional(),
+      availability: z.nativeEnum(ProductAvailability).default('IN_STOCK'),
+      stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
+      attributes: productAttributesSchema.optional(),
+    })
     // Wholesale pricing is a pair — a minimum quantity with no price
     // (or vice versa) is a contradiction, not a valid partial state.
-    .refine(
-      data =>
-        (data.wholesalePrice === undefined) === (data.wholesaleMinQty === undefined),
-      {
-        message: 'wholesalePrice and wholesaleMinQty must be provided together',
-        path: ['wholesalePrice'],
-      }
-    )
+    .refine(data => (data.wholesalePrice === undefined) === (data.wholesaleMinQty === undefined), {
+      message: 'wholesalePrice and wholesaleMinQty must be provided together',
+      path: ['wholesalePrice'],
+    })
     .refine(data => data.discountPrice === undefined || data.discountPrice < data.price, {
       message: 'discountPrice must be less than price',
       path: ['discountPrice'],
@@ -86,19 +83,21 @@ export const getProductsSchema = z.object({
       search: z.string().min(1).max(200).optional(),
       sortBy: z.enum(PRODUCT_SORT_FIELDS).optional(),
       sortOrder: z.enum(['asc', 'desc']).optional(),
-      // PROMO-1 (scope only — minimal, not the full 
+      // PROMO-1 (scope only — minimal, not the full
       // filter design): true returns only products carrying a live
       // (SCHEDULED or ACTIVE) Promotion row, so the Home "عروض مميزة"
       // section can query directly instead of over-fetching and
       // filtering client-side. Query-string booleans arrive as the
       // string "true"/"false", same coercion products.controller.ts's
       // callers already rely on elsewhere in this schema.
-      hasPromotion: z
-        .preprocess(value => (value === undefined ? undefined : value === 'true'), z.boolean().optional()),
+      hasPromotion: z.preprocess(
+        value => (value === undefined ? undefined : value === 'true'),
+        z.boolean().optional()
+      ),
     })
     // see ads.validation.ts's getAdsSchema refine for the
     // same rationale — same silent-empty-result bug here.
-    .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    .refine(q => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
       message: 'minPrice must not exceed maxPrice',
       path: ['minPrice'],
     }),
@@ -117,7 +116,6 @@ export const getMyProductsSchema = z.object({
 });
 
 export type GetMyProductsQuery = z.infer<typeof getMyProductsSchema>['query'];
-
 
 export const productIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Product ID is required') }),

@@ -20,7 +20,7 @@ export interface ReplayRedis {
     start: string,
     end: string,
     countKeyword: 'COUNT',
-    count: number,
+    count: number
   ): Promise<Array<[string, string[]]>>;
   xlen(key: string): Promise<number>;
 }
@@ -67,7 +67,7 @@ export async function appendReplayEvent(
   client: ReplayRedis,
   userId: string,
   event: unknown,
-  opts: ReplayOptions,
+  opts: ReplayOptions
 ): Promise<string | null> {
   if (opts.maxEvents <= 0) return null;
   const key = replayKey(userId);
@@ -92,7 +92,7 @@ export async function readReplayEvents(
   userId: string,
   lastEventId: string,
   opts: ReplayOptions,
-  nowMs: number = Date.now(),
+  nowMs: number = Date.now()
 ): Promise<ReplayResult> {
   const last = parseEventId(lastEventId);
   const from = nextEventId(lastEventId);

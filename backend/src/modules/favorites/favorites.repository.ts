@@ -2,7 +2,12 @@ import { prisma } from '../../config/prisma';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { Prisma, FavoriteEntityType } from '@prisma/client';
 import { GetFavoritesQuery, FAVORITE_QUERY_TYPE_MAP } from './favorites.validation';
-import {ProductWithStore, productWithRelations, productWithRelationsLite, ProductWithStoreLite} from '../products/products.repository';
+import {
+  ProductWithStore,
+  productWithRelations,
+  productWithRelationsLite,
+  ProductWithStoreLite,
+} from '../products/products.repository';
 import { StoreWithSeller, storeWithSeller } from '../stores/stores.repository';
 import {
   ServiceListingWithProvider,
@@ -65,10 +70,7 @@ export type FavoriteAdEntity = Prisma.AdGetPayload<{ select: typeof adSelect }>;
 // select, so a favorited product's card always matches what every
 // other cross-module read of a product already returns.
 export type FavoriteEntity =
-  | FavoriteAdEntity
-  | ProductWithStore
-  | StoreWithSeller
-  | ServiceListingWithProvider;
+  FavoriteAdEntity | ProductWithStore | StoreWithSeller | ServiceListingWithProvider;
 
 export type FavoriteListRow = {
   id: string;
@@ -101,66 +103,69 @@ type EntityConfig<T> = {
 };
 
 const AD_CONFIG: EntityConfig<FavoriteAdEntity> = {
-  activeIds: async (ids) =>
+  activeIds: async ids =>
     (
       await prisma.ad.findMany({
         where: { id: { in: ids }, status: { not: 'DELETED' } },
         select: { id: true },
       })
-    ).map((a) => a.id),
-  fetchActive: (ids) =>
-    prisma.ad.findMany({ where: { id: { in: ids }, status: { not: 'DELETED' } }, select: adSelect }),
-  getId: (e) => e.id,
+    ).map(a => a.id),
+  fetchActive: ids =>
+    prisma.ad.findMany({
+      where: { id: { in: ids }, status: { not: 'DELETED' } },
+      select: adSelect,
+    }),
+  getId: e => e.id,
 };
 
 const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
-  activeIds: async (ids) =>
+  activeIds: async ids =>
     (
       await prisma.product.findMany({
         where: { id: { in: ids }, status: { not: 'DELETED' } },
         select: { id: true },
       })
-    ).map((p) => p.id),
-  fetchActive: (ids) =>
+    ).map(p => p.id),
+  fetchActive: ids =>
     prisma.product.findMany({
       where: { id: { in: ids }, status: { not: 'DELETED' } },
       // the favourites list renders ProductCard,
       // which never reads store.storeType.fields. Use the lite variant.
       include: productWithRelationsLite,
     }),
-  getId: (e) => e.id,
+  getId: e => e.id,
 };
 
 const STORE_CONFIG: EntityConfig<StoreWithSeller> = {
-  activeIds: async (ids) =>
+  activeIds: async ids =>
     (
       await prisma.storeDetails.findMany({
         where: { id: { in: ids }, status: { not: 'BLOCKED' } },
         select: { id: true },
       })
-    ).map((s) => s.id),
-  fetchActive: (ids) =>
+    ).map(s => s.id),
+  fetchActive: ids =>
     prisma.storeDetails.findMany({
       where: { id: { in: ids }, status: { not: 'BLOCKED' } },
       include: storeWithSeller,
     }),
-  getId: (e) => e.id,
+  getId: e => e.id,
 };
 
 const SERVICE_LISTING_CONFIG: EntityConfig<ServiceListingWithProvider> = {
-  activeIds: async (ids) =>
+  activeIds: async ids =>
     (
       await prisma.serviceListing.findMany({
         where: { id: { in: ids }, status: { not: 'DELETED' } },
         select: { id: true },
       })
-    ).map((s) => s.id),
-  fetchActive: (ids) =>
+    ).map(s => s.id),
+  fetchActive: ids =>
     prisma.serviceListing.findMany({
       where: { id: { in: ids }, status: { not: 'DELETED' } },
       include: listingWithRelations,
     }),
-  getId: (e) => e.id,
+  getId: e => e.id,
 };
 
 // NOTE: EntityConfig<T>'s getId is contravariant in T (a function
@@ -189,7 +194,11 @@ export const favoritesRepository = {
   create: async (userId: string, entityType: FavoriteEntityType, entityId: string) =>
     prisma.favorite.create({ data: { userId, entityType, entityId } }),
 
-  delete: async (userId: string, entityType: FavoriteEntityType, entityId: string): Promise<void> => {
+  delete: async (
+    userId: string,
+    entityType: FavoriteEntityType,
+    entityId: string
+  ): Promise<void> => {
     await prisma.favorite.delete({
       where: { userId_entityType_entityId: { userId, entityType, entityId } },
     });
@@ -214,7 +223,7 @@ export const favoritesRepository = {
       select: { entityId: true },
     });
     if (rows.length === 0) return 0;
-    const activeIds = await ENTITY_CONFIG[entityType].activeIds(rows.map((r) => r.entityId));
+    const activeIds = await ENTITY_CONFIG[entityType].activeIds(rows.map(r => r.entityId));
     return activeIds.length;
   },
 
@@ -287,10 +296,8 @@ export const favoritesRepository = {
       return { favorites: [], total: 0 };
     }
 
-    const activeIdsSet = new Set(
-      await config.activeIds(allOrderedRows.map((r) => r.entityId))
-    );
-    const activeOrderedRows = allOrderedRows.filter((r) => activeIdsSet.has(r.entityId));
+    const activeIdsSet = new Set(await config.activeIds(allOrderedRows.map(r => r.entityId)));
+    const activeOrderedRows = allOrderedRows.filter(r => activeIdsSet.has(r.entityId));
     const total = activeOrderedRows.length;
 
     const pageRows = activeOrderedRows.slice(skip, skip + take);
@@ -298,13 +305,13 @@ export const favoritesRepository = {
       return { favorites: [], total };
     }
 
-    const entities = await config.fetchActive(pageRows.map((r) => r.entityId));
-    const entitiesById = new Map(entities.map((e) => [config.getId(e), e]));
+    const entities = await config.fetchActive(pageRows.map(r => r.entityId));
+    const entitiesById = new Map(entities.map(e => [config.getId(e), e]));
 
     // Preserve pageRows' ordering — entities come back unordered from
     // Prisma's `in` filter.
     const favorites: FavoriteListRow[] = pageRows
-      .map((row) => {
+      .map(row => {
         const entity = entitiesById.get(row.entityId) ?? null;
         if (!entity) return null; // activeIds said yes, but fetchActive raced it — treat as inactive
         return {
@@ -334,6 +341,6 @@ export const favoritesRepository = {
       where: { entityType: 'AD', entityId: adId },
       select: { userId: true },
     });
-    return favorites.map((f) => f.userId);
+    return favorites.map(f => f.userId);
   },
 };

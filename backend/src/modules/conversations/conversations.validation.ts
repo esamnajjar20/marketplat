@@ -14,15 +14,16 @@ export const startConversationSchema = z.object({
       adId: z.string().min(1).optional(),
       userId: z.string().min(1).optional(),
       serviceRequestId: z.string().min(1).optional(),
-      context: z.object({
-        type: z.enum(['product', 'service']),
-        id: z.string().min(1),
-      }).optional(),
+      context: z
+        .object({
+          type: z.enum(['product', 'service']),
+          id: z.string().min(1),
+        })
+        .optional(),
     })
-    .refine(
-      (data) => [data.adId, data.userId, data.serviceRequestId].filter(Boolean).length === 1,
-      { message: 'Provide exactly one of adId, userId, or serviceRequestId' }
-    ),
+    .refine(data => [data.adId, data.userId, data.serviceRequestId].filter(Boolean).length === 1, {
+      message: 'Provide exactly one of adId, userId, or serviceRequestId',
+    }),
 });
 
 export type StartConversationInput = z.infer<typeof startConversationSchema>['body'];
@@ -36,18 +37,16 @@ export const getConversationsSchema = z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
     /** include archived threads (default: exclude them) */
-    includeArchived: z
-      .preprocess(
-        (v) => (v === undefined ? undefined : v === 'true' || v === true),
-        z.boolean().optional()
-      ),
+    includeArchived: z.preprocess(
+      v => (v === undefined ? undefined : v === 'true' || v === true),
+      z.boolean().optional()
+    ),
     /** only archived */
     role: z.enum(['buying', 'selling']).optional(),
-    archivedOnly: z
-      .preprocess(
-        (v) => (v === undefined ? undefined : v === 'true' || v === true),
-        z.boolean().optional()
-      ),
+    archivedOnly: z.preprocess(
+      v => (v === undefined ? undefined : v === 'true' || v === true),
+      z.boolean().optional()
+    ),
   }),
 });
 
@@ -62,10 +61,9 @@ export const sendMessageSchema = z.object({
       audioUrl: z.string().url().optional(),
       fileUrl: z.string().url().optional(),
     })
-    .refine(
-      (d) => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl || d.audioUrl),
-      { message: 'Provide a non-empty body, imageUrl, or audioUrl' }
-    ),
+    .refine(d => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl || d.audioUrl), {
+      message: 'Provide a non-empty body, imageUrl, or audioUrl',
+    }),
 });
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>['body'];
@@ -89,7 +87,6 @@ export const deleteMessageSchema = z.object({
   }),
 });
 
-
 export const setConversationFlagsSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z
@@ -98,7 +95,7 @@ export const setConversationFlagsSchema = z.object({
       archived: z.boolean().optional(),
       mutedUntil: z.union([z.string().datetime(), z.null()]).optional(),
     })
-    .refine((d) => d.pinned !== undefined || d.archived !== undefined || d.mutedUntil !== undefined, {
+    .refine(d => d.pinned !== undefined || d.archived !== undefined || d.mutedUntil !== undefined, {
       message: 'Provide a conversation setting',
     }),
 });

@@ -37,9 +37,18 @@ export const getPresenceSchema = z.object({
     ids: z
       .string()
       .min(1, 'ids is required')
-      .transform((val) => Array.from(new Set(val.split(',').map((id) => id.trim()).filter(Boolean))))
-      .refine((ids) => ids.length > 0, 'At least one id is required')
-      .refine((ids) => ids.length <= 50, 'At most 50 ids per request'),
+      .transform(val =>
+        Array.from(
+          new Set(
+            val
+              .split(',')
+              .map(id => id.trim())
+              .filter(Boolean)
+          )
+        )
+      )
+      .refine(ids => ids.length > 0, 'At least one id is required')
+      .refine(ids => ids.length <= 50, 'At most 50 ids per request'),
   }),
 });
 
@@ -64,7 +73,7 @@ import { passwordSchema } from '../auth/auth.validation';
 export const changePasswordSchema = z.object({
   body: z.object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword:     passwordSchema,
+    newPassword: passwordSchema,
   }),
 });
 
@@ -75,64 +84,67 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];
 // optional so the frontend can partial update (e.g. toggling
 // just one switch) without resending every key.
 export const updateNotificationPreferencesSchema = z.object({
-  body: z.object({
-    newMessage: z.boolean().optional(),
-    adViews: z.boolean().optional(),
-    favAdUpdated: z.boolean().optional(),
-    promotions: z.boolean().optional(),
-    // PROMO-1 (): distinct from `promotions` above, which is
-    // the admin-broadcast "عروض وتخفيضات" marketplace newsletter
-    // (notifications.service.ts's broadcastPromotion, NotificationType
-    // PROMOTION) — this one gates whether a store owner gets notified
-    // about the lifecycle of their OWN Promotion rows (started, about
-    // to expire, expired). Different audience (sellers about their own
-    // listings vs. buyers about marketplace news), different trigger
-    // (scheduled job vs. admin-initiated), so deliberately not folded
-    // into the existing `promotions` key even though the names are
-    // easy to confuse — see myPromotionsExpiring.ts's own doc comment.
-    myPromotions: z.boolean().optional(),
-    savedSearch: z.boolean().optional(),
-    storeUpdates: z.boolean().optional(),
-    followUpdates: z.boolean().optional(),
-    serviceQuotes: z.boolean().optional(),
-    salesAlerts: z.boolean().optional(),
-    lowStockAlerts: z.boolean().optional(),
-    installmentAlerts: z.boolean().optional(),
-    debtAlerts: z.boolean().optional(),
-    weeklySalesReport: z.boolean().optional(),
-    // email fallback (opt-in, default off): one digest email when
-    // direct notifications (messages, requests, quotes, appointments) stay
-    // unread — see notificationEmailFallback.ts for the eligible types.
-    emailFallback: z.boolean().optional(),
-    // Quiet hours (external push only; zone in quietHoursTimeZone, default Asia/Gaza). Optional partial PATCH.
-    quietHoursEnabled: z.boolean().optional(),
-    quietHoursStart: z
-      .string()
-      .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm')
-      .optional(),
-    quietHoursEnd: z
-      .string()
-      .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm')
-      .optional(),
-    quietHoursAllowUrgent: z.boolean().optional(),
-    // IANA zone (e.g. 'Asia/Gaza'); validated through Intl so junk never reaches
-    // the jsonb column. Missing → push service falls back to Asia/Gaza.
-    quietHoursTimeZone: z
-      .string()
-      .max(64)
-      .refine((tz) => {
-        try {
-          new Intl.DateTimeFormat('en-GB', { timeZone: tz });
-          return true;
-        } catch {
-          return false;
-        }
-      }, 'Invalid time zone')
-      .optional(),
-  }).refine(obj => Object.keys(obj).length > 0, {
-    message: 'At least one preference must be provided',
-  }),
+  body: z
+    .object({
+      newMessage: z.boolean().optional(),
+      adViews: z.boolean().optional(),
+      favAdUpdated: z.boolean().optional(),
+      promotions: z.boolean().optional(),
+      // PROMO-1 (): distinct from `promotions` above, which is
+      // the admin-broadcast "عروض وتخفيضات" marketplace newsletter
+      // (notifications.service.ts's broadcastPromotion, NotificationType
+      // PROMOTION) — this one gates whether a store owner gets notified
+      // about the lifecycle of their OWN Promotion rows (started, about
+      // to expire, expired). Different audience (sellers about their own
+      // listings vs. buyers about marketplace news), different trigger
+      // (scheduled job vs. admin-initiated), so deliberately not folded
+      // into the existing `promotions` key even though the names are
+      // easy to confuse — see myPromotionsExpiring.ts's own doc comment.
+      myPromotions: z.boolean().optional(),
+      savedSearch: z.boolean().optional(),
+      storeUpdates: z.boolean().optional(),
+      followUpdates: z.boolean().optional(),
+      serviceQuotes: z.boolean().optional(),
+      salesAlerts: z.boolean().optional(),
+      lowStockAlerts: z.boolean().optional(),
+      installmentAlerts: z.boolean().optional(),
+      debtAlerts: z.boolean().optional(),
+      weeklySalesReport: z.boolean().optional(),
+      // email fallback (opt-in, default off): one digest email when
+      // direct notifications (messages, requests, quotes, appointments) stay
+      // unread — see notificationEmailFallback.ts for the eligible types.
+      emailFallback: z.boolean().optional(),
+      // Quiet hours (external push only; zone in quietHoursTimeZone, default Asia/Gaza). Optional partial PATCH.
+      quietHoursEnabled: z.boolean().optional(),
+      quietHoursStart: z
+        .string()
+        .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm')
+        .optional(),
+      quietHoursEnd: z
+        .string()
+        .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm')
+        .optional(),
+      quietHoursAllowUrgent: z.boolean().optional(),
+      // IANA zone (e.g. 'Asia/Gaza'); validated through Intl so junk never reaches
+      // the jsonb column. Missing → push service falls back to Asia/Gaza.
+      quietHoursTimeZone: z
+        .string()
+        .max(64)
+        .refine(tz => {
+          try {
+            new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+            return true;
+          } catch {
+            return false;
+          }
+        }, 'Invalid time zone')
+        .optional(),
+    })
+    .refine(obj => Object.keys(obj).length > 0, {
+      message: 'At least one preference must be provided',
+    }),
 });
 
-export type UpdateNotificationPreferencesInput =
-  z.infer<typeof updateNotificationPreferencesSchema>['body'];
+export type UpdateNotificationPreferencesInput = z.infer<
+  typeof updateNotificationPreferencesSchema
+>['body'];

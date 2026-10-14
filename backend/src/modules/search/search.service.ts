@@ -6,7 +6,6 @@ import { SearchQuery, SearchSuggestionsQuery } from './search.validation';
 import { RawSearchRow, SearchResult, UnifiedSearchResponse } from './search.types';
 import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 
-
 /** المسافات غير المنطقية (مثل ~20015 = π×6371 من clamp لـ acos) تُعامل كـ null. */
 function sanitizeDistanceKm(value: number | null | undefined): number | null {
   if (value == null) return null;
@@ -14,7 +13,6 @@ function sanitizeDistanceKm(value: number | null | undefined): number | null {
   if (!Number.isFinite(n) || n < 0 || n > 500) return null;
   return n;
 }
-
 
 const SUGGESTIONS_TTL = 5 * 60; // 5 minutes — design doc's 5-10min window, low end since categories/products change more often than the ads-search's own 1hr categories cache
 const SUGGESTIONS_LIMIT = 8;
@@ -73,9 +71,7 @@ export const searchService = {
     // (explicit newest/rating/views/distance must not be overridden).
     const sort = query.sort ?? 'relevance';
     const preferredTypes =
-      sort === 'relevance' && query.q?.trim()
-        ? analyzeSearchQuery(query.q).preferredTypes
-        : [];
+      sort === 'relevance' && query.q?.trim() ? analyzeSearchQuery(query.q).preferredTypes : [];
 
     const { rows, total } = await searchRepository.search(query, preferredTypes);
     const page = query.page ?? 1;

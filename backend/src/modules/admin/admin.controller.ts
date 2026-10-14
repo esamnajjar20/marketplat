@@ -29,7 +29,12 @@ import { broadcastNotificationSchema } from '../notifications/notifications.vali
 import { requireUser } from '../../shared/utils/requireUser';
 import { getClientIp } from '../../shared/utils/getClientIp';
 import { Role } from '../../shared/constants/roles';
-import { acknowledgeMonitoringAlert, getMonitoringAlerts, getMonitoringEvents, getMonitoringHistory } from '../../shared/utils/monitoringState';
+import {
+  acknowledgeMonitoringAlert,
+  getMonitoringAlerts,
+  getMonitoringEvents,
+  getMonitoringHistory,
+} from '../../shared/utils/monitoringState';
 
 /** Same convention as auth.controller.ts's own local getUserAgent —
  * kept inline here too rather than shared, since it's a one-line
@@ -40,7 +45,11 @@ export const adminController = {
   /** Global developer toolbox switch. Script execution itself remains
    * development-only in the frontend; production keeps diagnostics but never
    * relaxes CSP or enables eval-like execution. */
-  getDeveloperToolsSetting: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getDeveloperToolsSetting: async (
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const setting = await prisma.platformSetting.findUnique({
         where: { key: 'developerTools.enabled' },
@@ -48,22 +57,32 @@ export const adminController = {
       });
       const enabled = setting?.value === true;
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-      res.status(200).json(successResponse('Developer tools setting fetched', {
-        enabled,
-        updatedAt: setting?.updatedAt?.toISOString() ?? null,
-        // This reports backend mode only; the frontend independently checks its
-        // own NODE_ENV before exposing arbitrary script execution.
-        backendDevelopmentMode: process.env.NODE_ENV === 'development',
-      }));
+      res.status(200).json(
+        successResponse('Developer tools setting fetched', {
+          enabled,
+          updatedAt: setting?.updatedAt?.toISOString() ?? null,
+          // This reports backend mode only; the frontend independently checks its
+          // own NODE_ENV before exposing arbitrary script execution.
+          backendDevelopmentMode: process.env.NODE_ENV === 'development',
+        })
+      );
     } catch (error) {
       next(error);
     }
   },
 
-  setDeveloperToolsSetting: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  setDeveloperToolsSetting: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
-      if (!req.body || typeof req.body.enabled !== 'boolean' || Object.keys(req.body).some((key) => key !== 'enabled')) {
+      if (
+        !req.body ||
+        typeof req.body.enabled !== 'boolean' ||
+        Object.keys(req.body).some(key => key !== 'enabled')
+      ) {
         res.status(400).json({ success: false, message: 'enabled must be a boolean' });
         return;
       }
@@ -82,11 +101,13 @@ export const adminController = {
         details: { enabled },
       });
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-      res.status(200).json(successResponse('Developer tools setting updated', {
-        enabled: setting.value === true,
-        updatedAt: setting.updatedAt.toISOString(),
-        backendDevelopmentMode: process.env.NODE_ENV === 'development',
-      }));
+      res.status(200).json(
+        successResponse('Developer tools setting updated', {
+          enabled: setting.value === true,
+          updatedAt: setting.updatedAt.toISOString(),
+          backendDevelopmentMode: process.env.NODE_ENV === 'development',
+        })
+      );
     } catch (error) {
       next(error);
     }
@@ -104,14 +125,15 @@ export const adminController = {
     }
   },
 
-
   getAdminProducts: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { query } = adminGetProductsSchema.parse({ query: req.query });
       const result = await adminService.getAdminProducts(query);
-      res.status(200).json(successResponse('Products fetched', result.items, {
-        pagination: result.meta,
-      }));
+      res.status(200).json(
+        successResponse('Products fetched', result.items, {
+          pagination: result.meta,
+        })
+      );
     } catch (error) {
       next(error);
     }
@@ -125,7 +147,7 @@ export const adminController = {
         req.params.id,
         body.status,
         user.userId,
-        body.reason,
+        body.reason
       );
       res.status(200).json(successResponse('Product status updated', product));
     } catch (error) {
@@ -133,19 +155,29 @@ export const adminController = {
     }
   },
 
-  getAdminServiceListings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAdminServiceListings: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { query } = adminGetServiceListingsSchema.parse({ query: req.query });
       const result = await adminService.getAdminServiceListings(query);
-      res.status(200).json(successResponse('Service listings fetched', result.items, {
-        pagination: result.meta,
-      }));
+      res.status(200).json(
+        successResponse('Service listings fetched', result.items, {
+          pagination: result.meta,
+        })
+      );
     } catch (error) {
       next(error);
     }
   },
 
-  setServiceListingStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  setServiceListingStatus: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { body } = setServiceListingStatusSchema.parse({ body: req.body });
@@ -153,7 +185,7 @@ export const adminController = {
         req.params.id,
         body.status,
         user.userId,
-        body.reason,
+        body.reason
       );
       res.status(200).json(successResponse('Service listing status updated', listing));
     } catch (error) {
@@ -161,24 +193,41 @@ export const adminController = {
     }
   },
 
-
-
-
-  getServiceRequestDisputes: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getServiceRequestDisputes: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { query } = adminGetServiceRequestDisputesSchema.parse({ query: req.query });
       const result = await adminService.getServiceRequestDisputes(query);
-      res.status(200).json(successResponse('Service request disputes fetched', result.items, { pagination: result.meta }));
+      res.status(200).json(
+        successResponse('Service request disputes fetched', result.items, {
+          pagination: result.meta,
+        })
+      );
     } catch (error) {
       next(error);
     }
   },
 
-  resolveServiceRequestDispute: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  resolveServiceRequestDispute: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { params, body } = adminResolveServiceRequestDisputeSchema.parse({ params: req.params, body: req.body });
-      const result = await adminService.resolveServiceRequestDispute(params.id, user.userId, body.resolution, body.note);
+      const { params, body } = adminResolveServiceRequestDisputeSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const result = await adminService.resolveServiceRequestDispute(
+        params.id,
+        user.userId,
+        body.resolution,
+        body.note
+      );
       res.status(200).json(successResponse('Service request dispute resolved', result));
     } catch (error) {
       next(error);
@@ -189,15 +238,21 @@ export const adminController = {
     try {
       const { query } = adminGetOpenRequestsSchema.parse({ query: req.query });
       const result = await adminService.getAdminOpenRequests(query);
-      res.status(200).json(successResponse('Open requests fetched', result.items, {
-        pagination: result.meta,
-      }));
+      res.status(200).json(
+        successResponse('Open requests fetched', result.items, {
+          pagination: result.meta,
+        })
+      );
     } catch (error) {
       next(error);
     }
   },
 
-  adminCancelOpenRequest: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  adminCancelOpenRequest: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
@@ -215,9 +270,7 @@ export const adminController = {
       // year-scale scan. Clamp to a sane window; anything invalid falls
       // back to the default.
       const rawDays = Number(req.query.days);
-      const days = Number.isInteger(rawDays) && rawDays >= 1 && rawDays <= 365
-        ? rawDays
-        : 30;
+      const days = Number.isInteger(rawDays) && rawDays >= 1 && rawDays <= 365 ? rawDays : 30;
       const result = await adminService.getPlatformTrends(days);
       res.status(200).json(successResponse('Platform trends', result));
     } catch (error) {
@@ -237,17 +290,21 @@ export const adminController = {
   getMonitoringEvents: async (req: Request, res: Response): Promise<void> => {
     const rawLimit = Number(req.query.limit);
     const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 100;
-    res.status(200).json(successResponse('Monitoring events', {
-      processLocal: true,
-      events: getMonitoringEvents(limit),
-    }));
+    res.status(200).json(
+      successResponse('Monitoring events', {
+        processLocal: true,
+        events: getMonitoringEvents(limit),
+      })
+    );
   },
 
   getMonitoringAlerts: async (_req: Request, res: Response): Promise<void> => {
-    res.status(200).json(successResponse('Monitoring alerts', {
-      processLocal: true,
-      alerts: getMonitoringAlerts(),
-    }));
+    res.status(200).json(
+      successResponse('Monitoring alerts', {
+        processLocal: true,
+        alerts: getMonitoringAlerts(),
+      })
+    );
   },
 
   acknowledgeMonitoringAlert: async (req: Request, res: Response): Promise<void> => {
@@ -352,7 +409,7 @@ export const adminController = {
     try {
       const admin = requireUser(req);
       const { body } = bulkSetAdFeaturedSchema.parse({ body: req.body });
-      const result = await runBulk(body.adIds, (id) =>
+      const result = await runBulk(body.adIds, id =>
         adminService.setAdFeatured(id, body.isFeatured, admin.userId)
       );
       res.status(200).json(
@@ -370,7 +427,7 @@ export const adminController = {
     try {
       const admin = requireUser(req);
       const { body } = bulkSetAdPinnedSchema.parse({ body: req.body });
-      const result = await runBulk(body.adIds, (id) =>
+      const result = await runBulk(body.adIds, id =>
         adminService.setAdPinned(id, body.isPinned, admin.userId)
       );
       res.status(200).json(
@@ -391,7 +448,7 @@ export const adminController = {
       // forceDeleteAd resolves to void on success — runBulk's `updated`
       // array is only used for its length/count here, not its
       // contents, so a bare per-id success marker is enough.
-      const result = await runBulk(body.adIds, async (id) => {
+      const result = await runBulk(body.adIds, async id => {
         await adminService.forceDeleteAd(id, admin.userId, body.reason);
         return id;
       });
@@ -460,12 +517,7 @@ export const adminController = {
       for (const id of body.userIds) {
         try {
           updated.push(
-            await adminService.toggleUserActive(
-              id,
-              body.isActive,
-              admin.userId,
-              admin.role as Role,
-            ),
+            await adminService.toggleUserActive(id, body.isActive, admin.userId, admin.role as Role)
           );
         } catch (err) {
           failed.push({

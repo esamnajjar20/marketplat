@@ -101,7 +101,11 @@ export const reportsController = {
   // a partial-success shape, not an error response, so the client can
   // distinguish "3 of 50 failed" from a request-level failure (which
   // would still throw via next(error) below and never reach here).
-  bulkUpdateReportStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  bulkUpdateReportStatus: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { body } = bulkUpdateReportStatusSchema.parse({ body: req.body });
       const result = await reportsService.bulkUpdateReportStatus(body);

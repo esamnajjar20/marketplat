@@ -191,57 +191,95 @@ async function uploadWithTransform(
 export const uploadImage = (buffer: Buffer, folder: string): Promise<UploadResult> =>
   uploadWithTransform(buffer, `classifieds/${folder}`, TRANSFORM_IMAGE, 'image upload');
 
-
 export const uploadAudio = async (buffer: Buffer, folder: string): Promise<UploadResult> => {
-  return uploadBreaker.execute(async () => {
-    const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: `classifieds/${folder}`,
-          resource_type: 'video',
-          // Normalize browser MediaRecorder output (WebM/Opus/Ogg) to a
-          // universally playable audio container for the <audio> element.
-          // Returning the original video-resource URL was the reason some
-          // Android/browser combinations showed a voice bubble but could
-          // not play it.
-          format: 'mp3',
-          timeout: UPLOAD_TIMEOUT_MS,
-        },
-        (error, result) => {
-          if (error || !result) return reject(new ServiceUnavailableError('Audio upload is temporarily unavailable, please try again shortly'));
-          resolve({ url: result.secure_url, publicId: result.public_id });
-        },
-      ).end(buffer);
+  return uploadBreaker
+    .execute(async () => {
+      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: `classifieds/${folder}`,
+              resource_type: 'video',
+              // Normalize browser MediaRecorder output (WebM/Opus/Ogg) to a
+              // universally playable audio container for the <audio> element.
+              // Returning the original video-resource URL was the reason some
+              // Android/browser combinations showed a voice bubble but could
+              // not play it.
+              format: 'mp3',
+              timeout: UPLOAD_TIMEOUT_MS,
+            },
+            (error, result) => {
+              if (error || !result)
+                return reject(
+                  new ServiceUnavailableError(
+                    'Audio upload is temporarily unavailable, please try again shortly'
+                  )
+                );
+              resolve({ url: result.secure_url, publicId: result.public_id });
+            }
+          )
+          .end(buffer);
+      });
+      return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'audio upload');
+    })
+    .catch(err => {
+      if (err instanceof CircuitBreakerOpenError) {
+        throw new ServiceUnavailableError(
+          'Audio upload is temporarily unavailable, please try again shortly'
+        );
+      }
+      throw err;
     });
-    return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'audio upload');
-  }).catch(err => {
-    if (err instanceof CircuitBreakerOpenError) {
-      throw new ServiceUnavailableError('Audio upload is temporarily unavailable, please try again shortly');
-    }
-    throw err;
-  });
 };
 
-export const uploadRawFile = async (buffer: Buffer, folder: string, fileName: string): Promise<UploadResult> => {
-  return uploadBreaker.execute(async () => {
-    const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { folder: `classifieds/${folder}`, resource_type: 'raw', use_filename: true, unique_filename: true, filename_override: fileName.replace(/[^a-zA-Z0-9._-]/g, '_'), timeout: UPLOAD_TIMEOUT_MS },
-        (error, result) => {
-          if (error || !result) return reject(new ServiceUnavailableError('File upload is temporarily unavailable, please try again shortly'));
-          resolve({ url: result.secure_url, publicId: result.public_id });
-        },
-      ).end(buffer);
+export const uploadRawFile = async (
+  buffer: Buffer,
+  folder: string,
+  fileName: string
+): Promise<UploadResult> => {
+  return uploadBreaker
+    .execute(async () => {
+      const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: `classifieds/${folder}`,
+              resource_type: 'raw',
+              use_filename: true,
+              unique_filename: true,
+              filename_override: fileName.replace(/[^a-zA-Z0-9._-]/g, '_'),
+              timeout: UPLOAD_TIMEOUT_MS,
+            },
+            (error, result) => {
+              if (error || !result)
+                return reject(
+                  new ServiceUnavailableError(
+                    'File upload is temporarily unavailable, please try again shortly'
+                  )
+                );
+              resolve({ url: result.secure_url, publicId: result.public_id });
+            }
+          )
+          .end(buffer);
+      });
+      return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'file upload');
+    })
+    .catch(err => {
+      if (err instanceof CircuitBreakerOpenError)
+        throw new ServiceUnavailableError(
+          'File upload is temporarily unavailable, please try again shortly'
+        );
+      throw err;
     });
-    return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'file upload');
-  }).catch(err => {
-    if (err instanceof CircuitBreakerOpenError) throw new ServiceUnavailableError('File upload is temporarily unavailable, please try again shortly');
-    throw err;
-  });
 };
 
-export const deleteMedia = async (publicId: string, resourceType: 'image' | 'video' | 'raw' = 'image'): Promise<void> => {
-  await cloudinary.uploader.destroy(publicId, { resource_type: resourceType } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]);
+export const deleteMedia = async (
+  publicId: string,
+  resourceType: 'image' | 'video' | 'raw' = 'image'
+): Promise<void> => {
+  await cloudinary.uploader.destroy(publicId, {
+    resource_type: resourceType,
+  } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]);
 };
 
 export const uploadAvatar = (buffer: Buffer): Promise<UploadResult> =>

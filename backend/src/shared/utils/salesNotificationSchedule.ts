@@ -13,7 +13,9 @@ export type SalesNotificationScheduleTime = {
   weekday: number;
 };
 
-export function getSalesNotificationScheduleTime(date: Date = new Date()): SalesNotificationScheduleTime {
+export function getSalesNotificationScheduleTime(
+  date: Date = new Date()
+): SalesNotificationScheduleTime {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: SALES_NOTIFICATION_TIME_ZONE,
     hour: '2-digit',
@@ -22,7 +24,7 @@ export function getSalesNotificationScheduleTime(date: Date = new Date()): Sales
     weekday: 'short',
   }).formatToParts(date);
 
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
   const weekdays: Record<string, number> = {
     Sun: 0,
     Mon: 1,

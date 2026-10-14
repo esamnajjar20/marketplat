@@ -83,9 +83,9 @@ const bootstrap = async (): Promise<void> => {
     if (env.nodeEnv === 'production' && !env.observability.sentryDsn) {
       logger.warn(
         '⚠️  Running in production with no SENTRY_DSN set — errors will only be ' +
-        'visible in application logs, with no external error tracking/alerting. ' +
-        'Set SENTRY_DSN (see .env.example) or confirm an equivalent APM is already ' +
-        'in place before relying on this deployment.',
+          'visible in application logs, with no external error tracking/alerting. ' +
+          'Set SENTRY_DSN (see .env.example) or confirm an equivalent APM is already ' +
+          'in place before relying on this deployment.'
       );
     }
 
@@ -99,9 +99,9 @@ const bootstrap = async (): Promise<void> => {
     if (!env.cloudinary.isConfigured) {
       logger.warn(
         '⚠️  CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET ' +
-        'are not fully set — every image upload (ad photos, avatars, store logos/covers) ' +
-        'will fail at request time. Set all three (see .env.example) before relying on ' +
-        'this deployment for uploads.',
+          'are not fully set — every image upload (ad photos, avatars, store logos/covers) ' +
+          'will fail at request time. Set all three (see .env.example) before relying on ' +
+          'this deployment for uploads.'
       );
     }
 
@@ -123,11 +123,11 @@ const bootstrap = async (): Promise<void> => {
     if (env.nodeEnv === 'production' && env.security.trustProxy === 0) {
       logger.warn(
         '⚠️  TRUST_PROXY=0 in production — req.ip will be the address of the ' +
-        'reverse proxy in front of this process (e.g. Render\'s internal LB), ' +
-        'identical for every user. Per-IP rate limiting, lockouts, and audit ' +
-        'logs will all be wrong. Set TRUST_PROXY=1 (Render / single nginx hop), ' +
-        '2 (Cloudflare in front of Render), or higher to match your topology. ' +
-        'See env.ts\'s TRUST_PROXY comment for the full range rationale.',
+          "reverse proxy in front of this process (e.g. Render's internal LB), " +
+          'identical for every user. Per-IP rate limiting, lockouts, and audit ' +
+          'logs will all be wrong. Set TRUST_PROXY=1 (Render / single nginx hop), ' +
+          '2 (Cloudflare in front of Render), or higher to match your topology. ' +
+          "See env.ts's TRUST_PROXY comment for the full range rationale."
       );
     }
 
@@ -184,11 +184,11 @@ const bootstrap = async (): Promise<void> => {
         // FIX-NOTIF-SHUTDOWN-01: keep the promise (never void) so shutdown can
         // await it — see notificationQueueStartup's own comment.
         notificationQueueStartup = import('./shared/queue/notificationQueue')
-          .then((q) => {
+          .then(q => {
             q.startNotificationWorker();
             stopNotificationQueue = q.stopNotificationQueue;
           })
-          .catch((err) => {
+          .catch(err => {
             logger.error('Failed to start notification worker', { err });
           });
       }
@@ -215,7 +215,9 @@ const bootstrap = async (): Promise<void> => {
         // batch between process restarts.
         await activityBuffer.stopFlushTimer();
         // Finish in-flight notification jobs while Prisma/Redis are still available.
-        await notificationQueueStartup?.catch((error) => reportBackgroundFailure('backend/src/server.ts', error));
+        await notificationQueueStartup?.catch(error =>
+          reportBackgroundFailure('backend/src/server.ts', error)
+        );
         await stopNotificationQueue?.();
         redisMemoryMonitor.stop();
         stopUserCacheInvalidationSubscriber();
@@ -297,7 +299,9 @@ const bootstrap = async (): Promise<void> => {
           await viewsBuffer.stopFlushTimer();
           await activityBuffer.stopFlushTimer();
           // FIX-NOTIF-SHUTDOWN-01: see the other shutdown site.
-          await notificationQueueStartup?.catch((error) => reportBackgroundFailure('backend/src/server.ts', error));
+          await notificationQueueStartup?.catch(error =>
+            reportBackgroundFailure('backend/src/server.ts', error)
+          );
           await stopNotificationQueue?.();
           redisMemoryMonitor.stop();
           stopUserCacheInvalidationSubscriber();

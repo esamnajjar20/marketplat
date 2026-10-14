@@ -16,8 +16,18 @@ favoritesRouter.post('/lists', authenticate, favoriteListsController.create);
 // the closest fitting bucket; the operations are cheap but the ceiling
 // still matters for the same reason every other mutation surface has
 // one.
-favoritesRouter.patch('/lists/:listId', authenticate, favoritesRateLimit, favoriteListsController.rename);
-favoritesRouter.delete('/lists/:listId', authenticate, favoritesRateLimit, favoriteListsController.remove);
+favoritesRouter.patch(
+  '/lists/:listId',
+  authenticate,
+  favoritesRateLimit,
+  favoriteListsController.rename
+);
+favoritesRouter.delete(
+  '/lists/:listId',
+  authenticate,
+  favoritesRateLimit,
+  favoriteListsController.remove
+);
 favoritesRouter.patch(
   '/items/:favoriteId/list',
   authenticate,
@@ -27,7 +37,12 @@ favoritesRouter.patch(
 
 favoritesRouter.get('/', authenticate, favoritesController.getMyFavorites);
 favoritesRouter.get('/:adId/check', authenticate, favoritesController.checkFavorited);
-favoritesRouter.post('/:adId', authenticate, favoritesRateLimit, favoritesController.toggleFavorite);
+favoritesRouter.post(
+  '/:adId',
+  authenticate,
+  favoritesRateLimit,
+  favoritesController.toggleFavorite
+);
 
 // FEAT-FAVORITE-POLYMORPHIC PR2
 favoritesRouter.get(

@@ -90,7 +90,12 @@ const ENTITY_URL_PREFIX: Record<'ad' | 'product' | 'store' | 'service', string> 
 // bound values) since each branch's coordinate columns live on a
 // different table/alias — ads.latitude directly, but products/services
 // only have coordinates via their store/provider join.
-function haversineExprSql(lat: number, lng: number, latCol: Prisma.Sql, lngCol: Prisma.Sql): Prisma.Sql {
+function haversineExprSql(
+  lat: number,
+  lng: number,
+  latCol: Prisma.Sql,
+  lngCol: Prisma.Sql
+): Prisma.Sql {
   return Prisma.sql`
     6371 * acos(
       LEAST(1, GREATEST(-1,
@@ -172,7 +177,7 @@ const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
 // then newest within stores".
 function buildOrderBySql(
   sort: SearchQuery['sort'],
-  preferredTypes: Array<'store' | 'service' | 'product' | 'ad'>,
+  preferredTypes: Array<'store' | 'service' | 'product' | 'ad'>
 ): Prisma.Sql {
   const baseOrder = SORT_ORDER_BY_SQL[sort];
   if (sort !== 'relevance' || preferredTypes.length === 0) return baseOrder;
@@ -180,8 +185,8 @@ function buildOrderBySql(
   // Types in the DB column are: 'ad' | 'product' | 'store' | 'service'
   // (see each branch's SELECT). preferredTypes uses the same vocabulary.
   const preferredList = Prisma.join(
-    preferredTypes.map((tp) => Prisma.sql`${tp}`),
-    ', ',
+    preferredTypes.map(tp => Prisma.sql`${tp}`),
+    ', '
   );
   return Prisma.sql`(CASE WHEN type IN (${preferredList}) THEN 0 ELSE 1 END), ${baseOrder}`;
 }
@@ -304,7 +309,12 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
   // distance_km and sort last under sort=distance (see SORT_ORDER_BY_SQL).
   let distanceExpr = Prisma.sql`NULL::float`;
   if (geo) {
-    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`a."latitude"`, Prisma.sql`a."longitude"`);
+    distanceExpr = haversineExprSql(
+      geo.lat,
+      geo.lng,
+      Prisma.sql`a."latitude"`,
+      Prisma.sql`a."longitude"`
+    );
   }
   if (geo && city === undefined) {
     // Only narrow by radius when there's no explicit city filter — city
@@ -369,8 +379,10 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) =
   if (categoryId) conditions.push(Prisma.sql`p."categoryId" = ${categoryId}`);
   // Product has no own city — inherited from its store (see header comment).
   if (city) conditions.push(Prisma.sql`st."city" = ${city}`);
-  if (filters.minPrice !== undefined) conditions.push(Prisma.sql`coalesce(p."discountPrice", p."price") >= ${filters.minPrice}`);
-  if (filters.maxPrice !== undefined) conditions.push(Prisma.sql`coalesce(p."discountPrice", p."price") <= ${filters.maxPrice}`);
+  if (filters.minPrice !== undefined)
+    conditions.push(Prisma.sql`coalesce(p."discountPrice", p."price") >= ${filters.minPrice}`);
+  if (filters.maxPrice !== undefined)
+    conditions.push(Prisma.sql`coalesce(p."discountPrice", p."price") <= ${filters.maxPrice}`);
   if (filters.condition) return null;
 
   const rankExpr = tsQuery
@@ -386,7 +398,12 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) =
   // city either" relationship as the city filter directly above.
   let distanceExpr = Prisma.sql`NULL::float`;
   if (geo) {
-    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`st."latitude"`, Prisma.sql`st."longitude"`);
+    distanceExpr = haversineExprSql(
+      geo.lat,
+      geo.lng,
+      Prisma.sql`st."latitude"`,
+      Prisma.sql`st."longitude"`
+    );
   }
   if (geo && city === undefined) {
     // Same "don't stack radius on top of an explicit city filter"
@@ -426,7 +443,13 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => 
   // can never match a store, so this branch is skipped entirely rather
   // than silently returning zero rows through a WHERE that can never
   // be true. Same short-circuit for city, applied below.
-  if (categoryId || filters.minPrice !== undefined || filters.maxPrice !== undefined || filters.condition) return null;
+  if (
+    categoryId ||
+    filters.minPrice !== undefined ||
+    filters.maxPrice !== undefined ||
+    filters.condition
+  )
+    return null;
 
   // AUDIT-FIX (ads-feature review): same gap/productBranch above —
   // store_details.sellerProfileId is required, so the already-LEFT-JOINed
@@ -455,7 +478,12 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => 
   // directly — no join needed, same shape as adBranch.
   let distanceExpr = Prisma.sql`NULL::float`;
   if (geo) {
-    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`st."latitude"`, Prisma.sql`st."longitude"`);
+    distanceExpr = haversineExprSql(
+      geo.lat,
+      geo.lng,
+      Prisma.sql`st."latitude"`,
+      Prisma.sql`st."longitude"`
+    );
   }
   if (geo && city === undefined) {
     conditions.push(Prisma.sql`(
@@ -506,8 +534,10 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) =
   // equality, same relation-filter approach
   // service-listings.repository.ts's ORM path already uses (`has: city`).
   if (city) conditions.push(Prisma.sql`${city} = ANY(pr."serviceAreaCities")`);
-  if (filters.minPrice !== undefined) conditions.push(Prisma.sql`sl."price" >= ${filters.minPrice}`);
-  if (filters.maxPrice !== undefined) conditions.push(Prisma.sql`sl."price" <= ${filters.maxPrice}`);
+  if (filters.minPrice !== undefined)
+    conditions.push(Prisma.sql`sl."price" >= ${filters.minPrice}`);
+  if (filters.maxPrice !== undefined)
+    conditions.push(Prisma.sql`sl."price" <= ${filters.maxPrice}`);
   if (filters.condition) return null;
 
   const rankExpr = tsQuery
@@ -539,7 +569,12 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) =
   // other branches' city/radius guard exists to avoid.
   let distanceExpr = Prisma.sql`NULL::float`;
   if (geo) {
-    distanceExpr = haversineExprSql(geo.lat, geo.lng, Prisma.sql`pr."latitude"`, Prisma.sql`pr."longitude"`);
+    distanceExpr = haversineExprSql(
+      geo.lat,
+      geo.lng,
+      Prisma.sql`pr."latitude"`,
+      Prisma.sql`pr."longitude"`
+    );
     conditions.push(Prisma.sql`(
       pr."latitude" IS NULL OR (${boundingBoxSql(geo.lat, geo.lng, geo.radiusKm, Prisma.sql`pr."latitude"`, Prisma.sql`pr."longitude"`)}
         AND (${distanceExpr}) <= ${geo.radiusKm})
@@ -580,9 +615,23 @@ const BRANCH_BUILDERS: Record<Exclude<SearchType, 'all'>, BranchBuilder> = {
 export const searchRepository = {
   search: async (
     query: SearchQuery,
-    preferredTypes: Array<'store' | 'service' | 'product' | 'ad'> = [],
+    preferredTypes: Array<'store' | 'service' | 'product' | 'ad'> = []
   ): Promise<{ rows: RawSearchRow[]; total: number }> => {
-    const { q, city, type, categoryId, minPrice, maxPrice, condition, sort, page = 1, limit = 20, lat, lng, radius } = query;
+    const {
+      q,
+      city,
+      type,
+      categoryId,
+      minPrice,
+      maxPrice,
+      condition,
+      sort,
+      page = 1,
+      limit = 20,
+      lat,
+      lng,
+      radius,
+    } = query;
     const { skip, take } = getPaginationParams(page, limit);
     const tsQuery = buildTsQuery(q);
 
@@ -590,13 +639,16 @@ export const searchRepository = {
     // guarantees lat/lng arrive together (both present or both
     // absent), so this is a safe single condition, not two independent
     // undefined checks that could disagree.
-    const geo: GeoParams | null = lat !== undefined && lng !== undefined ? { lat, lng, radiusKm: radius } : null;
+    const geo: GeoParams | null =
+      lat !== undefined && lng !== undefined ? { lat, lng, radiusKm: radius } : null;
 
     const typesToQuery: Exclude<SearchType, 'all'>[] =
       type === 'all' ? ['ads', 'products', 'stores', 'services'] : [type];
 
     const branches = typesToQuery
-      .map(t => BRANCH_BUILDERS[t](tsQuery, categoryId, city, geo, { minPrice, maxPrice, condition }))
+      .map(t =>
+        BRANCH_BUILDERS[t](tsQuery, categoryId, city, geo, { minPrice, maxPrice, condition })
+      )
       .filter((branch): branch is Prisma.Sql => branch !== null);
 
     // categoryId narrowed type=all down to zero eligible branches (e.g.
@@ -624,7 +676,8 @@ export const searchRepository = {
     // only the row-fetching side needed the limit.
     const branchLimit = perBranchLimit(skip, take);
     const limitedBranches = branches.map(
-      b => Prisma.sql`(SELECT * FROM (${b}) branch_rows ORDER BY ${orderBySql} LIMIT ${branchLimit})`
+      b =>
+        Prisma.sql`(SELECT * FROM (${b}) branch_rows ORDER BY ${orderBySql} LIMIT ${branchLimit})`
     );
     const limitedUnion = Prisma.join(limitedBranches, ' UNION ALL ');
 

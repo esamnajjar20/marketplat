@@ -60,7 +60,13 @@ const TRANSITION_ACTOR: Record<string, Actor> = {
 // outgoing edges from any of the three), so this recompute fires at
 // most once per request.
 // (audit H4): EXPIRED is terminal like the rest.
-const TERMINAL_STATUSES: ServiceRequestStatus[] = ['COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED', 'DISPUTED'];
+const TERMINAL_STATUSES: ServiceRequestStatus[] = [
+  'COMPLETED',
+  'CANCELLED',
+  'REJECTED',
+  'EXPIRED',
+  'DISPUTED',
+];
 
 // FIX (dead-stats): completedRequestsCount/fulfillmentRate
 // (ServiceProviderDetails) were rendered on MyServiceProviderCard from
@@ -85,7 +91,8 @@ const recomputeProviderStats = async (
   const totalTerminal = completed + cancelledOrRejected;
   await serviceProvidersRepository.updateStats(tx, providerId, {
     completedRequestsCount: completed,
-    fulfillmentRate: totalTerminal > 0 ? Math.round((completed / totalTerminal) * 10000) / 100 : null,
+    fulfillmentRate:
+      totalTerminal > 0 ? Math.round((completed / totalTerminal) * 10000) / 100 : null,
   });
 };
 
@@ -101,7 +108,7 @@ export const serviceRequestsService = {
   createRequest: async (
     customerId: string,
     input: CreateServiceRequestInput,
-    offlineOperationId?: string | null,
+    offlineOperationId?: string | null
   ): Promise<ServiceRequest> => {
     if (offlineOperationId) {
       const existing = await prisma.serviceRequest.findUnique({ where: { offlineOperationId } });
@@ -120,10 +127,16 @@ export const serviceRequestsService = {
 
     const serviceType = await serviceTypesRepository.findById(listing.serviceTypeId);
     if (!serviceType || !serviceType.isActive) {
-      throw new BadRequestError('This service type is no longer available for new requests.', 'SERVICE_TYPE_INVALID');
+      throw new BadRequestError(
+        'This service type is no longer available for new requests.',
+        'SERVICE_TYPE_INVALID'
+      );
     }
     if (getServiceTypeCapabilities(serviceType.capabilities).requestQuote === false) {
-      throw new BadRequestError('This service does not accept service requests.', 'SERVICE_REQUESTS_NOT_SUPPORTED');
+      throw new BadRequestError(
+        'This service does not accept service requests.',
+        'SERVICE_REQUESTS_NOT_SUPPORTED'
+      );
     }
 
     // SECURITY FIX (self-dealing): a provider must not be able to open a
@@ -141,7 +154,10 @@ export const serviceRequestsService = {
     // not just fake reviews.
     const provider = await serviceProvidersRepository.findPublicById(listing.providerId);
     if (provider && provider.sellerProfile.userId === customerId) {
-      throw new ForbiddenError('You cannot request your own service listing.', 'CANNOT_REQUEST_OWN_LISTING');
+      throw new ForbiddenError(
+        'You cannot request your own service listing.',
+        'CANNOT_REQUEST_OWN_LISTING'
+      );
     }
 
     // SR-SUSPENDED-01: a suspended seller's listings are hidden from every
@@ -149,11 +165,17 @@ export const serviceRequestsService = {
     // page, direct POST) — and listingsRepository.findById has no suspended
     // filter. Treat it exactly like an unavailable listing.
     if (provider?.sellerProfile.suspended) {
-      throw new BadRequestError('This service listing is not available for requests.', 'SERVICE_PROVIDER_SUSPENDED');
+      throw new BadRequestError(
+        'This service listing is not available for requests.',
+        'SERVICE_PROVIDER_SUSPENDED'
+      );
     }
 
     if (provider?.availabilityStatus === 'UNAVAILABLE') {
-      throw new BadRequestError('This service provider is currently unavailable for new requests.', 'PROVIDER_UNAVAILABLE');
+      throw new BadRequestError(
+        'This service provider is currently unavailable for new requests.',
+        'PROVIDER_UNAVAILABLE'
+      );
     }
 
     // SECURITY FIX (blocked-user coverage gap): blockedUsersService's
@@ -164,7 +186,13 @@ export const serviceRequestsService = {
     // point of blocking. Checked in either direction, same as
     // conversations.service.ts's own use of this helper: a block should
     // stop new requests regardless of who blocked whom.
-    if (provider && (await blockedUsersService.isBlockedEitherDirection(customerId, provider.sellerProfile.userId))) {
+    if (
+      provider &&
+      (await blockedUsersService.isBlockedEitherDirection(
+        customerId,
+        provider.sellerProfile.userId
+      ))
+    ) {
       throw new ForbiddenError('You cannot request this service.', 'USER_BLOCKED');
     }
 
@@ -228,9 +256,17 @@ export const serviceRequestsService = {
       // Fire-and-forget: notify the provider only for the winning insert.
       if (provider) {
         notificationEvents
-          .onServiceRequestCreated(provider.sellerProfile.userId, request.id, listing.title, customerId)
-          .catch((err) =>
-            logger.error('Failed to create SERVICE_REQUEST_NEW notification', { err, requestId: request.id })
+          .onServiceRequestCreated(
+            provider.sellerProfile.userId,
+            request.id,
+            listing.title,
+            customerId
+          )
+          .catch(err =>
+            logger.error('Failed to create SERVICE_REQUEST_NEW notification', {
+              err,
+              requestId: request.id,
+            })
           );
       }
     }
@@ -245,7 +281,10 @@ export const serviceRequestsService = {
     const isCustomer = request.customerId === userId;
     const isProvider = request.listing.provider.sellerProfile.userId === userId;
     if (!isCustomer && !isProvider) {
-      throw new ForbiddenError('You do not have permission to view this request.', 'NOT_YOUR_SERVICE_REQUEST');
+      throw new ForbiddenError(
+        'You do not have permission to view this request.',
+        'NOT_YOUR_SERVICE_REQUEST'
+      );
     }
     return request;
   },
@@ -272,7 +311,8 @@ export const serviceRequestsService = {
     if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
 
     const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
-    if (!provider) throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    if (!provider)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
     const { requests, total } = await serviceRequestsRepository.findManyByProviderId(
       provider.id,
@@ -299,7 +339,10 @@ export const serviceRequestsService = {
     const isCustomer = request.customerId === userId;
     const isProvider = request.listing.provider.sellerProfile.userId === userId;
     if (!isCustomer && !isProvider) {
-      throw new ForbiddenError('You do not have permission to act on this request.', 'NOT_YOUR_SERVICE_REQUEST_ACTION');
+      throw new ForbiddenError(
+        'You do not have permission to act on this request.',
+        'NOT_YOUR_SERVICE_REQUEST_ACTION'
+      );
     }
 
     if (!ALLOWED_TRANSITIONS[request.status].includes(action)) {
@@ -331,44 +374,46 @@ export const serviceRequestsService = {
     if (action === 'ACCEPTED' && requiresQuote && extra?.quotedPrice === undefined) {
       throw new BadRequestError(
         'quotedPrice is required when accepting a quote-based request.',
-        'QUOTED_PRICE_REQUIRED',
+        'QUOTED_PRICE_REQUIRED'
       );
     }
     if (action === 'ACCEPTED' && !requiresQuote && extra?.quotedPrice !== undefined) {
       throw new BadRequestError(
         'This service type does not use quote pricing.',
-        'QUOTED_PRICE_NOT_ALLOWED',
+        'QUOTED_PRICE_NOT_ALLOWED'
       );
     }
     if (action === 'IN_PROGRESS' && requiresQuote) {
       if (isProvider) {
         throw new ForbiddenError(
           'The customer must approve the quoted price before work can start.',
-          'CUSTOMER_PRICE_APPROVAL_REQUIRED',
+          'CUSTOMER_PRICE_APPROVAL_REQUIRED'
         );
       }
       if (request.quotedPrice == null) {
         throw new BadRequestError(
           'A quoted price is required before the customer can approve the request.',
-          'QUOTED_PRICE_REQUIRED',
+          'QUOTED_PRICE_REQUIRED'
         );
       }
       extra = { ...extra, agreedPrice: Number(request.quotedPrice) };
     }
 
     if (action === 'IN_PROGRESS' && !requiresQuote && isCustomer) {
-      const fixedListingPrice = request.listing.pricingType === 'FIXED' ? request.listing.price : null;
+      const fixedListingPrice =
+        request.listing.pricingType === 'FIXED' ? request.listing.price : null;
       if (fixedListingPrice != null) {
         extra = { ...extra, agreedPrice: Number(fixedListingPrice) };
       }
     }
 
     if (action === 'COMPLETED' && extra?.agreedPrice === undefined) {
-      const fixedListingPrice = request.listing.pricingType === 'FIXED' ? request.listing.price : null;
+      const fixedListingPrice =
+        request.listing.pricingType === 'FIXED' ? request.listing.price : null;
       if (fixedListingPrice == null && requiresQuote && request.agreedPrice == null) {
         throw new BadRequestError(
           'agreedPrice is required when completing a quote-based request.',
-          'AGREED_PRICE_REQUIRED',
+          'AGREED_PRICE_REQUIRED'
         );
       }
       if (request.agreedPrice != null) {
@@ -383,7 +428,10 @@ export const serviceRequestsService = {
         throw new ForbiddenError('Only the customer can open a dispute.', 'DISPUTE_CUSTOMER_ONLY');
       }
       if (!extra?.disputeReason || extra.disputeReason.trim().length < 10) {
-        throw new BadRequestError('A dispute reason of at least 10 characters is required.', 'DISPUTE_REASON_REQUIRED');
+        throw new BadRequestError(
+          'A dispute reason of at least 10 characters is required.',
+          'DISPUTE_REASON_REQUIRED'
+        );
       }
       if (request.status === 'COMPLETED') {
         const disputeWindowMs = 48 * 60 * 60 * 1000;
@@ -408,7 +456,10 @@ export const serviceRequestsService = {
         // Status changed between the read above and this write (rare
         // race) — same "authoritative check at write time" philosophy
         // as createAd.
-        throw new ConflictError('Request status has changed — please refresh and try again', 'SERVICE_REQUEST_CHANGED');
+        throw new ConflictError(
+          'Request status has changed — please refresh and try again',
+          'SERVICE_REQUEST_CHANGED'
+        );
       }
       const updated = await tx.serviceRequest.findUniqueOrThrow({ where: { id: requestId } });
 
@@ -463,7 +514,7 @@ export const serviceRequestsService = {
         request.listing.title,
         action
       )
-      .catch((err) =>
+      .catch(err =>
         logger.error('Failed to create SERVICE_REQUEST_UPDATE notification', { err, requestId })
       );
 
@@ -496,7 +547,7 @@ export const serviceRequestsService = {
         // cannot lie if the TTL constant changes.
         notificationEvents
           .onServiceRequestExpired(row.customerId, row.id, row.listing.title, ttlDays)
-          .catch((err) =>
+          .catch(err =>
             logger.error('Failed to create expiry notification', { err, requestId: row.id })
           );
       }

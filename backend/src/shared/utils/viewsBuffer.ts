@@ -84,9 +84,13 @@ export const viewsBuffer = {
         // Process SCAN results incrementally instead of retaining every key
         // and sending an unbounded Lua/SQL burst when the keyspace is large.
         do {
-          const [nextCursor, keys] = await (redis as any).scan(
-            cursor, 'MATCH', `${VIEWS_PREFIX}*`, 'COUNT', MAX_KEYS_PER_FLUSH_BATCH
-          ) as [string, string[]];
+          const [nextCursor, keys] = (await (redis as any).scan(
+            cursor,
+            'MATCH',
+            `${VIEWS_PREFIX}*`,
+            'COUNT',
+            MAX_KEYS_PER_FLUSH_BATCH
+          )) as [string, string[]];
           cursor = nextCursor;
           if (keys.length === 0) continue;
 
@@ -107,27 +111,33 @@ export const viewsBuffer = {
           // counter, including views that arrived after the atomic GETDEL.
           for (let offset = 0; offset < updates.length; offset += MAX_CONCURRENT_DB_UPDATES) {
             const batch = updates.slice(offset, offset + MAX_CONCURRENT_DB_UPDATES);
-            await Promise.all(batch.map(async ({ adId, count }) => {
-              try {
-                await prisma.ad.updateMany({
-                  where: { id: adId, status: { not: 'DELETED' } },
-                  data: { views: { increment: count } },
-                });
-                totalAds++;
-                totalViews += count;
-              } catch (err) {
-                logger.warn('Views update failed — restoring buffer count for retry', { adId, count, err });
+            await Promise.all(
+              batch.map(async ({ adId, count }) => {
                 try {
-                  await redis.incrby(`${VIEWS_PREFIX}${adId}`, count);
-                  await redis.expire(`${VIEWS_PREFIX}${adId}`, VIEWS_BUFFER_TTL_SECONDS);
-                } catch (restoreErr) {
-                  logger.error(
-                    'Views update failed AND buffer restore failed — those views are permanently lost',
-                    { adId, count, restoreErr },
-                  );
+                  await prisma.ad.updateMany({
+                    where: { id: adId, status: { not: 'DELETED' } },
+                    data: { views: { increment: count } },
+                  });
+                  totalAds++;
+                  totalViews += count;
+                } catch (err) {
+                  logger.warn('Views update failed — restoring buffer count for retry', {
+                    adId,
+                    count,
+                    err,
+                  });
+                  try {
+                    await redis.incrby(`${VIEWS_PREFIX}${adId}`, count);
+                    await redis.expire(`${VIEWS_PREFIX}${adId}`, VIEWS_BUFFER_TTL_SECONDS);
+                  } catch (restoreErr) {
+                    logger.error(
+                      'Views update failed AND buffer restore failed — those views are permanently lost',
+                      { adId, count, restoreErr }
+                    );
+                  }
                 }
-              }
-            }));
+              })
+            );
           }
         } while (cursor !== '0');
 
@@ -150,7 +160,9 @@ export const viewsBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      viewsBuffer.flush().catch((error) => reportBackgroundFailure('backend/src/shared/utils/viewsBuffer.ts', error));
+      viewsBuffer
+        .flush()
+        .catch(error => reportBackgroundFailure('backend/src/shared/utils/viewsBuffer.ts', error));
     }, FLUSH_INTERVAL);
     flushTimer.unref(); // don't keep process alive
     logger.info(`Views buffer flush timer started (every ${FLUSH_INTERVAL / 1000}s)`);

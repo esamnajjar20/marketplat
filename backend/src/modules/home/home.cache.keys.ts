@@ -61,7 +61,9 @@ export const onHomeInvalidated = (listener: InvalidationListener): (() => void) 
 export async function invalidateHomeCache(): Promise<void> {
   const ok = await bumpGeneration(HOME_GEN_KEY);
   if (!ok) {
-    logger.error('Failed to invalidate home cache — hard invalidation did not complete; stale homepage data may remain until the cache hard TTL expires');
+    logger.error(
+      'Failed to invalidate home cache — hard invalidation did not complete; stale homepage data may remain until the cache hard TTL expires'
+    );
     return;
   }
   for (const listener of listeners) {

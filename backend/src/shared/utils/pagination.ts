@@ -21,12 +21,8 @@ export interface PaginationMeta {
 // silent type-contract violation rather than an observed bug, but any future
 // caller trusting the declared type would get `undefined` instead of a real
 // boolean. Computed here, once, so all ~14 call sites across every module get
-// the 
-export const buildPaginationMeta = (
-  total: number,
-  page: number,
-  limit: number
-): PaginationMeta => {
+// the
+export const buildPaginationMeta = (total: number, page: number, limit: number): PaginationMeta => {
   const totalPages = Math.ceil(total / limit);
   return {
     total,
@@ -84,13 +80,13 @@ export const paginationQuerySchema = z.object({
     .string()
     .regex(/^\d+$/)
     .optional()
-    .transform((v) => (v === undefined ? undefined : Number(v)))
+    .transform(v => (v === undefined ? undefined : Number(v)))
     .pipe(z.number().min(1).max(1000).optional()),
   limit: z
     .string()
     .regex(/^\d+$/)
     .optional()
-    .transform((v) => (v === undefined ? undefined : Number(v)))
+    .transform(v => (v === undefined ? undefined : Number(v)))
     .pipe(z.number().min(1).max(100).optional()),
 });
 

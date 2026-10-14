@@ -3,7 +3,10 @@ import {
   ProductCategoryWithChildren,
 } from './product-categories.repository';
 import { ProductCategory } from '@prisma/client';
-import { CreateProductCategoryInput, UpdateProductCategoryInput } from './product-categories.validation';
+import {
+  CreateProductCategoryInput,
+  UpdateProductCategoryInput,
+} from './product-categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
@@ -57,7 +60,7 @@ export const productCategoriesService = {
       if (parent.parentId !== null) {
         throw new BadRequestError(
           'Product categories support only two levels (top-level + direct children).',
-          'CATEGORY_DEPTH_EXCEEDED',
+          'CATEGORY_DEPTH_EXCEEDED'
         );
       }
     }
@@ -112,13 +115,15 @@ export const productCategoriesService = {
     // T511 — public read: a deactivated category must 404 here even
     // though it still resolves through the admin-facing findById.
     const category = await productCategoriesRepository.findPublicById(id);
-    if (!category) throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
     return category;
   },
 
   getProductCategoryBySlug: async (slug: string): Promise<ProductCategory> => {
     const category = await productCategoriesRepository.findBySlug(slug);
-    if (!category) throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
     return category;
   },
 
@@ -127,7 +132,8 @@ export const productCategoriesService = {
     input: UpdateProductCategoryInput
   ): Promise<ProductCategory> => {
     const category = await productCategoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
 
     // BUGFIX (circular category reference): reassigning parentId to the
     // category's own id, or to one of its own descendants, creates a
@@ -139,7 +145,10 @@ export const productCategoriesService = {
     // make the category top-level can never introduce a cycle).
     if (input.parentId && input.parentId !== category.parentId) {
       if (input.parentId === id) {
-        throw new BadRequestError('A category cannot be its own parent', 'CIRCULAR_CATEGORY_REFERENCE');
+        throw new BadRequestError(
+          'A category cannot be its own parent',
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
       }
       // T431 — same class as categories T421: verify existence first,
       // otherwise an unknown id returns an empty ancestor chain and
@@ -152,13 +161,13 @@ export const productCategoriesService = {
       if (proposedParent.parentId !== null) {
         throw new BadRequestError(
           'Product categories support only two levels (top-level + direct children).',
-          'CATEGORY_DEPTH_EXCEEDED',
+          'CATEGORY_DEPTH_EXCEEDED'
         );
       }
       const ancestorChain = await productCategoriesRepository.findParentChain(input.parentId);
       if (ancestorChain.includes(id)) {
         throw new BadRequestError(
-          'Cannot set parent to one of this category\'s own subcategories',
+          "Cannot set parent to one of this category's own subcategories",
           'CIRCULAR_CATEGORY_REFERENCE'
         );
       }
@@ -189,7 +198,7 @@ export const productCategoriesService = {
       if (productsCount > 0) {
         throw new BadRequestError(
           `Category type cannot be changed while it has ${productsCount} active products.`,
-          'PRODUCT_CATEGORY_TYPE_CHANGE_HAS_PRODUCTS',
+          'PRODUCT_CATEGORY_TYPE_CHANGE_HAS_PRODUCTS'
         );
       }
     }
@@ -208,7 +217,8 @@ export const productCategoriesService = {
 
   deleteProductCategory: async (id: string): Promise<void> => {
     const category = await productCategoriesRepository.findById(id);
-    if (!category) throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
 
     const productsCount = await productCategoriesRepository.countProducts(id);
     if (productsCount > 0) {

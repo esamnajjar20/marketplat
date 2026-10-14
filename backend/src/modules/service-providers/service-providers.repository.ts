@@ -23,18 +23,41 @@ export const serviceProvidersRepository = {
     prisma.serviceProviderDetails.findUnique({
       where: { id },
       select: {
-        id: true, sellerProfileId: true, businessName: true, businessType: true, logoUrl: true,
-        description: true, serviceAreaCities: true, workingHours: true,
-        availabilityStatus: true, completedRequestsCount: true, fulfillmentRate: true,
-        createdAt: true, updatedAt: true,
+        id: true,
+        sellerProfileId: true,
+        businessName: true,
+        businessType: true,
+        logoUrl: true,
+        description: true,
+        serviceAreaCities: true,
+        workingHours: true,
+        availabilityStatus: true,
+        completedRequestsCount: true,
+        fulfillmentRate: true,
+        createdAt: true,
+        updatedAt: true,
         sellerProfile: {
-          select: { userId: true, displayName: true, avatarUrl: true, verified: true, trustScore: true, averageRating: true, totalRatings: true, suspended: true },
+          select: {
+            userId: true,
+            displayName: true,
+            avatarUrl: true,
+            verified: true,
+            trustScore: true,
+            averageRating: true,
+            totalRatings: true,
+            suspended: true,
+          },
         },
         serviceTypeProfiles: {
           where: { isActive: true, serviceType: { isActive: true } },
           include: {
             serviceType: {
-              include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } },
+              include: {
+                fields: {
+                  where: { scope: 'PROVIDER', isActive: true },
+                  orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+                },
+              },
             },
           },
           orderBy: [{ createdAt: 'asc' }],
@@ -100,8 +123,7 @@ export const serviceProvidersRepository = {
     tx: Prisma.TransactionClient,
     id: string,
     data: { completedRequestsCount: number; fulfillmentRate: number | null }
-  ): Promise<ServiceProviderDetails> =>
-    tx.serviceProviderDetails.update({ where: { id }, data }),
+  ): Promise<ServiceProviderDetails> => tx.serviceProviderDetails.update({ where: { id }, data }),
 
   // SEC-FIX: same gap products.repository.ts's findMany already closed
   // for suspended sellers (see its own SEC-) — an admin
@@ -255,7 +277,12 @@ export const serviceProvidersRepository = {
       where: { providerId },
       include: {
         serviceType: {
-          include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } },
+          include: {
+            fields: {
+              where: { scope: 'PROVIDER', isActive: true },
+              orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+            },
+          },
         },
       },
       orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
@@ -264,19 +291,37 @@ export const serviceProvidersRepository = {
   findServiceTypeProfile: (providerId: string, serviceTypeId: string) =>
     prisma.serviceProviderServiceType.findUnique({
       where: { providerId_serviceTypeId: { providerId, serviceTypeId } },
-      include: { serviceType: { include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } } } },
+      include: {
+        serviceType: {
+          include: {
+            fields: {
+              where: { scope: 'PROVIDER', isActive: true },
+              orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+            },
+          },
+        },
+      },
     }),
 
   upsertServiceTypeProfile: (
     providerId: string,
     serviceTypeId: string,
     attributes: Prisma.InputJsonValue,
-    isActive = true,
-  ) => prisma.serviceProviderServiceType.upsert({
-    where: { providerId_serviceTypeId: { providerId, serviceTypeId } },
-    create: { providerId, serviceTypeId, attributes, isActive },
-    update: { attributes, isActive },
-    include: { serviceType: { include: { fields: { where: { scope: 'PROVIDER', isActive: true }, orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] } } } },
-  }),
-
+    isActive = true
+  ) =>
+    prisma.serviceProviderServiceType.upsert({
+      where: { providerId_serviceTypeId: { providerId, serviceTypeId } },
+      create: { providerId, serviceTypeId, attributes, isActive },
+      update: { attributes, isActive },
+      include: {
+        serviceType: {
+          include: {
+            fields: {
+              where: { scope: 'PROVIDER', isActive: true },
+              orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+            },
+          },
+        },
+      },
+    }),
 };

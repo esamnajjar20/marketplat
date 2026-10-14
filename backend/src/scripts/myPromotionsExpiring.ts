@@ -129,7 +129,7 @@ async function notifyFollowers(promotion: Promotion, productName: string): Promi
       tag: `store-promotion-${promotion.id}`,
       type: 'STORE_PROMOTION_STARTED',
     })
-    .catch((error) => reportBackgroundFailure('backend/src/scripts/myPromotionsExpiring.ts', error));
+    .catch(error => reportBackgroundFailure('backend/src/scripts/myPromotionsExpiring.ts', error));
 
   await prisma.notification.createMany({
     data: followerIds.map(userId => ({
@@ -165,7 +165,7 @@ async function notify(
       tag: `promotion-${promotion.id}-${event}`,
       type: 'PROMOTION_STATUS_CHANGE',
     })
-    .catch((error) => reportBackgroundFailure('backend/src/scripts/myPromotionsExpiring.ts', error));
+    .catch(error => reportBackgroundFailure('backend/src/scripts/myPromotionsExpiring.ts', error));
 
   await prisma.notification.create({
     data: {

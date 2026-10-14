@@ -8,7 +8,14 @@ import { decodeMessageCursor, encodeMessageCursor } from '../../shared/utils/mes
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {
     ad: { select: { id: true; title: true; images: true; status: true } };
-    serviceRequest: { select: { id: true; details: true; status: true; listing: { select: { id: true; title: true; images: true } } } };
+    serviceRequest: {
+      select: {
+        id: true;
+        details: true;
+        status: true;
+        listing: { select: { id: true; title: true; images: true } };
+      };
+    };
     buyer: { select: { id: true; name: true; avatarUrl: true } };
     seller: { select: { id: true; name: true; avatarUrl: true } };
   };
@@ -30,7 +37,12 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
 export type ConversationListItem = ConversationWithRelations & {
   unreadCount: number;
   lastMessage: Message | null;
-  mySettings: { pinnedAt: Date | null; archivedAt: Date | null; deletedAt: Date | null; mutedUntil: Date | null } | null;
+  mySettings: {
+    pinnedAt: Date | null;
+    archivedAt: Date | null;
+    deletedAt: Date | null;
+    mutedUntil: Date | null;
+  } | null;
 };
 
 const conversationWithRelations = {
@@ -87,30 +99,35 @@ export const conversationsRepository = {
   create: async (
     buyerId: string,
     sellerId: string,
-    context: { adId?: string | null; serviceRequestId?: string | null; listingContext?: Prisma.InputJsonValue | null } = {}
-  ): Promise<Conversation> => prisma.$transaction(async (tx) => {
-    const conversation = await tx.conversation.create({
-      data: {
-        buyerId,
-        sellerId,
-        adId: context.adId ?? null,
-        serviceRequestId: context.serviceRequestId ?? null,
-        context: context.listingContext ?? undefined,
-      },
-    });
-    await tx.conversationUserSetting.createMany({
-      data: [
-        { conversationId: conversation.id, userId: buyerId },
-        { conversationId: conversation.id, userId: sellerId },
-      ],
-    });
-    return conversation;
-  }),
+    context: {
+      adId?: string | null;
+      serviceRequestId?: string | null;
+      listingContext?: Prisma.InputJsonValue | null;
+    } = {}
+  ): Promise<Conversation> =>
+    prisma.$transaction(async tx => {
+      const conversation = await tx.conversation.create({
+        data: {
+          buyerId,
+          sellerId,
+          adId: context.adId ?? null,
+          serviceRequestId: context.serviceRequestId ?? null,
+          context: context.listingContext ?? undefined,
+        },
+      });
+      await tx.conversationUserSetting.createMany({
+        data: [
+          { conversationId: conversation.id, userId: buyerId },
+          { conversationId: conversation.id, userId: sellerId },
+        ],
+      });
+      return conversation;
+    }),
 
   /** Ensures both participants have a private settings row. */
   ensureUserSettings: async (conversationId: string, userIds: string[]): Promise<void> => {
     await prisma.conversationUserSetting.createMany({
-      data: [...new Set(userIds)].map((userId) => ({ conversationId, userId })),
+      data: [...new Set(userIds)].map(userId => ({ conversationId, userId })),
       skipDuplicates: true,
     });
   },
@@ -135,7 +152,11 @@ export const conversationsRepository = {
   findOrCreate: async (
     buyerId: string,
     sellerId: string,
-    context: { adId?: string | null; serviceRequestId?: string | null; listingContext?: Prisma.InputJsonValue | null } = {}
+    context: {
+      adId?: string | null;
+      serviceRequestId?: string | null;
+      listingContext?: Prisma.InputJsonValue | null;
+    } = {}
   ): Promise<Conversation> => {
     // Lookup is direction-agnostic so A→B and B→A resolve to the same
     // thread. Insert keeps SEMANTIC roles: buyerId = initiator / customer,
@@ -167,10 +188,29 @@ export const conversationsRepository = {
   findById: (id: string): Promise<ConversationWithRelations | null> =>
     prisma.conversation.findUnique({ where: { id }, include: conversationWithRelations }),
 
-  findByIdForUser: async (id: string, userId: string): Promise<(ConversationWithRelations & { mySettings: { pinnedAt: Date | null; archivedAt: Date | null; deletedAt: Date | null; mutedUntil: Date | null } | null }) | null> => {
-    const conversation = await prisma.conversation.findUnique({ where: { id }, include: conversationWithRelations });
+  findByIdForUser: async (
+    id: string,
+    userId: string
+  ): Promise<
+    | (ConversationWithRelations & {
+        mySettings: {
+          pinnedAt: Date | null;
+          archivedAt: Date | null;
+          deletedAt: Date | null;
+          mutedUntil: Date | null;
+        } | null;
+      })
+    | null
+  > => {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id },
+      include: conversationWithRelations,
+    });
     if (!conversation) return null;
-    const setting = await prisma.conversationUserSetting.findUnique({ where: { conversationId_userId: { conversationId: id, userId } }, select: { pinnedAt: true, archivedAt: true, deletedAt: true, mutedUntil: true } });
+    const setting = await prisma.conversationUserSetting.findUnique({
+      where: { conversationId_userId: { conversationId: id, userId } },
+      select: { pinnedAt: true, archivedAt: true, deletedAt: true, mutedUntil: true },
+    });
     return { ...conversation, mySettings: setting };
   },
 
@@ -212,8 +252,22 @@ export const conversationsRepository = {
     const { skip, take } = getPaginationParams(page, limit);
 
     const where: Prisma.ConversationWhereInput = {
-      ...(role === 'buying' ? { buyerId: userId } : role === 'selling' ? { sellerId: userId } : { OR: [{ buyerId: userId }, { sellerId: userId }] }),
-      userSettings: { some: { userId, ...(archivedOnly ? { archivedAt: { not: null } } : includeArchived ? {} : { archivedAt: null }), deletedAt: null } },
+      ...(role === 'buying'
+        ? { buyerId: userId }
+        : role === 'selling'
+          ? { sellerId: userId }
+          : { OR: [{ buyerId: userId }, { sellerId: userId }] }),
+      userSettings: {
+        some: {
+          userId,
+          ...(archivedOnly
+            ? { archivedAt: { not: null } }
+            : includeArchived
+              ? {}
+              : { archivedAt: null }),
+          deletedAt: null,
+        },
+      },
     };
 
     const [conversations, total] = await Promise.all([
@@ -273,12 +327,19 @@ export const conversationsRepository = {
     prisma.conversation.update({ where: { id }, data: { updatedAt: new Date() } }),
 
   getUserSetting: (conversationId: string, userId: string) =>
-    prisma.conversationUserSetting.findUnique({ where: { conversationId_userId: { conversationId, userId } } }),
+    prisma.conversationUserSetting.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    }),
 
   upsertUserSetting: (
     conversationId: string,
     userId: string,
-    data: { pinnedAt?: Date | null; archivedAt?: Date | null; deletedAt?: Date | null; mutedUntil?: Date | null }
+    data: {
+      pinnedAt?: Date | null;
+      archivedAt?: Date | null;
+      deletedAt?: Date | null;
+      mutedUntil?: Date | null;
+    }
   ) =>
     prisma.conversationUserSetting.upsert({
       where: { conversationId_userId: { conversationId, userId } },
@@ -290,10 +351,12 @@ export const conversationsRepository = {
     prisma.conversationUserSetting.deleteMany({ where: { conversationId, userId } }),
 
   isMuted: async (conversationId: string, userId: string): Promise<boolean> => {
-    const setting = await prisma.conversationUserSetting.findUnique({ where: { conversationId_userId: { conversationId, userId } }, select: { mutedUntil: true } });
+    const setting = await prisma.conversationUserSetting.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+      select: { mutedUntil: true },
+    });
     return Boolean(setting?.mutedUntil && setting.mutedUntil > new Date());
   },
-
 };
 
 export const messagesRepository = {
@@ -304,19 +367,32 @@ export const messagesRepository = {
     imageUrl?: string | null,
     audioUrl?: string | null,
     file?: { url: string; name: string; mimeType: string; size: number } | null,
-    clientOperationId?: string | null,
+    clientOperationId?: string | null
   ): Promise<Message> =>
     prisma.message.create({
-      data: { conversationId, senderId, body, imageUrl: imageUrl ?? null, audioUrl: audioUrl ?? null, fileUrl: file?.url ?? null, fileName: file?.name ?? null, fileMimeType: file?.mimeType ?? null, fileSize: file?.size ?? null, clientOperationId: clientOperationId ?? null },
+      data: {
+        conversationId,
+        senderId,
+        body,
+        imageUrl: imageUrl ?? null,
+        audioUrl: audioUrl ?? null,
+        fileUrl: file?.url ?? null,
+        fileName: file?.name ?? null,
+        fileMimeType: file?.mimeType ?? null,
+        fileSize: file?.size ?? null,
+        clientOperationId: clientOperationId ?? null,
+      },
     }),
 
-  findBySenderAndOperationId: (senderId: string, clientOperationId: string): Promise<Message | null> =>
+  findBySenderAndOperationId: (
+    senderId: string,
+    clientOperationId: string
+  ): Promise<Message | null> =>
     prisma.message.findUnique({
       where: { senderId_clientOperationId: { senderId, clientOperationId } },
     }),
 
-  findById: (id: string): Promise<Message | null> =>
-    prisma.message.findUnique({ where: { id } }),
+  findById: (id: string): Promise<Message | null> => prisma.message.findUnique({ where: { id } }),
 
   /** Soft-delete: sets deletedAt, leaves `body` and every other column
    * untouched. Caller (messagesService.deleteMessage) has already
@@ -324,10 +400,7 @@ export const messagesRepository = {
   softDelete: (id: string): Promise<Message> =>
     prisma.message.update({ where: { id }, data: { deletedAt: new Date() } }),
 
-  findMediaByConversationId: (
-    conversationId: string,
-    limit = 100,
-  ): Promise<Message[]> =>
+  findMediaByConversationId: (conversationId: string, limit = 100): Promise<Message[]> =>
     prisma.message.findMany({
       where: {
         conversationId,
@@ -339,21 +412,25 @@ export const messagesRepository = {
     }),
 
   pinMessage: (messageId: string, pinnedById: string): Promise<void> =>
-    prisma.messagePin.upsert({
-      where: { messageId },
-      create: { messageId, pinnedById },
-      update: { pinnedById, createdAt: new Date() },
-    }).then(() => undefined),
+    prisma.messagePin
+      .upsert({
+        where: { messageId },
+        create: { messageId, pinnedById },
+        update: { pinnedById, createdAt: new Date() },
+      })
+      .then(() => undefined),
 
   unpinMessage: (messageId: string): Promise<void> =>
     prisma.messagePin.deleteMany({ where: { messageId } }).then(() => undefined),
 
   starMessage: (messageId: string, userId: string): Promise<void> =>
-    prisma.messageStar.upsert({
-      where: { messageId_userId: { messageId, userId } },
-      create: { messageId, userId },
-      update: {},
-    }).then(() => undefined),
+    prisma.messageStar
+      .upsert({
+        where: { messageId_userId: { messageId, userId } },
+        create: { messageId, userId },
+        update: {},
+      })
+      .then(() => undefined),
 
   unstarMessage: (messageId: string, userId: string): Promise<void> =>
     prisma.messageStar.deleteMany({ where: { messageId, userId } }).then(() => undefined),
@@ -361,7 +438,7 @@ export const messagesRepository = {
   findManyByConversationId: async (
     conversationId: string,
     query: { page?: number; limit?: number; before?: string },
-    viewerId?: string,
+    viewerId?: string
   ): Promise<{ messages: Message[]; total: number; nextCursor: string | null }> => {
     const limit = Math.min(Math.max(query.limit ?? 30, 1), 100);
     const cursor = query.before ? decodeMessageCursor(query.before) : null;
@@ -396,7 +473,8 @@ export const messagesRepository = {
     return {
       messages,
       total,
-      nextCursor: hasMore && last ? encodeMessageCursor({ createdAt: last.createdAt, id: last.id }) : null,
+      nextCursor:
+        hasMore && last ? encodeMessageCursor({ createdAt: last.createdAt, id: last.id }) : null,
     };
   },
 
@@ -405,7 +483,10 @@ export const messagesRepository = {
    * party to. Returns the count actually updated (0 is a normal,
    * expected outcome: nothing unread, or caller has no unread messages
    * from the other party). */
-  markReadForRecipient: (conversationId: string, recipientId: string): Promise<Prisma.BatchPayload> =>
+  markReadForRecipient: (
+    conversationId: string,
+    recipientId: string
+  ): Promise<Prisma.BatchPayload> =>
     prisma.message.updateMany({
       where: { conversationId, senderId: { not: recipientId }, readAt: null },
       data: { readAt: new Date() },

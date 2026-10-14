@@ -74,7 +74,8 @@ export function matchesAdFilters(ad: AdWithAuthor, filters: SavedSearchFilters):
  * pre-existing gap in the main product search, not introduced here.
  */
 function matchesProductFilters(product: Product, filters: SavedSearchFilters): boolean {
-  if (filters.q && !matchesSearchQuery([product.name, product.description], filters.q)) return false;
+  if (filters.q && !matchesSearchQuery([product.name, product.description], filters.q))
+    return false;
   if (filters.categoryId && product.categoryId !== filters.categoryId) return false;
 
   const price = Number(product.price);
@@ -94,7 +95,8 @@ function matchesProductFilters(product: Product, filters: SavedSearchFilters): b
  * service-listings.repository.ts's own live `search` param.
  */
 function matchesServiceFilters(listing: ServiceListing, filters: SavedSearchFilters): boolean {
-  if (filters.q && !matchesSearchQuery([listing.title, listing.description], filters.q)) return false;
+  if (filters.q && !matchesSearchQuery([listing.title, listing.description], filters.q))
+    return false;
   if (filters.categoryId && listing.categoryId !== filters.categoryId) return false;
 
   const price = listing.price !== null ? Number(listing.price) : null;
@@ -178,20 +180,18 @@ export const savedSearchEvents = {
     // PLATFORM-WIDE-01: also filters to type 'ads' (or no type at all —
     // rows saved before this field existed) so a products/services
     // saved search is never even passed to matchesAdFilters.
-    const candidates = searches.filter(
-      (s) => s.userId !== ad.userId && savedSearchType(s) === 'ads'
-    );
+    const candidates = searches.filter(s => s.userId !== ad.userId && savedSearchType(s) === 'ads');
 
-    const matched = candidates.filter((s) =>
+    const matched = candidates.filter(s =>
       matchesAdFilters(ad, s.filters as unknown as SavedSearchFilters)
     );
     if (matched.length === 0) return;
 
     await notificationEvents.onSavedSearchMatched(
-      matched.map((s) => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
+      matched.map(s => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
       { type: 'ad', id: ad.id, title: ad.title }
     );
-    await savedSearchesRepository.markNotified(matched.map((s) => s.id));
+    await savedSearchesRepository.markNotified(matched.map(s => s.id));
   },
 
   /** PLATFORM-WIDE-01: products.service.ts's createProduct calls this
@@ -205,19 +205,19 @@ export const savedSearchEvents = {
   onProductCreated: async (product: Product, ownerUserId: string): Promise<void> => {
     const searches = await savedSearchesRepository.findAllForMatching();
     const candidates = searches.filter(
-      (s) => s.userId !== ownerUserId && savedSearchType(s) === 'products'
+      s => s.userId !== ownerUserId && savedSearchType(s) === 'products'
     );
 
-    const matched = candidates.filter((s) =>
+    const matched = candidates.filter(s =>
       matchesProductFilters(product, s.filters as unknown as SavedSearchFilters)
     );
     if (matched.length === 0) return;
 
     await notificationEvents.onSavedSearchMatched(
-      matched.map((s) => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
+      matched.map(s => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
       { type: 'product', id: product.id, title: product.name }
     );
-    await savedSearchesRepository.markNotified(matched.map((s) => s.id));
+    await savedSearchesRepository.markNotified(matched.map(s => s.id));
   },
 
   /** PLATFORM-WIDE-01: service-listings.service.ts's createServiceListing
@@ -226,19 +226,19 @@ export const savedSearchEvents = {
   onServiceListingCreated: async (listing: ServiceListing, ownerUserId: string): Promise<void> => {
     const searches = await savedSearchesRepository.findAllForMatching();
     const candidates = searches.filter(
-      (s) => s.userId !== ownerUserId && savedSearchType(s) === 'services'
+      s => s.userId !== ownerUserId && savedSearchType(s) === 'services'
     );
 
-    const matched = candidates.filter((s) =>
+    const matched = candidates.filter(s =>
       matchesServiceFilters(listing, s.filters as unknown as SavedSearchFilters)
     );
     if (matched.length === 0) return;
 
     await notificationEvents.onSavedSearchMatched(
-      matched.map((s) => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
+      matched.map(s => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
       { type: 'service', id: listing.id, title: listing.title }
     );
-    await savedSearchesRepository.markNotified(matched.map((s) => s.id));
+    await savedSearchesRepository.markNotified(matched.map(s => s.id));
   },
 };
 
