@@ -14,6 +14,15 @@ vi.mock('@/lib/runtime/secureStorage', () => ({
 const state: { user: { id: string } | null } = { user: { id: 'u1' } };
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: { getState: () => state },
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
+  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectAccessToken: (s: any) => s?.accessToken,
+  selectUser: (s: any) => s?.user,
+  selectIsAuthenticated: (s: any) => Boolean(s?.isAuthenticated ?? s?.user),
+  selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
 
 import { isPushOptedOut, setPushOptedOut } from '@/lib/runtime/pushPreference';

@@ -1,90 +1,74 @@
 /**
- * FIX TEST-V4-12: AuthHydrationProvider.tsx had zero test coverage
- * despite being the fix point for two real production bugs:
- *
- *  1. The false-logout race (FIX AUTH-04): isHydrated flipped true
- *     synchronously from localStorage while isAuthenticated stayed
- *     false until this component's async refresh resolved — a window
- *     where ProtectedLayout/AdminLayout couldn't tell "definitely
- *     logged out" from "still verifying a valid persisted session."
- *     setAuthResolved() (tested via isAuthResolving here) is the fix.
- *
- *  2. The dead AbortController (FIX AUTH-05): the 8s timeout existed
- *     but never actually cancelled the underlying axios calls, so a
- *     slow network could hang for up to ~30s instead of the documented
- *     ~8s. Tested here by confirming the AbortSignal is actually
- *     passed through to both authApi.refresh and usersApi.getMe.
- *
- * PROD-FIX-15: refreshToken moved from localStorage to an httpOnly
- * cookie the backend sets directly — this component can no longer
- * read it client-side to decide whether to attempt a restore, so it
- * now ALWAYS calls authApi.refresh() on mount and lets the response
- * (success = a valid cookie existed; 401 = it didn't) be the source of
- * truth. Every test below reflects that: there is no more
- * "no refresh token — skip entirely, refresh never called" case,
- * since that information genuinely isn't available client-side
- * anymore. What used to be that case is now "refresh() rejects almost
- * immediately with a 401" — same observable end state (logged out,
- * isAuthResolving settles to false), reached via one extra network
- * call instead of zero.
- *
- * No vi.resetModules() — same reasoning as client.test.ts and
- * useFavorites.test.tsx: auth.store.ts's useAuthStore has no
- * globalThis singleton protection, so resetting modules would
- * disconnect this test's references from what the component reads.
+ * AuthHydrationProvider unit tests — updated for:
+ *  - refreshSessionShared() instead of direct authApi.refresh()
+ *  - usersApi.getBootstrap() instead of usersApi.getMe()
+ *  - favorites deferred (not blocking restore)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, cleanup } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthHydrationProvider } from '@/providers/AuthHydrationProvider';
 import { useAuthStore } from '@/store/auth.store';
-import { authApi } from '@/api/auth.api';
-import { usersApi } from '@/api/users.api';
-import { favoritesApi } from '@/api/favorites.api';
 import { deleteCookie } from '@/lib/cookies';
 
-vi.mock('@/api/auth.api', () => ({
-  authApi: { refresh: vi.fn() },
-}));
+const refreshSessionShared = vi.fn();
+const getBootstrap = vi.fn();
+
+vi.mock('@/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/client')>();
+  return {
+    ...actual,
+    refreshSessionShared: (...args: unknown[]) => refreshSessionShared(...args),
+    isSessionRevoked: () => false,
+  };
+});
 
 vi.mock('@/api/users.api', () => ({
-  usersApi: { getMe: vi.fn() },
+  usersApi: {
+    getBootstrap: (...args: unknown[]) => getBootstrap(...args),
+    getMe: vi.fn(),
+  },
 }));
 
-/**
- * FIX TEST-AUTH-05b: previously unmocked — every test that reached the
- * post-/me favorites prefetch inside AuthHydrationProvider made a real,
- * unaborted axios call to a nonexistent server. Since the component awaits
- * that call before its outer finally{} runs setAuthResolved(), that left
- * isAuthResolving stuck true until the real request settled on its own
- * (axios's own default timeout — well past waitFor's 1s default), and — worse
- * — that promise outlived the component's unmount (cleanup() in afterEach),
- * so it could still resolve and flip the shared useAuthStore singleton's
- * isAuthResolving mid-way through a LATER test. That's what produced the
- * false-logout-race test's failure: it wasn't this component's actual
- * behavior, it was cross-test pollution from the previous test's still-
- * in-flight, unmocked, un-abortable favorites call.
- */
 vi.mock('@/api/favorites.api', () => ({
-  favoritesApi: { getAll: vi.fn() },
+  favoritesApi: { getAll: vi.fn().mockResolvedValue({ data: { data: { items: [] } } }) },
 }));
 
-/**
- * AuthHydrationProvider calls useQueryClient() internally (to seed
- * queryKeys.auth.me() after a successful restore) — every render below
- * needs a real QueryClientProvider ancestor or that hook throws.
- */
-function renderWithClient(ui: React.ReactElement) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
-}
+vi.mock('@/lib/offlineSelfWarm', () => ({
+  warmSelfDataForOffline: vi.fn(),
+}));
+
+vi.mock('@/lib/networkPolicy', () => ({
+  getNetworkPolicy: () => ({ allowPrefetch: false }),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
+}));
+
+vi.mock('@/lib/authSessionBroadcast', () => ({
+  subscribeToSessionEnded: () => () => {},
+}));
 
 const mockUser = {
-  id: 'user-1', name: 'Ahmed', email: 'a@example.com', role: 'USER',
-  avatarUrl: 'https://example.com/a.jpg', city: 'غزة',
-  phone: null, bio: null, isActive: true,
-  notificationPreferences: { newMessage: true, adViews: false, favAdUpdated: true, promotions: false },
-  createdAt: '', updatedAt: '',
+  id: 'user-1',
+  name: 'Test User',
+  email: 'test@example.com',
+  role: 'USER' as const,
+  city: 'غزة',
+  avatarUrl: null,
+  phone: null,
+  bio: null,
+  isActive: true,
+  emailVerified: true,
+  notificationPreferences: {
+    newMessage: true,
+    adViews: false,
+    favAdUpdated: true,
+    promotions: false,
+  },
+  createdAt: '',
+  updatedAt: '',
 };
 
 function resetStoreToHydrated() {
@@ -97,262 +81,205 @@ function resetStoreToHydrated() {
   });
 }
 
+function renderWithClient(ui: React.ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
+
+function bootstrapPayload(user = mockUser) {
+  return {
+    data: {
+      data: {
+        me: user,
+        notificationsUnread: 0,
+        conversationsUnread: 0,
+        notifications: null,
+        sellerProfile: null,
+        store: null,
+        serviceProvider: null,
+        sellerAttention: null,
+      },
+    },
+  };
+}
+
 describe('AuthHydrationProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: any test that reaches the post-/me favorites prefetch gets a
-    // fast, deterministic empty result unless it overrides this itself.
-    // Prevents a real unmocked network call regardless of test order.
-    // favoritesApi is mocked wholesale (see vi.mock above), so this bypasses
-    // unwrapPaginated — shape must match what the component actually reads
-    // (favRes.data.data.items), not the raw pre-unwrap axios response.
-    (favoritesApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false } } },
-    });
-    // BUGFIX (found during a post-implementation code audit):
-    // `document.cookie = ''` does NOT clear existing cookies in jsdom
-    // (or real browsers) — assigning to document.cookie only
-    // sets/updates the ONE cookie described by that string; an empty
-    // string does not describe a valid cookie and is effectively a
-    // no-op. Cookies set by a previous test (e.g. 'sets both the
-    // app_access_token and app_user_role cookies on success' below)
-    // would silently leak into subsequent tests, undermining any test
-    // that asserts a cookie is absent — deleteCookie() (lib/cookies.ts)
-    // is the same helper the component itself uses, so it clears
-    // cookies with matching attributes the same way a real logout would.
     deleteCookie('app_access_token');
     deleteCookie('app_user_role');
+    deleteCookie('app_has_session');
   });
 
   afterEach(() => {
-    // BUGFIX: without this, a previous test's AuthHydrationProvider
-    // instance stays mounted (React never unmounts it) with its async
-    // refresh effect still in flight. That effect has no abort-on-
-    // unmount cleanup, so it can resolve and call setAuthResolved()
-    // during a LATER test — racing that test's own state assertions
-    // against the shared useAuthStore singleton. Unmounting here is
-    // what the missing effect cleanup (see AuthHydrationProvider.tsx)
-    // would otherwise have prevented.
     cleanup();
   });
 
-  it('renders children immediately without blocking (FIX PERF-01 — no spinner here)', () => {
+  it('renders children immediately without blocking', () => {
     resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {})); // never resolves
+    refreshSessionShared.mockReturnValue(new Promise(() => {}));
     const { getByText } = renderWithClient(
-      <AuthHydrationProvider><div>App content</div></AuthHydrationProvider>,
+      <AuthHydrationProvider>
+        <div>App content</div>
+      </AuthHydrationProvider>,
     );
     expect(getByText('App content')).toBeTruthy();
   });
 
-  it('PROD-FIX-15: always calls authApi.refresh() on mount — there is no client-readable token to check first', async () => {
+  it('PROD-FIX-15: always calls refreshSessionShared on mount', async () => {
     resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockRejectedValue({ response: { status: 401 } });
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
+    refreshSessionShared.mockRejectedValue({ response: { status: 401 } });
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     await waitFor(() => {
-      expect(authApi.refresh).toHaveBeenCalledTimes(1);
+      expect(refreshSessionShared).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('PROD-FIX-15: a 401 from refresh (no valid session cookie) logs out cleanly and clears stale cookies', async () => {
+  it('PROD-FIX-15: a 401 from refresh logs out cleanly and clears stale cookies', async () => {
     resetStoreToHydrated();
     document.cookie = 'app_access_token=stale-value';
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockRejectedValue({ response: { status: 401 } });
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
+    refreshSessionShared.mockRejectedValue({ response: { status: 401 } });
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
-
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(document.cookie).not.toContain('app_access_token=stale-value');
-    expect(usersApi.getMe).not.toHaveBeenCalled();
+    expect(getBootstrap).not.toHaveBeenCalled();
   });
 
-  it('on a valid session cookie: refreshes, fetches the profile, and resolves isAuthResolving to false', async () => {
+  it('on a valid session: refreshes, bootstraps profile, resolves isAuthResolving', async () => {
     resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
+    refreshSessionShared.mockResolvedValue({
+      data: { data: { tokens: { accessToken: 'new-access', expiresIn: '15m' }, csrfToken: 'csrf-abc' } },
     });
-    (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockUser } });
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
+    getBootstrap.mockResolvedValue(bootstrapPayload());
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     await waitFor(() => {
       expect(useAuthStore.getState().isAuthResolving).toBe(false);
     });
-
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    expect(useAuthStore.getState().accessToken).toBe('new-access');
     expect(useAuthStore.getState().user?.city).toBe('غزة');
   });
 
-  it('sets both the app_access_token and app_user_role cookies on success', async () => {
+  it('sets app_user_role cookie on success', async () => {
     resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
+    refreshSessionShared.mockResolvedValue({
+      data: { data: { tokens: { accessToken: 'new-access', expiresIn: '15m' }, csrfToken: 'csrf-abc' } },
     });
-    (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockUser } });
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
-    await waitFor(() => expect(document.cookie).toContain('app_access_token=new-access'));
+    getBootstrap.mockResolvedValue(bootstrapPayload());
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
+    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
     expect(document.cookie).toContain('app_user_role=USER');
   });
 
-  it('REGRESSION (false-logout race): isAuthResolving stays true while the refresh is still in flight', async () => {
+  it('REGRESSION: isAuthResolving stays true while refresh is in flight', async () => {
     resetStoreToHydrated();
-    let resolveRefresh: (value: unknown) => void;
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockReturnValue(
-      new Promise((resolve) => { resolveRefresh = resolve; }),
+    let resolveRefresh!: (v: unknown) => void;
+    refreshSessionShared.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRefresh = resolve;
+      }),
     );
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
-    await waitFor(() => {
-      expect(useAuthStore.getState().isHydrated).toBe(true);
-      expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    });
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     expect(useAuthStore.getState().isAuthResolving).toBe(true);
-
-    resolveRefresh!({ data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } } });
-    (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockUser } });
-
-    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
-  });
-
-  it('on refresh failure (invalid/expired cookie): logs out, clears cookies, and resolves isAuthResolving to false', async () => {
-    resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('401'));
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
-    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
-
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(usersApi.getMe).not.toHaveBeenCalled();
-  });
-
-  it('on /users/me failure due to a genuine rejection (after a successful refresh): still logs out cleanly', async () => {
-    resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
+    resolveRefresh({
+      data: { data: { tokens: { accessToken: 'new-access', expiresIn: '15m' }, csrfToken: 'csrf' } },
     });
-    // A real rejection shape (has a `.response`) — distinct from the
-    // network-failure test below. See FIX AUTH-OFFLINE-01.
-    (usersApi.getMe as ReturnType<typeof vi.fn>).mockRejectedValue({ response: { status: 401 } });
+    getBootstrap.mockResolvedValue(bootstrapPayload());
+    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+  });
 
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
+  it('on bootstrap failure after successful refresh with 401: logs out cleanly', async () => {
+    resetStoreToHydrated();
+    refreshSessionShared.mockResolvedValue({
+      data: { data: { tokens: { accessToken: 'new-access', expiresIn: '15m' }, csrfToken: 'csrf-abc' } },
+    });
+    getBootstrap.mockRejectedValue({ response: { status: 401 } });
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
-  // FIX AUTH-OFFLINE-01 (the actual bug this test file previously
-  // encoded as "correct"): a successful /auth/refresh already proves
-  // the session is valid — a freshly issued access token is real
-  // cryptographic proof, not a guess. If the *next* call (/users/me)
-  // then fails only because the network dropped (no `.response` at
-  // all, exactly what a real axios network error looks like), that is
-  // NOT evidence the session is invalid — it's evidence the device is
-  // briefly offline, which is a completely ordinary thing to happen
-  // mid-page-load. The old code called logout() unconditionally here,
-  // which is precisely what "get logged out instantly by turning off
-  // wifi" looked like in practice: refresh succeeds fast, then the
-  // profile-detail fetch trips over the exact same connectivity blip
-  // and wipes the session it just confirmed was valid.
-  it('REGRESSION (offline false-logout): a network error on /users/me (after a successful refresh) keeps the session valid', async () => {
+  it('REGRESSION offline: network error on bootstrap after refresh keeps session token', async () => {
     resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
+    refreshSessionShared.mockImplementation(async () => {
+      useAuthStore.getState().setAccessToken('kept-access');
+      return {
+        data: { data: { tokens: { accessToken: 'kept-access', expiresIn: '15m' }, csrfToken: 'csrf' } },
+      };
     });
-    (usersApi.getMe as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
+    getBootstrap.mockRejectedValue(new Error('Network Error'));
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
-
-    expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    expect(useAuthStore.getState().accessToken).toBe('new-access');
+    expect(useAuthStore.getState().accessToken).toBe('kept-access');
   });
 
-  // FIX AUTH-OFFLINE-01: the actual root-cause scenario from the user
-  // report this fix addresses — opening/reloading the app while
-  // offline. The refresh call never gets an HTTP response at all
-  // (matches how a real axios network error looks: no `.response`).
-  // Previously this cleared the persisted `user` and every session
-  // cookie exactly as if the backend had confirmed the session was
-  // dead — which is what made ProtectedLayout redirect to /login
-  // before any offline-cached content (messages, notifications) ever
-  // got a chance to render. Now: isAuthenticated correctly stays false
-  // (never proven this load either way), but the persisted user and
-  // cookies are left alone so a plain reconnect+reload — not a fresh
-  // login — is enough to resolve it.
-  it('REGRESSION (offline false-logout): a network error on the initial /auth/refresh leaves the persisted user and cookies untouched', async () => {
+  it('REGRESSION offline: network error on initial refresh leaves store untouched', async () => {
+    resetStoreToHydrated();
     useAuthStore.setState({
-      user: mockUser,
-      accessToken: null,
-      isAuthenticated: false,
+      user: mockUser as any,
+      accessToken: 'old-token',
+      isAuthenticated: true,
       isHydrated: true,
       isAuthResolving: true,
     });
-    document.cookie = 'app_has_session=1';
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
+    refreshSessionShared.mockRejectedValue(new Error('Network Error'));
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
-
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(useAuthStore.getState().user).toEqual(mockUser);
-    expect(document.cookie).toContain('app_has_session=1');
+    expect(useAuthStore.getState().accessToken).toBe('old-token');
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 
-  it('REGRESSION (dead AbortController): passes a real AbortSignal through to authApi.refresh, usersApi.getMe, and favoritesApi.getAll', async () => {
+  it('only runs the restore flow once even if re-rendered', async () => {
     resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
+    refreshSessionShared.mockResolvedValue({
+      data: { data: { tokens: { accessToken: 'new-access', expiresIn: '15m' }, csrfToken: 'csrf-abc' } },
     });
-    (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockUser } });
-
-    renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-
+    getBootstrap.mockResolvedValue(bootstrapPayload());
+    const { rerender } = renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
     await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
-
-    // PROD-FIX-15: refresh() now takes only a config argument (no more
-    // refreshToken as the first positional argument) — the AbortSignal
-    // is call[0], not call[1].
-    const refreshCallArgs = (authApi.refresh as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(refreshCallArgs[0]?.signal).toBeInstanceOf(AbortSignal);
-
-    const getMeCallArgs = (usersApi.getMe as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(getMeCallArgs[0]?.signal).toBeInstanceOf(AbortSignal);
-
-    expect(getMeCallArgs[0].signal).toBe(refreshCallArgs[0].signal);
-
-    // FIX AUTH-05b: the favorites prefetch is the third call in this same
-    // 8s-abort flow and must share the identical signal, or it silently
-    // keeps running after a timeout/unmount instead of actually cancelling
-    // — which is exactly what caused this component's async work to leak
-    // across tests (see the favoritesApi mock's comment above).
-    const favoritesCallArgs = (favoritesApi.getAll as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(favoritesCallArgs[1]?.signal).toBeInstanceOf(AbortSignal);
-    expect(favoritesCallArgs[1].signal).toBe(refreshCallArgs[0].signal);
-  });
-
-  it('only runs the restore flow once, even if re-rendered with the same hydrated state', async () => {
-    resetStoreToHydrated();
-    (authApi.refresh as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { tokens: { accessToken: 'new-access' }, csrfToken: 'csrf-abc' } },
-    });
-    (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockUser } });
-
-    const { rerender } = renderWithClient(<AuthHydrationProvider><div /></AuthHydrationProvider>);
-    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
-
-    rerender(<QueryClientProvider client={new QueryClient()}><AuthHydrationProvider><div>updated</div></AuthHydrationProvider></QueryClientProvider>);
-
-    expect(authApi.refresh).toHaveBeenCalledTimes(1);
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthHydrationProvider>
+          <div>updated</div>
+        </AuthHydrationProvider>
+      </QueryClientProvider>,
+    );
+    expect(refreshSessionShared).toHaveBeenCalledTimes(1);
   });
 });

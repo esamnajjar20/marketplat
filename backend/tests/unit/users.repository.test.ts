@@ -23,9 +23,13 @@ const safeUserSelect = {
   bio: true,
   avatarUrl: true,
   isActive: true,
+  needsProfileCompletion: true,
   notificationPreferences: true,
   provider: true,
   googleId: true,
+  emailVerified: true,
+  emailVerifiedAt: true,
+  salesCostTrackingEnabled: true,
   createdAt: true,
   updatedAt: true,
 };

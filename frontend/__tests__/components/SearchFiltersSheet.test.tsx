@@ -12,6 +12,7 @@ import { SearchFiltersSheet } from '@/components/ads/SearchFiltersSheet';
 import { useSearchParams } from 'next/navigation';
 
 vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: vi.fn(),
 }));
 

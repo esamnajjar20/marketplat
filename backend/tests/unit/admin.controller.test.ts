@@ -192,7 +192,7 @@ describe('adminController', () => {
       await adminController.deleteAd(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(adminService.forceDeleteAd).toHaveBeenCalledWith('ad-1', adminUserId);
+      expect(adminService.forceDeleteAd).toHaveBeenCalledWith('ad-1', adminUserId, undefined);
     });
 
     it('calls next(error) when unauthenticated', async () => {

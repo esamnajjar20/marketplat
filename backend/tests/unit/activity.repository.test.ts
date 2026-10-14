@@ -43,7 +43,7 @@ describe('activityRepository', () => {
 
       expect(prisma.userActivity.findMany).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 20,
       });
@@ -169,7 +169,7 @@ describe('activityRepository', () => {
       await activityRepository.findManyForUser('user-1', {});
 
       expect(prisma.userActivity.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { createdAt: 'desc' } })
+        expect.objectContaining({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
       );
     });
   });

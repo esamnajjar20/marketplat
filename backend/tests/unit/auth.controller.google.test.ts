@@ -10,6 +10,7 @@ jest.mock('../../src/shared/utils/getClientIp', () => ({
 }));
 jest.mock('../../src/config/env', () => ({
   env: {
+    rateLimit: { disabled: true },
     frontendUrl: 'http://localhost:3000',
     googleOAuth: { isConfigured: true, clientId: 'x', clientSecret: 'y', callbackUrl: 'z' },
     ads: { maxPerUser: 50, imageLockTtlSeconds: 30 },

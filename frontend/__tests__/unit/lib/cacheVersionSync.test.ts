@@ -64,13 +64,13 @@ describe('sw.js hand-copied constants stay in sync with their sources', () => {
     expect(cacheVersion).toContain(`market-personal-shell-${libVersion}`);
   });
 
-  it('keeps SAVED_ADS_CACHE (deliberately unversioned) spelled identically in sw.js and lib/offlineSavedAds.ts', () => {
-    const savedAds = readFile('../../../lib/offlineSavedAds.ts');
+  it('keeps SAVED_ENTITIES_CACHE (deliberately unversioned) spelled identically in sw.js and lib/offlineSavedEntities.ts', () => {
+    const savedEntities = readFile('../../../lib/offlineSavedEntities.ts');
     const swName = extractOne(sw, /const SAVED_ADS_CACHE = '([^']+)';/, 'sw.js SAVED_ADS_CACHE');
     const libName = extractOne(
-      savedAds,
-      /export const SAVED_ADS_CACHE = '([^']+)';/,
-      'offlineSavedAds.ts SAVED_ADS_CACHE',
+      savedEntities,
+      /export const SAVED_ENTITIES_CACHE = '([^']+)';/,
+      'offlineSavedEntities.ts SAVED_ENTITIES_CACHE',
     );
     expect(libName).toBe(swName);
   });

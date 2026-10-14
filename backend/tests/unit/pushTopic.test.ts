@@ -3,7 +3,8 @@
  * base64 chars. Truncating the raw tag made distinct long tags collide.
  */
 jest.mock('../../src/config/env', () => ({
-  env: { webPush: { isConfigured: false, publicKey: '', privateKey: '', subject: '' } },
+  env: {
+    rateLimit: { disabled: true }, webPush: { isConfigured: false, publicKey: '', privateKey: '', subject: '' } },
 }));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },

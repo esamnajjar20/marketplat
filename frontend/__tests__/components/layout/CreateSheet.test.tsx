@@ -11,6 +11,15 @@ const mockRoles = {
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: (selector: (state: typeof mockRoles) => unknown) => selector(mockRoles),
   selectLastKnownRoles: (state: typeof mockRoles) => state,
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
+  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectAccessToken: (s: any) => s?.accessToken,
+  selectUser: (s: any) => s?.user,
+  selectIsAuthenticated: (s: any) => Boolean(s?.isAuthenticated ?? s?.user),
+  selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
 
 vi.mock('@/components/shared/ui/Sheet', () => ({

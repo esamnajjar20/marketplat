@@ -58,6 +58,12 @@ vi.mock('@/store/auth.store', () => ({
   selectUser: (s: { user: unknown }) => s.user,
   selectIsAdmin: (s: { isAdmin: boolean }) => s.isAdmin,
   selectIsAuthenticated: (s: { user: unknown }) => Boolean(s.user),
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
+  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectAccessToken: (s: any) => s?.accessToken,
 }));
 
 vi.mock('@/components/ads/EditAdForm', () => ({

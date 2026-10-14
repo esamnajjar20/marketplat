@@ -57,7 +57,7 @@ describe('storeFollowersRepository', () => {
       expect(prisma.storeFollower.findMany).toHaveBeenCalledWith({
         where: { userId, store: { status: 'ACTIVE' } },
         include: { store: { include: { sellerProfile: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 20,
       });

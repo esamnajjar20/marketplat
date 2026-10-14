@@ -23,6 +23,7 @@ vi.mock('@/hooks/queries/useFavorites', () => ({
 
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => mockSearchParams,
 }));
 

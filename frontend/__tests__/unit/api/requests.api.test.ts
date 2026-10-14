@@ -1,11 +1,11 @@
 import { requestsApi } from '@/api/requests.api';
 
-jest.mock('@/api/client', () => ({
+vi.mock('@/api/client', () => ({
   apiClient: {
-    get: jest.fn(),
-    post: jest.fn(),
-    patch: jest.fn(),
-    delete: jest.fn(),
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -13,11 +13,11 @@ import { apiClient } from '@/api/client';
 
 describe('requestsApi', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('getOpenFeed calls GET /requests with params', async () => {
-    (apiClient.get as jest.Mock).mockResolvedValue({ data: { data: [] } });
+    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: [] } });
     await requestsApi.getOpenFeed({ type: 'SERVICE', page: 1 });
     expect(apiClient.get).toHaveBeenCalledWith('/requests', {
       params: { type: 'SERVICE', page: 1 },
@@ -25,7 +25,7 @@ describe('requestsApi', () => {
   });
 
   it('create posts body to /requests', async () => {
-    (apiClient.post as jest.Mock).mockResolvedValue({ data: { data: { id: '1' } } });
+    (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: '1' } } });
     await requestsApi.create({
       type: 'PRODUCT',
       categoryId: 'c1',
@@ -39,7 +39,7 @@ describe('requestsApi', () => {
   });
 
   it('acceptOffer patches accept path', async () => {
-    (apiClient.patch as jest.Mock).mockResolvedValue({ data: { data: {} } });
+    (apiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
     await requestsApi.acceptOffer('req1', 'off1');
     expect(apiClient.patch).toHaveBeenCalledWith('/requests/req1/offers/off1/accept');
   });

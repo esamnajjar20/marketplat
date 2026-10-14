@@ -1,5 +1,6 @@
 jest.mock('../../src/config/env', () => ({
-  env: { cloudinary: { cloudName: 'demo' } },
+  env: {
+    rateLimit: { disabled: true }, cloudinary: { cloudName: 'demo' } },
 }));
 
 jest.mock('../../src/config/cloudinary', () => ({

@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@/lib/networkObservability', () => ({
+  recordRequestRetry: vi.fn(),
   recordConnectionSnapshot: vi.fn(),
   recordRequestCompleted: vi.fn(),
   recordRequestStarted: vi.fn(),

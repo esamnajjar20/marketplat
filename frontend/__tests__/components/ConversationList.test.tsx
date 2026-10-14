@@ -26,6 +26,14 @@ vi.mock('@/hooks/queries/usePresence', () => ({
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
   selectUser: (s: { user: unknown }) => s.user,
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
+  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectAccessToken: (s: any) => s?.accessToken,
+  selectIsAuthenticated: (s: any) => Boolean(s?.isAuthenticated ?? s?.user),
+  selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
 
 const mockUseMyConversations = vi.mocked(useMyConversations);

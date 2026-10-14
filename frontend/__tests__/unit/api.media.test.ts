@@ -16,6 +16,7 @@ vi.mock('@/lib/networkErrors', () => ({ isNetworkFailure: (error: unknown) => {
   return e.statusCode === 0 || e.request != null || ['NETWORK_ERROR', 'ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT'].includes(e.code ?? '');
 } }));
 vi.mock('@/lib/networkObservability', () => ({
+  recordRequestRetry: vi.fn(),
   recordUploadAttempt: mocks.recordUploadAttempt,
   recordUploadResult: mocks.recordUploadResult,
 }));

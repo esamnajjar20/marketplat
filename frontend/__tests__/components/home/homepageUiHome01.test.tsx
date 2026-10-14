@@ -42,6 +42,13 @@ vi.mock('@/store/auth.store', () => ({
     sel({ isAuthenticated: false, isHydrated: true }),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
   selectIsHydrated: (s: { isHydrated: boolean }) => s.isHydrated,
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
+  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+  selectAccessToken: (s: any) => s?.accessToken,
+  selectUser: (s: any) => s?.user,
+  selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
 
 describe('MAX_HOME_CATEGORIES', () => {

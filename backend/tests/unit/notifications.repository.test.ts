@@ -134,7 +134,7 @@ describe('notificationsRepository', () => {
 
       expect(prisma.notification.findMany).toHaveBeenCalledWith({
         where: { userId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 20,
       });

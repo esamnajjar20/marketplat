@@ -57,7 +57,7 @@ describe('blockedUsersRepository', () => {
       expect(prisma.userBlock.findMany).toHaveBeenCalledWith({
         where: { blockerId },
         include: { blocked: { select: { id: true, name: true, avatarUrl: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 20,
       });
