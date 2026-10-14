@@ -19,7 +19,7 @@ import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
-import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { getStablePageSize } from '@/lib/networkPolicy';
 import type { ProductSortField } from '@/types/product.types';
 import { queryKeys } from '@/lib/queryKeys';
 
@@ -53,7 +53,7 @@ export function ProductsGrid() {
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getAdaptivePageSize(12, networkPolicy);
+  const pageSize = getStablePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
     queryKey: queryKeys.products.infinite({ search, city, sortBy, sortOrder, hasPromotion, pageSize }),

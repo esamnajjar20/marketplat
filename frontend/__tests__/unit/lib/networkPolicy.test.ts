@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/connectionQuality', () => mocks);
 
-import { getAdaptivePageSize, getNetworkPolicy } from '@/lib/networkPolicy';
+import { getAdaptivePageSize, getNetworkPolicy, getStablePageSize } from '@/lib/networkPolicy';
 
 describe('networkPolicy', () => {
   beforeEach(() => {
@@ -145,5 +145,49 @@ describe('networkPolicy', () => {
 
     expect(policy.tier).toBe('very-slow');
     expect(policy.requestTimeoutMs).toBe(25_000);
+  });
+  // REGRESSION (FIX OFFLINE-PAGESIZE-KEY-01): pageSize is part of the persisted
+  // query key, and getAdaptivePageSize() returns 4 offline — so the offline key
+  // never matched the key the data was saved under while online.
+  describe('getStablePageSize', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('matches getAdaptivePageSize while online and remembers the size', () => {
+      Object.defineProperty(navigator, 'connection', {
+        configurable: true,
+        value: { effectiveType: '3g', downlink: 1, saveData: false },
+      });
+      const online = getStablePageSize(12, getNetworkPolicy());
+      expect(online).toBe(getAdaptivePageSize(12, getNetworkPolicy()));
+      expect(localStorage.getItem('marketplat:last-online-page-size:12')).toBe(String(online));
+    });
+
+    it('reuses the last online size while offline instead of the offline minimum', () => {
+      Object.defineProperty(navigator, 'connection', {
+        configurable: true,
+        value: { effectiveType: '4g', downlink: 10, saveData: false },
+      });
+      mocks.getConnectionQuality.mockReturnValue('fast');
+      const onlineSize = getStablePageSize(12, getNetworkPolicy());
+      expect(onlineSize).toBe(12);
+
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+      mocks.getConnectionQuality.mockReturnValue('offline');
+      const offlinePolicy = getNetworkPolicy();
+      expect(offlinePolicy.tier).toBe('offline');
+      expect(getAdaptivePageSize(12, offlinePolicy)).toBe(4);
+      expect(getStablePageSize(12, offlinePolicy)).toBe(12);
+    });
+
+    it('falls back to the adaptive size when nothing was remembered or storage is invalid', () => {
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+      mocks.getConnectionQuality.mockReturnValue('offline');
+      const offlinePolicy = getNetworkPolicy();
+      expect(getStablePageSize(12, offlinePolicy)).toBe(4);
+      localStorage.setItem('marketplat:last-online-page-size:12', '999');
+      expect(getStablePageSize(12, offlinePolicy)).toBe(4);
+    });
   });
 });

@@ -11,7 +11,7 @@ import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
-import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { getStablePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
 
 const PAGE_SIZE = 16;
@@ -22,7 +22,7 @@ const PAGE_SIZE = 16;
  */
 export function PromotedPageClient() {
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getAdaptivePageSize(PAGE_SIZE, networkPolicy);
+  const pageSize = getStablePageSize(PAGE_SIZE, networkPolicy);
 
   const query = useInfiniteQuery({
     queryKey: queryKeys.products.promotedInfinite(pageSize),

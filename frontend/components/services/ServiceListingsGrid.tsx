@@ -21,7 +21,7 @@ import { serviceListingsApi } from '@/api/service-listings.api';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import type { ServiceListingSortField } from '@/types/service.types';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
-import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { getStablePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
 
 export function ServiceListingsGrid() {
@@ -42,7 +42,7 @@ export function ServiceListingsGrid() {
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getAdaptivePageSize(12, networkPolicy);
+  const pageSize = getStablePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
     queryKey: queryKeys.serviceListings.infinite({ search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder, pageSize }),

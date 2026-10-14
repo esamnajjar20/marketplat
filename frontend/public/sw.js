@@ -110,7 +110,7 @@ const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?
 // Authorization is present so logged-in users on weak net get fallback.
 // (2) shorter navigate timeout when a cached shell exists.
 // (3) adaptive front-end warming (see offlineWarmingPlanner).
-const CACHE_VERSION = 'v61';
+const CACHE_VERSION = 'v62';
 // FIX OFFLINE-QUEUE-RELIABILITY-01: v35 — إصلاح طابور الأوفلاين:
 // (1) تنظيف headers عند الحفظ/الإعادة (content-length/host…) كانت تسبب
 // still-offline صامت بعد عودة النت. (2) فشل IndexedDB/حجم كبير يرجع
@@ -161,6 +161,100 @@ function userIdFromAuthorization(request) {
 function userDataCacheForRequest(request) {
   const userId = userIdFromAuthorization(request);
   return userId ? userDataCacheName(userId) : null;
+}
+
+// FIX OFFLINE-AUTH-RELOAD-01: the page keeps the accessToken in memory only,
+// so after a reload while offline a request has no Authorization header and
+// cannot name its per-user cache — responses saved while logged in (public
+// list GETs go to the user partition, see networkFirstApi) became unreachable.
+// Remember which subject last wrote to a user partition and let *public list*
+// GETs without a token fall back to that one partition. Unversioned on
+// purpose (survives CACHE_VERSION bumps) and deleted on logout together with
+// the partitions themselves (CLEAR_API_CACHE), so it never outlives them.
+const SW_META_CACHE = 'market-sw-meta';
+const LAST_USER_KEY = '/__sw-last-user';
+let lastUserIdMemo = null;
+
+function lastUserKeyUrl() {
+  return new URL(LAST_USER_KEY, self.location.origin).href;
+}
+
+async function rememberLastUserId(userId) {
+  if (!userId || userId === lastUserIdMemo) return;
+  lastUserIdMemo = userId;
+  try {
+    const cache = await caches.open(SW_META_CACHE);
+    await cache.put(lastUserKeyUrl(), new Response(userId, { headers: { 'Content-Type': 'text/plain' } }));
+  } catch { /* best-effort */ }
+}
+
+async function readLastUserId() {
+  if (lastUserIdMemo) return lastUserIdMemo;
+  try {
+    const cache = await caches.open(SW_META_CACHE);
+    const res = await cache.match(lastUserKeyUrl());
+    if (!res) return null;
+    const text = (await (typeof res.clone === 'function' ? res.clone() : res).text()).trim();
+    if (text) lastUserIdMemo = text;
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+async function forgetLastUserId() {
+  lastUserIdMemo = null;
+  try { await caches.delete(SW_META_CACHE); } catch { /* best-effort */ }
+}
+
+// FIX OFFLINE-CACHE-MIGRATE-01: every CACHE_VERSION bump used to delete the
+// API / core / image / per-user data caches, although that data does not
+// depend on the build (only HTML/RSC/JS shells do). A user whose worker
+// updated and who went offline before re-warming lost everything. On
+// activate, copy still-fresh entries from the previous versions' data caches
+// into the current ones before the old caches are deleted. Newest version
+// first, never overwrite an entry that already exists, skip entries older
+// than the offline max age (guards against very old response shapes).
+const DATA_CACHE_MIGRATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function copyCacheEntries(fromName, toName) {
+  const from = await caches.open(fromName);
+  const to = await caches.open(toName);
+  const requests = await from.keys();
+  for (const req of requests) {
+    try {
+      if (await to.match(req, { ignoreVary: true })) continue;
+      const res = await from.match(req, { ignoreVary: true });
+      if (!res) continue;
+      const cachedAt = Number(res.headers && res.headers.get('X-SW-Cached-At')) || 0;
+      if (cachedAt && Date.now() - cachedAt > DATA_CACHE_MIGRATION_MAX_AGE_MS) continue;
+      await to.put(req, res);
+    } catch { /* skip this entry (quota / opaque / bad entry) */ }
+  }
+}
+
+function planDataCacheMigration(cacheNames) {
+  const plan = [];
+  for (const name of cacheNames) {
+    let m = /^market-api-v(\d+)$/.exec(name);
+    if (m) { if (name !== API_CACHE) plan.push({ v: Number(m[1]), from: name, to: API_CACHE }); continue; }
+    m = /^market-core-v(\d+)$/.exec(name);
+    if (m) { if (name !== CORE_CACHE) plan.push({ v: Number(m[1]), from: name, to: CORE_CACHE }); continue; }
+    m = /^market-images-v(\d+)$/.exec(name);
+    if (m) { if (name !== IMAGE_CACHE) plan.push({ v: Number(m[1]), from: name, to: IMAGE_CACHE }); continue; }
+    m = /^market-user-data-v(\d+)-(.+)$/.exec(name);
+    if (m) {
+      const to = `${USER_DATA_CACHE_PREFIX}${m[2]}`;
+      if (name !== to) plan.push({ v: Number(m[1]), from: name, to });
+    }
+  }
+  return plan.sort((a, b) => b.v - a.v);
+}
+
+async function migrateDataCaches(cacheNames) {
+  for (const step of planDataCacheMigration(cacheNames)) {
+    try { await copyCacheEntries(step.from, step.to); } catch { /* never block activation */ }
+  }
 }
 // FEAT-OFFLINE-MSG (وسِّع لاحقًا ليشمل /notifications، انظر
 // isPersonalShellRoute أدناه): كاش شكل الصفحة (page shell) لمسارات محمية
@@ -1795,6 +1889,7 @@ async function networkFirstApi(event, request, url) {
     const userDataCache = await caches.open(userCacheName);
     await putTimestamped(userDataCache, request, response.clone());
     await trimCache(userCacheName, MAX_USER_DATA_ENTRIES, MAX_USER_DATA_BYTES);
+    if (publicListOk) await rememberLastUserId(userIdFromAuthorization(request));
   };
 
   try {
@@ -1822,6 +1917,16 @@ async function networkFirstApi(event, request, url) {
         if (cachedCore && isSafeSharedApiSnapshot(cachedCore)) return cachedCore;
       }
     } else {
+      // FIX OFFLINE-AUTH-RELOAD-01: no token (offline reload) — try the last
+      // authenticated user's partition for public list endpoints only.
+      if (publicListOk && !isSensitiveApi) {
+        const lastUserId = await readLastUserId();
+        if (lastUserId) {
+          const lastUserCache = await caches.open(userDataCacheName(lastUserId));
+          const cachedForUser = await lastUserCache.match(request, { ignoreVary: true });
+          if (cachedForUser && isSafeUserApiSnapshot(cachedForUser)) return cachedForUser;
+        }
+      }
       const cachedApi = await cache.match(request, { ignoreVary: true });
       if (cachedApi && isSafeSharedApiSnapshot(cachedApi)) return cachedApi;
       const coreCache = await caches.open(CORE_CACHE);
@@ -3178,10 +3283,13 @@ self.addEventListener('activate', (event) => {
     // SW update لأنه ليس في currentCaches → كل الإعلانات المزارة تختفي
     // (نفس نمط v24 لـ CORE_CACHE). الآن يُحفظ عبر التحديثات.
     'market-auto-read-ads',
+    SW_META_CACHE,
   ];
   event.waitUntil(
     (async () => {
       const cacheNames = await caches.keys();
+      // Copy still-fresh data caches forward BEFORE the old versions are deleted.
+      await migrateDataCaches(cacheNames);
       await Promise.all(
         cacheNames
           .filter((name) =>
@@ -3333,6 +3441,7 @@ self.addEventListener('message', (event) => {
       caches.keys().then((names) =>
         Promise.all(names.filter((name) => name.startsWith(USER_DATA_CACHE_PREFIX)).map((name) => caches.delete(name))),
       ),
+      forgetLastUserId(),
     ]));
     return;
   }

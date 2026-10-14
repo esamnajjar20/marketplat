@@ -229,6 +229,8 @@ function loadServiceWorker() {
     fetch: (...args: any[]) => currentFetch(args[0], args[1]),
     indexedDB: createFakeIndexedDB(),
     console,
+    atob,
+    btoa,
     URL,
     Headers,
     TextEncoder,
@@ -1446,6 +1448,90 @@ describe('sw.js — service worker logic', () => {
       await ctx.sandbox.replayQueue();
 
       expect(fetchCalls).toBe(0);
+    });
+  });
+  // FIX OFFLINE-AUTH-RELOAD-01 / FIX OFFLINE-CACHE-MIGRATE-01
+  describe('offline reload without a token and data-cache migration', () => {
+    const TOKEN_A = 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature';
+    const jsonOk = () =>
+      new Response(JSON.stringify({ items: [1] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+    it('serves a logged-in public list from the last user partition after a token-less offline reload', async () => {
+      ctx.setFetch(async () => jsonOk());
+      const online = makeFakeRequest({ url: 'https://example.com/api/v1/products?page=1&limit=12', headers: { authorization: TOKEN_A } });
+      const onlineEvent = makeEvent();
+      await ctx.sandbox.networkFirstApi(onlineEvent, online, new URL(online.url));
+      await Promise.all(onlineEvent._waits);
+
+      ctx.setFetch(async () => { throw new TypeError('offline'); });
+      const offline = makeFakeRequest({ url: 'https://example.com/api/v1/products?page=1&limit=12' });
+      const res = await ctx.sandbox.networkFirstApi(makeEvent(), offline, new URL(offline.url));
+      expect(res.status).toBe(200);
+      expect((await res.json()).items).toEqual([1]);
+
+      // privacy: the public list copy never enters the shared API_CACHE
+      const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      expect(await apiCache.match(online)).toBeUndefined();
+    });
+
+    it('does not serve private user endpoints to a token-less request', async () => {
+      ctx.setFetch(async () => jsonOk());
+      const online = makeFakeRequest({ url: 'https://example.com/api/v1/ads/me', headers: { authorization: TOKEN_A } });
+      const onlineEvent = makeEvent();
+      await ctx.sandbox.networkFirstApi(onlineEvent, online, new URL(online.url));
+      await Promise.all(onlineEvent._waits);
+
+      ctx.setFetch(async () => { throw new TypeError('offline'); });
+      const offline = makeFakeRequest({ url: 'https://example.com/api/v1/ads/me' });
+      const res = await ctx.sandbox.networkFirstApi(makeEvent(), offline, new URL(offline.url));
+      expect(res.ok).toBe(false);
+    });
+
+    it('forgets the last user on CLEAR_API_CACHE (logout)', async () => {
+      ctx.setFetch(async () => jsonOk());
+      const online = makeFakeRequest({ url: 'https://example.com/api/v1/products?page=1&limit=12', headers: { authorization: TOKEN_A } });
+      const onlineEvent = makeEvent();
+      await ctx.sandbox.networkFirstApi(onlineEvent, online, new URL(online.url));
+      await Promise.all(onlineEvent._waits);
+
+      const waits: Promise<unknown>[] = [];
+      for (const handler of ctx.listeners['message'] ?? []) {
+        handler({ data: { type: 'CLEAR_API_CACHE' }, waitUntil: (p: Promise<unknown>) => waits.push(p) });
+      }
+      await Promise.all(waits);
+
+      ctx.setFetch(async () => { throw new TypeError('offline'); });
+      const offline = makeFakeRequest({ url: 'https://example.com/api/v1/products?page=1&limit=12' });
+      const res = await ctx.sandbox.networkFirstApi(makeEvent(), offline, new URL(offline.url));
+      expect(res.ok).toBe(false);
+    });
+
+    it('migrates fresh data caches from the previous version on activate and drops the old ones', async () => {
+      const put = async (cacheName: string, url: string, body: string, headers: Record<string, string> = {}) => {
+        const cache = await ctx.fakeCaches.open(cacheName);
+        await cache.put(url, new Response(body, { headers }));
+      };
+      const read = async (cacheName: string, url: string) => {
+        const hit = await (await ctx.fakeCaches.open(cacheName)).match(url);
+        return hit ? hit.text() : undefined;
+      };
+      await put('market-api-v1', 'https://example.com/api/v1/products?p=1', 'old', { 'X-SW-Cached-At': String(Date.now() - 1000) });
+      await put('market-api-v1', 'https://example.com/api/v1/stores', 'too-old', { 'X-SW-Cached-At': String(Date.now() - 8 * 24 * 3600 * 1000) });
+      await put('market-core-v1', 'https://example.com/api/v1/categories', 'core');
+      await put('market-user-data-v1-user-a', 'https://example.com/api/v1/ads?page=1', 'user-data');
+      await put('market-static-v1', 'https://example.com/products', 'old-shell');
+      await put(ctx.sandbox.self.__API_CACHE, 'https://example.com/api/v1/products?p=1', 'new');
+
+      const waits: Promise<unknown>[] = [];
+      for (const handler of ctx.listeners['activate'] ?? []) handler({ waitUntil: (p: Promise<unknown>) => waits.push(p) });
+      await Promise.all(waits);
+
+      expect(await read(ctx.sandbox.self.__API_CACHE, 'https://example.com/api/v1/products?p=1')).toBe('new'); // never overwrite
+      expect(await read(ctx.sandbox.self.__API_CACHE, 'https://example.com/api/v1/stores')).toBeUndefined(); // too old
+      expect(await read(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'), 'https://example.com/api/v1/ads?page=1')).toBe('user-data');
+      const names = await ctx.fakeCaches.keys();
+      expect(names).not.toContain('market-api-v1');
+      expect(names).not.toContain('market-static-v1');
     });
   });
 });

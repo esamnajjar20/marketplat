@@ -234,6 +234,38 @@ export function getAdaptivePageSize(
   return Math.min(maxSize, Math.max(minSize, scaled));
 }
 
+const STABLE_PAGE_SIZE_KEY_PREFIX = 'marketplat:last-online-page-size:';
+
+/**
+ * Page size for query KEYS that are persisted for offline use.
+ *
+ * getAdaptivePageSize() returns the minimum (4) while offline, but the cache
+ * entry was saved under the size used while online (e.g. 8/10/12). Because
+ * pageSize is part of the query key, the offline lookup never matched the
+ * saved entry. While online this behaves exactly like getAdaptivePageSize()
+ * and remembers the result; while offline it reuses the last online size.
+ */
+export function getStablePageSize(
+  baseSize: number,
+  policy: NetworkPolicy = getNetworkPolicy(),
+  minSize = 4,
+  maxSize = 24,
+): number {
+  const storageKey = `${STABLE_PAGE_SIZE_KEY_PREFIX}${baseSize}`;
+  if (policy.tier === 'offline') {
+    try {
+      const stored = Number(localStorage.getItem(storageKey));
+      if (Number.isInteger(stored) && stored >= minSize && stored <= maxSize) return stored;
+    } catch { /* storage unavailable — fall through */ }
+    return getAdaptivePageSize(baseSize, policy, minSize, maxSize);
+  }
+  const size = getAdaptivePageSize(baseSize, policy, minSize, maxSize);
+  if (policy.tier !== 'unknown') {
+    try { localStorage.setItem(storageKey, String(size)); } catch { /* ignore */ }
+  }
+  return size;
+}
+
 export function subscribeNetworkPolicy(listener: () => void): () => void {
   return subscribeNetworkLifecycle((event) => {
     if (

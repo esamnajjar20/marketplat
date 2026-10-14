@@ -18,7 +18,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import type { StoreSortField } from '@/types/store.types';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
-import { getAdaptivePageSize } from '@/lib/networkPolicy';
+import { getStablePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
 
 /** GET /stores directory grid. Mirrors ServiceListingsGrid's layout/behaviour. */
@@ -34,7 +34,7 @@ export function StoresGrid() {
   const view = sp.get('view') === 'list' ? 'list' : 'grid';
 
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getAdaptivePageSize(12, networkPolicy);
+  const pageSize = getStablePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
     queryKey: queryKeys.stores.infinite({ search, city, sortBy, sortOrder, pageSize }),

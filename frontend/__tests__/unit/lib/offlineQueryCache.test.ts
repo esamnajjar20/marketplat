@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getOfflineQueryDataBytes,
+  mergePersistedQueries,
   isValidOfflineQueryCacheEntry,
   isOfflinePersistableQueryKey,
   selectPersistableQueries,
@@ -50,9 +51,9 @@ describe('offline query cache safety and limits', () => {
     expect(isOfflinePersistableQueryKey(['products', 'list', { page: 1, search: undefined }])).toBe(true);
   });
 
-  it('enforces a 64 KiB entry cap and seven-day maximum age', () => {
+  it('enforces a 512 KiB entry cap and seven-day maximum age', () => {
     const now = 1_800_000_000_000;
-    expect(OFFLINE_QUERY_MAX_ENTRY_BYTES).toBe(64 * 1024);
+    expect(OFFLINE_QUERY_MAX_ENTRY_BYTES).toBe(512 * 1024);
     const rows = selectPersistableQueries([
       { queryKey: ['products', 'list', { page: 1 }], state: { data: [{ id: 1 }], dataUpdatedAt: now - 1000 } },
       { queryKey: ['products', 'list', { page: 2 }], state: { data: 'x'.repeat(30 * 1024), dataUpdatedAt: now } },
@@ -105,6 +106,41 @@ describe('offline query cache safety and limits', () => {
     expect(isValidOfflineQueryCacheEntry({ ...valid, data: 'x'.repeat(OFFLINE_QUERY_MAX_ENTRY_BYTES + 1) }, now)).toBe(false);
     expect(isValidOfflineQueryCacheEntry({ ...valid, savedAt: now + 60_001 }, now)).toBe(false);
     expect(isValidOfflineQueryCacheEntry({ ...valid, queryKey: ['products', 'me', {}] }, now)).toBe(false);
+  });
+
+  // REGRESSION (FIX OFFLINE-PERSIST-MERGE-01): persisting used to clear the
+  // store and rewrite only what was still in memory, so GC of an unobserved
+  // query (gcTime = 10 min) also deleted its IndexedDB snapshot.
+  describe('mergePersistedQueries', () => {
+    const now = 1_800_000_000_000;
+    const row = (page: number, dataUpdatedAt: number, data: unknown = [{ page }]) => {
+      const [entry] = selectPersistableQueries([
+        { queryKey: ['products', 'list', { page }], state: { data, dataUpdatedAt } },
+      ], now);
+      return entry!;
+    };
+
+    it('keeps valid persisted rows that are no longer in memory', () => {
+      const persistedOnly = row(1, now - 60_000);
+      const inMemory = row(2, now - 1_000);
+      const merged = mergePersistedQueries([persistedOnly], [inMemory], now);
+      expect(merged.map((e) => (e.queryKey[2] as { page: number }).page).sort()).toEqual([1, 2]);
+    });
+
+    it('lets in-memory data win for the same key', () => {
+      const old = row(1, now - 60_000, ['old']);
+      const fresh = row(1, now - 1_000, ['fresh']);
+      const merged = mergePersistedQueries([old], [fresh], now);
+      expect(merged).toHaveLength(1);
+      expect(merged[0]!.data).toEqual(['fresh']);
+    });
+
+    it('drops expired or corrupt persisted rows and ignores the meta record', () => {
+      const expired = { ...row(1, now - 1_000), dataUpdatedAt: now - OFFLINE_QUERY_MAX_AGE_MS - 1 };
+      const corrupt = { ...row(2, now - 1_000), bytes: 1 };
+      const meta = { id: '__meta__', savedAt: now, bytes: 10 };
+      expect(mergePersistedQueries([expired, corrupt, meta, null, 'junk'], [], now)).toEqual([]);
+    });
   });
 
 });

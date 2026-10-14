@@ -153,6 +153,39 @@ export function selectPersistableQueries(queries: Array<{ queryKey: QueryKey; st
   return candidates.sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt).slice(0, OFFLINE_QUERY_MAX_ENTRIES);
 }
 
+/**
+ * FIX OFFLINE-PERSIST-MERGE-01: merge the in-memory snapshot into what is
+ * already persisted instead of replacing the whole store.
+ *
+ * Previously persistOfflineQueryCache() did store.clear() + put(memory only),
+ * and subscribeOfflineQueryCache() re-ran it on every 'removed' event. React
+ * Query garbage-collects unobserved queries after gcTime (10 min), so any
+ * page not currently in memory was deleted from IndexedDB shortly after —
+ * the advertised 7-day offline lifetime was really ~10 minutes. Entries that
+ * are valid but not in memory are now kept; in-memory data always wins for
+ * the same key, and the age/entry/byte limits still apply.
+ */
+export function mergePersistedQueries(
+  existing: unknown[],
+  selected: PersistedQuery[],
+  now = Date.now(),
+): PersistedQuery[] {
+  const memoryIds = new Set(selected.map((entry) => entry.id));
+  const kept = existing.filter(
+    (record): record is PersistedQuery =>
+      isValidOfflineQueryCacheEntry(record, now) && !memoryIds.has((record as PersistedQuery).id),
+  );
+  const merged = [...selected, ...kept].sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt).slice(0, OFFLINE_QUERY_MAX_ENTRIES);
+  const bounded: PersistedQuery[] = [];
+  let totalBytes = 0;
+  for (const entry of merged) {
+    if (totalBytes + entry.bytes > OFFLINE_QUERY_MAX_TOTAL_BYTES) continue;
+    bounded.push(entry);
+    totalBytes += entry.bytes;
+  }
+  return bounded;
+}
+
 export async function restoreOfflineQueryCache(queryClient: QueryClient): Promise<number> {
   let db: IDBDatabase | undefined;
   try {
@@ -187,21 +220,28 @@ export async function persistOfflineQueryCache(queryClient: QueryClient): Promis
   try {
     db = await openDb();
     const selected = selectPersistableQueries(queryClient.getQueryCache().getAll().map((query) => ({ queryKey: query.queryKey, state: { data: query.state.data, dataUpdatedAt: query.state.dataUpdatedAt } })));
-    const bounded: PersistedQuery[] = [];
-    let totalBytes = 0;
-    for (const entry of selected) { if (totalBytes + entry.bytes > OFFLINE_QUERY_MAX_TOTAL_BYTES) continue; bounded.push(entry); totalBytes += entry.bytes; }
     const tx = db.transaction(OFFLINE_QUERY_CACHE_STORE, 'readwrite');
     const store = tx.objectStore(OFFLINE_QUERY_CACHE_STORE);
-    store.clear();
-    for (const entry of bounded) store.put(entry);
-    const savedAt = bounded.reduce((latest, entry) => Math.max(latest, entry.dataUpdatedAt), 0);
-    if (bounded.length > 0) store.put({ id: '__meta__', savedAt, bytes: totalBytes } satisfies PersistedMeta);
+    let persistedCount = 0;
+    let savedAt = 0;
+    // Read + rewrite inside one transaction (callback style keeps it active),
+    // so a concurrent persist cannot interleave between the read and the write.
+    const readRequest = store.getAll() as IDBRequest<PersistedRecord[]>;
+    readRequest.onsuccess = () => {
+      const bounded = mergePersistedQueries(readRequest.result ?? [], selected);
+      store.clear();
+      for (const entry of bounded) store.put(entry);
+      persistedCount = bounded.length;
+      savedAt = bounded.reduce((latest, entry) => Math.max(latest, entry.dataUpdatedAt), 0);
+      const totalBytes = bounded.reduce((sum, entry) => sum + entry.bytes, 0);
+      if (bounded.length > 0) store.put({ id: '__meta__', savedAt, bytes: totalBytes } satisfies PersistedMeta);
+    };
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed')); tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted')); });
     if (typeof localStorage !== 'undefined') {
       if (savedAt > 0) localStorage.setItem(LAST_CACHE_AT_KEY, String(savedAt));
       else localStorage.removeItem(LAST_CACHE_AT_KEY);
     }
-    return bounded.length;
+    return persistedCount;
   } catch { return 0; } finally { db?.close(); }
 }
 export function getLastOfflineQueryCacheSavedAt(): number | null {
@@ -229,7 +269,8 @@ export function subscribeOfflineQueryCache(queryClient: QueryClient): () => void
   const schedule = () => { if (timer) clearTimeout(timer); timer = setTimeout(() => { timer = undefined; if (!disposed) void persistOfflineQueryCache(queryClient); }, SAVE_DEBOUNCE_MS); };
   const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
     if (event.type === 'updated' && event.action.type === 'success' && isOfflinePersistableQueryKey(event.query.queryKey)) schedule();
-    if (event.type === 'removed' && isOfflinePersistableQueryKey(event.query.queryKey)) schedule();
+    // FIX OFFLINE-PERSIST-MERGE-01: no 'removed' trigger. GC of an unobserved query is not a
+    // reason to forget its persisted snapshot; stale rows expire by age (7 days) instead.
   });
   return () => { disposed = true; unsubscribe(); if (timer) clearTimeout(timer); };
 }
