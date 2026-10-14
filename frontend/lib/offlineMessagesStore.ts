@@ -55,7 +55,11 @@ function openDb(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_META, { keyPath: 'key' });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => { try { db.close(); } catch { /* already closed */ } };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
 }

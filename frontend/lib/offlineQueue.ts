@@ -213,19 +213,31 @@ function openQueueDb(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Never block a schema upgrade requested by the SW or another tab.
+      db.onversionchange = () => { try { db.close(); } catch { /* already closed */ } };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error('Offline queue DB upgrade blocked'));
   });
 }
 
 async function getAllEntries(): Promise<RawQueueEntry[]> {
   const db = await openQueueDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const req = tx.objectStore(STORE_NAME).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
+  try {
+    return await new Promise<RawQueueEntry[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+      tx.onabort = () => reject(tx.error ?? new Error('queue read aborted'));
+    });
+  } finally {
+    // Previously leaked one open connection per call (badge polling, /offline).
+    try { db.close(); } catch { /* already closed */ }
+  }
 }
 
 /** عنصر بلا status (تنسيق قديم) يُعامَل كـ pending — نفس افتراض sw.js. */
@@ -436,13 +448,17 @@ function setLastReplayAt(value: number): void {
  */
 async function clearQueueDirectly(): Promise<void> {
   const db = await openQueueDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).clear();
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error('queue clear failed'));
-    tx.onabort = () => reject(tx.error ?? new Error('queue clear aborted'));
-  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('queue clear failed'));
+      tx.onabort = () => reject(tx.error ?? new Error('queue clear aborted'));
+    });
+  } finally {
+    try { db.close(); } catch { /* already closed */ }
+  }
 }
 
 /**
@@ -637,8 +653,12 @@ export function queueFailureAction(
 export async function listQueuedOperationIds(): Promise<Set<string>> {
   try {
     const entries = await getAllEntries();
+    const userId = getCurrentOfflineUserId();
     const ids = new Set<string>();
     for (const e of entries) {
+      // Another account's queued rows on a shared device must not make this
+      // account's draft look "already handed off" (it would never publish).
+      if (userId && e.ownerUserId && e.ownerUserId !== userId) continue;
       if (e.operationId && e.status !== 'failed' && e.status !== 'cancelled') ids.add(e.operationId);
     }
     return ids;
@@ -664,8 +684,10 @@ export async function listQueuedOperationIds(): Promise<Set<string>> {
 export async function listQueuedOperationsWithAge(): Promise<Map<string, number>> {
   try {
     const entries = await getAllEntries();
+    const userId = getCurrentOfflineUserId();
     const map = new Map<string, number>();
     for (const e of entries) {
+      if (userId && e.ownerUserId && e.ownerUserId !== userId) continue;
       if (e.operationId && e.status !== 'failed' && e.status !== 'cancelled' && typeof e.queuedAt === 'number') {
         map.set(e.operationId, e.queuedAt);
       }

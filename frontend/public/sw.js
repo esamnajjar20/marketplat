@@ -1957,8 +1957,15 @@ function openQueueDb() {
         db.createObjectStore(QUEUE_STORE_NAME, { keyPath: 'id', autoIncrement: true });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // If another context needs a schema upgrade, release this connection
+      // instead of blocking it (connections are short-lived by design).
+      db.onversionchange = () => { try { db.close(); } catch { /* already closed */ } };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error('Offline queue DB upgrade blocked'));
   });
 }
 
@@ -1987,6 +1994,16 @@ function estimateQueueEntryBytes(entry) {
 
 async function queueRequestEntry(entry, lifecycleVersion = queueLifecycleVersion) {
   const db = await openQueueDb();
+  try {
+    return await queueRequestEntryOnDb(db, entry, lifecycleVersion);
+  } finally {
+    // close() waits for the pending transaction; it only stops the per-call
+    // connection from leaking (each call opens a fresh one).
+    try { db.close(); } catch { /* already closed */ }
+  }
+}
+
+function queueRequestEntryOnDb(db, entry, lifecycleVersion) {
   return new Promise((resolve, reject) => {
     // Check AFTER the asynchronous DB open and immediately before creating
     // the write transaction. If CLEAR_QUEUE began while openQueueDb awaited,
@@ -2036,32 +2053,49 @@ async function queueRequestEntry(entry, lifecycleVersion = queueLifecycleVersion
 
 async function getAllQueuedEntries() {
   const db = await openQueueDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(QUEUE_STORE_NAME, 'readonly');
-    const req = tx.objectStore(QUEUE_STORE_NAME).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(QUEUE_STORE_NAME, 'readonly');
+      const req = tx.objectStore(QUEUE_STORE_NAME).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+      tx.onabort = () => reject(tx.error || new Error('queue read aborted'));
+    });
+  } finally {
+    try { db.close(); } catch { /* already closed */ }
+  }
 }
 
 async function getQueuedEntry(id) {
   const db = await openQueueDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(QUEUE_STORE_NAME, 'readonly');
-    const req = tx.objectStore(QUEUE_STORE_NAME).get(id);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error);
-  });
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(QUEUE_STORE_NAME, 'readonly');
+      const req = tx.objectStore(QUEUE_STORE_NAME).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+      tx.onabort = () => reject(tx.error || new Error('queue read aborted'));
+    });
+  } finally {
+    try { db.close(); } catch { /* already closed */ }
+  }
 }
 
 async function deleteQueuedEntry(id) {
   const db = await openQueueDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
-    tx.objectStore(QUEUE_STORE_NAME).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
+      tx.objectStore(QUEUE_STORE_NAME).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('queue delete failed'));
+      // Without onabort a quota/abort left this promise pending forever and
+      // wedged replayQueue (same failure class as T711 in markQueuedEntry).
+      tx.onabort = () => reject(tx.error || new Error('queue delete aborted'));
+    });
+  } finally {
+    try { db.close(); } catch { /* already closed */ }
+  }
 }
 
 /** FEAT-OFFLINE-MSG: يستبدل حذف العنصر بتحديثه (put بنفس الـ id — keyPath
@@ -2070,6 +2104,14 @@ async function deleteQueuedEntry(id) {
  * الإرسال" مع خيار إعادة المحاولة/الحذف بدل أن تُسقِط الرسالة بلا أثر. */
 async function markQueuedEntry(id, patch) {
   const db = await openQueueDb();
+  try {
+    return await markQueuedEntryOnDb(db, id, patch);
+  } finally {
+    try { db.close(); } catch { /* already closed */ }
+  }
+}
+
+function markQueuedEntryOnDb(db, id, patch) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
     const store = tx.objectStore(QUEUE_STORE_NAME);
@@ -2467,14 +2509,18 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         // Headers.forEach (المستخدَم بـ handleMutation) يُرجِع أسماء
         // الحقول بأحرف صغيرة دومًا (Fetch spec) — entry.headers هنا
         // بنفس الصيغة، فالمطابقة المباشرة صحيحة بلا حاجة لفحص case.
-        const updatedHeaders = { ...entry.headers, authorization: `Bearer ${fresh.accessToken}` };
         // FIX SW-CSRF-REFRESH-DEADCODE-01: entry.headers had x-csrf-token
         // stripped at enqueue time (see handleMutation), so the previous
         // `'x-csrf-token' in updatedHeaders` guard was always false and
         // the branch never ran. The fresh CSRF token is applied on the
         // retry by the sendHeaders block (which reads freshCreds), not
         // here - nothing to write into the stored entry.
-        const updatedEntry = await markQueuedEntry(entry.id, { headers: updatedHeaders });
+        // FIX QUEUE-NO-STORE-AUTH-02: do NOT write the refreshed Bearer back
+        // into IndexedDB (this used to persist a live access token, against
+        // QUEUE-NO-STORE-AUTH-01). The retry receives `fresh` and injects the
+        // token in memory. Re-reading the row keeps the old "does it still
+        // exist?" check: a discard/CLEAR_QUEUE during the refresh yields null.
+        const updatedEntry = await getQueuedEntry(entry.id);
         if (updatedEntry) {
           // Pass 'ok' as the reason — we just successfully refreshed,
           // so any needsCsrf guard must see valid creds and NOT trigger.
@@ -2710,6 +2756,7 @@ function isOrderSensitiveQueueEntry(entry) {
 // قبل حذفها → POSTs مكررة لنفس الإعلان/الرسالة.
 let replayQueueInFlight = false;
 let queueClearInFlight = false;
+let queueClearDepth = 0;
 // Session/queue fence: any drain started before CLEAR_QUEUE must never send
 // another queued mutation or commit a response after the clear begins.
 let queueLifecycleVersion = 0;
@@ -2936,7 +2983,12 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
       retryCount: nextRetries,
       lastAttemptAt: now,
       lastSoftError: result,
-      retryNotBefore: result === 'retryable-http' ? (entry.retryNotBefore || 0) : 0,
+      // FIX RETRY-AFTER-01: replayOne already persisted the server's Retry-After
+      // as retryNotBefore. `entry` here is the pre-send snapshot, so writing
+      // entry.retryNotBefore back silently erased that gate and every
+      // 429/503 was retried as soon as minGap allowed. Leave the stored value
+      // untouched for retryable-http.
+      ...(result === 'retryable-http' ? {} : { retryNotBefore: 0 }),
     });
 
     // Real offline → stop entire drain.
@@ -3480,6 +3532,7 @@ self.addEventListener('message', (event) => {
         // Invalidate every snapshot/drain immediately, before awaiting IDB.
         // This closes the race where an old drain continued to the next row
         // after CLEAR_QUEUE had deleted the queue and released its lock.
+        queueClearDepth += 1;
         queueLifecycleVersion += 1;
         queueClearInFlight = true;
         // Abort mutations currently on the wire before deleting their
@@ -3498,7 +3551,10 @@ self.addEventListener('message', (event) => {
           console.warn('[SW] CLEAR_QUEUE failed:', err);
           await notifyClients({ type: 'QUEUE_CLEAR_FAILED' });
         } finally {
-          queueClearInFlight = false;
+          // Overlapping CLEAR_QUEUE messages (logout + account switch) must not
+          // release the fence while a later clear is still deleting rows.
+          queueClearDepth = Math.max(0, queueClearDepth - 1);
+          if (queueClearDepth === 0) queueClearInFlight = false;
         }
       })(),
     );

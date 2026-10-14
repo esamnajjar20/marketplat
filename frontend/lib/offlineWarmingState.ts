@@ -83,14 +83,25 @@ function openDb(): Promise<IDBDatabase> {
     }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onerror = () => reject(req.error ?? new Error('idb open failed'));
+    req.onblocked = () => reject(new Error('idb open blocked'));
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE);
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // A cached connection must be dropped when the browser closes it or
+      // another context upgrades the schema; otherwise every later
+      // transaction throws InvalidStateError until the page is reloaded.
+      db.onversionchange = () => { try { db.close(); } catch { /* already closed */ } dbPromise = null; };
+      db.onclose = () => { dbPromise = null; };
+      resolve(db);
+    };
   });
+  // A failed/blocked open must not be cached permanently — retry next call.
+  dbPromise.catch(() => { dbPromise = null; });
   return dbPromise;
 }
 

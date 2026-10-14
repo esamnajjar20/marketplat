@@ -51,6 +51,20 @@ export function isValidOfflineQueryCacheEntry(record: unknown, now = Date.now())
   }
 }
 
+/**
+ * localStorage can throw on access (SecurityError in privacy-restricted
+ * contexts, QuotaExceededError on write). The marker is advisory only, so a
+ * failure here must never turn a successful IndexedDB restore/persist into a
+ * reported failure (or skip the cleanup that follows it).
+ */
+function writeLastCacheMarker(value: number | null): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (value !== null && value > 0) localStorage.setItem(LAST_CACHE_AT_KEY, String(value));
+    else localStorage.removeItem(LAST_CACHE_AT_KEY);
+  } catch { /* best-effort */ }
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB unavailable'));
@@ -200,11 +214,7 @@ export async function restoreOfflineQueryCache(queryClient: QueryClient): Promis
       queryClient.setQueryData(entry.queryKey, entry.data, { updatedAt: entry.dataUpdatedAt });
       restored += 1;
     }
-    if (typeof localStorage !== 'undefined') {
-      const latest = entries.reduce((value, entry) => Math.max(value, entry.dataUpdatedAt), 0);
-      if (latest > 0) localStorage.setItem(LAST_CACHE_AT_KEY, String(latest));
-      else localStorage.removeItem(LAST_CACHE_AT_KEY);
-    }
+    writeLastCacheMarker(entries.reduce((value, entry) => Math.max(value, entry.dataUpdatedAt), 0));
     const validIds = new Set(entries.map((entry) => entry.id));
     const cleanup = db.transaction(OFFLINE_QUERY_CACHE_STORE, 'readwrite');
     const store = cleanup.objectStore(OFFLINE_QUERY_CACHE_STORE);
@@ -237,16 +247,13 @@ export async function persistOfflineQueryCache(queryClient: QueryClient): Promis
       if (bounded.length > 0) store.put({ id: '__meta__', savedAt, bytes: totalBytes } satisfies PersistedMeta);
     };
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed')); tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted')); });
-    if (typeof localStorage !== 'undefined') {
-      if (savedAt > 0) localStorage.setItem(LAST_CACHE_AT_KEY, String(savedAt));
-      else localStorage.removeItem(LAST_CACHE_AT_KEY);
-    }
+    writeLastCacheMarker(savedAt);
     return persistedCount;
   } catch { return 0; } finally { db?.close(); }
 }
 export function getLastOfflineQueryCacheSavedAt(): number | null {
-  if (typeof localStorage === 'undefined') return null;
   try {
+    if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem(LAST_CACHE_AT_KEY);
     if (!raw) return null;
     const value = Number(raw);

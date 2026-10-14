@@ -63,19 +63,29 @@ function openQueueDb(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => { try { db.close(); } catch { /* already closed */ } };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
 }
 
 async function getAllRawEntries(): Promise<RawQueueEntry[]> {
   const db = await openQueueDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const req = tx.objectStore(STORE_NAME).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
+  try {
+    return await new Promise<RawQueueEntry[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+      tx.onabort = () => reject(tx.error ?? new Error('queue read aborted'));
+    });
+  } finally {
+    // Called on every chat poll/queue event — one leaked connection per call before.
+    try { db.close(); } catch { /* already closed */ }
+  }
 }
 
 /** مسار POST الذي يُرسله conversations.api.ts's sendMessage — يُقارَن

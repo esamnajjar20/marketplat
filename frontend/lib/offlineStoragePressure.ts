@@ -9,6 +9,8 @@
  */
 'use client';
 
+import { getActiveSW } from '@/lib/swReady';
+
 export const STORAGE_WARNING_RATIO = 0.8;
 export const STORAGE_CRITICAL_RATIO = 0.9;
 
@@ -55,7 +57,11 @@ export async function getStorageEstimate(): Promise<StorageEstimate> {
 export async function cleanupDisposableOfflineCaches(): Promise<string[]> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return [];
   try {
-    const registration = await navigator.serviceWorker.ready;
+    // `serviceWorker.ready` never settles when no SW is registered (dev,
+    // blocked SW, private mode). That hung shouldPauseBackgroundWarming — and
+    // with it the whole warming pipeline — exactly when storage was critical.
+    const registration = await getActiveSW();
+    if (!registration) return [];
     const target = registration.active ?? navigator.serviceWorker.controller;
     if (!target) return [];
     target.postMessage({ type: 'TRIM_DISPOSABLE_CACHES' });

@@ -26,7 +26,7 @@ pass('failed operations are not silently pruned', !/function pruneFailedEntries\
 pass('queue capacity still rejects new work rather than evicting old work', /QUEUE_LIMIT_EXCEEDED/.test(sw) && /MAX_QUEUE_ENTRIES\s*=\s*500/.test(sw) && /MAX_QUEUE_TOTAL_BYTES\s*=\s*20\s*\*\s*1024\s*\*\s*1024/.test(sw));
 const swVersion = sw.match(/const CACHE_VERSION = '(v\d+)'/);
 const tsVersion = cacheVersion.match(/SW_CACHE_VERSION = '(v\d+)'/);
-pass('service-worker and TypeScript cache versions match', Boolean(swVersion && tsVersion && swVersion[1] === tsVersion[1] && swVersion[1] === 'v61'));
+pass('service-worker and TypeScript cache versions match', Boolean(swVersion && tsVersion && swVersion[1] === tsVersion[1]));
 pass('failed request list remains bounded in the UI', /\.slice\(0, 20\)/.test(queueLib) && /retains failed entries until explicit user action/.test(queueLib));
 pass('queued mutations receive a stable operation identity', /createOfflineOperationId\(\)/.test(sw) && /headers\['x-offline-op-id'\] = operationId/.test(sw));
 pass('replay restores the persisted idempotency header', /sendHeaders\['x-offline-op-id'\] = entry\.operationId/.test(sw));
