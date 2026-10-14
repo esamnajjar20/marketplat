@@ -23,7 +23,7 @@ export interface StorageEstimate {
   pressure: StoragePressure;
 }
 
-function classify(ratio: number | null): StoragePressure {
+export function classifyStoragePressure(ratio: number | null): StoragePressure {
   if (ratio == null || !Number.isFinite(ratio)) return 'unknown';
   if (ratio >= STORAGE_CRITICAL_RATIO) return 'critical';
   if (ratio >= STORAGE_WARNING_RATIO) return 'warning';
@@ -43,7 +43,7 @@ export async function getStorageEstimate(): Promise<StorageEstimate> {
       usageBytes != null && quotaBytes != null && quotaBytes > 0
         ? Math.min(1, Math.max(0, usageBytes / quotaBytes))
         : null;
-    return { usageBytes, quotaBytes, ratio, pressure: classify(ratio) };
+    return { usageBytes, quotaBytes, ratio, pressure: classifyStoragePressure(ratio) };
   } catch {
     return { usageBytes: null, quotaBytes: null, ratio: null, pressure: 'unknown' };
   }

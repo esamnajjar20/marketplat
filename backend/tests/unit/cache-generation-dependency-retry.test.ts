@@ -10,7 +10,7 @@ describe('durable cache invalidation dependency chain', () => {
   it('persists dependent generation keys with a failed source invalidation', () => {
     expect(swrSource).toContain('retryRequiredGenKeys?: readonly string[]');
     expect(swrSource).toContain('retryDependentGenKeys?: readonly string[]');
-    expect(swrSource).toContain('retryRequiredGenKeys: [...new Set(retryRequiredGenKeys.filter((key) => key !== genKey))]');
+    expect(swrSource).toMatch(/retryRequiredGenKeys:\s*\[\.\.\.new Set\(retryRequiredGenKeys\.filter\(key\s*=>\s*key !== genKey\)\)\]/);
     expect(swrSource).toContain('retryDependentGenKeys: [...new Set(retryDependentGenKeys)]');
   });
 
@@ -19,12 +19,12 @@ describe('durable cache invalidation dependency chain', () => {
     expect(workerSource).toContain('invalid dependent generation keys');
     expect(workerSource).toContain('for (const requiredGenKey of (requiredValue as string[] | undefined) ?? [])');
     expect(workerSource).toContain('for (const dependentGenKey of (dependentValue as string[] | undefined) ?? [])');
-    expect(workerSource).toContain('no event may\n  // invalidate the homepage while a sibling namespace can still be stale.');
+    expect(workerSource).toMatch(/no event may\s+\/\/ invalidate the homepage while a sibling namespace can still be stale/);
     expect(workerSource).toContain('Redis dependent generation bump failed');
   });
 
   it('records homepage as a dependent of hard public-list and ads invalidation', () => {
-    expect(publicListSource).toContain('retryRequiredGenKeys: namespaces.map(hardGenKey).filter((key) => key !== hardGenKey(ns))');
+    expect(publicListSource).toMatch(/retryRequiredGenKeys:\s*namespaces\.map\(hardGenKey\)\.filter\(key\s*=>\s*key !== hardGenKey\(ns\)\)/);
     expect(publicListSource).toContain("retryDependentGenKeys: [HOME_GEN_KEY]");
     expect(adsSource).toContain("retryDependentGenKeys: [HOME_GEN_KEY]");
   });

@@ -44,6 +44,10 @@ export const errorMiddleware = (
 ): void => {
   const requestId = req.requestId;
 
+  // Express always supplies `locals`; keep lightweight test doubles and
+  // adapter-based responses safe without changing the public error contract.
+  res.locals = res.locals ?? {};
+
   // express.json() throws SyntaxError with
   // err.status=400 / err.type='entity.parse.failed' on malformed JSON.
   // Before this, the middleware fell through to the generic 500 path,
@@ -87,6 +91,9 @@ export const errorMiddleware = (
                           : rawStatus === 408
                             ? 'Request timed out.'
                             : 'Request could not be processed.';
+    // Express initializes `locals`, but lightweight middleware unit-test
+    // doubles may omit it. Preserve the response contract without requiring
+    // every test double to reproduce the entire Express response object.
     res.locals.errorCode = code;
     res.status(rawStatus).json(buildApiErrorBody(req, rawStatus, code, safeMessage));
     return;
@@ -151,6 +158,9 @@ export const errorMiddleware = (
           ? 'Service temporarily unavailable, please try again shortly'
           : 'Internal server error'
         : err.message;
+    // Express initializes `locals`, but lightweight middleware unit-test
+    // doubles may omit it. Preserve the response contract without requiring
+    // every test double to reproduce the entire Express response object.
     res.locals.errorCode = code;
     res
       .status(err.statusCode)

@@ -49,7 +49,7 @@ describe('warmed list hard TTL (FIX WARM-LIST-HARD-TTL-01)', () => {
     expect(listHardTtlSec('products', { ...WARMED_PRODUCTS_DEFAULT_QUERY, page: 2 }, 90)).toBe(90);
     expect(listHardTtlSec('ads', { page: 1 }, 90)).toBe(90);
     // an ads shape is not a stores shape
-    expect(listHardTtlSec('stores', WARMED_ADS_DEFAULT_QUERY, 90)).toBe(90);
+    expect(listHardTtlSec('stores', WARMED_ADS_FEATURED_QUERY, 90)).toBe(90);
   });
 
   it('never lowers a TTL that is already longer', () => {

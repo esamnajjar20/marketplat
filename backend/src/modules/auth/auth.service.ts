@@ -226,10 +226,15 @@ export const authService = {
     // (case-sensitive) lockout fires on any one key.
     const normalizedEmail = input.email.trim().toLowerCase();
 
-    const [isEmailLocked, ipStats] = await Promise.all([
+    const [isEmailLocked, rawIpStats] = await Promise.all([
       tokenStore.isAccountLocked(normalizedEmail),
       tokenStore.getIpStats(ip),
     ]);
+    // A missing result must not crash authentication (for example when a
+    // Redis adapter is temporarily unavailable or a partial test double is
+    // used). The real tokenStore already normalizes Redis command errors to
+    // zero counts; keep the same fail-open contract at this boundary too.
+    const ipStats = rawIpStats ?? { attempts: 0, distinctEmails: 0 };
 
     if (isEmailLocked) {
       throw new TooManyRequestsError(

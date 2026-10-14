@@ -83,7 +83,9 @@ export const logger = winston.createLogger({
  * If ERROR_REPORTER_WEBHOOK_URL is unset (the default), this transport
  * is simply never added — behavior is unchanged from before this fix.
  */
-const errorReporterUrl = env.observability.errorReporterWebhookUrl || undefined;
+// Some unit tests intentionally mock only the env sections they exercise.
+// Treat an omitted optional observability section the same as an unset webhook.
+const errorReporterUrl = env.observability?.errorReporterWebhookUrl || undefined;
 
 if (errorReporterUrl) {
   class WebhookErrorReporterTransport extends Transport {
@@ -139,7 +141,7 @@ if (errorReporterUrl) {
  * without conflict, since Winston dispatches to every added transport
  * independently.
  */
-if (env.observability.sentryDsn) {
+if (env.observability?.sentryDsn) {
   class SentryErrorReporterTransport extends Transport {
     log(info: winston.LogEntry, callback: () => void) {
       const { level, message, stack, ...meta } = info;

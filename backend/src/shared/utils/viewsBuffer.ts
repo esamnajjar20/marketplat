@@ -75,7 +75,10 @@ export const viewsBuffer = {
     // flush promise so a slow database cannot trigger overlapping drains.
     if (flushInFlight) return flushInFlight;
 
-    const task = (async (): Promise<void> => {
+    // Defer the task body by one microtask so flushInFlight is assigned
+    // before scan/eval can be called. This closes the small re-entrancy
+    // window where concurrent flush callers could both begin a scan.
+    const task = Promise.resolve().then(async (): Promise<void> => {
       try {
         let cursor = '0';
         let totalAds = 0;
@@ -147,7 +150,7 @@ export const viewsBuffer = {
       } catch (err) {
         logger.error('Views buffer flush failed', err);
       }
-    })();
+    });
 
     flushInFlight = task;
     try {

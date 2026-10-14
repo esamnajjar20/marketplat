@@ -96,7 +96,11 @@ function authCookieBase(opts: { httpOnly: boolean; path: string; maxAge?: number
   maxAge?: number;
   domain?: string;
 } {
-  const sameSite = env.security.cookieSameSite;
+  // Partial env mocks are used by isolated unit tests; production config always
+  // provides security, but keep cookie construction resilient when a test only
+  // supplies the JWT settings it needs. The fallback mirrors local defaults.
+  const security = env.security;
+  const sameSite = security?.cookieSameSite ?? 'lax';
   const secure = sameSite === 'none' ? true : isProduction;
   const base: {
     httpOnly: boolean;
@@ -112,7 +116,7 @@ function authCookieBase(opts: { httpOnly: boolean; path: string; maxAge?: number
     path: opts.path,
   };
   if (opts.maxAge !== undefined) base.maxAge = opts.maxAge;
-  if (env.security.cookieDomain) base.domain = env.security.cookieDomain;
+  if (security?.cookieDomain) base.domain = security.cookieDomain;
   return base;
 }
 

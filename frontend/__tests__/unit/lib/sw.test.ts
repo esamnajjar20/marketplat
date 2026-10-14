@@ -232,10 +232,14 @@ function loadServiceWorker() {
     atob,
     btoa,
     URL,
+    URLSearchParams,
     Headers,
     TextEncoder,
     Blob,
     Response,
+    Request,
+    AbortController,
+    DOMException,
     queueMicrotask,
     // FIX SW-WEAK-NET-TIMEOUT-01: withNetworkTimeout (sw.js) races fetch()
     // against setTimeout — real Node timers are fine here since every

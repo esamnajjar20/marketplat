@@ -245,7 +245,7 @@ export function parseApiError(error: unknown): ParsedError {
 
     switch (status) {
       case 400:
-        return { message: codeMsg ?? (code ? 'تعذّر معالجة الطلب' : backendMsg ?? 'البيانات المرسلة غير صحيحة'), statusCode: 400, code, fieldErrors, requestId, meta };
+        return { message: codeMsg ?? backendMsg ?? 'البيانات المرسلة غير صحيحة', statusCode: 400, code, fieldErrors, requestId, meta };
       case 401:
         // Deliberately never falls back to backendMsg — only a known code's
         // static Arabic translation, or the generic session-expired string.

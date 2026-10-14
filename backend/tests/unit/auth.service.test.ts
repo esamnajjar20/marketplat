@@ -28,7 +28,7 @@ describe('AuthService', () => {
     jest.clearAllMocks();
     (tokenStore.saveRefreshToken as jest.Mock).mockResolvedValue(undefined);
     (tokenStore.isAccountLocked as jest.Mock).mockResolvedValue(false);
-    (tokenStore.getIpAttempts as jest.Mock).mockResolvedValue(0);
+    (tokenStore.getIpStats as jest.Mock).mockResolvedValue({ attempts: 0, distinctEmails: 0 });
     (tokenStore.clearFailedLogins as jest.Mock).mockResolvedValue(undefined);
     (userCache.set as jest.Mock).mockResolvedValue(undefined);
     (userCache.invalidate as jest.Mock).mockResolvedValue(undefined);
@@ -90,14 +90,14 @@ describe('AuthService', () => {
 
     it('should throw for wrong password', async () => {
       (authRepository.findByEmail as jest.Mock).mockResolvedValue(mockUser);
-      (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 1, ipAttempts: 1 });
+      (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 1, ipAttempts: 1, attempts: 1, distinctEmails: 1 });
       await expect(authService.login({ email: 'test@example.com', password: 'wrong' }))
         .rejects.toThrow('Invalid email or password');
     });
 
     it('should throw for non-existent user', async () => {
       (authRepository.findByEmail as jest.Mock).mockResolvedValue(null);
-      (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 1, ipAttempts: 1 });
+      (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 1, ipAttempts: 1, attempts: 1, distinctEmails: 1 });
       await expect(authService.login({ email: 'nobody@example.com', password: 'password123' }))
         .rejects.toThrow('Invalid email or password');
     });
@@ -115,7 +115,7 @@ describe('AuthService', () => {
     });
 
     it('should throw when IP is rate limited', async () => {
-      (tokenStore.getIpAttempts as jest.Mock).mockResolvedValue(50);
+      (tokenStore.getIpStats as jest.Mock).mockResolvedValue({ attempts: 50, distinctEmails: 0 });
       await expect(authService.login({ email: 'test@example.com', password: 'password123' }))
         .rejects.toThrow('Too many requests from this network');
     });

@@ -43,7 +43,7 @@ describe('AuthService.login — account-lockout branches', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (tokenStore.isAccountLocked as jest.Mock).mockResolvedValue(false);
-    (tokenStore.getIpAttempts as jest.Mock).mockResolvedValue(0);
+    (tokenStore.getIpStats as jest.Mock).mockResolvedValue({ attempts: 0, distinctEmails: 0 });
     (tokenStore.clearFailedLogins as jest.Mock).mockResolvedValue(undefined);
     (tokenStore.saveRefreshToken as jest.Mock).mockResolvedValue(undefined);
     (userCache.set as jest.Mock).mockResolvedValue(undefined);
@@ -54,7 +54,7 @@ describe('AuthService.login — account-lockout branches', () => {
 
   it('locks the account after the 5th failed attempt against a non-existent user', async () => {
     (authRepository.findByEmail as jest.Mock).mockResolvedValue(null);
-    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 5 });
+    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 5, attempts: 5, distinctEmails: 1 });
     (tokenStore.lockAccount as jest.Mock).mockResolvedValue(undefined);
 
     await expect(
@@ -66,7 +66,7 @@ describe('AuthService.login — account-lockout branches', () => {
 
   it('does not lock the account below the 5th failed attempt against a non-existent user', async () => {
     (authRepository.findByEmail as jest.Mock).mockResolvedValue(null);
-    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 3 });
+    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 3, attempts: 3, distinctEmails: 1 });
 
     await expect(
       authService.login({ email: 'nobody@example.com', password: 'whatever' }, '1.2.3.4', 'ua')
@@ -77,7 +77,7 @@ describe('AuthService.login — account-lockout branches', () => {
 
   it('locks the account and sends a security alert after the 5th wrong-password attempt', async () => {
     (authRepository.findByEmail as jest.Mock).mockResolvedValue(mockUser);
-    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 5 });
+    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 5, attempts: 5, distinctEmails: 1 });
     (tokenStore.lockAccount as jest.Mock).mockResolvedValue(undefined);
     const { sendSecurityAlert } = require('../../src/shared/utils/securityAlert');
 
@@ -93,7 +93,7 @@ describe('AuthService.login — account-lockout branches', () => {
 
   it('does not lock the account below the 5th wrong-password attempt', async () => {
     (authRepository.findByEmail as jest.Mock).mockResolvedValue(mockUser);
-    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 2 });
+    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 2, attempts: 2, distinctEmails: 1 });
 
     await expect(
       authService.login({ email: mockUser.email, password: 'wrong-password' }, '1.2.3.4', 'ua')

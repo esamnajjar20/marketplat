@@ -45,8 +45,8 @@ describe('AuthService.login — regression for OAuth-only accounts (passwordHash
   beforeEach(() => {
     jest.clearAllMocks();
     (tokenStore.isAccountLocked as jest.Mock).mockResolvedValue(false);
-    (tokenStore.getIpAttempts as jest.Mock).mockResolvedValue(0);
-    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 1, ipAttempts: 1 });
+    (tokenStore.getIpStats as jest.Mock).mockResolvedValue({ attempts: 0, distinctEmails: 0 });
+    (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 1, ipAttempts: 1, attempts: 1, distinctEmails: 1 });
     (tokenStore.clearFailedLogins as jest.Mock).mockResolvedValue(undefined);
     (tokenStore.lockAccount as jest.Mock).mockResolvedValue(undefined);
   });

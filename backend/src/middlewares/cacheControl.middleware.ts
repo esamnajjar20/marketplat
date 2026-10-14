@@ -11,9 +11,10 @@ import { cachePolicy } from '../shared/cache/cachePolicy';
 export const cacheControl =
   (maxAge: number, swr?: number) =>
   (req: Request, res: Response, next: NextFunction): void => {
-    const cookie = req.headers.cookie ?? '';
+    const headers = req.headers ?? {};
+    const cookie = headers.cookie ?? '';
     const hasSessionCookie = /(?:^|;\s*)(?:refreshToken|app_has_session)=/.test(cookie);
-    const hasAuth = Boolean(req.headers.authorization || hasSessionCookie);
+    const hasAuth = Boolean(headers.authorization || hasSessionCookie);
     // Authenticated responses are never shared-cacheable. This avoids relying
     // on a CDN's interpretation of Vary: Authorization and prevents a token-
     // fragmented public cache from retaining viewer-specific fields.
@@ -54,8 +55,8 @@ export const cachePolicyControl =
     if (http.staleWhileRevalidateSec)
       directives.push(`stale-while-revalidate=${http.staleWhileRevalidateSec}`);
     const hasAuth = Boolean(
-      _req.headers.authorization ||
-      /(?:^|;\s*)(?:refreshToken|app_has_session)=/.test(_req.headers.cookie ?? '')
+      _req.headers?.authorization ||
+      /(?:^|;\s*)(?:refreshToken|app_has_session)=/.test(_req.headers?.cookie ?? '')
     );
     if (hasAuth) {
       res.setHeader('Cache-Control', 'private, no-cache, no-transform');
@@ -88,7 +89,7 @@ export const CACHE = {
   },
   NONE: (_req: Request, res: Response, next: NextFunction): void => {
     res.setHeader('Cache-Control', 'no-store');
-    res.removeHeader('Vary');
+    if (typeof res.removeHeader === 'function') res.removeHeader('Vary');
     next();
   },
 };
