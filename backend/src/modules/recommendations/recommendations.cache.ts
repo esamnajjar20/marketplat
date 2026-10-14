@@ -67,6 +67,10 @@ export const recommendationsCacheKey = (
     query.excludeProductId ?? '',
     query.excludeServiceListingId ?? '',
     query.excludeStoreId ?? '',
+    // FIX RECS-KEY-SERVICETYPE-01: serviceTypeId filters the service shelves
+    // in SQL, so it must be part of the key — otherwise two service-type
+    // shelves with the same limit/city served each other's cached rows.
+    query.serviceTypeId ?? '',
     query.lat ?? '',
     query.lng ?? '',
   ].join('|');

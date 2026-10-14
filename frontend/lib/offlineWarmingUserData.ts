@@ -207,6 +207,36 @@ async function fetchWithAuth(
   return res;
 }
 
+/**
+ * FIX WARM-USERDATA-HEADERS-01: the stored snapshot must be readable by the SW.
+ *
+ * The backend answers personal GETs with `Cache-Control: no-store` (CACHE.NONE)
+ * or `private, no-cache` + `Vary: Authorization, Cookie` (CACHE.PERSONAL /
+ * cacheControl for authenticated callers). The service worker's offline
+ * fallback (`isSafeUserApiSnapshot` in public/sw.js) refuses any cached
+ * response carrying those directives, so every warmed personal snapshot was
+ * written and then never served — warming looked successful (progress
+ * counter, freshness markers) while /dashboard, /messages, /my-ads … stayed
+ * empty offline.
+ *
+ * Warming is the explicit, user-scoped opt-in to keep these bodies: they land
+ * only in the per-user `market-user-data-*` partition, which logout wipes.
+ * So the copy we store drops the validation directives (the original HTTP
+ * semantics still govern the live network response) and is marked `private`.
+ */
+export function buildWarmedSnapshotHeaders(source: Headers, cachedAt: number = Date.now()): Headers {
+  const headers = new Headers(source);
+  headers.delete('Cache-Control');
+  headers.delete('Pragma');
+  headers.delete('Expires');
+  headers.delete('Vary');
+  headers.delete('Set-Cookie');
+  headers.set('Cache-Control', 'private');
+  headers.set('X-SW-Cached-At', String(cachedAt));
+  headers.set('X-SW-Warmed', '1');
+  return headers;
+}
+
 async function warmOneEndpoint(
   path: string,
   cache: Cache,
@@ -228,7 +258,17 @@ async function warmOneEndpoint(
     // has no /stores/me) is a normal outcome, not a failure. Do NOT
     // cache it — caching a 404 would be served offline in place of a
     // proper miss, misleading the page.
-    if (res.status === 404) return { ok: true, status: 404 };
+    if (res.status === 404) {
+      // FIX WARM-USERDATA-404-STALE-01: a body cached while the resource
+      // existed (store/provider profile later deleted) would otherwise keep
+      // being served offline as if it still applied. Drop it — but only while
+      // this account is still the active one (same guard as the write below).
+      if (getCurrentOfflineUserId() === expectedUserId
+        && !(usedSession && !useAuthStore.getState().isAuthenticated)) {
+        try { await cache.delete(fullUrl); } catch { /* best-effort */ }
+      }
+      return { ok: true, status: 404 };
+    }
     if (!res.ok) return { ok: false, status: res.status };
 
     // Only cache JSON — an HTML response here is a captive portal or
@@ -236,8 +276,7 @@ async function warmOneEndpoint(
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('application/json')) return { ok: false, status: res.status };
 
-    const headers = new Headers(res.headers);
-    headers.set('X-SW-Cached-At', String(Date.now()));
+    const headers = buildWarmedSnapshotHeaders(res.headers);
     const body = await res.clone().blob();
     if (body.size > 0) {
       recordWarmingRuntimeBytes(body.size);

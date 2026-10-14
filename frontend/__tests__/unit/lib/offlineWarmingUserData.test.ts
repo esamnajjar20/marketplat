@@ -16,6 +16,7 @@ vi.mock('@/lib/offlineWarmingPlanner', () => ({
 }));
 
 import {
+  buildWarmedSnapshotHeaders,
   pickDueEndpoints,
   USER_DATA_ENDPOINTS,
   USER_DATA_TTL_MS,
@@ -100,5 +101,41 @@ describe('pickDueEndpoints', () => {
       now: NOW, force: true, critical: false, hasCachedBody: allPresent,
     });
     expect(due).toHaveLength(USER_DATA_ENDPOINTS.length);
+  });
+});
+
+describe('buildWarmedSnapshotHeaders', () => {
+  const backendHeaders = () => new Headers({
+    'Content-Type': 'application/json',
+    'Cache-Control': 'private, no-cache, no-transform',
+    Vary: 'Authorization, Cookie',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
+
+  it('drops validation directives so the SW will serve the snapshot offline', () => {
+    const h = buildWarmedSnapshotHeaders(backendHeaders(), 123);
+    expect(h.get('Cache-Control')).toBe('private');
+    expect(h.has('Vary')).toBe(false);
+    expect(h.has('Pragma')).toBe(false);
+    expect(h.has('Expires')).toBe(false);
+  });
+
+  it('also normalises no-store responses (CACHE.NONE endpoints)', () => {
+    const h = buildWarmedSnapshotHeaders(new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }), 1);
+    expect(h.get('Cache-Control')).toBe('private');
+  });
+
+  it('keeps content-type and stamps cache time + warmed marker', () => {
+    const h = buildWarmedSnapshotHeaders(backendHeaders(), 456);
+    expect(h.get('Content-Type')).toBe('application/json');
+    expect(h.get('X-SW-Cached-At')).toBe('456');
+    expect(h.get('X-SW-Warmed')).toBe('1');
+  });
+
+  it('does not mutate the source headers', () => {
+    const src = backendHeaders();
+    buildWarmedSnapshotHeaders(src, 1);
+    expect(src.get('Cache-Control')).toBe('private, no-cache, no-transform');
   });
 });

@@ -47,6 +47,12 @@ describe('recommendations cache (RECS-CACHE-01)', () => {
     expect(recommendationsCacheKey({ limit: 8, city: 'غزة' }, null)).not.toBe(base);
     expect(recommendationsCacheKey({ limit: 9 }, null)).not.toBe(base);
     expect(recommendationsCacheKey({ limit: 8, excludeAdId: 'x' }, null)).not.toBe(base);
+    expect(recommendationsCacheKey({ limit: 8, type: 'service', serviceTypeId: 'st-1' }, null)).not.toBe(
+      recommendationsCacheKey({ limit: 8, type: 'service' }, null),
+    );
+    expect(recommendationsCacheKey({ limit: 8, type: 'service', serviceTypeId: 'st-1' }, null)).not.toBe(
+      recommendationsCacheKey({ limit: 8, type: 'service', serviceTypeId: 'st-2' }, null),
+    );
   });
 
   it('rounds coordinates and hands the SAME normalized query to the builder', async () => {
