@@ -2,7 +2,8 @@
  * __tests__/components/DownloadStoreCatalogButton.test.tsx
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
 import { productsApi } from '@/api/products.api';

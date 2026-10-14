@@ -100,6 +100,9 @@ describe('BottomNav', () => {
 
     it('opens CreateSheet with all four create destinations when "أضف" is tapped', async () => {
       const user = setupUser();
+      useAuthStore.setState({
+        lastKnownRoles: { isSeller: true, isProvider: true, hasActiveStore: true },
+      } as never);
       render(<BottomNav />);
       await user.click(screen.getByRole('button', { name: 'أضف' }));
 

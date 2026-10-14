@@ -2,6 +2,7 @@ import { serviceListingsService } from '../../src/modules/service-listings/servi
 import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../../src/modules/service-categories/service-categories.repository';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { uploadImage } from '../../src/config/cloudinary';
@@ -12,6 +13,7 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 jest.mock('../../src/modules/service-listings/service-listings.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
 jest.mock('../../src/modules/service-categories/service-categories.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/config/cloudinary');
 jest.mock('../../src/shared/utils/publicListCache', () => ({
@@ -30,10 +32,19 @@ const mockProvider = {
   availabilityStatus: 'AVAILABLE',
 };
 
-const mockCategory = { id: 'cat-1', isActive: true };
+const mockCategory = { id: 'cat-1', isActive: true, serviceTypeId: 'st_general' };
 
 describe('ServiceListingsService', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (serviceTypesRepository.findActiveById as jest.Mock).mockResolvedValue({
+      id: 'st_general', isActive: true, capabilities: {}, fields: [],
+    });
+    (serviceTypesRepository.lockForListingCreation as jest.Mock).mockResolvedValue(true);
+    (serviceCategoriesRepository.lockForListingCreation as jest.Mock).mockResolvedValue({
+      serviceTypeId: 'st_general', isActive: true,
+    });
+  });
   afterEach(() => jest.restoreAllMocks());
 
   describe('createServiceListing — availability gate (audit #8/#10)', () => {
@@ -45,7 +56,10 @@ describe('ServiceListingsService', () => {
       });
 
       await expect(
-        serviceListingsService.createServiceListing('user-1', { categoryId: 'cat-1' } as any, [])
+        serviceListingsService.createServiceListing(
+          'user-1', { categoryId: 'cat-1', pricingType: 'FIXED', price: 25 } as any,
+          [{ buffer: Buffer.from('image') } as any]
+        )
       ).rejects.toThrow(ForbiddenError);
 
       expect(serviceListingsRepository.create).not.toHaveBeenCalled();

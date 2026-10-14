@@ -89,6 +89,10 @@ describe('conversationsService', () => {
 
       expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId, {
         adId,
+        listingContext: {
+          type: 'ad', id: adId, title: mockAd.title, imageUrl: mockAd.images?.[0] ?? null,
+          url: `/ads/${adId}`,
+        },
       });
       expect(result).toEqual(mockConversation);
     });
@@ -114,9 +118,17 @@ describe('conversationsService', () => {
       expect(second.id).toBe(mockConversation.id);
       expect(conversationsRepository.findOrCreate).toHaveBeenNthCalledWith(1, buyerId, sellerId, {
         adId,
+        listingContext: {
+          type: 'ad', id: adId, title: mockAd.title, imageUrl: mockAd.images?.[0] ?? null,
+          url: `/ads/${adId}`,
+        },
       });
       expect(conversationsRepository.findOrCreate).toHaveBeenNthCalledWith(2, buyerId, sellerId, {
         adId: otherAdId,
+        listingContext: {
+          type: 'ad', id: otherAdId, title: mockAd.title, imageUrl: mockAd.images?.[0] ?? null,
+          url: `/ads/${otherAdId}`,
+        },
       });
     });
 
@@ -183,7 +195,7 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.startFromUser(buyerId, sellerId);
 
-      expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId);
+      expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId, { listingContext: undefined });
       expect(result).toEqual(mockConversationNoAd);
     });
   });
@@ -231,6 +243,11 @@ describe('conversationsService', () => {
 
       expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId, {
         serviceRequestId: requestId,
+        listingContext: {
+          type: 'service', id: mockRequest.listing.id, title: mockRequest.listing.title,
+          imageUrl: mockRequest.listing.images?.[0] ?? null,
+          url: `/services/${mockRequest.listing.id}`,
+        },
       });
       expect(result).toEqual(mockConversation);
     });
@@ -259,13 +276,18 @@ describe('conversationsService', () => {
 
       expect(conversationsRepository.findOrCreate).toHaveBeenCalledWith(buyerId, sellerId, {
         serviceRequestId: requestId,
+        listingContext: {
+          type: 'service', id: mockRequest.listing.id, title: mockRequest.listing.title,
+          imageUrl: mockRequest.listing.images?.[0] ?? null,
+          url: `/services/${mockRequest.listing.id}`,
+        },
       });
     });
   });
 
   describe('getConversationById', () => {
     it('throws NotFoundError when the conversation does not exist', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(null);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(null);
 
       await expect(conversationsService.getConversationById(buyerId, 'conv-1')).rejects.toThrow(
         NotFoundError
@@ -273,7 +295,7 @@ describe('conversationsService', () => {
     });
 
     it('throws ForbiddenError when the caller is neither buyer nor seller', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue({ ...mockConversation, mySettings: null });
 
       await expect(
         conversationsService.getConversationById('stranger-1', 'conv-1')
@@ -281,7 +303,7 @@ describe('conversationsService', () => {
     });
 
     it('returns the conversation when the caller is the buyer', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue({ ...mockConversation, mySettings: null });
 
       const result = await conversationsService.getConversationById(buyerId, 'conv-1');
 
@@ -289,7 +311,7 @@ describe('conversationsService', () => {
     });
 
     it('returns the conversation when the caller is the seller', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue({ ...mockConversation, mySettings: null });
 
       const result = await conversationsService.getConversationById(sellerId, 'conv-1');
 
@@ -489,7 +511,7 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.getMessages(buyerId, 'conv-1', {});
 
-      expect(result.items).toEqual(mockMessages);
+      expect(result.items).toEqual(mockMessages.map(message => ({ ...message, isPinned: false, isStarredByMe: false })));
       expect(result.meta.limit).toBe(30);
       expect(result.meta.total).toBe(2);
     });
@@ -521,8 +543,8 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.getMessages(buyerId, 'conv-1', {});
 
-      expect(result.items[0]).toEqual(liveMessage);
-      expect(result.items[1]).toEqual({ ...deletedMessage, body: '' });
+      expect(result.items[0]).toEqual({ ...liveMessage, isPinned: false, isStarredByMe: false });
+      expect(result.items[1]).toEqual({ ...deletedMessage, body: '', isPinned: false, isStarredByMe: false });
     });
   });
 

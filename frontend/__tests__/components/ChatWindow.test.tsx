@@ -15,7 +15,8 @@
  * (driven by isBlocked) is asserted.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ChatWindow } from '@/components/messages/ChatWindow';
 import { useConversation, useMessages } from '@/hooks/queries/useConversations';
@@ -40,7 +41,10 @@ vi.mock('@/hooks/mutations/useBlockedUsersMutations', () => ({
 }));
 
 vi.mock('@/hooks/mutations/useConversationMutations', () => ({
-  useDeleteMessage: vi.fn(),
+  useDeleteMessage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useSetConversationFlags: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useMessageMarkMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useSendMessage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@/hooks/queries/usePresence', () => ({

@@ -15,12 +15,14 @@
  *  - dismiss button always persists a timestamp and hides the prompt
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, cleanup, act } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 
 vi.mock('@/lib/runtime/capabilities', () => ({
+  supportsInstallPrompt: vi.fn(async () => true),
   supportsInstallPrompt: vi.fn().mockResolvedValue(true),
 }));
 
@@ -94,6 +96,8 @@ describe('InstallPrompt', () => {
   });
 
   it('renders nothing inside the native Capacitor shell', async () => {
+    const { supportsInstallPrompt } = await import('@/lib/runtime/capabilities');
+    vi.mocked(supportsInstallPrompt).mockResolvedValue(false);
     vi.mocked(isNativePlatform).mockResolvedValue(true);
     const { container } = render(<InstallPrompt />);
     await act(async () => {

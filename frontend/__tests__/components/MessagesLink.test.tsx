@@ -12,8 +12,8 @@ vi.mock('@/hooks/queries/useConversations', () => ({
 }));
 
 vi.mock('@/store/auth.store', () => ({
-  useAuthStore: vi.fn((sel: (s: { isAuthenticated: boolean }) => unknown) =>
-    sel({ isAuthenticated: true }),
+  useAuthStore: vi.fn((sel: (s: { isAuthenticated: boolean; isHydrated: boolean }) => unknown) =>
+    sel({ isAuthenticated: true, isHydrated: true }),
   ),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
   selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
@@ -30,15 +30,15 @@ describe('MessagesLink', () => {
   beforeEach(() => {
     vi.mocked(useUnreadConversationCount).mockReturnValue({ data: 0 } as never);
     vi.mocked(useAuthStore).mockImplementation((sel: unknown) => {
-      const fn = sel as (s: { isAuthenticated: boolean }) => unknown;
-      return fn({ isAuthenticated: true });
+      const fn = sel as (s: { isAuthenticated: boolean; isHydrated: boolean }) => unknown;
+      return fn({ isAuthenticated: true, isHydrated: true });
     });
   });
 
   it('returns null when not authenticated', () => {
     vi.mocked(useAuthStore).mockImplementation((sel: unknown) => {
-      const fn = sel as (s: { isAuthenticated: boolean }) => unknown;
-      return fn({ isAuthenticated: false });
+      const fn = sel as (s: { isAuthenticated: boolean; isHydrated: boolean }) => unknown;
+      return fn({ isAuthenticated: false, isHydrated: true });
     });
     const { container } = render(<MessagesLink />);
     expect(container).toBeEmptyDOMElement();

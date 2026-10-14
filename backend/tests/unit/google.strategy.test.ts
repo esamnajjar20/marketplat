@@ -64,11 +64,12 @@ describe('google.strategy', () => {
       expect(result.email).toBe('verified@example.com');
     });
 
-    it('falls back to the first email if none are explicitly marked verified', () => {
-      const result = extractGoogleProfile(
-        buildProfile({ emails: [{ value: 'only@example.com', verified: undefined as unknown as boolean }] })
-      );
-      expect(result.email).toBe('only@example.com');
+    it('rejects profiles when no email is explicitly verified', () => {
+      expect(() =>
+        extractGoogleProfile(
+          buildProfile({ emails: [{ value: 'only@example.com', verified: undefined as unknown as boolean }] })
+        )
+      ).toThrow('Google did not provide a verified email address');
     });
 
     it('throws if the Google profile has no email at all', () => {

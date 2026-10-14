@@ -31,14 +31,14 @@ describe('GoogleAuthButton', () => {
     process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED = 'true';
     const { GoogleAuthButton } = await import('@/components/auth/GoogleAuthButton');
     render(<GoogleAuthButton />);
-    expect(screen.getByRole('button', { name: /المتابعة باستخدام Google/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /المتابعة باستخدام Google/ })).toBeInTheDocument();
   });
 
   it('uses a custom label when provided', async () => {
     process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED = 'true';
     const { GoogleAuthButton } = await import('@/components/auth/GoogleAuthButton');
     render(<GoogleAuthButton label="تسجيل الدخول بـ Google" />);
-    expect(screen.getByRole('button', { name: 'تسجيل الدخول بـ Google' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'تسجيل الدخول بـ Google' })).toBeInTheDocument();
   });
 
   it('navigates to /auth/google on click', async () => {
@@ -58,7 +58,7 @@ describe('GoogleAuthButton', () => {
 
     const user = setupUser();
     render(<GoogleAuthButton />);
-    await user.click(screen.getByRole('button', { name: /Google/ }));
+    await user.click(screen.getByRole('link', { name: /Google/ }));
     expect(hrefSpy).toHaveBeenCalledWith(expect.stringContaining('/auth/google'));
   });
 });

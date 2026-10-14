@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { EditProductCategoryButton } from '@/components/admin/EditProductCategoryButton';
 import { EditServiceCategoryButton } from '@/components/admin/EditServiceCategoryButton';
 vi.mock('@/components/admin/EditEntityCategoryDialog', () => ({

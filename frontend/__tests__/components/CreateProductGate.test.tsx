@@ -40,11 +40,12 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-function mockStore(state: { data?: unknown; isLoading?: boolean; isError?: boolean }) {
+function mockStore(state: { data?: unknown; isLoading?: boolean; isError?: boolean; error?: unknown }) {
   (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
     data: undefined,
     isLoading: false,
     isError: false,
+    error: undefined,
     ...state,
   });
 }
@@ -66,7 +67,7 @@ describe('CreateProductGate', () => {
   });
 
   it('CTA links to /my-store with ?from=/my-store/products/new', () => {
-    mockStore({ isError: true });
+    mockStore({ isError: true, error: { statusCode: 404 } });
     render(<CreateProductGate />);
 
     const link = screen.getByRole('link', { name: 'فتح متجر' });

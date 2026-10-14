@@ -22,7 +22,8 @@
  *    entirely rather than navigating past a half-applied edit
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { AdForm } from '@/components/ads/AdForm';
 import { useCategories } from '@/hooks/queries/useCategories';

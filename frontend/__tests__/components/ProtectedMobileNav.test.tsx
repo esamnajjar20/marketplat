@@ -19,7 +19,8 @@
  *  - logout button calls logout + close
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, fireEvent } from '@testing-library/react';
 import { ProtectedMobileNav } from '@/components/layout/ProtectedMobileNav';
 import { useMySellerProfile, useIsSeller } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider, useIsProvider } from '@/hooks/queries/useServiceProviders';

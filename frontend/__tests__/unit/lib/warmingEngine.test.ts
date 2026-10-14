@@ -24,10 +24,11 @@ vi.mock('../../../lib/offlineWarmingUserData', () => ({ warmUserData: mocks.user
 vi.mock('../../../lib/warmingRegistry', () => ({
   getWarmingJob: (id: string) => ({
     id,
-    priority: id === 'core-data' ? 1 : id === 'public-routes' ? 2 : id === 'personal-routes' ? 3 : 4,
+    // Higher priority number = run first (matches WARMING_REGISTRY)
+    priority: id === 'core-data' ? 100 : id === 'public-routes' ? 90 : id === 'personal-routes' ? 80 : 70,
     requiresAuth: id === 'personal-routes' || id === 'user-data',
-    estimatedRequests: 1,
-    estimatedBytes: 10_000,
+    order: id === 'core-data' ? 0 : id === 'public-routes' ? 1 : id === 'personal-routes' ? 2 : 3,
+    cost: { requests: 1, bytes: 10_000, durationMs: 1_000 },
   }),
 }));
 vi.mock('../../../lib/offlineStoragePressure', () => ({
@@ -39,13 +40,21 @@ vi.mock('../../../lib/warmingRuntimeBudget', () => ({
   getWarmingRuntimeBudgetState: () => ({ requests: 0, bytes: 0 }),
   noteWarmingRuntimeUsage: vi.fn(),
 }));
+vi.mock('../../../lib/warmingTelemetry', () => ({
+  recordWarmingJob: vi.fn(),
+}));
 
 import { runWarmingEngine } from '../../../lib/warmingEngine';
 
 describe('warming engine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getNetworkPolicy.mockReturnValue({ tier: 'fast', saveData: false, consecutiveFailures: 0 });
+    mocks.getNetworkPolicy.mockReturnValue({
+      tier: 'fast',
+      saveData: false,
+      consecutiveFailures: 0,
+      allowBackgroundWarming: true,
+    });
     mocks.getWarmingMode.mockReturnValue('fast');
     mocks.getWarmingPlan.mockReturnValue({ tier: 'core' });
     mocks.getWarmingBudget.mockReturnValue({
@@ -78,8 +87,10 @@ describe('warming engine', () => {
   });
 
   it('does not spend budget on lower-priority jobs that do not fit', async () => {
+    // cost.requests is 1 per job in the mock; budget of 2 admits only the
+    // two highest-priority jobs (core-data + public-routes).
     mocks.getWarmingBudget.mockReturnValue({
-      maxRequests: 16,
+      maxRequests: 2,
       maxBytes: 2_000_000,
       maxDurationMs: 30_000,
       maxConcurrency: 1,

@@ -18,7 +18,8 @@
  *  QueryClientProvider wrapper.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { StoreCard } from '@/components/stores/StoreCard';
 import { ROUTES } from '@/lib/constants';
 import type { StoreWithSeller } from '@/types/store.types';
@@ -123,7 +124,7 @@ describe('StoreCard', () => {
   });
 
   it('applies a custom className alongside the default styling', () => {
-    render(<StoreCard store={baseStore} className="custom-class" />);
-    expect(screen.getByRole('link')).toHaveClass('custom-class');
+    const { container } = render(<StoreCard store={baseStore} className="custom-class" />);
+    expect(container.querySelector('article')).toHaveClass('custom-class');
   });
 });

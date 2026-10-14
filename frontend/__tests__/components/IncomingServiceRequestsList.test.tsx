@@ -28,7 +28,8 @@
  *    exceeds totalPages
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { IncomingServiceRequestsList } from '@/components/services/IncomingServiceRequestsList';
 import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';

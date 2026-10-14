@@ -276,6 +276,7 @@ describe('collectionsService', () => {
 
     it('getPublicCollectionProducts maps product rows', async () => {
       (collectionsRepository.findById as jest.Mock).mockResolvedValue(collection);
+      (storesRepository.findById as jest.Mock).mockResolvedValue(store);
       (collectionsRepository.findVisibleProducts as jest.Mock).mockResolvedValue([
         { product: { id: 'p1', title: 'Item' } },
       ]);

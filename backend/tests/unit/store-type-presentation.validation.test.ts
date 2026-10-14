@@ -2,8 +2,32 @@ import { createStoreTypeSchema, updateStoreTypeSchema } from '../../src/modules/
 
 describe('store type presentation validation', () => {
   const presentation = {
-    card: { title: 'مطعم', subtitle: 'أطباق يومية', products: 'القائمة', details: 'التفاصيل', contact: 'التواصل', location: 'الموقع' },
-    page: { title: 'مطعم', subtitle: 'أطباق يومية', products: 'القائمة', details: 'عن المطعم', contact: 'التواصل', location: 'الموقع' },
+    card: {
+      title: 'مطعم',
+      subtitle: 'أطباق يومية',
+      products: 'القائمة',
+      offers: 'العروض',
+      collections: 'المجموعات',
+      ads: 'الإعلانات',
+      reviews: 'التقييمات',
+      about: 'عن المطعم',
+      details: 'التفاصيل',
+      contact: 'التواصل',
+      location: 'الموقع',
+    },
+    page: {
+      title: 'مطعم',
+      subtitle: 'أطباق يومية',
+      products: 'القائمة',
+      offers: 'العروض',
+      collections: 'المجموعات',
+      ads: 'الإعلانات',
+      reviews: 'التقييمات',
+      about: 'عن المطعم',
+      details: 'عن المطعم',
+      contact: 'التواصل',
+      location: 'الموقع',
+    },
   };
 
   it('accepts admin-controlled card and page names', () => {

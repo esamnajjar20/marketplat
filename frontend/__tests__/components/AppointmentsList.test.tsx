@@ -22,7 +22,8 @@
  *    exceeds totalPages
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { AppointmentsList } from '@/components/services/AppointmentsList';
 import { useMyAppointments } from '@/hooks/queries/useAppointments';
@@ -142,6 +143,8 @@ describe('AppointmentsList', () => {
       expect(mockUpdateMutate).toHaveBeenCalledWith({ id: 'appt-9', payload: { status: 'NO_SHOW' } });
 
       await user.click(screen.getByRole('button', { name: /إلغاء/ }));
+      // Cancel opens ConfirmDialog first
+      await user.click(screen.getByRole('button', { name: /إلغاء الموعد/ }));
       expect(mockUpdateMutate).toHaveBeenCalledWith({ id: 'appt-9', payload: { status: 'CANCELLED' } });
 
       await user.click(screen.getByRole('button', { name: /إنهاء/ }));

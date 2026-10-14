@@ -110,10 +110,9 @@ describe('redisMemoryMonitor', () => {
 
     expect(logger.warn).toHaveBeenCalledTimes(1);
 
-    // Advance through several poll intervals, still within the 5-minute cooldown.
-    await jest.advanceTimersByTimeAsync(30_000);
-    await jest.advanceTimersByTimeAsync(30_000);
-    await jest.advanceTimersByTimeAsync(30_000);
+    // Production polls every 180 seconds; the first scheduled poll remains
+    // inside the 5-minute warning cooldown.
+    await jest.advanceTimersByTimeAsync(180_000);
 
     expect(logger.warn).toHaveBeenCalledTimes(1);
     redisMemoryMonitor.stop();
@@ -129,9 +128,9 @@ describe('redisMemoryMonitor', () => {
     await jest.advanceTimersByTimeAsync(0);
     expect(logger.warn).toHaveBeenCalledTimes(1);
 
-    // Past the 5-minute (300_000ms) cooldown, then one more poll tick.
-    await jest.advanceTimersByTimeAsync(300_001);
-    await jest.advanceTimersByTimeAsync(30_000);
+    // The 180-second poll cadence means the first poll after the 5-minute
+    // cooldown is at 360 seconds.
+    await jest.advanceTimersByTimeAsync(360_001);
 
     expect(logger.warn).toHaveBeenCalledTimes(2);
     redisMemoryMonitor.stop();

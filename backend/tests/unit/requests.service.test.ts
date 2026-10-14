@@ -5,6 +5,7 @@ import { productCategoriesRepository } from '../../src/modules/product-categorie
 import { categoriesRepository } from '../../src/modules/categories/categories.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
@@ -16,6 +17,7 @@ jest.mock('../../src/modules/product-categories/product-categories.repository');
 jest.mock('../../src/modules/categories/categories.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
 jest.mock('../../src/modules/conversations/conversations.service', () => ({
   conversationsService: { startFromUser: jest.fn().mockResolvedValue(undefined) },
 }));
@@ -38,6 +40,9 @@ describe('requestsService.create category guard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (requestsRepository.countOpenByCustomer as jest.Mock).mockResolvedValue(0);
+    (serviceTypesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'st-digital', isActive: true, capabilities: { requestQuote: true },
+    });
     (requestsRepository.create as jest.Mock).mockImplementation(async (_uid, data) => ({
       id: 'r1',
       ...data,
@@ -92,7 +97,7 @@ describe('requestsService.create category guard', () => {
   });
 
   it('blocks when max open requests reached', async () => {
-    (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue({ id: 'sc1', isActive: true });
+    (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue({ id: 'sc1', isActive: true, serviceTypeId: 'st-digital' });
     (requestsRepository.countOpenByCustomer as jest.Mock).mockResolvedValue(5);
     await expect(
       requestsService.create('u1', {

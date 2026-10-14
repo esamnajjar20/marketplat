@@ -12,7 +12,8 @@
  * — each one's own rendering is covered by its own test file.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { EntityFavoritesList } from '@/components/profile/EntityFavoritesList';
 import { useFavoritesByType } from '@/hooks/queries/useFavorites';

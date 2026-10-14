@@ -62,8 +62,8 @@ describe('AdminEntityCategoriesTree', () => {
       useCategories: () => ({ data: undefined, isLoading: false, isError: true, refetch }),
     })} />);
 
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|فئات/)).toBeInTheDocument();
-    await user.click(screen.getByText('إعادة المحاولة'));
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|فئات/).length).toBeGreaterThanOrEqual(1);
+    await user.click(screen.getAllByText('إعادة المحاولة')[0]);
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 

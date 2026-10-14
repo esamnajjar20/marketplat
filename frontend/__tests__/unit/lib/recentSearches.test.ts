@@ -29,15 +29,30 @@ describe('recentSearches', () => {
       expect(getRecentSearches()).toEqual([]);
     });
 
-    it('returns stored string queries', () => {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(['لابتوب', 'هاتف']));
+    it('returns stored entry queries', () => {
+      const now = new Date().toISOString();
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify([
+          { query: 'لابتوب', count: 1, lastUsedAt: now },
+          { query: 'هاتف', count: 1, lastUsedAt: now },
+        ]),
+      );
       expect(getRecentSearches()).toEqual(['لابتوب', 'هاتف']);
     });
 
-    it('filters out non-strings and empty/whitespace entries', () => {
+    it('filters out invalid entries and empty/whitespace queries', () => {
+      const now = new Date().toISOString();
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify(['ok', '', '  ', 42, null, 'هاتف']),
+        JSON.stringify([
+          { query: 'ok', count: 1, lastUsedAt: now },
+          { query: '', count: 1, lastUsedAt: now },
+          { query: '  ', count: 1, lastUsedAt: now },
+          42,
+          null,
+          { query: 'هاتف', count: 1, lastUsedAt: now },
+        ]),
       );
       expect(getRecentSearches()).toEqual(['ok', 'هاتف']);
     });
@@ -53,7 +68,12 @@ describe('recentSearches', () => {
     });
 
     it('caps results at 8 items', () => {
-      const many = Array.from({ length: 12 }, (_, i) => `q${i}`);
+      const now = new Date().toISOString();
+      const many = Array.from({ length: 12 }, (_, i) => ({
+        query: `q${i}`,
+        count: 1,
+        lastUsedAt: now,
+      }));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(many));
       expect(getRecentSearches()).toHaveLength(8);
     });

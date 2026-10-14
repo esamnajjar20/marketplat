@@ -1,12 +1,18 @@
 import { serviceReviewsService } from '../../src/modules/service-reviews/service-reviews.service';
 import { serviceReviewsRepository } from '../../src/modules/service-reviews/service-reviews.repository';
+import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+
+jest.mock('../../src/modules/sellers/sellers.repository');
 
 jest.mock('../../src/modules/service-reviews/service-reviews.repository');
 
 const sellerProfileId = 'seller-profile-1';
 
 describe('serviceReviewsService — additional coverage', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (sellersRepository.findById as jest.Mock).mockResolvedValue({ id: sellerProfileId, suspended: false });
+  });
 
   describe('getReviewsForSeller', () => {
     it('returns items with pagination meta built from total/page/limit', async () => {

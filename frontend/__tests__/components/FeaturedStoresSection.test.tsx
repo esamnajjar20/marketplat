@@ -2,7 +2,8 @@
  * FeaturedStoresSection — home featured stores.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { FeaturedStoresSection } from '@/components/home/FeaturedStoresSection';
 import { useStores } from '@/hooks/queries/useStores';
 import { useLocationResolver } from '@/hooks/useLocationResolver';

@@ -38,7 +38,7 @@ describe('Pagination', () => {
 
   it('renders navigation landmark with aria-label', () => {
     render(<Pagination totalPages={5} currentPage={3} baseUrl="/ads" />);
-    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeDefined();
+    expect(screen.getByRole('navigation', { name: 'التنقل بين الصفحات' })).toBeDefined();
   });
 
   it('shows current page counter with aria-live', () => {

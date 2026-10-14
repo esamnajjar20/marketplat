@@ -27,7 +27,8 @@
  *  QueryClientProvider wrapper.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { formatPrice } from '@/lib/formatters';
 import type { ProductWithStore, EffectivePrice } from '@/types/product.types';
@@ -109,7 +110,8 @@ describe('ProductCard', () => {
       };
       render(<ProductCard product={product} storeId="store-1" />);
       expect(screen.getByText(formatPrice(120))).toBeInTheDocument();
-      expect(screen.queryByText(formatPrice('150'))).not.toBeInTheDocument();
+      // Original price remains visible as a line-through reference
+      expect(screen.getByText(formatPrice('150'))).toBeInTheDocument();
       expect(screen.queryByText(/🔥/)).not.toBeInTheDocument();
     });
 
@@ -127,7 +129,7 @@ describe('ProductCard', () => {
       };
       render(<ProductCard product={product} storeId="store-1" />);
       expect(screen.getByText(formatPrice(127.5))).toBeInTheDocument();
-      expect(screen.queryByText(formatPrice('150'))).not.toBeInTheDocument();
+      expect(screen.getByText(formatPrice('150'))).toBeInTheDocument();
       expect(screen.getByText('خصم 15%')).toBeInTheDocument();
     });
   });

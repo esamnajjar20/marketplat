@@ -15,6 +15,15 @@ jest.mock('../../src/modules/service-categories/service-categories.repository');
 jest.mock('../../src/modules/service-types/service-types.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/config/cloudinary');
+jest.mock('../../src/modules/follows/follows.service', () => ({
+  followsService: { notifyActivityForTargets: jest.fn().mockResolvedValue(undefined) },
+}));
+jest.mock('../../src/modules/fraud', () => ({
+  fraudService: { scoreListing: jest.fn().mockResolvedValue(undefined) },
+}));
+jest.mock('../../src/modules/saved-searches', () => ({
+  savedSearchEvents: { onServiceListingCreated: jest.fn().mockResolvedValue(undefined) },
+}));
 jest.mock('../../src/shared/utils/publicListCache', () => ({
   cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
     fetcher()
@@ -147,19 +156,16 @@ describe('serviceListingsService — additional coverage', () => {
       ).rejects.toThrow('DB write failed');
     });
 
-    it('creates successfully with no images at all', async () => {
-      (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
-      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
-      (serviceListingsRepository.create as jest.Mock).mockResolvedValue(mockListing);
-
-      const result = await serviceListingsService.createServiceListing(
-        'user-1',
-        { categoryId: 'cat-1' } as any,
-        []
-      );
-
-      expect(result).toEqual(mockListing);
+    it('rejects creation with no images because public listings require a service image', async () => {
+      await expect(
+        serviceListingsService.createServiceListing(
+          'user-1',
+          { categoryId: 'cat-1' } as any,
+          []
+        )
+      ).rejects.toThrow('At least one service image is required.');
       expect(uploadImage).not.toHaveBeenCalled();
+      expect(serviceListingsRepository.create).not.toHaveBeenCalled();
     });
   });
 

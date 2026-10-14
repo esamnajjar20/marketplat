@@ -8,11 +8,12 @@ import {
 } from '@/components/shared/list/ListPageShell';
 
 describe('DetailSafetyTips', () => {
-  it('is collapsed by default and expands on click', () => {
+  it('is open by default and collapses on click', () => {
     render(<DetailSafetyTips />);
-    expect(screen.queryByText(/مكان عام/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /نصائح للسلامة/ }));
+    // defaultOpen defaults to true
     expect(screen.getByText(/مكان عام/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /نصائح للسلامة|طي نصائح/ }));
+    expect(screen.queryByText(/مكان عام/)).not.toBeInTheDocument();
   });
 
   it('can start open', () => {

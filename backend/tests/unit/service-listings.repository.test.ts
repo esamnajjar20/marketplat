@@ -168,16 +168,16 @@ describe('serviceListingsRepository', () => {
       expect(call.where.price).toEqual({ gte: 50, lte: 200 });
     });
 
-    it('applies a case-insensitive OR search across title and description', async () => {
+    it('uses full-text search IDs for public title/description search', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'listing-1' }]);
       await serviceListingsRepository.findMany({ search: 'cleaning' } as any);
       const call = (prisma.serviceListing.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.where.OR).toEqual([
-        { title: { contains: 'cleaning', mode: 'insensitive' } },
-        { description: { contains: 'cleaning', mode: 'insensitive' } },
-      ]);
+      expect(call.where.id).toEqual({ in: ['listing-1'] });
+      expect(call.where.OR).toBeUndefined();
     });
 
     it('combines every optional filter at once', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'listing-1' }]);
       await serviceListingsRepository.findMany({
         categoryId: 'cat-1',
         providerId: 'provider-1',
@@ -197,10 +197,7 @@ describe('serviceListingsRepository', () => {
         serviceLocation: 'REMOTE',
         provider: { serviceAreaCities: { has: 'Amman' }, sellerProfile: { suspended: false } },
         price: { gte: 50, lte: 200 },
-        OR: [
-          { title: { contains: 'cleaning', mode: 'insensitive' } },
-          { description: { contains: 'cleaning', mode: 'insensitive' } },
-        ],
+        id: { in: ['listing-1'] },
       });
       expect(call.orderBy).toEqual({ price: 'asc' });
     });

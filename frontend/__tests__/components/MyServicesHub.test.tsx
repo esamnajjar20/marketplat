@@ -2,7 +2,8 @@
  * __tests__/components/MyServicesHub.test.tsx
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { MyServicesHub } from '@/components/services/MyServicesHub';
 import {
   useMyServiceProvider,
@@ -66,7 +67,7 @@ describe('MyServicesHub', () => {
   it('renders provider hub with business name and availability', () => {
     render(<MyServicesHub />);
     expect(screen.getByText('خدمات النور')).toBeInTheDocument();
-    expect(screen.getByText('متاح')).toBeInTheDocument();
+    expect(screen.getAllByText('متاح')[0]).toBeInTheDocument();
     expect(screen.getByText(/غزة/)).toBeInTheDocument();
     expect(screen.getByText('خدمة جديدة')).toBeInTheDocument();
   });

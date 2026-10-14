@@ -12,7 +12,8 @@
  *     'distance' (leaves any other sort value untouched).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
 
@@ -20,7 +21,7 @@ const mockPush = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockPush, prefetch: vi.fn(), back: vi.fn() }),
   useSearchParams: () => mockSearchParams,
 }));
 
@@ -49,7 +50,7 @@ describe('SearchNearbyToggle', () => {
 
   it('renders the locate button when no lat/lng are on the URL', () => {
     render(<SearchNearbyToggle />);
-    expect(screen.getByRole('button', { name: /البحث ضمن 7 كم مني/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /البحث ضمن \d+ كم مني/ })).toBeInTheDocument();
   });
 
   it('renders the clear button when lat/lng are already on the URL', () => {

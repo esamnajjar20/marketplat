@@ -43,10 +43,10 @@ describe('AdminRecentActivity', () => {
     const user = setupUser();
     render(<AdminRecentActivity />);
 
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|نشاط/)).toBeInTheDocument();
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|نشاط/).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('لا توجد نشاطات')).not.toBeInTheDocument();
 
-    await user.click(screen.getByText('إعادة المحاولة'));
+    await user.click(screen.getAllByText('إعادة المحاولة')[0]);
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 

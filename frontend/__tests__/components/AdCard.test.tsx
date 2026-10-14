@@ -103,9 +103,11 @@ describe('AdCard', () => {
     expect(screen.getByText('خان يونس')).toBeInTheDocument();
   });
 
-  it('renders a relative time string for createdAt', () => {
+  it('renders a relative time string for createdAt', async () => {
     render(<AdCard ad={baseAd} />);
-    expect(screen.getByText(formatRelativeTime(baseAd.createdAt))).toBeInTheDocument();
+    // useNowAfterMount defers the clock until after mount
+    const expected = formatRelativeTime(baseAd.createdAt);
+    expect(await screen.findByText(expected)).toBeInTheDocument();
   });
 
   it('links to the ad detail page', () => {

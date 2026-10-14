@@ -193,7 +193,7 @@ describe('authCookies', () => {
       expect(res.cookie).toHaveBeenCalledWith(
         'csrfToken',
         expect.any(String),
-        expect.objectContaining({ httpOnly: true, path: '/' }),
+        expect.objectContaining({ httpOnly: false, path: '/', secure: true, sameSite: 'none' }),
       );
     });
 
@@ -231,7 +231,7 @@ describe('authCookies', () => {
       clearCsrfCookie(res as Response);
 
       expect(res.clearCookie).toHaveBeenCalledWith('csrfToken', {
-        httpOnly: true,
+        httpOnly: false,
         secure: true,
         sameSite: 'none',
         path: '/',

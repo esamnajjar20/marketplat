@@ -258,9 +258,12 @@ describe('AdsService', () => {
   });
 
   describe('getAds (Redis cache-aside — FIX AUDIT-V4-06)', () => {
-    const query = { page: 1, limit: 20 };
+    // The shared Redis test double intentionally persists values across tests.
+    // Give each case its own cache key while keeping repeated calls within a case identical.
+    const makeQuery = () => ({ page: 1, limit: 20, search: `q${Math.random().toString(36).slice(2, 10)}` });
 
     it('calls the repository and caches the result on a cold cache', async () => {
+      const query = makeQuery();
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
 
       const result = await adsService.getAds(query);
@@ -270,6 +273,7 @@ describe('AdsService', () => {
     });
 
     it('serves a second identical request from cache without hitting the repository again', async () => {
+      const query = makeQuery();
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
 
       await adsService.getAds(query);
@@ -281,15 +285,17 @@ describe('AdsService', () => {
     });
 
     it('uses separate cache entries for different query parameters', async () => {
+      const query = makeQuery();
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
 
-      await adsService.getAds({ page: 1, limit: 20 });
-      await adsService.getAds({ page: 2, limit: 20 });
+      await adsService.getAds({ ...query, page: 1 });
+      await adsService.getAds({ ...query, page: 2 });
 
       expect(adsRepository.findMany).toHaveBeenCalledTimes(2);
     });
 
     it('falls back to the repository when the cache read throws', async () => {
+      const query = makeQuery();
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
       (redis.mget as jest.Mock).mockRejectedValueOnce(new Error('Redis connection lost'));
 
@@ -300,6 +306,7 @@ describe('AdsService', () => {
     });
 
     it('still returns the DB result when the cache write fails', async () => {
+      const query = makeQuery();
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
       const realSet = (redis.set as jest.Mock).getMockImplementation()!;
       // Fail only the envelope write (ads:list2:*), not the generation-token setup.
@@ -316,6 +323,7 @@ describe('AdsService', () => {
     });
 
     it('soft-invalidates after createAd: the stale list is served once, then refreshed in the background (FIX ADS-CACHE-SWR-01)', async () => {
+      const query = makeQuery();
       // createAd's transaction path calls tx.ad.create() directly against
       // the real (unmocked) prisma client — a fake hardcoded 'user-1'
       // string violates the ads_userId_fkey constraint. adsRepository.create
@@ -339,6 +347,7 @@ describe('AdsService', () => {
     });
 
     it('invalidates the cache after updateAd (covers mark-as-sold via status change)', async () => {
+      const query = makeQuery();
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
       (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
       (adsRepository.update as jest.Mock).mockResolvedValue({ ...mockAd, status: 'SOLD' });
@@ -351,6 +360,7 @@ describe('AdsService', () => {
     });
 
     it('invalidates the cache after deleteAd', async () => {
+      const query = makeQuery();
       (adsRepository.findMany as jest.Mock).mockResolvedValue({ ads: [mockAd], total: 1 });
       (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
       (adsRepository.softDelete as jest.Mock).mockResolvedValue(undefined);

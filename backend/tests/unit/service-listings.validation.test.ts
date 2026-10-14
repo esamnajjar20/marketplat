@@ -21,7 +21,7 @@ describe('service-listings.validation', () => {
 
     it('accepts explicit pricingType and serviceLocation', () => {
       const result = createServiceListingSchema.parse({
-        body: { ...valid, pricingType: 'FIXED', serviceLocation: 'REMOTE' },
+        body: { ...valid, pricingType: 'FIXED', price: 19.99, serviceLocation: 'REMOTE' },
       });
       expect(result.body.pricingType).toBe('FIXED');
       expect(result.body.serviceLocation).toBe('REMOTE');
@@ -56,12 +56,12 @@ describe('service-listings.validation', () => {
     });
 
     it('accepts a price with exactly 2 decimal places', () => {
-      const result = createServiceListingSchema.parse({ body: { ...valid, price: 19.99 } });
+      const result = createServiceListingSchema.parse({ body: { ...valid, pricingType: 'FIXED', price: 19.99 } });
       expect(result.body.price).toBe(19.99);
     });
 
     it('coerces a string price into a number', () => {
-      const result = createServiceListingSchema.parse({ body: { ...valid, price: '25.50' } });
+      const result = createServiceListingSchema.parse({ body: { ...valid, pricingType: 'FIXED', price: '25.50' } });
       expect(result.body.price).toBe(25.5);
     });
 

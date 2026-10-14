@@ -96,6 +96,8 @@ describe('networkPolicy', () => {
 
   it('stops network work when offline', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    // getTier only returns 'offline' when connectionQuality reports offline
+    mocks.getConnectionQuality.mockReturnValue('offline');
 
     const policy = getNetworkPolicy();
 

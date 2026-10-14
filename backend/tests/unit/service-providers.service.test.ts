@@ -231,7 +231,14 @@ describe('serviceProvidersService', () => {
         status: 'ACTIVE',
         limit: 100,
       });
-      expect(result).toEqual({ ...withSeller, listings: activeListings });
+      expect(result).toEqual({
+        ...withSeller,
+        contactPhone: '',
+        latitude: null,
+        longitude: null,
+        sellerProfile: { ...withSeller.sellerProfile, paymentMethods: null },
+        listings: activeListings,
+      });
     });
 
     // SEC-see getPublicServiceProvider's comment — a

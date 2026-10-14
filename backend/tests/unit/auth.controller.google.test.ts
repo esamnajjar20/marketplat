@@ -51,7 +51,7 @@ describe('authController.googleCallback', () => {
     expect(authCookies.setRefreshTokenCookie).toHaveBeenCalledWith(res, 'refresh-1');
     expect(authCookies.setCsrfCookie).toHaveBeenCalledWith(res);
     expect(authCookies.setSessionHintCookie).toHaveBeenCalledWith(res);
-    expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000');
+    expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/');
     // Redirect-based flow — never a JSON response for this handler.
     expect(res.json).not.toHaveBeenCalled();
   });

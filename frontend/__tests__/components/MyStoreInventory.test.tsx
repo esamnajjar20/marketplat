@@ -2,7 +2,8 @@
  * __tests__/components/MyStoreInventory.test.tsx
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { MyStoreInventory } from '@/components/stores/MyStoreInventory';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useAdjustProductStock } from '@/hooks/mutations/useAdjustProductStock';

@@ -126,7 +126,7 @@ describe('appointmentsRepository', () => {
     });
   });
 
-  describe('findManyByProviderId', () => {
+  describe('findManyByUserId', () => {
     it('applies default page/limit and no date filter when the query is empty', async () => {
       (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.appointment.count as jest.Mock).mockResolvedValue(0);
@@ -179,7 +179,10 @@ describe('appointmentsRepository', () => {
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { providerId, scheduledStart: { lte: to } },
+          where: {
+            OR: [{ providerId }, { request: { customerId: 'user-1' } }],
+            scheduledStart: { lte: to },
+          },
         })
       );
     });
@@ -194,7 +197,10 @@ describe('appointmentsRepository', () => {
 
       expect(prisma.appointment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { providerId, scheduledStart: { gte: from, lte: to } },
+          where: {
+            OR: [{ providerId }, { request: { customerId: 'user-1' } }],
+            scheduledStart: { gte: from, lte: to },
+          },
         })
       );
     });

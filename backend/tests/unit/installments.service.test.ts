@@ -106,7 +106,9 @@ describe('installmentsService.pay', () => {
   });
 
   it('re-reads the installment after acquiring the sale lock', async () => {
-    tx.saleInstallment.findUnique.mockResolvedValueOnce({ id: installment.id, saleId: sale.id });
+    // The service reads the lightweight reference before the transaction
+    // via prisma.saleInstallment.findUnique, then performs one fresh read
+    // after acquiring the sale lock via tx.saleInstallment.findUnique.
     tx.saleInstallment.findUnique.mockResolvedValueOnce({ ...installment, paidAmount: 50 });
 
     await expect(installmentsService.pay('seller-1', 'installment-1', 1)).rejects.toBeInstanceOf(BadRequestError);

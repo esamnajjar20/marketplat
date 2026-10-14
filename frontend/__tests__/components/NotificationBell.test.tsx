@@ -26,7 +26,8 @@
  *    is disabled while pending
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { useMyNotifications, useUnreadNotificationCount } from '@/hooks/queries/useNotifications';
@@ -197,8 +198,10 @@ describe('NotificationBell', () => {
       await openMenu(user);
 
       const row = await screen.findByText('عرض ترويجي');
-      expect(row.closest('a')).toBeNull();
-      expect(row.closest('button')).not.toBeNull();
+      // PROMOTION now routes to home via hrefFor
+      const link = row.closest('a');
+      expect(link).not.toBeNull();
+      expect(link).toHaveAttribute('href', '/');
     });
 
     it('renders NEW_MESSAGE with NO conversationId as a plain button (no href for missing data)', async () => {
@@ -454,7 +457,7 @@ describe('NotificationBell', () => {
       render(<NotificationBell />);
       await openMenu(user);
 
-      expect(await screen.findByText('تغييرات في الأسعار (3)')).toBeInTheDocument();
+      expect(await screen.findByText('تغيير سعر (3)')).toBeInTheDocument();
       expect(screen.queryByText('تغيير 1')).not.toBeInTheDocument();
     });
 
@@ -467,7 +470,7 @@ describe('NotificationBell', () => {
       render(<NotificationBell />);
       await openMenu(user);
 
-      await user.click(await screen.findByText('تغييرات في الأسعار (3)'));
+      await user.click(await screen.findByText('تغيير سعر (3)'));
 
       expect(screen.getByText('تغيير 1')).toBeInTheDocument();
       expect(screen.getByText('تغيير 2')).toBeInTheDocument();

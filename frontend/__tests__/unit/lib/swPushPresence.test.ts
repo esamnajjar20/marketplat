@@ -30,7 +30,7 @@ describe('sw.js push handler presence suppression', () => {
   });
 
   it('falls through to showNotification if the presence check throws', () => {
-    expect(pushHandler).toMatch(/presence check failed — fall through/);
-    expect(pushHandler).toMatch(/await self\.registration\.showNotification\(title, options\)/);
+    // empty catch still continues to showNotification (presence is best-effort)
+    expect(pushHandler).toMatch(/catch\s*\{[\s\S]*?\}[\s\S]*?await self\.registration\.showNotification\(title, options\)/);
   });
 });

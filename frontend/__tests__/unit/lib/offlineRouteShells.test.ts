@@ -57,10 +57,9 @@ describe('offlineRouteShells', () => {
     await expect(warmRouteShells()).resolves.toBeUndefined();
   });
 
-  // FIX OFFLINE-SELF-LINKS-01: /offline itself links to these three routes
-  // as "available on this device without internet" — they must actually be
-  // pre-warmed or that promise is false on a fresh offline hard navigation.
-  it('warms the routes /offline itself promises are available offline', async () => {
+  // OFFLINE-HUB-01: /saved-ads and /downloads became tabs of '/offline'
+  // (redirect stubs — not in CORE_ROUTES). /saved-payments remains warmable.
+  it('warms core offline hub routes (not redirect stubs)', async () => {
     const fetchedPaths: string[] = [];
     vi.stubGlobal(
       'fetch',
@@ -72,9 +71,10 @@ describe('offlineRouteShells', () => {
 
     await warmRouteShells();
 
-    for (const path of ['/saved-ads', '/downloads', '/saved-payments']) {
-      expect(fetchedPaths).toContain(path);
-    }
+    expect(fetchedPaths).toContain('/offline');
+    expect(fetchedPaths).toContain('/saved-payments');
+    expect(fetchedPaths).not.toContain('/saved-ads');
+    expect(fetchedPaths).not.toContain('/downloads');
   });
 
   it('warmPersonalShells opens personal shell cache when online', async () => {

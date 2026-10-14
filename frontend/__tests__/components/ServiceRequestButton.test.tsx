@@ -9,7 +9,7 @@
  *  - Renders null entirely when the signed-in user owns the listing
  *    (own-listing check happens before any render, not just a hidden
  *    dialog)
- *  - Unauthenticated: clicking redirects to /login?next=<encoded detail
+ *  - Unauthenticated: clicking redirects to /login?from=<encoded detail
  *    url> instead of opening the dialog
  *  - Authenticated: clicking opens the dialog
  *  - Submit is disabled below the 10-character minimum and shows a
@@ -21,7 +21,8 @@
  *  - Pending state disables submit and shows the pending label
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 import { useCreateServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
@@ -92,7 +93,7 @@ describe('ServiceRequestButton', () => {
       await user.click(screen.getByRole('button', { name: /إرسال طلب لمقدم الخدمة/ }));
 
       expect(mockPush).toHaveBeenCalledWith(
-        `/login?next=${encodeURIComponent('/services/listing-1')}`,
+        `/login?from=${encodeURIComponent('/services/listing-1')}`,
       );
       expect(screen.queryByText('إرسال طلب خدمة')).not.toBeInTheDocument();
     });

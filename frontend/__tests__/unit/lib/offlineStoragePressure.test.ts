@@ -46,7 +46,10 @@ describe('offline storage pressure', () => {
     expect(await shouldPauseBackgroundWarming()).toBe(false);
   });
 
-  it('evicts only disposable caches at critical pressure and pauses if still critical', async () => {
+  it('pauses warming at critical pressure after requesting SW trim (usage still critical)', async () => {
+    // Client no longer deletes caches itself — it posts TRIM_DISPOSABLE_CACHES
+    // to the service worker. With usage still critical after that request,
+    // shouldPauseBackgroundWarming must return true.
     usage = 950;
     cacheNames.add('market-auto-read-ads');
     cacheNames.add('market-images-v44');
@@ -54,7 +57,10 @@ describe('offline storage pressure', () => {
     cacheNames.add('market-saved-ads');
     cacheNames.add('market-user-data-v44');
 
+    // No active SW in this unit test → cleanup is a no-op; pressure stays critical.
     expect(await shouldPauseBackgroundWarming()).toBe(true);
-    expect(cacheNames).toEqual(new Set(['market-saved-ads', 'market-user-data-v44']));
+    // Cache names are untouched client-side (SW owns eviction).
+    expect(cacheNames.has('market-saved-ads')).toBe(true);
+    expect(cacheNames.has('market-user-data-v44')).toBe(true);
   });
 });

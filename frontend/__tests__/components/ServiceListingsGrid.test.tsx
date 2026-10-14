@@ -17,7 +17,8 @@
  *  - Pagination only renders when totalPages > 1
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { ServiceListingsGrid } from '@/components/services/ServiceListingsGrid';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import type { ServiceListingWithProvider } from '@/types/service.types';

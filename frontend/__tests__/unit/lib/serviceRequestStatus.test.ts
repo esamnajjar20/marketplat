@@ -21,6 +21,8 @@ const ALL_STATUSES: ServiceRequestStatus[] = [
   'IN_PROGRESS',
   'COMPLETED',
   'CANCELLED',
+  'EXPIRED',
+  'DISPUTED',
 ];
 
 describe('serviceRequestStatus', () => {

@@ -8,7 +8,8 @@
  * review dialog directly.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { useAuthStore } from '@/store/auth.store';
@@ -69,7 +70,7 @@ describe('StoreReviewButton', () => {
 
     await user.click(screen.getByRole('button', { name: /إضافة تقييم/ }));
 
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('next='));
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('from='));
     expect(screen.queryByTestId('review-dialog')).not.toBeInTheDocument();
   });
 

@@ -63,7 +63,7 @@ describe('AdminProductCategoriesTree', () => {
       data: undefined, isLoading: false, isError: true, refetch: vi.fn(),
     } as never);
     render(<AdminProductCategoriesTree />);
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|فئات|منتج/)).toBeInTheDocument();
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|فئات|منتج/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows the product-specific empty text', () => {

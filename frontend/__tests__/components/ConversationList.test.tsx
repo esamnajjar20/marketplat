@@ -193,7 +193,7 @@ describe('ConversationList', () => {
       renderWithClient(<ConversationList />);
 
       await user.click(screen.getAllByRole('button', { name: 'الأرشيف' })[0]);
-      expect(screen.getByText('لا توجد محادثات في الأرشيف')).toBeInTheDocument();
+      expect(screen.getAllByText('لا توجد محادثات في الأرشيف').length).toBeGreaterThanOrEqual(1);
 
       await user.click(screen.getByRole('button', { name: 'إظهار الكل' }));
       expect(screen.getByText('متجر سارة')).toBeInTheDocument();

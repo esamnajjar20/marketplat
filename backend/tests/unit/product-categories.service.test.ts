@@ -175,13 +175,13 @@ describe('productCategoriesService', () => {
 
   describe('getProductCategoryById', () => {
     it('returns the category when found', async () => {
-      (productCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
+      (productCategoriesRepository.findPublicById as jest.Mock).mockResolvedValue(mockCategory);
       const result = await productCategoriesService.getProductCategoryById('cat-1');
       expect(result).toEqual(mockCategory);
     });
 
     it('throws NotFoundError when not found', async () => {
-      (productCategoriesRepository.findById as jest.Mock).mockResolvedValue(null);
+      (productCategoriesRepository.findPublicById as jest.Mock).mockResolvedValue(null);
       await expect(productCategoriesService.getProductCategoryById('missing')).rejects.toThrow(
         NotFoundError
       );

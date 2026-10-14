@@ -27,7 +27,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 function paramsFromPush(callIndex = 0) {
-  const url = mockPush.mock.calls[callIndex][0] as string;
+  const nav = mockReplace.mock.calls.length ? mockReplace : mockPush;
+  const url = nav.mock.calls[callIndex][0] as string;
   return new URLSearchParams(url.split('?')[1]);
 }
 
@@ -78,7 +79,7 @@ describe('SearchSortBar', () => {
       await user.click(screen.getByRole('combobox'));
       await user.click(await screen.findByRole('option', { name: 'الأحدث' }));
 
-      const [path] = mockPush.mock.calls[0][0].split('?');
+      const [path] = (mockReplace.mock.calls[0] ?? mockPush.mock.calls[0])[0].split('?');
       expect(path).toBe('/search');
       const params = paramsFromPush();
       expect(params.get('sort')).toBe('newest');
@@ -115,7 +116,7 @@ describe('SearchSortBar', () => {
       await user.click(screen.getByRole('combobox'));
       await user.click(await screen.findByRole('option', { name: 'الأحدث' }));
 
-      const [path] = mockPush.mock.calls[0][0].split('?');
+      const [path] = (mockReplace.mock.calls[0] ?? mockPush.mock.calls[0])[0].split('?');
       expect(path).toBe('/categories/electronics');
     });
   });
@@ -179,7 +180,7 @@ describe('SearchSortBar', () => {
       await user.click(screen.getByRole('combobox'));
       await user.click(await screen.findByRole('option', { name: 'السعر (أقل)' }));
 
-      const [path] = mockPush.mock.calls[0][0].split('?');
+      const [path] = (mockReplace.mock.calls[0] ?? mockPush.mock.calls[0])[0].split('?');
       expect(path).toBe('/stores');
     });
 

@@ -267,6 +267,10 @@ self.__USER_DATA_CACHE_NAME = userDataCacheName;\nself.__MAX_QUEUE_ENTRIES = MAX
     sandbox,
     { filename: 'sw.js' },
   );
+  // function decls live on the sandbox; the self.* bridge alone is not enough
+  // for tests that call ctx.sandbox.__withNetworkTimeout
+  sandbox.__withNetworkTimeout =
+    sandbox.withNetworkTimeout ?? sandbox.self?.__withNetworkTimeout;
 
   return {
     sandbox,

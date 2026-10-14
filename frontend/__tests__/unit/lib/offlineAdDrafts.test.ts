@@ -15,6 +15,11 @@ import type * as OfflineAdDraftsModule from '@/lib/offlineAdDrafts';
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+const currentUserId = vi.hoisted(() => ({ value: 'user-1' as string | null }));
+vi.mock('@/lib/offlineUserScope', () => ({
+  getCurrentOfflineUserId: () => currentUserId.value,
+}));
+
 type StoreData = Map<IDBValidKey, unknown>;
 
 function installMemoryIndexedDB() {
@@ -144,6 +149,7 @@ describe('offlineAdDrafts', () => {
 
   beforeEach(async () => {
     cleanup = installMemoryIndexedDB();
+    currentUserId.value = 'user-1';
     vi.resetModules();
     lib = await import('@/lib/offlineAdDrafts');
   });
@@ -153,6 +159,7 @@ describe('offlineAdDrafts', () => {
   const payload = { title: 'إعلان تجريبي', description: 'وصف' };
 
   it('round-trips operationId and userId through saveAdDraft/findAdDraftByOperationId', async () => {
+    currentUserId.value = 'user-1';
     await lib.saveAdDraft({
       mode: 'create',
       payload,
@@ -168,6 +175,7 @@ describe('offlineAdDrafts', () => {
   });
 
   it('markAdDraftByOperationId deletes the draft when marked synced', async () => {
+    currentUserId.value = 'u1';
     await lib.saveAdDraft({ mode: 'create', payload, operationId: 'op-1', userId: 'u1', status: 'pending_sync' });
     await lib.markAdDraftByOperationId('op-1', { status: 'synced' });
 
@@ -175,6 +183,7 @@ describe('offlineAdDrafts', () => {
   });
 
   it('markAdDraftByOperationId updates status + lastError on failure, without deleting', async () => {
+    currentUserId.value = 'u1';
     await lib.saveAdDraft({ mode: 'create', payload, operationId: 'op-2', userId: 'u1', status: 'pending_sync' });
     await lib.markAdDraftByOperationId('op-2', { status: 'failed', lastError: 'تعارض 409' });
 
@@ -204,6 +213,7 @@ describe('offlineAdDrafts', () => {
   });
 
   it('clearDraftOnlyAdDrafts removes status:"draft" but keeps pending_sync/failed', async () => {
+    currentUserId.value = 'u1';
     await lib.saveAdDraft({ mode: 'create', payload, userId: 'u1', status: 'draft' });
     const pending = await lib.saveAdDraft({ mode: 'create', payload, userId: 'u1', status: 'pending_sync' });
     const failed = await lib.saveAdDraft({ mode: 'create', payload, userId: 'u1', status: 'failed' });
@@ -222,12 +232,18 @@ describe('offlineAdDrafts', () => {
   });
 
   it('per-user draft cap (MAX_DRAFTS=20) does not evict another user\'s drafts', async () => {
+    currentUserId.value = 'user-1';
     // user-2 has one important pending draft
     const other = await lib.saveAdDraft({ mode: 'create', payload, userId: 'user-2', status: 'pending_sync' });
 
     // user-1 floods past the cap
     for (let i = 0; i < 25; i++) {
-      await lib.saveAdDraft({ mode: 'create', payload, userId: 'user-1', status: 'draft' });
+      await lib.saveAdDraft({
+        mode: 'create',
+        payload: { title: `draft-${i}`, description: 'وصف' },
+        userId: 'user-1',
+        status: 'draft',
+      });
     }
 
     const user1Drafts = await lib.listAdDrafts('user-1');
@@ -336,6 +352,7 @@ describe('offlineAdDrafts', () => {
   });
 
   it('MAX_DRAFTS cap is shared across kinds for the same user (not 20 per kind)', async () => {
+    currentUserId.value = 'u1';
     // 8 ads + 8 products + 8 services = 24 > 20 → oldest excess pruned overall
     for (let i = 0; i < 8; i++) {
       await lib.saveAdDraft({

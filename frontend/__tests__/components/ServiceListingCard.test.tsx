@@ -20,7 +20,8 @@
  *  don't need a QueryClientProvider wrapper.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import type { ServiceListingWithProvider, ServiceAvailability, ServicePricingType } from '@/types/service.types';
 
@@ -75,7 +76,7 @@ describe('ServiceListingCard', () => {
   it('renders the title and city in public context without provider attribution', () => {
     render(<ServiceListingCard listing={makeListing()} />);
     expect(screen.getByText('تصليح مكيفات منزلية')).toBeInTheDocument();
-    expect(screen.getByText('غزة')).toBeInTheDocument();
+    expect(screen.getByText(/غزة/)).toBeInTheDocument();
     expect(screen.queryByText('ورشة التبريد الحديثة')).not.toBeInTheDocument();
   });
 

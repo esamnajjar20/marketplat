@@ -1,6 +1,7 @@
 import { serviceRequestsService } from '../../src/modules/service-requests/service-requests.service';
 import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { notificationEvents } from '../../src/modules/notifications/notifications.service';
@@ -10,6 +11,10 @@ import { ConflictError } from '../../src/shared/errors/ConflictError';
 
 jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
+jest.mock('../../src/modules/blocked-users', () => ({
+  blockedUsersService: { isBlockedEitherDirection: jest.fn().mockResolvedValue(false) },
+}));
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/modules/notifications/notifications.service', () => ({
   notificationEvents: {
@@ -34,6 +39,7 @@ const buildRequest = (overrides: Partial<any> = {}) => ({
     id: 'listing-1',
     title: 'Plumbing',
     provider: { id: 'provider-1', sellerProfile: { id: 'seller-profile-1', userId: providerUserId } },
+    serviceType: { capabilities: { requestQuote: true } },
   },
   ...overrides,
 });
@@ -41,6 +47,9 @@ const buildRequest = (overrides: Partial<any> = {}) => ({
 describe('serviceRequestsService — additional coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (serviceTypesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'service-type-1', isActive: true, capabilities: { requestQuote: true },
+    });
     // Re-armed every test: restoreAllMocks/clearAllMocks in this suite can
     // drop the resolved value, and the services call .catch() on the result.
     (notificationEvents.onServiceRequestCreated as jest.Mock).mockResolvedValue(null);

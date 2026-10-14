@@ -41,7 +41,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     );
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByText('حدث خطأ أثناء تحميل هذا القسم.')).toBeInTheDocument();
+    expect(screen.getByText('حدث خطأ غير متوقع')).toBeInTheDocument();
   });
 
   it('sets aria-live="assertive" on the fallback so screen readers announce it immediately', () => {

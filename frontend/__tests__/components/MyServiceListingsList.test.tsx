@@ -26,7 +26,8 @@
  *      * cancelling does not call deleteListing.mutate
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyServiceListingsList } from '@/components/services/MyServiceListingsList';
 import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
@@ -109,7 +110,7 @@ describe('MyServiceListingsList', () => {
   it('shows skeleton rows while loading', () => {
     mockListingsState({ isLoading: true });
     const { container } = render(<MyServiceListingsList />);
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
   it('shows an error state with a retry option that calls refetch', async () => {

@@ -14,7 +14,8 @@
  * way the pre-existing tests cover adViews/newMessage.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { NotificationSettingsForm } from '@/components/profile/NotificationSettingsForm';
 import { useMe } from '@/hooks/queries/useAuth';

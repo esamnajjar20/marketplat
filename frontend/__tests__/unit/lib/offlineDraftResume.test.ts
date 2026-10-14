@@ -140,6 +140,7 @@ describe('payload field mappers', () => {
         categoryId: 'sc1',
       }),
     ).toEqual({
+      serviceTypeId: '',
       categoryId: 'sc1',
       title: 'خدمة',
       description: 'د',
@@ -147,6 +148,7 @@ describe('payload field mappers', () => {
       price: '20',
       durationEstimate: 'ساعة',
       serviceLocation: 'REMOTE',
+      attributes: {},
     });
   });
 });

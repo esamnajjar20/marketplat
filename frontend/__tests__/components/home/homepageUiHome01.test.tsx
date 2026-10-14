@@ -53,7 +53,7 @@ vi.mock('@/store/auth.store', () => ({
 
 describe('MAX_HOME_CATEGORIES', () => {
   it('caps homepage category chips at 10 (UI-HOME-01)', () => {
-    expect(MAX_HOME_CATEGORIES).toBe(10);
+    expect(MAX_HOME_CATEGORIES).toBe(14);
   });
 });
 

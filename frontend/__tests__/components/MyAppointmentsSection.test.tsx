@@ -13,7 +13,8 @@
  *  - A resolved provider renders AppointmentsList with providerId set
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { MyAppointmentsSection } from '@/components/services/MyAppointmentsSection';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 

@@ -22,7 +22,8 @@
  *    expand on click, children link to the right hrefs
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { ProtectedSidebar } from '@/components/layout/ProtectedSidebar';

@@ -37,11 +37,12 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-function mockProvider(state: { data?: unknown; isLoading?: boolean; isError?: boolean }) {
+function mockProvider(state: { data?: unknown; isLoading?: boolean; isError?: boolean; error?: unknown }) {
   (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
     data: undefined,
     isLoading: false,
     isError: false,
+    error: undefined,
     ...state,
   });
 }
@@ -63,7 +64,7 @@ describe('CreateServiceListingGate', () => {
   });
 
   it('CTA links to /settings/service-provider with ?from=/my-services/new', () => {
-    mockProvider({ isError: true });
+    mockProvider({ isError: true, error: { statusCode: 404 } });
     render(<CreateServiceListingGate />);
 
     const link = screen.getByRole('link', { name: 'تفعيل ملف مقدم خدمة' });

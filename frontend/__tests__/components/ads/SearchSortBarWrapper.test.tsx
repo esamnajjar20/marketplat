@@ -10,7 +10,8 @@
  * hardcoded /search.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { SearchSortBarWrapper } from '@/components/ads/SearchSortBarWrapper';
 import { usePathname } from 'next/navigation';
@@ -19,7 +20,7 @@ const mockPush = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
   useSearchParams: () => mockSearchParams,
   usePathname: vi.fn(),
 }));
@@ -46,7 +47,7 @@ describe('SearchSortBarWrapper (ads)', () => {
     await user.click(screen.getByRole('combobox'));
     await user.click(await screen.findByRole('option', { name: 'السعر (أقل)' }));
 
-    const url = mockPush.mock.calls[0][0] as string;
+    const url = (mockReplace.mock.calls[0] ?? mockPush.mock.calls[0])[0] as string;
     const [path] = url.split('?');
     expect(path).toBe('/categories/electronics');
     const params = new URLSearchParams(url.split('?')[1]);
@@ -63,7 +64,7 @@ describe('SearchSortBarWrapper (ads)', () => {
     await user.click(screen.getByRole('combobox'));
     await user.click(await screen.findByRole('option', { name: 'الأكثر مشاهدة' }));
 
-    const [path] = (mockPush.mock.calls[0][0] as string).split('?');
+    const [path] = ((mockReplace.mock.calls[0] ?? mockPush.mock.calls[0])[0] as string).split('?');
     expect(path).toBe('/categories/vehicles');
   });
 });

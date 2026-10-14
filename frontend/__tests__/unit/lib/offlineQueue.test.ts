@@ -25,6 +25,10 @@ import {
   queueFailureAction,
 } from '@/lib/offlineQueue';
 
+vi.mock('@/lib/offlineUserScope', () => ({
+  getCurrentOfflineUserId: vi.fn(() => 'user-a'),
+}));
+
 interface FakeIDBRequest {
   result: unknown;
   error: unknown;
@@ -109,14 +113,17 @@ describe('offlineQueue', () => {
   });
 
   describe('enqueueOfflineMutationFallback', () => {
+    // offlineMutationPolicy only allows POST create endpoints (exact path)
+    // with an operationId — not PATCH edits.
     const baseInput = {
-      url: '/api/v1/ads/ad-1',
-      method: 'PATCH',
+      url: '/api/v1/ads',
+      method: 'POST',
       headers: { 'content-type': 'application/json', authorization: 'Bearer never-store-this' },
-      body: JSON.stringify({ title: 'edited offline' }),
+      body: JSON.stringify({ title: 'created offline' }),
       ownerUserId: 'user-a',
       needsAuth: true,
       needsCsrf: true,
+      operationId: 'op-create-ad-1',
     };
 
     it('refuses to queue work owned by a different account', async () => {
@@ -149,7 +156,7 @@ describe('offlineQueue', () => {
 
       await expect(enqueueOfflineMutationFallback(baseInput)).resolves.toMatchObject({ queued: true });
       expect(stored).toHaveLength(1);
-      expect(stored[0]).toMatchObject({ status: 'pending', ownerUserId: 'user-a', method: 'PATCH' });
+      expect(stored[0]).toMatchObject({ status: 'pending', ownerUserId: 'user-a', method: 'POST' });
       const storedHeaders = stored[0]?.headers as Record<string, string>;
       expect(storedHeaders.authorization).toBeUndefined();
       expect(storedHeaders['x-csrf-token']).toBeUndefined();

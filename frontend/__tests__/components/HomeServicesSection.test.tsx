@@ -2,7 +2,8 @@
  * __tests__/components/HomeServicesSection.test.tsx
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { HomeServicesSection } from '@/components/home/HomeServicesSection';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
 import { useLocationResolver } from '@/hooks/useLocationResolver';

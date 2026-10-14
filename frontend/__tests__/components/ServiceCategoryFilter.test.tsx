@@ -22,6 +22,7 @@ import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ServiceCategoryFilter } from '@/components/services/ServiceCategoryFilter';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 
 const mockPush = vi.fn();
 let mockSearchParams = new URLSearchParams();
@@ -35,8 +36,23 @@ vi.mock('@/hooks/queries/useServiceCategories', () => ({
   useServiceCategories: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useServiceTypes', () => ({
+  useServiceTypes: vi.fn(),
+}));
+
 function mockCategories(data: Array<{ id: string; nameAr: string }> | undefined) {
   vi.mocked(useServiceCategories).mockReturnValue({ data } as never);
+}
+
+function mockServiceTypes(
+  data: Array<{
+    id: string;
+    nameAr?: string;
+    capabilities?: Record<string, boolean>;
+    fields?: unknown[];
+  }> | undefined = [],
+) {
+  vi.mocked(useServiceTypes).mockReturnValue({ data } as never);
 }
 
 describe('ServiceCategoryFilter', () => {
@@ -47,6 +63,7 @@ describe('ServiceCategoryFilter', () => {
       { id: 'cat-1', nameAr: 'سباكة' },
       { id: 'cat-2', nameAr: 'كهرباء' },
     ]);
+    mockServiceTypes([]);
   });
 
   describe('search input', () => {

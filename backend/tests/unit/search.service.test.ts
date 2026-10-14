@@ -31,7 +31,10 @@ const mockRow: RawSearchRow = {
 const baseQuery: SearchQuery = { type: 'all', sort: 'relevance', radius: 10 };
 
 describe('searchService', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearSearchSuggestL1ForTests();
+  });
 
   describe('search', () => {
     it('normalizes each raw row into the flattened SearchResult shape', async () => {

@@ -66,7 +66,7 @@ describe('AdminServiceListingsTable', () => {
   it('shows error state', () => {
     mockTable({ isError: true, rows: [] });
     render(<AdminServiceListingsTable />);
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|خدم/)).toBeInTheDocument();
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|خدم/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders service rows', () => {

@@ -109,59 +109,29 @@ describe('AuthService.loginWithGoogle', () => {
     });
   });
 
-  describe('case 2 — existing email, no googleId (account linking)', () => {
-    it('links the Google account to the existing local user instead of creating a duplicate', async () => {
-      const existingLocal = { ...baseUser, provider: 'local', googleId: null, passwordHash: 'hashed' };
-      const linked = { ...existingLocal, provider: 'google', googleId: googleProfile.googleId };
-
-      (authRepository.findByGoogleId as jest.Mock).mockResolvedValue(null);
-      (authRepository.findByEmail as jest.Mock).mockResolvedValue(existingLocal);
-      (authRepository.linkGoogleAccount as jest.Mock).mockResolvedValue(linked);
-
-      const result = await authService.loginWithGoogle(googleProfile);
-
-      expect(authRepository.findByEmail).toHaveBeenCalledWith(googleProfile.email);
-      expect(authRepository.linkGoogleAccount).toHaveBeenCalledWith(existingLocal.id, googleProfile.googleId);
-      expect(authRepository.createWithGoogle).not.toHaveBeenCalled();
-
-      expect(result.user.email).toBe('test@example.com');
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({ event: AuditEvent.OAUTH_ACCOUNT_LINKED, userId: linked.id })
-      );
-    });
-
-    it('never creates a second user for an email that already exists', async () => {
+  describe('case 2 — existing email, no googleId (explicit linking required)', () => {
+    it('does not silently link Google to an existing local account', async () => {
       const existingLocal = { ...baseUser, provider: 'local', googleId: null, passwordHash: 'hashed' };
       (authRepository.findByGoogleId as jest.Mock).mockResolvedValue(null);
       (authRepository.findByEmail as jest.Mock).mockResolvedValue(existingLocal);
-      (authRepository.linkGoogleAccount as jest.Mock).mockResolvedValue({
-        ...existingLocal,
-        provider: 'google',
-        googleId: googleProfile.googleId,
+
+      await expect(authService.loginWithGoogle(googleProfile)).rejects.toMatchObject({
+        code: 'OAUTH_EMAIL_ALREADY_REGISTERED',
       });
-
-      await authService.loginWithGoogle(googleProfile);
-
+      expect(authRepository.linkGoogleAccount).not.toHaveBeenCalled();
       expect(authRepository.createWithGoogle).not.toHaveBeenCalled();
     });
 
-    it('does not touch the existing user password when linking', async () => {
+    it('never creates a duplicate or mutates the password when an email already exists', async () => {
       const existingLocal = { ...baseUser, provider: 'local', googleId: null, passwordHash: 'existing-hash' };
       (authRepository.findByGoogleId as jest.Mock).mockResolvedValue(null);
       (authRepository.findByEmail as jest.Mock).mockResolvedValue(existingLocal);
-      (authRepository.linkGoogleAccount as jest.Mock).mockResolvedValue({
-        ...existingLocal,
-        provider: 'google',
-        googleId: googleProfile.googleId,
-      });
 
-      await authService.loginWithGoogle(googleProfile);
-
-      // linkGoogleAccount is called with only (userId, googleId) — the
-      // repository method itself (auth.repository.ts) never includes
-      // passwordHash in its update payload; this assertion pins that
-      // call shape so a future change can't silently start touching it.
-      expect(authRepository.linkGoogleAccount).toHaveBeenCalledWith(existingLocal.id, googleProfile.googleId);
+      await expect(authService.loginWithGoogle(googleProfile)).rejects.toThrow(
+        'Sign in with your password, then link Google from Settings'
+      );
+      expect(authRepository.createWithGoogle).not.toHaveBeenCalled();
+      expect(authRepository.linkGoogleAccount).not.toHaveBeenCalled();
     });
 
     it('rejects linking for a deactivated existing account', async () => {

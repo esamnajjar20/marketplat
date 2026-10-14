@@ -48,7 +48,7 @@ describe('AdminOpsQueue', () => {
     } as never);
     const user = setupUser();
     render(<AdminOpsQueue />);
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|طابور/)).toBeInTheDocument();
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|طابور/).length).toBeGreaterThanOrEqual(1);
     await user.click(screen.getByRole('button', { name: /إعادة المحاولة/ }));
     expect(refetch).toHaveBeenCalled();
   });

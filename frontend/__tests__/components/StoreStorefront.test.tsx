@@ -4,7 +4,8 @@ import type { ReactElement } from 'react';
  */
 import { describe, it, expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 
 import { StoreStorefront } from '@/components/stores/StoreStorefront';
 

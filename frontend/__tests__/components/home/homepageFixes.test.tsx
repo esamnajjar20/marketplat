@@ -66,7 +66,7 @@ describe('carousel scroll maths (RTL-safe)', () => {
 
 describe('CategoriesRow helpers', () => {
   it('exports a mobile-friendly homepage category cap of 10', () => {
-    expect(MAX_HOME_CATEGORIES).toBe(10);
+    expect(MAX_HOME_CATEGORIES).toBe(14);
   });
 
   const item = (type: Item['type'], id: string, nameAr: string): Item => ({

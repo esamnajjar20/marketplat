@@ -212,7 +212,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(19); // 18 nav links (NAV_LINKS) + the search-box icon
+    expect(hiddenIcons?.length).toBe(21); // 20 nav links (NAV_LINKS) + the search-box icon
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ describe('AdminSidebar', () => {
       expect(within(desktopNav).queryByText('التحليلات')).not.toBeInTheDocument();
     });
 
-    it('shows exactly the six MODERATOR sections (incl. الطلبات المفتوحة — gated MODERATOR in the backend)', () => {
+    it('shows exactly the MODERATOR sections (incl. الطلبات المفتوحة + نزاعات الخدمات)', () => {
       // lib/adminHubTabs.ts MODERATOR_ADMIN_TABS is the single source of truth.
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
@@ -316,6 +316,7 @@ describe('AdminSidebar', () => {
         'المنتجات',
         'الخدمات',
         'الطلبات المفتوحة',
+        'نزاعات الخدمات',
       ]);
     });
 

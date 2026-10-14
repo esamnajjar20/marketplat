@@ -22,11 +22,11 @@ const authResult = {
 const validRegisterBody = {
   name: 'Test User',
   email: 'test@example.com',
-  password: 'Password123',
+  password: 'Cedar!Orbit_74_Market',
   city: 'Gaza',
 };
 
-const validLoginBody = { email: 'test@example.com', password: 'Password123' };
+const validLoginBody = { email: 'test@example.com', password: 'Cedar!Orbit_74_Market' };
 
 describe('authController', () => {
   beforeEach(() => {

@@ -25,6 +25,9 @@ export const cacheControl =
       const directives = [`public`, `max-age=${maxAge}`];
       if (swr) directives.push(`stale-while-revalidate=${swr}`);
       res.setHeader('Cache-Control', directives.join(', '));
+      // Even public responses should declare the auth dimension explicitly:
+      // intermediaries must not reuse a response across authorization states.
+      res.setHeader('Vary', 'Authorization');
     }
     next();
   };

@@ -175,10 +175,9 @@ describe('notifications.validation', () => {
       expect(() => deletePushSubscriptionSchema.parse({ body: {} })).toThrow();
     });
 
-    it('rejects a non-URL endpoint', () => {
-      expect(() =>
-        deletePushSubscriptionSchema.parse({ body: { endpoint: 'not-a-url' } })
-      ).toThrow();
+    it('accepts a non-URL endpoint (delete only requires non-empty string up to 2048)', () => {
+      const result = deletePushSubscriptionSchema.parse({ body: { endpoint: 'not-a-url' } });
+      expect(result.body.endpoint).toBe('not-a-url');
     });
   });
 

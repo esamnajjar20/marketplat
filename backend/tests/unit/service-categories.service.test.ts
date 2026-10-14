@@ -165,13 +165,13 @@ describe('serviceCategoriesService', () => {
 
   describe('getServiceCategoryById', () => {
     it('returns the category when found', async () => {
-      (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
+      (serviceCategoriesRepository.findPublicById as jest.Mock).mockResolvedValue(mockCategory);
       const result = await serviceCategoriesService.getServiceCategoryById('cat-1');
       expect(result).toEqual(mockCategory);
     });
 
     it('throws NotFoundError when not found', async () => {
-      (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue(null);
+      (serviceCategoriesRepository.findPublicById as jest.Mock).mockResolvedValue(null);
       await expect(serviceCategoriesService.getServiceCategoryById('missing')).rejects.toThrow(
         NotFoundError
       );

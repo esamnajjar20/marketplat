@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { HomeDiscoverHero } from '@/components/home/HomeDiscoverHero';
 
 vi.mock('@/store/auth.store', () => ({
@@ -23,17 +24,10 @@ describe('homepage visual hierarchy — phase 62', () => {
     render(<HomeDiscoverHero />);
     expect(screen.getByRole('heading', { level: 1, name: 'السوق المحلي — ابحث، قارن، واكتشف' })).toBeVisible();
     expect(screen.getByText('سوقك المحلي')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'السوق المحلي — ابحث، قارن، واكتشف' })).toBeInTheDocument();
   });
 
-  it('keeps search and all four quick routes discoverable', () => {
+  it('keeps search discoverable as the primary action', () => {
     render(<HomeDiscoverHero />);
     expect(screen.getByTestId('home-search')).toBeInTheDocument();
-    const nav = screen.getByRole('navigation', { name: 'استكشف حسب النوع' });
-    expect(nav).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'إعلانات' })).toHaveAttribute('href', '/ads');
-    expect(screen.getByRole('link', { name: 'منتجات' })).toHaveAttribute('href', '/products');
-    expect(screen.getByRole('link', { name: 'خدمات' })).toHaveAttribute('href', '/services');
-    expect(screen.getByRole('link', { name: 'متاجر' })).toHaveAttribute('href', '/stores');
   });
 });

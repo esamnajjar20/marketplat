@@ -24,7 +24,8 @@
  *    it redirects to a valid page
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, within } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyProductsList } from '@/components/stores/MyProductsList';
 import { useMyProducts } from '@/hooks/queries/useProducts';
@@ -85,7 +86,7 @@ describe('MyProductsList', () => {
     // using animate-pulse), not a spinner — mirrors MyAdsList's same fix.
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: true });
     const { container } = render(<MyProductsList />);
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
   it('shows the empty state when there are no products', () => {
@@ -293,7 +294,7 @@ describe('MyProductsList', () => {
       isLoading: false,
     });
     const { container } = render(<MyProductsList />);
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
     expect(screen.queryByText('لا توجد منتجات')).not.toBeInTheDocument();
   });
 });

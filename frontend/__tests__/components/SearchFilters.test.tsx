@@ -21,7 +21,8 @@
  * __tests__/components/ads/SearchSortBarWrapper.test.tsx.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, fireEvent } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { SearchFilters } from '@/components/ads/SearchFilters';
 import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
@@ -33,10 +34,11 @@ vi.mock('@/hooks/queries/useCategories', () => ({
 
 let mockSearchParams = new URLSearchParams();
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 let mockPathname = '/search';
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: (...a: unknown[]) => { mockReplace(...a as []); mockPush(...a as []); }, prefetch: vi.fn(), back: vi.fn() }),
   usePathname: () => mockPathname,
 }));
 

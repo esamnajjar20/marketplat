@@ -2,7 +2,8 @@
  * Remaining low-coverage FE components (thin wrappers + shared chrome).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { Mail } from 'lucide-react';
 

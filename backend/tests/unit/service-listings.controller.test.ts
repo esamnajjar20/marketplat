@@ -37,7 +37,8 @@ describe('serviceListingsController', () => {
       expect(serviceListingsService.createServiceListing).toHaveBeenCalledWith(
         'user-1',
         expect.objectContaining({ title: 'Home cleaning' }),
-        files
+        files,
+        null
       );
     });
 
@@ -52,7 +53,8 @@ describe('serviceListingsController', () => {
       expect(serviceListingsService.createServiceListing).toHaveBeenCalledWith(
         'user-1',
         expect.anything(),
-        []
+        [],
+        null
       );
     });
 

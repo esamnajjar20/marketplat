@@ -11,7 +11,17 @@ import {
 
 describe('salesHubTabs', () => {
   it('defines one tab for every sales workspace section', () => {
-    expect(SALES_HUB_TABS).toEqual(['overview', 'sales', 'customers', 'debts', 'installments', 'analytics']);
+    expect(SALES_HUB_TABS).toEqual([
+      'overview',
+      'sales',
+      'customers',
+      'debts',
+      'installments',
+      'analytics',
+      'reports',
+      'costs',
+      'smart',
+    ]);
     expect(new Set(SALES_HUB_TABS).size).toBe(SALES_HUB_TABS.length);
     for (const tab of SALES_HUB_TABS) expect(isSalesHubTab(tab)).toBe(true);
   });

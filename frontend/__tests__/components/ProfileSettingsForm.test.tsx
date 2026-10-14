@@ -15,7 +15,8 @@
  * name-only coverage.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm';
 import { useUpdateProfile, useUploadAvatar } from '@/hooks/mutations/useUpdateProfile';

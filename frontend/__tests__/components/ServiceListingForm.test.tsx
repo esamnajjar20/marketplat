@@ -17,7 +17,8 @@
  *  - cancel calls history.back() directly with no confirm dialog
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ServiceListingForm } from '@/components/services/ServiceListingForm';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';

@@ -9,7 +9,8 @@
  * own-store/unauthenticated condition as follow).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { StoreHeader } from '@/components/stores/StoreHeader';
 import { useAuthStore } from '@/store/auth.store';

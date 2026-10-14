@@ -20,7 +20,8 @@
  *  - pagination: Prev/Next disabled at bounds, calls setPage
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NearbyServiceProviders } from '@/components/services/NearbyServiceProviders';
 import { useServiceProvidersDirectory } from '@/hooks/useServiceProvidersDirectory';

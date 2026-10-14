@@ -138,7 +138,7 @@ describe('ApiError — unified network/service policy', () => {
 
   it('renders a service-unavailable state for 503', () => {
     render(<ApiError error={{ statusCode: 503, code: 'SERVICE_UNAVAILABLE', message: 'service down' }} />);
-    expect(screen.getByText('الخدمة غير متاحة مؤقتاً')).toBeInTheDocument();
+    expect(screen.getAllByText(/الخدمة غير متاحة مؤقتاً/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/الخدمة غير متاحة مؤقتاً/)).toBeInTheDocument();
   });
 

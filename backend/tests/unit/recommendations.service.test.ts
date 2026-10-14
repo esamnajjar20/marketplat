@@ -220,7 +220,8 @@ describe('recommendationsService', () => {
         [{ categoryId: 'cat-1', weight: 6 }],
         ['product-1'],
         8,
-        null
+        null,
+        []
       );
       expect(result).toHaveLength(1);
     });
@@ -303,7 +304,7 @@ describe('recommendationsService', () => {
       const result = await recommendationsService.getServiceListingRecommendations({}, undefined);
 
       expect(serviceListingRecommendationsRepository.findByWeightedCategories).not.toHaveBeenCalled();
-      expect(serviceListingRecommendationsRepository.findTrending).toHaveBeenCalledWith([], 8, null);
+      expect(serviceListingRecommendationsRepository.findTrending).toHaveBeenCalledWith([], 8, null, undefined);
       expect(result).toHaveLength(1);
     });
 
@@ -327,7 +328,8 @@ describe('recommendationsService', () => {
         [{ categoryId: 'cat-1', weight: 6 }],
         ['listing-1'],
         8,
-        null
+        null,
+        undefined
       );
       expect(result).toHaveLength(1);
     });
@@ -395,6 +397,8 @@ describe('recommendationsService', () => {
       expect(storeRecommendationsRepository.ownStoreId).not.toHaveBeenCalled();
       expect(storeRecommendationsRepository.findRanked).toHaveBeenCalledWith({
         excludeIds: [],
+        city: null,
+        interestCategoryIds: [],
         lat: 31.5,
         lng: 34.4,
         limit: 8,
@@ -413,6 +417,8 @@ describe('recommendationsService', () => {
       expect(storeRecommendationsRepository.followedStoreIds).not.toHaveBeenCalled();
       expect(storeRecommendationsRepository.findRanked).toHaveBeenCalledWith({
         excludeIds: [],
+        city: null,
+        interestCategoryIds: [],
         lat: undefined,
         lng: undefined,
         limit: 8,
@@ -426,6 +432,8 @@ describe('recommendationsService', () => {
 
       expect(storeRecommendationsRepository.findRanked).toHaveBeenCalledWith({
         excludeIds: ['ref-store'],
+        city: null,
+        interestCategoryIds: [],
         lat: undefined,
         lng: undefined,
         limit: 8,

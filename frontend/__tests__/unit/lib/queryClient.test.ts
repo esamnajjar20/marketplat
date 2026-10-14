@@ -101,9 +101,9 @@ describe('shouldRetry (via QueryClient defaultOptions)', () => {
 
   // ── 5xx server errors ─────────────────────────────────────────
 
-  it('retries 500 on first failure', () => {
+  it('does NOT retry generic 500 (only 502/503/504 are retryable 5xx)', () => {
     const qc = makeQueryClient();
-    expect(retry(qc, 0, 500)).toBe(true);
+    expect(retry(qc, 0, 500)).toBe(false);
   });
 
   it('retries 503 on first failure', () => {
@@ -111,9 +111,9 @@ describe('shouldRetry (via QueryClient defaultOptions)', () => {
     expect(retry(qc, 0, 503)).toBe(true);
   });
 
-  it('does NOT retry 500 on second failure', () => {
+  it('does NOT retry 503 on second failure', () => {
     const qc = makeQueryClient();
-    expect(retry(qc, 1, 500)).toBe(false);
+    expect(retry(qc, 1, 503)).toBe(false);
   });
 
   // ── 4xx client errors — NEVER retry ──────────────────────────

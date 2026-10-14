@@ -100,7 +100,8 @@ describe('AdsService.updateAd — FAV_AD_PRICE_CHANGED notification trigger (Epi
     expect(notificationEvents.onFavoritedAdPriceChanged).toHaveBeenCalledWith(
       ['fav-user-1'],
       'ad-1',
-      'Old Title'
+      'Old Title',
+      'https://res.cloudinary.com/demo/image/upload/v1/ads/photo.jpg'
     );
   });
 

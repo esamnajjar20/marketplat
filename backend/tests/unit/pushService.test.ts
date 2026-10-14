@@ -165,8 +165,8 @@ describe('pushService', () => {
 
       await expect(pushService.notifyUser('user-1', payload)).resolves.toBeUndefined();
       expect(logger.warn).toHaveBeenCalledWith(
-        'Push send failed',
-        expect.objectContaining({ userId: 'user-1', endpoint: 'https://push/1' })
+        'Push send failed after retry',
+        expect.objectContaining({ err: expect.any(Error) })
       );
       expect(mockDeleteByEndpoints).not.toHaveBeenCalled();
     });
@@ -200,7 +200,7 @@ describe('pushService', () => {
       expect(mockDeleteByEndpoints).toHaveBeenCalledWith(['https://push/1']);
       // 410 is expected/routine — must not be logged as a warning like
       // an unexpected failure would be.
-      expect(logger.warn).not.toHaveBeenCalledWith('Push send failed', expect.anything());
+      expect(logger.warn).not.toHaveBeenCalledWith('Push send failed after retry', expect.anything());
     });
 
     it('prunes the subscription row when the push service returns 404 Not Found', async () => {

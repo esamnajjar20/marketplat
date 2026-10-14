@@ -68,7 +68,7 @@ describe('AdminServiceCategoriesTree', () => {
       refetch: vi.fn(),
     } as never);
     render(<AdminServiceCategoriesTree />);
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|فئات|خدم/)).toBeInTheDocument();
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|فئات|خدم/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows service-specific empty text', () => {

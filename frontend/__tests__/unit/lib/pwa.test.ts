@@ -418,7 +418,10 @@ describe('registerServiceWorker', () => {
 
     const result = await registerServiceWorker();
 
-    expect(swContainer.register).toHaveBeenCalledWith('/sw.js', { scope: '/' });
+    expect(swContainer.register).toHaveBeenCalledWith('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    });
     expect(result).toBe(registration);
   });
 
@@ -428,7 +431,10 @@ describe('registerServiceWorker', () => {
 
     const result = await registerServiceWorker();
 
-    expect(swContainer.register).toHaveBeenCalledWith('/sw.js', { scope: '/' });
+    expect(swContainer.register).toHaveBeenCalledWith('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    });
     expect(result).toBe(registration);
   });
 

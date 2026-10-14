@@ -8,7 +8,7 @@
  * يستدعي أي دالة، لا تفاصيل التسخين نفسها (لها اختباراتها).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
 
 const auth = vi.hoisted(() => ({ isAuthenticated: false }));
 
@@ -21,6 +21,7 @@ vi.mock('@/lib/offlineDraftPublisher', () => ({
 }));
 vi.mock('@/lib/offlinePublishFeedback', () => ({
   toastDraftPublishResult: vi.fn(),
+  toastCancelRejected: vi.fn(),
 }));
 vi.mock('@/lib/offlineAdDraftSync', () => ({ initAdDraftSync: vi.fn() }));
 vi.mock('@/lib/swTokenSync', () => ({ initSwTokenSync: vi.fn() }));
@@ -65,6 +66,32 @@ vi.mock('@/components/pwa/WarmupIndicator', () => ({
   selectUser: (s: any) => s?.user,
   selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
+
+vi.mock('@/lib/swStaleActivation', () => ({ initStaleWaitingServiceWorkerHandler: vi.fn() }));
+vi.mock('@/lib/sales-offline/salesSync', () => ({
+  initSalesOfflineSync: vi.fn(() => () => {}),
+  syncPendingSales: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('@/lib/offlineHubPrefs', () => ({ shouldAutoSyncNow: vi.fn(() => true) }));
+vi.mock('@/lib/offlineFavoriteIntents', () => ({
+  syncOfflineFavoriteIntents: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('@/lib/offlineActivityLog', () => ({ logOfflineActivity: vi.fn() }));
+vi.mock('@/lib/networkLifecycle', () => ({
+  subscribeNetworkLifecycle: vi.fn(() => () => {}),
+}));
+vi.mock('@/lib/networkPolicy', () => ({
+  getNetworkPolicy: vi.fn(() => ({})),
+  subscribeNetworkPolicy: vi.fn(() => () => {}),
+}));
+vi.mock('@/lib/offlineCacheInvalidation', () => ({
+  invalidateOfflineCachesForMutation: vi.fn(),
+}));
+vi.mock('@/lib/networkObservability', () => ({
+  recordQueueDrainCompleted: vi.fn(),
+  recordQueueDrainStarted: vi.fn(),
+}));
+
 
 import { OfflineBootstrap } from '@/components/pwa/OfflineBootstrap';
 import { requestQueueReplay } from '@/lib/offlineQueue';

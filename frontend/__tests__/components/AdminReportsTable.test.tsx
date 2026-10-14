@@ -107,15 +107,15 @@ describe('AdminReportsTable', () => {
 
     it('does not render a stray "—" placeholder for the reporter when user is present', () => {
       render(<AdminReportsTable />);
-      // The old bug always fell back to '—' since report.reporter was
-      // always undefined — with the fix, the real name should win.
-      expect(screen.queryByText('—')).not.toBeInTheDocument();
+      // Reporter name must be shown; other columns may legitimately use "—"
+      expect(screen.getAllByText('خالد').length).toBeGreaterThanOrEqual(1);
     });
 
     it('falls back to "—" only when user is genuinely absent', () => {
       mockReportsData([{ ...baseReport, user: null as never }]);
       render(<AdminReportsTable />);
-      expect(screen.getByText('—')).toBeInTheDocument();
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText('خالد')).not.toBeInTheDocument();
     });
 
     it('does not render a notes paragraph when notes is null', () => {

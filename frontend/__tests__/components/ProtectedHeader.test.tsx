@@ -9,7 +9,8 @@
  * TypeScript error caught while writing this suite.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ProtectedHeader } from '@/components/layout/ProtectedHeader';
 import { ROUTES } from '@/lib/constants';
@@ -60,6 +61,10 @@ describe('ProtectedHeader', () => {
   });
 
   it('opens CreateSheet with the ad-create route when "أضف" is tapped', async () => {
+    try {
+      const { useAuthStore } = await import('@/store/auth.store');
+      useAuthStore.setState({ lastKnownRoles: { isSeller: true, isProvider: true, hasActiveStore: true } } as never);
+    } catch { /* store may be mocked */ }
     const user = setupUser();
     render(<ProtectedHeader />);
 

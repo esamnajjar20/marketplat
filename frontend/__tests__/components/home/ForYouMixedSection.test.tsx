@@ -5,7 +5,8 @@
  * thing that decides whether a request can leave the browser.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({
   isAuth: false,

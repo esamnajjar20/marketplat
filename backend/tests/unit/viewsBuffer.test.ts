@@ -61,6 +61,8 @@ describe('viewsBuffer', () => {
 
     const first = viewsBuffer.flush();
     const second = viewsBuffer.flush();
+    // flush() yields one microtask after installing its in-flight lock.
+    await Promise.resolve();
     expect(scan).toHaveBeenCalledTimes(1);
 
     resolveScan(['0', []]);

@@ -164,7 +164,7 @@ describe('AdminUsersTable', () => {
       });
       render(<AdminUsersTable />);
 
-      expect(screen.getByText(/خطأ|تعذّر|إعادة المحاولة|حدث خطأ/)).toBeInTheDocument();
+      expect(screen.getAllByText(/خطأ|تعذّر|إعادة المحاولة|حدث خطأ/).length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText('لا يوجد مستخدمون')).not.toBeInTheDocument();
     });
   });

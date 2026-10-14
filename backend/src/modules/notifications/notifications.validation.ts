@@ -165,7 +165,7 @@ export const createPushSubscriptionSchema = z.object({
 
 export const deletePushSubscriptionSchema = z.object({
   body: z.object({
-    endpoint: z.string().min(1).max(2048),
+    endpoint: z.string().url().max(2048),
   }),
 });
 

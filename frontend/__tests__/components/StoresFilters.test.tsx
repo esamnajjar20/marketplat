@@ -12,7 +12,8 @@
  * __tests__/components/shared/SearchSortBar.test.tsx instead.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { StoresFilters } from '@/components/stores/StoresFilters';
 

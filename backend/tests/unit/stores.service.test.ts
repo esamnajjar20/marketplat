@@ -58,6 +58,7 @@ jest.mock('../../src/config/prisma', () => ({
     userBlock: { count: jest.fn().mockResolvedValue(0) },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
     storeTypeField: { findMany: jest.fn().mockResolvedValue([]) },
+    product: { count: jest.fn().mockResolvedValue(0) },
   },
 }));
 
@@ -769,10 +770,9 @@ describe('storesService', () => {
         newFollowers30d: 12,
       });
       (storesRepository.countActiveProducts as jest.Mock).mockResolvedValue(8);
-      (promotionsRepository.getStoreAnalyticsSummary as jest.Mock).mockResolvedValue({
-        activePromotions: 1,
-        promotionUses: 10,
-      });
+      (promotionsRepository.getStoreAnalyticsSummary as jest.Mock).mockResolvedValue([
+        { status: 'ACTIVE', _count: { _all: 1 }, _sum: { usageCount: 10 } },
+      ]);
       (productsRepository.findTopByStoreId as jest.Mock).mockResolvedValue([
         { id: 'p1', name: 'Phone', views: 90, images: ['https://x/img1.jpg'] },
         { id: 'p2', name: 'Case', views: 40, images: [] },

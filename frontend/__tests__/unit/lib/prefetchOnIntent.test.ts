@@ -36,12 +36,15 @@ describe('prefetchOnIntent', () => {
   });
 
   it('skips prefetch on touch-only devices', () => {
-    window.matchMedia = vi.fn((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })) as typeof window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
 
     const work = vi.fn();
     onIntentPrefetch('touch-card', work);
@@ -94,8 +97,10 @@ describe('prefetchOnIntent', () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(work).toHaveBeenCalledTimes(1);
 
+    // Expire the dedupe reservation before scheduling the same key again
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000 + 1);
     onIntentPrefetch('repeat', work);
-    await vi.advanceTimersByTimeAsync(2 * 60 * 1000 + 2000);
+    await vi.advanceTimersByTimeAsync(2000);
     expect(work).toHaveBeenCalledTimes(2);
   });
 });

@@ -56,7 +56,10 @@ const adminUser = { id: 'u2', name: 'سارة', email: 'sara@example.com', role:
 const mockLogoutMutate = vi.fn();
 
 function mockState(user: typeof regularUser | null) {
-  mockUseAuthStore.mockImplementation((selector) => selector({ user } as never));
+  mockUseAuthStore.mockImplementation((selector) => {
+    const state = { user, isHydrated: true, isAuthenticated: Boolean(user) } as never;
+    return typeof selector === 'function' ? selector(state) : state;
+  });
 }
 
 describe('UserMenu', () => {

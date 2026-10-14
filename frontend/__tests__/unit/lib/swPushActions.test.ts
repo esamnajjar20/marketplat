@@ -32,10 +32,13 @@ describe('sw.js push presentation', () => {
     expect(pushHandler).not.toMatch(/startsWith\('http'\)/);
   });
 
-  it('chat pushes get a "reply" action, inferred from the tag when type is absent', () => {
+  it('chat pushes get a reply action, inferred from the tag when type is absent', () => {
     const fn = loadActionsFn();
-    expect(fn({ tag: 'conversation-abc' })[0]).toEqual({ action: 'open', title: 'رد' });
-    expect(fn({ type: 'NEW_MESSAGE' })[0].title).toBe('رد');
+    expect(fn({ tag: 'conversation-abc' })[0]).toEqual({
+      action: 'open',
+      title: 'الرد على الرسالة',
+    });
+    expect(fn({ type: 'NEW_MESSAGE' })[0].title).toBe('الرد على الرسالة');
   });
 
   it('every variant keeps a dismiss action; the test push has only dismiss', () => {

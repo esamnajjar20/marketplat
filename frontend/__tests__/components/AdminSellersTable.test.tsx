@@ -108,8 +108,8 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      expect(screen.getByText(/خطأ|تعذّر|إعادة المحاولة|حدث خطأ/)).toBeInTheDocument();
-      await user.click(screen.getByText('إعادة المحاولة'));
+      expect(screen.getAllByText(/خطأ|تعذّر|إعادة المحاولة|حدث خطأ/).length).toBeGreaterThanOrEqual(1);
+      await user.click(screen.getAllByText('إعادة المحاولة')[0]);
       expect(refetch).toHaveBeenCalledTimes(1);
     });
 

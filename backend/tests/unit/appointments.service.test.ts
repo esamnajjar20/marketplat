@@ -3,6 +3,8 @@ import { appointmentsRepository } from '../../src/modules/appointments/appointme
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
 import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
+import { blockedUsersService } from '../../src/modules/blocked-users';
 import { redis } from '../../src/config/redis';
 import { notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
@@ -14,6 +16,10 @@ jest.mock('../../src/modules/appointments/appointments.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
 jest.mock('../../src/modules/service-requests/service-requests.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
+jest.mock('../../src/modules/blocked-users', () => ({
+  blockedUsersService: { isBlockedEitherDirection: jest.fn() },
+}));
 jest.mock('../../src/modules/notifications/notifications.service', () => ({
   notificationEvents: {
     onServiceRequestCreated: jest.fn(),
@@ -55,6 +61,12 @@ describe('appointmentsService', () => {
     (redis as any).__clear();
     (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(sellerProfile);
     (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(provider);
+    (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(false);
+    (serviceTypesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'service-type-1',
+      isActive: true,
+      capabilities: { appointments: true },
+    });
   });
 
   describe('createAppointment', () => {
@@ -91,7 +103,7 @@ describe('appointmentsService', () => {
     it('throws ForbiddenError when the request belongs to a different provider', async () => {
       (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
         status: 'ACCEPTED',
-        listing: { providerId: 'someone-elses-provider' },
+        listing: { providerId: 'someone-elses-provider', serviceTypeId: 'service-type-1' },
       });
 
       await expect(
@@ -102,7 +114,7 @@ describe('appointmentsService', () => {
     it('throws BadRequestError when the request is not ACCEPTED or IN_PROGRESS', async () => {
       (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
         status: 'PENDING',
-        listing: { providerId: provider.id },
+        listing: { providerId: provider.id, serviceTypeId: 'service-type-1' },
       });
 
       await expect(
@@ -113,7 +125,7 @@ describe('appointmentsService', () => {
     it('allows an IN_PROGRESS request to be scheduled (not just ACCEPTED)', async () => {
       (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
         status: 'IN_PROGRESS',
-        listing: { providerId: provider.id },
+        listing: { providerId: provider.id, serviceTypeId: 'service-type-1' },
       });
       (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
       (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
@@ -131,7 +143,7 @@ describe('appointmentsService', () => {
         id: 'req-1',
         customerId: 'customer-1',
         status: 'ACCEPTED',
-        listing: { providerId: provider.id, title: 'Plumbing' },
+        listing: { providerId: provider.id, title: 'Plumbing', serviceTypeId: 'service-type-1', provider: { sellerProfile: { userId: 'provider-user-1' } } },
       });
       (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
       (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);

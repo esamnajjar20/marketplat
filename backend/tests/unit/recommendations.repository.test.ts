@@ -197,7 +197,7 @@ describe('recommendationsRepository', () => {
       await recommendationsRepository.findTrending([], 8);
 
       const callArg = (prisma.ad.findMany as jest.Mock).mock.calls[0][0];
-      expect(callArg.where).toEqual({ status: 'ACTIVE', sellerProfile: { suspended: false } });
+      expect(callArg.where).toEqual({ status: 'ACTIVE', flaggedForReview: false, sellerProfile: { suspended: false } });
     });
 
     it('applies a notIn filter when exclusions are given', async () => {
@@ -208,6 +208,7 @@ describe('recommendationsRepository', () => {
       const callArg = (prisma.ad.findMany as jest.Mock).mock.calls[0][0];
       expect(callArg.where).toEqual({
         status: 'ACTIVE',
+        flaggedForReview: false,
         sellerProfile: { suspended: false },
         id: { notIn: ['ad-1'] },
       });
@@ -399,6 +400,7 @@ describe('recommendationsRepository', () => {
         const secondCallWhere = (prisma.ad.findMany as jest.Mock).mock.calls[1][0].where;
         expect(firstCallWhere).toEqual({
           status: 'ACTIVE',
+          flaggedForReview: false,
           sellerProfile: { suspended: false },
           id: { notIn: ['ad-owned', 'ad-favorited'] },
         });

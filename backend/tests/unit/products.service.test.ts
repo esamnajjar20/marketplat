@@ -83,7 +83,9 @@ describe('productsService', () => {
       (requireStoreAccessForProducts as jest.Mock).mockResolvedValue(mockActiveStore);
       (productCategoriesRepository.findById as jest.Mock).mockResolvedValue(mockCategory);
       (uploadImage as jest.Mock).mockResolvedValue({ url: 'http://img', publicId: 'pub-1' });
-      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({}) as any);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) =>
+        cb({ stockMovement: { create: jest.fn().mockResolvedValue({ id: 'movement-1' }) } }) as any
+      );
       (productsRepository.create as jest.Mock).mockResolvedValue({ id: 'product-1' });
     });
 

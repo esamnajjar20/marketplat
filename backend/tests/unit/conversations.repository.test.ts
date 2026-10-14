@@ -3,53 +3,29 @@ import { prisma } from '../../src/config/prisma';
 
 import { Prisma } from '@prisma/client';
 
-jest.mock('../../src/config/prisma', () => ({
-  prisma: {
-    conversation: {
-      findUnique: jest.fn(),
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-      update: jest.fn(),
+jest.mock('../../src/config/prisma', () => {
+  const conversation = {
+    findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(),
+    findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn(),
+  };
+  const message = {
+    create: jest.fn(), findMany: jest.fn(), count: jest.fn(), updateMany: jest.fn(),
+  };
+  const conversationUserSetting = {
+    createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn(), upsert: jest.fn(), updateMany: jest.fn(),
+  };
+  const tx = { conversation, message, conversationUserSetting };
+  return {
+    prisma: {
+      ...tx,
+      $transaction: jest.fn(async (arg: unknown) =>
+        typeof arg === 'function' ? (arg as (transaction: unknown) => unknown)(tx) : arg
+      ),
     },
-    message: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-      updateMany: jest.fn(),
-    },
-    conversationUserSetting: {
-      createMany: jest.fn().mockResolvedValue({ count: 0 }),
-      findMany: jest.fn().mockResolvedValue([]),
-      upsert: jest.fn(),
-    },
-    $transaction: jest.fn(async (arg: unknown) => {
-      if (typeof arg === 'function') {
-        return (arg as (tx: unknown) => unknown)({
-          conversation: {
-            findUnique: jest.fn(),
-            findFirst: jest.fn(),
-            create: jest.fn().mockResolvedValue({ id: 'conv-1' }),
-            findMany: jest.fn(),
-            count: jest.fn(),
-            update: jest.fn(),
-          },
-          message: {
-            create: jest.fn(),
-            findMany: jest.fn(),
-            count: jest.fn(),
-            updateMany: jest.fn(),
-          },
-          conversationUserSetting: {
-            createMany: jest.fn().mockResolvedValue({ count: 0 }),
-          },
-        });
-      }
-      return arg;
-    }),
-  },
-}));
+  };
+});
 
 const conversationWithRelationsInclude = {
   ad: { select: { id: true, title: true, images: true, status: true } },
@@ -101,7 +77,7 @@ describe('conversationsRepository', () => {
       await conversationsRepository.create(buyerId, sellerId, { adId });
 
       expect(prisma.conversation.create).toHaveBeenCalledWith({
-        data: { buyerId, sellerId, adId, serviceRequestId: null },
+        data: { buyerId, sellerId, adId, serviceRequestId: null, context: undefined },
       });
     });
 
@@ -111,7 +87,7 @@ describe('conversationsRepository', () => {
       await conversationsRepository.create(buyerId, sellerId);
 
       expect(prisma.conversation.create).toHaveBeenCalledWith({
-        data: { buyerId, sellerId, adId: null, serviceRequestId: null },
+        data: { buyerId, sellerId, adId: null, serviceRequestId: null, context: undefined },
       });
     });
   });
@@ -135,7 +111,7 @@ describe('conversationsRepository', () => {
       const result = await conversationsRepository.findOrCreate(buyerId, sellerId, { adId });
 
       expect(prisma.conversation.create).toHaveBeenCalledWith({
-        data: { buyerId, sellerId, adId, serviceRequestId: null },
+        data: { buyerId, sellerId, adId, serviceRequestId: null, context: undefined },
       });
       expect(result).toEqual(created);
     });

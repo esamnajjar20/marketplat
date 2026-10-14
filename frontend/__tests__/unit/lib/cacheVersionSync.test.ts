@@ -57,11 +57,13 @@ describe('sw.js hand-copied constants stay in sync with their sources', () => {
     expect(userData).toMatch(/userDataCacheName/);
     expect(userData).toMatch(/USER_DATA_CACHE_PREFIX/);
 
-    // cacheVersion name helpers embed the same version.
-    expect(cacheVersion).toContain(`market-core-${libVersion}`);
-    expect(cacheVersion).toContain(`market-static-${libVersion}`);
-    expect(cacheVersion).toContain(`market-user-data-${libVersion}-`);
-    expect(cacheVersion).toContain(`market-personal-shell-${libVersion}`);
+    // cacheVersion name helpers embed the version via SW_CACHE_VERSION template.
+    // Source keeps the template literal — it does not expand to market-core-vNN.
+    expect(cacheVersion).toMatch(/market-core-\$\{SW_CACHE_VERSION\}/);
+    expect(cacheVersion).toMatch(/market-static-\$\{SW_CACHE_VERSION\}/);
+    expect(cacheVersion).toMatch(/market-user-data-\$\{SW_CACHE_VERSION\}-/);
+    expect(cacheVersion).toMatch(/market-personal-shell-\$\{SW_CACHE_VERSION\}/);
+    void libVersion; // still validated above that it parses cleanly
   });
 
   it('keeps SAVED_ENTITIES_CACHE (deliberately unversioned) spelled identically in sw.js and lib/offlineSavedEntities.ts', () => {

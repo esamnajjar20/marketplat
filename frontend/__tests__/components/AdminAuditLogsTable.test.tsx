@@ -21,9 +21,10 @@ vi.mock('@/hooks/queries/useAdmin', () => ({
 
 let mockSearchParams = new URLSearchParams();
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
 
 const baseLog: AuditLog = {
@@ -129,11 +130,16 @@ describe('AdminAuditLogsTable', () => {
       const user = setupUser();
       render(<AdminAuditLogsTable />);
 
-      const input = screen.getByPlaceholderText('بحث بمعرّف المستخدم…');
+      const input = screen.getAllByPlaceholderText('بحث بمعرّف المستخدم…')[0];
+      await user.clear(input);
       await user.type(input, 'user-42');
-      await user.tab();
+      await user.tab(); // triggers onBlur → router.replace
 
-      const calledUrl = mockPush.mock.calls[0][0] as string;
+      const nav = mockReplace.mock.calls.length
+        ? mockReplace
+        : mockPush;
+      expect(nav).toHaveBeenCalled();
+      const calledUrl = String(nav.mock.calls[nav.mock.calls.length - 1][0]);
       expect(calledUrl).toMatch(/userId=user-42/);
       expect(calledUrl).not.toMatch(/page=/);
     });
@@ -147,10 +153,12 @@ describe('AdminAuditLogsTable', () => {
       // renders as role="combobox" with no value attribute, so
       // getByDisplayValue can't find it and selectOptions can't act on
       // it directly. Open the trigger, then click the option.
-      await user.click(screen.getByRole('combobox'));
+      await user.click(screen.getAllByRole('combobox')[0]);
       await user.click(await screen.findByRole('option', { name: AUDIT_EVENT_LABELS.LOGIN_FAILED }));
 
-      const calledUrl = mockPush.mock.calls[0][0] as string;
+      const nav = mockReplace.mock.calls.length ? mockReplace : mockPush;
+      expect(nav).toHaveBeenCalled();
+      const calledUrl = String(nav.mock.calls[nav.mock.calls.length - 1][0]);
       expect(calledUrl).toMatch(/event=LOGIN_FAILED/);
     });
   });

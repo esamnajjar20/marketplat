@@ -13,7 +13,8 @@
  *    asserted via the attribute since jsdom doesn't truncate on type)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 
@@ -24,6 +25,43 @@ function renderWithClient(ui: ReactElement) {
 import { setupUser } from '@/test-support/user-event';
 import { MessageInput } from '@/components/messages/MessageInput';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
+
+
+vi.mock('@/components/messages/MessageBodyEditor', async () => {
+  const React = await import('react');
+  return {
+    MessageBodyEditor: React.forwardRef(function MockEditor(
+      { onContentChange, disabled }: { onContentChange?: (v: boolean) => void; disabled?: boolean },
+      ref: any,
+    ) {
+      const [value, setValue] = React.useState('');
+      React.useImperativeHandle(ref, () => ({
+        getValue: () => value,
+        setValue: (v: string) => { setValue(v); onContentChange?.(Boolean(v.trim())); },
+        clear: () => { setValue(''); onContentChange?.(false); },
+        requestSubmit: () => {},
+      }));
+      return React.createElement('textarea', {
+        value,
+        disabled: Boolean(disabled),
+        maxLength: 2000,
+        'aria-label': 'نص الرسالة',
+        onChange: (e: any) => {
+          setValue(e.target.value);
+          onContentChange?.(Boolean(e.target.value.trim()));
+        },
+        onKeyDown: (e: any) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            // parent listens via form submit usually — fire custom event path
+            const form = e.currentTarget.closest('form');
+            if (form) form.requestSubmit();
+          }
+        },
+      });
+    }),
+  };
+});
 
 vi.mock('@/hooks/mutations/useConversationMutations', () => ({
   useSendMessage: vi.fn(),

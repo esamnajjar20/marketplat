@@ -116,7 +116,8 @@ describe('AdminAdsTable', () => {
     it('shows an empty-state row when there are no ads', () => {
       mockAdsData([]);
       render(<AdminAdsTable />);
-      expect(screen.getByText('لا توجد إعلانات')).toBeInTheDocument();
+      // Mobile cards + desktop table both render EmptyState
+      expect(screen.getAllByText('لا توجد إعلانات').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -125,7 +126,8 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      await user.click(screen.getByRole('button', { name: `تمييز ${baseAd.title}` }));
+      // Dual layout (mobile + desktop) duplicates action buttons
+      await user.click(screen.getAllByRole('button', { name: `تمييز ${baseAd.title}` })[0]);
 
       // UX-FIX P1-5/P2-11: per-row pending tracking needs an onSettled
       // callback (to clear pendingToggle) alongside the mutate payload.
@@ -140,7 +142,7 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      await user.click(screen.getByRole('button', { name: `إلغاء تمييز ${baseAd.title}` }));
+      await user.click(screen.getAllByRole('button', { name: `إلغاء تمييز ${baseAd.title}` })[0]);
 
       expect(mockFeatureMutate).toHaveBeenCalledWith(
         { adId: 'ad-1', value: false },
@@ -154,7 +156,7 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      await user.click(screen.getByRole('button', { name: `تثبيت ${baseAd.title}` }));
+      await user.click(screen.getAllByRole('button', { name: `تثبيت ${baseAd.title}` })[0]);
 
       expect(mockPinMutate).toHaveBeenCalledWith(
         { adId: 'ad-1', value: true },
@@ -168,7 +170,7 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      await user.click(screen.getByRole('button', { name: `حذف ${baseAd.title}` }));
+      await user.click(screen.getAllByRole('button', { name: `حذف ${baseAd.title}` })[0]);
 
       expect(mockDeleteMutate).not.toHaveBeenCalled();
       expect(await screen.findByText('حذف هذا الإعلان نهائياً؟')).toBeInTheDocument();
@@ -178,7 +180,7 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      await user.click(screen.getByRole('button', { name: `حذف ${baseAd.title}` }));
+      await user.click(screen.getAllByRole('button', { name: `حذف ${baseAd.title}` })[0]);
       const confirmButton = await screen.findByRole('button', { name: 'حذف', exact: true });
       await user.click(confirmButton);
 
@@ -195,7 +197,7 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      await user.click(screen.getByRole('button', { name: `حذف ${baseAd.title}` }));
+      await user.click(screen.getAllByRole('button', { name: `حذف ${baseAd.title}` })[0]);
       await user.click(await screen.findByRole('button', { name: 'إلغاء' }));
 
       expect(mockDeleteMutate).not.toHaveBeenCalled();
@@ -208,11 +210,14 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      const input = screen.getByPlaceholderText('بحث بالعنوان…');
-      await user.type(input, 'كورولا{Enter}');
+      const input = screen.getAllByPlaceholderText('بحث بالعنوان…')[0];
+      await user.clear(input);
+      await user.type(input, 'كورولا');
+      await user.keyboard('{Enter}');
 
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('q='));
-      const calledUrl = mockPush.mock.calls[mockPush.mock.calls.length - 1][0] as string;
+      expect(mockPush).toHaveBeenCalled();
+      const calledUrl = String(mockPush.mock.calls[mockPush.mock.calls.length - 1][0]);
+      expect(calledUrl).toMatch(/q=/);
       expect(calledUrl).not.toMatch(/page=/);
     });
   });
@@ -223,14 +228,14 @@ describe('AdminAdsTable', () => {
       const user = setupUser();
       render(<AdminAdsTable />);
 
-      // FIX UX-02 swapped the native <select> for this app's Radix
-      // Select (role="combobox"); its options only mount in the DOM
-      // once the trigger is opened, so selectOptions can't act on it
-      // directly — open it, then click the option.
-      await user.click(screen.getByRole('combobox'));
-      await user.click(await screen.findByRole('option', { name: STATUS_LABELS.SOLD }));
+      // Dual layout may render more than one combobox — open the first.
+      const comboboxes = screen.getAllByRole('combobox');
+      await user.click(comboboxes[0]);
+      const option = await screen.findByRole('option', { name: STATUS_LABELS.SOLD });
+      await user.click(option);
 
-      const calledUrl = mockPush.mock.calls[mockPush.mock.calls.length - 1][0] as string;
+      expect(mockPush.mock.calls.length).toBeGreaterThan(0);
+      const calledUrl = String(mockPush.mock.calls[mockPush.mock.calls.length - 1][0]);
       expect(calledUrl).toMatch(/status=SOLD/);
       expect(calledUrl).not.toMatch(/page=/);
     });

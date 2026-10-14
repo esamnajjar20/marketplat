@@ -46,7 +46,7 @@ describe('AdminSystemHealth', () => {
     } as never);
     const user = setupUser();
     render(<AdminSystemHealth />);
-    expect(screen.getByText(/خطأ|تعذّر|إعادة المحاولة|صحة|الخادم/)).toBeInTheDocument();
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة المحاولة|صحة|الخادم/).length).toBeGreaterThanOrEqual(1);
     await user.click(screen.getByRole('button', { name: /إعادة المحاولة/ }));
     expect(refetch).toHaveBeenCalled();
   });

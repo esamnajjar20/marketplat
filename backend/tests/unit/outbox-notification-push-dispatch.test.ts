@@ -35,7 +35,7 @@ describe('durable notification push dispatch handoff', () => {
 
   it('does not acknowledge a durable dispatch while individual targets remain pending', () => {
     expect(source).toContain("where: { dispatchId: dispatch.id, status: 'PENDING' }");
-    expect(source).toContain("status: outcome === 'sent' ? 'SENT' : 'GONE'");
+    expect(source).toContain("SET \"status\" = ${outcome === 'sent' ? 'SENT' : 'GONE'}, \"processedAt\" = NOW()");
     expect(source).toContain('completedPushDispatchesWithPermanentFailure: permanentPushFailures');
     expect(source).toContain('attempts: { decrement: 1 }');
     expect(source).not.toContain('pushService.deliverForOutbox(dispatch.userId, payload)');
@@ -47,7 +47,7 @@ describe('durable notification push dispatch handoff', () => {
     expect(targetMigration).toContain('notification_push_delivery_targets_dispatchId_channel_targetId_key');
     expect(source).toContain('seedPushDeliveryTargets(dispatch, workerId)');
     expect(source).toContain('AND "availableAt" <= NOW()');
-    expect(source).toContain("status: outcome === 'sent' ? 'SENT' : 'GONE'");
+    expect(source).toContain("SET \"status\" = ${outcome === 'sent' ? 'SENT' : 'GONE'}, \"processedAt\" = NOW()");
     expect(source).toContain('PUSH_TARGET_MAX_ATTEMPTS = 12');
     expect(pushService).toContain('sendToSubscriptionForOutbox');
     expect(source).toContain('fcmPushService.sendToToken(token, payload)');
@@ -68,7 +68,7 @@ describe('durable notification push dispatch handoff', () => {
     expect(source).toContain('Push target outcome was not persisted because target lease ownership was lost');
     expect(source).toContain('Push target retry was not persisted because target lease ownership was lost');
     expect(source).toContain('Push target failure was not persisted because target lease ownership was lost');
-    expect(source).toContain('persisted.count !== 1');
+    expect(source).toContain('persisted.length !== 1');
   });
 
   it('renews the dispatch lease separately from per-target leases during slow delivery work', () => {
@@ -94,7 +94,7 @@ describe('durable notification push dispatch handoff', () => {
     expect(source).toContain('lockedBy: workerId');
     expect(source).toContain('MIN(GREATEST(target."availableAt"');
     expect(source).toContain('Target retry limit reached after abandoned attempts');
-    expect(source).toContain('attempts: { gte: PUSH_TARGET_MAX_ATTEMPTS }');
+    expect(source).toContain('AND "attempts" >= ${PUSH_TARGET_MAX_ATTEMPTS}');
   });
 
   it('renews target leases only while the same worker still owns a live parent dispatch lease', () => {
@@ -153,7 +153,7 @@ describe('durable notification push dispatch handoff', () => {
   it('schedules push quiet-hours deferrals and target retries with PostgreSQL time', () => {
     expect(source).toContain('const quietDelayMs = Math.max(1_000, quiet.resumeInMs ?? 60_000)');
     expect(source).toContain("SET \"availableAt\" = NOW() + (${quietDelayMs} * INTERVAL '1 millisecond')");
-    expect(source).toContain('const retryDelayMs = Math.min(1_000 * (2 ** Math.min(attemptedCount, 12)), MAX_BACKOFF_MS)');
+    expect(source).toContain('const retryDelayMs = Math.min(1_000 * 2 ** Math.min(attemptedCount, 12), MAX_BACKOFF_MS)');
     expect(source).toContain("SET \"availableAt\" = NOW() + (${retryDelayMs} * INTERVAL '1 millisecond')");
     expect(source).toContain('SELECT MIN(GREATEST(target."availableAt"');
     expect(source).not.toContain('const retryAt = new Date(Date.now()');

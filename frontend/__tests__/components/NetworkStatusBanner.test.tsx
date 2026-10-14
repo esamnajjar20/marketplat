@@ -78,7 +78,7 @@ describe('NetworkStatusBanner', () => {
     rerender(<NetworkStatusBanner />);
 
     const user = setupUser();
-    await user.click(screen.getByLabelText('إغلاق الرسالة'));
+    await user.click(screen.getByLabelText('إغلاق'));
     expect(screen.queryByText('عاد الاتصال')).not.toBeInTheDocument();
   });
 

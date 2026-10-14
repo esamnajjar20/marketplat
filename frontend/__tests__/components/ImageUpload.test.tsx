@@ -121,7 +121,8 @@ describe('ImageUpload', () => {
 
     fireEvent.drop(dropzone, { dataTransfer: { files: [TEXT_FILE()] } });
 
-    expect(onChange).toHaveBeenCalledWith([]);
+    // No accepted files → onChange is not invoked (only toast/alert)
+    expect(onChange).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('notes.txt'));
   });
 
@@ -138,15 +139,18 @@ describe('ImageUpload', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('الصور المقبولة بقيت محفوظة');
   });
 
-  it('filters out oversized files on drop', () => {
+  it('filters out oversized files on drop', async () => {
     const onChange = vi.fn();
     render(<ImageUpload value={[]} onChange={onChange} />);
     const dropzone = screen.getByRole('button', { name: /رفع الصور/ });
 
     fireEvent.drop(dropzone, { dataTransfer: { files: [OVERSIZED_JPEG()] } });
 
-    expect(onChange).toHaveBeenCalledWith([]);
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('huge.jpg'));
+    // Compression/validation is async; wait for rejection toast
+    await vi.waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('keeps valid files and drops invalid ones from a mixed drop', () => {
@@ -216,7 +220,9 @@ describe('ImageUpload', () => {
 
     fireEvent.drop(dropzone, { dataTransfer: { files: [JPEG_1KB()] } });
 
-    expect(onChange).toHaveBeenCalledWith([]);
+    // No slots left → toast only, onChange not invoked with empty array
+    expect(onChange).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalled();
   });
 
   // ── existingUrls rendering (report item #3) ───────────────────────

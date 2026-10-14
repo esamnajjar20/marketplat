@@ -9,6 +9,7 @@ jest.mock('../../src/config/prisma', () => ({
       findMany: jest.fn(),
       count: jest.fn(),
     },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -184,7 +185,8 @@ describe('productsRepository', () => {
     // must combine cleanly with them rather than one silently
     // replacing another — this test closes the "combination with other
     // filters untested" gap flagged for the minimal version.
-    it('combines hasPromotion with city, categoryId, and search without any filter overriding another', async () => {
+    it('combines hasPromotion with city and categoryId while full-text search adds an ID constraint', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'product-1' }]);
       await productsRepository.findMany({
         hasPromotion: true,
         city: 'Gaza',
@@ -202,10 +204,8 @@ describe('productsRepository', () => {
         sellerProfile: { suspended: false },
         city: 'Gaza',
       });
-      expect(call.where.OR).toEqual([
-        { name: { contains: 'خلاط', mode: 'insensitive' } },
-        { description: { contains: 'خلاط', mode: 'insensitive' } },
-      ]);
+      expect(call.where.id).toEqual({ in: ['product-1'] });
+      expect(call.where.OR).toBeUndefined();
     });
 
     it('applies city filter via the store relation (overriding the base store filter)', async () => {

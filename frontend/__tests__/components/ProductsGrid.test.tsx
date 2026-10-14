@@ -9,7 +9,8 @@
  * defaults.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ProductsGrid } from '@/components/stores/ProductsGrid';
 import { useProducts } from '@/hooks/queries/useProducts';

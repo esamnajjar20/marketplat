@@ -120,8 +120,16 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
 
   it("'full' remains bounded by the adaptive budget when connection quality is unknown", () => {
     mode = 'full';
+    // Force unknown tier so adaptive maxRouteCount stays at 8 (not full/fast 60)
+    networkPolicy = {
+      ...networkPolicy,
+      tier: 'unknown',
+      allowBackgroundWarming: true,
+      saveData: false,
+    };
     const plan = getWarmingPlan();
-    expect(selectRoutesByPlan(plan, [...CORE_ROUTES], 'public').length).toBeLessThanOrEqual(8);
+    // PINNED_OFFLINE_ROUTES (/offline) sits outside the adaptive budget
+    expect(selectRoutesByPlan(plan, [...CORE_ROUTES], 'public').length).toBeLessThanOrEqual(9);
     expect(selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal').length).toBeLessThanOrEqual(3);
   });
 

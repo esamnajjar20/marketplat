@@ -10,7 +10,10 @@ import { useMyStore } from '@/hooks/queries/useStores';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 
 vi.mock('@/hooks/queries/useAds', () => ({ useMyAdStats: vi.fn() }));
-vi.mock('@/hooks/queries/useConversations', () => ({ useMyConversations: vi.fn() }));
+vi.mock('@/hooks/queries/useConversations', () => ({
+  useMyConversations: vi.fn(),
+  useUnreadConversationCount: vi.fn(() => ({ data: 0, isLoading: false, isError: false, refetch: vi.fn() })),
+}));
 vi.mock('@/hooks/queries/useStores', () => ({ useMyStore: vi.fn() }));
 vi.mock('@/hooks/queries/useServiceProviders', () => ({ useMyServiceProvider: vi.fn() }));
 

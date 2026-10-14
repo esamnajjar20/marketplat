@@ -24,7 +24,8 @@
  *  - a failed image step blocks update.mutate entirely
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ProductForm } from '@/components/stores/ProductForm';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
@@ -42,7 +43,7 @@ vi.mock('@/hooks/queries/useProductCategories', () => ({
 }));
 
 vi.mock('@/hooks/queries/useStores', () => ({
-  useMyStore: vi.fn(() => ({ data: undefined })),
+  useMyStore: vi.fn(() => ({ data: { id: 'store-1' }, isLoading: false, isError: false })),
 }));
 
 vi.mock('@/hooks/mutations/useProductMutations', () => ({

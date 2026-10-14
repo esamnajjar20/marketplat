@@ -21,7 +21,6 @@ import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdDetail } from '@/components/ads/AdDetail';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
-import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/formatters';
 import { queryKeys } from '@/lib/queryKeys';
@@ -31,6 +30,14 @@ vi.mock('@/hooks/mutations/useFavoriteMutations', () => ({
   useToggleFavorite: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useFavorites', () => ({
+  useIsFavorited: vi.fn(() => false),
+}));
+
+vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+  useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
 // AdDetail resolves the category link via useCategories() (react-query).
 // Mock it directly so we don't need real network/cache behavior here —
 // AdDetail's own category-href logic isn't what this file is testing.
@@ -38,18 +45,38 @@ vi.mock('@/hooks/queries/useCategories', () => ({
   useCategories: vi.fn(() => ({ data: [] })),
 }));
 
-vi.mock('@/store/auth.store', () => ({
-  useAuthStore: vi.fn(),
-  selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
-  selectUser: (s: { user: unknown }) => s.user,
-  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
-  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
-  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
-  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
-  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
-  selectAccessToken: (s: any) => s?.accessToken,
-  selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
+const authStoreState = vi.hoisted(() => ({
+  isAuthenticated: true,
+  user: { id: 'viewer-1' } as { id: string } | null,
+  isHydrated: true,
+  accessToken: 'tok',
 }));
+
+vi.mock('@/store/auth.store', () => {
+  const useAuthStore = Object.assign(
+    vi.fn((selector?: (s: typeof authStoreState) => unknown) =>
+      typeof selector === 'function' ? selector(authStoreState) : authStoreState,
+    ),
+    {
+      getState: () => authStoreState,
+      setState: (partial: Partial<typeof authStoreState>) => Object.assign(authStoreState, partial),
+    },
+  );
+  return {
+    useAuthStore,
+    selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
+    selectUser: (s: { user: unknown }) => s.user,
+    selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+    selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+    selectHydratedIsAuthenticated: (s: any) =>
+      s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false,
+    selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+    selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+    selectAccessToken: (s: any) => s?.accessToken,
+    selectIsAdmin: (s: any) =>
+      Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
+  };
+});
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
@@ -121,10 +148,10 @@ function renderWithClient(ui: ReactElement) {
 }
 
 function mockAuth(isAuthenticated: boolean) {
-  (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-    (selector: (s: { isAuthenticated: boolean; user: { id: string } | null }) => unknown) =>
-      selector({ isAuthenticated, user: isAuthenticated ? { id: 'viewer-1' } : null }),
-  );
+  authStoreState.isAuthenticated = isAuthenticated;
+  authStoreState.user = isAuthenticated ? { id: 'viewer-1' } : null;
+  authStoreState.isHydrated = true;
+  authStoreState.accessToken = isAuthenticated ? 'tok' : '';
 }
 
 describe('AdDetail', () => {

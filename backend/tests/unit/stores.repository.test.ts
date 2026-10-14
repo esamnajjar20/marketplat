@@ -11,6 +11,7 @@ jest.mock('../../src/config/prisma', () => ({
       count: jest.fn(),
     },
     product: { count: jest.fn() },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -221,7 +222,8 @@ describe('storesRepository', () => {
       );
     });
 
-    it('adds a case-insensitive OR search across name and description when provided', async () => {
+    it('uses full-text search IDs for a search query', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'store-1' }]);
       (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.storeDetails.count as jest.Mock).mockResolvedValue(0);
 
@@ -232,10 +234,7 @@ describe('storesRepository', () => {
           where: {
             status: 'ACTIVE',
             sellerProfile: { suspended: false },
-            OR: [
-              { name: { contains: 'phones', mode: 'insensitive' } },
-              { description: { contains: 'phones', mode: 'insensitive' } },
-            ],
+            id: { in: ['store-1'] },
           },
         })
       );

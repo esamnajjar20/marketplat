@@ -5,7 +5,8 @@
  * load-more, and per-row mark-as-read.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { NotificationsPage } from '@/components/notifications/NotificationsPage';
 import {
@@ -169,7 +170,7 @@ describe('NotificationsPage', () => {
     expect(screen.getByText('غير مقروء')).toBeInTheDocument();
     expect(screen.getByText('مقروء')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /غير مقروء/ }));
+    await user.click(screen.getAllByRole('button', { name: /غير مقروء/ })[0]);
 
     expect(screen.getByText('غير مقروء')).toBeInTheDocument();
     expect(screen.queryByText('مقروء')).not.toBeInTheDocument();

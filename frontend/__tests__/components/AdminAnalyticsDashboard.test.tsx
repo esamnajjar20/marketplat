@@ -86,8 +86,8 @@ describe('AdminAnalyticsDashboard', () => {
     } as never);
     render(<AdminAnalyticsDashboard />);
 
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|تحليلات/)).toBeInTheDocument();
-    await userEvent.click(screen.getByText('إعادة المحاولة'));
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|تحليلات/).length).toBeGreaterThanOrEqual(1);
+    await userEvent.click(screen.getAllByText('إعادة المحاولة')[0]);
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
@@ -99,7 +99,7 @@ describe('AdminAnalyticsDashboard', () => {
       refetch: vi.fn(),
     } as never);
     render(<AdminAnalyticsDashboard />);
-    expect(screen.getByText(/خطأ|تعذّر|إعادة|تحليلات/)).toBeInTheDocument();
+    expect(screen.getAllByText(/خطأ|تعذّر|إعادة|تحليلات/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the five totals cards with correct values', () => {

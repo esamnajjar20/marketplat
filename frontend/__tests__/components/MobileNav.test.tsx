@@ -8,7 +8,8 @@
  * works from the drawer.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, act } from '@testing-library/react';
 
 async function renderNav() {
   const result = await renderNav();

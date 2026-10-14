@@ -90,7 +90,8 @@ describe('AdsService.updateAd — FAV_AD_SOLD notification trigger (Gap #15)', (
     expect(notificationEvents.onFavoritedAdSold).toHaveBeenCalledWith(
       ['fav-user-1'],
       'ad-1',
-      'Old Title'
+      'Old Title',
+      'https://res.cloudinary.com/demo/image/upload/v1/ads/photo.jpg'
     );
   });
 
@@ -112,7 +113,8 @@ describe('AdsService.updateAd — FAV_AD_SOLD notification trigger (Gap #15)', (
     expect(notificationEvents.onFavoritedAdSold).toHaveBeenCalledWith(
       ['fav-user-1'],
       'ad-1',
-      'Old Title'
+      'Old Title',
+      'https://res.cloudinary.com/demo/image/upload/v1/ads/photo.jpg'
     );
   });
 

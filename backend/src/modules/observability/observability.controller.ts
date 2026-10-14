@@ -44,8 +44,8 @@ export const sanitizeDiagnosticText = (
   return value
     .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi, 'Bearer [redacted]')
     .replace(
-      /([?&](?:access_token|refresh_token|token|api_key|password|secret)=)[^&#\s]*/gi,
-      '$1[redacted]'
+      /(^|[?&\s])((?:access_token|refresh_token|token|api_key|password|secret)=)([^&#\s]*)/gi,
+      (_match, prefix: string, key: string) => `${prefix}${key}[redacted]`
     )
     .slice(0, maxLength);
 };

@@ -10,7 +10,8 @@
  *   - falls back to the placeholder image when result.image is null.
  */
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -135,9 +136,9 @@ describe('UnifiedResultCard', () => {
     expect(screen.getByText('2.0 كم')).toBeInTheDocument();
   });
 
-  it('renders the relative created-at time', () => {
+  it('renders the relative created-at time', async () => {
     render(<UnifiedResultCard result={base} />);
-    expect(screen.getByText(formatRelativeTime(base.createdAt))).toBeInTheDocument();
+    expect(await screen.findByText(formatRelativeTime(base.createdAt))).toBeInTheDocument();
   });
 
   it('falls back to the placeholder image when result.image is null', () => {

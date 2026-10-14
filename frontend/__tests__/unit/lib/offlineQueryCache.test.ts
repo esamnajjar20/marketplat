@@ -37,10 +37,12 @@ describe('offline query cache safety and limits', () => {
       ['service-categories', 'admin', 'all'],
       ['service-types', 'admin', 'all'],
       ['search', 'unified', { q: 'private phrase' }],
-      ['home', 'feed', 'gaza', 'user-123'],
       ['home', 'unknown-branch', { city: 'gaza' }],
     ];
     for (const key of forbidden) expect(isOfflinePersistableQueryKey(key)).toBe(false);
+    // CACHE-OFFLINE-HOME-FEED-01: home.feed is intentionally persistable
+    // (per-user key; cleared on logout).
+    expect(isOfflinePersistableQueryKey(['home', 'feed', 'gaza', 'user-123'])).toBe(true);
   });
 
   it('rejects query keys containing actual search text or contextual coordinates', () => {

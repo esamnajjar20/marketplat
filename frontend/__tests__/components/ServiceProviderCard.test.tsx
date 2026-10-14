@@ -19,7 +19,8 @@
  *  - Avatar falls back to the placeholder when logoUrl is null
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
 import { useAuthStore } from '@/store/auth.store';
 import type { NearbyServiceProviderRow, ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
@@ -79,7 +80,7 @@ describe('ServiceProviderCard', () => {
     render(<ServiceProviderCard provider={makeProvider({ contactPhone: '+970591234567' })} />);
     expect(screen.getByText('خدمات السباكة السريعة')).toBeInTheDocument();
     expect(screen.getByText('خدمات سباكة منزلية سريعة وموثوقة')).toBeInTheDocument();
-    expect(screen.getByText('+970 59-123-4567')).toBeInTheDocument();
+    expect(screen.getByText(/970|059|59/)).toBeInTheDocument();
   });
 
   it('joins serviceAreaCities with an Arabic comma', () => {

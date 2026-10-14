@@ -27,7 +27,8 @@
  *  doesn't need a QueryClientProvider wrapper.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { formatRelativeTime } from '@/lib/formatters';
 import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';

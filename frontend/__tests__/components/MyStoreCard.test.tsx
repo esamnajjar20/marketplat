@@ -12,7 +12,8 @@
  * appears for ACTIVE stores.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen, fireEvent } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyStoreCard } from '@/components/stores/MyStoreCard';
 import { useUpdateStore, useUploadStoreLogo, useUploadStoreCover } from '@/hooks/mutations/useStoreMutations';

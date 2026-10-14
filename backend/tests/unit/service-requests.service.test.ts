@@ -2,6 +2,7 @@ import { serviceRequestsService } from '../../src/modules/service-requests/servi
 import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
 import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
 import { prisma } from '../../src/config/prisma';
 import { notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
@@ -12,6 +13,10 @@ import { ConflictError } from '../../src/shared/errors/ConflictError';
 jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/service-listings/service-listings.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
+jest.mock('../../src/modules/blocked-users', () => ({
+  blockedUsersService: { isBlockedEitherDirection: jest.fn().mockResolvedValue(false) },
+}));
 jest.mock('../../src/modules/notifications/notifications.service', () => ({
   notificationEvents: {
     onServiceRequestCreated: jest.fn(),
@@ -36,6 +41,9 @@ const mockProvider = {
 describe('ServiceRequestsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (serviceTypesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'service-type-1', isActive: true, capabilities: { requestQuote: true },
+    });
     // Re-armed every test: restoreAllMocks/clearAllMocks in this suite can
     // drop the resolved value, and the services call .catch() on the result.
     (notificationEvents.onServiceRequestCreated as jest.Mock).mockResolvedValue(null);

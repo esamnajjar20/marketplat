@@ -11,7 +11,10 @@ jest.mock('../../src/modules/ads/ads.service');
 jest.mock('../../src/modules/users');
 jest.mock('../../src/modules/stores');
 jest.mock('../../src/modules/notifications/notifications.service', () => ({
-  notificationEvents: { onModerationDecision: jest.fn().mockResolvedValue(undefined) },
+  notificationEvents: {
+    onModerationDecision: jest.fn().mockResolvedValue(undefined),
+    onModerationReportReceived: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 const mockAd = { id: 'ad-1', userId: 'owner-1', status: 'ACTIVE' };

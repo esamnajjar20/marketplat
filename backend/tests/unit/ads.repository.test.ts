@@ -389,6 +389,7 @@ describe('adsRepository', () => {
           id: { not: adId },
           status: AdStatus.ACTIVE,
           sellerProfile: { suspended: false },
+          AND: [{ OR: [{ storeId: null }, { store: { status: 'ACTIVE' } }] }],
           OR: [{ categoryId: 'cat-1' }, { city: 'Gaza' }],
         },
         select: expect.any(Object),
