@@ -14,6 +14,7 @@ import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../shared/u
 import { viewsBuffer } from '../../shared/utils/viewsBuffer';
 import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
 import { swrGet } from '../../shared/utils/swrCache';
+import { listHardTtlSec } from '../../shared/cache/warmedListQueries';
 import {
   ADS_GEN_HARD_KEY,
   ADS_GEN_SOFT_KEY,
@@ -86,10 +87,10 @@ async function uploadAdImages(files: Express.Multer.File[]) {
 const ADS_LIST_POLICY = cachePolicy('publicLive').server;
 const ADS_LIST_SOFT_TTL_MS = ADS_LIST_POLICY.softTtlMs;
 const ADS_LIST_SOFT_JITTER_MS = ADS_LIST_POLICY.softJitterMs;
-// FIX ADS-WARM-TTL-01: raised 120 → 600 so keep-warm (every 240s) can actually
-// hold first-page default lists between cycles. Generation invalidation still
-// purges on write; SWR serves soft-stale immediately. Safe because only
-// unfiltered/default first pages are warmed (see cacheWarmup WARMUP_TASKS).
+// FIX ADS-WARM-TTL-01 / WARM-LIST-HARD-TTL-01: the policy hard TTL is 90s, which is
+// shorter than the 240s keep-warm cycle, so warmed first pages were cold most of the
+// time. The exact default shapes keep-warm rebuilds get 600s (listHardTtlSec); all
+// other keys keep the policy value. Generation invalidation still purges on write.
 const ADS_LIST_HARD_TTL_SECONDS = ADS_LIST_POLICY.hardTtlSec;
 const ADS_LIST_LOCK_TTL_MS = ADS_LIST_POLICY.lockTtlMs;
 
@@ -489,7 +490,7 @@ export const adsService = {
       hardGenKey: ADS_GEN_HARD_KEY,
       softGenKey: ADS_GEN_SOFT_KEY,
       softTtlMs: () => ADS_LIST_SOFT_TTL_MS + Math.floor(Math.random() * (ADS_LIST_SOFT_JITTER_MS + 1)),
-      hardTtlSec: ADS_LIST_HARD_TTL_SECONDS,
+      hardTtlSec: listHardTtlSec('ads', query, ADS_LIST_HARD_TTL_SECONDS),
       lockTtlMs: ADS_LIST_LOCK_TTL_MS,
       cacheable: !query.search || query.search.length <= ADS_CACHEABLE_SEARCH_MAX,
       build: async () => {

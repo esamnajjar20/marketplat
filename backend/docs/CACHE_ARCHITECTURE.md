@@ -23,6 +23,9 @@
 ## التسخين المستمر
 كل 4 دقائق (أقل بكثير من hard TTL): يفحص الرئيسية العامة + 10 مدن + 3 تصنيفات، ويعيد بناء ما هو ناقص/مُبطَل فقط، أو ما عمره (`writtenAt`) تجاوز `HOME_KEEPWARM_MAX_AGE_MS` (300ث). لا يلاحق الـ soft TTL (30–40ث): الزيارات الحقيقية تحدّثه بالخلفية، فالمفتاح الذي جُدّد للتو يُتخطّى ولا يُعاد تجميعه (CACHE-KEEPWARM-AGE-01). شرط الأمان: `MAX_AGE + interval < hard TTL` (300+240 < 600) وإلا قد ينتهي مفتاح بين دورتين. الإدخالات القديمة بلا `writtenAt` وأي إبطال soft (تعديل) تُعاد بناؤها دائمًا. عملية واحدة تقود الدورة عبر قفل `cache:keepwarm:leader` (PM2 cluster أو عدة replicas). إذا Redis غير متاح تُتخطى الدورة.
 
+## قوائم التسخين الافتراضية والـ hard TTL (WARM-LIST-HARD-TTL-01)
+قوائم `publicLive` (ads/products/stores/service-listings/service-providers) hard TTL لها 90ث، بينما دورة التسخين 240ث؛ كانت المفاتيح المسخَّنة تنتهي قبل الدورة التالية بنحو 150ث (باردة ~60% من الوقت). الآن الأشكال المسخَّنة بالضبط (المعرّفة في `shared/cache/warmedListQueries.ts`) تأخذ hard TTL = 600ث، وأي استعلام آخر (فلاتر/بحث/صفحات أعمق) يبقى على 90ث. الإبطال لا يتأثر لأنه بالأجيال لا بالـ TTL. عند تغيير شكل استعلام مُسخَّن في الفرونت (`lib/warmingQueryContract.ts`) حدّث `warmedListQueries.ts` معه، وإلا يصبح المفتاح المسخَّن مفتاحًا مختلفًا (بارد).
+
 ## القياس
 `cacheMetrics` (لكل namespace): `hit / stale / miss / bypass / refresh_ok / refresh_fail / lock_skip` + نسبة `servedFromCache`. تُطبع في اللوج كل دورة تسخين بوسم `[cache-metrics]`. مؤشرات الصحة: `miss` المنخفض على `home`، و`bypass` قرب الصفر (وإلا فـ Redis بطيء/معطّل)، و`refresh_fail` صفر.
 

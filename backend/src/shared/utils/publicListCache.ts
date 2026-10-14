@@ -3,6 +3,7 @@ import { getCacheDomain } from '../cache/cacheContract';
 import { swrGet, bumpGeneration } from './swrCache';
 import { HOME_GEN_KEY, invalidateHomeCache } from '../../modules/home/home.cache.keys';
 import { cachePolicy } from '../cache/cachePolicy';
+import { listHardTtlSec } from '../cache/warmedListQueries';
 import { logger } from './logger';
 
 /**
@@ -20,7 +21,8 @@ import { logger } from './logger';
  *  - only viewer-independent lists go through here (callers pass the same
  *    validated query object their controller already passed to the service);
  *  - freshness: soft TTL ~20-25s (stale served while ONE process refreshes),
- *    hard TTL 90s. That is well inside the 90s+60s browser Cache-Control these
+ *    hard TTL 90s (600s only for the exact default first pages keep-warm
+ *    rebuilds — see shared/cache/warmedListQueries.ts). That is well inside the 90s+60s browser Cache-Control these
  *    routes already send (CACHE.SHORT), so the server cache adds no staleness
  *    a client wasn't already allowed to see;
  *  - two invalidation strengths, same model as the /ads list cache:
@@ -96,7 +98,9 @@ export function cachedPublicList<T>(
     hardGenKey: hardGenKey(ns),
     softGenKey: softGenKey(ns),
     softTtlMs: () => PUBLIC_LIST_SOFT_TTL_MS + Math.floor(Math.random() * (PUBLIC_LIST_SOFT_JITTER_MS + 1)),
-    hardTtlSec: PUBLIC_LIST_HARD_TTL_SECONDS,
+    // FIX WARM-LIST-HARD-TTL-01: the exact first-page shapes keep-warm rebuilds live
+    // long enough to survive the 240s cycle; every other key keeps the short TTL.
+    hardTtlSec: listHardTtlSec(ns, query, PUBLIC_LIST_HARD_TTL_SECONDS),
     lockTtlMs: PUBLIC_LIST_LOCK_TTL_MS,
     build,
     cacheable: isCacheableQuery(query),

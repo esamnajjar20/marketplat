@@ -62,6 +62,8 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
       'stores:list:default',
       'service-listings:list:default',
       'service-providers:list:default',
+      'products:list:home',
+      'stores:list:home',
       ...HOME_CITIES.map(city => `home:${city}`),
     ]);
   });
@@ -84,6 +86,21 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
       isFeatured: true,
       limit: 4,
     });
+  });
+
+  it('home-strip warmup tasks use the exact shapes the home page requests (FIX WARM-HOME-STRIPS-01)', async () => {
+    const { productsService } = jest.requireMock('../../src/modules/products/products.service') as {
+      productsService: { getProducts: jest.Mock };
+    };
+    const { storesService } = jest.requireMock('../../src/modules/stores/stores.service') as {
+      storesService: { getStores: jest.Mock };
+    };
+    productsService.getProducts.mockClear();
+    storesService.getStores.mockClear();
+    await WARMUP_TASKS.find(t => t.name === 'products:list:home')!.run();
+    await WARMUP_TASKS.find(t => t.name === 'stores:list:home')!.run();
+    expect(productsService.getProducts).toHaveBeenCalledWith({ limit: 8, sortBy: 'createdAt', sortOrder: 'desc' });
+    expect(storesService.getStores).toHaveBeenCalledWith({ limit: 6, sortBy: 'createdAt', sortOrder: 'desc' });
   });
 
   it('home tasks are age-gated so an idle healthy cache is not rebuilt every cycle (FIX CACHE-KEEPWARM-AGE-01)', async () => {

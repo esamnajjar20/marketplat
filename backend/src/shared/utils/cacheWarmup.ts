@@ -4,11 +4,20 @@ import { categoriesService } from '../../modules/categories/categories.service';
 import { productCategoriesService } from '../../modules/product-categories/product-categories.service';
 import { serviceCategoriesService } from '../../modules/service-categories/service-categories.service';
 import { adsService } from '../../modules/ads/ads.service';
-import type { GetAdsQuery } from '../../modules/ads/ads.validation';
 import { guardedCache } from './cacheGuard';
 import { cacheMetrics } from './cacheMetrics';
 import { cacheClient } from './swrCache';
 import { logger } from './logger';
+import {
+  WARMED_ADS_DEFAULT_QUERY,
+  WARMED_ADS_FEATURED_QUERY,
+  WARMED_PRODUCTS_DEFAULT_QUERY,
+  WARMED_PRODUCTS_HOME_QUERY,
+  WARMED_SERVICE_LISTINGS_DEFAULT_QUERY,
+  WARMED_SERVICE_PROVIDERS_DEFAULT_QUERY,
+  WARMED_STORES_DEFAULT_QUERY,
+  WARMED_STORES_HOME_QUERY,
+} from '../cache/warmedListQueries';
 import { cacheWarmupTasksTotal, cacheWarmupTaskDurationSeconds } from './metrics';
 import { productsService } from '../../modules/products/products.service';
 import { storesService } from '../../modules/stores/stores.service';
@@ -75,47 +84,29 @@ export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   { name: 'categories', priority: 95, run: () => categoriesService.getCategories() },
   { name: 'product-categories', priority: 94, run: () => productCategoriesService.getProductCategories() },
   { name: 'service-categories', priority: 93, run: () => serviceCategoriesService.getServiceCategories() },
-  // Default first pages only (no filters/search) — matches frontend
-  // offlineCoreBundle / ads page defaults.
-  {
-    name: 'ads:list:default',
-    priority: 92,
-    run: () =>
-      adsService.getAds({
-        page: 1,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      } satisfies GetAdsQuery),
-  },
-  {
-    name: 'ads:list:featured',
-    priority: 91,
-    run: () =>
-      adsService.getAds({
-        isFeatured: true,
-        limit: 4,
-      } satisfies GetAdsQuery),
-  },
-  {
-    name: 'products:list:default',
-    priority: 88,
-    run: () => productsService.getProducts({ page: 1, limit: 12, sortBy: 'createdAt', sortOrder: 'desc' }),
-  },
-  {
-    name: 'stores:list:default',
-    priority: 87,
-    run: () => storesService.getStores({ page: 1, sortBy: 'createdAt', sortOrder: 'desc' }),
-  },
+  // Default first pages only (no filters/search) — the exact shapes live in
+  // shared/cache/warmedListQueries.ts, which is also what gives these keys the
+  // 600s hard TTL that lets a 240s cycle actually hold them (FIX WARM-LIST-HARD-TTL-01).
+  // Shapes match the frontend warming contract (lib/warmingQueryContract.ts).
+  { name: 'ads:list:default', priority: 92, run: () => adsService.getAds(WARMED_ADS_DEFAULT_QUERY) },
+  { name: 'ads:list:featured', priority: 91, run: () => adsService.getAds(WARMED_ADS_FEATURED_QUERY) },
+  { name: 'products:list:default', priority: 88, run: () => productsService.getProducts(WARMED_PRODUCTS_DEFAULT_QUERY) },
+  { name: 'stores:list:default', priority: 87, run: () => storesService.getStores(WARMED_STORES_DEFAULT_QUERY) },
   {
     name: 'service-listings:list:default',
     priority: 86,
-    run: () => serviceListingsService.getServiceListings({ page: 1, sortBy: 'createdAt', sortOrder: 'desc' }),
+    run: () => serviceListingsService.getServiceListings(WARMED_SERVICE_LISTINGS_DEFAULT_QUERY),
   },
   {
     name: 'service-providers:list:default',
     priority: 85,
-    run: () => serviceProvidersService.getServiceProviders({ page: 1 }),
+    run: () => serviceProvidersService.getServiceProviders(WARMED_SERVICE_PROVIDERS_DEFAULT_QUERY),
   },
+  // Home-page strips (frontend queries /products?limit=8… and /stores?limit=6…).
+  // They were never warmed server-side, so the first home visitor after every
+  // expiry paid two DB list queries (FIX WARM-HOME-STRIPS-01).
+  { name: 'products:list:home', priority: 84, run: () => productsService.getProducts(WARMED_PRODUCTS_HOME_QUERY) },
+  { name: 'stores:list:home', priority: 83, run: () => storesService.getStores(WARMED_STORES_HOME_QUERY) },
   ...HOME_CITIES.map(city => homeTask(city)),
 ];
 

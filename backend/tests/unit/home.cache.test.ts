@@ -241,6 +241,30 @@ describe('getCachedHomepage', () => {
         jest.useRealTimers();
       }
     });
+
+    it('a city loop superseded mid-way does not start the min gap: the newer run re-warms every city (FIX HOME-REWARM-SUPERSEDED-01)', async () => {
+      jest.useFakeTimers();
+      try {
+        // Real assemblies take time, so a city loop is long enough to be superseded.
+        getHomepage.mockImplementation(
+          () => new Promise(resolve => setTimeout(() => resolve(fresh), 300)),
+        );
+        await invalidateHomeCache();
+        await jest.advanceTimersByTimeAsync(2_500); // run 1: general done, city loop in progress
+        await invalidateHomeCache(); // run 2 will supersede run 1 around t≈4s
+        await jest.advanceTimersByTimeAsync(15_000);
+
+        const currentGeneration = fake.__store.get(HOME_GEN_KEY)!.value;
+        for (const city of HOME_CITIES) {
+          const entry = stored(`home:v4:${city}`);
+          expect(entry).not.toBeNull();
+          // every city key was rebuilt under the generation that is current NOW
+          expect(entry!.hard).toBe(currentGeneration);
+        }
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe('ensureHomepageFresh (keep-warm)', () => {

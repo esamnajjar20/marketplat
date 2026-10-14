@@ -22,6 +22,11 @@ import { getBackgroundWarmingBudget, shouldPauseBackgroundWarming } from '@/lib/
 import { getNetworkPolicy } from '@/lib/networkPolicy';
 
 let pipelineInFlight = false;
+// FIX WARM-PIPELINE-RERUN-01: whether the run currently in flight was asked to
+// include personal data. Only a *later authenticated* request arriving during an
+// *unauthenticated* run has anything new to add; before, any authenticated call
+// that hit an in-flight authenticated run queued a pointless second full pass.
+let inFlightAuthenticated = false;
 // WARM-PIPELINE-QUEUE-01: when a warm pass starts before auth has
 // hydrated, it runs with authenticated:false and never touches the
 // personal shells or user-data caches. The later authenticated:true
@@ -103,12 +108,14 @@ export async function runWarmingPipeline(
   if (pipelineInFlight) {
     // WARM-PIPELINE-QUEUE-01: see the flag's doc comment. Only a
     // *later* authenticated run is worth remembering — a plain repeat
-    // of the same pass has nothing new to add.
-    if (options.authenticated) pendingAuthenticatedRerun = true;
+    // of the same pass (or an authenticated call during an authenticated
+    // pass) has nothing new to add.
+    if (options.authenticated && !inFlightAuthenticated) pendingAuthenticatedRerun = true;
     return { ran: false };
   }
 
   pipelineInFlight = true;
+  inFlightAuthenticated = options.authenticated === true;
   let result: Awaited<ReturnType<typeof runWarmingEngine>> | undefined;
   try {
     const queueIdle = await waitForQueueReplayIdle();
@@ -123,13 +130,18 @@ export async function runWarmingPipeline(
     const storageBudget = options.force ? 'full' : await getBackgroundWarmingBudget();
     if (storageBudget === 'paused') return { ran: false };
 
-    lastPipelineStartedAt = Date.now();
-    if (options.authenticated) lastPipelineAuthenticated = true;
-
     // Re-check the live connection after waiting for queue replay/storage.
     // `online` is only a snapshot from function entry and may be stale after
     // a long wait or a connection drop.
     if (!navigator.onLine) return { ran: false };
+
+    // FIX WARM-PIPELINE-STAMP-01: stamp the run only once it is really going to
+    // start. The stamp used to be written BEFORE the online re-check above, so a
+    // pass that bailed out because the link dropped still counted as "just ran" —
+    // the scheduler's 2-minute rate limit then swallowed the `online` trigger
+    // fired when the link came back, leaving warming idle until the next 10-min tick.
+    lastPipelineStartedAt = Date.now();
+    if (options.authenticated) lastPipelineAuthenticated = true;
 
     // W0-W3 + Cache W7: engine owns network budget + priority, storage
     // gates the phases. Network budget is still enforced by the engine;
@@ -154,6 +166,7 @@ export async function runWarmingPipeline(
     }
   } finally {
     pipelineInFlight = false;
+    inFlightAuthenticated = false;
     // WARM-PIPELINE-QUEUE-01: if an authenticated run arrived while
     // this one was in flight, chain it now. Once so: the first pass
     // already warmed core + public, this one adds personal + user

@@ -370,7 +370,15 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
     const jsonThreshold = Math.ceil(urls.length * SUCCESS_THRESHOLD);
     const jsonOk = jsonSucceeded >= jsonThreshold;
     if (jsonOk) {
-      localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
+      // FIX WARM-CORE-MARKER-GUARD-01: a blocked/full localStorage (privacy mode,
+      // quota) must not abort the rest of the pass — the thumbnails and the prune
+      // below were skipped whenever this setItem threw. Worst case the marker is
+      // missing and the next pass simply runs again.
+      try {
+        localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
+      } catch {
+        // storage unavailable: no marker, no harm.
+      }
     } else {
       reportWarmingFailure({
         source: 'core',
@@ -409,7 +417,13 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
     // "الحالية" ولا تحذف أي قديمة، وCORE_CACHE بلا تقليم (انظر sw.js) فيكبر
     // حتى نشر النسخة التالية. نحذف كل ما ليس ضمن مجموعة هذه الدورة (روابط
     // الـ JSON المعروفة + الصور المطلوبة الآن).
-    if (jsonOk) {
+    // FIX WARM-CORE-PRUNE-IMAGES-01: the keep-set is only authoritative when this
+    // pass produced the COMPLETE set. Pruning after a pass that skipped images
+    // (slow link / Save-Data → allowImages=false → thumbnails=[]) or that missed a
+    // list deleted every thumbnail cached earlier on a good connection, i.e. the
+    // images were lost exactly when the user's network got worse.
+    const keepSetIsComplete = jsonSucceeded === urls.length && budget.allowImages;
+    if (jsonOk && keepSetIsComplete) {
       try {
         const keep = new Set<string>([...urls.map((u) => u.url), ...thumbnails]);
         const existing = await cache.keys();

@@ -101,6 +101,12 @@ let rewarmTimer: NodeJS.Timeout | null = null;
 // Bumped by every new rewarm run and by cancel, so an older city loop stops.
 let rewarmEpoch = 0;
 let lastCityRewarmAt = 0;
+// FIX HOME-REWARM-SUPERSEDED-01: true only when the last city loop ran to the end.
+// A loop that was superseded by a newer invalidation did NOT rewarm the cities, so
+// it must not start the 30s "already rewarmed" gap — otherwise the newer run is
+// gated out and every city (all just invalidated) stays cold until the next
+// keep-warm cycle, up to 4 minutes later.
+let lastCityRewarmCompleted = true;
 
 /** For tests and graceful shutdown: drop a pending post-invalidation rewarm. */
 export function cancelPendingHomeRewarm(): void {
@@ -108,6 +114,7 @@ export function cancelPendingHomeRewarm(): void {
   rewarmTimer = null;
   rewarmEpoch += 1;
   lastCityRewarmAt = 0;
+  lastCityRewarmCompleted = true;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -120,9 +127,14 @@ async function rewarmAfterInvalidation(): Promise<void> {
     logger.warn('[home] post-invalidation rewarm failed', error);
   }
 
+  // The general key above may have taken a while; a newer invalidation can have
+  // superseded this run already. Let the newer run own the city loop.
+  if (epoch !== rewarmEpoch) return;
+
   const now = Date.now();
-  if (lastCityRewarmAt !== 0 && now - lastCityRewarmAt < HOME_REWARM_CITIES_MIN_GAP_MS) return;
+  if (lastCityRewarmCompleted && lastCityRewarmAt !== 0 && now - lastCityRewarmAt < HOME_REWARM_CITIES_MIN_GAP_MS) return;
   lastCityRewarmAt = now;
+  lastCityRewarmCompleted = false;
 
   for (const city of HOME_CITIES) {
     await sleep(HOME_REWARM_CITY_PAUSE_MS);
@@ -133,6 +145,8 @@ async function rewarmAfterInvalidation(): Promise<void> {
       logger.warn(`[home] post-invalidation rewarm failed for ${city}`, error);
     }
   }
+  // Only a loop that reached the end counts toward the min-gap.
+  if (epoch === rewarmEpoch) lastCityRewarmCompleted = true;
 }
 
 onHomeInvalidated(() => {
