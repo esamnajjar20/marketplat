@@ -132,11 +132,14 @@ export const favoritesApi = {
    * product/store/service listing favorited by the current user?
    * Generic counterpart of check() above.
    */
-  checkEntity: (type: FavoriteEntityKind, entityId: string, config?: AxiosRequestConfig) =>
-    apiClient
-      .get<ApiResponse<{ isFavorited: boolean }>>(
-        `/favorites/${FAVORITE_ROUTE_SEGMENT[type]}/${entityId}/check`,
-        config
-      )
-      .then((r) => r.data.data?.isFavorited ?? false),
+  checkEntity: (type: FavoriteEntityKind, entityId: string, config?: AxiosRequestConfig) => {
+    // Same convention as check() above: only forward `config` when the caller
+    // actually passed one, so a plain call is exactly get(url).
+    const url = `/favorites/${FAVORITE_ROUTE_SEGMENT[type]}/${entityId}/check`;
+    return (
+      config
+        ? apiClient.get<ApiResponse<{ isFavorited: boolean }>>(url, config)
+        : apiClient.get<ApiResponse<{ isFavorited: boolean }>>(url)
+    ).then((r) => r.data.data?.isFavorited ?? false);
+  },
 };

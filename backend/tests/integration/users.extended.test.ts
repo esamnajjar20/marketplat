@@ -34,6 +34,7 @@ describe('Users API — extended coverage', () => {
         .send({ name: 'Delete Me', email, password: 'TestPassword123!', city: 'الرياض' });
 
       const { accessToken } = registerRes.body.data.tokens;
+      const userId = registerRes.body.data.user.id as string;
 
       const deleteRes = await request(app)
         .delete('/api/v1/users/me')
@@ -47,8 +48,12 @@ describe('Users API — extended coverage', () => {
 
       expect(meRes.status).toBe(401);
 
-      const user = await prisma.user.findUnique({ where: { email } });
+      // The account is anonymized on delete (email/phone/name wiped), so it
+      // can no longer be looked up by its original email — look up by id.
+      const user = await prisma.user.findUnique({ where: { id: userId } });
       expect(user?.isActive).toBe(false);
+      expect(user?.email).toBe(`deleted-${userId}@deleted.invalid`);
+      expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
     });
 
     it('returns 401 without token', async () => {

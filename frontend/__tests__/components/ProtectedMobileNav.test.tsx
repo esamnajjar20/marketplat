@@ -116,6 +116,7 @@ describe('ProtectedMobileNav', () => {
     isMobileNavOpen = false;
     isAdmin = false;
     mockUsePathname.mockReturnValue('/dashboard');
+    mockSearchParams = new URLSearchParams();
     document.body.style.overflow = '';
     (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { id: 'seller-1' },
@@ -212,7 +213,9 @@ describe('ProtectedMobileNav', () => {
 
   it('sets aria-current="page" on the active link', async () => {
     isMobileNavOpen = true;
-    mockUsePathname.mockReturnValue('/my-ads');
+    // ROUTES.myAds is `/activity?tab=ads` (ACTIVITY-HUB-01): identity is pathname + ?tab.
+    mockUsePathname.mockReturnValue('/activity');
+    mockSearchParams = new URLSearchParams('tab=ads');
     await renderNav();
     expect(screen.getByText('إعلاناتي').closest('a')?.getAttribute('aria-current')).toBe('page');
     fireEvent.click(screen.getByRole('button', { name: /نشاطي/ }));
@@ -264,7 +267,9 @@ describe('ProtectedMobileNav', () => {
     mockSearchParams = new URLSearchParams('tab=security');
     (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: true, isLoaded: true });
     await renderNav();
-    const settingsLinks = ['الملف الشخصي', 'ملف البائع', 'ملف مقدم الخدمة', 'الأمان', 'الجلسات', 'الإشعارات', 'المستخدمون المحظورون'];
+    // 'ملف البائع' / 'ملف مقدم الخدمة' are no longer separate children — they live inside the
+    // profile tab (see SETTINGS_GROUP in lib/navigation.ts).
+    const settingsLinks = ['الملف الشخصي', 'الأمان', 'الجلسات', 'الإشعارات', 'المستخدمون المحظورون', 'مركز الأوفلاين'];
     settingsLinks.forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
     // STORE_GROUP is collapsed on /settings/* so only its toggle label
     // says "متجري" (1). Expanding it reveals the child link (also
@@ -375,7 +380,7 @@ describe('ProtectedMobileNav', () => {
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
       // SELLER-GATE: إعلاناتي hidden for non-sellers, CTA shown instead.
       expect(screen.queryByText('إعلاناتي')).not.toBeInTheDocument();
-      expect(screen.getByText('أنشئ حساب بائع').closest('a')?.getAttribute('href')).toBe('/settings/seller');
+      expect(screen.getByText('أنشئ حساب بائع').closest('a')?.getAttribute('href')).toBe('/settings?tab=profile&section=seller');
     });
 
     it('hides "عرض متجري" when the store exists but is not ACTIVE', async () => {

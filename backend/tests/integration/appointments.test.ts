@@ -53,14 +53,17 @@ describe('Appointments API', () => {
   });
 
   describe('GET /api/v1/appointments/me', () => {
-    it('returns 400 when the user has no provider profile', async () => {
+    it('returns 200 with an empty list when the user has no provider profile', async () => {
+      // Customers can own appointments too (via their service requests), so a
+      // missing provider profile is no longer an error — the service queries
+      // by userId instead (see appointments.service.test.ts, getMyAppointments).
       const user = await createTestUser();
       const res = await request(app)
         .get('/api/v1/appointments/me')
         .set('Authorization', `Bearer ${user.accessToken}`);
 
-      // Service throws BadRequest when no provider profile
-      expect([400, 403]).toContain(res.status);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
     });
   });
 });

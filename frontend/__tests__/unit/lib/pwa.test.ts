@@ -580,7 +580,12 @@ describe('registerServiceWorker', () => {
     // @ts-expect-error partial Location stub sufficient for this test
     window.location = { ...originalLocation, reload: reloadSpy };
 
-    await registerServiceWorker();
+    // lib/pwa.ts keeps a module-level "one reload per page lifecycle" flag
+    // (updateReloadInProgress). The previous test already consumed it, so
+    // load a fresh copy of the module for this test.
+    vi.resetModules();
+    const { registerServiceWorker: registerFresh } = await import('@/lib/pwa');
+    await registerFresh();
     expect(controllerchangeCb).toBeDefined();
 
     controllerchangeCb?.();

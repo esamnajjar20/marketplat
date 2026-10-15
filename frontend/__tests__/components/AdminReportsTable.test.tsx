@@ -309,16 +309,23 @@ describe('AdminReportsTable', () => {
     it('clears the selection when the page param changes', async () => {
       mockReportsData([baseReport, secondReport]);
       const user = setupUser();
-      const { rerender } = render(<AdminReportsTable />);
+      render(<AdminReportsTable />);
 
       const table = screen.getByRole('table');
       await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${baseReport.id}` }));
       expect(screen.getByText('1 محدد')).toBeInTheDocument();
 
+      // AdminReportsTable is wrapped in memo() with no props, so a bare
+      // rerender() of the same element is skipped; the real app re-renders
+      // it via the useSearchParams subscription. Simulate that by changing the
+      // param and then forcing a render through a state update (checking the
+      // second row). The page-change effect must still win and clear everything.
       mockSearchParams = new URLSearchParams('page=2');
-      rerender(<AdminReportsTable />);
+      await user.click(within(table).getByRole('checkbox', { name: `تحديد البلاغ ${secondReport.id}` }));
 
-      expect(screen.queryByRole('toolbar', { name: 'إجراءات جماعية' })).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByRole('toolbar', { name: 'إجراءات جماعية' })).not.toBeInTheDocument();
+      });
     });
   });
 });

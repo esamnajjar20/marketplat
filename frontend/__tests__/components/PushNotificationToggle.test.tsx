@@ -18,6 +18,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   isPushSupported,
+  getBrowserNotificationPermission,
 } from '@/lib/pwa';
 import { toast } from 'sonner';
 import { isNativePlatform } from '@/lib/capacitor/platform';
@@ -40,6 +41,10 @@ vi.mock('@/lib/pwa', () => ({
   subscribeToPush: vi.fn(),
   unsubscribeFromPush: vi.fn(),
   isPushSupported: vi.fn(),
+  // The component reads the OS permission on every refresh; a missing export on
+  // a vi.mock factory throws, which the component's catch turns into the
+  // "unsupported" panel for every test.
+  getBrowserNotificationPermission: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -87,6 +92,7 @@ describe('PushNotificationToggle', () => {
     vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'test-vapid-key');
     vi.mocked(getRawVapidPublicKey).mockReturnValue('test-vapid-key');
     mockIsSupported.mockReturnValue(true);
+    vi.mocked(getBrowserNotificationPermission).mockReturnValue('default');
     vi.mocked(isNativePlatform).mockResolvedValue(false);
     vi.mocked(getNativePushPermissionState).mockResolvedValue('unsupported');
   });
@@ -119,20 +125,20 @@ describe('PushNotificationToggle', () => {
     mockGetState.mockReturnValue(new Promise(() => {})); // never resolves
     render(<PushNotificationToggle />);
     expect(screen.getByText('جارٍ التحقق…')).toBeInTheDocument();
-    expect(screen.queryByText('غير مفعّلة')).not.toBeInTheDocument();
+    expect(screen.queryByText('غير مفعّلة على هذا الجهاز — فعّلها لاستلام التنبيهات فورًا')).not.toBeInTheDocument();
   });
 
   it('shows "غير مفعّلة" and a "تفعيل" button once resolved to unsubscribed', async () => {
     mockGetState.mockResolvedValue('unsubscribed');
     render(<PushNotificationToggle />);
-    expect(await screen.findByText('غير مفعّلة')).toBeInTheDocument();
+    expect(await screen.findByText('غير مفعّلة على هذا الجهاز — فعّلها لاستلام التنبيهات فورًا')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'تفعيل' })).toBeInTheDocument();
   });
 
   it('shows "مفعّلة حاليًا" and an "إيقاف" button once resolved to subscribed', async () => {
     mockGetState.mockResolvedValue('subscribed');
     render(<PushNotificationToggle />);
-    expect(await screen.findByText('مفعّلة حاليًا')).toBeInTheDocument();
+    expect(await screen.findByText('مفعّلة — تصلك حتى والـPWA أو المتصفح مغلقان')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'إيقاف' })).toBeInTheDocument();
   });
 
@@ -144,7 +150,7 @@ describe('PushNotificationToggle', () => {
 
     await user.click(await screen.findByRole('button', { name: 'تفعيل' }));
 
-    await waitFor(() => expect(screen.getByText('مفعّلة حاليًا')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('مفعّلة — تصلك حتى والـPWA أو المتصفح مغلقان')).toBeInTheDocument());
     expect(toast.success).toHaveBeenCalledWith('تم تفعيل إشعارات الجهاز');
   });
 
@@ -157,7 +163,7 @@ describe('PushNotificationToggle', () => {
     await user.click(await screen.findByRole('button', { name: 'تفعيل' }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('لم يتم منح إذن الإشعارات'));
-    expect(screen.getByText('غير مفعّلة')).toBeInTheDocument();
+    expect(screen.getByText('غير مفعّلة على هذا الجهاز — فعّلها لاستلام التنبيهات فورًا')).toBeInTheDocument();
   });
 
   it('unsubscribes on click when currently subscribed, showing a success toast', async () => {
@@ -168,7 +174,7 @@ describe('PushNotificationToggle', () => {
 
     await user.click(await screen.findByRole('button', { name: 'إيقاف' }));
 
-    await waitFor(() => expect(screen.getByText('غير مفعّلة')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('غير مفعّلة على هذا الجهاز — فعّلها لاستلام التنبيهات فورًا')).toBeInTheDocument());
     expect(toast.success).toHaveBeenCalledWith('تم إيقاف إشعارات الجهاز');
   });
 

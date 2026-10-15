@@ -33,7 +33,15 @@ export function PendingOfflinePublishCard({ kind, className }: Props) {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const items = await listAdDrafts(userId);
+      let items: AdDraft[];
+      try {
+        items = await listAdDrafts(userId);
+      } catch {
+        // IndexedDB unavailable (private mode, blocked storage, SSR/jsdom) —
+        // there is nothing to show; never let this surface as an unhandled
+        // promise rejection from the effect.
+        items = [];
+      }
       if (!alive) return;
       setDrafts(
         items

@@ -190,7 +190,10 @@ export function hrefFor(notification: HrefSource): string | null {
   }
   if (notification.type === 'NEW_SERVICE_QUOTE' || notification.type === 'SERVICE_QUOTE_ACCEPTED') {
     if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
-    if (d?.broadcastId) return `/service-requests/${d.broadcastId}`;
+    // T780: service broadcasts/quotes were removed (tables dropped, pages gone).
+    // A legacy notification that only carries `broadcastId` must NOT link to
+    // /service-requests/:id — a broadcast id is not a service-request id, so
+    // that page would 404. Fall back to the notifications page instead.
     return ROUTES.notifications;
   }
   if (

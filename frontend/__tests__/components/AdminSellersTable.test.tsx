@@ -22,7 +22,7 @@
  *  - Pagination only rendered when totalPages > 1
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { AdminSellersTable } from '@/components/admin/AdminSellersTable';
 import { useAdminSellers } from '@/hooks/queries/useAdmin';
@@ -158,12 +158,15 @@ describe('AdminSellersTable', () => {
     });
 
     it('shows "موقوف" badge for a suspended seller and "نشط" for an active one', () => {
+      // AdminSellersTable is memo()'d with no props, so rerender() of the same
+      // element would be skipped — mount a fresh instance per data set instead.
       mockSellersData([makeSeller({ suspended: true })]);
-      const { rerender } = render(<AdminSellersTable />);
+      const first = render(<AdminSellersTable />);
       expect(screen.getAllByText('موقوف').length).toBeGreaterThanOrEqual(1);
+      first.unmount();
 
       mockSellersData([makeSeller({ suspended: false })]);
-      rerender(<AdminSellersTable />);
+      render(<AdminSellersTable />);
       expect(screen.getAllByText('نشط').length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -276,20 +279,35 @@ describe('AdminSellersTable', () => {
       ]);
       render(<AdminSellersTable />);
 
-      expect(screen.getByLabelText('رفع الإيقاف عن بائع واحد')).toBeDisabled();
-      expect(screen.getByLabelText('رفع الإيقاف عن بائع اثنان')).not.toBeDisabled();
+      // Every row renders twice (mobile card + desktop table row, one hidden
+      // via responsive classes), so assert on every matching button.
+      const first = screen.getAllByLabelText('رفع الإيقاف عن بائع واحد');
+      const second = screen.getAllByLabelText('رفع الإيقاف عن بائع اثنان');
+      expect(first.length).toBeGreaterThanOrEqual(1);
+      expect(second.length).toBeGreaterThanOrEqual(1);
+      first.forEach((btn) => expect(btn).toBeDisabled());
+      second.forEach((btn) => expect(btn).not.toBeDisabled());
     });
   });
 
   describe('search', () => {
-    it('pushes ?q= and clears ?page= when Enter is pressed', async () => {
+    // Search is owned by AdminFilterBar: it debounces typing (300ms) and then
+    // writes ?q= via router.replace — there is no Enter/blur handler.
+    it('writes ?q= to the URL (debounced) and clears ?page=', async () => {
+      mockSearchParams = new URLSearchParams('page=3');
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.type(screen.getByPlaceholderText('بحث عن بائع…'), 'أحمد{Enter}');
+      await user.type(screen.getByPlaceholderText('بحث عن بائع…'), 'أحمد');
 
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('q=%D8%A3%D8%AD%D9%85%D8%AF'));
-      expect(mockPush).toHaveBeenCalledWith(expect.not.stringContaining('page='));
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith(
+          expect.stringContaining('q=%D8%A3%D8%AD%D9%85%D8%AF'),
+          expect.anything(),
+        );
+      });
+      const [url] = mockPush.mock.calls.at(-1)!;
+      expect(url).not.toContain('page=');
     });
 
     it('removes ?q= entirely when cleared (not sent as an empty string)', async () => {
@@ -299,9 +317,10 @@ describe('AdminSellersTable', () => {
 
       const input = screen.getByPlaceholderText('بحث عن بائع…');
       await user.clear(input);
-      await user.tab();
 
-      expect(mockPush).toHaveBeenCalledWith(expect.not.stringContaining('q='));
+      await waitFor(() => expect(mockPush).toHaveBeenCalled());
+      const [url] = mockPush.mock.calls.at(-1)!;
+      expect(url).not.toContain('q=');
     });
   });
 

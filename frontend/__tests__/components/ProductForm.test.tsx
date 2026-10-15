@@ -106,6 +106,11 @@ describe('ProductForm', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // useFormDraft flushes the pending debounced write on unmount, so the
+    // previous test's half-typed draft would otherwise be restored into
+    // this test's form (typing then APPENDS to it and breaks every
+    // length-based validation assertion).
+    window.localStorage.clear();
     // resetAllMocks wipes the factory's default implementation, so the
     // useMyStore return value must be re-established every test.
     (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -188,7 +193,7 @@ describe('ProductForm', () => {
       // The Select's own placeholder text is identical to the validation
       // error message, so getByText matches both — scope to the actual
       // error element (role="alert") instead.
-      expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('اختر التصنيفات'))).toBe(true);
+      expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('اختر فئة المنتج'))).toBe(true);
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
@@ -506,6 +511,9 @@ describe('ProductForm', () => {
   describe('cancel', () => {
     // Dirty drafts require explicit discard confirmation before navigation.
     it('confirms discarding a dirty draft before navigating back', async () => {
+      // goBackSafely() only calls history.back() when there is a previous
+      // entry (history.length > 1); jsdom starts at 1.
+      Object.defineProperty(window.history, 'length', { configurable: true, value: 2 });
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
       const user = setupUser();
       render(<ProductForm mode="create" />);
@@ -518,6 +526,7 @@ describe('ProductForm', () => {
       expect(backSpy).toHaveBeenCalledTimes(1);
       expect(screen.queryByText('تجاهل التغييرات؟')).not.toBeInTheDocument();
       backSpy.mockRestore();
+      delete (window.history as unknown as { length?: number }).length;
     });
   });
 });

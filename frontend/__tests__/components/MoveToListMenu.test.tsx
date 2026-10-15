@@ -98,8 +98,11 @@ describe('MoveToListMenu', () => {
 
     await user.click(screen.getByRole('button', { name: /نقل إلى قائمة/ }));
 
-    expect(await screen.findByRole('menuitem', { name: /سيارات/ })).toBeDisabled();
-    expect(await screen.findByRole('menuitem', { name: /هواتف/ })).not.toBeDisabled();
+    // Radix DropdownMenuItem renders a <div role="menuitem">, which exposes its
+    // disabled state via aria-disabled/data-disabled, not the `disabled` attribute
+    // that jest-dom's toBeDisabled() inspects.
+    expect(await screen.findByRole('menuitem', { name: /سيارات/ })).toHaveAttribute('aria-disabled', 'true');
+    expect(await screen.findByRole('menuitem', { name: /هواتف/ })).not.toHaveAttribute('aria-disabled', 'true');
   });
 
   it('shows empty-lists hint with link when no lists exist', async () => {

@@ -185,7 +185,7 @@ describe('Forgot / Reset Password', () => {
       const agent = request.agent(app);
       const loginRes = await agent
         .post('/api/v1/auth/login')
-        .send({ email, password: 'TestPassword123!' });
+        .send({ email, password: 'password123' }); // createTestUser's default password
       const csrfToken = loginRes.body.data.csrfToken as string;
 
       const token = await requestResetToken(email);

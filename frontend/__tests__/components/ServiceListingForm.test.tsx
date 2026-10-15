@@ -94,6 +94,7 @@ const mockReorderImagesMutateAsync = vi.fn();
 const existingListing: ServiceListing = {
   id: 'listing-1',
   providerId: 'provider-1',
+  serviceTypeId: 'st-1',
   categoryId: 'cat-1',
   title: 'خدمة تصليح كهرباء منزلية',
   description: 'وصف تجريبي طويل بما فيه الكفاية لاجتياز التحقق',
@@ -115,11 +116,14 @@ describe('ServiceListingForm', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // Drafts are flushed to localStorage on unmount; don't let one test's
+    // draft be restored into the next test's form.
+    window.localStorage.clear();
     (useServiceCategories as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [{ id: 'cat-1', serviceTypeId: 'st-1', nameAr: 'صيانة منزلية' }],
     });
     (useServiceTypes as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: [{ id: 'st-1', nameAr: 'خدمات منزلية', capabilities: { allowedPricingTypes: ['NEGOTIABLE'], allowedLocations: ['AT_PROVIDER'] } }],
+      data: [{ id: 'st-1', nameAr: 'خدمات منزلية', capabilities: { allowedPricingTypes: ['NEGOTIABLE'], allowedLocations: ['AT_PROVIDER'] }, fields: [] }],
     });
     (useCreateServiceListing as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockCreateMutate, isPending: false,
@@ -483,6 +487,8 @@ describe('ServiceListingForm', () => {
 
   describe('cancel', () => {
     it('confirms discarding a dirty draft before navigating back', async () => {
+      // goBackSafely() only calls history.back() when history.length > 1.
+      Object.defineProperty(window.history, 'length', { configurable: true, value: 2 });
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
       const user = setupUser();
       render(<ServiceListingForm mode="create" />);
@@ -495,6 +501,7 @@ describe('ServiceListingForm', () => {
       expect(backSpy).toHaveBeenCalledTimes(1);
       expect(screen.queryByText('تجاهل التغييرات؟')).not.toBeInTheDocument();
       backSpy.mockRestore();
+      delete (window.history as unknown as { length?: number }).length;
     });
   });
 });

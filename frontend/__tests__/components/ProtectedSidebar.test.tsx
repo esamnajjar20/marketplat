@@ -241,7 +241,7 @@ describe('ProtectedSidebar', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     renderWithClient(<ProtectedSidebar />);
     const link = screen.getByText('إعلاناتي').closest('a');
-    expect(link?.getAttribute('href')).toBe('/my-ads');
+    expect(link?.getAttribute('href')).toBe('/activity?tab=ads');
   });
 
   // ── REORG-04: disclosure groups ─────────────────────────────────

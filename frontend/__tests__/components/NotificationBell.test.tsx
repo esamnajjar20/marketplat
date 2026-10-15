@@ -533,7 +533,7 @@ describe('NotificationBell', () => {
   });
 
   describe('service quote deep links', () => {
-    it('links NEW_SERVICE_QUOTE to /service-broadcasts/:id', async () => {
+    it('falls back to /notifications for a legacy NEW_SERVICE_QUOTE that only has a broadcastId (broadcast pages were removed in T780)', async () => {
       (useMyNotifications as ReturnType<typeof vi.fn>).mockReturnValue({
         data: {
           items: [
@@ -550,7 +550,7 @@ describe('NotificationBell', () => {
       render(<NotificationBell />);
       await openMenu(user);
       const row = await screen.findByText('عرض سعر جديد');
-      expect(row.closest('a')).toHaveAttribute('href', '/service-broadcasts/bc-1');
+      expect(row.closest('a')).toHaveAttribute('href', '/notifications');
     });
   });
 

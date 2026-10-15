@@ -19,7 +19,7 @@ import { MyStoreCard } from '@/components/stores/MyStoreCard';
 import { ROUTES } from '@/lib/constants';
 import { useUpdateStore, useUploadStoreLogo, useUploadStoreCover } from '@/hooks/mutations/useStoreMutations';
 import { parseApiError } from '@/lib/errorParser';
-import type { StoreDetails } from '@/types/store.types';
+import { DEFAULT_STORE_TYPE_LABELS, type StoreDetails } from '@/types/store.types';
 
 vi.mock('@/hooks/queries/useStoreTypes', () => ({
   useStoreTypes: vi.fn(() => ({ data: [] })),
@@ -195,7 +195,9 @@ describe('MyStoreCard', () => {
     render(<MyStoreCard store={{ ...activeStore, status: 'PENDING' }} />);
 
     expect(screen.getByRole('link', { name: /المتابَعة/ })).toHaveAttribute('href', ROUTES.myFollowedStores);
-    expect(screen.getByRole('link', { name: /إضافة منتج/ })).toHaveAttribute('href', ROUTES.myStoreProductCreate);
+    // Label comes from DEFAULT_STORE_TYPE_LABELS (store has no custom storeType.labels) —
+    // assert against the source of truth instead of a hardcoded copy that can drift.
+    expect(screen.getByRole('link', { name: DEFAULT_STORE_TYPE_LABELS.addProduct })).toHaveAttribute('href', ROUTES.myStoreProductCreate);
     expect(screen.getByRole('link', { name: /منتجات/ })).toHaveAttribute('href', ROUTES.myStoreProducts);
   });
 });

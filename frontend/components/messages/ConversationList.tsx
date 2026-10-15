@@ -133,7 +133,12 @@ export function ConversationList({ selectedId }: Props = {}) {
     );
   }
 
-  if (items.length === 0) {
+  // Only show the "no conversations yet" onboarding state when no filter is
+  // active. `archivedOnly` is applied server-side, so an empty archive also
+  // yields `items.length === 0`; returning early there would hide the filter
+  // tabs and leave the user stuck in the archive with no way to clear it.
+  const hasActiveFilter = archivedOnly || unreadOnly || inbox !== 'all' || query.trim() !== '';
+  if (items.length === 0 && !hasActiveFilter) {
     return (
       <EmptyState
         icon={<MessageSquare className="h-10 w-10" />}
@@ -167,7 +172,7 @@ export function ConversationList({ selectedId }: Props = {}) {
         <div className="flex items-center justify-between gap-2 px-1">
           <h2 className="text-sm font-semibold">الرسائل</h2>
           {totalUnread > 0 && (
-            <span aria-label={`${totalUnread} رسالة غير مقروءة`} className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
+            <span aria-label={`${totalUnread} محادثة غير مقروءة`} className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
               {totalUnread} غير مقروءة
             </span>
           )}

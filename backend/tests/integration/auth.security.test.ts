@@ -1,6 +1,9 @@
 import request from 'supertest';
 import { app } from '../../src/app';
 import { createTestUser, createTestAdmin } from '../helpers/auth.helper';
+import { redis } from '../../src/config/redis';
+import { hashToken } from '../../src/shared/utils/refreshLock';
+import { verifyRefreshToken } from '../../src/shared/utils/jwt';
 
 
 /** Superagent drops Secure cookies on http:// — re-attach from Set-Cookie. */
@@ -60,25 +63,24 @@ describe('Auth Security', () => {
       expect(rotatedRefreshCookie).not.toBe(originalRefreshCookie);
     });
 
-    it('rejects reuse of a rotated refresh token cookie', async () => {
-      const agent = request.agent(app);
-      const email = `reuse-test-${Date.now()}@test.com`;
-      await agent
-        .post('/api/v1/auth/register')
-        .send({ name: 'Reuse User', email, password: 'TestPassword123!', city: 'الرياض' });
-
-      // Rotate once via the agent — its cookie jar now holds the NEW
-      // refreshToken cookie; the original one it registered with is
-      // no longer what the agent would send on a subsequent request,
-      // but the backend has also invalidated that original token
-      // server-side (reuse detection) — reconstruct a request that
-      // deliberately sends the STALE (pre-rotation) cookie value to
-      // simulate an attacker who captured it before rotation.
+    /**
+     * Registers a user, rotates their refresh token once, and returns the
+     * now-STALE (pre-rotation) cookie pair — what an attacker (or a second
+     * tab) would be holding — plus the redis grace key the server wrote for it.
+     */
+    const registerAndRotateOnce = async () => {
       const registerRes = await request(app)
         .post('/api/v1/auth/register')
-        .send({ name: 'Reuse User 2', email: `reuse2-${Date.now()}@test.com`, password: 'TestPassword123!', city: 'الرياض' });
+        .send({
+          name: 'Reuse User',
+          email: `reuse-${Date.now()}-${Math.random().toString(36).slice(2)}@test.com`,
+          password: 'TestPassword123!',
+          city: 'الرياض',
+        });
       const cookies = registerRes.headers['set-cookie'] as unknown as string[];
       const staleRefreshCookie = cookies.find((c) => c.startsWith('refreshToken='))!.split(';')[0];
+      const staleToken = decodeURIComponent(staleRefreshCookie.slice('refreshToken='.length));
+      const payload = verifyRefreshToken(staleToken);
 
       // First use — succeeds, rotates the token server-side.
       await request(app)
@@ -87,8 +89,32 @@ describe('Auth Security', () => {
         .send()
         .expect(200);
 
-      // Reuse the SAME stale cookie value again — must be rejected,
-      // since it was already rotated/invalidated by the call above.
+      const graceKey = `refresh:grace:${payload.userId}:${payload.sessionId}:${hashToken(staleToken)}`;
+      return { staleRefreshCookie, graceKey };
+    };
+
+    it('tolerates a concurrent replay of a just-rotated token (REFRESH-GRACE-01)', async () => {
+      // SW + page, two tabs or an F5 can legitimately send the same old
+      // token within seconds of each other — that's a race, not theft, so
+      // the server answers with the already-issued rotation (60s grace).
+      const { staleRefreshCookie } = await registerAndRotateOnce();
+
+      const replayRes = await request(app)
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', staleRefreshCookie)
+        .send();
+
+      expect(replayRes.status).toBe(200);
+    });
+
+    it('rejects reuse of a rotated refresh token cookie once the grace window has passed', async () => {
+      const { staleRefreshCookie, graceKey } = await registerAndRotateOnce();
+
+      // Simulate the 60s grace window expiring.
+      await redis.del(graceKey);
+
+      // Reuse the SAME stale cookie value again — must now be treated as
+      // theft and rejected, since it was already rotated/invalidated.
       const reuseRes = await request(app)
         .post('/api/v1/auth/refresh')
         .set('Cookie', staleRefreshCookie)

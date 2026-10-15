@@ -123,7 +123,7 @@ describe('HomeContextStrip', () => {
   });
 });
 
-describe('EagerHomeSections order (paid featured before latest)', () => {
+describe('EagerHomeSections order (first screen: hero → featured)', () => {
   beforeEach(() => {
     vi.mocked(useHomepage).mockReturnValue({
       isPending: false,
@@ -139,15 +139,17 @@ describe('EagerHomeSections order (paid featured before latest)', () => {
     } as never);
   });
 
-  it('places featured carousel before the latest-ads block in the DOM', () => {
+  it('renders the hero first and the featured carousel after it; latest ads live in HomePageContent', () => {
     const { container } = render(<EagerHomeSections />);
+    const hero = container.querySelector('[data-testid="hero"]');
     const featured = container.querySelector('[data-testid="featured-carousel"]');
-    const latest = container.querySelector('[data-testid="latest-ads"]');
+    expect(hero).toBeTruthy();
     expect(featured).toBeTruthy();
-    expect(latest).toBeTruthy();
-    const position = featured!.compareDocumentPosition(latest!);
-    // latest follows featured
-    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // featured follows the hero
+    expect(hero!.compareDocumentPosition(featured!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The latest-ads block (HomeAboveFold) was moved out of EagerHomeSections
+    // into HomePageContent's lazy rails, so it must not be rendered here.
+    expect(container.querySelector('[data-testid="latest-ads"]')).toBeNull();
   });
 
   it('shows skeleton while homepage is pending', () => {

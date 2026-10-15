@@ -81,6 +81,23 @@ const LINKS = [
 const NAV_ID = 'protected-mobile-nav-drawer';
 const TOGGLE_ID = 'protected-mobile-nav-toggle';
 
+function MyAdsDrawerLink({ active, onNavigate }: { active: boolean; onNavigate: () => void }) {
+  return (
+    <Link
+      href={ROUTES.myAds}
+      prefetch={false}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'block rounded-md px-3 py-2 text-base font-medium transition-colors',
+        active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+      )}
+    >
+      إعلاناتي
+    </Link>
+  );
+}
+
 function DrawerDisclosureGroup({
   group, pathname, onNavigate, search = '',
 }: {
@@ -379,18 +396,20 @@ export function ProtectedMobileNav() {
           )}
           {!showRoleSkeleton && isSeller && (
             <li>
-              <Link
-                href={ROUTES.myAds}
-                prefetch={false}
-                onClick={close}
-                aria-current={pathname === ROUTES.myAds || pathname.startsWith(`${ROUTES.myAds}/`) ? 'page' : undefined}
-                className={cn(
-                  'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-                  pathname === ROUTES.myAds || pathname.startsWith(`${ROUTES.myAds}/`) ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-                )}
-              >
-                إعلاناتي
-              </Link>
+              {/* ROUTES.myAds is `/activity?tab=ads` (ACTIVITY-HUB-01): the tab lives
+                  in the query, which `pathname` never contains, so the old
+                  `pathname === ROUTES.myAds` check could never be true. Resolve the
+                  active state through navChildIsActive + WithSearch like the groups. */}
+              <Suspense fallback={<MyAdsDrawerLink active={false} onNavigate={close} />}>
+                <WithSearch>
+                  {(search) => (
+                    <MyAdsDrawerLink
+                      active={navChildIsActive(pathname, { href: ROUTES.myAds }, search)}
+                      onNavigate={close}
+                    />
+                  )}
+                </WithSearch>
+              </Suspense>
             </li>
           )}
           {sellerLoaded && !isSeller && (

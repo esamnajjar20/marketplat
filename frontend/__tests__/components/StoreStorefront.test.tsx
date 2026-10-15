@@ -2,7 +2,7 @@
  * __tests__/components/StoreStorefront.test.tsx
 import type { ReactElement } from 'react';
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
@@ -25,9 +25,13 @@ function renderWithQueryClient(ui: ReactElement) {
     </QueryClientProvider>,
   );
 }
+// The active tab is URL-driven (?tab=…) — StoreStorefront.setTab() only calls
+// router.push(), it never holds tab state itself. The mock therefore has to be
+// mutable so a test can model "the navigation happened".
+let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock('@/components/stores/StoreProducts', () => ({
@@ -57,13 +61,27 @@ describe('StoreStorefront', () => {
     ownerUserId: 'u1',
   };
 
+  beforeEach(() => {
+    push.mockClear();
+    mockSearchParams = new URLSearchParams();
+  });
+
   it('renders product tab content by default and mounts reviews only when selected', async () => {
-    renderWithQueryClient(<StoreStorefront {...base} />);
+    const first = renderWithQueryClient(<StoreStorefront {...base} />);
     expect(screen.getByTestId('products-grid')).toBeInTheDocument();
     expect(screen.queryByTestId('reviews')).not.toBeInTheDocument();
+
+    // Clicking the tab navigates (URL is the source of truth for the active tab)…
     const user = setupUser();
     await user.click(screen.getByRole('tab', { name: /التقييمات/ }));
+    expect(push).toHaveBeenCalledWith('/stores/s1?tab=reviews', { scroll: false });
+
+    // …and once the URL carries ?tab=reviews the reviews panel mounts.
+    first.unmount();
+    mockSearchParams = new URLSearchParams('tab=reviews');
+    renderWithQueryClient(<StoreStorefront {...base} />);
     expect(screen.getByTestId('reviews')).toBeInTheDocument();
+    expect(screen.queryByTestId('products-grid')).not.toBeInTheDocument();
   });
 
   it('renders tab buttons', () => {

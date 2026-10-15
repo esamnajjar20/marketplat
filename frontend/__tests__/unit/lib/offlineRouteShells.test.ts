@@ -67,6 +67,13 @@ describe('offlineRouteShells', () => {
     // Use the full plan so this assertion tests route eligibility, not the
     // smaller default fast-tier budget.
     localStorage.setItem('marketplat:warming-pref', 'full');
+    // 'full' only widens the adaptive route budget on a normal/fast link; with
+    // no navigator.connection the tier is 'unknown' (8 routes), which is
+    // consumed by the protected baseline tranche before '/saved-payments'.
+    vi.stubGlobal('navigator', {
+      onLine: true,
+      connection: { effectiveType: '4g', downlink: 10, rtt: 50, saveData: false },
+    });
     const fetchedPaths: string[] = [];
     vi.stubGlobal(
       'fetch',

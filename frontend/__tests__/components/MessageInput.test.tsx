@@ -39,6 +39,7 @@ vi.mock('@/components/messages/MessageBodyEditor', async () => {
         getValue: () => value,
         setValue: (v: string) => { setValue(v); onContentChange?.(Boolean(v.trim())); },
         clear: () => { setValue(''); onContentChange?.(false); },
+        focus: () => {},
         requestSubmit: () => {},
       }));
       return React.createElement(
@@ -211,7 +212,7 @@ describe('MessageInput', () => {
     expect(screen.getByLabelText('إرسال')).toBeDisabled();
   });
 
-  it('marks the composer busy and prevents editing while a send is pending', () => {
+  it('marks the composer busy and blocks attachments (but keeps the editor enabled) while a send is pending', () => {
     (useSendMessage as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockMutate,
       isPending: true,
@@ -220,7 +221,10 @@ describe('MessageInput', () => {
     renderWithClient(<MessageInput conversationId="conv-1" />);
 
     expect(document.querySelector('form')).toHaveAttribute('aria-busy', 'true');
-    expect(getTextarea()).toBeDisabled();
+    // The editor intentionally stays enabled during a text send so the mobile
+    // keyboard isn't dropped (see the REGRESSION test above); duplicate sends
+    // are blocked by the disabled send button instead.
+    expect(getTextarea()).not.toBeDisabled();
     expect(screen.getByLabelText('إرفاق صورة')).toBeDisabled();
     expect(screen.getByLabelText('إرفاق ملف')).toBeDisabled();
   });

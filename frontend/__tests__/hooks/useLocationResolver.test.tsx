@@ -360,14 +360,17 @@ describe('useLocationResolver', () => {
       success({ coords: { latitude: 31.6, longitude: 34.6 } } as GeolocationPosition);
     });
     setGeolocation(getCurrentPosition);
-    mockCity('غزة');
+    // The resolver gives the profile city priority over any GPS fix ("المدينة
+    // أولوية"), so with a city set neither instance can ever surface a GPS
+    // source. Use a user with no city so the GPS branches are reachable.
+    mockCity(null);
 
     // Two independent instances mounted at once, exactly like Home does.
     const first = renderHook(() => useLocationResolver());
     const second = renderHook(() => useLocationResolver());
 
-    await waitFor(() => expect(first.result.current.source).toBe('city'));
-    await waitFor(() => expect(second.result.current.source).toBe('city'));
+    await waitFor(() => expect(first.result.current.source).toBe('fallback'));
+    await waitFor(() => expect(second.result.current.source).toBe('fallback'));
 
     // Only the first instance's CTA is pressed — mirrors a person
     // clicking "استخدام موقعي" in one Home section.

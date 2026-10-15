@@ -184,8 +184,8 @@ describe('NearbyServiceProviders', () => {
       });
       render(<NearbyServiceProviders />);
 
-      expect(screen.getByRole('button', { name: 'السابق' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'التالي' })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'الصفحة السابقة' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'الصفحة التالية' })).not.toBeDisabled();
       expect(screen.getByText('1 / 3')).toBeInTheDocument();
     });
 
@@ -195,7 +195,7 @@ describe('NearbyServiceProviders', () => {
         data: { items: [makeProvider()], meta: { totalPages: 1 } },
       });
       render(<NearbyServiceProviders />);
-      expect(screen.queryByRole('button', { name: 'التالي' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'الصفحة التالية' })).not.toBeInTheDocument();
     });
 
     it('calls setPage when "التالي" is clicked', async () => {
@@ -206,7 +206,7 @@ describe('NearbyServiceProviders', () => {
       const user = userEvent.setup();
       render(<NearbyServiceProviders />);
 
-      await user.click(screen.getByRole('button', { name: 'التالي' }));
+      await user.click(screen.getByRole('button', { name: 'الصفحة التالية' }));
       expect(setPage).toHaveBeenCalledTimes(1);
     });
   });

@@ -7,9 +7,9 @@ import { createTestUser } from '../helpers/auth.helper';
 
 describe('Requests API', () => {
   describe('auth gates', () => {
-    it('rejects unauthenticated GET /', async () => {
+    it('allows unauthenticated GET / (public open-requests feed, optionalAuthenticate)', async () => {
       const res = await request(app).get('/api/v1/requests');
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(200);
     });
 
     it('rejects unauthenticated POST /', async () => {

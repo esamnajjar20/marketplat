@@ -49,7 +49,12 @@ export function PublishMutationErrorNotice({ error }: { error: unknown }) {
   }, [error, isCountingDown]);
 
   if (!error || dismissed) return null;
-  if (parsed.queued || isNetworkLikeFailure(parsed)) return null;
+  // 429 is in RETRYABLE_HTTP_STATUSES, so isNetworkLikeFailure() reports it as
+  // "network-like" — but a rate-limit is not an offline/draft case, and this
+  // notice owns the retry-wait countdown for it. Without this exemption the
+  // countdown below was unreachable.
+  const isRateLimited = parsed.statusCode === 429;
+  if (parsed.queued || (!isRateLimited && isNetworkLikeFailure(parsed))) return null;
   if (Object.keys(parsed.fieldErrors ?? {}).length > 0) return null;
   if (!parsed.message.trim()) return null;
 

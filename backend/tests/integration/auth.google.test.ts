@@ -188,7 +188,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     });
   }
 
-  it('creates a brand-new user, issues a session, sets cookies, and redirects to the frontend', async () => {
+  it('creates a brand-new user, issues a session, sets cookies, and redirects to the complete-profile step', async () => {
     const email = `google-integration-${Date.now()}@example.com`;
     stubGoogleStrategyProfile({
       id: 'google-int-test-id',
@@ -202,7 +202,10 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     const res = await performGoogleOAuthCallback(app);
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(env.frontendUrl);
+    // FEAT-GOOGLE-COMPLETE-PROFILE: a brand-new Google signup lands on
+    // /complete-profile (confirm name + pick a city), not on the home page.
+    const base = env.frontendUrl.endsWith('/') ? env.frontendUrl : `${env.frontendUrl}/`;
+    expect(res.headers.location).toBe(`${base}complete-profile`);
 
     const setCookieHeader = res.headers['set-cookie'] as unknown as string[];
     const refreshCookie = setCookieHeader.find((c) => c.startsWith('refreshToken='));
@@ -223,7 +226,7 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
     expect(created?.passwordHash).toBeNull();
   });
 
-  it('links Google to an existing local account instead of creating a duplicate user', async () => {
+  it('refuses to silently link Google to an existing local account (no duplicate, no takeover)', async () => {
     const email = `google-link-${Date.now()}@example.com`;
 
     // First: register a normal local account.
@@ -247,17 +250,22 @@ describe('GET /api/v1/auth/google/callback — configured, full session flow', (
 
     const res = await performGoogleOAuthCallback(googleApp);
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(env.frontendUrl);
+    // Security: an unverified local account with the same email must NOT
+    // be auto-linked (account-takeover vector, see auth.service.ts case 2).
+    // The user is sent back to /login with a targeted error code instead.
+    const location = res.headers.location as string;
+    expect(location).toContain('/login?');
+    expect(location).toContain('error=google_auth_failed');
+    expect(location).toContain('code=OAUTH_EMAIL_ALREADY_REGISTERED');
 
     const { prisma } = await import('../../src/config/prisma');
     const users = await prisma.user.findMany({ where: { email } });
 
-    // Exactly one user for this email — linked, not duplicated.
+    // Exactly one user for this email — not linked, not duplicated.
     expect(users).toHaveLength(1);
-    expect(users[0].provider).toBe('google');
-    expect(users[0].googleId).toBe('google-int-test-id');
-    // The original local password must still be intact — linking
-    // never touches it.
+    expect(users[0].provider).toBe('local');
+    expect(users[0].googleId).toBeNull();
+    // The original local password must still be intact.
     expect(users[0].passwordHash).not.toBeNull();
   });
 

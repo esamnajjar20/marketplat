@@ -63,6 +63,10 @@ describe('InstallPrompt', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    // restoreAllMocks() also drops the factory's mockResolvedValue(true), so
+    // supportsInstallPrompt() would resolve to undefined and the component
+    // would bail out before registering any listener. Re-arm it every test.
+    vi.mocked(supportsInstallPrompt).mockResolvedValue(true);
     vi.spyOn(window, 'addEventListener');
     vi.spyOn(window, 'removeEventListener');
     localStorage.clear();
