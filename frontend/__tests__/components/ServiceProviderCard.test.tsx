@@ -84,9 +84,9 @@ describe('ServiceProviderCard', () => {
     expect(screen.queryByText('+970591234567')).not.toBeInTheDocument();
   });
 
-  it('joins serviceAreaCities with an Arabic comma', () => {
+  it('joins the supplied serviceAreaCities with an Arabic comma', () => {
     render(<ServiceProviderCard provider={makeProvider({ serviceAreaCities: ['غزة', 'رفح', 'دير البلح'] })} />);
-    expect(screen.getByText('غزة، خان يونس')).toBeInTheDocument();
+    expect(screen.getByText('غزة، رفح، دير البلح')).toBeInTheDocument();
   });
 
   describe('distance formatting', () => {

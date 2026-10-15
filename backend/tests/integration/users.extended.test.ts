@@ -31,7 +31,7 @@ describe('Users API — extended coverage', () => {
       const email = `delete-me-${Date.now()}@test.com`;
       const registerRes = await request(app)
         .post('/api/v1/auth/register')
-        .send({ name: 'Delete Me', email, password: 'password123', city: 'الرياض' });
+        .send({ name: 'Delete Me', email, password: 'TestPassword123!', city: 'الرياض' });
 
       const { accessToken } = registerRes.body.data.tokens;
 

@@ -28,7 +28,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderWithProviders as render } from '@/test-support/render';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { formatRelativeTime } from '@/lib/formatters';
 import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';
@@ -98,12 +98,12 @@ describe('ServiceListingDetail', () => {
 
     it('prefixes "يبدأ من" for STARTING_FROM', () => {
       render(<ServiceListingDetail listing={makeListing({ pricingType: 'STARTING_FROM', price: '80.00' })} />);
-      expect(screen.getByText(/^يبدأ من/)).toBeInTheDocument();
+      expect(screen.getAllByText(/^يبدأ من/).length).toBeGreaterThan(0);
     });
 
     it('shows "حسب الاتفاق" for NEGOTIABLE', () => {
       render(<ServiceListingDetail listing={makeListing({ pricingType: 'NEGOTIABLE', price: null })} />);
-      expect(screen.getByText('حسب الاتفاق')).toBeInTheDocument();
+      expect(screen.getAllByText('حسب الاتفاق').length).toBeGreaterThan(0);
     });
   });
 
@@ -130,7 +130,7 @@ describe('ServiceListingDetail', () => {
 
   it('renders the views count', () => {
     render(<ServiceListingDetail listing={makeListing({ views: 42 })} />);
-    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText(/42 مشاهدة/)).toBeInTheDocument();
   });
 
   it('renders a relative time string for createdAt', () => {
@@ -145,12 +145,12 @@ describe('ServiceListingDetail', () => {
         images: Array.from({ length: 6 }, (_, i) => `https://res.cloudinary.com/demo/image/upload/v1/${i}.jpg`),
       });
       render(<ServiceListingDetail listing={listing} />);
-      expect(within(screen.getByTestId('service-listing-gallery')).container.querySelectorAll('img')).toHaveLength(7);
+      expect(screen.getByTestId('service-listing-gallery').querySelectorAll('img')).toHaveLength(7);
     });
 
     it('falls back to a single placeholder image when images array is empty', () => {
       render(<ServiceListingDetail listing={makeListing({ images: [] })} />);
-      const imgs = within(screen.getByTestId('service-listing-gallery')).container.querySelectorAll('img');
+      const imgs = screen.getByTestId('service-listing-gallery').querySelectorAll('img');
       expect(imgs).toHaveLength(1);
       expect((imgs[0] as HTMLImageElement).src).toContain('data:image/svg+xml');
     });

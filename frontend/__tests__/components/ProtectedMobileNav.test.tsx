@@ -34,7 +34,7 @@ const mockLogout = vi.fn();
 vi.mock('next/navigation', () => ({
   usePathname: () => mockUsePathname(),
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock('next/link', () => ({
@@ -54,6 +54,7 @@ vi.mock('next/link', () => ({
 }));
 
 let isMobileNavOpen = false;
+let mockSearchParams = new URLSearchParams();
 
 vi.mock('@/store/ui.store', () => ({
   useUIStore: (selector: (s: unknown) => unknown) =>
@@ -79,6 +80,10 @@ vi.mock('@/store/auth.store', () => ({
   selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
   selectAccessToken: (s: any) => s?.accessToken,
   selectIsAuthenticated: (s: any) => Boolean(s?.isAuthenticated ?? s?.user),
+}));
+
+vi.mock('@/hooks/useNavigationUsage', () => ({
+  useNavigationUsage: () => ({ recordNavigation: vi.fn(), isUsed: () => true }),
 }));
 
 vi.mock('@/hooks/mutations/useAuthMutations', () => ({
@@ -233,17 +238,16 @@ describe('ProtectedMobileNav', () => {
     // Same fix as the test above — must open the drawer before
     // getByRole can see anything inside it.
     isMobileNavOpen = true;
-    mockUsePathname.mockReturnValue('/settings/security');
+    mockUsePathname.mockReturnValue('/settings');
+    mockSearchParams = new URLSearchParams('tab=security');
     await renderNav();
     const toggle = screen.getByRole('button', { name: /الإعدادات/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText('الملف الشخصي').closest('a')?.getAttribute('href')).toBe('/settings/profile');
-    expect(screen.getByText('ملف البائع').closest('a')?.getAttribute('href')).toBe('/settings/seller');
-    expect(screen.getByText('ملف مقدم الخدمة').closest('a')?.getAttribute('href')).toBe('/settings/service-provider');
-    expect(screen.getByText('الأمان').closest('a')?.getAttribute('href')).toBe('/settings/security');
-    expect(screen.getByText('الجلسات').closest('a')?.getAttribute('href')).toBe('/settings/sessions');
-    expect(screen.getByText('الإشعارات').closest('a')?.getAttribute('href')).toBe('/settings/notifications');
-    expect(screen.getByText('المستخدمون المحظورون').closest('a')?.getAttribute('href')).toBe('/settings/blocked-users');
+    expect(screen.getByText('الملف الشخصي').closest('a')?.getAttribute('href')).toBe('/settings');
+    expect(screen.getByText('الأمان').closest('a')?.getAttribute('href')).toBe('/settings?tab=security');
+    expect(screen.getByText('الجلسات').closest('a')?.getAttribute('href')).toBe('/settings?tab=sessions');
+    expect(screen.getByText('الإشعارات').closest('a')?.getAttribute('href')).toBe('/settings?tab=notifications');
+    expect(screen.getByText('المستخدمون المحظورون').closest('a')?.getAttribute('href')).toBe('/settings?tab=blocked-users');
     expect(screen.getByText('الأمان').closest('a')?.getAttribute('aria-current')).toBe('page');
   });
 
@@ -256,7 +260,8 @@ describe('ProtectedMobileNav', () => {
     isMobileNavOpen = true;
     // On a /settings/* path the group auto-expands — do NOT click the
     // toggle (that would collapse it and hide the sub-links).
-    mockUsePathname.mockReturnValue('/settings/security');
+    mockUsePathname.mockReturnValue('/settings');
+    mockSearchParams = new URLSearchParams('tab=security');
     (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: true, isLoaded: true });
     await renderNav();
     const settingsLinks = ['الملف الشخصي', 'ملف البائع', 'ملف مقدم الخدمة', 'الأمان', 'الجلسات', 'الإشعارات', 'المستخدمون المحظورون'];
@@ -284,8 +289,9 @@ describe('ProtectedMobileNav', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
     await renderNav();
+    expect(screen.getByText('أنشئ حساب بائع').closest('a')?.getAttribute('href')).toBe('/settings?tab=profile&section=seller');
     fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
-    expect(screen.getByText('إدارة المتجر').closest('a')?.getAttribute('href')).toBe('/my-store');
+    expect(screen.queryByText('إدارة المتجر')).not.toBeInTheDocument();
   });
 
   // AUDIT-FIX (dynamic sidebar): "خدماتي"/"متجري" are fully absent for
@@ -403,12 +409,13 @@ describe('ProtectedMobileNav', () => {
       expect(screen.getByText('مواعيدي').closest('a')?.getAttribute('href')).toBe(
         '/my-services?tab=appointments',
       );
-      expect(screen.getByText('طلباتي').closest('a')?.getAttribute('href')).toBe('/my-requests');
+      expect(screen.getByText('طلباتي لمزودين').closest('a')?.getAttribute('href')).toBe('/activity?tab=requests');
     });
 
     it('"خدماتي" is expanded by default when pathname is inside the group', async () => {
       isMobileNavOpen = true;
-      mockUsePathname.mockReturnValue('/my-requests');
+      mockUsePathname.mockReturnValue('/my-services');
+      mockSearchParams = new URLSearchParams('tab=appointments');
       await renderNav();
       expect(screen.getByRole('button', { name: /خدماتي/ }).getAttribute('aria-expanded')).toBe(
         'true',
@@ -442,7 +449,7 @@ describe('ProtectedMobileNav', () => {
       isMobileNavOpen = true;
       await renderNav();
       fireEvent.click(screen.getByRole('button', { name: /خدماتي/ }));
-      fireEvent.click(screen.getByText('طلباتي'));
+      fireEvent.click(screen.getByText('طلباتي لمزودين'));
       expect(mockClose).toHaveBeenCalledTimes(1);
     });
   });

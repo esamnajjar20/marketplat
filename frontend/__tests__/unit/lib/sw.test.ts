@@ -59,6 +59,7 @@ function createFakeIndexedDB() {
     return { onsuccess: null, onerror: null, result: undefined, error: undefined };
   }
 
+
   function makeTransaction(state: DbState) {
     const tx: any = { oncomplete: null, onerror: null, error: null };
     let pendingRequests = 0;

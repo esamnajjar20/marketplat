@@ -174,7 +174,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.click(screen.getByLabelText('توثيق بائع تسعة'));
+      await user.click(screen.getAllByLabelText('توثيق بائع تسعة')[0]);
 
       expect(mockSetVerifiedMutate).toHaveBeenCalledWith({ sellerProfileId: 'seller-9', verified: true });
       expect(screen.queryByText('إيقاف هذا البائع؟')).not.toBeInTheDocument();
@@ -185,7 +185,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.click(screen.getByLabelText('إلغاء توثيق بائع تسعة'));
+      await user.click(screen.getAllByLabelText('إلغاء توثيق بائع تسعة')[0]);
 
       expect(mockSetVerifiedMutate).toHaveBeenCalledWith({ sellerProfileId: 'seller-9', verified: false });
     });
@@ -200,8 +200,8 @@ describe('AdminSellersTable', () => {
       ]);
       render(<AdminSellersTable />);
 
-      expect(screen.getByLabelText('توثيق بائع واحد')).toBeDisabled();
-      expect(screen.getByLabelText('توثيق بائع اثنان')).not.toBeDisabled();
+      expect(screen.getAllByLabelText('توثيق بائع واحد')[0]).toBeDisabled();
+      expect(screen.getAllByLabelText('توثيق بائع اثنان')[0]).not.toBeDisabled();
     });
   });
 
@@ -211,7 +211,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.click(screen.getByLabelText('رفع الإيقاف عن بائع تسعة'));
+      await user.click(screen.getAllByLabelText('رفع الإيقاف عن بائع تسعة')[0]);
 
       expect(mockSetSuspendedMutate).toHaveBeenCalledWith({ sellerProfileId: 'seller-9', suspended: false });
       expect(screen.queryByText('إيقاف هذا البائع؟')).not.toBeInTheDocument();
@@ -222,7 +222,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
+      await user.click(screen.getAllByLabelText('إيقاف بائع تسعة')[0]);
 
       expect(screen.getByText('إيقاف هذا البائع؟')).toBeInTheDocument();
       expect(mockSetSuspendedMutate).not.toHaveBeenCalled();
@@ -233,10 +233,10 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
+      await user.click(screen.getAllByLabelText('إيقاف بائع تسعة')[0]);
       const reason = screen.getByLabelText(/السبب/);
       await user.type(reason, 'مخالفة السياسات');
-      await user.click(screen.getByRole('button', { name: 'إيقاف' }));
+      await user.click(screen.getAllByRole('button', { name: 'إيقاف' }).at(-1)!);
 
       expect(mockSetSuspendedMutate).toHaveBeenCalledWith(
         { sellerProfileId: 'seller-9', suspended: true, reason: 'مخالفة السياسات' },
@@ -249,8 +249,8 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
-      expect(screen.getByRole('button', { name: 'إيقاف' })).toBeDisabled();
+      await user.click(screen.getAllByLabelText('إيقاف بائع تسعة')[0]);
+      expect(screen.getAllByRole('button', { name: 'إيقاف' }).at(-1)!).toBeDisabled();
       expect(mockSetSuspendedMutate).not.toHaveBeenCalled();
     });
 
@@ -259,7 +259,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.click(screen.getByLabelText('إيقاف بائع تسعة'));
+      await user.click(screen.getAllByLabelText('إيقاف بائع تسعة')[0]);
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
       expect(mockSetSuspendedMutate).not.toHaveBeenCalled();
@@ -286,7 +286,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      await user.type(screen.getByPlaceholderText('بحث بالاسم أو البريد…'), 'أحمد{Enter}');
+      await user.type(screen.getByPlaceholderText('بحث عن بائع…'), 'أحمد{Enter}');
 
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('q=%D8%A3%D8%AD%D9%85%D8%AF'));
       expect(mockPush).toHaveBeenCalledWith(expect.not.stringContaining('page='));
@@ -297,7 +297,7 @@ describe('AdminSellersTable', () => {
       const user = setupUser();
       render(<AdminSellersTable />);
 
-      const input = screen.getByPlaceholderText('بحث بالاسم أو البريد…');
+      const input = screen.getByPlaceholderText('بحث عن بائع…');
       await user.clear(input);
       await user.tab();
 

@@ -167,7 +167,7 @@ export function ConversationList({ selectedId }: Props = {}) {
         <div className="flex items-center justify-between gap-2 px-1">
           <h2 className="text-sm font-semibold">الرسائل</h2>
           {totalUnread > 0 && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
+            <span aria-label={`${totalUnread} رسالة غير مقروءة`} className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
               {totalUnread} غير مقروءة
             </span>
           )}

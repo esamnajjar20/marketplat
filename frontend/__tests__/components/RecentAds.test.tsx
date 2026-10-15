@@ -11,7 +11,7 @@ vi.mock('@/hooks/queries/useHomeFeed', () => ({ useHomeFeed: vi.fn() }));
 vi.mock('@/lib/useDataSaver', () => ({ useDataSaver: vi.fn(() => false) }));
 vi.mock('@/hooks/queries/useForYouItems', () => ({
   useForYouItems: vi.fn(() => ({ data: [] })),
-  forYouIdsOf: vi.fn(() => []),
+  forYouIdsOf: vi.fn(() => new Set()),
 }));
 vi.mock('@/components/ads/AdCard', () => ({
   AdCard: ({ ad, density, priority }: { ad: AdListItem; density?: string; priority?: boolean }) => (
@@ -50,7 +50,7 @@ describe('RecentAds', () => {
   });
 
   it('renders compact cards from the ads rail', () => {
-    mockUseHomeFeed.mockReturnValue(feed({ data: { rails: { ads: { items: [makeAd('a1', 'أول'), makeAd('a2', 'ثاني')] } } } } as never) as never);
+    mockUseHomeFeed.mockReturnValue(feed({ data: { rails: { ads: { items: [makeAd('a1', 'أول'), makeAd('a2', 'ثاني')] } } } }) as never);
     render(<RecentAds />);
     expect(screen.getByTestId('ad-card-a1')).toHaveAttribute('data-density', 'compact');
     expect(screen.getByTestId('ad-card-a2')).toBeInTheDocument();

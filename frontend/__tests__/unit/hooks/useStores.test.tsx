@@ -136,7 +136,7 @@ describe('useMyFollowedStores', () => {
     });
     const queryClient = makeSharedClient();
 
-    renderHook(() => useMyFollowedStores(), { wrapper: wrapperFor(queryClient) });
+    renderHook(() => useMyFollowedStores({ limit: 100 }), { wrapper: wrapperFor(queryClient) });
 
     await waitFor(() => {
       const ids = queryClient.getQueryData(queryKeys.stores.followedIds());

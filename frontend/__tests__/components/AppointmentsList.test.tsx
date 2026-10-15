@@ -84,6 +84,7 @@ function mockAppointmentsState(overrides: Partial<ReturnType<typeof useMyAppoint
 beforeEach(() => {
   vi.clearAllMocks();
   mockSearchParams = new URLSearchParams();
+  mockUpdateMutate.mockImplementation((_payload, options) => options?.onSuccess?.());
   vi.mocked(useUpdateAppointmentStatus).mockReturnValue({
     mutate: mockUpdateMutate,
     isPending: false,

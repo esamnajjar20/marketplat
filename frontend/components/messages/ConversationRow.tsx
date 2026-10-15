@@ -91,7 +91,7 @@ export const ConversationRow = memo(function ConversationRow({
             <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="56px" />
           </div>
           {isOnline && <span className="absolute bottom-0 end-0 h-3.5 w-3.5 rounded-full bg-online ring-2 ring-card" aria-label="متصل الآن" title="متصل الآن" />}
-          {hasUnread && <span className="absolute -top-1 -end-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-2xs-tight font-semibold text-primary-foreground ring-2 ring-card">{conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}</span>}
+          {hasUnread && <span aria-label={`${conversation.unreadCount} رسالة غير مقروءة`} className="absolute -top-1 -end-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-2xs-tight font-semibold text-primary-foreground ring-2 ring-card">{conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}</span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="mb-0.5 flex items-baseline justify-between gap-2">

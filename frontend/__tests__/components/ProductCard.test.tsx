@@ -204,7 +204,7 @@ describe('ProductCard', () => {
 
   it('applies a custom className alongside the default styling', () => {
     render(<ProductCard product={baseProduct} storeId="store-1" className="custom-class" />);
-    expect(screen.getByRole('link')).toHaveClass('custom-class');
+    expect(screen.getByRole('article')).toHaveClass('custom-class');
   });
 
   describe('showKind (mixed lists)', () => {

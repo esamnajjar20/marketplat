@@ -11,6 +11,11 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useLocationResolver } from '@/hooks/useLocationResolver';
 import { useAuthStore } from '@/store/auth.store';
 
+vi.mock('@/lib/featureFlags', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/featureFlags')>();
+  return { ...actual, FEATURES: { ...actual.FEATURES, GPS_LOCATION: true } };
+});
+
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn(),
   selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),

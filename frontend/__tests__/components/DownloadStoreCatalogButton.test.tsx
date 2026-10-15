@@ -10,6 +10,8 @@ import { productsApi } from '@/api/products.api';
 import { toast } from 'sonner';
 import { reportClientError } from '@/lib/errorReporter';
 
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
+
 vi.mock('@/api/products.api', () => ({
   productsApi: { getAll: vi.fn() },
 }));

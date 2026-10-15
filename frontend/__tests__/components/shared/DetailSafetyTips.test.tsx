@@ -26,6 +26,6 @@ describe('list grid class tokens (UI-PHASE-B)', () => {
   it('exports product/ad, store, and service grids', () => {
     expect(LIST_CARD_GRID_CLASS).toMatch(/grid-cols-2/);
     expect(LIST_STORE_GRID_CLASS).toMatch(/^grid grid-cols-1 gap-3 sm:grid-cols-2/);
-    expect(LIST_SERVICE_GRID_CLASS).toMatch(/sm:grid-cols-2/);
+    expect(LIST_SERVICE_GRID_CLASS).toMatch(/sm:grid-cols-3/);
   });
 });

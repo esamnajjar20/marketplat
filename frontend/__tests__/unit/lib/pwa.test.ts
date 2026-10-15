@@ -84,6 +84,7 @@ function installServiceWorkerStub(overrides: {
 
   const registration = {
     pushManager,
+    update: vi.fn().mockResolvedValue(undefined),
     waiting: null as null | { postMessage: (msg: unknown) => void },
     installing: null as null | {
       state: string;

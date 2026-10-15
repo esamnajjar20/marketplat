@@ -185,6 +185,7 @@ export function isPermanentShellRoute(route: string, personal = false): boolean 
 export const CORE_ROUTES = [
   // FIX WARM-PRIORITY-MARKETPLACE-01 + WARM-MIN-20-01: public browse first
   '/offline',
+  '/saved-payments',
   '/',
   // WARM-55-ROUTES-01: /requests is the public open-requests browse.
   '/requests',
@@ -202,7 +203,6 @@ export const CORE_ROUTES = [
   '/shared',
   // OFFLINE-HUB-01: /saved-ads and /downloads are tabs of '/offline' now
   // (redirect stubs — a redirecting route always fails atomic warming).
-  '/saved-payments',
   '/about',
   '/contact',
   '/privacy',

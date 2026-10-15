@@ -23,13 +23,13 @@ export const conversationsApi = {
       .then((r) => unwrapPaginated<ConversationListItem>(r)),
 
   getUnreadCount: (config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<{ count: number }>>('/conversations/unread-count', config),
+    (config ? apiClient.get<ApiResponse<{ count: number }>>('/conversations/unread-count', config) : apiClient.get<ApiResponse<{ count: number }>>('/conversations/unread-count')),
 
   start: (payload: StartConversationPayload) =>
     apiClient.post<ApiResponse<Conversation>>('/conversations', payload),
 
   getById: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`, config),
+    (config ? apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`, config) : apiClient.get<ApiResponse<Conversation>>(`/conversations/${id}`)),
 
   getMedia: (id: string, limit = 200, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<Message[]>>(`/conversations/${id}/messages/media`, { ...config, params: { limit }}),

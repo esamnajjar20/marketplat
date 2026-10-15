@@ -43,7 +43,7 @@ export const adsApi = {
 
   /** GET /ads/:id — full detail */
   getById: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<Ad>>(`/ads/${id}`, config),
+    (config ? apiClient.get<ApiResponse<Ad>>(`/ads/${id}`, config) : apiClient.get<ApiResponse<Ad>>(`/ads/${id}`)),
 
   /**
    * GET /ads/:id/related — similar listings.
@@ -57,7 +57,7 @@ export const adsApi = {
    * "related ads" section was empty on every single ad detail page.
    */
   getRelated: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<AdListItem[]>>(`/ads/${id}/related`, config),
+    (config ? apiClient.get<ApiResponse<AdListItem[]>>(`/ads/${id}/related`, config) : apiClient.get<ApiResponse<AdListItem[]>>(`/ads/${id}/related`)),
 
   /**
    * GET /ads/me — current user's ads.

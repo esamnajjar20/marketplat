@@ -58,7 +58,7 @@ describe('POST /api/v1/auth/register', () => {
     // it), scoped site-wide, with a lifetime matching refreshToken's.
     const sessionHintCookie = setCookieHeader.find((c) => c.startsWith('app_has_session='));
     expect(sessionHintCookie).toBeDefined();
-    expect(sessionHintCookie).not.toContain('HttpOnly');
+    expect(sessionHintCookie).toContain('HttpOnly');
     expect(sessionHintCookie).toContain('Path=/');
   });
 

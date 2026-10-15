@@ -169,6 +169,6 @@ describe('ServiceListingCard', () => {
 
   it('applies an additional className when provided', () => {
     const { container } = render(<ServiceListingCard listing={makeListing()} className="custom-class" />);
-    expect(container.querySelector('a')?.className).toContain('custom-class');
+    expect(container.querySelector('article')?.className).toContain('custom-class');
   });
 });

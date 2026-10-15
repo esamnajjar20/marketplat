@@ -291,6 +291,10 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     // case-insensitive and avoids a differently-cased default surviving.
     if (typeof config.headers.delete === 'function') {
       config.headers.delete('Content-Type');
+      // Axios can merge its method-level default (application/x-www-form-urlencoded)
+      // after deleting the instance default. A null AxiosHeaders value suppresses
+      // that fallback while still allowing the browser to add the multipart boundary.
+      config.headers.set('Content-Type', null);
     } else {
       delete config.headers['Content-Type'];
       delete config.headers['content-type'];

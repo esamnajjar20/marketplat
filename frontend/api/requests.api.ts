@@ -49,7 +49,7 @@ export const requestsApi = {
   getMyOffers: (params?: { page?: number; limit?: number; status?: RequestOfferStatus }, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<RequestOfferListItem[]>>('/requests/offers/me', { ...config, params }),
 
-  getById: (id: string, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`, config),
+  getById: (id: string, config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`, config) : apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`)),
 
   create: (body: CreateRequestBody, operationId?: string) =>
     // FIX REQ-OPID-01: X-Offline-Op-Id matches the header that sw.js's

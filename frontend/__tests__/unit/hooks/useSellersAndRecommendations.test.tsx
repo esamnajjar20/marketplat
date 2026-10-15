@@ -59,7 +59,7 @@ describe('useRecommendations', () => {
     const { result } = renderHook(() => useRecommendations(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(recommendationsApi.getRecommendations).toHaveBeenCalledWith(undefined);
+    expect(recommendationsApi.getRecommendations).toHaveBeenCalledWith(undefined, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(result.current.data).toEqual([{ id: 'ad-1' }]);
   });
 
@@ -84,7 +84,7 @@ describe('useRecommendations', () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(recommendationsApi.getRecommendations).toHaveBeenCalledWith({ excludeAdId: 'ad-1' });
+    expect(recommendationsApi.getRecommendations).toHaveBeenCalledWith({ excludeAdId: 'ad-1' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });
 

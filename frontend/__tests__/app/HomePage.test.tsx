@@ -12,18 +12,16 @@ import HomePage from '@/app/(public)/page';
 import { HomePageContent } from '@/components/home/HomePageContent';
 import { prefetchHomepage } from '@/lib/prefetch';
 
-const stub = (id: string) => () => <div data-testid={id} />;
-
-vi.mock('@/components/home/EagerHomeSections', () => ({ EagerHomeSections: stub('eager') }));
-vi.mock('@/components/home/ForYouMixedSection', () => ({ ForYouMixedSection: stub('for-you') }));
-vi.mock('@/components/home/RecentProductsSection', () => ({ RecentProductsSection: stub('products') }));
-vi.mock('@/components/home/HomeServicesSection', () => ({ HomeServicesSection: stub('services') }));
-vi.mock('@/components/home/FeaturedStoresSection', () => ({ FeaturedStoresSection: stub('stores') }));
-vi.mock('@/components/home/PromotedProductsSection', () => ({ PromotedProductsSection: stub('promoted') }));
-vi.mock('@/components/home/NearbyProvidersSection', () => ({ NearbyProvidersSection: stub('nearby') }));
-vi.mock('@/components/home/HomeSafeBuyingTips', () => ({ HomeSafeBuyingTips: stub('tips') }));
-vi.mock('@/components/home/HomeBrowseLinks', () => ({ HomeBrowseLinks: stub('browse-links') }));
-vi.mock('@/components/home/HomeGuestPublishBar', () => ({ HomeGuestPublishBar: stub('guest-bar') }));
+vi.mock('@/components/home/EagerHomeSections', () => ({ EagerHomeSections: () => <div data-testid="eager" /> }));
+vi.mock('@/components/home/ForYouMixedSection', () => ({ ForYouMixedSection: () => <div data-testid="for-you" /> }));
+vi.mock('@/components/home/RecentProductsSection', () => ({ RecentProductsSection: () => <div data-testid="products" /> }));
+vi.mock('@/components/home/HomeServicesSection', () => ({ HomeServicesSection: () => <div data-testid="services" /> }));
+vi.mock('@/components/home/FeaturedStoresSection', () => ({ FeaturedStoresSection: () => <div data-testid="stores" /> }));
+vi.mock('@/components/home/PromotedProductsSection', () => ({ PromotedProductsSection: () => <div data-testid="promoted" /> }));
+vi.mock('@/components/home/NearbyProvidersSection', () => ({ NearbyProvidersSection: () => <div data-testid="nearby" /> }));
+vi.mock('@/components/home/HomeSafeBuyingTips', () => ({ HomeSafeBuyingTips: () => <div data-testid="tips" /> }));
+vi.mock('@/components/home/HomeBrowseLinks', () => ({ HomeBrowseLinks: () => <div data-testid="browse-links" /> }));
+vi.mock('@/components/home/HomeGuestPublishBar', () => ({ HomeGuestPublishBar: () => <div data-testid="guest-bar" /> }));
 vi.mock('@/components/home/HomeBusyBoundary', () => ({
   HomeBusyBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

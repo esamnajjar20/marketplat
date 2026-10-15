@@ -17,7 +17,7 @@
  *    rejected and why, instead of silently vanishing from the queue
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { toast } from 'sonner';
@@ -349,13 +349,13 @@ describe('ImageUpload', () => {
       expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('2'));
     });
 
-    it('shows a separate toast for wrong-type and oversized files in the same drop', () => {
+    it('reports the wrong-type file while attempting to compress an oversized image in the same drop', async () => {
       render(<ImageUpload value={[]} onChange={vi.fn()} />);
       const dropzone = screen.getByRole('button', { name: /رفع الصور/ });
 
       fireEvent.drop(dropzone, { dataTransfer: { files: [TEXT_FILE(), OVERSIZED_JPEG()] } });
 
-      expect(toast.error).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('غير مدعوم')));
     });
 
     it('still accepts the valid files from a mixed drop even when others are rejected with a toast', () => {

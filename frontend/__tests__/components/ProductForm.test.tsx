@@ -188,7 +188,7 @@ describe('ProductForm', () => {
       // The Select's own placeholder text is identical to the validation
       // error message, so getByText matches both — scope to the actual
       // error element (role="alert") instead.
-      expect(screen.getByRole('alert')).toHaveTextContent('اختر التصنيفات');
+      expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('اختر التصنيفات'))).toBe(true);
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
@@ -424,7 +424,7 @@ describe('ProductForm', () => {
       expect(callOrder).toEqual(['removeImage:start', 'removeImage:end', 'update']);
     });
 
-    it('does NOT call update.mutate when removeImage fails, so a failed image step cannot navigate past a half-applied edit', async () => {
+    it('still saves text edits as an offline draft when image removal fails with a network error', async () => {
       mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
       const user = setupUser();
@@ -433,7 +433,8 @@ describe('ProductForm', () => {
       await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
       await waitFor(() => expect(mockRemoveImageMutateAsync).toHaveBeenCalledTimes(1));
-      expect(mockUpdateMutate).not.toHaveBeenCalled();
+      // Network-like image failures intentionally proceed through the update mutation so its onError can persist the text edits as an offline draft.
+      expect(mockUpdateMutate).toHaveBeenCalledTimes(1);
     });
 
     it('re-enables the submit button after a failed image step instead of leaving it stuck loading', async () => {
@@ -503,16 +504,17 @@ describe('ProductForm', () => {
   });
 
   describe('cancel', () => {
-    // Unlike AdForm, ProductForm has no discard-confirmation dialog —
-    // it calls history.back() directly and unconditionally.
-    it('navigates back immediately on cancel, with no confirm dialog', async () => {
+    // Dirty drafts require explicit discard confirmation before navigation.
+    it('confirms discarding a dirty draft before navigating back', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
       const user = setupUser();
       render(<ProductForm mode="create" />);
 
       await user.type(getField('اسم المنتج'), 'منتج جديد');
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
-
+      expect(screen.getByText('تجاهل التغييرات؟')).toBeInTheDocument();
+      expect(backSpy).not.toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: 'تجاهل التغييرات' }));
       expect(backSpy).toHaveBeenCalledTimes(1);
       expect(screen.queryByText('تجاهل التغييرات؟')).not.toBeInTheDocument();
       backSpy.mockRestore();

@@ -28,6 +28,18 @@ describe('Recommendations API', () => {
       const ownAd = await createTestAd(user.id, { categoryId: category.id });
       const otherOwner = await createTestUser();
       const favoritedAd = await createTestAd(otherOwner.id, { categoryId: category.id });
+      // The recommendation rail intentionally uses owned/favorited ads only as
+      // a last-resort backfill when the catalog is too small. Seed enough eligible
+      // alternatives here to test the normal exclusion behavior without invoking
+      // that documented fallback.
+      const eligibleOwners = await Promise.all(
+        Array.from({ length: 10 }, () => createTestUser())
+      );
+      await Promise.all(
+        eligibleOwners.map((owner, index) =>
+          createTestAd(owner.id, { categoryId: category.id, title: `Eligible alternative ${index}` })
+        )
+      );
 
       await request(app)
         .post(`/api/v1/favorites/${favoritedAd.id}`)

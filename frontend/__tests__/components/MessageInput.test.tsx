@@ -41,25 +41,31 @@ vi.mock('@/components/messages/MessageBodyEditor', async () => {
         clear: () => { setValue(''); onContentChange?.(false); },
         requestSubmit: () => {},
       }));
-      return React.createElement('textarea', {
-        value,
-        disabled: Boolean(disabled),
-        maxLength: 2000,
-        'aria-label': 'نص الرسالة',
-        placeholder: 'اكتب رسالتك...',
-        onChange: (e: any) => {
-          setValue(e.target.value);
-          onContentChange?.(Boolean(e.target.value.trim()));
-        },
-        onKeyDown: (e: any) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            // parent listens via form submit usually — fire custom event path
-            const form = e.currentTarget.closest('form');
-            if (form) form.requestSubmit();
-          }
-        },
-      });
+      return React.createElement(
+        React.Fragment,
+        null,
+        React.createElement('textarea', {
+          value,
+          disabled: Boolean(disabled),
+          maxLength: 2000,
+          'aria-label': 'نص الرسالة',
+          placeholder: 'اكتب رسالتك...',
+          onChange: (e: any) => {
+            setValue(e.target.value);
+            onContentChange?.(Boolean(e.target.value.trim()));
+          },
+          onKeyDown: (e: any) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              const form = e.currentTarget.closest('form');
+              if (form) form.requestSubmit();
+            }
+          },
+        }),
+        value.length >= 1800
+          ? React.createElement('p', { className: value.length >= 2000 ? 'font-medium text-destructive' : 'text-muted-foreground' }, `${value.length}/2000`)
+          : null,
+      );
     }),
   };
 });

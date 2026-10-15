@@ -49,7 +49,7 @@ export const serviceListingsApi = {
 
   /** GET /service-listings/:id — public detail. */
   getById: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`, config),
+    (config ? apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`, config) : apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`)),
 
   /**
    * POST /service-listings — multipart/form-data, same field-append

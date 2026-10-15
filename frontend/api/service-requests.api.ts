@@ -26,7 +26,7 @@ export const serviceRequestsApi = {
 
   /** GET /service-requests/:id */
   getById: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<ServiceRequest>>(`/service-requests/${id}`, config),
+    (config ? apiClient.get<ApiResponse<ServiceRequest>>(`/service-requests/${id}`, config) : apiClient.get<ApiResponse<ServiceRequest>>(`/service-requests/${id}`)),
 
   /** GET /service-requests/me — caller's requests as customer, paginated. */
   getMineAsCustomer: (params?: ServiceRequestsQuery, config?: AxiosRequestConfig) =>

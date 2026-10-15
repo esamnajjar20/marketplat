@@ -208,7 +208,7 @@ describe('AdminReportsTable', () => {
   });
 
   describe('bulk actions (item 17)', () => {
-    it('shows no bulk action bar when nothing is selected', () => {
+    it('shows no bulk action bar when nothing is selected', async () => {
       mockReportsData([baseReport, secondReport]);
       render(<AdminReportsTable />);
       await waitFor(() => {

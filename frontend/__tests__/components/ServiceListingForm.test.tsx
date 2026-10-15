@@ -22,6 +22,7 @@ import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ServiceListingForm } from '@/components/services/ServiceListingForm';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
+import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 import {
   useCreateServiceListing,
   useUpdateServiceListing,
@@ -33,6 +34,20 @@ import type { ServiceListing } from '@/types/service.types';
 
 vi.mock('@/hooks/queries/useServiceCategories', () => ({
   useServiceCategories: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/useServiceTypes', () => ({
+  useServiceTypes: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFormDraftAttachments', () => ({
+  useFormDraftAttachments: () => ({
+    attachmentError: null,
+    isSavingAttachments: false,
+    savedAttachmentCount: 0,
+    clearAttachments: vi.fn().mockResolvedValue(undefined),
+    retrySaveAttachments: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/mutations/useServiceListingMutations', () => ({
@@ -101,7 +116,10 @@ describe('ServiceListingForm', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     (useServiceCategories as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: [{ id: 'cat-1', nameAr: 'صيانة منزلية' }],
+      data: [{ id: 'cat-1', serviceTypeId: 'st-1', nameAr: 'صيانة منزلية' }],
+    });
+    (useServiceTypes as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [{ id: 'st-1', nameAr: 'خدمات منزلية', capabilities: { allowedPricingTypes: ['NEGOTIABLE'], allowedLocations: ['AT_PROVIDER'] } }],
     });
     (useCreateServiceListing as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockCreateMutate, isPending: false,
@@ -143,8 +161,14 @@ describe('ServiceListingForm', () => {
     return new RegExp(`^\\s*${escaped}`);
   }
 
+  async function selectServiceType(user: ReturnType<typeof setupUser>) {
+    await user.click(screen.getByRole('combobox', { name: requiredLabel('مجال الخدمة') }));
+    await user.click(await screen.findByRole('option', { name: 'خدمات منزلية' }));
+  }
+
   async function selectCategory(user: ReturnType<typeof setupUser>) {
-    await user.click(screen.getByRole('combobox', { name: requiredLabel('الفئة') }));
+    await selectServiceType(user);
+    await user.click(screen.getByRole('combobox', { name: requiredLabel('التخصص') }));
     await user.click(await screen.findByRole('option', { name: 'صيانة منزلية' }));
   }
 
@@ -173,14 +197,9 @@ describe('ServiceListingForm', () => {
 
       await user.type(screen.getByLabelText(requiredLabel('عنوان الخدمة')), 'عنوان خدمة تجريبية');
       await user.type(screen.getByLabelText(requiredLabel('الوصف')), 'وصف تجريبي طويل بما فيه الكفاية');
+      await selectServiceType(user);
       submitForm(container);
-
-      // 'اختر فئة الخدمة' also appears as the Select trigger's own
-      // placeholder text (unselected state) — getByRole('alert', { name })
-      // doesn't reliably resolve the accessible name from plain text
-      // content in this setup, so query the alert by role alone (there's
-      // only one on the page) and assert its text directly instead.
-      expect(screen.getByRole('status')).toHaveTextContent('اختر فئة الخدمة');
+      expect(screen.getByRole('alert')).toHaveTextContent('اختر تخصص الخدمة');
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
@@ -463,14 +482,16 @@ describe('ServiceListingForm', () => {
   });
 
   describe('cancel', () => {
-    it('navigates back immediately on cancel, with no confirm dialog', async () => {
+    it('confirms discarding a dirty draft before navigating back', async () => {
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
       const user = setupUser();
       render(<ServiceListingForm mode="create" />);
 
       await user.type(screen.getByLabelText(requiredLabel('عنوان الخدمة')), 'عنوان جديد');
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
-
+      expect(screen.getByText('تجاهل التغييرات؟')).toBeInTheDocument();
+      expect(backSpy).not.toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: 'تجاهل التغييرات' }));
       expect(backSpy).toHaveBeenCalledTimes(1);
       expect(screen.queryByText('تجاهل التغييرات؟')).not.toBeInTheDocument();
       backSpy.mockRestore();

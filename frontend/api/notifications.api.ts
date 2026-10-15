@@ -23,7 +23,7 @@ export const notificationsApi = {
 
   /** GET /notifications/unread-count */
   getUnreadCount: (config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<{ count: number }>>('/notifications/unread-count', config),
+    (config ? apiClient.get<ApiResponse<{ count: number }>>('/notifications/unread-count', config) : apiClient.get<ApiResponse<{ count: number }>>('/notifications/unread-count')),
 
   /** PATCH /notifications/:id/read */
   markRead: (id: string) =>

@@ -224,7 +224,7 @@ describe('ServiceCategoryFilter', () => {
     const user = setupUser();
     render(<ServiceCategoryFilter />);
     const triggers = screen.getAllByRole('combobox');
-    await user.click(triggers[0]);
+    await user.click(triggers[1]);
     await user.click(await screen.findByRole('option', { name: 'سباكة' }));
     const lastCall = mockPush.mock.calls.at(-1)?.[0] as string;
     expect(lastCall).not.toContain('page=');
@@ -235,7 +235,7 @@ describe('ServiceCategoryFilter', () => {
     const user = setupUser();
     render(<ServiceCategoryFilter />);
     const triggers = screen.getAllByRole('combobox');
-    await user.click(triggers[0]);
+    await user.click(triggers[1]);
     await user.click(await screen.findByRole('option', { name: 'سباكة' }));
     const lastCall = mockPush.mock.calls.at(-1)?.[0] as string;
     expect(lastCall).toContain('categoryId=cat-1');

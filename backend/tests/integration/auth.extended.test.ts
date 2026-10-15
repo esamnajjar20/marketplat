@@ -6,7 +6,7 @@ describe('Auth API — extended coverage', () => {
     const email = `${prefix}-${Date.now()}@test.com`;
     const res = await request(app)
       .post('/api/v1/auth/register')
-      .send({ name: 'Auth Extended', email, password: 'password123', city: 'الرياض' });
+      .send({ name: 'Auth Extended', email, password: 'TestPassword123!', city: 'الرياض' });
     expect(res.status).toBe(201);
     return { email, ...res.body.data.tokens, userId: res.body.data.user.id };
   };
@@ -55,7 +55,7 @@ describe('Auth API — extended coverage', () => {
         .send({
           name: 'Revoke Self',
           email: `revoke-self-${Date.now()}@test.com`,
-          password: 'password123',
+          password: 'TestPassword123!',
           city: 'الرياض',
         });
 

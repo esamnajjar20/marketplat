@@ -7,7 +7,7 @@ import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { useForYouItems } from '@/hooks/queries/useForYouItems';
 
 vi.mock('@/hooks/queries/useHomeFeed', () => ({ useHomeFeed: vi.fn() }));
-vi.mock('@/hooks/queries/useForYouItems', () => ({ useForYouItems: vi.fn(() => []) }));
+vi.mock('@/hooks/queries/useForYouItems', () => ({ useForYouItems: vi.fn(() => []), forYouIdsOf: vi.fn(() => new Set()) }));
 vi.mock('@/lib/useDataSaver', () => ({ useDataSaver: () => false }));
 vi.mock('@/components/shared/skeletons', () => ({ ServiceListingCardSkeleton: () => <div data-testid="skeleton" /> }));
 vi.mock('@/components/services/ServiceListingCard', () => ({ ServiceListingCard: ({ listing }: { listing: { title: string } }) => <div>{listing.title}</div> }));

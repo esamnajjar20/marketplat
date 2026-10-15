@@ -184,11 +184,11 @@ describe('ProtectedSidebar', () => {
     });
   });
 
-  it('sets aria-current on the ads tab in the activity hub', () => {
+  it('sets aria-current on the reports tab in the activity hub', () => {
     mockUsePathname.mockReturnValue('/activity');
-    mockSearchParams.mockReturnValue('tab=ads');
+    mockSearchParams.mockReturnValue('tab=reports');
     renderWithClient(<ProtectedSidebar />);
-    const link = screen.getByText('إعلاناتي').closest('a');
+    const link = screen.getByText('بلاغاتي').closest('a');
     expect(link?.getAttribute('aria-current')).toBe('page');
   });
 
@@ -205,9 +205,9 @@ describe('ProtectedSidebar', () => {
     expect(screen.getByText('سجل النشاط').closest('a')?.getAttribute('aria-current')).toBe('page');
   });
 
-  it('only one navigation link is active at a time for the ads tab', () => {
+  it('only one navigation link is active at a time for the reports tab', () => {
     mockUsePathname.mockReturnValue('/activity');
-    mockSearchParams.mockReturnValue('tab=ads');
+    mockSearchParams.mockReturnValue('tab=reports');
     renderWithClient(<ProtectedSidebar />);
     const links = screen.getAllByRole('link');
     const activeLinkCount = links.filter(
@@ -241,7 +241,7 @@ describe('ProtectedSidebar', () => {
     mockUsePathname.mockReturnValue('/dashboard');
     renderWithClient(<ProtectedSidebar />);
     const link = screen.getByText('إعلاناتي').closest('a');
-    expect(link?.getAttribute('href')).toBe('/activity?tab=ads');
+    expect(link?.getAttribute('href')).toBe('/my-ads');
   });
 
   // ── REORG-04: disclosure groups ─────────────────────────────────
@@ -419,8 +419,8 @@ describe('ProtectedSidebar', () => {
       renderWithClient(<ProtectedSidebar />);
       fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
       expect(screen.getByText('الملف الشخصي').closest('a')?.getAttribute('href')).toBe('/settings');
-      expect(screen.getByText('ملف البائع').closest('a')?.getAttribute('href')).toBe('/settings?tab=profile&section=seller');
-      expect(screen.getByText('ملف مقدم الخدمة').closest('a')?.getAttribute('href')).toBe('/settings?tab=profile&section=service');
+      expect(screen.queryByText('ملف البائع')).not.toBeInTheDocument();
+      expect(screen.queryByText('ملف مقدم الخدمة')).not.toBeInTheDocument();
       expect(screen.getByText('الأمان').closest('a')?.getAttribute('href')).toBe('/settings?tab=security');
       expect(screen.getByText('الجلسات').closest('a')?.getAttribute('href')).toBe('/settings?tab=sessions');
       expect(screen.getByText('الإشعارات').closest('a')?.getAttribute('href')).toBe('/settings?tab=notifications');

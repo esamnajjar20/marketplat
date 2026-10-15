@@ -41,7 +41,7 @@ export const productsApi = {
 
   /** GET /products/:id — public detail. */
   getById: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<ProductWithFullStore>>(`/products/${id}`, config),
+    (config ? apiClient.get<ApiResponse<ProductWithFullStore>>(`/products/${id}`, config) : apiClient.get<ApiResponse<ProductWithFullStore>>(`/products/${id}`)),
 
   /**
    * POST /products — multipart/form-data, same field-append pattern as

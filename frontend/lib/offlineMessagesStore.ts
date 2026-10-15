@@ -100,7 +100,10 @@ export async function saveConversationsList(
     const tx = db.transaction(STORE_CONVERSATIONS, 'readwrite');
     const store = tx.objectStore(STORE_CONVERSATIONS);
     // استبدال بسيط: امسح ثم أعد الكتابة للحفاظ على الحد
-    await idbReq(store.clear());
+    // Queue clear + puts in the same synchronous turn. Awaiting the clear
+    // request first can let IndexedDB auto-commit the transaction before
+    // the subsequent puts are enqueued (especially in Safari/IDB shims).
+    store.clear();
     for (const item of limited) {
       store.put(item);
     }

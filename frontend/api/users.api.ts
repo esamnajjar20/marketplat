@@ -65,7 +65,7 @@ export interface UserBootstrapPayload {
 export const usersApi = {
   /** FIX AUTH-05: accepts optional config so callers can pass an AbortSignal. */
   getMe: (config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<User>>('/users/me', config),
+    (config ? apiClient.get<ApiResponse<User>>('/users/me', config) : apiClient.get<ApiResponse<User>>('/users/me')),
 
   /**
    * GET /users/me/bootstrap — session shell aggregation:
@@ -73,7 +73,7 @@ export const usersApi = {
    * + ad stats + favorites page-1. Replaces 6–8 post-login requests.
    */
   getBootstrap: (config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<UserBootstrapPayload>>('/users/me/bootstrap', config),
+    (config ? apiClient.get<ApiResponse<UserBootstrapPayload>>('/users/me/bootstrap', config) : apiClient.get<ApiResponse<UserBootstrapPayload>>('/users/me/bootstrap')),
 
   updateMe: (payload: UpdateProfilePayload) =>
     apiClient.patch<ApiResponse<User>>('/users/me', payload),

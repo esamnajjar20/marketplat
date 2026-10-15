@@ -24,7 +24,7 @@ export const sellersApi = {
 
   /** GET /sellers/me/profile — the caller's own seller profile. 404 if none yet. */
   getMyProfile: (config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<SellerProfile>>('/sellers/me/profile', config),
+    (config ? apiClient.get<ApiResponse<SellerProfile>>('/sellers/me/profile', config) : apiClient.get<ApiResponse<SellerProfile>>('/sellers/me/profile')),
 
   /** PATCH /sellers/me/profile — update displayName / bio / avatarUrl. */
   updateMyProfile: (payload: UpdateSellerProfilePayload) =>
@@ -32,7 +32,7 @@ export const sellersApi = {
 
   /** GET /sellers/me/attention — lightweight dashboard task counters. */
   getMyAttention: (config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<SellerAttention>>('/sellers/me/attention', config),
+    (config ? apiClient.get<ApiResponse<SellerAttention>>('/sellers/me/attention', config) : apiClient.get<ApiResponse<SellerAttention>>('/sellers/me/attention')),
 
   /** POST /sellers/me/profile/verification-request — moves the
    *  caller's own profile to verificationStatus PENDING for admin
@@ -42,7 +42,7 @@ export const sellersApi = {
 
   /** GET /sellers/:id — public seller page, no authentication required. */
   getById: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<SellerProfileWithAds>>(`/sellers/${id}`, config),
+    (config ? apiClient.get<ApiResponse<SellerProfileWithAds>>(`/sellers/${id}`, config) : apiClient.get<ApiResponse<SellerProfileWithAds>>(`/sellers/${id}`)),
 
   /** POST /sellers/:id/ratings — rate a seller (requires login). */
   createRating: (sellerProfileId: string, payload: CreateSellerRatingPayload) =>

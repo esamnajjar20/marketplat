@@ -88,7 +88,7 @@ describe('PublicHeader', () => {
     render(<PublicHeader />);
 
     expect(screen.getByText('أضف')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'قائمة المستخدم' })).toBeInTheDocument();
+    expect(screen.getByTestId('user-menu')).toBeInTheDocument();
     expect(screen.queryByText('تسجيل الدخول')).not.toBeInTheDocument();
     expect(screen.queryByText('إنشاء حساب')).not.toBeInTheDocument();
   });

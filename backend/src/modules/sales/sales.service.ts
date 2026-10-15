@@ -475,6 +475,7 @@ export const salesService = {
           await tx.saleItem.create({
             data: {
               saleId: sale.id,
+              productId: input.entityType === 'PRODUCT' ? input.entityId ?? null : null,
               entityType: input.entityType,
               entityId: input.entityId ?? null,
               title: input.entityTitle,

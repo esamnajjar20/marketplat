@@ -58,10 +58,13 @@ function makeBeforeInstallPromptEvent(outcome: 'accepted' | 'dismissed' = 'accep
 describe('InstallPrompt', () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(window, 'addEventListener');
+    vi.spyOn(window, 'removeEventListener');
     localStorage.clear();
     mockMatchMedia(false);
     mockUserAgent(

@@ -10,9 +10,11 @@ import { HomeContextStrip } from '@/components/home/HomeContextStrip';
 import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { CAROUSEL_ASPECT } from '@/components/home/FeaturedCarousel';
 import { useHomepage } from '@/hooks/queries/useHomepage';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 
 vi.mock('@/hooks/queries/useHomepage', () => ({ useHomepage: vi.fn() }));
+vi.mock('@/hooks/queries/useHomeFeed', () => ({ useHomeFeed: vi.fn() }));
 vi.mock('@/hooks/useBrowseCity', () => ({ useBrowseCity: vi.fn() }));
 vi.mock('@/hooks/queries/useCategoryItems', () => ({
   useCategoryItems: () => ({ items: [], isLoading: false }),
@@ -127,6 +129,7 @@ describe('EagerHomeSections order (paid featured before latest)', () => {
       isPending: false,
       data: {},
     } as never);
+    vi.mocked(useHomeFeed).mockReturnValue({ isPending: false, data: { rails: {} } } as never);
     vi.mocked(useBrowseCity).mockReturnValue({
       city: undefined,
       canChange: true,
@@ -148,7 +151,7 @@ describe('EagerHomeSections order (paid featured before latest)', () => {
   });
 
   it('shows skeleton while homepage is pending', () => {
-    vi.mocked(useHomepage).mockReturnValue({ isPending: true } as never);
+    vi.mocked(useHomeFeed).mockReturnValue({ isPending: true } as never);
     const { container } = render(<EagerHomeSections />);
     expect(container.querySelector('[data-testid="featured-carousel"]')).toBeNull();
     expect(container.querySelector('[data-testid="latest-ads"]')).toBeNull();

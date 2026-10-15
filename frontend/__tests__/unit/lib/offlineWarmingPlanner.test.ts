@@ -212,6 +212,15 @@ describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
 });
 
   it("3g throttles 'fast' to critical while preserving full scope (FIX WARM-ADAPTIVE-3G-01)", () => {
+    networkPolicy = {
+      ...networkPolicy,
+      // getWarmingPlan consumes getNetworkPolicy()'s normalized tier; the
+      // navigator mock alone does not affect this test's mocked policy.
+      tier: 'slow',
+      saveData: false,
+      allowBackgroundWarming: true,
+      consecutiveFailures: 0,
+    };
     Object.defineProperty(globalThis, 'navigator', {
       value: { onLine: true, connection: { effectiveType: '3g', downlink: 0.8 } },
       configurable: true,

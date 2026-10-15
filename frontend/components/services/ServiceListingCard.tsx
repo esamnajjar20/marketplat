@@ -54,6 +54,9 @@ export const ServiceListingCard = memo(function ServiceListingCard({ listing, co
           <div className="absolute start-2 top-2 z-10 flex max-w-[calc(100%-3.75rem)] flex-col items-start gap-1">
             {showKind && <CardKindBadge kind="service" />}
             <Badge size="xs" variant={AVAILABILITY_VARIANT[listing.provider.availabilityStatus]}>{AVAILABILITY_LABEL[listing.provider.availabilityStatus]}</Badge>
+            {listing.provider.sellerProfile?.verified && (
+              <Badge size="xs" variant="outline" aria-label="مقدم خدمة موثّق">موثّق</Badge>
+            )}
           </div>
         </div>
         <div className={cn('min-w-0', compact ? CARD_BODY_COMPACT : CARD_BODY_DEFAULT)}>

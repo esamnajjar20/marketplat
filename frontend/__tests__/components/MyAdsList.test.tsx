@@ -272,8 +272,6 @@ describe('MyAdsList', () => {
       duration: 10_000,
       action: expect.objectContaining({ label: 'تراجع', onClick: expect.any(Function) }),
     }));
-    const options = vi.mocked(toast.success).mock.calls.at(-1)?.[1] as { action?: { onClick?: () => void } } | undefined;
-    options?.action?.onClick?.();
   });
 
   it('does not call the delete mutation immediately because deletion is delayed for undo', async () => {

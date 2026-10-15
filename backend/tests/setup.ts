@@ -4,6 +4,7 @@ jest.mock('../src/config/redis', () => {
   const store = new Map<string, string>();
   const zsets = new Map<string, Map<string, number>>();
   const lists = new Map<string, string[]>();
+  const sets = new Map<string, Set<string>>();
   const rateLimitCounters = new Map<string, { count: number; resetAt: number }>();
 
   // List commands (activityBuffer.ts: RPUSH via pipeline, LPOP/LLEN
@@ -38,6 +39,19 @@ jest.mock('../src/config/redis', () => {
     return list.length;
   });
   const llen = jest.fn(async (key: string) => lists.get(key)?.length ?? 0);
+  const sadd = jest.fn(async (key: string, ...members: string[]) => {
+    const values = sets.get(key) ?? new Set<string>();
+    let added = 0;
+    for (const member of members) {
+      if (!values.has(member)) {
+        values.add(member);
+        added += 1;
+      }
+    }
+    sets.set(key, values);
+    return added;
+  });
+  const scard = jest.fn(async (key: string) => sets.get(key)?.size ?? 0);
 
   const get = jest.fn(async (key: string) => store.get(key) ?? null);
   const setex = jest.fn(async (key: string, _ttl: number, value: string) => {
@@ -105,6 +119,8 @@ jest.mock('../src/config/redis', () => {
     lpop,
     lpush,
     llen,
+    sadd,
+    scard,
     zadd,
     zrem,
     zrange,
@@ -267,6 +283,8 @@ jest.mock('../src/config/redis', () => {
       const queued: Array<() => Promise<unknown>> = [];
       const pipeline: Record<string, any> = {
         get: jest.fn((key: string) => { queued.push(() => get(key)); return pipeline; }),
+        sadd: jest.fn((key: string, ...members: string[]) => { queued.push(() => sadd(key, ...members)); return pipeline; }),
+        scard: jest.fn((key: string) => { queued.push(() => scard(key)); return pipeline; }),
         setex: jest.fn((key: string, ttl: number, value: string) => { queued.push(() => setex(key, ttl, value)); return pipeline; }),
         del: jest.fn((...keys: string[]) => { queued.push(() => del(...keys)); return pipeline; }),
         expire: jest.fn(() => { queued.push(async () => 1); return pipeline; }),
@@ -310,6 +328,7 @@ jest.mock('../src/config/redis', () => {
     })),
     __clear: () => {
       store.clear();
+      sets.clear();
       zsets.clear();
       lists.clear();
       rateLimitCounters.clear();

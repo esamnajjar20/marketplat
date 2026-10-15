@@ -38,8 +38,8 @@ describe('RelatedServices', () => {
   it('renders related items but excludes the current listing', () => {
     mockRecommendations.mockReturnValue({ data: [listing('s1', 'الحالي'), listing('s2', 'سباكة'), listing('s3', 'كهرباء')], isLoading: false } as never);
     render(<RelatedServices serviceListingId="s1" categoryId="cat-1" />);
-    expect(screen.getByTestId('svc-s2')).toHaveTextContent('سباكة');
-    expect(screen.getByTestId('svc-s3')).toHaveTextContent('كهرباء');
+    expect(screen.getAllByTestId('svc-s2')[0]).toHaveTextContent('سباكة');
+    expect(screen.getAllByTestId('svc-s3')[0]).toHaveTextContent('كهرباء');
     expect(screen.queryByText('الحالي')).not.toBeInTheDocument();
   });
 

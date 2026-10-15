@@ -26,6 +26,7 @@ import type { ReactNode } from 'react';
 import { useAds, useSearchAds, useAd, useRelatedAds, useMyAds, useMyAdStats, useUserAds } from '@/hooks/queries/useAds';
 import { adsApi } from '@/api/ads.api';
 import { usersApi } from '@/api/users.api';
+import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/api/ads.api', () => ({
   adsApi: { getAll: vi.fn(), searchAds: vi.fn(), getById: vi.fn(), getRelated: vi.fn(), getMyAds: vi.fn(), getMyStats: vi.fn() },
@@ -180,6 +181,10 @@ describe('useMyAds', () => {
 
 describe('useMyAdStats', () => {
   it('calls adsApi.getMyStats and resolves with the aggregate response', async () => {
+    useAuthStore.getState().setAuth(
+      { id: 'u1', name: 'Test User', email: 'test@example.com', role: 'USER' },
+      { accessToken: 'test-token' },
+    );
     (adsApi.getMyStats as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 } },
     });

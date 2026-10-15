@@ -177,7 +177,7 @@ describe('AdminStoresTable', () => {
       const user = setupUser();
       render(<AdminStoresTable />);
 
-      await user.click(screen.getByLabelText('الموافقة على متجر متجر تسعة'));
+      await user.click(screen.getAllByLabelText('الموافقة على متجر متجر تسعة')[0]);
 
       expect(mockUpdateStatusMutate).toHaveBeenCalledWith({ storeId: 'store-9', status: 'ACTIVE' });
       expect(screen.queryByText('حظر هذا المتجر؟')).not.toBeInTheDocument();
@@ -196,7 +196,7 @@ describe('AdminStoresTable', () => {
       const user = setupUser();
       render(<AdminStoresTable />);
 
-      await user.click(screen.getByLabelText('رفع الحظر عن متجر متجر تسعة'));
+      await user.click(screen.getAllByLabelText('رفع الحظر عن متجر متجر تسعة')[0]);
 
       expect(mockUpdateStatusMutate).toHaveBeenCalledWith({ storeId: 'store-9', status: 'PENDING' });
     });
@@ -254,8 +254,8 @@ describe('AdminStoresTable', () => {
       ]);
       render(<AdminStoresTable />);
 
-      expect(screen.getByLabelText('الموافقة على متجر متجر واحد')).toBeDisabled();
-      expect(screen.getByLabelText('الموافقة على متجر متجر اثنان')).not.toBeDisabled();
+      expect(screen.getAllByLabelText('الموافقة على متجر متجر واحد')[0]).toBeDisabled();
+      expect(screen.getAllByLabelText('الموافقة على متجر متجر اثنان')[0]).not.toBeDisabled();
     });
   });
 

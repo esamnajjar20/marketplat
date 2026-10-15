@@ -46,7 +46,7 @@ export const storesApi = {
       .then((r) => unwrapPaginated<StoreWithSeller>(r)),
 
   /** GET /stores/me — the caller's own store. 404 if none yet. */
-  getMyStore: (config?: AxiosRequestConfig) => apiClient.get<ApiResponse<StoreDetails>>('/stores/me', config),
+  getMyStore: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<StoreDetails>>('/stores/me', config) : apiClient.get<ApiResponse<StoreDetails>>('/stores/me')),
 
   /** PATCH /stores/me — partial update. */
   updateMyStore: (payload: UpdateStorePayload) =>
@@ -77,7 +77,7 @@ export const storesApi = {
   /** GET /stores/me/analytics — owner-only. See StoreAnalytics's doc
    * comment for why orders/revenue/conversion aren't in this response. */
   getMyStoreAnalytics: (config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<StoreAnalytics>>('/stores/me/analytics', config),
+    (config ? apiClient.get<ApiResponse<StoreAnalytics>>('/stores/me/analytics', config) : apiClient.get<ApiResponse<StoreAnalytics>>('/stores/me/analytics')),
 
   /** POST /stores — one-time store creation (requires an existing SellerProfile). */
   create: (payload: CreateStorePayload) =>
@@ -85,7 +85,7 @@ export const storesApi = {
 
   /** GET /stores/:id — public store page, no auth required. */
   getById: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<StoreWithSellerAndCounts>>(`/stores/${id}`, config),
+    (config ? apiClient.get<ApiResponse<StoreWithSellerAndCounts>>(`/stores/${id}`, config) : apiClient.get<ApiResponse<StoreWithSellerAndCounts>>(`/stores/${id}`)),
 
   /** PATCH /stores/:id/status — admin-only approve/block. */
   updateStatus: (id: string, payload: UpdateStoreStatusPayload) =>

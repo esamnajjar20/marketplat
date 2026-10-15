@@ -63,7 +63,7 @@ describe('usePresence', () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual({ 'user-1': true, 'user-2': false });
+    expect(result.current.data).toEqual({ 'user-1': { online: true }, 'user-2': { online: false } });
     expect(usersApi.getPresence).toHaveBeenCalledWith(['user-1', 'user-2'], expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });

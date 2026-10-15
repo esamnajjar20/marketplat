@@ -7,6 +7,7 @@
  * `const CACHE_VERSION = 'vNN'`. This test fails CI if they drift.
  */
 import { describe, it, expect } from 'vitest';
+import { SW_CACHE_LIMITS } from '@/lib/offlineCachePolicy';
 import { readFileSync } from 'fs';
 import path from 'path';
 
@@ -80,13 +81,11 @@ describe('sw.js hand-copied constants stay in sync with their sources', () => {
   it('keeps sw.js MAX_API_ENTRIES/MAX_IMAGE_ENTRIES in sync with offlineCachePolicy.ts (informational mirror)', () => {
     const swApiLimit = extractOne(sw, /const MAX_API_ENTRIES = (?:MARKET_STORAGE_POLICY\.apiEntries \?\? )?(\d+);/, 'sw.js MAX_API_ENTRIES');
     const swImageLimit = extractOne(sw, /const MAX_IMAGE_ENTRIES = (?:MARKET_STORAGE_POLICY\.imageEntries \?\? )?(\d+);/, 'sw.js MAX_IMAGE_ENTRIES');
-    const policyApiLimit = extractOne(cachePolicy, /apiEntries: (\d+),/, 'offlineCachePolicy.ts apiEntries');
-    const policyImageLimit = extractOne(
-      cachePolicy,
-      /imageEntries: (\d+),/,
-      'offlineCachePolicy.ts imageEntries',
-    );
-    expect(policyApiLimit).toBe(swApiLimit);
-    expect(policyImageLimit).toBe(swImageLimit);
+    // offlineCachePolicy.ts delegates the numeric limits to CACHE_POLICY;
+    // assert the exported runtime values rather than assuming inline literals.
+    expect(String(SW_CACHE_LIMITS.apiEntries)).toBe(swApiLimit);
+    expect(String(SW_CACHE_LIMITS.imageEntries)).toBe(swImageLimit);
+    expect(cachePolicy).toMatch(/CACHE_POLICY\.storage\.serviceWorker\.apiEntries/);
+    expect(cachePolicy).toMatch(/CACHE_POLICY\.storage\.serviceWorker\.imageEntries/);
   });
 });

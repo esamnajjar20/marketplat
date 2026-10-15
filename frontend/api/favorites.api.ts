@@ -92,9 +92,10 @@ export const favoritesApi = {
    * derive this one boolean — and was silently wrong past 100 favorites.
    */
   check: (adId: string, config?: AxiosRequestConfig) =>
-    apiClient
-      .get<ApiResponse<{ isFavorited: boolean }>>(`/favorites/${adId}/check`, config)
-      .then((r) => r.data.data?.isFavorited ?? false),
+    (config
+      ? apiClient.get<ApiResponse<{ isFavorited: boolean }>>(`/favorites/${adId}/check`, config)
+      : apiClient.get<ApiResponse<{ isFavorited: boolean }>>(`/favorites/${adId}/check`)
+    ).then((r) => r.data.data?.isFavorited ?? false),
 
   /**
    * GET /favorites?type=product|store|service — paginated list of

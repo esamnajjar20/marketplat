@@ -219,7 +219,12 @@ describe('IncomingServiceRequestsList', () => {
       const rejectButton = screen.getAllByRole('button', { name: /رفض/ }).find((btn) => btn.textContent?.trim() === 'رفض');
       expect(rejectButton).toBeDefined();
       await user.click(rejectButton!);
-      expect(mockRespondMutate).toHaveBeenCalledWith({ action: 'REJECTED' });
+      expect(mockRespondMutate).not.toHaveBeenCalledWith({ action: 'REJECTED' });
+      await user.click(screen.getByRole('button', { name: 'رفض الطلب' }));
+      expect(mockRespondMutate).toHaveBeenCalledWith(
+        { action: 'REJECTED' },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
     });
 
     it('shows حجز موعد + بدء التنفيذ for an ACCEPTED request', async () => {

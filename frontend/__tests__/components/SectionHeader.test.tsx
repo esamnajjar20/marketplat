@@ -6,8 +6,8 @@ import { render, screen } from '@testing-library/react';
 import { SectionHeader } from '@/components/home/SectionHeader';
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { children: React.ReactNode; href: string }) => (
+    <a href={href} {...props}>{children}</a>
   ),
 }));
 

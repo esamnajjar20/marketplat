@@ -87,7 +87,7 @@ describe('NotificationSettingsForm', () => {
 
     expect(screen.getByRole('switch', { name: 'رسائل جديدة' })).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('switch', { name: 'مشاهدات الإعلان' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('switch', { name: 'عروض وتخفيضات المنصة المنصة' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'عروض وتخفيضات المنصة' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'عروضي' })).toHaveAttribute('aria-checked', 'false');
   });
 

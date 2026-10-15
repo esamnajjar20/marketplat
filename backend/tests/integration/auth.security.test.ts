@@ -32,7 +32,7 @@ describe('Auth Security', () => {
       const email = `refresh-test-${Date.now()}@test.com`;
       const registerRes = await agent
         .post('/api/v1/auth/register')
-        .send({ name: 'Refresh User', email, password: 'password123', city: 'الرياض' });
+        .send({ name: 'Refresh User', email, password: 'TestPassword123!', city: 'الرياض' });
 
       expect(registerRes.status).toBe(201);
       const registerCookies = registerRes.headers['set-cookie'] as unknown as string[];
@@ -65,7 +65,7 @@ describe('Auth Security', () => {
       const email = `reuse-test-${Date.now()}@test.com`;
       await agent
         .post('/api/v1/auth/register')
-        .send({ name: 'Reuse User', email, password: 'password123', city: 'الرياض' });
+        .send({ name: 'Reuse User', email, password: 'TestPassword123!', city: 'الرياض' });
 
       // Rotate once via the agent — its cookie jar now holds the NEW
       // refreshToken cookie; the original one it registered with is
@@ -76,7 +76,7 @@ describe('Auth Security', () => {
       // simulate an attacker who captured it before rotation.
       const registerRes = await request(app)
         .post('/api/v1/auth/register')
-        .send({ name: 'Reuse User 2', email: `reuse2-${Date.now()}@test.com`, password: 'password123', city: 'الرياض' });
+        .send({ name: 'Reuse User 2', email: `reuse2-${Date.now()}@test.com`, password: 'TestPassword123!', city: 'الرياض' });
       const cookies = registerRes.headers['set-cookie'] as unknown as string[];
       const staleRefreshCookie = cookies.find((c) => c.startsWith('refreshToken='))!.split(';')[0];
 
@@ -117,7 +117,7 @@ describe('Auth Security', () => {
       const email = `logout-test-${Date.now()}@test.com`;
       const registerRes = await request(app)
         .post('/api/v1/auth/register')
-        .send({ name: 'Logout User', email, password: 'password123', city: 'الرياض' });
+        .send({ name: 'Logout User', email, password: 'TestPassword123!', city: 'الرياض' });
 
       const { accessToken } = registerRes.body.data.tokens;
 
