@@ -6,29 +6,25 @@ const mocks = vi.hoisted(() => ({
   getWarmingMode: vi.fn(),
   getWarmingPlan: vi.fn(),
   getWarmingBudget: vi.fn(),
-  core: vi.fn(),
   publicRoutes: vi.fn(),
   personalRoutes: vi.fn(),
-  userData: vi.fn(),
 }));
 
 vi.mock('../../../lib/networkPolicy', () => ({ getNetworkPolicy: mocks.getNetworkPolicy }));
 vi.mock('../../../lib/warmingPreferences', () => ({ getWarmingMode: mocks.getWarmingMode }));
 vi.mock('../../../lib/offlineWarmingPlanner', () => ({ getWarmingPlan: mocks.getWarmingPlan }));
 vi.mock('../../../lib/warmingBudget', () => ({ getWarmingBudget: mocks.getWarmingBudget }));
-vi.mock('../../../lib/offlineCoreBundle', () => ({ warmCoreBundle: mocks.core }));
 vi.mock('../../../lib/offlineRouteShells', () => ({
   warmRouteShellsAtomic: mocks.publicRoutes,
   warmPersonalShellsAtomic: mocks.personalRoutes,
 }));
-vi.mock('../../../lib/offlineWarmingUserData', () => ({ warmUserData: mocks.userData }));
 vi.mock('../../../lib/warmingRegistry', () => ({
   getWarmingJob: (id: string) => ({
     id,
     // Higher priority number = run first (matches WARMING_REGISTRY)
-    priority: id === 'core-data' ? 100 : id === 'public-routes' ? 90 : id === 'personal-routes' ? 80 : 70,
-    requiresAuth: id === 'personal-routes' || id === 'user-data',
-    order: id === 'core-data' ? 0 : id === 'public-routes' ? 1 : id === 'personal-routes' ? 2 : 3,
+    priority: id === 'public-routes' ? 90 : 80,
+    requiresAuth: id === 'personal-routes',
+    order: id === 'public-routes' ? 0 : 1,
     cost: { requests: 1, bytes: 10_000, durationMs: 1_000 },
   }),
 }));
@@ -69,31 +65,27 @@ describe('warming engine', () => {
       maxPersonalRouteCount: 6,
       allowImages: false,
     });
-    mocks.core.mockResolvedValue(undefined);
     mocks.publicRoutes.mockResolvedValue(undefined);
     mocks.personalRoutes.mockResolvedValue(undefined);
-    mocks.userData.mockResolvedValue(undefined);
   });
 
   it('runs jobs by registry priority and includes authenticated workloads', async () => {
     const order: string[] = [];
-    mocks.core.mockImplementation(async () => order.push('core'));
     mocks.publicRoutes.mockImplementation(async () => order.push('public'));
     mocks.personalRoutes.mockImplementation(async () => order.push('personal'));
-    mocks.userData.mockImplementation(async () => order.push('user'));
 
     const result = await runWarmingEngine({ authenticated: true });
 
-    expect(order).toEqual(['core', 'public', 'personal', 'user']);
-    expect(result.completed).toEqual(['core-data', 'public-routes', 'personal-routes', 'user-data']);
+    expect(order).toEqual(['public', 'personal']);
+    expect(result.completed).toEqual(['public-routes', 'personal-routes']);
     expect(result.skipped).toEqual([]);
   });
 
   it('does not spend budget on lower-priority jobs that do not fit', async () => {
-    // cost.requests is 1 per job in the mock; budget of 2 admits only the
-    // two highest-priority jobs (core-data + public-routes).
+    // cost.requests is 1 per job in the mock; a budget of 1 admits only the
+    // highest-priority job (public-routes).
     mocks.getWarmingBudget.mockReturnValue({
-      maxRequests: 2,
+      maxRequests: 1,
       maxBytes: 2_000_000,
       maxDurationMs: 30_000,
       maxConcurrency: 1,
@@ -102,18 +94,20 @@ describe('warming engine', () => {
       allowImages: false,
     });
 
-    // Model the two admitted jobs consuming their estimated runtime budget.
-    mocks.core.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
+    // Model the admitted job consuming their estimated runtime budget.
     mocks.publicRoutes.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
     mocks.personalRoutes.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
-    mocks.userData.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
 
     const result = await runWarmingEngine({ authenticated: true });
 
-    expect(result.completed).toEqual(['core-data', 'public-routes']);
-    expect(result.skipped).toEqual(['personal-routes', 'user-data']);
+    expect(result.completed).toEqual(['public-routes']);
+    expect(result.skipped).toEqual(['personal-routes']);
     expect(mocks.personalRoutes).not.toHaveBeenCalled();
-    expect(mocks.userData).not.toHaveBeenCalled();
+  });
+
+  it('never pre-fetches data: only page-shell jobs exist', async () => {
+    const result = await runWarmingEngine({ authenticated: true });
+    expect(result.completed.every((id) => id === 'public-routes' || id === 'personal-routes')).toBe(true);
   });
 
   it('does not run on a disabled plan', async () => {
@@ -131,6 +125,7 @@ describe('warming engine', () => {
     const result = await runWarmingEngine({ authenticated: true });
 
     expect(result.ran).toBe(false);
-    expect(mocks.core).not.toHaveBeenCalled();
+    expect(mocks.publicRoutes).not.toHaveBeenCalled();
+    expect(mocks.personalRoutes).not.toHaveBeenCalled();
   });
 });

@@ -21,6 +21,26 @@ describe('permanent route-shell policy', () => {
     expect(isPermanentShellRoute('/my-store/products/123/edit', true)).toBe(false);
     expect(isPermanentShellRoute('/my-ads/123/edit', true)).toBe(false);
   });
+
+  it('pins the sales hub and similar fixed tool pages', () => {
+    expect(isPermanentShellRoute('/account/sales', true)).toBe(true);
+    expect(isPermanentShellRoute('/account/customers', true)).toBe(true);
+    expect(isPermanentShellRoute('/my-store', true)).toBe(true);
+    expect(isPermanentShellRoute('/my-services', true)).toBe(true);
+    expect(isPermanentShellRoute('/settings', true)).toBe(true);
+    expect(isPermanentShellRoute('/shared')).toBe(true);
+    expect(isPermanentShellRoute('/account/sales/123/receipt', true)).toBe(false);
+  });
+
+  it('every permanent personal shell is actually warmed', async () => {
+    const mod = await import('@/lib/offlineRouteShells');
+    for (const route of mod.PERMANENT_PERSONAL_SHELL_ROUTES) {
+      expect(mod.PERSONAL_SHELL_ROUTES_ESSENTIAL).toContain(route);
+    }
+    for (const route of mod.PERMANENT_PUBLIC_SHELL_ROUTES) {
+      expect(mod.CORE_ROUTES).toContain(route);
+    }
+  });
 });
 
 describe('offlineRouteShells', () => {

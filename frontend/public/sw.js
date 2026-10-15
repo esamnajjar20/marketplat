@@ -160,9 +160,14 @@ const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1000;
 
 const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 500;
 
-const PERMANENT_PUBLIC_SHELL_PATHS = new Set(['/offline', '/about', '/contact', '/privacy', '/terms']);
+// ⚠️ Must match PERMANENT_*_SHELL_ROUTES in lib/offlineRouteShells.ts
+// (enforced by __tests__/unit/lib/permanentShellParity.test.ts).
+const PERMANENT_PUBLIC_SHELL_PATHS = new Set([
+  '/offline', '/saved-payments', '/about', '/contact', '/privacy', '/terms', '/shared',
+]);
 const PERMANENT_PERSONAL_SHELL_PATHS = new Set([
   '/ads/create', '/my-store/products/new', '/my-services/new', '/requests/new', '/complete-profile',
+  '/account/sales', '/account/customers', '/my-store', '/my-services', '/settings',
 ]);
 
 function pathnameOfCacheKey(request) {

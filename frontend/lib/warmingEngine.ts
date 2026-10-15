@@ -9,9 +9,7 @@ import { recordWarmingJob } from './warmingTelemetry';
 import { WarmingPriorityQueue } from './warmingPriorityQueue';
 import { beginWarmingRuntimeBudget, getWarmingRuntimeBudgetState } from './warmingRuntimeBudget';
 import { getBackgroundWarmingBudget, shouldPauseBackgroundWarming } from './offlineStoragePressure';
-import { warmCoreBundle } from './offlineCoreBundle';
 import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from './offlineRouteShells';
-import { warmUserData } from './offlineWarmingUserData';
 
 export interface WarmingEngineOptions {
   authenticated: boolean;
@@ -42,7 +40,9 @@ function estimateFits(
 }
 
 /**
- * Unified client warming executor. Existing phase implementations keep their
+ * Unified client warming executor. Page shells ONLY: public lists, user records
+ * and thumbnails are never pre-fetched — they are cached when the user opens them.
+ * Existing phase implementations keep their
  * own atomicity/freshness/locks; this layer owns ordering, admission and the
  * global pass budget.
  */
@@ -60,12 +60,10 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
 
   const queue = new WarmingPriorityQueue();
   const jobs: Array<[WarmingJobId, () => Promise<void>]> = [
-    ['core-data', () => warmCoreBundle({ force: options.force === true })],
     ['public-routes', () => warmRouteShellsAtomic(options.force === true)],
   ];
   if (options.authenticated) {
     jobs.push(['personal-routes', () => warmPersonalShellsAtomic(options.force === true)]);
-    jobs.push(['user-data', () => warmUserData({ force: options.force === true })]);
   }
 
   for (const [id, run] of jobs) {

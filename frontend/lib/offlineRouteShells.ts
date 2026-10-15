@@ -152,10 +152,16 @@ const STATIC_CACHE = STATIC_CACHE_NAME;
  * Shells whose structure changes only with an application release, not with
  * ordinary user activity. They are warmed once per cache version, repaired
  * if incomplete, and refreshed on an explicit manual force or a real online
- * visit. Dynamic API data remains governed by its own cache/freshness policy.
+ * visit — never on an age timer, never trimmed by the service worker, and
+ * always selected by the warming plan regardless of the route budget.
  *
- * Keep this allowlist deliberately small: item-specific edit pages and hubs
- * containing frequently changing records must not be pinned as immutable.
+ * Only the page shell (HTML + JS/CSS chunks) is pinned. The records shown in
+ * those pages (sales, products, requests…) are fetched client-side and are
+ * cached only after the user has opened them.
+ *
+ * ⚠️ Keep this list in sync with PERMANENT_*_SHELL_PATHS in public/sw.js
+ * (enforced by __tests__/unit/lib/permanentShellParity.test.ts). Item-specific
+ * edit pages (`/[id]/edit`) must never be pinned.
  */
 export const PERMANENT_PUBLIC_SHELL_ROUTES = [
   '/offline',
@@ -164,15 +170,41 @@ export const PERMANENT_PUBLIC_SHELL_ROUTES = [
   '/contact',
   '/privacy',
   '/terms',
+  '/shared',
 ] as const;
 
 export const PERMANENT_PERSONAL_SHELL_ROUTES = [
+  // Create / add flows
   '/ads/create',
   '/my-store/products/new',
   '/my-services/new',
   '/requests/new',
   '/complete-profile',
+  // Sales: one document with tabs (record a sale / POS, debts, installments,
+  // costs). The "add sale" dialog lives inside this hub, there is no /new route.
+  '/account/sales',
+  '/account/customers',
+  // Seller management hubs (add product / collection / service entry points)
+  '/my-store',
+  '/my-services',
+  '/settings',
 ] as const;
+
+/**
+ * Permanent shells are always part of a pass (outside the route budget), so a
+ * small network budget can never drop the pages users rely on offline.
+ * `selected` is the planner's choice; `all` is the candidate list for this kind.
+ */
+function withPermanentShells(
+  selected: string[],
+  all: readonly string[],
+  personal: boolean,
+): string[] {
+  if (selected.length === 0) return selected; // plan 'none' → nothing runs
+  const permanent = all.filter((route) => isPermanentShellRoute(route, personal));
+  const permanentSet = new Set(permanent);
+  return [...permanent, ...selected.filter((route) => !permanentSet.has(route))];
+}
 
 export function isPermanentShellRoute(route: string, personal = false): boolean {
   const pathname = route.split('?')[0] || '/';
@@ -238,6 +270,10 @@ export const PERSONAL_SHELL_ROUTES_ESSENTIAL = [
   '/my-services',
   '/my-services/new',
   '/requests/new',
+  // SALES-HUB-PIN-01: the sales hub (add sale / POS / debts / installments) and
+  // customers are permanent shells — see PERMANENT_PERSONAL_SHELL_ROUTES.
+  '/account/sales',
+  '/account/customers',
   // OFFLINE-HUB-01: /settings/{sync,storage,offline,drafts} moved into the
   // '/offline' hub. SETTINGS-HUB-01 + HUB-WARMING-CLEANUP-01: /settings/{profile,
   // security,sessions,notifications,seller,service-provider,blocked-users} now
@@ -1032,7 +1068,7 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
     // selection under the smart throttle.
     const snapshotEarly = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
 
-    const routes = selectRoutesByPlan(plan, CORE_ROUTES);
+    const routes = withPermanentShells(selectRoutesByPlan(plan, CORE_ROUTES), CORE_ROUTES, false);
     if (routes.length === 0) return;
 
     // SW-SMART-THROTTLE-01: fully warmed → 6h; partial → 30m.
@@ -1350,10 +1386,10 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
     // WARMING-MODES-04: single path — no drip mode.
     const snapshotEarlyP = await readSnapshotForCacheVersion(CACHE_VERSION_SUFFIX);
 
-    const routesEarlyP = selectRoutesByPlan(
-      plan,
+    const routesEarlyP = withPermanentShells(
+      selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL, 'personal'),
       PERSONAL_SHELL_ROUTES_ESSENTIAL,
-      'personal',
+      true,
     );
     const incompletePersonal = routesEarlyP.filter(
       (r) => snapshotEarlyP?.routes[`personal:${r}`]?.status !== 'complete',
@@ -1413,7 +1449,11 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
       }
     });
 
-    const routes = selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL, 'personal');
+    const routes = withPermanentShells(
+      selectRoutesByPlan(plan, PERSONAL_SHELL_ROUTES_ESSENTIAL, 'personal'),
+      PERSONAL_SHELL_ROUTES_ESSENTIAL,
+      true,
+    );
     if (routes.length === 0) return;
 
     reportProgress('personal', { active: true, completed: 0, total: routes.length });

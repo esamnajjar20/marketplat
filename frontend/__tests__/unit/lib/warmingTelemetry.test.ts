@@ -15,7 +15,7 @@ describe('warming telemetry', () => {
   });
 
   it('records observed bytes and failed jobs without exposing payloads', () => {
-    recordWarmingJob({ id: 'core-data', ok: false, bytes: 1000, source: 'estimated' });
+    recordWarmingJob({ id: 'public-routes', ok: false, bytes: 1000, source: 'estimated' });
     recordWarmingTransfer('/ads', 2048);
     const snapshot = getWarmingTelemetrySnapshot();
     expect(snapshot.failedJobs).toBe(1);

@@ -36,7 +36,7 @@ check('route warming aborts when browser is offline', routeShells.includes('if (
 check('scheduler does not queue warming on offline network policy', scheduler.includes("policy.tier === 'offline' || !policy.allowBackgroundWarming"));
 check('pipeline re-checks connectivity immediately before warming', pipeline.includes('if (!navigator.onLine) return { ran: false };'));
 check('storage pressure degrades to public-only before fully pausing', storage.includes("return 'public-only'") && storage.includes("return 'paused'"));
-check('warming engine processes core data before public and personal route jobs', engine.indexOf("['core-data'") < engine.indexOf("['public-routes'") && engine.indexOf("['public-routes'") < engine.indexOf("['personal-routes'"));
+check('warming engine runs only page-shell jobs (no background data pre-fetch), public before personal', !engine.includes("'core-data'") && !engine.includes("'user-data'") && engine.indexOf("['public-routes'") < engine.indexOf("['personal-routes'"));
 
 for (const item of checks) console.log(`[offline-ux-3-4] ${item.ok ? 'PASS' : 'FAIL'} ${item.name}`);
 if (checks.some((item) => !item.ok)) process.exit(1);

@@ -6,11 +6,14 @@
  * warming modules; this registry is the contract used by the planner/engine.
  */
 
+/**
+ * Only page shells are warmed in the background. Data (lists, user records,
+ * thumbnails) is no longer pre-fetched: it is cached when the user actually
+ * opens it (service worker runtime caching + offline JSON/list caches).
+ */
 export type WarmingJobId =
-  | 'core-data'
   | 'public-routes'
-  | 'personal-routes'
-  | 'user-data';
+  | 'personal-routes';
 
 export type WarmingCost = {
   /** Conservative request estimate used for admission control, not telemetry. */
@@ -31,41 +34,25 @@ export interface WarmingJobDefinition {
 }
 
 export const WARMING_REGISTRY: Readonly<Record<WarmingJobId, WarmingJobDefinition>> = {
-  'core-data': {
-    id: 'core-data',
-    priority: 100,
-    cost: { requests: 8, bytes: 1_000_000, durationMs: 15_000 },
-    requiresAuth: false,
-    order: 0,
-  },
   'public-routes': {
     id: 'public-routes',
     priority: 90,
     cost: { requests: 8, bytes: 1_500_000, durationMs: 30_000 },
     requiresAuth: false,
-    order: 1,
+    order: 0,
   },
   'personal-routes': {
     id: 'personal-routes',
     priority: 80,
     cost: { requests: 8, bytes: 1_200_000, durationMs: 30_000 },
     requiresAuth: true,
-    order: 2,
-  },
-  'user-data': {
-    id: 'user-data',
-    priority: 70,
-    cost: { requests: 8, bytes: 800_000, durationMs: 20_000 },
-    requiresAuth: true,
-    order: 3,
+    order: 1,
   },
 };
 
 export const WARMING_JOB_IDS: readonly WarmingJobId[] = [
-  'core-data',
   'public-routes',
   'personal-routes',
-  'user-data',
 ];
 
 export function getWarmingJob(id: WarmingJobId): WarmingJobDefinition {
