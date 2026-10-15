@@ -45,8 +45,14 @@ function makeCacheKey(url) {
 function isUpstreamCacheable(response) {
   if (!response || response.status !== 200) return false;
   if (response.headers.has('set-cookie')) return false;
+  // Vary: * can never be matched. Vary: Authorization / Cookie is allowed: the
+  // origin's public routes (CACHE.STATIC/SHORT/MEDIUM/LIVE) always declare it on
+  // anonymous responses, and this Worker only reaches this check for requests
+  // that carry NO Authorization header and NO Cookie (see the `hasAuth` gate in
+  // fetch() and the header-less warmCache()). Rejecting it made every
+  // cacheControl() route BYPASS-POLICY, so the edge only ever cached /home.
   const vary = (response.headers.get('vary') || '').toLowerCase();
-  if (vary === '*' || /(?:^|,)\s*(authorization|cookie)\s*(?:,|$)/.test(vary)) return false;
+  if (vary.split(',').some((token) => token.trim() === '*')) return false;
   const cc = (response.headers.get('cache-control') || '').toLowerCase();
   const directives = cc.split(',').map((part) => part.trim().split('=')[0]);
   if (['private', 'no-store', 'no-cache'].some((directive) => directives.includes(directive))) return false;
