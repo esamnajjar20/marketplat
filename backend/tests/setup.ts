@@ -399,3 +399,21 @@ afterEach(async () => {
     await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = 'origin'`);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Background task drain
+//
+// Fire-and-forget tasks (e.g. fraud.service.scoreAd) may still be running
+// after the last test in a file finishes. Without waiting, their logs surface
+// after Jest considers the suite done → "Cannot log after tests are done" →
+// exit 1. See src/shared/utils/background.ts.
+// ---------------------------------------------------------------------------
+import { drainBackground } from '../src/shared/utils/background';
+
+afterEach(async () => {
+  await drainBackground(2000);
+});
+
+afterAll(async () => {
+  await drainBackground(2000);
+});

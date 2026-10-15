@@ -12,6 +12,7 @@ import { PaginatedResult } from '../../shared/types/pagination.types';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { GetFlaggedAdsQuery, GetFraudSignalsQuery } from './fraud.validation';
 
+import { track } from '../../shared/utils/background';
 // the DUPLICATE_LISTING heuristic now
 // explicitly skips product/service listings -- the underlying query is
 // ad-table-only, and every product/service create was paying for a
@@ -184,46 +185,49 @@ export const fraudService = {
    * and activityService.record: a scoring failure must never fail the
    * ad creation/update it's scoring.
    */
-  scoreAd: async (input: ScoreAdInput): Promise<void> => {
-    try {
-      const signals = await computeSignals(input);
-      const riskScore = Math.min(
-        100,
-        signals.reduce((sum, s) => sum + s.weight, 0)
-      );
-      const flaggedForReview = riskScore >= env.fraud.autoFlagThreshold;
+  scoreAd: (input: ScoreAdInput): Promise<void> =>
+    track(
+      (async () => {
+        try {
+          const signals = await computeSignals(input);
+          const riskScore = Math.min(
+            100,
+            signals.reduce((sum, s) => sum + s.weight, 0)
+          );
+          const flaggedForReview = riskScore >= env.fraud.autoFlagThreshold;
 
-      await prisma.$transaction(async tx => {
-        if (signals.length > 0) {
-          await tx.fraudSignal.createMany({
-            data: signals.map(s => ({
-              type: s.type,
-              weight: s.weight,
-              metadata: (s.metadata ?? {}) as Prisma.InputJsonValue,
-              userId: input.userId,
+          await prisma.$transaction(async tx => {
+            if (signals.length > 0) {
+              await tx.fraudSignal.createMany({
+                data: signals.map(s => ({
+                  type: s.type,
+                  weight: s.weight,
+                  metadata: (s.metadata ?? {}) as Prisma.InputJsonValue,
+                  userId: input.userId,
+                  adId: input.id,
+                })),
+              });
+            }
+            await fraudRepository.setAdRiskScore(tx, input.id, riskScore, flaggedForReview);
+          });
+
+          if (flaggedForReview) {
+            logger.warn('Ad auto-flagged for fraud review', {
               adId: input.id,
-            })),
+              userId: input.userId,
+              riskScore,
+              signalTypes: signals.map(s => s.type),
+            });
+          }
+        } catch (err) {
+          logger.error('Fraud scoring failed for ad — ad creation itself is unaffected', {
+            err,
+            adId: input.id,
+            userId: input.userId,
           });
         }
-        await fraudRepository.setAdRiskScore(tx, input.id, riskScore, flaggedForReview);
-      });
-
-      if (flaggedForReview) {
-        logger.warn('Ad auto-flagged for fraud review', {
-          adId: input.id,
-          userId: input.userId,
-          riskScore,
-          signalTypes: signals.map(s => s.type),
-        });
-      }
-    } catch (err) {
-      logger.error('Fraud scoring failed for ad — ad creation itself is unaffected', {
-        err,
-        adId: input.id,
-        userId: input.userId,
-      });
-    }
-  },
+      })()
+    ),
 
   /**
    * Scores a product or service listing with the same content heuristics
