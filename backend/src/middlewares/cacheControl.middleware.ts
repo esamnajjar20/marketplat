@@ -55,6 +55,10 @@ export const cachePolicyControl =
       return;
     }
     const directives = ['public', `max-age=${http.maxAgeSec}`];
+    // Edge/CDN TTL can be longer than the browser's — the Worker reads
+    // s-maxage first and falls back to max-age.
+    if ('sharedMaxAgeSec' in http && http.sharedMaxAgeSec)
+      directives.push(`s-maxage=${http.sharedMaxAgeSec}`);
     if (http.staleWhileRevalidateSec)
       directives.push(`stale-while-revalidate=${http.staleWhileRevalidateSec}`);
     const hasAuth = Boolean(
