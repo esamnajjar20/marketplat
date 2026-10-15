@@ -33,12 +33,11 @@ vi.mock('@/hooks/queries/useCategories', () => ({
 }));
 
 let mockSearchParams = new URLSearchParams();
-const mockPush = vi.fn();
-const mockReplace = vi.fn();
+const { mockPush, mockReplace } = vi.hoisted(() => ({ mockPush: vi.fn(), mockReplace: vi.fn() }));
 let mockPathname = '/search';
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush, replace: (...a: unknown[]) => { mockReplace(...a as []); mockPush(...a as []); }, prefetch: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, prefetch: vi.fn(), back: vi.fn() }),
   usePathname: () => mockPathname,
 }));
 
@@ -200,6 +199,17 @@ describe('SearchFilters', () => {
       fireEvent.change(screen.getByPlaceholderText('من'), { target: { value: '' } });
       vi.advanceTimersByTime(500);
       expect(mockPush).toHaveBeenCalledWith(expect.not.stringContaining('minPrice'));
+    });
+
+    it('cancels a pending price navigation when filters are reset', () => {
+      render(<SearchFilters />);
+      fireEvent.change(screen.getByPlaceholderText('من'), { target: { value: '100' } });
+      fireEvent.click(screen.getByRole('button', { name: 'إعادة تعيين الفلاتر' }));
+
+      expect(mockPush).toHaveBeenCalledTimes(1);
+      expect(mockPush).toHaveBeenLastCalledWith('/search');
+      vi.advanceTimersByTime(500);
+      expect(mockPush).toHaveBeenCalledTimes(1);
     });
   });
 });

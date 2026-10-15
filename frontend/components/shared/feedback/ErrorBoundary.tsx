@@ -56,6 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
       <div
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 py-12 text-center"
         role="alert"
+        aria-live="assertive"
       >
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
           <AlertTriangle className="h-8 w-8" aria-hidden />

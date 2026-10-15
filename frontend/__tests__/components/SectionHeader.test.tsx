@@ -26,7 +26,8 @@ describe('SectionHeader', () => {
         cta={{ href: '/services', label: 'عرض الكل' }}
       />,
     );
-    const link = screen.getByRole('link', { name: 'عرض الكل' });
+    const link = screen.getByRole('link', { name: 'عرض كل خدمات' });
+    expect(link).toHaveTextContent('الكل');
     expect(link).toHaveAttribute('href', '/services');
   });
 

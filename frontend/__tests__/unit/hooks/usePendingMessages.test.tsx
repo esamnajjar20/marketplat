@@ -3,6 +3,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { listQueuedMessages } from '@/lib/offlineMessagesQueue';
 import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
@@ -16,6 +18,13 @@ vi.mock('@/hooks/useQueuedRequestCount', () => ({
   QUEUE_UPDATED_EVENT: 'offline-queue:updated',
 }));
 
+function createWrapper() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
 describe('usePendingMessages', () => {
   beforeEach(() => {
     vi.mocked(listQueuedMessages).mockReset();
@@ -26,7 +35,7 @@ describe('usePendingMessages', () => {
     vi.mocked(listQueuedMessages).mockResolvedValue([
       { id: 1, conversationId: 'c1', body: 'مرحبا', status: 'pending' },
     ] as never);
-    const { result } = renderHook(() => usePendingMessages('c1'));
+    const { result } = renderHook(() => usePendingMessages('c1'), { wrapper: createWrapper() });
     await waitFor(() => {
       expect(result.current).toHaveLength(1);
     });
@@ -40,7 +49,7 @@ describe('usePendingMessages', () => {
       .mockResolvedValueOnce([
         { id: 2, conversationId: 'c1', body: 'جديد', status: 'pending' },
       ] as never);
-    const { result } = renderHook(() => usePendingMessages('c1'));
+    const { result } = renderHook(() => usePendingMessages('c1'), { wrapper: createWrapper() });
     await waitFor(() => expect(listQueuedMessages).toHaveBeenCalled());
     await act(async () => {
       window.dispatchEvent(new Event(QUEUE_UPDATED_EVENT));

@@ -225,7 +225,7 @@ describe('MyServiceListingsList', () => {
       expect(mockToggleMutate).toHaveBeenCalledWith({ id: 'l-9', status: 'ACTIVE' });
     });
 
-    it('disables the toggle only for the row matching the pending mutation', () => {
+    it('disables all row toggles while a shared status mutation is pending', () => {
       vi.mocked(useToggleServiceListingStatus).mockReturnValue({
         mutate: mockToggleMutate,
         isPending: true,
@@ -243,7 +243,7 @@ describe('MyServiceListingsList', () => {
       render(<MyServiceListingsList />);
 
       expect(screen.getByRole('button', { name: 'إيقاف الأولى مؤقتاً' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'إيقاف الثانية مؤقتاً' })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'إيقاف الثانية مؤقتاً' })).toBeDisabled();
     });
   });
 

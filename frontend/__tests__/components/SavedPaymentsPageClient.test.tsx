@@ -43,8 +43,8 @@ describe('SavedPaymentsPageClient', () => {
 
   it('renders payees and cards tabs', () => {
     render(<SavedPaymentsPageClient />);
-    expect(screen.getByText(/جهات الدفع/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /بطاقات نت/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /جهات الدفع \(/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /بطاقات نت/ })).toBeInTheDocument();
   });
 
   it('lists saved payees', () => {
@@ -64,7 +64,7 @@ describe('SavedPaymentsPageClient', () => {
     ] as never);
 
     render(<SavedPaymentsPageClient />);
-    await user.click(screen.getByRole('button', { name: /بطاقات نت/ }));
+    await user.click(screen.getByRole('tab', { name: /بطاقات نت/ }));
     await waitFor(() => {
       expect(screen.getByText('بطاقتي')).toBeInTheDocument();
     });

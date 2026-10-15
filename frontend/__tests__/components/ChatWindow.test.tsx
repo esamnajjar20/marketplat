@@ -8,7 +8,7 @@
  * click while block opens a ConfirmDialog first (mirrors
  * AdminStoresTable/AdminSellersTable's asymmetric-confirm pattern) —
  * and 's load-older-messages flow (button visibility
- * driven by meta.hasNextPage, page-2 fetch merged above the live
+ * driven by the opaque nextCursor, older-cursor fetch merged above the live
  * page, dedup by message id at the page boundary).
  * MessageInput is mocked out since it owns its own mutation hook
  * (useSendMessage) that's out of scope here — only its `disabled` prop
@@ -23,7 +23,7 @@ import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
-import { useIsUserOnline } from '@/hooks/queries/usePresence';
+import { useUserPresence } from '@/hooks/queries/usePresence';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -50,7 +50,7 @@ vi.mock('@/hooks/mutations/useConversationMutations', () => ({
 }));
 
 vi.mock('@/hooks/queries/usePresence', () => ({
-  useUserPresence: vi.fn(() => ({ data: null, isOnline: false })),
+  useUserPresence: vi.fn(() => ({ online: false, lastSeenAt: null })),
   usePresence: vi.fn(() => ({})),
   useIsUserOnline: vi.fn(),
 }));
@@ -90,7 +90,7 @@ const mockUseMessages = vi.mocked(useMessages);
 const mockUseIsUserBlocked = vi.mocked(useIsUserBlocked);
 const mockUseToggleUserBlock = vi.mocked(useToggleUserBlock);
 const mockUseDeleteMessage = vi.mocked(useDeleteMessage);
-const mockUseIsUserOnline = vi.mocked(useIsUserOnline);
+const mockUseUserPresence = vi.mocked(useUserPresence);
 const mockUsePendingMessages = vi.mocked(usePendingMessages);
 const mockUseAuthStore = vi.mocked(useAuthStore);
 
@@ -120,7 +120,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockAuthState(me);
   mockUseIsUserBlocked.mockReturnValue(false);
-  mockUseIsUserOnline.mockReturnValue(false);
+  mockUseUserPresence.mockReturnValue({ online: false, lastSeenAt: null } as never);
   mockUsePendingMessages.mockReturnValue([] as never);
   mockUseToggleUserBlock.mockReturnValue({ mutate: mockToggleBlockMutate, isPending: false } as never);
   mockUseDeleteMessage.mockReturnValue({ mutate: mockDeleteMessageMutate, isPending: false } as never);
@@ -193,8 +193,8 @@ describe('ChatWindow', () => {
     expect(screen.getByText('مرحبا')).toBeInTheDocument();
     expect(screen.getByText('أهلاً بك')).toBeInTheDocument();
     // Only my own message (m1, unread) gets a "تم الإرسال" sent-icon.
-    expect(screen.getByLabelText('تم الإرسال')).toBeInTheDocument();
-    expect(screen.queryByLabelText('تمت القراءة')).not.toBeInTheDocument();
+    expect(screen.getByText('تم الإرسال')).toBeInTheDocument();
+    expect(screen.queryByText('تمت القراءة')).not.toBeInTheDocument();
   });
 
   it('shows the read-receipt icon for my own read message', () => {
@@ -207,7 +207,7 @@ describe('ChatWindow', () => {
       isLoading: false,
     } as never);
     render(<ChatWindow conversationId="conv-1" />);
-    expect(screen.getByLabelText('تمت القراءة')).toBeInTheDocument();
+    expect(screen.getByText('تمت القراءة')).toBeInTheDocument();
   });
 
   it('passes disabled=false to MessageInput when the other party is not blocked', () => {
@@ -277,20 +277,20 @@ describe('ChatWindow', () => {
 
   describe('online presence', () => {
     it('does not show the online indicator when the other party is offline', () => {
-      mockUseIsUserOnline.mockReturnValue(false);
+      mockUseUserPresence.mockReturnValue({ online: false, lastSeenAt: null } as never);
       render(<ChatWindow conversationId="conv-1" />);
       expect(screen.queryByLabelText('متصل الآن')).not.toBeInTheDocument();
     });
 
     it('shows the online indicator when the other party is online', () => {
-      mockUseIsUserOnline.mockReturnValue(true);
+      mockUseUserPresence.mockReturnValue({ online: true, lastSeenAt: null } as never);
       render(<ChatWindow conversationId="conv-1" />);
       expect(screen.getAllByLabelText('متصل الآن').length).toBeGreaterThan(0);
     });
 
     it('queries presence for the resolved other party id, not the caller', () => {
       render(<ChatWindow conversationId="conv-1" />);
-      expect(mockUseIsUserOnline).toHaveBeenCalledWith(seller.id);
+      expect(mockUseUserPresence).toHaveBeenCalledWith(seller.id);
     });
   });
 
@@ -363,7 +363,7 @@ describe('ChatWindow', () => {
       render(<ChatWindow conversationId="conv-1" />);
 
       expect(screen.queryByLabelText('تم الإرسال')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('تمت القراءة')).not.toBeInTheDocument();
+      expect(screen.queryByText('تمت القراءة')).not.toBeInTheDocument();
     });
 
     it('clicking delete opens a confirm dialog without deleting yet', async () => {
@@ -436,7 +436,7 @@ describe('ChatWindow', () => {
 
     it('does not show "تحميل رسائل أقدم" when the live page has no further pages', () => {
       mockUseMessages.mockReturnValue({
-        data: { items: [recentMessage], meta: { hasNextPage: false } },
+        data: { items: [recentMessage], meta: { nextCursor: null } },
         isLoading: false,
         isFetching: false,
       } as never);
@@ -447,7 +447,7 @@ describe('ChatWindow', () => {
 
     it('shows "تحميل رسائل أقدم" when more history exists beyond the live page', () => {
       mockUseMessages.mockReturnValue({
-        data: { items: [recentMessage], meta: { hasNextPage: true } },
+        data: { items: [recentMessage], meta: { nextCursor: 'older-cursor' } },
         isLoading: false,
         isFetching: false,
       } as never);
@@ -456,23 +456,23 @@ describe('ChatWindow', () => {
       expect(screen.getByText('تحميل رسائل أقدم')).toBeInTheDocument();
     });
 
-    it('fetches page 2 and prepends older messages above the live page on click', async () => {
+    it('fetches the older cursor and prepends older messages above the live page on click', async () => {
       // Both calls to useMessages share one mock in this test file, so
       // this simulates the sequence: first render uses the live-page
       // args (no `page`), then re-renders after olderPage is set use
       // the page:2 args — mockImplementation lets each call's args
       // decide which page's data comes back, matching what the real
       // hook does per query key.
-      mockUseMessages.mockImplementation(((_id: string, params?: { page?: number }) => {
-        if (params?.page === 2) {
+      mockUseMessages.mockImplementation(((_id: string, params?: { before?: string; limit?: number }) => {
+        if (params?.before === 'older-cursor') {
           return {
-            data: { items: [oldMessage], meta: { hasNextPage: false } },
+            data: { items: [oldMessage], meta: { nextCursor: null } },
             isLoading: false,
             isFetching: false,
           };
         }
         return {
-          data: { items: [recentMessage], meta: { hasNextPage: true } },
+          data: { items: [recentMessage], meta: { nextCursor: 'older-cursor' } },
           isLoading: false,
           isFetching: false,
         };
@@ -493,18 +493,18 @@ describe('ChatWindow', () => {
     });
 
     it('does not duplicate a message that appears in both the live and an older page fetch', async () => {
-      mockUseMessages.mockImplementation(((_id: string, params?: { page?: number }) => {
-        if (params?.page === 2) {
+      mockUseMessages.mockImplementation(((_id: string, params?: { before?: string; limit?: number }) => {
+        if (params?.before === 'older-cursor') {
           // Same id as the live page's item — simulates the boundary
           // overlap the component's dedup-by-id logic guards against.
           return {
-            data: { items: [recentMessage], meta: { hasNextPage: false } },
+            data: { items: [recentMessage], meta: { nextCursor: null } },
             isLoading: false,
             isFetching: false,
           };
         }
         return {
-          data: { items: [recentMessage], meta: { hasNextPage: true } },
+          data: { items: [recentMessage], meta: { nextCursor: 'older-cursor' } },
           isLoading: false,
           isFetching: false,
         };

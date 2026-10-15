@@ -146,35 +146,17 @@ export function ProtectedMobileNav() {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  // HYDRATION-SAFE-PORTAL: defer createPortal into document.body until
-  // the main thread is idle. The DOM mutation trace showed the Portal
-  // insert at t=2767ms landing inside React's hydration window (which
-  // runs until t=2810ms), producing #418 on /ads. Gating on a second
-  // 'portalReady' flag (requestIdleCallback, 2500ms timeout) makes the
-  // insert land after hydration has fully settled. The drawer starts
-  // closed anyway, so the extra delay is invisible.
+  // Render the portal after the first client commit. useEffect runs after
+  // hydration, so an additional requestIdleCallback/setTimeout delay is not
+  // needed; that delay left the drawer and its links unavailable for seconds
+  // on slower devices and made keyboard navigation appear broken.
   const [portalReady, setPortalReady] = useState(false);
-  useEffect(() => {
-    if (!mounted || typeof window === 'undefined') return;
-    const ric = (window as unknown as {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-    }).requestIdleCallback;
-    if (typeof ric === 'function') {
-      const id = ric(() => setPortalReady(true), { timeout: 2500 });
-      return () => (window as unknown as {
-        cancelIdleCallback?: (id: number) => void;
-      }).cancelIdleCallback?.(id);
-    }
-    const timer = window.setTimeout(() => setPortalReady(true), 1200);
-    return () => window.clearTimeout(timer);
-  }, [mounted]);
+  useEffect(() => setPortalReady(true), []);
   const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
   const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
   const { data: myStore } = useMyStore({ enabled: isSeller });
   const { recordNavigation, isUsed } = useNavigationUsage();
-  const [showBrowse, setShowBrowse] = useState(false);
+  const [showBrowse, setShowBrowse] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -27,6 +27,13 @@ import {
   unregisterNativePush,
 } from '@/lib/capacitor/nativePush';
 import { setPushOptedOut } from '@/lib/runtime/pushPreference';
+import { getRawVapidPublicKey } from '@/lib/env';
+
+vi.mock('@/lib/env', () => ({
+  getRawVapidPublicKey: vi.fn(),
+  getRawApiUrl: vi.fn(),
+  getRawAndroidAppUrl: vi.fn(),
+}));
 
 vi.mock('@/lib/pwa', () => ({
   getPushSubscriptionState: vi.fn(),
@@ -78,6 +85,7 @@ describe('PushNotificationToggle', () => {
     vi.clearAllMocks();
     secureMem.clear();
     vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'test-vapid-key');
+    vi.mocked(getRawVapidPublicKey).mockReturnValue('test-vapid-key');
     mockIsSupported.mockReturnValue(true);
     vi.mocked(isNativePlatform).mockResolvedValue(false);
     vi.mocked(getNativePushPermissionState).mockResolvedValue('unsupported');
@@ -95,6 +103,7 @@ describe('PushNotificationToggle', () => {
 
   it('shows the unsupported panel when the VAPID key env var is missing, even if the browser supports push', async () => {
     vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', '');
+    vi.mocked(getRawVapidPublicKey).mockReturnValue('');
     mockGetState.mockResolvedValue('unsubscribed');
     render(<PushNotificationToggle />);
     expect(await screen.findByText('إشعارات الجهاز غير متاحة')).toBeInTheDocument();

@@ -139,8 +139,9 @@ export const usersApi = {
    * this at 50 ids per call (see backend's getPresenceSchema) — callers
    * are expected to only ask for however many dots the current view
    * actually needs, not the whole conversation list at once. */
-  getPresence: (userIds: string[]) =>
+  getPresence: (userIds: string[], config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<Record<string, { online: boolean; lastSeenAt: string | null }>>>('/users/presence', {
-      params: { ids: userIds.join(',') },
+      ...config,
+      params: { ...config?.params, ids: userIds.join(',') },
     }),
 };

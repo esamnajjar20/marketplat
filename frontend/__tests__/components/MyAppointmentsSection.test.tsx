@@ -44,10 +44,11 @@ describe('MyAppointmentsSection', () => {
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
-  it('shows the "not a provider yet" empty state when isError is true', () => {
-    mockProviderState({ isError: true });
+  it('shows a retryable error when provider lookup fails for a reason other than 404', () => {
+    mockProviderState({ isError: true, error: { statusCode: 500 } as never });
     render(<MyAppointmentsSection />);
-    expect(screen.getByText('لست مقدم خدمة بعد')).toBeInTheDocument();
+    expect(screen.getByText('تعذّر تحميل بيانات المواعيد. يرجى المحاولة مرة أخرى.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'إعادة المحاولة' })).toBeInTheDocument();
     expect(screen.queryByTestId('appointments-list')).not.toBeInTheDocument();
   });
 

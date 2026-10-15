@@ -88,7 +88,7 @@ describe('AdminProductsTable', () => {
     const user = setupUser();
     render(<AdminProductsTable />);
 
-    const pauseBtn = screen.queryByRole('button', { name: /إيقاف|Pause/i });
+    const pauseBtn = screen.getByRole('button', { name: 'إيقاف المنتج منتج تجريبي' });
     if (pauseBtn) {
       await user.click(pauseBtn);
       expect(mockMutate).toHaveBeenCalledWith(

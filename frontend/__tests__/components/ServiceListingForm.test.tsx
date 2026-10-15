@@ -180,7 +180,7 @@ describe('ServiceListingForm', () => {
       // doesn't reliably resolve the accessible name from plain text
       // content in this setup, so query the alert by role alone (there's
       // only one on the page) and assert its text directly instead.
-      expect(screen.getByRole('alert')).toHaveTextContent('اختر فئة الخدمة');
+      expect(screen.getByRole('status')).toHaveTextContent('اختر فئة الخدمة');
       expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 

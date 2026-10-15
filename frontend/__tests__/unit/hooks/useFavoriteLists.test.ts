@@ -63,7 +63,7 @@ describe('useFavoriteLists', () => {
 
   it('fetches lists when authenticated', async () => {
     vi.mocked(useAuthStore).mockImplementation((selector: unknown) =>
-      (selector as (s: { isAuthenticated: boolean }) => unknown)({ isAuthenticated: true }),
+      (selector as (s: { isAuthenticated: boolean; accessToken: string }) => unknown)({ isAuthenticated: true, accessToken: 'test-token' }),
     );
     vi.mocked(favoriteListsApi.list).mockResolvedValue([
       {

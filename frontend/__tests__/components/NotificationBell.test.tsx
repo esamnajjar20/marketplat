@@ -516,7 +516,7 @@ describe('NotificationBell', () => {
       // First run of 3 collapses into a group; the interrupting
       // NEW_MESSAGE and the trailing single PROMOTION each render
       // individually rather than joining the earlier group.
-      expect(await screen.findByText('إعلانات ترويجية (3)')).toBeInTheDocument();
+      expect(await screen.findByText('ترويج (3)')).toBeInTheDocument();
       expect(screen.getByText('رسالة فاصلة')).toBeInTheDocument();
       expect(screen.getByText('ترويج د')).toBeInTheDocument();
     });

@@ -117,7 +117,7 @@ describe('StoreHeader', () => {
 
     expect(screen.getByText('50')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
-    expect(screen.getByText('خان يونس')).toBeInTheDocument();
+    expect(screen.getAllByText('خان يونس').length).toBeGreaterThan(0);
   });
 
   it('renders a tel: call link with the formatted phone number', () => {

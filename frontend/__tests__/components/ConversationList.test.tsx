@@ -207,7 +207,7 @@ describe('ConversationList', () => {
         data: { items: [makeConversation({ id: 'conv-1' })] },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      mockUsePresence.mockReturnValue({ data: { [seller.id]: false } } as never);
+      mockUsePresence.mockReturnValue({ data: { [seller.id]: { online: false } } } as never);
       renderWithClient(<ConversationList />);
 
       expect(screen.queryByLabelText('متصل الآن')).not.toBeInTheDocument();
@@ -218,7 +218,7 @@ describe('ConversationList', () => {
         data: { items: [makeConversation({ id: 'conv-1' })] },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      mockUsePresence.mockReturnValue({ data: { [seller.id]: true } } as never);
+      mockUsePresence.mockReturnValue({ data: { [seller.id]: { online: true } } } as never);
       renderWithClient(<ConversationList />);
 
       expect(screen.getByLabelText('متصل الآن')).toBeInTheDocument();
@@ -249,7 +249,7 @@ describe('ConversationList', () => {
         },
         isLoading: false, isError: false, refetch: vi.fn(),
       } as never);
-      mockUsePresence.mockReturnValue({ data: { 'seller-a': true, 'seller-b': false } } as never);
+      mockUsePresence.mockReturnValue({ data: { 'seller-a': { online: true }, 'seller-b': { online: false } } } as never);
       renderWithClient(<ConversationList />);
 
       expect(screen.getAllByLabelText('متصل الآن')).toHaveLength(1);

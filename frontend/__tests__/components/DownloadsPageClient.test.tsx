@@ -111,7 +111,8 @@ describe('DownloadsPageClient', () => {
     await waitFor(() => expect(screen.getByText('متجر الأمل')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /مسح السجل/ }));
-    expect(clearCatalogDownloads).toHaveBeenCalled();
+    await user.click(await screen.findByRole('button', { name: 'مسح الكل' }));
+    await waitFor(() => expect(clearCatalogDownloads).toHaveBeenCalled());
   });
 
   it('shows store link only when online', async () => {

@@ -1,98 +1,52 @@
-/**
- * __tests__/components/HomeServicesSection.test.tsx
- */
+/** HomeServicesSection consumes the shared /home/feed cache. */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
 import { HomeServicesSection } from '@/components/home/HomeServicesSection';
-import { useServiceListings } from '@/hooks/queries/useServiceListings';
-import { useLocationResolver } from '@/hooks/useLocationResolver';
-import { useSequentialGeoSearch } from '@/hooks/queries/useSequentialGeoSearch';
+import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
+import { useForYouItems } from '@/hooks/queries/useForYouItems';
 
-vi.mock('@/hooks/queries/useServiceListings', () => ({
-  useServiceListings: vi.fn(),
+vi.mock('@/hooks/queries/useHomeFeed', () => ({ useHomeFeed: vi.fn() }));
+vi.mock('@/hooks/queries/useForYouItems', () => ({ useForYouItems: vi.fn(() => []) }));
+vi.mock('@/lib/useDataSaver', () => ({ useDataSaver: () => false }));
+vi.mock('@/components/shared/skeletons', () => ({ ServiceListingCardSkeleton: () => <div data-testid="skeleton" /> }));
+vi.mock('@/components/services/ServiceListingCard', () => ({ ServiceListingCard: ({ listing }: { listing: { title: string } }) => <div>{listing.title}</div> }));
+vi.mock('@/components/home/HomeScrollRail', () => ({
+  HomeScrollRail: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  HomeScrollRailItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
-vi.mock('@/hooks/useLocationResolver', () => ({
-  useLocationResolver: vi.fn(() => ({
-    isLoading: false,
-    source: 'none',
-    latitude: null,
-    longitude: null,
-  })),
-}));
-vi.mock('@/hooks/queries/useSequentialGeoSearch', () => ({
-  useSequentialGeoSearch: vi.fn(() => ({
-    settled: true,
-    isLoading: false,
-    isError: false,
-    items: [],
-  })),
-}));
-vi.mock('@/components/services/ServiceListingCard', () => ({
-  ServiceListingCard: ({ listing }: { listing: { title: string } }) => (
-    <div>{listing.title}</div>
-  ),
-}));
-vi.mock('@/components/home/SectionHeader', () => ({
-  SectionHeader: ({ title }: { title: string }) => <h2>{title}</h2>,
-}));
-vi.mock('@/components/home/LocationSourceBadge', () => ({
-  LocationSourceBadge: () => null,
-}));
-vi.mock('@/components/shared/skeletons', () => ({
-  StoreCardSkeleton: () => <div data-testid="skeleton" />,
-  ServiceListingCardSkeleton: () => <div data-testid="skeleton" />,
-}));
-vi.mock('@/components/shared/ApiError', () => ({
-  ApiError: ({ message }: { message?: string }) => <div>{message ?? 'error'}</div>,
-}));
-vi.mock('@/lib/listLimits', () => ({
-  homeSectionLimit: () => 4,
-}));
-vi.mock('@/lib/distance', () => ({
-  formatDistanceKm: (n: number) => `${n} كم`,
-}));
+
+const feed = (services: Array<{ id: string; title: string }> = [], pending = false) => ({
+  data: {
+    meta: { city: null, citySource: 'none', personalized: false },
+    bootstrap: { categories: { ads: null, products: null, services: null }, storeTypes: [], stats: null },
+    featured: { carousel: { ads: null, products: null, stores: null } },
+    rails: {
+      forYou: { ads: [], products: [], services: [] },
+      ads: { items: [], source: 'general' }, products: { items: [], source: 'general' },
+      services: { items: services, source: 'general' }, stores: { items: [], source: 'general' },
+      providers: { items: [], source: 'general' },
+    },
+  }, isPending: pending, isError: false, error: null, refetch: vi.fn(),
+});
 
 describe('HomeServicesSection', () => {
   beforeEach(() => {
-    vi.mocked(useLocationResolver).mockReturnValue({
-      isLoading: false,
-      source: 'none',
-      latitude: null,
-      longitude: null,
-    } as never);
-    vi.mocked(useSequentialGeoSearch).mockReturnValue({
-      settled: true,
-      isLoading: false,
-      isError: false,
-      items: [],
-    } as never);
-    vi.mocked(useServiceListings).mockReturnValue({
-      data: {
-        items: [
-          { id: '1', title: 'سباكة منزلية' },
-          { id: '2', title: 'كهرباء' },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-    } as never);
+    vi.clearAllMocks();
+    vi.mocked(useForYouItems).mockReturnValue([] as never);
+    vi.mocked(useHomeFeed).mockReturnValue(feed([{ id: '1', title: 'سباكة منزلية' }, { id: '2', title: 'كهرباء' }]) as never);
   });
 
-  it('shows loading skeletons', () => {
-    vi.mocked(useServiceListings).mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-    } as never);
+  it('shows loading skeletons while the shared feed is pending', () => {
+    vi.mocked(useHomeFeed).mockReturnValue({ ...feed(), data: undefined, isPending: true } as never);
     render(<HomeServicesSection />);
-    expect(screen.getByText('خدمات متاحة')).toBeInTheDocument();
+    expect(screen.getByText('خدمات تناسبك')).toBeInTheDocument();
     expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0);
   });
 
-  it('renders service titles from general query', () => {
+  it('renders service titles from the shared services rail', () => {
     render(<HomeServicesSection />);
-    expect(screen.getByText('خدمات متاحة')).toBeInTheDocument();
+    expect(screen.getByText('خدمات تناسبك')).toBeInTheDocument();
     expect(screen.getByText('سباكة منزلية')).toBeInTheDocument();
     expect(screen.getByText('كهرباء')).toBeInTheDocument();
   });

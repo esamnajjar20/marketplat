@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-function useSearchParams() { return new URLSearchParams() as any; }
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button }  from '@/components/shared/ui/Button';
 import { Input }   from '@/components/shared/ui/Input';
 import {
@@ -75,7 +74,20 @@ export function SearchFilters({ categorySlug }: Props = {}) {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set(key, value); else params.delete(key);
     params.delete('page');
-    router.push(`${pathname}?${params.toString()}`);
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
+  function resetFilters() {
+    // A pending price debounce must not navigate back to stale filters
+    // after the user has explicitly reset the panel.
+    if (priceDebounceRef.current) {
+      clearTimeout(priceDebounceRef.current);
+      priceDebounceRef.current = undefined;
+    }
+    setMinPrice('');
+    setMaxPrice('');
+    router.push(pathname);
   }
 
   // FIX BUG-06 (cont.): picking a category from this dropdown while on
@@ -169,7 +181,7 @@ export function SearchFilters({ categorySlug }: Props = {}) {
           ROUTES.search here would silently drop the category itself
           (the whole reason the user is on this page) instead of just
           clearing the extra filters layered on top of it. */}
-      <Button variant="outline" className="w-full text-sm" onClick={() => router.push(pathname)}>
+      <Button variant="outline" className="w-full text-sm" onClick={resetFilters}>
         إعادة تعيين الفلاتر
       </Button>
     </div>

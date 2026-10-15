@@ -4,7 +4,8 @@
  * Public store page keeps the requested store focused: header and storefront only.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-support/render';
 import StorePage from '@/app/(public)/stores/[id]/page';
 import { storesApi } from '@/api/stores.api';
 

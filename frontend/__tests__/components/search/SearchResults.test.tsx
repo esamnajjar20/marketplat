@@ -11,10 +11,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useInfiniteQuery } from '@tanstack/react-query';
 import { setupUser } from '@/test-support/user-event';
 import { SearchResults } from '@/components/search/SearchResults';
-import { useSearch } from '@/hooks/queries/useSearch';
 import { track } from '@/lib/analytics';
 
 let mockSearchParams = new URLSearchParams();
@@ -24,6 +23,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
   usePathname: () => '/search',
 }));
+vi.mock('@/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => true }));
 vi.mock('@/components/ads/SaveSearchButton', () => ({
   SaveSearchButton: () => null,
 }));
@@ -34,8 +34,15 @@ vi.mock('@/components/search/EmptySearchSuggestions', () => ({
   EmptySearchSuggestions: () => null,
 }));
 
-vi.mock('@/hooks/queries/useSearch', () => ({
-  useSearch: vi.fn(),
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+  return { ...actual, useInfiniteQuery: vi.fn() };
+});
+
+vi.mock('@/components/shared/list/InfiniteScrollTrigger', () => ({
+  InfiniteScrollTrigger: ({ hasNextPage }: { hasNextPage: boolean }) => (
+    <div data-testid="infinite-scroll-trigger" data-has-next-page={String(hasNextPage)} />
+  ),
 }));
 
 vi.mock('@/lib/analytics', () => ({
@@ -63,13 +70,18 @@ const baseResult = {
   distanceKm: null,
 };
 
-function mockSearchState(overrides: Partial<ReturnType<typeof useSearch>>) {
-  vi.mocked(useSearch).mockReturnValue({
-    data: undefined,
+function mockSearchState(overrides: Record<string, any> = {}) {
+  const { data, ...rest } = overrides;
+  vi.mocked(useInfiniteQuery).mockReturnValue({
+    data: data ? { pages: [data], pageParams: [1] } : undefined,
     isLoading: false,
+    isFetching: false,
     isError: false,
     refetch: vi.fn(),
-    ...overrides,
+    fetchNextPage: vi.fn(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    ...rest,
   } as never);
 }
 
@@ -92,19 +104,21 @@ describe('SearchResults', () => {
     mockSearchState({ data: { items: [], meta: { total: 0, totalPages: 1 } } });
     renderResults();
 
-    expect(useSearch).toHaveBeenCalledWith({
+    const queryKey = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0].queryKey as unknown[];
+    expect(queryKey[0]).toBe('search');
+    expect(queryKey[1]).toBe('infinite');
+    expect(queryKey[2]).toEqual(expect.objectContaining({
       q: 'هاتف', city: 'غزة', type: 'products', categoryId: 'cat-1',
-      sort: 'newest', page: 2, lat: 31.9, lng: 35.2, radius: 15,
-    });
+      sort: 'newest', pageSize: expect.any(Number), lat: 31.9, lng: 35.2, radius: 15,
+    }));
   });
 
   it('defaults type to "all", sort to "relevance", and page to 1 when absent', () => {
     mockSearchState({ data: { items: [], meta: { total: 0, totalPages: 1 } } });
     renderResults();
 
-    expect(useSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'all', sort: 'relevance', page: 1, lat: undefined, lng: undefined }),
-    );
+    const queryKey = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0].queryKey as unknown[];
+    expect(queryKey[2]).toEqual(expect.objectContaining({ type: 'all', sort: 'relevance', lat: undefined, lng: undefined }));
   });
 
   it('shows a loading spinner while isLoading is true', () => {
@@ -160,13 +174,13 @@ describe('SearchResults', () => {
   it('does not render pagination when totalPages is 1', () => {
     mockSearchState({ data: { items: [baseResult], meta: { total: 1, totalPages: 1 } } });
     renderResults();
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.getByTestId('infinite-scroll-trigger')).toHaveAttribute('data-has-next-page', 'false');
   });
 
   it('renders pagination when totalPages > 1', () => {
-    mockSearchState({ data: { items: [baseResult], meta: { total: 30, totalPages: 3 } } });
+    mockSearchState({ data: { items: [baseResult], meta: { total: 30, totalPages: 3 } }, hasNextPage: true });
     renderResults();
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByTestId('infinite-scroll-trigger')).toHaveAttribute('data-has-next-page', 'true');
   });
 
   describe('analytics', () => {

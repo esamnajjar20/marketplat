@@ -29,6 +29,9 @@ import { setupUser } from '@/test-support/user-event';
 import { MyAdsList } from '@/components/profile/MyAdsList';
 import { useMyAds } from '@/hooks/queries/useAds';
 import { useDeleteAd, useMarkAsSold } from '@/hooks/mutations/useAdMutations';
+import { toast } from 'sonner';
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), message: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/hooks/queries/useAds', () => ({
   useMyAds: vi.fn(),
@@ -90,7 +93,7 @@ describe('MyAdsList', () => {
     // animate-pulse), not a spinner.
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: true });
     const { container } = render(<MyAdsList />);
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.animate-pulse, .skeleton-shimmer').length).toBeGreaterThan(0);
   });
 
   it('shows the empty state when there are no ads', () => {
@@ -253,7 +256,7 @@ describe('MyAdsList', () => {
     expect(screen.queryByText('حذف الإعلان؟')).not.toBeInTheDocument();
   });
 
-  it('clicking the delete icon opens the confirm dialog without deleting yet', async () => {
+  it('optimistically hides an ad and offers an undo action before deleting it', async () => {
     const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-7', title: 'إعلان سبعة' })], meta: { totalPages: 1 } },
@@ -261,50 +264,29 @@ describe('MyAdsList', () => {
     });
     render(<MyAdsList />);
 
-    // FIX A11Y-01: the trash button now has a real aria-label
-    // ("حذف <title>") instead of being unreachable by role/name — no
-    // more need to reach for a CSS-class querySelector to find it.
     await user.click(screen.getByRole('button', { name: 'حذف إعلان سبعة' }));
-
-    expect(screen.getByText('حذف الإعلان؟')).toBeInTheDocument();
     expect(mockDeleteMutate).not.toHaveBeenCalled();
-  });
-
-  it('confirming the dialog calls deleteAd.mutate with the correct ad ID', async () => {
-    const user = setupUser();
-    (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { items: [makeAd({ id: 'ad-7', title: 'إعلان سبعة' })], meta: { totalPages: 1 } },
-      isLoading: false,
-    });
-    render(<MyAdsList />);
-
-    await user.click(screen.getByRole('button', { name: 'حذف إعلان سبعة' }));
-    // The ConfirmDialog's own confirm button is also literally named
-    // "حذف" — disambiguated from the icon button above by its exact
-    // (non-suffixed) accessible name.
-    await user.click(screen.getByRole('button', { name: 'حذف' }));
-
-    // UX-FIX P1-3: ConfirmDialog now waits for the mutation to resolve
-    // before closing, so the caller passes an onSuccess callback
-    // alongside the id.
-    expect(mockDeleteMutate).toHaveBeenCalledWith('ad-7', expect.objectContaining({
-      onSuccess: expect.any(Function),
+    const options = vi.mocked(toast.success).mock.calls.at(-1)?.[1] as { action?: { onClick?: () => void } } | undefined;
+    options?.action?.onClick?.();
+    expect(toast.success).toHaveBeenCalledWith('تم حذف الإعلان', expect.objectContaining({
+      duration: 10_000,
+      action: expect.objectContaining({ label: 'تراجع', onClick: expect.any(Function) }),
     }));
+    const options = vi.mocked(toast.success).mock.calls.at(-1)?.[1] as { action?: { onClick?: () => void } } | undefined;
+    options?.action?.onClick?.();
   });
 
-  it('cancelling the dialog does not call deleteAd.mutate', async () => {
+  it('does not call the delete mutation immediately because deletion is delayed for undo', async () => {
     const user = setupUser();
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { items: [makeAd({ id: 'ad-7', title: 'إعلان سبعة' })], meta: { totalPages: 1 } },
       isLoading: false,
     });
     render(<MyAdsList />);
-
     await user.click(screen.getByRole('button', { name: 'حذف إعلان سبعة' }));
-    await user.click(screen.getByRole('button', { name: 'إلغاء' }));
-
     expect(mockDeleteMutate).not.toHaveBeenCalled();
-    expect(screen.queryByText('حذف الإعلان؟')).not.toBeInTheDocument();
+    const options = vi.mocked(toast.success).mock.calls.at(-1)?.[1] as { action?: { onClick?: () => void } } | undefined;
+    options?.action?.onClick?.();
   });
 
   it('targets the correct ad when multiple ads are present', async () => {
@@ -319,10 +301,11 @@ describe('MyAdsList', () => {
     render(<MyAdsList />);
 
     await user.click(screen.getByRole('button', { name: 'حذف الثاني' }));
-    await user.click(screen.getByRole('button', { name: 'حذف' }));
-
-    expect(mockDeleteMutate).toHaveBeenCalledWith('ad-2', expect.objectContaining({
-      onSuccess: expect.any(Function),
+    expect(toast.success).toHaveBeenCalledWith('تم حذف الإعلان', expect.objectContaining({
+      action: expect.objectContaining({ onClick: expect.any(Function) }),
     }));
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
+    const options = vi.mocked(toast.success).mock.calls.at(-1)?.[1] as { action?: { onClick?: () => void } } | undefined;
+    options?.action?.onClick?.();
   });
 });

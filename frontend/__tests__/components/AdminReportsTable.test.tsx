@@ -27,7 +27,7 @@
  * confirming it.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { AdminReportsTable } from '@/components/admin/AdminReportsTable';
 import { useAdminReports } from '@/hooks/queries/useAdmin';
@@ -211,7 +211,9 @@ describe('AdminReportsTable', () => {
     it('shows no bulk action bar when nothing is selected', () => {
       mockReportsData([baseReport, secondReport]);
       render(<AdminReportsTable />);
-      expect(screen.queryByRole('toolbar', { name: 'إجراءات جماعية' })).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByRole('toolbar', { name: 'إجراءات جماعية' })).not.toBeInTheDocument();
+      });
     });
 
     it('shows the selected count after checking a row', async () => {

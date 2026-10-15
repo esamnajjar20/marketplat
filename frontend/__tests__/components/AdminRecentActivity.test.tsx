@@ -75,7 +75,7 @@ describe('AdminRecentActivity', () => {
       isLoading: false, isError: false, refetch: vi.fn(),
     } as never);
     render(<AdminRecentActivity />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('handles a missing data object by treating items as empty', () => {

@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ScrollToTop } from '@/components/shared/ui/ScrollToTop';
 describe('ScrollToTop', () => {
-  beforeEach(() => { vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined); });
+  beforeEach(() => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => { callback(0); return 0; });
+  });
   afterEach(() => vi.restoreAllMocks());
   it('shows after scroll and scrolls on click', () => {
     render(<ScrollToTop />);
@@ -11,7 +14,7 @@ describe('ScrollToTop', () => {
       Object.defineProperty(window, 'scrollY', { value: 500, configurable: true });
       window.dispatchEvent(new Event('scroll'));
     });
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: 'العودة إلى أعلى الصفحة' }));
     expect(window.scrollTo).toHaveBeenCalled();
   });
 });

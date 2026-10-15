@@ -113,11 +113,11 @@ describe('HomeContextStrip', () => {
     } as never);
   });
 
-  it('shows activity count when homepage stats are present', () => {
+  it('renders the city-browse control when the location preference is ready', () => {
     render(<HomeContextStrip />);
-    expect(
-      screen.getByText((content) => content.includes('اليوم') && content.includes('+')),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'مدينة تصفح نتائج الصفحة الرئيسية' })).toBeInTheDocument();
+    expect(screen.getByText('عرض النتائج حسب المدينة')).toBeInTheDocument();
+    expect(screen.getByText('كل المدن')).toBeInTheDocument();
   });
 });
 

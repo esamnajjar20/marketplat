@@ -111,7 +111,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[0]);
+      await user.click(triggers[1]);
       expect(await screen.findByRole('option', { name: 'كل الفئات' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'سباكة' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'كهرباء' })).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[0]);
+      await user.click(triggers[1]);
       await user.click(await screen.findByRole('option', { name: 'سباكة' }));
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('categoryId=cat-1'));
     });
@@ -131,7 +131,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[0]);
+      await user.click(triggers[1]);
       await user.click(await screen.findByRole('option', { name: 'كل الفئات' }));
       const lastCall = mockPush.mock.calls.at(-1)?.[0] as string;
       expect(lastCall).not.toContain('categoryId=');
@@ -142,7 +142,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[0]);
+      await user.click(triggers[1]);
       expect(await screen.findByRole('option', { name: 'كل الفئات' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: 'سباكة' })).not.toBeInTheDocument();
     });
@@ -153,7 +153,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[1]);
+      await user.click(triggers[2]);
       expect(await screen.findByRole('option', { name: 'غزة' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'رفح' })).toBeInTheDocument();
     });
@@ -162,7 +162,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[1]);
+      await user.click(triggers[2]);
       await user.click(await screen.findByRole('option', { name: 'خان يونس' }));
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('city=%D8%AE%D8%A7%D9%86'));
     });
@@ -173,7 +173,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[2]);
+      await user.click(triggers[3]);
       expect(await screen.findByRole('option', { name: 'لدى العميل' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'لدى مقدم الخدمة' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'عن بُعد' })).toBeInTheDocument();
@@ -183,7 +183,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[2]);
+      await user.click(triggers[3]);
       await user.click(await screen.findByRole('option', { name: 'عن بُعد' }));
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('serviceLocation=REMOTE'));
     });

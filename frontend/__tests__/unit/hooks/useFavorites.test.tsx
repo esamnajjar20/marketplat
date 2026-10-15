@@ -113,6 +113,7 @@ function wrapperFor(queryClient: QueryClient) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   useAuthStore.getState().setAuth(mockUser, mockTokens);
 });
 
@@ -215,6 +216,7 @@ describe('useToggleFavorite', () => {
 
     // Optimistic update should be synchronous/immediate, before the
     // mocked network call even resolves.
+    await waitFor(() => expect(queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids())?.has('ad-2')).toBe(true));
     const idsDuringFlight = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids());
     expect(idsDuringFlight!.has('ad-2')).toBe(true);
 
@@ -231,6 +233,7 @@ describe('useToggleFavorite', () => {
     const { result } = renderHook(() => useToggleFavorite(), { wrapper: wrapperFor(queryClient) });
     act(() => { result.current.mutate('ad-1'); });
 
+    await waitFor(() => expect(queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids())?.has('ad-1')).toBe(false));
     const idsDuringFlight = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids());
     expect(idsDuringFlight!.has('ad-1')).toBe(false);
     expect(idsDuringFlight!.has('ad-2')).toBe(true); // untouched
@@ -238,10 +241,10 @@ describe('useToggleFavorite', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 
-  it('rolls back to the previous Set when the request fails', async () => {
+  it('keeps the latest optimistic intent when the request fails, rather than restoring a stale snapshot', async () => {
     const queryClient = makeSharedClient();
     queryClient.setQueryData(queryKeys.favorites.ids(), new Set(['ad-1']));
-    (favoritesApi.toggle as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    (favoritesApi.toggle as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'تعذر تحديث المفضلة' } } });
 
     const { result } = renderHook(() => useToggleFavorite(), { wrapper: wrapperFor(queryClient) });
     act(() => { result.current.mutate('ad-2'); });
@@ -249,7 +252,7 @@ describe('useToggleFavorite', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
 
     const idsAfterRollback = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids());
-    expect(idsAfterRollback!.has('ad-2')).toBe(false);
+    expect(idsAfterRollback!.has('ad-2')).toBe(true);
     expect(idsAfterRollback!.has('ad-1')).toBe(true);
     expect(toast.error).toHaveBeenCalled();
   });
@@ -505,6 +508,7 @@ describe('useToggleFavoriteEntity', () => {
     const { result } = renderHook(() => useToggleFavoriteEntity('PRODUCT'), { wrapper: wrapperFor(queryClient) });
     act(() => { result.current.mutate('prod-2'); });
 
+    await waitFor(() => expect(queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('PRODUCT'))?.has('prod-2')).toBe(true));
     const idsDuringFlight = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('PRODUCT'));
     expect(idsDuringFlight!.has('prod-2')).toBe(true);
 
@@ -522,6 +526,7 @@ describe('useToggleFavoriteEntity', () => {
     const { result } = renderHook(() => useToggleFavoriteEntity('STORE'), { wrapper: wrapperFor(queryClient) });
     act(() => { result.current.mutate('store-1'); });
 
+    await waitFor(() => expect(queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('STORE'))?.has('store-1')).toBe(false));
     const idsDuringFlight = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('STORE'));
     expect(idsDuringFlight!.has('store-1')).toBe(false);
     expect(idsDuringFlight!.has('store-2')).toBe(true); // untouched
@@ -529,10 +534,10 @@ describe('useToggleFavoriteEntity', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 
-  it('rolls back to the previous Set when the request fails', async () => {
+  it('keeps the latest optimistic intent when the request fails, rather than restoring a stale snapshot', async () => {
     const queryClient = makeSharedClient();
     queryClient.setQueryData(queryKeys.favorites.entityIds('SERVICE_LISTING'), new Set(['svc-1']));
-    (favoritesApi.toggleEntity as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+    (favoritesApi.toggleEntity as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'تعذر تحديث المفضلة' } } });
 
     const { result } = renderHook(() => useToggleFavoriteEntity('SERVICE_LISTING'), { wrapper: wrapperFor(queryClient) });
     act(() => { result.current.mutate('svc-2'); });
@@ -540,7 +545,7 @@ describe('useToggleFavoriteEntity', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
 
     const idsAfterRollback = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds('SERVICE_LISTING'));
-    expect(idsAfterRollback!.has('svc-2')).toBe(false);
+    expect(idsAfterRollback!.has('svc-2')).toBe(true);
     expect(idsAfterRollback!.has('svc-1')).toBe(true);
     expect(toast.error).toHaveBeenCalled();
   });

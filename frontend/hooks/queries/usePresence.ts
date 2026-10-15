@@ -31,7 +31,7 @@ export function usePresence(userIds: string[]) {
 
   return useQuery({
     queryKey: queryKeys.presence.bulk(userIds),
-    queryFn: () => usersApi.getPresence(userIds).then((r) => r.data.data),
+    queryFn: ({ signal }) => usersApi.getPresence(userIds, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.presence,
     refetchInterval: () => pollingInterval(CACHE_TTL.presence, 3),
     // Presence already pauses through pollingInterval when hidden/offline.

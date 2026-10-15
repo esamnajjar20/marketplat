@@ -6,6 +6,7 @@ import { storeTypesController } from '../store-types/store-types.controller';
 import { storeTypeFieldsController } from '../store-types/store-type-fields.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireMinRole } from '../../middlewares/admin.middleware';
+import { CACHE } from '../../middlewares/cacheControl.middleware';
 // FIX RATE-LIMIT-ADMIN-01: blanket cap on every /admin/* route --
 // see adminRateLimit's own comment in rateLimit.middleware.ts.
 import { adminRateLimit } from '../../middlewares/rateLimit.middleware';
@@ -79,46 +80,38 @@ adminRouter.get('/system-health', requireMinRole(ROLES.ADMIN), adminController.g
 adminRouter.get(
   '/developer-tools/setting',
   requireMinRole(ROLES.ADMIN),
+  CACHE.SECURITY,
   adminController.getDeveloperToolsSetting
 );
 adminRouter.patch(
   '/developer-tools/setting',
   requireMinRole(ROLES.ADMIN),
+  CACHE.SECURITY,
   adminController.setDeveloperToolsSetting
 );
 
-// Monitoring responses contain operational metadata and must never be cached
-// by browsers, reverse proxies, or shared intermediaries. Keep the stricter
-// role gate on every endpoint; acknowledgement is a state-changing operation.
-const monitoringNoStore = (_req: Request, res: Response, next: NextFunction): void => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Vary', 'Authorization, Cookie');
-  next();
-};
 adminRouter.get(
   '/monitoring/events',
   requireMinRole(ROLES.ADMIN),
-  monitoringNoStore,
+  CACHE.SECURITY,
   adminController.getMonitoringEvents
 );
 adminRouter.get(
   '/monitoring/alerts',
   requireMinRole(ROLES.ADMIN),
-  monitoringNoStore,
+  CACHE.SECURITY,
   adminController.getMonitoringAlerts
 );
 adminRouter.patch(
   '/monitoring/alerts/:id/acknowledge',
   requireMinRole(ROLES.ADMIN),
-  monitoringNoStore,
+  CACHE.SECURITY,
   adminController.acknowledgeMonitoringAlert
 );
 adminRouter.get(
   '/monitoring/history',
   requireMinRole(ROLES.ADMIN),
-  monitoringNoStore,
+  CACHE.SECURITY,
   adminController.getMonitoringHistory
 );
 adminRouter.get('/export/users.csv', requireMinRole(ROLES.ADMIN), adminController.exportUsersCsv);

@@ -91,6 +91,8 @@ export function useStores(
         }
         return data;
       } catch (err) {
+        // React Query cancellation is intentional; never turn it into stale offline data.
+        if (signal.aborted) throw err;
         if (isBaseBrowse) {
           const local = getOfflineList<StoreWithSeller>(OFFLINE_LIST_KEYS.storesBrowse);
           if (local) {
@@ -156,6 +158,8 @@ export function useMyStore(options?: { enabled?: boolean }) {
         if (data) saveOfflineJson(OFFLINE_JSON_KEYS.storeSelf, data, userId);
         return data;
       } catch (err) {
+        // Preserve cancellation semantics before attempting an offline fallback.
+        if (signal.aborted) throw err;
         const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
         if (isNetworkFailure) {
           const cached = getOfflineJson<StoreDetails>(OFFLINE_JSON_KEYS.storeSelf, userId);

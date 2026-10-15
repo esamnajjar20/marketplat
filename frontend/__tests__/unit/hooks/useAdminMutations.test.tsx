@@ -73,6 +73,7 @@ describe('useAdminSetFeatured / useAdminSetPinned (shared optimistic-update logi
     const { result } = renderHook(() => useAdminSetFeatured(), { wrapper: createWrapper(queryClient) });
     act(() => { result.current.mutate({ adId: 'ad-1', value: true }); });
 
+    await waitFor(() => expect(queryClient.getQueryData<any>(queryKeys.admin.ads()).items.find((a: any) => a.id === 'ad-1').isFeatured).toBe(true));
     const duringFlight = queryClient.getQueryData<any>(queryKeys.admin.ads());
     expect(duringFlight.items.find((a: any) => a.id === 'ad-1').isFeatured).toBe(true);
     expect(duringFlight.items.find((a: any) => a.id === 'ad-2').isFeatured).toBe(false);
@@ -124,6 +125,7 @@ describe('useAdminSetFeatured / useAdminSetPinned (shared optimistic-update logi
     const { result } = renderHook(() => useAdminSetPinned(), { wrapper: createWrapper(queryClient) });
     act(() => { result.current.mutate({ adId: 'ad-1', value: true }); });
 
+    await waitFor(() => expect(queryClient.getQueryData<any>(queryKeys.admin.ads()).items.find((a: any) => a.id === 'ad-1').isPinned).toBe(true));
     const duringFlight = queryClient.getQueryData<any>(queryKeys.admin.ads());
     const ad1 = duringFlight.items.find((a: any) => a.id === 'ad-1');
     expect(ad1.isPinned).toBe(true);
@@ -187,6 +189,7 @@ describe('useAdminToggleUserActive', () => {
     const { result } = renderHook(() => useAdminToggleUserActive(), { wrapper: createWrapper(queryClient) });
     act(() => { result.current.mutate({ userId: 'user-1', isActive: false }); });
 
+    await waitFor(() => expect(queryClient.getQueryData<any>(queryKeys.admin.users()).items[0].isActive).toBe(false));
     const duringFlight = queryClient.getQueryData<any>(queryKeys.admin.users());
     expect(duringFlight.items[0].isActive).toBe(false);
 
@@ -228,6 +231,7 @@ describe('useAdminChangeRole (FIX AUDIT-V3-05)', () => {
     const { result } = renderHook(() => useAdminChangeRole(), { wrapper: createWrapper(queryClient) });
     act(() => { result.current.mutate({ userId: 'user-1', role: 'ADMIN' }); });
 
+    await waitFor(() => expect(queryClient.getQueryData<any>(queryKeys.admin.users()).items[0].role).toBe('ADMIN'));
     const duringFlight = queryClient.getQueryData<any>(queryKeys.admin.users());
     expect(duringFlight.items[0].role).toBe('ADMIN');
 

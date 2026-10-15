@@ -54,7 +54,7 @@ describe('AdminSystemHealth', () => {
   it('renders db and redis status cards', () => {
     render(<AdminSystemHealth />);
     expect(screen.getByText('قاعدة البيانات')).toBeInTheDocument();
-    expect(screen.getByText('Redis')).toBeInTheDocument();
+    expect(screen.getByText(/Redis/)).toBeInTheDocument();
     expect(screen.getAllByText('سليم').length).toBeGreaterThan(0);
   });
 

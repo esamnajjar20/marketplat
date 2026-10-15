@@ -46,6 +46,7 @@ import {
   useReorderAdImages,
 } from '@/hooks/mutations/useAdMutations';
 import { adsApi } from '@/api/ads.api';
+import { queryKeys } from '@/lib/queryKeys';
 import { saveAdDraft } from '@/lib/offlineAdDrafts';
 import { toast } from 'sonner';
 
@@ -93,11 +94,6 @@ vi.mock('@/lib/offlineAdDrafts', () => ({
 
 // FIX IMAGEOFFLINE-WIRE-01: jsdom has no Canvas/createImageBitmap, so the
 // real compressImageForOffline can't run here — mocked per-test instead.
-vi.mock('@/lib/queryInvalidation', () => ({
-  invalidateAdBrowseCaches: vi.fn().mockResolvedValue(undefined),
-  invalidateAdEntityCaches: vi.fn().mockResolvedValue(undefined),
-}));
-
 vi.mock('@/lib/imageOffline', () => ({
   compressImageForOffline: vi.fn(),
 }));
@@ -188,7 +184,7 @@ describe('useMarkAsSold', () => {
   });
 
   it('shows an error toast on failure', async () => {
-    (adsApi.markAsSold as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Server error'));
+    (adsApi.markAsSold as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'Server error' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useMarkAsSold(), { wrapper });
@@ -237,7 +233,7 @@ describe('useDeleteAd', () => {
   });
 
   it('shows an error toast and does not navigate on failure', async () => {
-    (adsApi.delete as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Cannot delete'));
+    (adsApi.delete as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'Cannot delete' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useDeleteAd(), { wrapper });
@@ -278,7 +274,7 @@ describe('useCreateAd', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
+    expect(invalidatedKeys.some((k) => k === JSON.stringify(queryKeys.ads.listRoot()))).toBe(true);
     expect(toast.success).toHaveBeenCalledWith(
       'تم نشر الإعلان بنجاح',
       expect.objectContaining({ description: expect.any(String) }),
@@ -287,7 +283,7 @@ describe('useCreateAd', () => {
   });
 
   it('shows an error toast and does not navigate on failure', async () => {
-    (adsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Upload failed'));
+    (adsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'Upload failed' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useCreateAd(), { wrapper });
@@ -376,7 +372,7 @@ describe('useCreateAd', () => {
   it('still saves the draft (without a preview) when compression fails for every image', async () => {
     (adsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    vi.mocked(compressImageForOffline).mockRejectedValue(new Error('canvas unsupported'));
+    vi.mocked(compressImageForOffline).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'canvas unsupported' } } });
     const { wrapper } = createWrapper();
     const file = new File(['x'], 'photo.png', { type: 'image/png' });
     const payload = { title: 'Offline Ad', description: 'desc', images: [file] } as unknown as Parameters<
@@ -422,13 +418,13 @@ describe('useUpdateAd', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
+    expect(invalidatedKeys.some((k) => k === JSON.stringify(queryKeys.ads.listRoot()))).toBe(true);
     expect(toast.success).toHaveBeenCalledWith('تم حفظ التعديلات');
     expect(mockPush).toHaveBeenCalledWith('/ads/ad-1');
   });
 
   it('shows an error toast on failure', async () => {
-    (adsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Server error'));
+    (adsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'Server error' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useUpdateAd('ad-1'), { wrapper });
@@ -498,12 +494,12 @@ describe('useAddAdImages', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
+    expect(invalidatedKeys.some((k) => k === JSON.stringify(queryKeys.ads.listRoot()))).toBe(true);
     expect(toast.success).not.toHaveBeenCalled();
   });
 
   it('shows an error toast on failure', async () => {
-    (adsApi.addImages as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Upload failed'));
+    (adsApi.addImages as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'Upload failed' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useAddAdImages(), { wrapper });
@@ -535,11 +531,11 @@ describe('useRemoveAdImage', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
+    expect(invalidatedKeys.some((k) => k === JSON.stringify(queryKeys.ads.listRoot()))).toBe(true);
   });
 
   it('shows an error toast on failure', async () => {
-    (adsApi.removeImage as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Cannot remove'));
+    (adsApi.removeImage as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'Cannot remove' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useRemoveAdImage(), { wrapper });
@@ -572,11 +568,11 @@ describe('useReorderAdImages', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k === JSON.stringify(['ads']))).toBe(true);
+    expect(invalidatedKeys.some((k) => k === JSON.stringify(queryKeys.ads.listRoot()))).toBe(true);
   });
 
   it('shows an error toast on failure', async () => {
-    (adsApi.reorderImages as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Reorder failed'));
+    (adsApi.reorderImages as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'Reorder failed' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useReorderAdImages(), { wrapper });

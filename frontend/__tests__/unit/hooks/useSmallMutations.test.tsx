@@ -140,7 +140,7 @@ describe('useMarkNotificationRead', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(notificationsApi.markRead).toHaveBeenCalledWith('notif-1');
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k === JSON.stringify(['notifications']))).toBe(true);
+    expect(invalidatedKeys.some((k) => JSON.parse(k)[0] === 'notifications')).toBe(true);
   });
 
   it('does not show an error toast on failure (silent per design)', async () => {
@@ -166,7 +166,7 @@ describe('useMarkAllNotificationsRead', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(notificationsApi.markAllRead).toHaveBeenCalled();
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
-    expect(invalidatedKeys.some((k) => k === JSON.stringify(['notifications']))).toBe(true);
+    expect(invalidatedKeys.some((k) => JSON.parse(k)[0] === 'notifications')).toBe(true);
   });
 
   it('shows an error toast on failure', async () => {

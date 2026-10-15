@@ -215,8 +215,8 @@ describe('offlineAdDrafts', () => {
   it('clearDraftOnlyAdDrafts removes status:"draft" but keeps pending_sync/failed', async () => {
     currentUserId.value = 'u1';
     await lib.saveAdDraft({ mode: 'create', payload, userId: 'u1', status: 'draft' });
-    const pending = await lib.saveAdDraft({ mode: 'create', payload, userId: 'u1', status: 'pending_sync' });
-    const failed = await lib.saveAdDraft({ mode: 'create', payload, userId: 'u1', status: 'failed' });
+    const pending = await lib.saveAdDraft({ mode: 'create', payload: { ...payload, title: 'pending submission' }, userId: 'u1', status: 'pending_sync' });
+    const failed = await lib.saveAdDraft({ mode: 'create', payload: { ...payload, title: 'failed submission' }, userId: 'u1', status: 'failed' });
 
     await lib.clearDraftOnlyAdDrafts();
 

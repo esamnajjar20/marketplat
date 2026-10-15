@@ -20,7 +20,7 @@ import { StoresFilters } from '@/components/stores/StoresFilters';
 const mockPush = vi.fn();
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockPush }),
   useSearchParams: () => mockSearchParams,
 }));
 
@@ -71,8 +71,8 @@ describe('StoresFilters', () => {
     render(<StoresFilters />);
 
     const triggers = screen.getAllByRole('combobox');
-    await user.click(triggers[0]);
-    await user.click(await screen.findByText('غزة'));
+    await user.click(triggers[1]);
+    await user.click(await screen.findByRole('option', { name: 'غزة' }));
 
     expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('city=%D8%BA%D8%B2%D8%A9'));
   });
@@ -83,8 +83,8 @@ describe('StoresFilters', () => {
     render(<StoresFilters />);
 
     const triggers = screen.getAllByRole('combobox');
-    await user.click(triggers[0]);
-    await user.click((await screen.findAllByText('كل المدن'))[0]);
+    await user.click(triggers[1]);
+    await user.click(await screen.findByRole('option', { name: 'كل المدن' }));
 
     expect(mockPush).toHaveBeenCalledWith(expect.not.stringContaining('city='));
   });

@@ -13,12 +13,16 @@
  * independently assertable via mocks here.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { PwaBootstrap } from '@/components/pwa/PwaBootstrap';
 import { registerServiceWorker } from '@/lib/pwa';
 
 vi.mock('@/lib/pwa', () => ({
   registerServiceWorker: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('@/lib/runtime/appMode', () => ({
+  getAppMode: vi.fn().mockResolvedValue('web'),
 }));
 
 vi.mock('@/components/pwa/InstallPrompt', () => ({
@@ -38,10 +42,11 @@ describe('PwaBootstrap', () => {
     vi.restoreAllMocks();
   });
 
-  it('registers the service worker on mount', () => {
+  it('registers the service worker after resolving the app mode on mount', async () => {
     render(<PwaBootstrap />);
 
-    expect(registerServiceWorker).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(registerServiceWorker).toHaveBeenCalledTimes(1));
+    expect(document.documentElement.dataset.appMode).toBe('web');
   });
 
   it('renders both InstallPrompt and UpdatePrompt', () => {

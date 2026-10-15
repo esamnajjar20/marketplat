@@ -70,7 +70,8 @@ describe('NotificationSettingsForm', () => {
     });
     render(<NotificationSettingsForm />);
 
-    expect(screen.getAllByRole('switch')).toHaveLength(8);
+    // The current screen includes content preferences plus email/quiet-hours controls.
+    expect(screen.getAllByRole('switch')).toHaveLength(16);
   });
 
   it('reflects the server-loaded preferences via aria-checked (FEAT-02: no longer hardcoded defaults)', () => {
@@ -86,7 +87,7 @@ describe('NotificationSettingsForm', () => {
 
     expect(screen.getByRole('switch', { name: 'رسائل جديدة' })).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('switch', { name: 'مشاهدات الإعلان' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('switch', { name: 'عروض وتخفيضات' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'عروض وتخفيضات المنصة المنصة' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'عروضي' })).toHaveAttribute('aria-checked', 'false');
   });
 
@@ -168,7 +169,7 @@ describe('NotificationSettingsForm', () => {
     expect(screen.getByRole('switch', { name: 'رسائل جديدة' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'مشاهدات الإعلان' })).not.toBeDisabled();
     expect(screen.getByRole('switch', { name: 'تحديثات المفضلة' })).not.toBeDisabled();
-    expect(screen.getByRole('switch', { name: 'عروض وتخفيضات' })).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'عروض وتخفيضات المنصة' })).not.toBeDisabled();
     expect(screen.getByRole('switch', { name: 'عروضي' })).not.toBeDisabled();
     expect(screen.getByRole('switch', { name: 'البحث المحفوظ' })).not.toBeDisabled();
     expect(screen.getByRole('switch', { name: 'تحديثات المتاجر' })).not.toBeDisabled();
@@ -234,7 +235,7 @@ describe('NotificationSettingsForm', () => {
 
       await user.click(screen.getByRole('switch', { name: 'عروضي' }));
 
-      expect(screen.getByRole('switch', { name: 'عروض وتخفيضات' })).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getByRole('switch', { name: 'عروض وتخفيضات المنصة' })).toHaveAttribute('aria-checked', 'false');
       expect(mockMutate.mock.calls[0][0]).toEqual({ myPromotions: false });
     });
   });

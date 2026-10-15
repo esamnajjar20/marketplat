@@ -45,7 +45,7 @@ function makeFile(name: string, type: string, sizeBytes: number): File {
 }
 
 const baseMe: User = {
-  id: 'u1', name: 'أحمد', email: 'a@a.com', phone: null, city: null, bio: null,
+  id: 'u1', name: 'أحمد', email: 'a@a.com', phone: null, city: 'نابلس', bio: null,
   avatarUrl: null, role: 'USER', isActive: true,
   notificationPreferences: { newMessage: true, adViews: false, favAdUpdated: true, promotions: false },
   createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',

@@ -177,7 +177,7 @@ describe('useServiceListings / useServiceListing / useMyServiceListings', () => 
     const { result } = renderHook(() => useServiceListing('sl-1'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(serviceListingsApi.getById).toHaveBeenCalledWith('sl-1');
+    expect(serviceListingsApi.getById).toHaveBeenCalledWith('sl-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(result.current.data).toEqual({ id: 'sl-1', title: 'Plumbing service' });
   });
 

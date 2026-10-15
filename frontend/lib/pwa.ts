@@ -131,6 +131,7 @@ function wasJustUpdated(): boolean {
 // just gets the same Promise. Same pattern as userCache.getOrFetch's
 // in-flight dedup on the backend.
 let registrationInFlight: Promise<ServiceWorkerRegistration | null> | null = null;
+let registrationContainer: ServiceWorkerContainer | null = null;
 
 // ── PWA-AUTO-APPLY-01 ─────────────────────────────────────────────
 // Applies a waiting SW update automatically, without the user having
@@ -233,7 +234,15 @@ function scheduleAutoApply(reg: ServiceWorkerRegistration): void {
 }
 
 export function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (registrationInFlight) return registrationInFlight;
+  // Deduplicate per browser ServiceWorkerContainer, not globally across
+  // unrelated environments. SSR/unsupported calls and tests that install a
+  // fresh container must not poison a later supported registration attempt.
+  const container = typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    ? navigator.serviceWorker
+    : null;
+  if (!container) return doRegisterServiceWorker();
+  if (registrationInFlight && registrationContainer === container) return registrationInFlight;
+  registrationContainer = container;
   registrationInFlight = doRegisterServiceWorker();
   return registrationInFlight;
 }
@@ -326,6 +335,9 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
     // لا ساعات.
     const UPDATE_CHECK_MS = 5 * 60 * 1000;
     const checkUpdate = () => {
+      // Background polling should not wake hidden tabs; the visibilitychange
+      // handler below performs a fresh check as soon as the tab becomes visible.
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       // لا تفحص أثناء نافذة ما بعد التفعيل — يقلل حلقة waiting من sw.js غير المستقر
       if (wasJustUpdated()) return;
       // FIX SW-UPDATE-DETECTION-01 (تابع): بدون هذا الشرط، طلب الفحص

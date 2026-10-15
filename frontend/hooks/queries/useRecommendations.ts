@@ -51,41 +51,41 @@ export const recommendationQueryOptions = {
   ads: (params?: GetRecommendationsParams, options?: RecommendationQueryOptions) =>
     queryOptions({
       queryKey: queryKeys.recommendations.list(params, options?.scope),
-      queryFn: () => recommendationsApi.getRecommendations(params).then((r) => r.data.data ?? []),
+      queryFn: ({ signal }) => recommendationsApi.getRecommendations(params, { signal }).then((r) => r.data.data ?? []),
       staleTime: CACHE_TTL.recommendations,
       enabled: options?.enabled ?? true,
     }),
   products: (params?: GetProductRecommendationsParams, options?: RecommendationQueryOptions) =>
     queryOptions({
       queryKey: queryKeys.recommendations.products(params, options?.scope),
-      queryFn: () => recommendationsApi.getProductRecommendations(params).then((r) => r.data.data ?? []),
+      queryFn: ({ signal }) => recommendationsApi.getProductRecommendations(params, { signal }).then((r) => r.data.data ?? []),
       staleTime: CACHE_TTL.recommendations,
       enabled: options?.enabled ?? true,
     }),
   services: (params?: GetServiceRecommendationsParams, options?: RecommendationQueryOptions) =>
     queryOptions({
       queryKey: queryKeys.recommendations.services(params, options?.scope),
-      queryFn: () => recommendationsApi.getServiceRecommendations(params).then((r) => r.data.data ?? []),
+      queryFn: ({ signal }) => recommendationsApi.getServiceRecommendations(params, { signal }).then((r) => r.data.data ?? []),
       staleTime: CACHE_TTL.recommendations,
       enabled: options?.enabled ?? true,
     }),
   stores: (params?: GetStoreRecommendationsParams, options?: RecommendationQueryOptions) =>
     queryOptions({
       queryKey: queryKeys.recommendations.stores(params, options?.scope),
-      queryFn: () => recommendationsApi.getStoreRecommendations(params).then((r) => r.data.data ?? []),
+      queryFn: ({ signal }) => recommendationsApi.getStoreRecommendations(params, { signal }).then((r) => r.data.data ?? []),
       staleTime: CACHE_TTL.recommendations,
     }),
   providers: (params?: GetProviderRecommendationsParams, options?: RecommendationQueryOptions) =>
     queryOptions({
       queryKey: queryKeys.recommendations.providers(params, options?.scope),
-      queryFn: () => recommendationsApi.getProviderRecommendations(params).then((r) => r.data.data ?? []),
+      queryFn: ({ signal }) => recommendationsApi.getProviderRecommendations(params, { signal }).then((r) => r.data.data ?? []),
       staleTime: CACHE_TTL.recommendations,
       enabled: options?.enabled ?? true,
     }),
   mixed: (params?: GetMixedRecommendationsParams, options?: RecommendationQueryOptions) =>
     queryOptions({
       queryKey: queryKeys.recommendations.mixed(params, options?.scope),
-      queryFn: () => recommendationsApi.getMixedRecommendations(params).then((r) => r.data.data ?? { ads: null, products: null, services: null }),
+      queryFn: ({ signal }) => recommendationsApi.getMixedRecommendations(params, { signal }).then((r) => r.data.data ?? { ads: null, products: null, services: null }),
       staleTime: CACHE_TTL.recommendations,
       enabled: options?.enabled ?? true,
     }),

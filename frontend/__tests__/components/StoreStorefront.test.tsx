@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
+import { setupUser } from '@/test-support/user-event';
 
 import { StoreStorefront } from '@/components/stores/StoreStorefront';
 
@@ -56,9 +57,12 @@ describe('StoreStorefront', () => {
     ownerUserId: 'u1',
   };
 
-  it('renders product tab content by default', () => {
+  it('renders product tab content by default and mounts reviews only when selected', async () => {
     renderWithQueryClient(<StoreStorefront {...base} />);
     expect(screen.getByTestId('products-grid')).toBeInTheDocument();
+    expect(screen.queryByTestId('reviews')).not.toBeInTheDocument();
+    const user = setupUser();
+    await user.click(screen.getByRole('tab', { name: /التقييمات/ }));
     expect(screen.getByTestId('reviews')).toBeInTheDocument();
   });
 

@@ -17,7 +17,7 @@ vi.mock('@/api/store-members.api', () => ({
 
 vi.mock('@/store/auth.store', () => ({
   useAuthStore: vi.fn((sel: (s: { isAuthenticated: boolean }) => unknown) =>
-    sel({ isAuthenticated: true }),
+    sel({ isAuthenticated: true, accessToken: 'test-token', hasAccessToken: true, isHydrated: true, user: { id: 'user-1', role: 'USER' } }),
   ),
   selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
   selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),

@@ -120,7 +120,7 @@ describe('blockedUsersApi', () => {
 
   it('toggleBlock → POST /blocked-users/:userId with no body', async () => {
     await blockedUsersApi.toggleBlock('user-1');
-    expect(apiClient.post).toHaveBeenCalledWith('/blocked-users/user-1', undefined);
+    expect(apiClient.post).toHaveBeenCalledWith('/blocked-users/user-1');
   });
 });
 
@@ -142,7 +142,7 @@ describe('conversationsApi', () => {
 
   it('getById → GET /conversations/:id', async () => {
     await conversationsApi.getById('conv-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/conversations/conv-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/conversations/conv-1');
   });
 
   it('getMessages → GET /conversations/:id/messages, paginated', async () => {
@@ -155,7 +155,13 @@ describe('conversationsApi', () => {
   it('sendMessage → POST /conversations/:id/messages with payload', async () => {
     const payload = { content: 'hello' } as any;
     await conversationsApi.sendMessage('conv-1', payload);
-    expect(apiClient.post).toHaveBeenCalledWith('/conversations/conv-1/messages', payload);
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/conversations/conv-1/messages',
+      payload,
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Offline-Op-Id': expect.any(String) }),
+      }),
+    );
   });
 });
 
@@ -172,17 +178,17 @@ describe('notificationsApi', () => {
   it('getUnreadCount → GET /notifications/unread-count', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPlainResponse({ count: 3 }));
     await notificationsApi.getUnreadCount();
-    expect(apiClient.get).toHaveBeenCalledWith('/notifications/unread-count', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/notifications/unread-count');
   });
 
   it('markRead → PATCH /notifications/:id/read with no body', async () => {
     await notificationsApi.markRead('notif-1');
-    expect(apiClient.patch).toHaveBeenCalledWith('/notifications/notif-1/read', undefined);
+    expect(apiClient.patch).toHaveBeenCalledWith('/notifications/notif-1/read');
   });
 
   it('markAllRead → PATCH /notifications/read-all with no body', async () => {
     await notificationsApi.markAllRead();
-    expect(apiClient.patch).toHaveBeenCalledWith('/notifications/read-all', undefined);
+    expect(apiClient.patch).toHaveBeenCalledWith('/notifications/read-all');
   });
 });
 
@@ -191,22 +197,22 @@ describe('notificationsApi', () => {
 describe('productCategoriesApi', () => {
   it('getAll → GET /product-categories', async () => {
     await productCategoriesApi.getAll();
-    expect(apiClient.get).toHaveBeenCalledWith('/product-categories', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/product-categories');
   });
 
   it('getBySlug → GET /product-categories/slug/:slug (not /product-categories/:slug)', async () => {
     await productCategoriesApi.getBySlug('electronics');
-    expect(apiClient.get).toHaveBeenCalledWith('/product-categories/slug/electronics', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/product-categories/slug/electronics');
   });
 
   it('getById → GET /product-categories/:id', async () => {
     await productCategoriesApi.getById('cat-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/product-categories/cat-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/product-categories/cat-1');
   });
 
   it('getAllForAdmin → GET /product-categories/admin/all', async () => {
     await productCategoriesApi.getAllForAdmin();
-    expect(apiClient.get).toHaveBeenCalledWith('/product-categories/admin/all', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/product-categories/admin/all');
   });
 
   it('create → POST /product-categories with payload', async () => {
@@ -223,7 +229,7 @@ describe('productCategoriesApi', () => {
 
   it('delete → DELETE /product-categories/:id', async () => {
     await productCategoriesApi.delete('cat-1');
-    expect(apiClient.delete).toHaveBeenCalledWith('/product-categories/cat-1', undefined);
+    expect(apiClient.delete).toHaveBeenCalledWith('/product-categories/cat-1');
   });
 });
 
@@ -279,12 +285,12 @@ describe('sellersApi', () => {
 
   it('getMyProfile → GET /sellers/me/profile', async () => {
     await sellersApi.getMyProfile();
-    expect(apiClient.get).toHaveBeenCalledWith('/sellers/me/profile', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/sellers/me/profile');
   });
 
   it('getById → GET /sellers/:id', async () => {
     await sellersApi.getById('seller-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/sellers/seller-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/sellers/seller-1');
   });
 
   it('createRating → POST /sellers/:id/ratings with payload', async () => {
@@ -306,22 +312,22 @@ describe('sellersApi', () => {
 describe('serviceCategoriesApi', () => {
   it('getAll → GET /service-categories', async () => {
     await serviceCategoriesApi.getAll();
-    expect(apiClient.get).toHaveBeenCalledWith('/service-categories', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/service-categories');
   });
 
   it('getBySlug → GET /service-categories/slug/:slug', async () => {
     await serviceCategoriesApi.getBySlug('plumbing');
-    expect(apiClient.get).toHaveBeenCalledWith('/service-categories/slug/plumbing', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/service-categories/slug/plumbing');
   });
 
   it('getById → GET /service-categories/:id', async () => {
     await serviceCategoriesApi.getById('cat-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/service-categories/cat-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/service-categories/cat-1');
   });
 
   it('getAllForAdmin → GET /service-categories/admin/all', async () => {
     await serviceCategoriesApi.getAllForAdmin();
-    expect(apiClient.get).toHaveBeenCalledWith('/service-categories/admin/all', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/service-categories/admin/all');
   });
 
   it('create → POST /service-categories with payload', async () => {
@@ -338,7 +344,7 @@ describe('serviceCategoriesApi', () => {
 
   it('delete → DELETE /service-categories/:id', async () => {
     await serviceCategoriesApi.delete('cat-1');
-    expect(apiClient.delete).toHaveBeenCalledWith('/service-categories/cat-1', undefined);
+    expect(apiClient.delete).toHaveBeenCalledWith('/service-categories/cat-1');
   });
 });
 
@@ -353,7 +359,7 @@ describe('serviceProvidersApi', () => {
 
   it('getMyProvider → GET /service-providers/me', async () => {
     await serviceProvidersApi.getMyProvider();
-    expect(apiClient.get).toHaveBeenCalledWith('/service-providers/me', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/service-providers/me');
   });
 
   it('updateMyProvider → PATCH /service-providers/me with payload', async () => {
@@ -364,7 +370,7 @@ describe('serviceProvidersApi', () => {
 
   it('getById → GET /service-providers/:id', async () => {
     await serviceProvidersApi.getById('prov-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/service-providers/prov-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/service-providers/prov-1');
   });
 
   it('getNearby → GET /service-providers/nearby, paginated', async () => {
@@ -387,7 +393,7 @@ describe('serviceRequestsApi', () => {
 
   it('getById → GET /service-requests/:id', async () => {
     await serviceRequestsApi.getById('req-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/service-requests/req-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/service-requests/req-1');
   });
 
   it('getMineAsCustomer → GET /service-requests/me, paginated', async () => {

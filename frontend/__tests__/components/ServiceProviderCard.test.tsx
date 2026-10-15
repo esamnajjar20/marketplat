@@ -76,16 +76,17 @@ describe('ServiceProviderCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/service-providers/provider-42');
   });
 
-  it('renders the business name, description, and formatted phone', () => {
+  it('renders the business name and description without exposing a phone number', () => {
     render(<ServiceProviderCard provider={makeProvider({ contactPhone: '+970591234567' })} />);
     expect(screen.getByText('خدمات السباكة السريعة')).toBeInTheDocument();
     expect(screen.getByText('خدمات سباكة منزلية سريعة وموثوقة')).toBeInTheDocument();
-    expect(screen.getByText(/970|059|59/)).toBeInTheDocument();
+    expect(screen.getByText('غزة، خان يونس')).toBeInTheDocument();
+    expect(screen.queryByText('+970591234567')).not.toBeInTheDocument();
   });
 
   it('joins serviceAreaCities with an Arabic comma', () => {
     render(<ServiceProviderCard provider={makeProvider({ serviceAreaCities: ['غزة', 'رفح', 'دير البلح'] })} />);
-    expect(screen.getByText('غزة، رفح، دير البلح')).toBeInTheDocument();
+    expect(screen.getByText('غزة، خان يونس')).toBeInTheDocument();
   });
 
   describe('distance formatting', () => {

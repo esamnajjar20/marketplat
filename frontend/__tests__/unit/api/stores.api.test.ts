@@ -50,7 +50,7 @@ describe('storesApi — endpoint/method correctness', () => {
   it('getMyStore calls GET /stores/me (not /stores/my)', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
     await storesApi.getMyStore();
-    expect(apiClient.get).toHaveBeenCalledWith('/stores/me');
+    expect(apiClient.get).toHaveBeenCalledWith('/stores/me', undefined);
   });
 
   it('updateMyStore calls PATCH /stores/me with the payload', async () => {
@@ -75,7 +75,7 @@ describe('storesApi — endpoint/method correctness', () => {
   it('getById calls GET /stores/:id', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
     await storesApi.getById('store-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/stores/store-1');
+    expect(apiClient.get).toHaveBeenCalledWith('/stores/store-1', undefined);
   });
 
   it('updateStatus calls PATCH /stores/:id/status with the status payload', async () => {

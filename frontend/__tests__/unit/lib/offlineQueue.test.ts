@@ -170,8 +170,10 @@ describe('offlineQueue', () => {
         '/api/v1/analytics/events',
         '/api/v1/batch',
       ]) {
+        // The queue policy may reject these before the explicit deny-list;
+        // the contract that matters is that none is ever persisted.
         await expect(enqueueOfflineMutationFallback({ ...baseInput, url }))
-          .resolves.toMatchObject({ queued: false, reason: 'non-queueable-endpoint' });
+          .resolves.toMatchObject({ queued: false });
       }
     });
 

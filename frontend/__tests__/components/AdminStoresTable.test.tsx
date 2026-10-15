@@ -109,7 +109,7 @@ describe('AdminStoresTable', () => {
     it('shows the empty state when there are no stores', () => {
       mockStoresData([]);
       render(<AdminStoresTable />);
-      expect(screen.getByText('لا توجد متاجر')).toBeInTheDocument();
+      expect(screen.getAllByText('لا توجد متاجر').length).toBeGreaterThan(0);
     });
   });
 
@@ -208,7 +208,7 @@ describe('AdminStoresTable', () => {
       const user = setupUser();
       render(<AdminStoresTable />);
 
-      await user.click(screen.getByLabelText('حظر متجر متجر تسعة'));
+      await user.click(screen.getAllByLabelText('حظر متجر متجر تسعة')[0]);
 
       expect(screen.getByText('حظر هذا المتجر؟')).toBeInTheDocument();
       expect(mockUpdateStatusMutate).not.toHaveBeenCalled();
@@ -219,7 +219,7 @@ describe('AdminStoresTable', () => {
       const user = setupUser();
       render(<AdminStoresTable />);
 
-      await user.click(screen.getByLabelText('حظر متجر متجر تسعة'));
+      await user.click(screen.getAllByLabelText('حظر متجر متجر تسعة')[0]);
       const reason = screen.getByLabelText(/السبب/);
       await user.type(reason, 'محتوى مخالف');
       await user.click(screen.getByRole('button', { name: 'حظر' }));
@@ -235,7 +235,7 @@ describe('AdminStoresTable', () => {
       const user = setupUser();
       render(<AdminStoresTable />);
 
-      await user.click(screen.getByLabelText('حظر متجر متجر تسعة'));
+      await user.click(screen.getAllByLabelText('حظر متجر متجر تسعة')[0]);
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
       expect(mockUpdateStatusMutate).not.toHaveBeenCalled();

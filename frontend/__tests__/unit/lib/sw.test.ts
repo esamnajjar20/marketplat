@@ -59,75 +59,74 @@ function createFakeIndexedDB() {
     return { onsuccess: null, onerror: null, result: undefined, error: undefined };
   }
 
-  function fireRequestSuccess(req: any, result: unknown) {
-    req.result = result;
-    queueMicrotask(() => {
-      if (req.onsuccess) req.onsuccess({ target: req });
-    });
-  }
-
   function makeTransaction(state: DbState) {
     const tx: any = { oncomplete: null, onerror: null, error: null };
+    let pendingRequests = 0;
+    let completionScheduled = false;
+    let completed = false;
+
+    const scheduleCompletion = () => {
+      if (pendingRequests !== 0 || completionScheduled || completed) return;
+      completionScheduled = true;
+      queueMicrotask(() => {
+        completionScheduled = false;
+        if (pendingRequests !== 0 || completed) return;
+        completed = true;
+        if (tx.oncomplete) tx.oncomplete({ target: tx });
+      });
+    };
+
+    const makeOperation = (operation: () => unknown) => {
+      const req = makeRequest();
+      pendingRequests += 1;
+      queueMicrotask(() => {
+        try {
+          const result = operation();
+          req.result = result;
+          if (req.onsuccess) req.onsuccess({ target: req });
+        } catch (error) {
+          req.error = error;
+          tx.error = error;
+          if (req.onerror) req.onerror({ target: req });
+          if (tx.onerror) tx.onerror({ target: tx });
+        } finally {
+          pendingRequests -= 1;
+          scheduleCompletion();
+        }
+      });
+      return req;
+    };
+
     const store = {
-      add: (record: any) => {
+      add: (record: any) => makeOperation(() => {
         const id = state.nextId++;
         state.data.set(id, { ...record, id });
-        const req = makeRequest();
-        fireRequestSuccess(req, id);
-        return req;
-      },
-      get: (id: number) => {
-        const req = makeRequest();
-        fireRequestSuccess(req, state.data.get(id));
-        return req;
-      },
-      getAll: () => {
-        const req = makeRequest();
-        fireRequestSuccess(req, Array.from(state.data.values()));
-        return req;
-      },
-      delete: (id: number) => {
+        return id;
+      }),
+      get: (id: number) => makeOperation(() => state.data.get(id)),
+      getAll: () => makeOperation(() => Array.from(state.data.values())),
+      delete: (id: number) => makeOperation(() => {
         state.data.delete(id);
-        const req = makeRequest();
-        fireRequestSuccess(req, undefined);
-        return req;
-      },
-      put: (record: any) => {
+        return undefined;
+      }),
+      put: (record: any) => makeOperation(() => {
         state.data.set(record.id, record);
-        const req = makeRequest();
-        fireRequestSuccess(req, record.id);
-        return req;
-      },
+        return record.id;
+      }),
     };
-    // 3 nested queueMicrotask hops: comfortable margin over the deepest
-    // chain sw.js actually issues within one transaction (markQueuedEntry's
-    // get→onsuccess→put→assign-oncomplete is 1 hop) without needing a
-    // full "count pending requests" tracker for this deliberately small
-    // fake.
-    queueMicrotask(() =>
-      queueMicrotask(() =>
-        queueMicrotask(() => {
-          if (tx.oncomplete) tx.oncomplete();
-        }),
-      ),
-    );
+
+    // IndexedDB completes only after all queued requests and any requests
+    // they enqueue from onsuccess handlers have finished.
+    scheduleCompletion();
     return {
       objectStore: () => store,
-      get oncomplete() {
-        return tx.oncomplete;
-      },
-      set oncomplete(fn: any) {
-        tx.oncomplete = fn;
-      },
-      get onerror() {
-        return tx.onerror;
-      },
-      set onerror(fn: any) {
-        tx.onerror = fn;
-      },
-      get error() {
-        return tx.error;
-      },
+      get oncomplete() { return tx.oncomplete; },
+      set oncomplete(fn: any) { tx.oncomplete = fn; },
+      get onerror() { return tx.onerror; },
+      set onerror(fn: any) { tx.onerror = fn; },
+      get onabort() { return tx.onabort; },
+      set onabort(fn: any) { tx.onabort = fn; },
+      get error() { return tx.error; },
     };
   }
 
@@ -262,7 +261,7 @@ function loadServiceWorker() {
   // same execution, since sw.js itself is read-only source we don't
   // want to modify just for testability.
   vm.runInContext(
-    `${SW_SOURCE}\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__USER_DATA_CACHE_PREFIX = USER_DATA_CACHE_PREFIX;
+    `${SW_SOURCE}\nself.__STATIC_CACHE = STATIC_CACHE;\nself.__API_CACHE = API_CACHE;\nself.__PERSONAL_SHELL_CACHE = PERSONAL_SHELL_CACHE;\nself.__USER_DATA_CACHE_PREFIX = USER_DATA_CACHE_PREFIX;
 self.__USER_DATA_CACHE_NAME = userDataCacheName;\nself.__MAX_QUEUE_ENTRIES = MAX_QUEUE_ENTRIES;\nself.__MAX_QUEUE_TOTAL_BYTES = MAX_QUEUE_TOTAL_BYTES;\nself.__NAVIGATE_TIMEOUT_MS = NAVIGATE_TIMEOUT_MS;\nself.__NAVIGATE_TIMEOUT_CACHED_MS = NAVIGATE_TIMEOUT_CACHED_MS;\nself.__withNetworkTimeout = withNetworkTimeout;`,
     sandbox,
     { filename: 'sw.js' },
@@ -884,12 +883,12 @@ describe('sw.js — service worker logic', () => {
 
   describe('legacy HTML cache migration', () => {
     it('removes Vary from previously cached HTML without deleting the page', async () => {
-      const cache = await ctx.fakeCaches.open('market-static-v50');
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       await cache.put('https://example.com/products', new Response(
         '<!doctype html><html><script src="/_next/static/chunks/app.js"></script></html>',
         { status: 200, headers: { 'content-type': 'text/html', vary: 'RSC, Next-Router-State-Tree' } },
       ));
-      await ctx.sandbox.normalizeExistingHtmlCache('market-static-v50');
+      await ctx.sandbox.normalizeExistingHtmlCache(ctx.sandbox.self.__STATIC_CACHE);
       const migrated = await cache.match('https://example.com/products');
       expect(migrated).toBeTruthy();
       expect(migrated.headers.get('vary')).toBeNull();
@@ -914,7 +913,7 @@ describe('sw.js — service worker logic', () => {
       const response = await ctx.sandbox.networkFirstPage(event, request, request);
       await Promise.all(event._waits);
       expect(await response.text()).toContain('products');
-      const cache = await ctx.fakeCaches.open('market-static-v50');
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       const cachedHtml = await cache.match(request.url);
       const cachedAsset = await cache.match('/_next/static/chunks/app.js');
       expect(cachedHtml.headers.get('X-SW-Cache-Source')).toBe('visit');
@@ -948,21 +947,21 @@ describe('sw.js — service worker logic', () => {
       const response = await ctx.sandbox.networkFirstPage(event, request, ctx.sandbox.rscShellKey(new URL(request.url)));
       await Promise.all(event._waits);
       expect(await response.text()).toBe('RSC-PAYLOAD');
-      const cache = await ctx.fakeCaches.open('market-static-v50');
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       const cachedHtml = await cache.match('https://example.com/products');
       expect(cachedHtml).toBeTruthy();
       expect(cachedHtml.headers.get('X-SW-Cache-Source')).toBe('visit');
     });
 
     it('keeps a visited shell ahead of warm-only pages when trimming reaches the entry cap', async () => {
-      const cache = await ctx.fakeCaches.open('market-static-v50');
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       await cache.put('https://example.com/products', new Response('<html><script src="/_next/static/chunks/app.js"></script></html>', {
         headers: { 'content-type': 'text/html', 'X-SW-Cached-At': String(Date.now()), 'X-SW-Cache-Source': 'warm' },
       }));
       await cache.put('https://example.com/my-ads', new Response('<html><script src="/_next/static/chunks/app.js"></script></html>', {
         headers: { 'content-type': 'text/html', 'X-SW-Cached-At': String(Date.now()), 'X-SW-Cache-Source': 'visit' },
       }));
-      await ctx.sandbox.trimCache('market-static-v50', 1);
+      await ctx.sandbox.trimCache(ctx.sandbox.self.__STATIC_CACHE, 1);
       expect(await cache.match('https://example.com/my-ads')).toBeTruthy();
       expect(await cache.match('https://example.com/products')).toBeUndefined();
     });
@@ -987,7 +986,7 @@ describe('sw.js — service worker logic', () => {
         if (!response) throw new Error(`unexpected fetch: ${key}`);
         return response.clone();
       });
-      const cache = await ctx.fakeCaches.open('market-static-v50');
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       await ctx.sandbox.cacheVisitedDocumentShell(
         new URL('https://example.com/products?_rsc=changing-token'),
         cache,
@@ -1015,7 +1014,7 @@ describe('sw.js — service worker logic', () => {
       const event = makeEvent();
       await ctx.sandbox.networkFirstPage(event, request, request);
       await Promise.all(event._waits);
-      const cache = await ctx.fakeCaches.open('market-static-v50');
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       expect(await cache.match(request.url)).toBeUndefined();
     });
 
@@ -1030,13 +1029,13 @@ describe('sw.js — service worker logic', () => {
         }
         return new Response('<html>edge error</html>', { status: 200, headers: { 'content-type': 'text/html' } });
       });
-      const cache = await ctx.fakeCaches.open('market-static-v50');
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       await ctx.sandbox.cacheVisitedDocumentShell(new URL('https://example.com/products'), cache);
       expect(await cache.match('https://example.com/products')).toBeUndefined();
     });
 
     it('does not assign core-page trim priority to RSC transport payloads', () => {
-      const tier = ctx.sandbox.inferCacheTier('market-static-v50', {
+      const tier = ctx.sandbox.inferCacheTier(ctx.sandbox.self.__STATIC_CACHE, {
         url: 'https://example.com/search?q=olive&__offline_rsc_shell',
       });
       expect(tier).toBe(8);
@@ -1054,8 +1053,8 @@ describe('sw.js — service worker logic', () => {
 
   describe('navigate timeout constants (FIX NAV-TIMEOUT-CACHED-01)', () => {
     it('exposes a shorter cached navigate timeout than the uncached one', () => {
-      expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_MS).toBe(10000);
-      expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_CACHED_MS).toBe(3500);
+      expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_MS).toBe(15000);
+      expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_CACHED_MS).toBe(8000);
       expect(ctx.sandbox.self.__NAVIGATE_TIMEOUT_CACHED_MS).toBeLessThan(
         ctx.sandbox.self.__NAVIGATE_TIMEOUT_MS,
       );
@@ -1150,10 +1149,11 @@ describe('sw.js — service worker logic', () => {
       expect(result?.csrfToken).toBe('csrf1');
     });
 
-    it('returns null when the refresh endpoint itself fails (expired session, not just an expired access token)', async () => {
+    it('returns an auth failure when the refresh endpoint itself rejects the session', async () => {
       ctx.setFetch(async () => new Response('', { status: 401 }));
       const result = await ctx.sandbox.refreshAccessToken('https://example.com/api/v1/messages');
-      expect(result).toBeNull();
+      expect(result?.ok).toBe(false);
+      expect(result?.reason).toBe('auth');
     });
 
     it('returns null for a malformed sample URL instead of throwing', async () => {
@@ -1203,15 +1203,16 @@ describe('sw.js — service worker logic', () => {
       expect(updated.lastError?.message).toBe('blocked');
     });
 
-    it('leaves a 5xx pending (real failure to distinguish from a rejected request) and returns "still-offline"', async () => {
+    it('leaves a retryable 5xx pending and returns "retryable-http"', async () => {
       const entry = await seedOne();
       ctx.setFetch(async () => new Response('oops', { status: 503 }));
 
       const result = await ctx.sandbox.replayOne(entry, false);
 
-      expect(result).toBe('still-offline');
+      expect(result).toBe('retryable-http');
       const [unchanged] = await ctx.sandbox.getAllQueuedEntries();
       expect(unchanged.status).toBe('pending');
+      expect(unchanged.lastError?.status).toBe(503);
     });
 
     it('keeps 429 rate-limit responses retryable and honors Retry-After instead of marking them failed', async () => {
@@ -1260,7 +1261,7 @@ describe('sw.js — service worker logic', () => {
         }
         const authHeader = init?.headers?.authorization;
         seenAuthHeaders.push(authHeader);
-        if (authHeader === 'Bearer expired') {
+        if (authHeader !== 'Bearer fresh-token') {
           return new Response('unauthorized', { status: 401 });
         }
         return new Response('{}', { status: 200 });
@@ -1269,7 +1270,7 @@ describe('sw.js — service worker logic', () => {
       const result = await ctx.sandbox.replayOne(entry, false);
 
       expect(result).toBe('sent');
-      expect(seenAuthHeaders).toEqual(['Bearer expired', 'Bearer fresh-token']);
+      expect(seenAuthHeaders).toEqual([undefined, 'Bearer fresh-token']);
       expect(await ctx.sandbox.getAllQueuedEntries()).toHaveLength(0);
     });
 

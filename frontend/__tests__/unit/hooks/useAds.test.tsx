@@ -137,7 +137,7 @@ describe('useSearchAds', () => {
   it('fires the search once the trimmed query reaches 2+ characters', async () => {
     const { result } = renderHook(() => useSearchAds({ q: 'phone' }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(adsApi.searchAds).toHaveBeenCalledWith({ q: 'phone' });
+    expect(adsApi.searchAds).toHaveBeenCalledWith({ q: 'phone' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });
 
@@ -151,7 +151,7 @@ describe('useAd', () => {
   it('calls adsApi.getById once a real id is provided', async () => {
     const { result } = renderHook(() => useAd('ad-1'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(adsApi.getById).toHaveBeenCalledWith('ad-1');
+    expect(adsApi.getById).toHaveBeenCalledWith('ad-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });
 
@@ -174,7 +174,7 @@ describe('useMyAds', () => {
   it('calls adsApi.getMyAds (the /ads/me endpoint, not /ads/my)', async () => {
     const { result } = renderHook(() => useMyAds({ page: 1, status: 'ACTIVE' as any }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(adsApi.getMyAds).toHaveBeenCalledWith({ page: 1, status: 'ACTIVE' });
+    expect(adsApi.getMyAds).toHaveBeenCalledWith({ page: 1, status: 'ACTIVE' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });
 
@@ -200,6 +200,6 @@ describe('useUserAds', () => {
   it('calls usersApi.getUserAds once a real userId is provided', async () => {
     const { result } = renderHook(() => useUserAds('user-1', { page: 1 }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(usersApi.getUserAds).toHaveBeenCalledWith('user-1', { page: 1 });
+    expect(usersApi.getUserAds).toHaveBeenCalledWith('user-1', { page: 1 }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });

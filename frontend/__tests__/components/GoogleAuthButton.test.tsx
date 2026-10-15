@@ -3,7 +3,6 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { setupUser } from '@/test-support/user-event';
 
 describe('GoogleAuthButton', () => {
   const originalEnv = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED;
@@ -41,24 +40,11 @@ describe('GoogleAuthButton', () => {
     expect(screen.getByRole('link', { name: 'تسجيل الدخول بـ Google' })).toBeInTheDocument();
   });
 
-  it('navigates to /auth/google on click', async () => {
+  it('links directly to the backend OAuth endpoint for full-page navigation', async () => {
     process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED = 'true';
     const { GoogleAuthButton } = await import('@/components/auth/GoogleAuthButton');
-    const hrefSpy = vi.fn();
-    // jsdom location.href is often non-configurable — stub via delete+assign pattern
-     
-    delete (window as any).location;
-     
-    (window as any).location = { href: '' };
-    Object.defineProperty(window.location, 'href', {
-      configurable: true,
-      get: () => '',
-      set: (v: string) => hrefSpy(v),
-    });
-
-    const user = setupUser();
     render(<GoogleAuthButton />);
-    await user.click(screen.getByRole('link', { name: /Google/ }));
-    expect(hrefSpy).toHaveBeenCalledWith(expect.stringContaining('/auth/google'));
+    const link = screen.getByRole('link', { name: /Google/ });
+    expect(link.getAttribute('href')).toMatch(/\/auth\/google$/);
   });
 });

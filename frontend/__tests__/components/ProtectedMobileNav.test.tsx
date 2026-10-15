@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders as render } from '@/test-support/render';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProtectedMobileNav } from '@/components/layout/ProtectedMobileNav';
 import { useMySellerProfile, useIsSeller } from '@/hooks/queries/useSellers';
 import { useMyServiceProvider, useIsProvider } from '@/hooks/queries/useServiceProviders';
@@ -99,6 +99,12 @@ vi.mock('@/hooks/queries/useStores', () => ({
   useMyStore: vi.fn(),
 }));
 
+async function renderNav() {
+  const result = render(<ProtectedMobileNav />);
+  await waitFor(() => expect(document.getElementById('protected-mobile-nav-drawer')).not.toBeNull());
+  return result;
+}
+
 describe('ProtectedMobileNav', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -122,24 +128,24 @@ describe('ProtectedMobileNav', () => {
     });
   });
 
-  it('renders a closed drawer by default with inert (not aria-hidden)', () => {
+  it('renders a closed drawer by default with inert (not aria-hidden)', async () => {
     isMobileNavOpen = false;
-    render(<ProtectedMobileNav />);
+    await renderNav();
     // SW-FIX-DRAWER-INERT: closed drawer uses `inert` instead of aria-hidden.
     const nav = document.body.querySelector('nav[aria-label="القائمة الشخصية"]');
     expect(nav).not.toBeNull();
     expect(nav?.hasAttribute('inert')).toBe(true);
   });
 
-  it('toggle button calls toggleMobileNav on click', () => {
-    render(<ProtectedMobileNav />);
+  it('toggle button calls toggleMobileNav on click', async () => {
+    await renderNav();
     fireEvent.click(screen.getByLabelText('افتح القائمة'));
     expect(mockToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a backdrop when open, and clicking it closes the drawer', () => {
+  it('shows a backdrop when open, and clicking it closes the drawer', async () => {
     isMobileNavOpen = true;
-    render(<ProtectedMobileNav />);
+    await renderNav();
     // Portaled to document.body (see above); the actual backdrop class
     // is z-[90], not z-40.
     const backdrop = document.body.querySelector('.fixed.inset-0.z-\\[90\\]');
@@ -148,36 +154,36 @@ describe('ProtectedMobileNav', () => {
     expect(mockClose).toHaveBeenCalledTimes(1);
   });
 
-  it('does not render a backdrop when closed', () => {
+  it('does not render a backdrop when closed', async () => {
     isMobileNavOpen = false;
-    render(<ProtectedMobileNav />);
+    await renderNav();
     expect(document.body.querySelector('.fixed.inset-0.z-\\[90\\]')).toBeNull();
   });
 
-  it('pressing Escape closes the drawer while open', () => {
+  it('pressing Escape closes the drawer while open', async () => {
     isMobileNavOpen = true;
-    render(<ProtectedMobileNav />);
+    await renderNav();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(mockClose).toHaveBeenCalledTimes(1);
   });
 
-  it('does not respond to Escape while closed', () => {
+  it('does not respond to Escape while closed', async () => {
     isMobileNavOpen = false;
-    render(<ProtectedMobileNav />);
+    await renderNav();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(mockClose).not.toHaveBeenCalled();
   });
 
-  it('locks body scroll while open and restores it when closed', () => {
+  it('locks body scroll while open and restores it when closed', async () => {
     isMobileNavOpen = true;
-    const { unmount } = render(<ProtectedMobileNav />);
+    const { unmount } = await renderNav();
     expect(document.body.style.overflow).toBe('hidden');
     unmount();
     expect(document.body.style.overflow).toBe('');
   });
 
-  it('renders the browse links section', () => {
-    render(<ProtectedMobileNav />);
+  it('renders the browse links section', async () => {
+    await renderNav();
     expect(screen.getByText('الرئيسية').closest('a')?.getAttribute('href')).toBe('/');
     expect(screen.getByText('البحث').closest('a')).not.toBeNull();
     expect(screen.getByText('المتاجر').closest('a')).not.toBeNull();
@@ -185,9 +191,9 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('مقدمو الخدمة').closest('a')).not.toBeNull();
   });
 
-  it('renders the core account links', () => {
+  it('renders the core account links', async () => {
     isMobileNavOpen = true;
-    render(<ProtectedMobileNav />);
+    await renderNav();
     expect(screen.getByText('لوحة التحكم')).toBeInTheDocument();
     expect(screen.getByText('إعلاناتي')).toBeInTheDocument();
     expect(screen.getByText('الرسائل')).toBeInTheDocument();
@@ -199,16 +205,16 @@ describe('ProtectedMobileNav', () => {
     expect(screen.getByText('الإعدادات')).toBeInTheDocument();
   });
 
-  it('sets aria-current="page" on the active link', () => {
+  it('sets aria-current="page" on the active link', async () => {
     isMobileNavOpen = true;
     mockUsePathname.mockReturnValue('/my-ads');
-    render(<ProtectedMobileNav />);
+    await renderNav();
     expect(screen.getByText('إعلاناتي').closest('a')?.getAttribute('aria-current')).toBe('page');
     fireEvent.click(screen.getByRole('button', { name: /نشاطي/ }));
     expect(screen.getByText('المفضلة').closest('a')?.getAttribute('aria-current')).toBeNull();
   });
 
-  it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 8-destination group)', () => {
+  it('renders "الإعدادات" as a disclosure group (FIX UX-16: was a flat link, now matches ProtectedSidebar\'s 8-destination group)', async () => {
     // FIX (test bug, not a component bug): getByRole excludes
     // aria-hidden elements from the accessibility tree by design (see
     // this file's own first test's comment) — the drawer's <nav> is
@@ -219,16 +225,16 @@ describe('ProtectedMobileNav', () => {
     // drawer content sets isMobileNavOpen = true first (see 'shows a
     // backdrop when open' etc.) — this test just needed the same.
     isMobileNavOpen = true;
-    render(<ProtectedMobileNav />);
+    await renderNav();
     expect(screen.getByRole('button', { name: /الإعدادات/ })).toBeInTheDocument();
   });
 
-  it('settings group opens automatically and shows its sub-destinations when already on a /settings/* subpath (seller: 7, "متجري" excluded — see below)', () => {
+  it('settings group opens automatically and shows its sub-destinations when already on a /settings/* subpath (seller: 7, "متجري" excluded — see below)', async () => {
     // Same fix as the test above — must open the drawer before
     // getByRole can see anything inside it.
     isMobileNavOpen = true;
     mockUsePathname.mockReturnValue('/settings/security');
-    render(<ProtectedMobileNav />);
+    await renderNav();
     const toggle = screen.getByRole('button', { name: /الإعدادات/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('الملف الشخصي').closest('a')?.getAttribute('href')).toBe('/settings/profile');
@@ -246,13 +252,13 @@ describe('ProtectedMobileNav', () => {
   // (further down, see the "متجري" describe block below). Settings'
   // own "متجري" child must be dropped in that case — otherwise the
   // exact same /my-store destination appears twice in one drawer.
-  it('excludes "متجري" from "الإعدادات" once the user is a seller (STORE_GROUP already covers it)', () => {
+  it('excludes "متجري" from "الإعدادات" once the user is a seller (STORE_GROUP already covers it)', async () => {
     isMobileNavOpen = true;
     // On a /settings/* path the group auto-expands — do NOT click the
     // toggle (that would collapse it and hide the sub-links).
     mockUsePathname.mockReturnValue('/settings/security');
     (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: true, isLoaded: true });
-    render(<ProtectedMobileNav />);
+    await renderNav();
     const settingsLinks = ['الملف الشخصي', 'ملف البائع', 'ملف مقدم الخدمة', 'الأمان', 'الجلسات', 'الإشعارات', 'المستخدمون المحظورون'];
     settingsLinks.forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
     // STORE_GROUP is collapsed on /settings/* so only its toggle label
@@ -272,12 +278,12 @@ describe('ProtectedMobileNav', () => {
   // A user with no SellerProfile yet has no STORE_GROUP at all, so
   // "الإعدادات" → "متجري" is their only path to /my-store's
   // become-a-store-owner CTA — must stay present for them.
-  it('keeps "إدارة المتجر" inside "الإعدادات" for a non-seller (their only path to /my-store)', () => {
+  it('keeps "إدارة المتجر" inside "الإعدادات" for a non-seller (their only path to /my-store)', async () => {
     (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isSuccess: true });
     isMobileNavOpen = true;
     mockUsePathname.mockReturnValue('/dashboard');
     (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
-    render(<ProtectedMobileNav />);
+    await renderNav();
     fireEvent.click(screen.getByRole('button', { name: /الإعدادات/ }));
     expect(screen.getByText('إدارة المتجر').closest('a')?.getAttribute('href')).toBe('/my-store');
   });
@@ -288,46 +294,46 @@ describe('ProtectedMobileNav', () => {
   // /settings/service-provider are unchanged and still reachable
   // through the settings disclosure group.
   describe('dynamic role sections', () => {
-    it('renders "خدماتي" as a disclosure group when the user is a service provider', () => {
+    it('renders "خدماتي" as a disclosure group when the user is a service provider', async () => {
       isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: { id: 'provider-1' }, isSuccess: true,
       });
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.getByRole('button', { name: /خدماتي/ })).toBeInTheDocument();
     });
 
-    it('hides "خدماتي" entirely when the user has no service-provider profile', () => {
+    it('hides "خدماتي" entirely when the user has no service-provider profile', async () => {
       isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
       });
       (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: true });
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByText('أصبح مقدّم خدمة')).not.toBeInTheDocument();
     });
 
-    it('treats a still-loading service-provider query the same as "not yet" (section absent)', () => {
+    it('treats a still-loading service-provider query the same as "not yet" (section absent)', async () => {
       isMobileNavOpen = true;
       (useMyServiceProvider as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: false,
       });
       (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: false });
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
     });
 
-    it('renders "متجري" as a disclosure group when the user is a seller', () => {
+    it('renders "متجري" as a disclosure group when the user is a seller', async () => {
       isMobileNavOpen = true;
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: { id: 'seller-1' }, isSuccess: true,
       });
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.getByRole('button', { name: /متجري/ })).toBeInTheDocument();
     });
 
-    it('hides "متجري" and "عرض متجري" entirely when the user has no seller profile, and shows إعلاناتي\'s CTA', () => {
+    it('hides "متجري" and "عرض متجري" entirely when the user has no seller profile, and shows إعلاناتي\'s CTA', async () => {
       isMobileNavOpen = true;
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
@@ -336,7 +342,7 @@ describe('ProtectedMobileNav', () => {
       (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: false,
       });
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
       expect(screen.queryByText('افتح متجرك')).not.toBeInTheDocument();
       expect(screen.queryByText('أصبح بائعاً')).not.toBeInTheDocument();
@@ -345,7 +351,7 @@ describe('ProtectedMobileNav', () => {
       expect(screen.getByText('أنشئ حساب بائع')).toBeInTheDocument();
     });
 
-    it('hides both sections and shows the seller-signup CTA when the user has neither role', () => {
+    it('hides both sections and shows the seller-signup CTA when the user has neither role', async () => {
       isMobileNavOpen = true;
       (useMySellerProfile as ReturnType<typeof vi.fn>).mockReturnValue({
         data: undefined, isSuccess: true,
@@ -358,7 +364,7 @@ describe('ProtectedMobileNav', () => {
       });
       (useIsSeller as ReturnType<typeof vi.fn>).mockReturnValue({ isSeller: false, isLoaded: true });
       (useIsProvider as ReturnType<typeof vi.fn>).mockReturnValue({ isProvider: false, isLoaded: true });
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.queryByRole('button', { name: /خدماتي/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^متجري/ })).not.toBeInTheDocument();
       // SELLER-GATE: إعلاناتي hidden for non-sellers, CTA shown instead.
@@ -366,27 +372,27 @@ describe('ProtectedMobileNav', () => {
       expect(screen.getByText('أنشئ حساب بائع').closest('a')?.getAttribute('href')).toBe('/settings/seller');
     });
 
-    it('hides "عرض متجري" when the store exists but is not ACTIVE', () => {
+    it('hides "عرض متجري" when the store exists but is not ACTIVE', async () => {
       isMobileNavOpen = true;
       (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
         data: { id: 'store-1', status: 'PENDING' }, isSuccess: true,
       });
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.getByRole('button', { name: /^متجري/ })).toBeInTheDocument();
       expect(screen.queryByText('عرض متجري')).not.toBeInTheDocument();
     });
 
-    it('shows "عرض متجري" pointing at the public store page when ACTIVE', () => {
+    it('shows "عرض متجري" pointing at the public store page when ACTIVE', async () => {
       isMobileNavOpen = true;
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.getByText('عرض متجري').closest('a')?.getAttribute('href')).toBe('/stores/store-1');
     });
   });
 
   describe('disclosure groups', () => {
-    it('"خدماتي" is collapsed by default outside the group and expands on click', () => {
+    it('"خدماتي" is collapsed by default outside the group and expands on click', async () => {
       isMobileNavOpen = true;
-      render(<ProtectedMobileNav />);
+      await renderNav();
       const toggle = screen.getByRole('button', { name: /خدماتي/ });
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
       fireEvent.click(toggle);
@@ -400,18 +406,18 @@ describe('ProtectedMobileNav', () => {
       expect(screen.getByText('طلباتي').closest('a')?.getAttribute('href')).toBe('/my-requests');
     });
 
-    it('"خدماتي" is expanded by default when pathname is inside the group', () => {
+    it('"خدماتي" is expanded by default when pathname is inside the group', async () => {
       isMobileNavOpen = true;
       mockUsePathname.mockReturnValue('/my-requests');
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.getByRole('button', { name: /خدماتي/ }).getAttribute('aria-expanded')).toBe(
         'true',
       );
     });
 
-    it('"متجري" is collapsed by default outside the group and expands on click', () => {
+    it('"متجري" is collapsed by default outside the group and expands on click', async () => {
       isMobileNavOpen = true;
-      render(<ProtectedMobileNav />);
+      await renderNav();
       const toggle = screen.getByRole('button', { name: /متجري/ });
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
       fireEvent.click(toggle);
@@ -423,18 +429,18 @@ describe('ProtectedMobileNav', () => {
       );
     });
 
-    it('"متجري" is expanded by default when pathname is inside the group', () => {
+    it('"متجري" is expanded by default when pathname is inside the group', async () => {
       isMobileNavOpen = true;
       mockUsePathname.mockReturnValue('/my-store/followed');
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.getByRole('button', { name: /متجري/ }).getAttribute('aria-expanded')).toBe(
         'true',
       );
     });
 
-    it('clicking a disclosure child link closes the drawer via onNavigate', () => {
+    it('clicking a disclosure child link closes the drawer via onNavigate', async () => {
       isMobileNavOpen = true;
-      render(<ProtectedMobileNav />);
+      await renderNav();
       fireEvent.click(screen.getByRole('button', { name: /خدماتي/ }));
       fireEvent.click(screen.getByText('طلباتي'));
       expect(mockClose).toHaveBeenCalledTimes(1);
@@ -442,18 +448,18 @@ describe('ProtectedMobileNav', () => {
   });
 
   describe('admin link', () => {
-    it('does not render the admin link for non-admins', () => {
+    it('does not render the admin link for non-admins', async () => {
       isMobileNavOpen = true;
       isAdmin = false;
-      render(<ProtectedMobileNav />);
+      await renderNav();
       expect(screen.queryByText('لوحة الإدارة')).not.toBeInTheDocument();
     });
 
-    it('renders the admin link for admin-tier roles and marks it active on nested admin routes', () => {
+    it('renders the admin link for admin-tier roles and marks it active on nested admin routes', async () => {
       isMobileNavOpen = true;
       isAdmin = true;
       mockUsePathname.mockReturnValue('/admin/users');
-      render(<ProtectedMobileNav />);
+      await renderNav();
       const link = screen.getByText('لوحة الإدارة').closest('a');
       expect(link?.getAttribute('href')).toBe('/admin');
       expect(link?.getAttribute('aria-current')).toBe('page');
@@ -461,9 +467,9 @@ describe('ProtectedMobileNav', () => {
   });
 
   describe('logout', () => {
-    it('calls logout and closes the drawer on click', () => {
+    it('calls logout and closes the drawer on click', async () => {
       isMobileNavOpen = true;
-      render(<ProtectedMobileNav />);
+      await renderNav();
       fireEvent.click(screen.getByRole('button', { name: 'تسجيل الخروج' }));
       expect(mockLogout).toHaveBeenCalledTimes(1);
       expect(mockClose).toHaveBeenCalledTimes(1);

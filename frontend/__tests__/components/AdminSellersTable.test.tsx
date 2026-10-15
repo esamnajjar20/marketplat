@@ -122,7 +122,7 @@ describe('AdminSellersTable', () => {
     it('shows the empty state when there are no sellers', () => {
       mockSellersData([]);
       render(<AdminSellersTable />);
-      expect(screen.getByText('لا يوجد بائعون')).toBeInTheDocument();
+      expect(screen.getAllByText('لا يوجد بائعون').length).toBeGreaterThan(0);
     });
   });
 

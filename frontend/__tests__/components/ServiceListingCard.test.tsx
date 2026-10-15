@@ -76,7 +76,7 @@ describe('ServiceListingCard', () => {
   it('renders the title and city in public context without provider attribution', () => {
     render(<ServiceListingCard listing={makeListing()} />);
     expect(screen.getByText('تصليح مكيفات منزلية')).toBeInTheDocument();
-    expect(screen.getByText(/غزة/)).toBeInTheDocument();
+    expect(screen.getByText('عند العميل')).toBeInTheDocument();
     expect(screen.queryByText('ورشة التبريد الحديثة')).not.toBeInTheDocument();
   });
 

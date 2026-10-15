@@ -149,7 +149,7 @@ describe('ProductCard', () => {
 
     it('shows "غير متوفر" for OUT_OF_STOCK', () => {
       render(<ProductCard product={{ ...baseProduct, availability: 'OUT_OF_STOCK' }} storeId="store-1" />);
-      expect(screen.getByText('غير متوفر')).toBeInTheDocument();
+      expect(screen.getAllByText('غير متوفر')).toHaveLength(2);
     });
 
     it('makes out-of-stock state unmistakable on the image as well as in the badge', () => {

@@ -68,7 +68,7 @@ const mockUseAuthStore = vi.mocked(useAuthStore);
 
 function mockAuthState(isAuthenticated: boolean) {
   mockUseAuthStore.mockImplementation((selector) =>
-    selector({ isAuthenticated } as never),
+    selector({ isAuthenticated, isHydrated: true, user: isAuthenticated ? { id: 'u1', name: 'أحمد', role: 'USER' } : null } as never),
   );
 }
 
@@ -80,7 +80,7 @@ describe('PublicHeader', () => {
     expect(screen.getByText('تسجيل الدخول')).toBeInTheDocument();
     expect(screen.getByText('إنشاء حساب')).toBeInTheDocument();
     expect(screen.queryByText('نشر إعلان')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('user-menu')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'قائمة المستخدم' })).not.toBeInTheDocument();
   });
 
   it('shows "أضف" and UserMenu when authenticated, hiding auth buttons', () => {
@@ -88,7 +88,7 @@ describe('PublicHeader', () => {
     render(<PublicHeader />);
 
     expect(screen.getByText('أضف')).toBeInTheDocument();
-    expect(screen.getByTestId('user-menu')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'قائمة المستخدم' })).toBeInTheDocument();
     expect(screen.queryByText('تسجيل الدخول')).not.toBeInTheDocument();
     expect(screen.queryByText('إنشاء حساب')).not.toBeInTheDocument();
   });

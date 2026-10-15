@@ -109,7 +109,11 @@ describe('ProductForm', () => {
     // resetAllMocks wipes the factory's default implementation, so the
     // useMyStore return value must be re-established every test.
     (useMyStore as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { id: 'store-1' }, isLoading: false, isError: false,
+      data: {
+        id: 'store-1',
+        storeType: { labels: { product: 'المنتج', products: 'المنتجات', addProduct: 'إضافة المنتج', categories: 'التصنيفات' } },
+      },
+      isLoading: false, isError: false,
     });
     (useProductCategories as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [{ id: 'cat-1', nameAr: 'إلكترونيات' }],

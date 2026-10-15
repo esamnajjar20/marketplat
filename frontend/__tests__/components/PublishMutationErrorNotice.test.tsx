@@ -51,7 +51,7 @@ describe('PublishMutationErrorNotice', () => {
       retryAfterSeconds: 30,
     }} />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('انتظر 30 ثانية');
+    expect(screen.getByRole('timer')).toHaveTextContent('انتظر 30 ثانية');
   });
 
   it('counts down once per second and enables retry when the wait expires', async () => {

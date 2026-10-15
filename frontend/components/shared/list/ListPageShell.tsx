@@ -25,7 +25,7 @@ export const LIST_CARD_GRID_CLASS =
 
 /** Store directory cards (horizontal layout — fewer columns). */
 export const LIST_STORE_GRID_CLASS =
-  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';
+  'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-4';
 
 export const LIST_SERVICE_GRID_CLASS =
   'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';

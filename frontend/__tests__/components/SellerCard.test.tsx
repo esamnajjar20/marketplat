@@ -171,7 +171,7 @@ describe('SellerCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'مراسلة البائع' }));
 
-    expect(toast.error).toHaveBeenCalledWith('يرجى تسجيل الدخول أولاً');
+    expect(toast.error).toHaveBeenCalledWith('سجّل الدخول لمراسلة البائع');
     expect(mockStartConversation).not.toHaveBeenCalled();
   });
 

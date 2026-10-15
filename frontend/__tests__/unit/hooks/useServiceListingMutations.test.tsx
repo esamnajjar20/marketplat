@@ -49,12 +49,13 @@ vi.mock('@/lib/offlineAdDrafts', () => ({
   saveAdDraft: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/lib/imageOffline', () => ({
-  compressImageForOffline: vi.fn(),
+vi.mock('@/lib/imageOfflineHelpers', () => ({
+  bestEffortCompressPublish: vi.fn(),
+  bestEffortCompressPreviews: vi.fn(),
 }));
 
 import { useAuthStore } from '@/store/auth.store';
-import { compressImageForOffline } from '@/lib/imageOffline';
+import { bestEffortCompressPublish, bestEffortCompressPreviews } from '@/lib/imageOfflineHelpers';
 
 function mockCurrentUser(id: string | null) {
   (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
@@ -158,9 +159,11 @@ describe('useCreateServiceListing', () => {
     const queryClient = newClient();
     (serviceListingsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    const fakeBlob = new Blob(['x'], { type: 'image/jpeg' });
-    vi.mocked(compressImageForOffline).mockResolvedValue(fakeBlob);
+    const fakeBlob = new Blob(['compressed-preview'], { type: 'image/jpeg' });
     const file = new File(['x'], 'svc.png', { type: 'image/png' });
+    const compressedFile = new File(['compressed'], 'svc-compressed.jpg', { type: 'image/jpeg' });
+    vi.mocked(bestEffortCompressPublish).mockResolvedValue([compressedFile]);
+    vi.mocked(bestEffortCompressPreviews).mockResolvedValue([{ name: 'svc.png', blob: fakeBlob }]);
 
     const { result } = renderHook(() => useCreateServiceListing(), { wrapper: createWrapper(queryClient) });
     act(() => {
@@ -176,6 +179,8 @@ describe('useCreateServiceListing', () => {
 
     await waitFor(() => expect(saveAdDraft).toHaveBeenCalled());
     const saved = (saveAdDraft as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(bestEffortCompressPublish).toHaveBeenCalledWith([file]);
+    expect(bestEffortCompressPreviews).toHaveBeenCalledWith([compressedFile]);
     expect(saved.payload.imageLabels).toEqual(['svc.png']);
     expect(saved.payload).not.toHaveProperty('images');
     expect(saved.images).toEqual([{ name: 'svc.png', blob: fakeBlob }]);

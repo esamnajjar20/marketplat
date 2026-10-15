@@ -96,7 +96,10 @@ describe('useStore', () => {
     const { result } = renderHook(() => useStore('s1'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(storesApi.getById).toHaveBeenCalledWith('s1');
+    expect(storesApi.getById).toHaveBeenCalledWith(
+      's1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(result.current.data).toEqual({ id: 's1', name: 'Store A' });
   });
 });
@@ -122,7 +125,7 @@ describe('useMyStore', () => {
 describe('useMyFollowedStores', () => {
   it('does not fetch when not authenticated', () => {
     const queryClient = makeSharedClient();
-    renderHook(() => useMyFollowedStores(), { wrapper: wrapperFor(queryClient) });
+    renderHook(() => useMyFollowedStores({ limit: 100 }), { wrapper: wrapperFor(queryClient) });
     expect(storesApi.getMyFollowedStores).not.toHaveBeenCalled();
   });
 
@@ -145,7 +148,7 @@ describe('useMyFollowedStores', () => {
     expect(ids!.has('store-2')).toBe(true);
   });
 
-  it('merges ids from a page other than page 1 into the shared Set (mirrors FIX BUG-03)', async () => {
+  it('does not let a paginated result overwrite the canonical followed-store Set', async () => {
     useAuthStore.getState().setAuth(mockUser, mockTokens);
     (storesApi.getMyFollowedStores as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { items: [{ storeId: 'store-99' }], meta: {} } },
@@ -157,8 +160,7 @@ describe('useMyFollowedStores', () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const ids = queryClient.getQueryData<Set<string>>(queryKeys.stores.followedIds());
-    expect(ids!.has('store-99')).toBe(true);
+    expect(queryClient.getQueryData<Set<string>>(queryKeys.stores.followedIds())).toBeUndefined();
   });
 });
 

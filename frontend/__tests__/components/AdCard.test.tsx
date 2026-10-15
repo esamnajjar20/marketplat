@@ -131,26 +131,26 @@ describe('AdCard', () => {
     it('shows a "تم البيع" overlay when the ad is sold', () => {
       render(<AdCard ad={{ ...baseAd, status: 'SOLD' }} />);
       // Overlay on the image + price-row badge both render the same label.
-      expect(screen.getAllByText('تم البيع').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('مباع').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows a "مميز" badge when featured and not sold', () => {
       render(<AdCard ad={{ ...baseAd, isFeatured: true, status: 'ACTIVE' }} />);
-      expect(screen.getByText('مميز')).toBeInTheDocument();
+      expect(screen.getByText(/مميز/)).toBeInTheDocument();
     });
 
     // The specific compound condition in the source: isFeatured && !isSold.
     it('does NOT show the "مميز" badge when the ad is both featured and sold', () => {
       render(<AdCard ad={{ ...baseAd, isFeatured: true, status: 'SOLD' }} />);
-      expect(screen.queryByText('مميز')).not.toBeInTheDocument();
+      expect(screen.queryByText(/مميز/)).not.toBeInTheDocument();
       // The sold overlay still takes precedence (image overlay + price badge).
-      expect(screen.getAllByText('تم البيع').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('مباع').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows neither badge for a plain active, non-featured ad', () => {
       render(<AdCard ad={baseAd} />);
-      expect(screen.queryByText('مميز')).not.toBeInTheDocument();
-      expect(screen.queryByText('تم البيع')).not.toBeInTheDocument();
+      expect(screen.queryByText(/مميز/)).not.toBeInTheDocument();
+      expect(screen.queryByText('مباع')).not.toBeInTheDocument();
     });
   });
 
@@ -197,8 +197,9 @@ describe('AdCard', () => {
   });
 
   it('applies a custom className alongside the default styling', () => {
-    render(<AdCard ad={baseAd} className="custom-test-class" />);
-    expect(screen.getByRole('link')).toHaveClass('custom-test-class');
+    const { container } = render(<AdCard ad={baseAd} className="custom-test-class" />);
+    expect(container.querySelector('article')).toHaveClass('custom-test-class');
+    expect(screen.getByRole('link')).not.toHaveClass('custom-test-class');
   });
 
   describe('favorite button (FIX P1-1)', () => {

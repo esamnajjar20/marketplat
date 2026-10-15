@@ -80,7 +80,11 @@ vi.mock('@/lib/offlineFavoriteIntents', () => ({
 }));
 vi.mock('@/lib/offlineActivityLog', () => ({ logOfflineActivity: vi.fn() }));
 vi.mock('@/lib/networkLifecycle', () => ({
-  subscribeNetworkLifecycle: vi.fn(() => () => {}),
+  subscribeNetworkLifecycle: vi.fn((callback: (event: { type: string }) => void) => {
+    const onOnline = () => callback({ type: 'online' });
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }),
 }));
 vi.mock('@/lib/networkPolicy', () => ({
   getNetworkPolicy: vi.fn(() => ({})),
@@ -97,7 +101,6 @@ vi.mock('@/lib/networkObservability', () => ({
 
 import { OfflineBootstrap } from '@/components/pwa/OfflineBootstrap';
 import { requestQueueReplay } from '@/lib/offlineQueue';
-import { initAdDraftSync } from '@/lib/offlineAdDraftSync';
 import { scheduleWarming, cancelScheduledWarming, TICK_MS } from '@/lib/offlineWarmingScheduler';
 import { ensurePushSubscriptionSynced } from '@/lib/pwa';
 import { supportsWebPush, supportsNativePush } from '@/lib/runtime/capabilities';
@@ -125,10 +128,9 @@ describe('OfflineBootstrap', () => {
     expect(getByTestId('warmup-indicator')).toBeInTheDocument();
   });
 
-  it('inits ad-draft sync and SCHEDULES (does not immediately run) warming on mount', () => {
+  it('schedules (does not immediately run) warming on mount', () => {
     render(<OfflineBootstrap />);
 
-    expect(initAdDraftSync).toHaveBeenCalledTimes(1);
     expect(scheduleWarming).toHaveBeenCalledWith('mount', { authenticated: false });
   });
 

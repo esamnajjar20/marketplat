@@ -145,7 +145,10 @@ describe('AppointmentsList', () => {
       await user.click(screen.getByRole('button', { name: /إلغاء/ }));
       // Cancel opens ConfirmDialog first
       await user.click(screen.getByRole('button', { name: /إلغاء الموعد/ }));
-      expect(mockUpdateMutate).toHaveBeenCalledWith({ id: 'appt-9', payload: { status: 'CANCELLED' } });
+      expect(mockUpdateMutate).toHaveBeenCalledWith(
+        { id: 'appt-9', payload: { status: 'CANCELLED' } },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
 
       await user.click(screen.getByRole('button', { name: /إنهاء/ }));
       expect(mockUpdateMutate).toHaveBeenCalledWith({ id: 'appt-9', payload: { status: 'COMPLETED' } });

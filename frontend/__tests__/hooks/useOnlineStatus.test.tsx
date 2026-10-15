@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -83,7 +83,7 @@ describe('useOnlineStatus', () => {
     unmount();
   });
 
-  it('keeps the server snapshot stable at online', () => {
+  it('keeps the server snapshot stable at online', async () => {
     setNavigatorOnline(false);
 
     // The server snapshot must not read navigator.onLine. The client then
@@ -91,7 +91,7 @@ describe('useOnlineStatus', () => {
     expect(renderToString(<Status id="status" />)).toContain('>online<');
 
     const { container, unmount } = render(<Status id="status" />);
-    expect(container.querySelector('[data-testid="status"]')).toHaveTextContent('offline');
+    await waitFor(() => expect(container.querySelector('[data-testid="status"]')).toHaveTextContent('offline'));
     unmount();
   });
 });

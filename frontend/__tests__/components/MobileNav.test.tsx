@@ -108,7 +108,7 @@ describe('MobileNav', () => {
       await renderNav();
       expect(screen.queryByRole('link', { name: 'إعلاناتي' })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'أضف إعلانك' })).not.toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'أنشئ حساب بائع' })).toHaveAttribute('href', '/settings/seller');
+      expect(screen.getByRole('link', { name: 'أنشئ حساب بائع' })).toHaveAttribute('href', '/settings?tab=profile&section=seller');
     });
 
     // FIX UX-SETTINGS-01: "الإعدادات" used to be a flat link straight to
@@ -132,8 +132,10 @@ describe('MobileNav', () => {
       await user.click(screen.getByRole('button', { name: /الإعدادات/ }));
 
       expect(screen.getByRole('link', { name: 'الملف الشخصي' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'ملف البائع' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'ملف مقدم الخدمة' })).toBeInTheDocument();
+      // Seller/provider profiles are reached from their dedicated role sections,
+      // not duplicated inside the unified account-settings disclosure.
+      expect(screen.queryByRole('link', { name: 'ملف البائع' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'ملف مقدم الخدمة' })).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'الأمان' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'الجلسات' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'الإشعارات' })).toBeInTheDocument();

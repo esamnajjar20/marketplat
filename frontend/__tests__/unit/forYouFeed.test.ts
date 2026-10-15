@@ -38,7 +38,7 @@ describe('buildForYouFeed', () => {
     const order = ids(r);
     const lastRanked = Math.max(...['a0', 'a1', 'p3', 's3'].map((i) => order.indexOf(i)));
     const firstFallback = order.findIndex((i) => i.startsWith('fa'));
-    expect(firstFallback === -1 || firstFallback > lastRanked - 3).toBe(true);
+    expect(firstFallback === -1 || firstFallback > lastRanked).toBe(true);
     expect(order.slice(0, 10)).not.toContain('fa5');
   });
 

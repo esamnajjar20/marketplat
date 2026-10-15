@@ -28,7 +28,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderWithProviders as render } from '@/test-support/render';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { formatRelativeTime } from '@/lib/formatters';
 import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';
@@ -93,7 +93,7 @@ describe('ServiceListingDetail', () => {
   describe('price formatting', () => {
     it('shows plain price for FIXED', () => {
       render(<ServiceListingDetail listing={makeListing({ pricingType: 'FIXED', price: '200.00' })} />);
-      expect(screen.getByText(/200/)).toBeInTheDocument();
+      expect(screen.getAllByText(/200/).length).toBeGreaterThan(0);
     });
 
     it('prefixes "يبدأ من" for STARTING_FROM', () => {
@@ -140,17 +140,17 @@ describe('ServiceListingDetail', () => {
   });
 
   describe('image gallery', () => {
-    it('caps rendered images at 4 even when more are provided', () => {
+    it('renders the active image and a thumbnail for every supplied image', () => {
       const listing = makeListing({
         images: Array.from({ length: 6 }, (_, i) => `https://res.cloudinary.com/demo/image/upload/v1/${i}.jpg`),
       });
       render(<ServiceListingDetail listing={listing} />);
-      expect(screen.getAllByRole('img')).toHaveLength(4);
+      expect(within(screen.getByTestId('service-listing-gallery')).container.querySelectorAll('img')).toHaveLength(7);
     });
 
     it('falls back to a single placeholder image when images array is empty', () => {
       render(<ServiceListingDetail listing={makeListing({ images: [] })} />);
-      const imgs = screen.getAllByRole('img');
+      const imgs = within(screen.getByTestId('service-listing-gallery')).container.querySelectorAll('img');
       expect(imgs).toHaveLength(1);
       expect((imgs[0] as HTMLImageElement).src).toContain('data:image/svg+xml');
     });
@@ -164,7 +164,7 @@ describe('ServiceListingDetail', () => {
       render(<ServiceListingDetail listing={makeListing({
         provider: { ...makeListing().provider, sellerProfile: { ...makeListing().provider.sellerProfile, userId: 'user-77' } },
       })} />);
-      expect(screen.getByRole('link')).toHaveAttribute('href', '/profile/user-77');
+      expect(screen.getAllByRole('link').some((link) => link.getAttribute('href') === '/profile/user-77')).toBe(true);
     });
 
     it('renders the provider business name twice (label + "عرض كل خدمات" line)', () => {
@@ -183,12 +183,12 @@ describe('ServiceListingDetail', () => {
           })}
         />
       );
-      expect(screen.getByText('موثّق')).toBeInTheDocument();
+      expect(screen.getByText('مقدم موثّق')).toBeInTheDocument();
     });
 
     it('does not show the verified badge when sellerProfile.verified is false', () => {
       render(<ServiceListingDetail listing={makeListing()} />);
-      expect(screen.queryByText('موثّق')).not.toBeInTheDocument();
+      expect(screen.queryByText('مقدم موثّق')).not.toBeInTheDocument();
     });
   });
 });

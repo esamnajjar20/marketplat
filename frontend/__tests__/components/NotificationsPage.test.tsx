@@ -199,23 +199,23 @@ describe('NotificationsPage', () => {
 
   it('confirms before deleting all read notifications', async () => {
     const user = setupUser();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<NotificationsPage />);
 
     await user.click(screen.getByRole('button', { name: /مسح المقروء/ }));
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(mockDeleteAllRead).toHaveBeenCalled();
-    confirmSpy.mockRestore();
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'حذف' }));
+    expect(mockDeleteAllRead).toHaveBeenCalledTimes(1);
   });
 
-  it('does not delete all read when confirm is cancelled', async () => {
+  it('does not delete all read until the confirmation dialog is accepted', async () => {
     const user = setupUser();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<NotificationsPage />);
 
     await user.click(screen.getByRole('button', { name: /مسح المقروء/ }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(mockDeleteAllRead).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
+    await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+    expect(mockDeleteAllRead).not.toHaveBeenCalled();
   });
 
   it('shows load-more when hasNextPage', () => {

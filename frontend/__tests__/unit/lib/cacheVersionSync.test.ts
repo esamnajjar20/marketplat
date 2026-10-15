@@ -78,8 +78,8 @@ describe('sw.js hand-copied constants stay in sync with their sources', () => {
   });
 
   it('keeps sw.js MAX_API_ENTRIES/MAX_IMAGE_ENTRIES in sync with offlineCachePolicy.ts (informational mirror)', () => {
-    const swApiLimit = extractOne(sw, /const MAX_API_ENTRIES = (\d+);/, 'sw.js MAX_API_ENTRIES');
-    const swImageLimit = extractOne(sw, /const MAX_IMAGE_ENTRIES = (\d+);/, 'sw.js MAX_IMAGE_ENTRIES');
+    const swApiLimit = extractOne(sw, /const MAX_API_ENTRIES = (?:MARKET_STORAGE_POLICY\.apiEntries \?\? )?(\d+);/, 'sw.js MAX_API_ENTRIES');
+    const swImageLimit = extractOne(sw, /const MAX_IMAGE_ENTRIES = (?:MARKET_STORAGE_POLICY\.imageEntries \?\? )?(\d+);/, 'sw.js MAX_IMAGE_ENTRIES');
     const policyApiLimit = extractOne(cachePolicy, /apiEntries: (\d+),/, 'offlineCachePolicy.ts apiEntries');
     const policyImageLimit = extractOne(
       cachePolicy,

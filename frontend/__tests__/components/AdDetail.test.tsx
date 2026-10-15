@@ -30,10 +30,6 @@ vi.mock('@/hooks/mutations/useFavoriteMutations', () => ({
   useToggleFavorite: vi.fn(),
 }));
 
-vi.mock('@/hooks/queries/useFavorites', () => ({
-  useIsFavorited: vi.fn(() => false),
-}));
-
 vi.mock('@/hooks/mutations/useConversationMutations', () => ({
   useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
@@ -320,7 +316,7 @@ describe('AdDetail', () => {
 
       await user.click(heartButton);
 
-      expect(heartIcon).toHaveClass('fill-current');
+      expect(heartButton.querySelector('svg')).toHaveClass('fill-current');
     });
 
     it('rolls back the optimistic update when the mutation fails', async () => {
@@ -350,12 +346,12 @@ describe('AdDetail', () => {
       expect(heartIcon).not.toHaveClass('fill-current');
     });
 
-    it('starts filled when isFavorited is initially true', () => {
+    it('starts filled when isFavorited is initially true', async () => {
       renderWithClient(<AdDetail ad={baseAd} isFavorited />);
 
-      // Already favorited on mount, so the label reads "إزالة من المفضلة".
-      const heartIcon = screen.getByLabelText('إزالة من المفضلة').querySelector('svg');
-      expect(heartIcon).toHaveClass('fill-current');
+      // The server-provided favorite state seeds the shared cache on mount.
+      const heartButton = await screen.findByLabelText('إزالة من المفضلة');
+      expect(heartButton.querySelector('svg')).toHaveClass('fill-current');
     });
   });
 

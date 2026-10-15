@@ -19,10 +19,11 @@ import { setupUser } from '@/test-support/user-event';
 import { SearchSortBar } from '@/components/shared/SearchSortBar';
 
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
   useSearchParams: () => mockSearchParams,
 }));
 

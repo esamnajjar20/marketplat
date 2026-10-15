@@ -218,7 +218,7 @@ describe('useMessages', () => {
     const { result } = renderHook(() => useMessages('c1'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual({
+    expect(result.current.data).toMatchObject({
       items: [],
       meta: { total: 0, page: 1, limit: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false },
     });

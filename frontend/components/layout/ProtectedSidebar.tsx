@@ -261,10 +261,11 @@ export function ProtectedSidebar() {
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {
-          if (item.key === 'store' || item.key === 'services' || item.key === 'requests' || item.key === 'sales') {
+          if (item.key === 'store' || item.key === 'services' || item.key === 'requests' || item.key === 'sales' || item.key === 'activity') {
             const group = item.key === 'store' ? STORE_GROUP
               : item.key === 'services' ? SERVICES_GROUP
-              : item.key === 'sales' ? SALES_GROUP : requestsGroupFor(true);
+              : item.key === 'sales' ? SALES_GROUP
+              : item.key === 'activity' ? ACTIVITY_GROUP : requestsGroupFor(true);
             return (
               <Suspense key={item.key} fallback={<DisclosureGroup group={group} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={group} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
@@ -285,7 +286,7 @@ export function ProtectedSidebar() {
               <WithSearch>{(search) => <DisclosureGroup group={settingsGroupFor(isSeller)} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
             </Suspense>
             {isAdminTier && (
-              <NavLink label="لوحة الإدارة" href={ROUTES.admin.dashboard} icon={LayoutDashboard} isActive={pathname === ROUTES.admin.root} onNavigate={() => navigate(ROUTES.admin.dashboard)} />
+              <NavLink label="لوحة الإدارة" href={ROUTES.admin.dashboard} icon={LayoutDashboard} isActive={pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`)} onNavigate={() => navigate(ROUTES.admin.dashboard)} />
             )}
         </div>
       </nav>

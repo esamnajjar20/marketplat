@@ -46,6 +46,7 @@ vi.mock('@/components/messages/MessageBodyEditor', async () => {
         disabled: Boolean(disabled),
         maxLength: 2000,
         'aria-label': 'نص الرسالة',
+        placeholder: 'اكتب رسالتك...',
         onChange: (e: any) => {
           setValue(e.target.value);
           onContentChange?.(Boolean(e.target.value.trim()));

@@ -103,6 +103,7 @@ describe('MyServicesHub', () => {
       data: { pendingRequests: 3, upcomingAppointments: 0 },
     } as never);
     render(<MyServicesHub />);
-    expect(screen.getByText(/3 طلب بانتظار/)).toBeInTheDocument();
+    expect(screen.getByText(/لديك 3 عنصراً يحتاج إلى متابعة/)).toBeInTheDocument();
+    expect(screen.getByText('طلبات بانتظار ردك')).toBeInTheDocument();
   });
 });

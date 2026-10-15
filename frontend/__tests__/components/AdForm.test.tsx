@@ -399,7 +399,7 @@ describe('AdForm', () => {
         expect(mockAddImagesMutateAsync).not.toHaveBeenCalled();
       });
 
-      it('does NOT call updateAd when removeImage fails, so a failed image step cannot navigate the user away from a half-applied edit', async () => {
+      it('still issues the fields mutation after a network image failure so offline edits can be preserved', async () => {
         mockRemoveImageMutateAsync.mockRejectedValue(new Error('network error'));
 
         const user = setupUser();
@@ -408,7 +408,7 @@ describe('AdForm', () => {
         await user.click(screen.getByRole('button', { name: 'حفظ التعديلات' }));
 
         await waitFor(() => expect(mockRemoveImageMutateAsync).toHaveBeenCalledTimes(1));
-        expect(mockUpdateMutate).not.toHaveBeenCalled();
+        await waitFor(() => expect(mockUpdateMutate).toHaveBeenCalledTimes(1));
       });
 
       it('re-enables the submit button after a failed image step instead of leaving it stuck loading', async () => {
@@ -474,6 +474,7 @@ describe('AdForm', () => {
   // confirmation — a single accidental tap discarded the whole form.
   describe('cancel confirmation (FIX P0-2)', () => {
     it('navigates back immediately when the form is untouched', async () => {
+      Object.defineProperty(window.history, 'length', { configurable: true, value: 2 });
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
       const user = setupUser();
       render(<AdForm mode="create" />);
@@ -499,6 +500,7 @@ describe('AdForm', () => {
     });
 
     it('navigates back only after confirming discard', async () => {
+      Object.defineProperty(window.history, 'length', { configurable: true, value: 2 });
       const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
       const user = setupUser();
       render(<AdForm mode="create" />);

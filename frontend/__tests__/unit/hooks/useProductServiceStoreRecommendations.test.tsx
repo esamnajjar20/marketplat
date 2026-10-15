@@ -29,6 +29,13 @@ vi.mock('@/api/recommendations.api', () => ({
   },
 }));
 
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: (selector: (state: { isAuthenticated: boolean; isAuthResolving: boolean }) => unknown) =>
+    selector({ isAuthenticated: false, isAuthResolving: false }),
+  selectIsAuthenticated: (state: { isAuthenticated: boolean }) => state.isAuthenticated,
+  selectIsAuthResolving: (state: { isAuthResolving: boolean }) => state.isAuthResolving,
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: ReactNode }) => (
@@ -64,7 +71,7 @@ describe('useProductRecommendations', () => {
     expect(recommendationsApi.getProductRecommendations).toHaveBeenCalledWith({
       limit: 8,
       excludeProductId: 'prod-1',
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(result.current.data).toEqual([{ id: 'prod-1' }]);
   });
 
@@ -106,7 +113,7 @@ describe('useServiceRecommendations', () => {
     expect(recommendationsApi.getServiceRecommendations).toHaveBeenCalledWith({
       limit: 8,
       excludeServiceListingId: 'svc-1',
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(result.current.data).toEqual([{ id: 'svc-1' }]);
   });
 });
@@ -129,7 +136,7 @@ describe('useStoreRecommendations', () => {
         excludeStoreId: 'store-1',
         lat: 31.5,
         lng: 34.4,
-      })
+      }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
     );
   });
 
@@ -146,7 +153,7 @@ describe('useStoreRecommendations', () => {
       expect(recommendationsApi.getStoreRecommendations).toHaveBeenCalledWith({
         limit: 6,
         excludeStoreId: 'store-1',
-      })
+      }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
     );
   });
 });

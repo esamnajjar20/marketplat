@@ -56,7 +56,6 @@ export const adminController = {
         select: { value: true, updatedAt: true },
       });
       const enabled = setting?.value === true;
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
       res.status(200).json(
         successResponse('Developer tools setting fetched', {
           enabled,
@@ -100,7 +99,6 @@ export const adminController = {
         userAgent: getUserAgent(req),
         details: { enabled },
       });
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
       res.status(200).json(
         successResponse('Developer tools setting updated', {
           enabled: setting.value === true,

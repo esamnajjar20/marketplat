@@ -29,14 +29,29 @@ let networkPolicy = {
   pageSizeMultiplier: 1,
   maxPrefetchDistancePx: 800,
   maxPrefetchConcurrency: 2,
-  queueConcurrency: 2,
+  queueConcurrency: 1,
   uploadConcurrency: 2,
   uploadTimeoutMs: 30_000,
   uploadRetryDelaysMs: [1000],
   requestTimeoutMs: 15_000,
 };
 vi.mock('../../../lib/networkPolicy', () => ({
-  getNetworkPolicy: () => networkPolicy,
+  getNetworkPolicy: () => {
+    // Keep the mock faithful to the real policy: the planner consumes the
+    // resolved network policy, not navigator.connection directly.
+    const connection = (globalThis.navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number } }).connection;
+    if (!connection) return networkPolicy;
+    const verySlow = connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g' ||
+      (typeof connection.downlink === 'number' && connection.downlink < 0.4);
+    const slow = !verySlow && connection.effectiveType === '3g';
+    if (!verySlow && !slow) return networkPolicy;
+    return {
+      ...networkPolicy,
+      tier: verySlow ? 'very-slow' : 'slow',
+      queueConcurrency: 1,
+      requestTimeoutMs: 25_000,
+    };
+  },
 }));
 
 import {

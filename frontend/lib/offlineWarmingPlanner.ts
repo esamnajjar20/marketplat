@@ -196,7 +196,10 @@ export function getWarmingPlan(): WarmingPlan {
 
   const criticalPlan = (reason: string): WarmingPlan => ({
     tier: 'critical',
-    concurrency: policy.queueConcurrency,
+    // Critical warming is intentionally serial on weak links; inheriting a
+    // larger global queueConcurrency can overload the very connection this
+    // adaptive plan is trying to protect.
+    concurrency: 1,
     interBatchDelayMs: 0,
     interRouteDelayMs: policy.tier === 'very-slow' ? 2500 : 1800,
     requestTimeoutMs: policy.requestTimeoutMs,

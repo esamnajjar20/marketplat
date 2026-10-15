@@ -143,7 +143,7 @@ describe('useCreateProduct', () => {
   });
 
   it('shows an error toast and does not navigate on failure', async () => {
-    (productsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('bad'));
+    (productsApi.create as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'bad' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useCreateProduct(), { wrapper });
@@ -232,7 +232,7 @@ describe('useUpdateProduct', () => {
   });
 
   it('shows an error toast on failure', async () => {
-    (productsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('bad'));
+    (productsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'bad' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useUpdateProduct('p-1'), { wrapper });
@@ -293,7 +293,7 @@ describe('useDeleteProduct', () => {
   });
 
   it('shows an error toast on failure', async () => {
-    (productsApi.delete as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('bad'));
+    (productsApi.delete as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'bad' } } });
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useDeleteProduct(), { wrapper });
@@ -392,7 +392,7 @@ describe('useToggleProductStatus', () => {
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     const key = seedProductsList(queryClient);
-    (productsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('server error'));
+    (productsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'server error' } } });
     const { wrapper } = createWrapper(queryClient);
 
     const { result } = renderHook(() => useToggleProductStatus(), { wrapper });
@@ -409,7 +409,7 @@ describe('useToggleProductStatus', () => {
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     seedProductsList(queryClient);
-    (productsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('server error'));
+    (productsApi.update as ReturnType<typeof vi.fn>).mockRejectedValue({ isAxiosError: true, response: { status: 500, data: { message: 'server error' } } });
     const { wrapper } = createWrapper(queryClient);
 
     const { result } = renderHook(() => useToggleProductStatus(), { wrapper });

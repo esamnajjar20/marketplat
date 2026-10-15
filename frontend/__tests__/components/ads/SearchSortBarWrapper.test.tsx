@@ -17,6 +17,7 @@ import { SearchSortBarWrapper } from '@/components/ads/SearchSortBarWrapper';
 import { usePathname } from 'next/navigation';
 
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({

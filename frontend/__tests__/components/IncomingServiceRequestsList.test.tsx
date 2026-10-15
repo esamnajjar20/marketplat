@@ -216,7 +216,9 @@ describe('IncomingServiceRequestsList', () => {
       await user.click(acceptButton!);
       expect(mockRespondMutate).toHaveBeenCalledWith({ action: 'ACCEPTED' });
 
-      await user.click(screen.getByRole('button', { name: /رفض/ }));
+      const rejectButton = screen.getAllByRole('button', { name: /رفض/ }).find((btn) => btn.textContent?.trim() === 'رفض');
+      expect(rejectButton).toBeDefined();
+      await user.click(rejectButton!);
       expect(mockRespondMutate).toHaveBeenCalledWith({ action: 'REJECTED' });
     });
 

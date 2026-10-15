@@ -69,7 +69,7 @@ describe('CreateServiceListingGate', () => {
 
     const link = screen.getByRole('link', { name: 'تفعيل ملف مقدم خدمة' });
     expect(link.getAttribute('href')).toBe(
-      `/settings/service-provider?from=${encodeURIComponent('/my-services/new')}`,
+      `/settings?tab=profile&section=service&from=${encodeURIComponent('/my-services/new')}`,
     );
   });
 

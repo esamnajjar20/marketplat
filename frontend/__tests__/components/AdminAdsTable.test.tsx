@@ -5,7 +5,7 @@
  * immediately with the inverted boolean (no confirmation — unlike
  * delete), delete opens a real ConfirmDialog and only calls
  * useAdminForceDeleteAd.mutate after explicit confirmation, search
- * pushes a URL with the query param and clears any existing page
+ * replaces the URL with the query param and clears any existing page
  * param, and the status <select> similarly resets pagination.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -35,10 +35,10 @@ vi.mock('@/hooks/mutations/useAdminMutations', () => ({
 }));
 
 let mockSearchParams = new URLSearchParams();
-const mockPush = vi.fn();
+const mockReplace = vi.fn();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ replace: mockReplace, push: vi.fn(), back: vi.fn() }),
 }));
 
 const mockFeatureMutate = vi.fn();
@@ -215,8 +215,8 @@ describe('AdminAdsTable', () => {
       await user.type(input, 'كورولا');
       await user.keyboard('{Enter}');
 
-      expect(mockPush).toHaveBeenCalled();
-      const calledUrl = String(mockPush.mock.calls[mockPush.mock.calls.length - 1][0]);
+      expect(mockReplace).toHaveBeenCalled();
+      const calledUrl = String(mockReplace.mock.calls[mockReplace.mock.calls.length - 1][0]);
       expect(calledUrl).toMatch(/q=/);
       expect(calledUrl).not.toMatch(/page=/);
     });
@@ -234,8 +234,8 @@ describe('AdminAdsTable', () => {
       const option = await screen.findByRole('option', { name: STATUS_LABELS.SOLD });
       await user.click(option);
 
-      expect(mockPush.mock.calls.length).toBeGreaterThan(0);
-      const calledUrl = String(mockPush.mock.calls[mockPush.mock.calls.length - 1][0]);
+      expect(mockReplace.mock.calls.length).toBeGreaterThan(0);
+      const calledUrl = String(mockReplace.mock.calls[mockReplace.mock.calls.length - 1][0]);
       expect(calledUrl).toMatch(/status=SOLD/);
       expect(calledUrl).not.toMatch(/page=/);
     });

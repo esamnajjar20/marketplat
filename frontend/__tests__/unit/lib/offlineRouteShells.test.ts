@@ -2,7 +2,7 @@
  * __tests__/unit/lib/offlineRouteShells.test.ts
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { warmRouteShells, warmPersonalShells, inspectRouteCache, isPermanentShellRoute } from '@/lib/offlineRouteShells';
+import { warmRouteShells, warmPersonalShells, inspectRouteCache, isPermanentShellRoute, CORE_ROUTES } from '@/lib/offlineRouteShells';
 
 describe('permanent route-shell policy', () => {
   it('pins stable public shells but not frequently changing public hubs', () => {
@@ -57,9 +57,16 @@ describe('offlineRouteShells', () => {
     await expect(warmRouteShells()).resolves.toBeUndefined();
   });
 
-  // OFFLINE-HUB-01: /saved-ads and /downloads became tabs of '/offline'
-  // (redirect stubs — not in CORE_ROUTES). /saved-payments remains warmable.
+  // OFFLINE-HUB-01: /saved-ads and /downloads became tabs of '/offline'.
+  // /saved-payments remains a public shell backed only by local device data.
+  it('keeps the local-only saved payments page eligible for public warming', () => {
+    expect(CORE_ROUTES).toContain('/saved-payments');
+  });
+
   it('warms core offline hub routes (not redirect stubs)', async () => {
+    // Use the full plan so this assertion tests route eligibility, not the
+    // smaller default fast-tier budget.
+    localStorage.setItem('marketplat:warming-pref', 'full');
     const fetchedPaths: string[] = [];
     vi.stubGlobal(
       'fetch',

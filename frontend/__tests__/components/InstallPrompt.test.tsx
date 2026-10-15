@@ -16,19 +16,15 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithProviders as render } from '@/test-support/render';
-import { screen, cleanup, act } from '@testing-library/react';
+import { screen, cleanup, act, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
-import { isNativePlatform } from '@/lib/capacitor/platform';
+import { supportsInstallPrompt } from '@/lib/runtime/capabilities';
 
 vi.mock('@/lib/runtime/capabilities', () => ({
-  supportsInstallPrompt: vi.fn(async () => true),
   supportsInstallPrompt: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock('@/lib/capacitor/platform', () => ({
-  isNativePlatform: vi.fn(async () => false),
-}));
 
 const DISMISS_STORAGE_KEY = 'pwa-install-dismissed-at';
 
@@ -66,7 +62,6 @@ describe('InstallPrompt', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.mocked(isNativePlatform).mockResolvedValue(false);
     localStorage.clear();
     mockMatchMedia(false);
     mockUserAgent(
@@ -96,16 +91,14 @@ describe('InstallPrompt', () => {
   });
 
   it('renders nothing inside the native Capacitor shell', async () => {
-    const { supportsInstallPrompt } = await import('@/lib/runtime/capabilities');
     vi.mocked(supportsInstallPrompt).mockResolvedValue(false);
-    vi.mocked(isNativePlatform).mockResolvedValue(true);
     const { container } = render(<InstallPrompt />);
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
     expect(container).toBeEmptyDOMElement();
-    expect(isNativePlatform).toHaveBeenCalled();
+    expect(supportsInstallPrompt).toHaveBeenCalled();
   });
 
   it('renders nothing within the 7-day dismiss cooldown', () => {
@@ -115,32 +108,35 @@ describe('InstallPrompt', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the prompt again once the cooldown has passed', () => {
+  it('shows the prompt again once the cooldown has passed', async () => {
     const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
     localStorage.setItem(DISMISS_STORAGE_KEY, String(eightDaysAgo));
     mockUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
 
     render(<InstallPrompt />);
 
-    expect(screen.getByText('ثبّت تطبيق سوق غزة')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('ثبّت تطبيق سوق غزة')).toBeInTheDocument());
   });
 
   describe('Android/Chrome — beforeinstallprompt flow', () => {
-    it('shows the custom install bar with an install button once the event fires', () => {
+    it('shows the custom install bar with an install button once the event fires', async () => {
       render(<InstallPrompt />);
-      expect(screen.queryByText('ثبّت تطبيق سوق غزة')).not.toBeInTheDocument();
+      await waitFor(() => expect(supportsInstallPrompt).toHaveBeenCalled());
+      await waitFor(() => expect(window.addEventListener).toHaveBeenCalledWith('beforeinstallprompt', expect.any(Function)));
 
       act(() => {
         window.dispatchEvent(makeBeforeInstallPromptEvent());
       });
 
-      expect(screen.getByText('ثبّت تطبيق سوق غزة')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('ثبّت تطبيق سوق غزة')).toBeInTheDocument());
       expect(screen.getByRole('button', { name: 'تثبيت' })).toBeInTheDocument();
     });
 
     it('calls prompt() and userChoice, then dismisses on install', async () => {
       const user = setupUser();
       render(<InstallPrompt />);
+      await waitFor(() => expect(supportsInstallPrompt).toHaveBeenCalled());
+      await waitFor(() => expect(window.addEventListener).toHaveBeenCalledWith('beforeinstallprompt', expect.any(Function)));
       const event = makeBeforeInstallPromptEvent('accepted');
 
       act(() => {
@@ -157,6 +153,8 @@ describe('InstallPrompt', () => {
     it('still dismisses even when the user declines the native prompt', async () => {
       const user = setupUser();
       render(<InstallPrompt />);
+      await waitFor(() => expect(supportsInstallPrompt).toHaveBeenCalled());
+      await waitFor(() => expect(window.addEventListener).toHaveBeenCalledWith('beforeinstallprompt', expect.any(Function)));
       const event = makeBeforeInstallPromptEvent('dismissed');
 
       act(() => {
@@ -169,9 +167,11 @@ describe('InstallPrompt', () => {
       expect(localStorage.getItem(DISMISS_STORAGE_KEY)).not.toBeNull();
     });
 
-    it('removes the beforeinstallprompt listener on unmount', () => {
+    it('removes the beforeinstallprompt listener on unmount', async () => {
       const removeSpy = vi.spyOn(window, 'removeEventListener');
       const { unmount } = render(<InstallPrompt />);
+      await waitFor(() => expect(supportsInstallPrompt).toHaveBeenCalled());
+      await waitFor(() => expect(window.addEventListener).toHaveBeenCalledWith('beforeinstallprompt', expect.any(Function)));
 
       unmount();
 
@@ -184,10 +184,10 @@ describe('InstallPrompt', () => {
       mockUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
     });
 
-    it('shows the iOS share/add-to-home-screen hint instead of an install button', () => {
+    it('shows the iOS share/add-to-home-screen hint instead of an install button', async () => {
       render(<InstallPrompt />);
 
-      expect(screen.getByText('ثبّت تطبيق سوق غزة')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('ثبّت تطبيق سوق غزة')).toBeInTheDocument());
       expect(screen.queryByRole('button', { name: 'تثبيت' })).not.toBeInTheDocument();
       expect(screen.getByText(/إضافة إلى الشاشة الرئيسية/)).toBeInTheDocument();
     });
@@ -195,6 +195,7 @@ describe('InstallPrompt', () => {
     it('dismisses the iOS hint via the close button and persists the dismissal', async () => {
       const user = setupUser();
       render(<InstallPrompt />);
+      await waitFor(() => expect(screen.getByText('ثبّت تطبيق سوق غزة')).toBeInTheDocument());
 
       await user.click(screen.getByRole('button', { name: 'إغلاق' }));
 

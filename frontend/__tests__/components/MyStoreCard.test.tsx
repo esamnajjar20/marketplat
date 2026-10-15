@@ -16,6 +16,7 @@ import { renderWithProviders as render } from '@/test-support/render';
 import { screen, fireEvent } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyStoreCard } from '@/components/stores/MyStoreCard';
+import { ROUTES } from '@/lib/constants';
 import { useUpdateStore, useUploadStoreLogo, useUploadStoreCover } from '@/hooks/mutations/useStoreMutations';
 import { parseApiError } from '@/lib/errorParser';
 import type { StoreDetails } from '@/types/store.types';
@@ -193,8 +194,8 @@ describe('MyStoreCard', () => {
   it('always shows the "manage products" and "followed stores" links (AUDIT-FIX #3)', () => {
     render(<MyStoreCard store={{ ...activeStore, status: 'PENDING' }} />);
 
-    expect(screen.getByText('منتجاتي')).toBeInTheDocument();
-    expect(screen.getByText('المتابَعة')).toBeInTheDocument();
-    expect(screen.getByText('إضافة منتج')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /المتابَعة/ })).toHaveAttribute('href', ROUTES.myFollowedStores);
+    expect(screen.getByRole('link', { name: /إضافة منتج/ })).toHaveAttribute('href', ROUTES.myStoreProductCreate);
+    expect(screen.getByRole('link', { name: /منتجات/ })).toHaveAttribute('href', ROUTES.myStoreProducts);
   });
 });

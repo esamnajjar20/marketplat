@@ -151,13 +151,13 @@ describe('NearbyServiceProviders', () => {
     expect(screen.getByText('نتائج مقترحة')).toBeInTheDocument();
   });
 
-  it('shows the "استخدام موقعي" CTA whenever the resolved source is not gps', () => {
+  it('keeps the location CTA hidden while the GPS feature flag is disabled', () => {
     mockDirectory({
       source: 'general',
       data: { items: [makeProvider()], meta: { totalPages: 1 } },
     });
     render(<NearbyServiceProviders />);
-    expect(screen.getByText('استخدام موقعي')).toBeInTheDocument();
+    expect(screen.queryByText('استخدام موقعي')).not.toBeInTheDocument();
   });
 
   it('hides the "استخدام موقعي" CTA once the resolved source is gps', () => {
@@ -169,13 +169,11 @@ describe('NearbyServiceProviders', () => {
     expect(screen.queryByText('استخدام موقعي')).not.toBeInTheDocument();
   });
 
-  it('calls requestLocation() when the CTA is clicked', async () => {
+  it('does not request geolocation while the GPS feature flag is disabled', () => {
     mockDirectory({ data: { items: [makeProvider()], meta: { totalPages: 1 } } });
-    const user = userEvent.setup();
     render(<NearbyServiceProviders />);
-
-    await user.click(screen.getByText('استخدام موقعي'));
-    expect(requestLocation).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('استخدام موقعي')).not.toBeInTheDocument();
+    expect(requestLocation).not.toHaveBeenCalled();
   });
 
   describe('pagination', () => {

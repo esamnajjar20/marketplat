@@ -99,7 +99,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
         {/* ── Main column ── */}
         <div className="min-w-0 flex-1 space-y-5">
           {/* Gallery */}
-          <div className={DETAIL_GALLERY_SHELL}>
+          <div className={DETAIL_GALLERY_SHELL} data-testid="service-listing-gallery">
             <div
               className="relative aspect-[4/3] bg-muted sm:aspect-[16/10]"
               onTouchStart={(e) => {

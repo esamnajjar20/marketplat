@@ -72,11 +72,11 @@ function toArray<T>(value: readonly T[] | null | undefined): readonly T[] {
   return Array.isArray(value) ? value : [];
 }
 
-function collect(sources: ForYouSources): Candidate[] {
+function collect(sources: ForYouSources | null | undefined): Candidate[] {
   const out: Candidate[] = [];
 
   KINDS.forEach((kind, order) => {
-    const src = sources[kind] as ForYouSource<{ id: string }>;
+    const src = (sources?.[kind] ?? {}) as ForYouSource<{ id: string }>;
     const seen = new Set<string>();
     const tiers: Array<[0 | 1, readonly { id: string }[]]> = [
       [0, toArray(src.ranked)],
@@ -145,10 +145,10 @@ function layout(picked: ForYouItem[], maxRun: number): ForYouItem[] {
 }
 
 export function buildForYouFeed(
-  sources: ForYouSources,
+  sources: ForYouSources | null | undefined,
   { limit, maxShare = 0.5, minCards = 6, maxRun = 2 }: BuildForYouOptions,
 ): ForYouItem[] {
-  if (limit <= 0) return [];
+  if (!sources || limit <= 0) return [];
 
   const sorted = collect(sources).sort(
     (a, b) => a.tier - b.tier || a.rank - b.rank || a.order - b.order,
@@ -162,41 +162,46 @@ export function buildForYouFeed(
 
   const cap = Math.max(1, Math.ceil(limit * maxShare));
   const counts: Record<ForYouKind, number> = { ad: 0, product: 0, service: 0 };
-  const picked: ForYouItem[] = [];
-  const held: ForYouItem[] = []; // good cards the mix guard kept out, in priority order
+  const picked: Candidate[] = [];
+  const held: Candidate[] = []; // good cards the mix guard kept out, in priority order
 
-  for (const { item } of sorted) {
+  for (const candidate of sorted) {
     if (picked.length >= limit) break;
-    if (counts[item.kind] >= cap) {
-      held.push(item);
+    const kind = candidate.item.kind;
+    if (counts[kind] >= cap) {
+      held.push(candidate);
       continue;
     }
-    picked.push(item);
-    counts[item.kind] += 1;
+    picked.push(candidate);
+    counts[kind] += 1;
   }
 
   // A type can only be separated into runs of `maxRun` by the other types'
   // cards; trim its lowest-priority surplus instead of ending with a wall of it.
-  const trimmed = new Set<ForYouItem>();
+  const trimmed = new Set<Candidate>();
   for (const kind of KINDS) {
     const others = picked.length - counts[kind];
     let surplus = counts[kind] - maxRun * others;
     for (let i = picked.length - 1; i >= 0 && surplus > 0; i -= 1) {
-      const item = picked[i]!;
-      if (item.kind !== kind) continue;
-      trimmed.add(item);
-      held.unshift(item);
+      const candidate = picked[i]!;
+      if (candidate.item.kind !== kind) continue;
+      trimmed.add(candidate);
+      held.unshift(candidate);
       surplus -= 1;
     }
   }
-  const kept = picked.filter((item) => !trimmed.has(item));
+  const kept = picked.filter((candidate) => !trimmed.has(candidate));
 
   // Sparse market: lift the guard just enough to reach the floor.
   const floor = Math.min(minCards, limit);
-  for (const item of held) {
+  for (const candidate of held) {
     if (kept.length >= floor) break;
-    kept.push(item);
+    kept.push(candidate);
   }
 
-  return layout(kept, maxRun);
+  // Layout within each tier independently: mixing across tiers would move a
+  // fallback card ahead of a higher-priority ranked card when types are sparse.
+  const ranked = kept.filter((candidate) => candidate.tier === 0).map((candidate) => candidate.item);
+  const fallback = kept.filter((candidate) => candidate.tier === 1).map((candidate) => candidate.item);
+  return [...layout(ranked, maxRun), ...layout(fallback, maxRun)].slice(0, limit);
 }

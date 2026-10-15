@@ -17,6 +17,9 @@ import { screen, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { SearchNearbyToggle } from '@/components/search/SearchNearbyToggle';
 
+// These tests exercise the GPS interaction path; production keeps the feature flag off by default.
+vi.mock('@/lib/featureFlags', () => ({ FEATURES: { GPS_LOCATION: true } }));
+
 const mockPush = vi.fn();
 let mockSearchParams = new URLSearchParams();
 

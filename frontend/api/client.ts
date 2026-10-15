@@ -287,7 +287,14 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // every upload endpoint in one place, instead of patching each of
   // the ~10 FormData call sites individually.
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-    delete config.headers['Content-Type'];
+    // Axios 1.x normalizes headers to AxiosHeaders; its delete method is
+    // case-insensitive and avoids a differently-cased default surviving.
+    if (typeof config.headers.delete === 'function') {
+      config.headers.delete('Content-Type');
+    } else {
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+    }
   }
 
   // Wrap (rather than replace semantically) a caller's signal so session

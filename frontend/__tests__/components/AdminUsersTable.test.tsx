@@ -174,7 +174,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'إيقاف أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'إيقاف أحمد محمد' })[0]);
 
       expect(mockToggleMutate).toHaveBeenCalledWith({ userId: 'user-1', isActive: false });
       expect(screen.queryByText(/متأكد/)).not.toBeInTheDocument();
@@ -184,7 +184,7 @@ describe('AdminUsersTable', () => {
       mockUsersData([adminUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'إيقاف سارة المديرة' })).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'إيقاف سارة المديرة' })[0]).toBeDisabled();
     });
 
     it('is enabled for an ADMIN target when the actor is SUPER_ADMIN', () => {
@@ -192,7 +192,7 @@ describe('AdminUsersTable', () => {
       mockUsersData([adminUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'إيقاف سارة المديرة' })).not.toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'إيقاف سارة المديرة' })[0]).not.toBeDisabled();
     });
 
     it('is always disabled for a SUPER_ADMIN target, even when the actor is also SUPER_ADMIN', () => {
@@ -200,7 +200,7 @@ describe('AdminUsersTable', () => {
       mockUsersData([superAdminUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'إيقاف خالد الأعلى' })).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'إيقاف خالد الأعلى' })[0]).toBeDisabled();
     });
   });
 
@@ -217,7 +217,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       await user.click(await screen.findByText('مشرف مساعد'));
 
       expect(mockChangeRoleMutate).not.toHaveBeenCalled();
@@ -233,7 +233,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       await user.click(await screen.findByText('مدير'));
       await user.click(screen.getByRole('button', { name: 'ترقية' }));
 
@@ -247,7 +247,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       await user.click(await screen.findByText('مشرف مساعد'));
       await user.click(screen.getByRole('button', { name: 'تعيين' }));
 
@@ -263,7 +263,7 @@ describe('AdminUsersTable', () => {
       mockActor('SUPER_ADMIN');
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور سارة المديرة' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور سارة المديرة' })[0]);
       await user.click(await screen.findByText('مستخدم'));
       await user.click(screen.getByRole('button', { name: 'تنزيل' }));
 
@@ -280,7 +280,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       await user.click(await screen.findByText('مشرف مساعد'));
       await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
@@ -291,7 +291,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       const currentItem = await screen.findByText('(الحالي)');
       // Radix ignores onSelect for a disabled item, so a click must
       // not open the confirmation dialog at all.
@@ -310,7 +310,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       await user.click(await screen.findByText('مدير'));
 
       expect(screen.queryByText('ترقية إلى مدير؟')).not.toBeInTheDocument();
@@ -321,7 +321,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       await user.click(await screen.findByText('مشرف مساعد'));
 
       expect(screen.getByText('تعيين كمشرف مساعد؟')).toBeInTheDocument();
@@ -334,14 +334,14 @@ describe('AdminUsersTable', () => {
       mockUsersData([moderatorUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'تغيير دور ليلى المشرفة' })).not.toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور ليلى المشرفة' })[0]).not.toBeDisabled();
     });
 
     it('disables the entire role-change trigger for another ADMIN target when the actor is a plain ADMIN', () => {
       mockUsersData([adminUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'تغيير دور سارة المديرة' })).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور سارة المديرة' })[0]).toBeDisabled();
     });
 
     it('disables the role-change trigger for a SUPER_ADMIN target, even when the actor is SUPER_ADMIN', () => {
@@ -349,7 +349,7 @@ describe('AdminUsersTable', () => {
       mockUsersData([superAdminUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'تغيير دور خالد الأعلى' })).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور خالد الأعلى' })[0]).toBeDisabled();
     });
 
     it('a SUPER_ADMIN actor can promote a USER all the way to ADMIN in one step', async () => {
@@ -357,7 +357,7 @@ describe('AdminUsersTable', () => {
       const user = setupUser();
       render(<AdminUsersTable />);
 
-      await user.click(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' }));
+      await user.click(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]);
       await user.click(await screen.findByText('مدير'));
 
       expect(screen.getByText('ترقية إلى مدير؟')).toBeInTheDocument();
@@ -368,8 +368,8 @@ describe('AdminUsersTable', () => {
       mockUsersData([regularUser, moderatorUser]);
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'تغيير دور ليلى المشرفة' })).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور ليلى المشرفة' })[0]).toBeDisabled();
     });
   });
 
@@ -396,8 +396,8 @@ describe('AdminUsersTable', () => {
       });
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'إيقاف أحمد محمد' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'إيقاف خالد سالم' })).not.toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'إيقاف أحمد محمد' })[0]).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'إيقاف خالد سالم' })[0]).not.toBeDisabled();
     });
 
     it('disables the role-change trigger only for the user whose role is currently changing', () => {
@@ -407,15 +407,15 @@ describe('AdminUsersTable', () => {
       });
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'تغيير دور خالد سالم' })).not.toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور خالد سالم' })[0]).not.toBeDisabled();
     });
 
     it('leaves both triggers enabled when no mutation is pending', () => {
       render(<AdminUsersTable />);
 
-      expect(screen.getByRole('button', { name: 'إيقاف أحمد محمد' })).not.toBeDisabled();
-      expect(screen.getByRole('button', { name: 'تغيير دور أحمد محمد' })).not.toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'إيقاف أحمد محمد' })[0]).not.toBeDisabled();
+      expect(screen.getAllByRole('button', { name: 'تغيير دور أحمد محمد' })[0]).not.toBeDisabled();
     });
   });
 });

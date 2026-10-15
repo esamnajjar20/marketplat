@@ -132,7 +132,7 @@ describe('productsApi.update — plain JSON, no images field', () => {
     (apiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
     await productsApi.update('p-1', { name: 'اسم جديد', price: 200 });
 
-    expect(apiClient.patch).toHaveBeenCalledWith('/products/p-1', { name: 'اسم جديد', price: 200 });
+    expect(apiClient.patch).toHaveBeenCalledWith('/products/p-1', { name: 'اسم جديد', price: 200 }, expect.objectContaining({ headers: undefined }));
     const body = (apiClient.patch as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(body instanceof FormData).toBe(false);
   });
@@ -155,7 +155,7 @@ describe('productsApi.addImages — FormData construction (Gap #3 fix)', () => {
     expect(apiClient.post).toHaveBeenCalledWith(
       '/products/p-1/images',
       expect.any(FormData),
-      expect.objectContaining({ headers: expect.not.objectContaining({ 'Content-Type': 'multipart/form-data' }) }),
+      expect.objectContaining({ onUploadProgress: undefined }),
     );
   });
 });

@@ -1286,7 +1286,7 @@ async function networkFirstApi(event, request, url) {
       return;
     }
 
-    if (!userCacheName || responseVariesBy(response, 'cookie')) return;
+    if (!userCacheName || responseVariesBy(response, 'cookie') || responseVariesBy(response, 'authorization')) return;
     const userDataCache = await caches.open(userCacheName);
     await putTimestamped(userDataCache, request, response.clone());
     await trimCache(userCacheName, MAX_USER_DATA_ENTRIES, MAX_USER_DATA_BYTES);
@@ -1414,6 +1414,8 @@ function queueRequestEntryOnDb(db, entry, lifecycleVersion) {
       const incomingBytes = estimateQueueEntryBytes(entry);
       const existingBytes = existing.reduce((sum, row) => sum + estimateQueueEntryBytes(row), 0);
       if (existing.length >= MAX_QUEUE_ENTRIES || existingBytes + incomingBytes > MAX_QUEUE_TOTAL_BYTES) {
+        // Never solve capacity by silently deleting a user's failed/pending operation.
+        // Reject new work explicitly so existing mutations remain recoverable.
         rejected = true;
         reject(Object.assign(new Error('Offline queue storage limit reached'), {
           code: 'QUEUE_LIMIT_EXCEEDED',
@@ -1599,6 +1601,8 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
   if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
 
   await markQueuedEntry(entry.id, { processing: true, processingStartedAt: Date.now() });
+  // CLEAR_QUEUE may have advanced the lifecycle fence while the lease write was pending.
+  if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
   try {
 
     if ((entry.needsCsrf || entry.needsAuth) && !freshCreds) {
@@ -1631,6 +1635,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       };
     }
     if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
+    // Defense-in-depth: re-check immediately before any network side effect.
 
     if (!isTrustedQueueUrl(entry.url)) {
       const message = 'عنوان العملية غير مسموح به ولن تُرسل.';
@@ -1726,6 +1731,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       activeReplayControllers.delete(replayController);
     }
 
+    // A logout/account switch may have aborted the request; discard stale results.
     if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
 
     if (response.ok) {
@@ -2034,6 +2040,7 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
 
     if (hasActiveProcessingLease(entry)) continue;
     if (entry.processing) {
+      // Recover a stale lease left by a terminated worker, including legacy rows with no timestamp.
       await markQueuedEntry(entry.id, { processing: false, processingStartedAt: null });
       entry.processing = false;
       entry.processingStartedAt = null;
@@ -2553,6 +2560,7 @@ self.addEventListener('message', (event) => {
         queueClearDepth += 1;
         queueLifecycleVersion += 1;
         queueClearInFlight = true;
+        // Abort mutations currently in flight only after fencing all older replay work.
 
         activeReplayControllers.forEach((controller) => {
           try { controller.abort(); } catch {}

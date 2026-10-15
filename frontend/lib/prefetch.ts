@@ -30,7 +30,7 @@
 import { dehydrate, type QueryClient } from '@tanstack/react-query';
 import { cache }        from 'react';
 import { queryKeys }    from './queryKeys';
-import { API_BASE_URL } from './constants';
+import { API_BASE_URL, CACHE_TTL } from './constants';
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type { Category }    from '@/types/category.types';
 import type { AdListItem, Ad } from '@/types/ad.types';
@@ -87,7 +87,7 @@ export async function prefetchCategories(qc: QueryClient): Promise<void> {
   await qc.prefetchQuery({
     queryKey: queryKeys.categories.all(),
     queryFn:  () => serverFetch<Category[]>('/categories').then((r) => r.data ?? []),
-    staleTime: 60 * 60 * 1000, // 1 hour — matches CACHE_TTL.categories
+    staleTime: CACHE_TTL.categories,
   });
 }
 
@@ -117,6 +117,7 @@ export async function prefetchAdList(
         items: r.data ?? [],
         meta:  (r.meta?.pagination ?? {}) as PaginationMeta,
       })),
+    staleTime: CACHE_TTL.adsList,
   });
 }
 
@@ -186,6 +187,7 @@ export async function prefetchAdDetail(
   await qc.prefetchQuery({
     queryKey: queryKeys.ads.detail(id),
     queryFn:  () => fetchAdDetailDeduped(id),
+    staleTime: CACHE_TTL.adDetail,
   });
 }
 

@@ -1,157 +1,58 @@
-/**
- * __tests__/unit/hooks/useNearbyProvidersForHome.test.tsx
- *
- * Coverage targets (audit §10, Home sections / Service Providers):
- *  - gps-current/gps-saved → GET /service-providers/nearby
- *  - city → GET /service-providers?city=
- *  - fallback → GET /service-providers (no city)
- *  - nearby query failure cascades to general directory
- *  - nearby query empty result cascades to general directory
- *  - city query failure cascades to general directory
- *  - city query empty result cascades to general directory
- *  - no duplicate/wasted request: city query is disabled (not fired)
- *    when the resolved source is gps
- */
+/** Contract tests for the homepage-seeded nearby service providers section. */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { renderHook } from '@testing-library/react';
 import { useNearbyProvidersForHome } from '@/hooks/queries/useNearbyProvidersForHome';
-import { useLocationResolver } from '@/hooks/useLocationResolver';
-import { serviceProvidersApi } from '@/api/service-providers.api';
+import { useServiceProviders } from '@/hooks/queries/useServiceProviders';
+import { useBrowseCity } from '@/hooks/useBrowseCity';
+import { useHomepage } from '@/hooks/queries/useHomepage';
+import { useDataSaver } from '@/lib/useDataSaver';
 
-vi.mock('@/hooks/useLocationResolver', () => ({
-  useLocationResolver: vi.fn(),
-}));
+vi.mock('@/hooks/queries/useServiceProviders', () => ({ useServiceProviders: vi.fn() }));
+vi.mock('@/hooks/useBrowseCity', () => ({ useBrowseCity: vi.fn() }));
+vi.mock('@/hooks/queries/useHomepage', () => ({ useHomepage: vi.fn() }));
+vi.mock('@/lib/useDataSaver', () => ({ useDataSaver: vi.fn() }));
 
-vi.mock('@/api/service-providers.api', () => ({
-  serviceProvidersApi: { getAll: vi.fn(), getNearby: vi.fn() },
-}));
-
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
-
-function mockLocation(overrides: Record<string, unknown>) {
-  (useLocationResolver as ReturnType<typeof vi.fn>).mockReturnValue({
-    source: 'fallback',
-    isLoading: false,
-    requestLocation: vi.fn(),
-    ...overrides,
-  });
-}
+const seeded = { items: [{ id: 'p1' }], source: 'city' };
+const general = { items: [{ id: 'p2' }], meta: { total: 1 } };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
-  (serviceProvidersApi.getNearby as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
+  vi.mocked(useDataSaver).mockReturnValue(false);
+  vi.mocked(useBrowseCity).mockReturnValue({ city: undefined } as never);
+  vi.mocked(useHomepage).mockReturnValue({ data: undefined, isPending: false, isError: false, isSuccess: false, refetch: vi.fn() } as never);
+  vi.mocked(useServiceProviders).mockReturnValue({ data: general, isLoading: false, isError: false, refetch: vi.fn() } as never);
 });
 
 describe('useNearbyProvidersForHome', () => {
-  it('gps-current: calls getNearby with lat/lng, not the city-filtered getAll', async () => {
-    mockLocation({ source: 'gps-current', latitude: 31.5, longitude: 34.45 });
-    (serviceProvidersApi.getNearby as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ id: 'p1' }], meta: {} } },
-    });
-
-    const { result } = renderHook(() => useNearbyProvidersForHome(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.source).toBe('gps'));
-    expect(serviceProvidersApi.getNearby).toHaveBeenCalledWith(
-      expect.objectContaining({ lat: 31.5, lng: 34.45 }),
-    );
-    // The city-filtered branch is disabled (enabled: isCity === false)
-    // while GPS is active — its HTTP request must never fire. Only the
-    // always-on general/cascade-target query should reach getAll.
-    expect(serviceProvidersApi.getAll).toHaveBeenCalledTimes(1);
-    expect(serviceProvidersApi.getAll).not.toHaveBeenCalledWith(
-      expect.objectContaining({ city: expect.anything() }),
-    );
+  it('uses the homepage seed without issuing a directory query', () => {
+    vi.mocked(useHomepage).mockReturnValue({ data: { belowFold: { nearbyProviders: seeded } }, isPending: false, isError: false, isSuccess: true, refetch: vi.fn() } as never);
+    const { result } = renderHook(() => useNearbyProvidersForHome());
+    expect(result.current.data).toEqual(seeded);
+    expect(result.current.source).toBe('city');
+    expect(useServiceProviders).toHaveBeenCalledWith(expect.any(Object), { enabled: false });
   });
 
-  it('city: calls getAll with city param, not getNearby', async () => {
-    mockLocation({ source: 'city', city: 'خان يونس' });
-    (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ id: 'p1' }], meta: {} } },
-    });
-
-    const { result } = renderHook(() => useNearbyProvidersForHome(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.source).toBe('city'));
-    expect(serviceProvidersApi.getAll).toHaveBeenCalledWith(expect.objectContaining({ city: 'خان يونس' }));
-    // Two expected: the enabled city-filtered query plus the always-on
-    // general query (cascade-safety-net) — no unexpected third call.
-    expect(serviceProvidersApi.getAll).toHaveBeenCalledTimes(2);
-    expect(serviceProvidersApi.getNearby).not.toHaveBeenCalled();
+  it('fetches directory data after the homepage request fails', () => {
+    vi.mocked(useHomepage).mockReturnValue({ data: undefined, isPending: false, isError: true, isSuccess: false, refetch: vi.fn() } as never);
+    const { result } = renderHook(() => useNearbyProvidersForHome());
+    expect(result.current.data).toEqual(general);
+    expect(result.current.source).toBe('general');
+    expect(useServiceProviders).toHaveBeenCalledWith(expect.objectContaining({ limit: expect.any(Number) }), { enabled: true });
   });
 
-  it('fallback: calls getAll with no city', async () => {
-    mockLocation({ source: 'fallback' });
-    (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ id: 'p1' }], meta: {} } },
-    });
-
-    const { result } = renderHook(() => useNearbyProvidersForHome(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.source).toBe('general'));
-    const cityCall = (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mock.calls.find(
-      ([params]: [{ city?: string }]) => typeof params?.city === 'string',
-    );
-    expect(cityCall).toBeUndefined();
+  it('fetches city-filtered directory data when a browse city is selected', () => {
+    vi.mocked(useBrowseCity).mockReturnValue({ city: 'رفح' } as never);
+    vi.mocked(useHomepage).mockReturnValue({ data: undefined, isPending: false, isError: true, isSuccess: false, refetch: vi.fn() } as never);
+    const { result } = renderHook(() => useNearbyProvidersForHome());
+    expect(result.current.source).toBe('city');
+    expect(useServiceProviders).toHaveBeenCalledWith(expect.objectContaining({ city: 'رفح' }), { enabled: true });
   });
 
-  it('nearby query failure cascades to the general directory', async () => {
-    mockLocation({ source: 'gps-current', latitude: 1, longitude: 2 });
-    (serviceProvidersApi.getNearby as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('nearby failed'));
-    (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ id: 'general-p' }], meta: {} } },
-    });
-
-    const { result } = renderHook(() => useNearbyProvidersForHome(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.source).toBe('general'));
-    expect(result.current.data?.items).toHaveLength(1);
-  });
-
-  it('nearby query empty result cascades to the general directory', async () => {
-    mockLocation({ source: 'gps-current', latitude: 1, longitude: 2 });
-    (serviceProvidersApi.getNearby as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
-    (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ id: 'general-p' }], meta: {} } },
-    });
-
-    const { result } = renderHook(() => useNearbyProvidersForHome(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.source).toBe('general'));
-    expect(result.current.data?.items).toHaveLength(1);
-  });
-
-  it('city query failure cascades to the general directory', async () => {
-    mockLocation({ source: 'city', city: 'رفح' });
-    (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mockImplementation((params?: { city?: string }) => {
-      if (params?.city === 'رفح') return Promise.reject(new Error('city failed'));
-      return Promise.resolve({ data: { data: { items: [{ id: 'general-p' }], meta: {} } } });
-    });
-
-    const { result } = renderHook(() => useNearbyProvidersForHome(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.source).toBe('general'));
-    expect(result.current.data?.items).toHaveLength(1);
-  });
-
-  it('city query empty result cascades to the general directory', async () => {
-    mockLocation({ source: 'city', city: 'رفح' });
-    (serviceProvidersApi.getAll as ReturnType<typeof vi.fn>).mockImplementation((params?: { city?: string }) => {
-      if (params?.city === 'رفح') return Promise.resolve({ data: { data: { items: [], meta: {} } } });
-      return Promise.resolve({ data: { data: { items: [{ id: 'general-p' }], meta: {} } } });
-    });
-
-    const { result } = renderHook(() => useNearbyProvidersForHome(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.source).toBe('general'));
-    expect(result.current.data?.items).toHaveLength(1);
+  it('does not report loading after a completed homepage request without a seed', () => {
+    vi.mocked(useHomepage).mockReturnValue({ data: { belowFold: {} }, isPending: false, isError: false, isSuccess: true, refetch: vi.fn() } as never);
+    vi.mocked(useServiceProviders).mockReturnValue({ data: general, isLoading: true, isError: false, refetch: vi.fn() } as never);
+    const { result } = renderHook(() => useNearbyProvidersForHome());
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.data).toEqual(general);
   });
 });

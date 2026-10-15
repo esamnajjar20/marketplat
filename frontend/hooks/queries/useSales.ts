@@ -11,8 +11,8 @@ export function salesListQueryOptions(params?: SalesListQueryParams) {
     // Keep the request tied to the same params used to build this key.
     // Avoid positional queryKey[2] access: a key layout change should not
     // silently send a different request than the cache identity describes.
-    queryFn: async (ctx) => {
-      const response = await salesApi.list(params, ctx);
+    queryFn: async ({ signal }) => {
+      const response = await salesApi.list(params, { signal });
       const data: unknown = response.data.data;
       if (
         !data ||

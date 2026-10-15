@@ -26,6 +26,15 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
+// Keep the oversized-file rejection test deterministic: compression is attempted
+// in production, so simulate a file that still cannot be reduced below the limit.
+vi.mock('@/lib/imageOffline', () => ({
+  compressImageForPublish: vi.fn(async (file: File) => {
+    if (file.name === 'huge.jpg') throw new Error('compression failed');
+    return file;
+  }),
+}));
+
 function makeFile(name: string, type: string, sizeBytes: number): File {
   const file = new File(['x'.repeat(Math.min(sizeBytes, 10))], name, { type });
   Object.defineProperty(file, 'size', { value: sizeBytes });

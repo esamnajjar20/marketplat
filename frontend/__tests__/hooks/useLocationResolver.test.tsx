@@ -62,35 +62,29 @@ describe('useLocationResolver', () => {
     Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
   }
 
-  // 1. GPS current available (granted → resolves silently)
-  it('resolves gps-current when permission already granted', async () => {
+  // Permission being granted is not consent to fetch coordinates on page load.
+  it('does not fetch GPS automatically when permission is already granted', async () => {
     setPermissionsApi('granted');
-    const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 31.5, longitude: 34.45 } } as GeolocationPosition);
-    });
+    const getCurrentPosition = vi.fn();
     setGeolocation(getCurrentPosition);
 
     const { result } = renderHook(() => useLocationResolver());
-
-    await waitFor(() => expect(result.current.source).toBe('gps-current'));
-    expect(result.current.latitude).toBe(31.5);
-    expect(result.current.longitude).toBe(34.45);
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.source).toBe('fallback');
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  // 2. permission = granted (no popup expected, still checked above)
-  it('does not require an explicit user action when permission is granted', async () => {
+  it('fetches GPS after an explicit request even when permission is already granted', async () => {
     setPermissionsApi('granted');
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      // Must fall inside isUsableNearbyCoord's Gaza-area bounding box
-      // (lat 31.0-32.0, lng 34.0-35.0) or the hook silently rejects it
-      // and never reaches 'gps-current'.
       success({ coords: { latitude: 31.1, longitude: 34.1 } } as GeolocationPosition);
     });
     setGeolocation(getCurrentPosition);
 
     const { result } = renderHook(() => useLocationResolver());
+    await waitFor(() => expect(result.current.source).toBe('fallback'));
+    act(() => result.current.requestLocation());
     await waitFor(() => expect(result.current.source).toBe('gps-current'));
-    // Called once automatically, not via requestLocation.
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
   });
 

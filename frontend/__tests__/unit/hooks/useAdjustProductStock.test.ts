@@ -47,6 +47,6 @@ describe('useAdjustProductStock', () => {
     });
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('تم تحديث المخزون'));
-    expect(adjustProductStock).toHaveBeenCalledWith('p1', 3);
+    expect(adjustProductStock).toHaveBeenCalledWith('p1', 3, undefined);
   });
 });

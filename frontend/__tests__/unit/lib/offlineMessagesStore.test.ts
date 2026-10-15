@@ -69,7 +69,7 @@ function installMemoryIndexedDB() {
     private stores: Map<string, MemStore>;
     constructor(stores: Map<string, MemStore>) {
       this.stores = stores;
-      queueMicrotask(() => this.oncomplete?.());
+      setTimeout(() => this.oncomplete?.(), 0);
     }
     objectStore(name: string) {
       return this.stores.get(name)!;

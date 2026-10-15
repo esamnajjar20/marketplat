@@ -7,6 +7,8 @@ import { screen, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
 import { productsApi } from '@/api/products.api';
+import { toast } from 'sonner';
+import { reportClientError } from '@/lib/errorReporter';
 
 vi.mock('@/api/products.api', () => ({
   productsApi: { getAll: vi.fn() },
@@ -17,6 +19,7 @@ vi.mock('@/api/stores.api', () => ({
     getMyStore: vi.fn(),
   },
 }));
+vi.mock('@/lib/errorReporter', () => ({ reportClientError: vi.fn() }));
 vi.mock('@/lib/downloadStorage', () => ({
   recordCatalogDownload: vi.fn(async () => undefined),
   formatCatalogSize: (n: number) => `${n}B`,
@@ -64,8 +67,7 @@ describe('DownloadStoreCatalogButton', () => {
     });
   });
 
-  it('shows alert path when products fetch fails', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  it('reports the failure and shows a toast when products fetch fails', async () => {
     vi.mocked(productsApi.getAll).mockRejectedValue(new Error('network'));
     const user = setupUser();
     render(
@@ -73,8 +75,8 @@ describe('DownloadStoreCatalogButton', () => {
     );
     await user.click(screen.getByRole('button', { name: /حفظ المتجر/ }));
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalled();
+      expect(reportClientError).toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('تعذّر تحميل الكتالوج. تأكد من الاتصال وحاول مرة أخرى.');
     });
-    alertSpy.mockRestore();
   });
 });

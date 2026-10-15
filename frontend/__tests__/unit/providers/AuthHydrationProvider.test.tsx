@@ -18,7 +18,21 @@ vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>();
   return {
     ...actual,
-    refreshSessionShared: (...args: unknown[]) => refreshSessionShared(...args),
+    // Mirror the real shared-refresh contract: it updates the auth store and
+    // session-hint cookies before returning the response. Keeping this in the
+    // mock prevents provider tests from accidentally exercising an impossible
+    // state where refresh succeeds but no access token is installed.
+    refreshSessionShared: async (...args: unknown[]) => {
+      const response = await refreshSessionShared(...args);
+      const tokens = response?.data?.data?.tokens;
+      if (tokens?.accessToken) {
+        useAuthStore.getState().setAccessToken(tokens.accessToken);
+        useAuthStore.getState().setCsrfToken(response.data.data.csrfToken ?? null);
+        document.cookie = `app_access_token=${tokens.accessToken}; path=/`;
+        document.cookie = 'app_has_session=1; path=/';
+      }
+      return response;
+    },
     isSessionRevoked: () => false,
   };
 });

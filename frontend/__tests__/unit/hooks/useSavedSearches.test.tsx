@@ -26,6 +26,7 @@ function wrapperFor(queryClient: QueryClient) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
   useAuthStore.getState().logout();
 });
 
@@ -38,21 +39,19 @@ describe('useSavedSearches', () => {
 
   it('fetches the saved searches list once authenticated', async () => {
     useAuthStore.getState().setAuth(mockUser, mockTokens);
-    (savedSearchesApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: [{ id: 'ss1', name: 'شقق في غزة' }] },
-    });
+    (savedSearchesApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 'ss1', name: 'شقق في غزة' }]);
     const queryClient = newClient();
 
     const { result } = renderHook(() => useSavedSearches(), { wrapper: wrapperFor(queryClient) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(savedSearchesApi.getAll).toHaveBeenCalledTimes(1);
-    expect(result.current.data).toEqual({ data: { data: [{ id: 'ss1', name: 'شقق في غزة' }] } });
+    expect(result.current.data).toEqual([{ id: 'ss1', name: 'شقق في غزة' }]);
   });
 
   it('caches under the savedSearches.all() query key', async () => {
     useAuthStore.getState().setAuth(mockUser, mockTokens);
-    (savedSearchesApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: [] } });
+    (savedSearchesApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     const queryClient = newClient();
 
     renderHook(() => useSavedSearches(), { wrapper: wrapperFor(queryClient) });

@@ -67,6 +67,7 @@ function setAuthenticatedState(accessToken: string) {
 
 describe('api/client.ts — request interceptor', () => {
   beforeEach(() => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     useAuthStore.getState().logout();
   });
 
@@ -152,24 +153,28 @@ describe('api/client.ts — request interceptor', () => {
   // to set the real 'multipart/form-data; boundary=...' header — the
   // exact bug behind "IMAGE_REQUIRED even though a file was attached"
   // (backend's multer sees zero parsed files, not a parse error).
-  it('does not send Content-Type: application/json for a FormData body — lets the browser set the multipart boundary', async () => {
+  it('removes the JSON Content-Type header from FormData before transport', async () => {
     let capturedContentType: string | null | undefined = 'not-checked-yet';
-
-    getMswServer()?.use(
-      http.post(`${API_BASE_URL}/ads`, ({ request }) => {
-        capturedContentType = request.headers.get('content-type');
-        return HttpResponse.json({ success: true, data: {} }, { status: 201 });
-      }),
-    );
 
     const form = new FormData();
     form.append('title', 'test');
     form.append('images', new File(['x'], 'photo.jpg', { type: 'image/jpeg' }));
 
-    await apiClient.post('/ads', form);
+    // Keep this test at the interceptor boundary. jsdom's XHR + MSW
+    // multipart transport can hang independently of Axios header handling;
+    // the custom adapter observes the post-interceptor request config while
+    // leaving the browser responsible for generating the boundary in real use.
+    await apiClient.post('/ads', form, {
+      adapter: async (config) => {
+        capturedContentType = typeof config.headers?.get === 'function'
+          ? config.headers.get('Content-Type')
+          : (config.headers as unknown as Record<string, string>)?.['Content-Type'];
+        return { data: { success: true, data: {} }, status: 201, statusText: 'Created', headers: {}, config };
+      },
+    });
 
     expect(capturedContentType).not.toBe('application/json');
-    expect(capturedContentType).toMatch(/^multipart\/form-data/);
+    expect(capturedContentType ?? null).toBeNull();
   });
 
   it('still sends Content-Type: application/json for a plain JSON body', async () => {
@@ -192,6 +197,7 @@ describe('api/client.ts — silent refresh on 401', () => {
   let originalLocation: Location;
 
   beforeEach(() => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     useAuthStore.getState().logout();
     // BUGFIX (found during a post-implementation code audit): without
     // this, a cookie set by the 'REGRESSION (cookie desync)' test

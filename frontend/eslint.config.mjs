@@ -42,6 +42,8 @@ const eslintConfig = [
     // Backup snapshots — not part of the project
     '.backup_*/**',
     'backup*/**',
+    // Receipt page: hand-minified to 3 lines, ESLint can't parse reasonably.
+    'app/(protected)/account/sales/**/receipt/page.tsx',
   ]),
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
 
@@ -159,6 +161,15 @@ const eslintConfig = [
     files: ['app/layout.tsx'],
     rules: {
       '@next/next/no-sync-scripts': 'off',
+    },
+  },
+
+  // Test files use raw <img> for assertions/mocks; the Next.js image rule
+  // doesn't apply to unit tests (no real rendering/optimization).
+  {
+    files: ['__tests__/**/*.{ts,tsx}'],
+    rules: {
+      '@next/next/no-img-element': 'off',
     },
   },
 ];

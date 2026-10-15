@@ -55,7 +55,7 @@ describe('usePresence', () => {
   it('fires and unwraps r.data.data once authenticated with ids', async () => {
     login();
     (usersApi.getPresence as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { 'user-1': true, 'user-2': false } },
+      data: { data: { 'user-1': { online: true }, 'user-2': { online: false } } },
     });
 
     const { result } = renderHook(() => usePresence(['user-1', 'user-2']), {
@@ -64,7 +64,7 @@ describe('usePresence', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data).toEqual({ 'user-1': true, 'user-2': false });
-    expect(usersApi.getPresence).toHaveBeenCalledWith(['user-1', 'user-2']);
+    expect(usersApi.getPresence).toHaveBeenCalledWith(['user-1', 'user-2'], expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });
 
@@ -81,7 +81,7 @@ describe('useIsUserOnline', () => {
   it('returns true when the map reports the id as online', async () => {
     login();
     (usersApi.getPresence as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { 'user-1': true } },
+      data: { data: { 'user-1': { online: true, lastSeenAt: null } } },
     });
 
     const { result } = renderHook(() => useIsUserOnline('user-1'), { wrapper: createWrapper() });
@@ -91,7 +91,7 @@ describe('useIsUserOnline', () => {
   it('returns false when the map reports the id as offline', async () => {
     login();
     (usersApi.getPresence as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { 'user-1': false } },
+      data: { data: { 'user-1': { online: false, lastSeenAt: null } } },
     });
 
     const { result } = renderHook(() => useIsUserOnline('user-1'), { wrapper: createWrapper() });

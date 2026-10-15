@@ -99,7 +99,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     );
 
-    const retryButton = screen.getByRole('button', { name: 'أعد المحاولة' });
+    const retryButton = screen.getByRole('button', { name: 'إعادة المحاولة' });
     expect(retryButton).toBeInTheDocument();
     // Clicking resets internal state to hasError: false — since Bomb
     // still throws on the next render in this test, the boundary will

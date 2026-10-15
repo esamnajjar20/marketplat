@@ -49,7 +49,7 @@ export const cachePolicyControl =
     const policy = cachePolicy(policyName);
     const http = policy.http;
     if (http.maxAgeSec === 0) {
-      res.setHeader('Cache-Control', 'private, no-cache, no-transform');
+      res.setHeader('Cache-Control', 'no-store');
       res.setHeader('Vary', 'Authorization, Cookie');
       next();
       return;

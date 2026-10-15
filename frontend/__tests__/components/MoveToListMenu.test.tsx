@@ -67,9 +67,9 @@ describe('MoveToListMenu', () => {
 
     await user.click(screen.getByRole('button', { name: /نقل إلى قائمة/ }));
 
-    expect(screen.getByRole('menuitem', { name: /الكل/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'سيارات' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'هواتف' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /الكل/ })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /سيارات/ })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /هواتف/ })).toBeInTheDocument();
   });
 
   it('moves favorite to selected list and closes', async () => {
@@ -77,12 +77,9 @@ describe('MoveToListMenu', () => {
     render(<MoveToListMenu favoriteId="fav-1" currentListId={null} />);
 
     await user.click(screen.getByRole('button', { name: /نقل إلى قائمة/ }));
-    await user.click(screen.getByRole('menuitem', { name: 'هواتف' }));
+    await user.click(await screen.findByRole('menuitem', { name: /هواتف/ }));
 
-    expect(mockMoveMutate).toHaveBeenCalledWith(
-      { favoriteId: 'fav-1', listId: 'list-2' },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    expect(mockMoveMutate).toHaveBeenCalledWith({ favoriteId: 'fav-1', listId: 'list-2' });
   });
 
   it('moves to null when choosing "الكل"', async () => {
@@ -90,12 +87,9 @@ describe('MoveToListMenu', () => {
     render(<MoveToListMenu favoriteId="fav-1" currentListId="list-1" />);
 
     await user.click(screen.getByRole('button', { name: /نقل إلى قائمة/ }));
-    await user.click(screen.getByRole('menuitem', { name: /الكل/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /الكل/ }));
 
-    expect(mockMoveMutate).toHaveBeenCalledWith(
-      { favoriteId: 'fav-1', listId: null },
-      expect.any(Object),
-    );
+    expect(mockMoveMutate).toHaveBeenCalledWith({ favoriteId: 'fav-1', listId: null });
   });
 
   it('disables the current list option', async () => {
@@ -104,8 +98,8 @@ describe('MoveToListMenu', () => {
 
     await user.click(screen.getByRole('button', { name: /نقل إلى قائمة/ }));
 
-    expect(screen.getByRole('menuitem', { name: 'سيارات' })).toBeDisabled();
-    expect(screen.getByRole('menuitem', { name: 'هواتف' })).not.toBeDisabled();
+    expect(await screen.findByRole('menuitem', { name: /سيارات/ })).toBeDisabled();
+    expect(await screen.findByRole('menuitem', { name: /هواتف/ })).not.toBeDisabled();
   });
 
   it('shows empty-lists hint with link when no lists exist', async () => {
@@ -115,7 +109,7 @@ describe('MoveToListMenu', () => {
 
     await user.click(screen.getByRole('button', { name: /نقل إلى قائمة/ }));
 
-    expect(screen.getByText(/لا قوائم/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /أنشئ من المفضلة/ })).toBeInTheDocument();
+    expect(await screen.findByText(/لا قوائم/)).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /أنشئ قائمة من المفضلة/ })).toBeInTheDocument();
   });
 });

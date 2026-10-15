@@ -22,7 +22,7 @@ describe('usePromotionMutations', () => {
     act(() => result.current.mutate({} as any));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.promotions.all() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.all() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.listRoot() });
   });
   it('update + cancel succeed', async () => {
     (promotionsApi.update as any).mockResolvedValue({ data: { data: { id: 'p1' } } });

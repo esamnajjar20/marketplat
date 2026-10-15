@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  runtimeUsage: { requests: 0, bytes: 0 },
   getNetworkPolicy: vi.fn(),
   getWarmingMode: vi.fn(),
   getWarmingPlan: vi.fn(),
@@ -37,7 +38,7 @@ vi.mock('../../../lib/offlineStoragePressure', () => ({
 }));
 vi.mock('../../../lib/warmingRuntimeBudget', () => ({
   beginWarmingRuntimeBudget: () => () => undefined,
-  getWarmingRuntimeBudgetState: () => ({ requests: 0, bytes: 0 }),
+  getWarmingRuntimeBudgetState: () => ({ ...mocks.runtimeUsage }),
   noteWarmingRuntimeUsage: vi.fn(),
 }));
 vi.mock('../../../lib/warmingTelemetry', () => ({
@@ -49,6 +50,8 @@ import { runWarmingEngine } from '../../../lib/warmingEngine';
 describe('warming engine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.runtimeUsage.requests = 0;
+    mocks.runtimeUsage.bytes = 0;
     mocks.getNetworkPolicy.mockReturnValue({
       tier: 'fast',
       saveData: false,
@@ -98,6 +101,12 @@ describe('warming engine', () => {
       maxPersonalRouteCount: 2,
       allowImages: false,
     });
+
+    // Model the two admitted jobs consuming their estimated runtime budget.
+    mocks.core.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
+    mocks.publicRoutes.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
+    mocks.personalRoutes.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
+    mocks.userData.mockImplementation(async () => { mocks.runtimeUsage.requests += 1; mocks.runtimeUsage.bytes += 10_000; });
 
     const result = await runWarmingEngine({ authenticated: true });
 

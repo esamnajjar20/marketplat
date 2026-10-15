@@ -108,7 +108,7 @@ describe('serviceListingsApi.addImages — FormData construction (Gap #3 fix)', 
     expect(apiClient.post).toHaveBeenCalledWith(
       '/service-listings/sl-1/images',
       expect.any(FormData),
-      expect.objectContaining({ headers: expect.not.objectContaining({ 'Content-Type': 'multipart/form-data' }) }),
+      expect.objectContaining({ onUploadProgress: undefined }),
     );
   });
 });
@@ -128,7 +128,7 @@ describe('serviceListingsApi.update — plain JSON, no images field', () => {
     (apiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
     await serviceListingsApi.update('sl-1', { title: 'عنوان جديد' });
 
-    expect(apiClient.patch).toHaveBeenCalledWith('/service-listings/sl-1', { title: 'عنوان جديد' });
+    expect(apiClient.patch).toHaveBeenCalledWith('/service-listings/sl-1', { title: 'عنوان جديد' }, expect.objectContaining({ headers: undefined }));
     const body = (apiClient.patch as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(body instanceof FormData).toBe(false);
   });

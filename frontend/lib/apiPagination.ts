@@ -82,7 +82,7 @@ export function offlineMeta(count: number): PaginationMeta {
     total: count,
     page: 1,
     limit: count,
-    totalPages: 1,
+    totalPages: count > 0 ? 1 : 0,
     hasNextPage: false,
     hasPrevPage: false,
   };

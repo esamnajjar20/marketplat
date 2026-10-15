@@ -8,7 +8,7 @@ vi.mock('leaflet', () => {
   const icon = vi.fn(() => ({}));
   const divIcon = vi.fn(() => ({}));
   return {
-    default: { icon, divIcon },
+    default: { icon, divIcon, latLngBounds: vi.fn(() => ({})) },
     icon,
     divIcon,
   };

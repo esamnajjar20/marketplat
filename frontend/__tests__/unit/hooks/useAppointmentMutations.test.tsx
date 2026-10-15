@@ -199,7 +199,7 @@ describe('useUpdateAppointmentStatus', () => {
     expect(appointmentsApi.updateStatus).toHaveBeenCalledWith('appt-1', { status: 'COMPLETED' });
   });
 
-  it('invalidates both the shared appointments-mine key and the legacy appointments/me key', async () => {
+  it('invalidates the shared appointments/me root key for every paginated query', async () => {
     (appointmentsApi.updateStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { id: 'appt-1', status: 'COMPLETED' } },
     });
@@ -212,8 +212,8 @@ describe('useUpdateAppointmentStatus', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const keys = invalidatedKeys(invalidateSpy);
-    expect(keys).toContainEqual(['appointments', 'me', {}]);
     expect(keys).toContainEqual(['appointments', 'me']);
+    expect(keys).not.toContainEqual(['appointments', 'me', {}]);
   });
 
   it('shows a success toast on success', async () => {

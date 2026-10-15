@@ -58,6 +58,6 @@ describe('SellerTodayTasks', () => {
       refetch: vi.fn(),
     } as never);
     const { container } = render(<SellerTodayTasks />);
-    expect(container.querySelector('.animate-pulse')).toBeTruthy();
+    expect(container.querySelector('.skeleton-shimmer')).toBeTruthy();
   });
 });

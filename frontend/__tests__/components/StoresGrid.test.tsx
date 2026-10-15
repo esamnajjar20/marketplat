@@ -13,11 +13,14 @@ import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { StoresGrid } from '@/components/stores/StoresGrid';
-import { useStores } from '@/hooks/queries/useStores';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
-vi.mock('@/hooks/queries/useStores', () => ({
-  useStores: vi.fn(),
-}));
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+  return { ...actual, useInfiniteQuery: vi.fn() };
+});
+
+vi.mock('@/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => true }));
 
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
@@ -33,21 +36,30 @@ vi.mock('@/components/shared/skeletons', () => ({
   StoreCardSkeleton: () => <div data-testid="skeleton" />,
 }));
 
-vi.mock('@/components/shared/ui/Pagination', () => ({
-  Pagination: ({ totalPages }: { totalPages: number }) => <div data-testid="pagination">pages:{totalPages}</div>,
+vi.mock('@/components/shared/list/InfiniteScrollTrigger', () => ({
+  InfiniteScrollTrigger: ({ hasNextPage }: { hasNextPage: boolean }) => (
+    <div data-testid="infinite-scroll-trigger" data-has-next-page={String(hasNextPage)} />
+  ),
 }));
 
 const mockRefetch = vi.fn();
 const store = { id: 'store-1', name: 'متجر البركة' };
 
-function mockStores(overrides: Record<string, unknown> = {}) {
-  (useStores as ReturnType<typeof vi.fn>).mockReturnValue({
-    data: { items: [store], meta: { totalPages: 1, total: 1 } },
+function mockStores(overrides: Record<string, any> = {}) {
+  const hasDataOverride = Object.prototype.hasOwnProperty.call(overrides, 'data');
+  const { data, ...rest } = overrides;
+  const page = hasDataOverride ? data : { items: [store], meta: { totalPages: 1, total: 1 } };
+  vi.mocked(useInfiniteQuery).mockReturnValue({
+    data: page ? { pages: [page], pageParams: [1] } : undefined,
     isLoading: false,
+    isFetching: false,
     isError: false,
     refetch: mockRefetch,
-    ...overrides,
-  });
+    fetchNextPage: vi.fn(),
+    hasNextPage: Boolean(page && page.meta?.totalPages > 1),
+    isFetchingNextPage: false,
+    ...rest,
+  } as never);
 }
 
 describe('StoresGrid', () => {
@@ -117,37 +129,33 @@ describe('StoresGrid', () => {
     expect(screen.getByText(/لم نجد نتائج لـ "نجارة"/)).toBeInTheDocument();
   });
 
-  it('passes URL filter params (with defaults) through to useStores', () => {
+  it('passes URL filter params (with defaults) through the infinite-query key', () => {
     mockSearchParams = new URLSearchParams('city=غزة&sortBy=name&sortOrder=asc&page=2');
     render(<StoresGrid />);
 
-    expect(useStores).toHaveBeenCalledWith({
-      search: undefined,
-      page: 2,
-      city: 'غزة',
-      sortBy: 'name',
-      sortOrder: 'asc',
-    });
+    const queryKey = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0].queryKey as unknown[];
+    expect(queryKey[0]).toBe('stores');
+    expect(queryKey[1]).toBe('infinite');
+    expect(queryKey[2]).toEqual(expect.objectContaining({ city: 'غزة', sortBy: 'name', sortOrder: 'asc' }));
   });
 
   it('defaults sortBy to createdAt and sortOrder to desc when absent from the URL', () => {
     render(<StoresGrid />);
 
-    expect(useStores).toHaveBeenCalledWith(
-      expect.objectContaining({ sortBy: 'createdAt', sortOrder: 'desc' }),
-    );
+    const queryKey = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0].queryKey as unknown[];
+    expect(queryKey[2]).toEqual(expect.objectContaining({ sortBy: 'createdAt', sortOrder: 'desc' }));
   });
 
   it('does not render pagination for a single page', () => {
     render(<StoresGrid />);
 
-    expect(screen.queryByTestId('pagination')).not.toBeInTheDocument();
+    expect(screen.getByTestId('infinite-scroll-trigger')).toHaveAttribute('data-has-next-page', 'false');
   });
 
   it('renders pagination when there is more than one page', () => {
     mockStores({ data: { items: [store], meta: { totalPages: 4, total: 40 } } });
     render(<StoresGrid />);
 
-    expect(screen.getByTestId('pagination')).toHaveTextContent('pages:4');
+    expect(screen.getByTestId('infinite-scroll-trigger')).toHaveAttribute('data-has-next-page', 'true');
   });
 });

@@ -54,22 +54,22 @@ describe('authApi', () => {
 
   it('logout → POST /auth/logout', async () => {
     await authApi.logout();
-    expect(apiClient.post).toHaveBeenCalledWith('/auth/logout', undefined);
+    expect(apiClient.post).toHaveBeenCalledWith('/auth/logout');
   });
 
   it('logoutAll → POST /auth/logout-all (not /auth/logoutAll)', async () => {
     await authApi.logoutAll();
-    expect(apiClient.post).toHaveBeenCalledWith('/auth/logout-all', undefined);
+    expect(apiClient.post).toHaveBeenCalledWith('/auth/logout-all');
   });
 
   it('getSessions → GET /auth/sessions', async () => {
     await authApi.getSessions();
-    expect(apiClient.get).toHaveBeenCalledWith('/auth/sessions', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/auth/sessions');
   });
 
   it('revokeSession → DELETE /auth/sessions/:id', async () => {
     await authApi.revokeSession('session-1');
-    expect(apiClient.delete).toHaveBeenCalledWith('/auth/sessions/session-1', undefined);
+    expect(apiClient.delete).toHaveBeenCalledWith('/auth/sessions/session-1');
   });
 
   it('forgotPassword → POST /auth/forgot-password', async () => {
@@ -86,7 +86,7 @@ describe('authApi', () => {
 describe('usersApi', () => {
   it('getMe → GET /users/me', async () => {
     await usersApi.getMe();
-    expect(apiClient.get).toHaveBeenCalledWith('/users/me', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/users/me');
   });
 
   it('updateMe → PATCH /users/me', async () => {
@@ -96,7 +96,7 @@ describe('usersApi', () => {
 
   it('deleteMe → DELETE /users/me', async () => {
     await usersApi.deleteMe();
-    expect(apiClient.delete).toHaveBeenCalledWith('/users/me', undefined);
+    expect(apiClient.delete).toHaveBeenCalledWith('/users/me');
   });
 
   it('changePassword → POST /users/me/password', async () => {
@@ -111,7 +111,7 @@ describe('usersApi', () => {
 
   it('getById → GET /users/:id', async () => {
     await usersApi.getById('user-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/users/user-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/users/user-1');
   });
 
   it('getUserAds → GET /users/:id/ads', async () => {
@@ -123,11 +123,9 @@ describe('usersApi', () => {
     const file = new File(['bytes'], 'avatar.jpg', { type: 'image/jpeg' });
     await usersApi.uploadAvatar(file);
 
-    expect(apiClient.post).toHaveBeenCalledWith(
-      '/users/me/avatar',
-      expect.any(FormData),
-      expect.objectContaining({ headers: { 'Content-Type': 'multipart/form-data' } }),
-    );
+    // Let Axios set the multipart boundary; manually forcing Content-Type
+    // omits the boundary and breaks multipart parsing on the backend.
+    expect(apiClient.post).toHaveBeenCalledWith('/users/me/avatar', expect.any(FormData));
     const form = (apiClient.post as ReturnType<typeof vi.fn>).mock.calls[0][1] as FormData;
     expect(form.get('image')).toBeInstanceOf(File);
     expect(form.has('images')).toBe(false);
@@ -142,7 +140,7 @@ describe('favoritesApi', () => {
 
   it('toggle → POST /favorites/:adId', async () => {
     await favoritesApi.toggle('ad-1');
-    expect(apiClient.post).toHaveBeenCalledWith('/favorites/ad-1', undefined);
+    expect(apiClient.post).toHaveBeenCalledWith('/favorites/ad-1');
   });
 
   // UX-FIX (frontend audit P2-03): guards the same class of URL-typo
@@ -150,7 +148,7 @@ describe('favoritesApi', () => {
   // /favorites/:adId or /favorites/check/:adId.
   it('check → GET /favorites/:adId/check', async () => {
     await favoritesApi.check('ad-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/favorites/ad-1/check', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/favorites/ad-1/check');
   });
 
   // FEAT-FAVORITE-POLYMORPHIC PR3: the generic entity routes actually
@@ -172,7 +170,7 @@ describe('favoritesApi', () => {
     expect(apiClient.post).toHaveBeenCalledWith(`/favorites/${segment}/entity-1`);
 
     await favoritesApi.checkEntity(kind, 'entity-1');
-    expect(apiClient.get).toHaveBeenCalledWith(`/favorites/${segment}/entity-1/check`, undefined);
+    expect(apiClient.get).toHaveBeenCalledWith(`/favorites/${segment}/entity-1/check`);
 
     await favoritesApi.getAllByType(kind, { page: 1 });
     expect(apiClient.get).toHaveBeenCalledWith('/favorites', { params: { page: 1, type: queryType } });
@@ -189,12 +187,12 @@ describe('reportsApi', () => {
 describe('categoriesApi', () => {
   it('getAll → GET /categories', async () => {
     await categoriesApi.getAll();
-    expect(apiClient.get).toHaveBeenCalledWith('/categories', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/categories');
   });
 
   it('getBySlug → GET /categories/slug/:slug (NOT /categories/:slug — historical bug FIX C-07)', async () => {
     await categoriesApi.getBySlug('electronics');
-    expect(apiClient.get).toHaveBeenCalledWith('/categories/slug/electronics', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/categories/slug/electronics');
   });
 
   // L-7 (audit fix): 'getById → GET /categories/:id' test removed along
@@ -215,14 +213,14 @@ describe('categoriesApi', () => {
 
   it('delete → DELETE /categories/:id', async () => {
     await categoriesApi.delete('cat-1');
-    expect(apiClient.delete).toHaveBeenCalledWith('/categories/cat-1', undefined);
+    expect(apiClient.delete).toHaveBeenCalledWith('/categories/cat-1');
   });
 });
 
 describe('adminApi', () => {
   it('getStats → GET /admin/stats', async () => {
     await adminApi.getStats();
-    expect(apiClient.get).toHaveBeenCalledWith('/admin/stats', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/admin/stats');
   });
 
   it('getAds → GET /admin/ads', async () => {
@@ -242,7 +240,7 @@ describe('adminApi', () => {
 
   it('forceDeleteAd → DELETE /admin/ads/:id', async () => {
     await adminApi.forceDeleteAd('ad-1');
-    expect(apiClient.delete).toHaveBeenCalledWith('/admin/ads/ad-1', undefined);
+    expect(apiClient.delete).toHaveBeenCalledWith('/admin/ads/ad-1');
   });
 
   it('getUsers → GET /admin/users', async () => {
@@ -274,7 +272,7 @@ describe('adminApi', () => {
 
   it('getReportById → GET /reports/:id', async () => {
     await adminApi.getReportById('report-1');
-    expect(apiClient.get).toHaveBeenCalledWith('/reports/report-1', undefined);
+    expect(apiClient.get).toHaveBeenCalledWith('/reports/report-1');
   });
 
   it('updateReportStatus → PATCH /reports/:id/status (NOT PATCH /admin/reports/:id — historical bug FIX C-08)', async () => {

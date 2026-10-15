@@ -159,6 +159,7 @@ const STATIC_CACHE = STATIC_CACHE_NAME;
  */
 export const PERMANENT_PUBLIC_SHELL_ROUTES = [
   '/offline',
+  '/saved-payments',
   '/about',
   '/contact',
   '/privacy',

@@ -44,7 +44,8 @@ export function SearchFilters() {
     // a Select, so the browser's back button had to be tapped N times
     // to leave the search page. Also matches how SearchNearbyToggle
     // and SearchTabsWrapper behave for the same class of navigation.
-    router.replace(`${ROUTES.search}?${params.toString()}`);
+    const query = params.toString();
+    router.replace(query ? `${ROUTES.search}?${query}` : ROUTES.search);
   }
 
   const showCategoryFilter = type === 'ads' || type === 'products' || type === 'services';

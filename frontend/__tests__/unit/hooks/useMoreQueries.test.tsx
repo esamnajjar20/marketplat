@@ -142,7 +142,7 @@ describe('useProducts / useProduct / useMyProducts', () => {
     const { result } = renderHook(() => useProduct('p1'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(productsApi.getById).toHaveBeenCalledWith('p1');
+    expect(productsApi.getById).toHaveBeenCalledWith('p1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(result.current.data).toEqual({ id: 'p1', title: 'Product' });
   });
 
@@ -167,7 +167,7 @@ describe('useSearch', () => {
     const { result } = renderHook(() => useSearch(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(searchApi.search).toHaveBeenCalledWith(undefined);
+    expect(searchApi.search).toHaveBeenCalledWith(undefined, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(result.current.data).toEqual({ items: [{ id: 'r1' }], meta: { total: 1 } });
   });
 });
@@ -186,7 +186,7 @@ describe('useSearchSuggestions', () => {
     const { result } = renderHook(() => useSearchSuggestions('ca'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(searchApi.suggest).toHaveBeenCalledWith({ q: 'ca' });
+    expect(searchApi.suggest).toHaveBeenCalledWith({ q: 'ca' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(result.current.data).toEqual([]);
   });
 

@@ -19,14 +19,9 @@ function fnv1a(value: string): string {
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
-export function canonicalCacheKey(
-  namespace: string,
-  scope: CanonicalScope,
-  input: unknown
-): string {
+export function canonicalCacheKey(namespace: string, scope: CanonicalScope, input: unknown): string {
   const serialized = stableSerialize(input);
-  const identity =
-    serialized.length <= 180 ? serialized : `hash:${fnv1a(serialized)}:${serialized.length}`;
+  const identity = serialized.length <= 180 ? serialized : `hash:${fnv1a(serialized)}:${serialized.length}`;
   return `ck:v${CACHE_KEY_ALGORITHM_VERSION}:${scope}:${namespace}:${identity}`;
 }
 export function canonicalPathname(pathname: string): string {
@@ -41,28 +36,21 @@ export function canonicalUrlIdentity(input: string): string {
   const pairs = rawQuery
     .split('&')
     .filter(Boolean)
-    .map(part => {
+    .map((part) => {
       const [rawKey = '', rawValue = ''] = part.split('=', 2);
       const decode = (value: string) => {
-        try {
-          return decodeURIComponent(value.replace(/\+/g, ' '));
-        } catch {
-          return value;
-        }
+        try { return decodeURIComponent(value.replace(/\+/g, ' ')); } catch { return value; }
       };
       return [decode(rawKey), decode(rawValue)] as const;
     })
-    .sort(([ak, av], [bk, bv]) => (ak === bk ? av.localeCompare(bv) : ak.localeCompare(bk)));
+    .sort(([ak, av], [bk, bv]) => ak === bk ? av.localeCompare(bv) : ak.localeCompare(bk));
   const query = pairs.length
     ? `?${pairs.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join('&')}`
     : '';
   return `${canonicalPathname(rawPath || '/')}${query}`;
 }
 
-export function canonicalGenerationKey(
-  namespace: string,
-  scope: 'public' | 'personal' | 'private',
-  strength: 'hard' | 'soft'
-): string {
+
+export function canonicalGenerationKey(namespace: string, scope: 'public' | 'personal' | 'private', strength: 'hard' | 'soft'): string {
   return canonicalCacheKey(namespace, scope, { kind: 'generation', strength });
 }

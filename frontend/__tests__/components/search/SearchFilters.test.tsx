@@ -4,7 +4,7 @@
  * Covers components/search/SearchFilters.tsx:
  *   - the category filter is hidden for type=all/stores, shown for
  *     ads/products/services, with the right category source per type.
- *   - city select pushes the corresponding param and drops page.
+ *   - city/category selects replace the URL params and drop page.
  *   - reset preserves q but drops every other filter.
  *
  * Sort moved out to the shared SearchSortBar (audit item #8, FIX
@@ -22,11 +22,11 @@ import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { ROUTES } from '@/lib/constants';
 
-const mockPush = vi.fn();
+const { mockPush, mockReplace } = vi.hoisted(() => ({ mockPush: vi.fn(), mockReplace: vi.fn() }));
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, prefetch: vi.fn(), back: vi.fn() }),
   useSearchParams: () => mockSearchParams,
 }));
 
@@ -40,8 +40,8 @@ vi.mock('@/components/search/SearchNearbyToggle', () => ({
   SearchNearbyToggle: () => <div data-testid="nearby-toggle" />,
 }));
 
-function paramsFromPush(callIndex = 0) {
-  const url = mockPush.mock.calls[callIndex][0] as string;
+function paramsFromReplace(callIndex = 0) {
+  const url = mockReplace.mock.calls[callIndex][0] as string;
   return new URLSearchParams(url.split('?')[1]);
 }
 
@@ -117,7 +117,7 @@ describe('SearchFilters', () => {
     await user.click(combos[1]);
     await user.click(await screen.findByRole('option', { name: 'أثاث' }));
 
-    const params = paramsFromPush();
+    const params = paramsFromReplace();
     expect(params.get('categoryId')).toBe('prod-cat-1');
     expect(params.has('page')).toBe(false);
   });
@@ -133,7 +133,7 @@ describe('SearchFilters', () => {
     await user.click(combos[1]);
     await user.click(await screen.findByRole('option', { name: 'كل الفئات' }));
 
-    const params = paramsFromPush();
+    const params = paramsFromReplace();
     expect(params.has('categoryId')).toBe(false);
   });
 
@@ -148,9 +148,21 @@ describe('SearchFilters', () => {
     await user.click(combos[0]);
     await user.click(await screen.findByRole('option', { name: 'غزة' }));
 
-    const params = paramsFromPush();
+    const params = paramsFromReplace();
     expect(params.get('city')).toBe('غزة');
     expect(params.has('page')).toBe(false);
+    expect(mockReplace).toHaveBeenCalledWith(expect.not.stringMatching(/\?$/));
+  });
+
+  it('removes the query delimiter when clearing the last active filter', async () => {
+    mockSearchParams = new URLSearchParams({ city: 'غزة' });
+    const user = setupUser();
+    render(<SearchFilters />);
+
+    await user.click(screen.getAllByRole('combobox')[0]);
+    await user.click(await screen.findByRole('option', { name: 'كل المدن' }));
+
+    expect(mockReplace).toHaveBeenCalledWith(ROUTES.search);
   });
 
   it('reset keeps q but drops every other filter', async () => {
@@ -175,9 +187,9 @@ describe('SearchFilters', () => {
     expect(mockPush).toHaveBeenCalledWith(ROUTES.search);
   });
 
-  it('renders the nearby toggle under the location label', () => {
+  it('renders the nearby toggle alongside the city filter', () => {
     render(<SearchFilters />);
-    expect(screen.getByText('الموقع')).toBeInTheDocument();
+    expect(screen.getByText('المدينة')).toBeInTheDocument();
     expect(screen.getByTestId('nearby-toggle')).toBeInTheDocument();
   });
 });

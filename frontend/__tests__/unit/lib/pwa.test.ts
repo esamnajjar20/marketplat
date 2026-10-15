@@ -402,6 +402,19 @@ describe('registerServiceWorker', () => {
     expect(await registerServiceWorker()).toBeNull();
   });
 
+  it('can register after an earlier unsupported environment once a container becomes available', async () => {
+    removeServiceWorkerGlobal();
+    process.env.NODE_ENV = 'production';
+    await expect(registerServiceWorker()).resolves.toBeNull();
+
+    const { swContainer, registration } = installServiceWorkerStub();
+    await expect(registerServiceWorker()).resolves.toBe(registration);
+    expect(swContainer.register).toHaveBeenCalledWith('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    });
+  });
+
   it('skips registration in development without the escape hatch', async () => {
     process.env.NODE_ENV = 'development';
     delete process.env.NEXT_PUBLIC_ENABLE_SW_DEV;

@@ -103,7 +103,10 @@ describe('useSellerProfile', () => {
     const { result } = renderHook(() => useSellerProfile('seller-1'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(sellersApi.getById).toHaveBeenCalledWith('seller-1');
+    expect(sellersApi.getById).toHaveBeenCalledWith(
+      'seller-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(result.current.data).toEqual({ id: 'seller-1', name: 'Store A' });
   });
 });

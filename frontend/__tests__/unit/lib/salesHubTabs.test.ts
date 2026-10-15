@@ -29,8 +29,11 @@ describe('salesHubTabs', () => {
   it('resolves query tabs and ignores unknown values', () => {
     expect(resolveSalesHubTab('?tab=debts&page=2')).toBe('debts');
     expect(resolveSalesHubTab('?tab=analytics')).toBe('analytics');
-    expect(resolveSalesHubTab('?tab=nope')).toBeNull();
-    expect(resolveSalesHubTab('')).toBeNull();
+    // Use a non-hub pathname to verify invalid/missing query values do not
+    // accidentally resolve through the legacy bare-route -> overview mapping.
+    expect(resolveSalesHubTab('?tab=nope', '/')).toBeNull();
+    expect(resolveSalesHubTab('', '/')).toBeNull();
+    expect(resolveSalesHubTab('')).toBe('overview');
   });
 
   it('maps legacy pages to the corresponding hub tab', () => {

@@ -22,8 +22,9 @@ import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
 
 let mockSearchParams = new URLSearchParams();
+const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => mockSearchParams,
 }));
 
@@ -75,7 +76,8 @@ describe('SaveSearchButton', () => {
 
     await user.click(screen.getByRole('button', { name: /حفظ البحث/ }));
 
-    expect(toast.error).toHaveBeenCalledWith('يرجى تسجيل الدخول أولاً');
+    expect(toast.error).toHaveBeenCalledWith('سجّل الدخول لحفظ البحث');
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/login?from='));
     expect(screen.queryByLabelText('اسم البحث')).not.toBeInTheDocument();
   });
 
