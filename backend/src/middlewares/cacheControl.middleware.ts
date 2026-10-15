@@ -9,7 +9,7 @@ import { cachePolicy } from '../shared/cache/cachePolicy';
  * @param swr        stale-while-revalidate seconds (optional)
  */
 export const cacheControl =
-  (maxAge: number, swr?: number) =>
+  (maxAge: number, swr?: number, sharedMaxAge?: number) =>
   (req: Request, res: Response, next: NextFunction): void => {
     const headers = req.headers ?? {};
     const cookie = headers.cookie ?? '';
@@ -23,6 +23,7 @@ export const cacheControl =
       res.setHeader('Vary', 'Authorization, Cookie');
     } else {
       const directives = [`public`, `max-age=${maxAge}`];
+      if (sharedMaxAge) directives.push(`s-maxage=${sharedMaxAge}`);
       if (swr) directives.push(`stale-while-revalidate=${swr}`);
       res.setHeader('Cache-Control', directives.join(', '));
       // Even public responses should declare the auth dimension explicitly:
@@ -74,6 +75,12 @@ export const cachePolicyControl =
     next();
   };
 
+// Extract s-maxage from the policy union without a cast, keeping type safety.
+const sharedMaxOf = (p: object): number | undefined => {
+  const v = (p as { sharedMaxAgeSec?: unknown }).sharedMaxAgeSec;
+  return typeof v === 'number' ? v : undefined;
+};
+
 // Presets — values come from the canonical cache policy. Keep these names as
 // compatibility aliases for existing routes; the policy itself is not defined here.
 const PUBLIC_LIVE = cachePolicy('publicLive').http;
@@ -81,11 +88,11 @@ const PUBLIC_DETAIL = cachePolicy('publicDetail').http;
 const REFERENCE = cachePolicy('reference').http;
 
 export const CACHE = {
-  STATIC: cacheControl(REFERENCE.maxAgeSec, REFERENCE.staleWhileRevalidateSec),
-  LONG: cacheControl(REFERENCE.maxAgeSec, REFERENCE.staleWhileRevalidateSec),
-  SHORT: cacheControl(PUBLIC_LIVE.maxAgeSec, PUBLIC_LIVE.staleWhileRevalidateSec),
-  MEDIUM: cacheControl(PUBLIC_DETAIL.maxAgeSec, PUBLIC_DETAIL.staleWhileRevalidateSec),
-  LIVE: cacheControl(PUBLIC_LIVE.maxAgeSec, PUBLIC_LIVE.staleWhileRevalidateSec),
+  STATIC: cacheControl(REFERENCE.maxAgeSec, REFERENCE.staleWhileRevalidateSec, sharedMaxOf(REFERENCE)),
+  LONG: cacheControl(REFERENCE.maxAgeSec, REFERENCE.staleWhileRevalidateSec, sharedMaxOf(REFERENCE)),
+  SHORT: cacheControl(PUBLIC_LIVE.maxAgeSec, PUBLIC_LIVE.staleWhileRevalidateSec, sharedMaxOf(PUBLIC_LIVE)),
+  MEDIUM: cacheControl(PUBLIC_DETAIL.maxAgeSec, PUBLIC_DETAIL.staleWhileRevalidateSec, sharedMaxOf(PUBLIC_DETAIL)),
+  LIVE: cacheControl(PUBLIC_LIVE.maxAgeSec, PUBLIC_LIVE.staleWhileRevalidateSec, sharedMaxOf(PUBLIC_LIVE)),
   PUBLIC_HOME: cachePolicyControl('publicHome'),
   PERSONAL: cachePolicyControl('personal'),
   MESSAGES: cachePolicyControl('messages'),
