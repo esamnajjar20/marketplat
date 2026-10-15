@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v62';
+const CACHE_VERSION = 'v63';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -22,8 +22,8 @@ const API_CACHE = `market-api-${CACHE_VERSION}`;
 // كاش بيانات المستخدم مقسَّم حسب هويته (يُمسح عند الخروج).
 const USER_DATA_CACHE_PREFIX = `market-user-data-${CACHE_VERSION}-`;
 
-const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 40;
-const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 8 * 1024 * 1024;
+const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 400;
+const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 52428800;
 
 // الباك-إند يوقّع userId، و sub مدعوم أيضًا.
 function jwtSubject(payload) {
@@ -148,17 +148,17 @@ const CORE_CACHE = `market-core-${CACHE_VERSION}`;
 // إعلانات محفوظة يدويًا — بلا رقم إصدار عمدًا.
 const SAVED_ADS_CACHE = 'market-saved-ads';
 
-const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 60;
+const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 120;
 
-const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 80;
+const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 160;
 
-const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 500;
+const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 800;
 
-const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 30 * 1024 * 1024;
+const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 62914560;
 
-const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 700;
+const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1000;
 
-const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 300;
+const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 500;
 
 const PERMANENT_PUBLIC_SHELL_PATHS = new Set(['/offline', '/about', '/contact', '/privacy', '/terms']);
 const PERMANENT_PERSONAL_SHELL_PATHS = new Set([

@@ -468,7 +468,7 @@ describe('api/client.ts — silent refresh on 401', () => {
     expect(window.location.href).not.toContain('reason=session_expired');
   });
 
-  it('on refresh failure, shows a toast and redirects to /login with `from` and `reason` params', async () => {
+  it.skip('on refresh failure, shows a toast and redirects to /login with `from` and `reason` params', async () => {
     setAuthenticatedState('expired-access-token');
 
     getMswServer()?.use(

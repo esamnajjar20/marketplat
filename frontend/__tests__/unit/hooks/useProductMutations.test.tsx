@@ -73,6 +73,9 @@ vi.mock('@/store/auth.store', () => ({
 
 vi.mock('@/lib/offlineAdDrafts', () => ({
   saveAdDraft: vi.fn().mockResolvedValue(undefined),
+  clearActiveOfflineDraftId: vi.fn(),
+  getActiveOfflineDraftId: vi.fn().mockReturnValue(null),
+  filesToPublishFiles: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('@/lib/imageOffline', () => ({

@@ -90,6 +90,8 @@ vi.mock('@/store/auth.store', () => ({
 vi.mock('@/lib/offlineAdDrafts', () => ({
   saveAdDraft: vi.fn().mockResolvedValue(undefined),
   clearActiveOfflineDraftId: vi.fn(),
+  getActiveOfflineDraftId: vi.fn().mockReturnValue(null),
+  filesToPublishFiles: vi.fn().mockResolvedValue([]),
 }));
 
 // FIX IMAGEOFFLINE-WIRE-01: jsdom has no Canvas/createImageBitmap, so the
