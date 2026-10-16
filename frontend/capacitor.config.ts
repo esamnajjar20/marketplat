@@ -23,7 +23,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * of the host machine).
  */
 const devServerUrl = process.env.CAP_SERVER_URL;
-const prodServerUrl = 'https://marketplat-production-a548.up.railway.app';
+const prodServerUrl = 'https://marketplat.esamnajjar6.workers.dev';
 
 const config: CapacitorConfig = {
   appId: 'com.marketplat.app',
