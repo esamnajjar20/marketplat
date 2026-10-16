@@ -18,14 +18,17 @@ import type { TestUser } from './test-data';
 export async function registerViaUI(page: Page, user: TestUser): Promise<void> {
   await page.goto('/register');
 
-  await page.getByLabel('الاسم الكامل').fill(user.name);
-  await page.getByLabel('البريد الإلكتروني').fill(user.email);
+  await page.locator('input#name').fill(user.name);
+  await page.locator('input#email').fill(user.email);
   // Anchored regex, not exact:true — AuthField appends a visually-hidden
   // "(required)" span to every required label's accessible name (a11y
   // fix), so the accessible name is no longer the literal string
   // "كلمة المرور". The regex still disambiguates from "تأكيد كلمة
   // المرور" (confirm password), which doesn't start with this prefix.
-  await page.getByLabel(/^كلمة المرور/).fill(user.password);
+  await page.locator('input#password').fill(user.password);
+  // RegisterForm requires confirmPassword (validated by zod refine) —
+  // without it the submit button stays disabled and the click times out.
+  await page.locator('input#confirmPassword').fill(user.password);
   await page.getByRole('button', { name: 'إنشاء الحساب' }).click();
 
   // A successful register redirects home and the header switches from
