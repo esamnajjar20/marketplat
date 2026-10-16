@@ -51,7 +51,7 @@ jobs:
         env:
           AIVEN_URL: ${{ secrets.AIVEN_DATABASE_URL }}
         run: |
-          pg_restore "$AIVEN_URL" --no-owner --no-privileges --no-acl --clean --if-exists --verbose /tmp/neon-backup.dump 2>&1 | tail -50 || echo "Restore completed with warnings"
+          pg_restore --dbname="$AIVEN_URL" --no-owner --no-privileges --no-acl --clean --if-exists --verbose /tmp/neon-backup.dump 2>&1 | tail -50 || echo "Restore completed with warnings"
 
       - name: Verify counts (Neon)
         env:
