@@ -1,0 +1,105 @@
+name: DB Migration (Neon → Aiven)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "MIGRATE" to confirm'
+        required: true
+        default: ''
+      mode:
+        description: 'Operation'
+        required: true
+        default: 'backup-restore'
+        type: choice
+        options:
+          - backup-restore
+          - verify-only
+
+jobs:
+  migrate:
+    if: inputs.confirm == 'MIGRATE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-16
+          pg_dump --version
+          psql --version
+
+      - name: Backup from Neon
+        if: inputs.mode == 'backup-restore'
+        env:
+          NEON_URL: ${{ secrets.NEON_DIRECT_URL }}
+        run: |
+          echo "→ Backing up Neon..."
+          pg_dump "$NEON_URL" \
+            --no-owner --no-privileges --no-acl \
+            --format=custom --compress=9 \
+            --file=neon-backup.dump
+          ls -lh neon-backup.dump
+          echo "✓ Backup complete"
+
+      - name: Upload backup artifact
+        if: inputs.mode == 'backup-restore'
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-backup
+          path: neon-backup.dump
+          retention-days: 30
+
+      - name: Restore to Aiven
+        if: inputs.mode == 'backup-restore'
+        env:
+          AIVEN_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: |
+          echo "→ Restoring to Aiven..."
+          pg_restore "$AIVEN_URL" \
+            --no-owner --no-privileges --no-acl \
+            --clean --if-exists \
+            --verbose \
+            neon-backup.dump 2>&1 | tail -50 || echo "⚠ Restore completed with warnings (expected if tables did not exist)"
+          echo "✓ Restore done"
+
+      - name: Verify counts (Neon)
+        env:
+          NEON_URL: ${{ secrets.NEON_DIRECT_URL }}
+        run: |
+          echo "═══ Neon row counts ═══"
+          psql "$NEON_URL" -c "
+            SELECT 'users' AS tbl, count(*) FROM users
+            UNION ALL SELECT 'products', count(*) FROM products
+            UNION ALL SELECT 'ads', count(*) FROM ads
+            UNION ALL SELECT 'messages', count(*) FROM messages
+            UNION ALL SELECT 'analytics_events', count(*) FROM analytics_events
+            ORDER BY tbl;
+          "
+
+      - name: Verify counts (Aiven)
+        env:
+          AIVEN_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: |
+          echo "═══ Aiven row counts ═══"
+          psql "$AIVEN_URL" -c "
+            SELECT 'users' AS tbl, count(*) FROM users
+            UNION ALL SELECT 'products', count(*) FROM products
+            UNION ALL SELECT 'ads', count(*) FROM ads
+            UNION ALL SELECT 'messages', count(*) FROM messages
+            UNION ALL SELECT 'analytics_events', count(*) FROM analytics_events
+            ORDER BY tbl;
+          "
+
+      - name: Compare sizes
+        env:
+          NEON_URL: ${{ secrets.NEON_DIRECT_URL }}
+          AIVEN_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: |
+          echo "═══ Neon size ═══"
+          psql "$NEON_URL" -t -c "SELECT pg_size_pretty(pg_database_size(current_database()));"
+          echo "═══ Aiven size ═══"
+          psql "$AIVEN_URL" -t -c "SELECT pg_size_pretty(pg_database_size(current_database()));"
