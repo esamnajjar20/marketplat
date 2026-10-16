@@ -18,7 +18,7 @@
  */
 import path from 'path';
 import { test, expect } from '../fixtures/authenticated';
-import { createAdViaUI } from '../helpers/ads';
+import { createAdViaUI, TEST_IMAGE_PATH } from '../helpers/ads';
 import { uniqueAdTitle } from '../helpers/test-data';
 
 test.describe('Create ad', () => {
@@ -37,9 +37,13 @@ test.describe('Create ad', () => {
       .getByLabel('الوصف')
       .fill('وصف صالح بطول كافٍ لتجاوز الحد الأدنى المطلوب هنا.');
     await page.getByLabel('المدينة').selectOption({ label: 'غزة' });
-    await page.getByRole('button', { name: 'نشر الإعلان' }).click();
 
-    await expect(page.getByText('أضف صورة واحدة على الأقل')).toBeVisible();
+    // The submit button is intentionally disabled when no image is attached
+    // (better UX than letting a click through and showing a late error), so
+    // assert both the disabled state and the accompanying hint instead of
+    // clicking through to a toast that never fires.
+    await expect(page.getByRole('button', { name: 'نشر الإعلان' })).toBeDisabled();
+    await expect(page.getByText('أضف صورة واحدة على الأقل لنشر الإعلان')).toBeVisible();
     await expect(page).toHaveURL(/\/ads\/create/);
   });
 
@@ -47,7 +51,17 @@ test.describe('Create ad', () => {
     await page.goto('/ads/create');
 
     await page.getByLabel('عنوان الإعلان').fill('قصير');
+    await page
+      .getByLabel('الوصف')
+      .fill('وصف صالح بطول كافٍ لتجاوز الحد الأدنى المطلوب هنا.');
     await page.getByLabel('المدينة').selectOption({ label: 'غزة' });
+
+    // Upload a valid image first — otherwise the submit button stays
+    // disabled and we can't reach title validation at all. This test is
+    // about the title rule, not the image rule.
+    await page.locator('input[type="file"]').setInputFiles(TEST_IMAGE_PATH);
+    await expect(page.getByRole('button', { name: /إزالة الصورة/ }).first()).toBeAttached();
+
     await page.getByRole('button', { name: 'نشر الإعلان' }).click();
 
     await expect(page.getByText('العنوان قصير جداً (5 أحرف على الأقل)')).toBeVisible();

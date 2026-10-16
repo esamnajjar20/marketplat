@@ -151,12 +151,17 @@ test.describe('Admin ads table', () => {
 test.describe('Access control — non-admin users are actually denied', () => {
   test('an unauthenticated visitor is sent to /login, not the admin page', async ({ browser }) => {
     const context = await browser.newContext(); // fresh, logged-out context
-    const page = await context.newPage();
+    try {
+      const page = await context.newPage();
 
-    await page.goto('/admin/dashboard');
+      await page.goto('/admin/dashboard');
 
-    await expect(page).toHaveURL(/\/login/);
-    await context.close();
+      await expect(page).toHaveURL(/\/login/);
+    } finally {
+      // Always close, even if the assertion throws — a leaked context
+      // keeps a worker process alive until the whole suite ends.
+      await context.close();
+    }
   });
 });
 

@@ -143,6 +143,22 @@ jest.mock('../src/config/redis', () => {
       const keys = args.slice(0, keyCount);
       const argv = args.slice(keyCount);
 
+      if (script.includes('VIEWS_DEDUP_INCREMENT')) {
+        // Mirror the atomic viewsBuffer increment script: dedup claim and
+        // counter increment succeed or fail together.
+        const [counterKey, dedupKey] = keys;
+        const [dedupEnabled, dedupTtl, bufferTtl] = argv;
+        if (dedupEnabled === '1') {
+          if (store.has(dedupKey)) return 0;
+          await setex(dedupKey, Number(dedupTtl), '1');
+        }
+        await incr(counterKey);
+        // TTLs are not modeled by this in-memory mock; the production Lua
+        // script applies the buffer TTL atomically with the increment.
+        void bufferTtl;
+        return 1;
+      }
+
       if (script.includes("'TOKEN_MISMATCH'")) {
         // ROTATE_SCRIPT (refreshLock.ts): KEYS[1]=key,
         // ARGV=[expectedOldHash, newHash, ttl]

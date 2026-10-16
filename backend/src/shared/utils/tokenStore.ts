@@ -120,7 +120,10 @@ export function initBlacklistInvalidationSubscriber(): void {
       if (subscriber.status === 'wait') {
         await subscriber.connect();
       }
-      await subscriber.subscribe(INVALIDATION_CHANNEL);
+      // Register the message handler BEFORE subscribing. Redis may deliver
+      // a publication immediately after SUBSCRIBE is acknowledged; attaching
+      // the listener afterwards creates a small race where that invalidation
+      // can be consumed without clearing this worker's stale L1 entry.
       subscriber.on('message', (channel, message) => {
         if (channel !== INVALIDATION_CHANNEL) return;
         // The published message is the FULL blacklist key
@@ -129,13 +132,27 @@ export function initBlacklistInvalidationSubscriber(): void {
         // re-hashing the token.
         if (message) BL_L1.delete(message);
       });
+      await subscriber.subscribe(INVALIDATION_CHANNEL);
       logger.info('blacklist invalidation subscriber ready');
     } catch (err) {
       logger.warn(
         'blacklist invalidation subscriber unavailable — L1 will only be cleared on the worker handling the invalidation',
         { err }
       );
+      const failedSubscriber = subscriber;
       subscriber = null;
+      // Do not permanently memoize a failed initialization. The server
+      // calls this initializer during startup; if Redis is briefly down
+      // then, the old resolved promise made every later call return early
+      // and this worker would never subscribe after Redis recovered.
+      // Clear only this attempt's promise so a subsequent call can retry.
+      subscriberReady = null;
+      if (failedSubscriber) {
+        // quit() is asynchronous: a surrounding try/catch only catches a
+        // synchronous throw, not a rejected Promise. Consume cleanup errors
+        // so a failed Redis connection cannot create an unhandled rejection.
+        void failedSubscriber.quit().catch(() => undefined);
+      }
     }
   })();
 }
@@ -145,11 +162,9 @@ export function stopBlacklistInvalidationSubscriber(): void {
   subscriber = null;
   subscriberReady = null;
   if (s) {
-    try {
-      void s.quit();
-    } catch {
-      /* ignore */
-    }
+    // quit() returns a Promise; make best-effort shutdown safe when Redis is
+    // already disconnected and quit rejects asynchronously.
+    void s.quit().catch(() => undefined);
   }
 }
 

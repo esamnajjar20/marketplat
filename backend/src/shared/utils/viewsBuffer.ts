@@ -19,6 +19,21 @@ let flushInFlight: Promise<void> | null = null;
 const MAX_KEYS_PER_FLUSH_BATCH = 100;
 const MAX_CONCURRENT_DB_UPDATES = 20;
 
+// Atomically deduplicate a viewer and increment the counter. Keeping these
+// operations in one Lua script prevents a failed INCR from leaving a dedup key
+// behind for an hour (which would silently discard the viewer's retry).
+const INCREMENT_VIEW_SCRIPT = `
+-- VIEWS_DEDUP_INCREMENT
+local dedupEnabled = ARGV[1] == '1'
+if dedupEnabled then
+  local claimed = redis.call('SET', KEYS[2], '1', 'EX', ARGV[2], 'NX')
+  if not claimed then return 0 end
+end
+redis.call('INCR', KEYS[1])
+redis.call('EXPIRE', KEYS[1], ARGV[3])
+return 1
+`;
+
 // Atomic GETDEL per key — avoids losing views that arrive between read and delete
 const FLUSH_VIEWS_SCRIPT = `
 local results = {}
@@ -26,6 +41,15 @@ for i, key in ipairs(KEYS) do
   results[i] = redis.call('GETDEL', key)
 end
 return results
+`;
+
+// Restore a drained counter atomically after a database write fails. A separate
+// INCRBY then EXPIRE can leave a permanent key if the second command fails.
+const RESTORE_VIEW_BUFFER_SCRIPT = `
+-- VIEWS_RESTORE_BUFFER
+local count = redis.call('INCRBY', KEYS[1], ARGV[1])
+redis.call('EXPIRE', KEYS[1], ARGV[2])
+return count
 `;
 
 export const viewsBuffer = {
@@ -36,23 +60,25 @@ export const viewsBuffer = {
    */
   increment: async (adId: string, viewerKey?: string): Promise<boolean> => {
     try {
-      if (viewerKey) {
-        // Deduplication: 1 view per viewerKey per hour
-        const dedupKey = `views_dedup:${adId}:${viewerKey}`;
-        const alreadySeen = await redis.exists(dedupKey);
-        if (alreadySeen) return false;
-        // Mark as seen for 1 hour
-        await redis.setex(dedupKey, 3600, '1');
-      }
-      // Accumulate in buffer key. pipeline INCR + EXPIRE together
-      // so the key's TTL is refreshed on every increment — it never sits
-      // without an expiry, and active counters don't expire mid-accumulation
-      // since each new view pushes the TTL back out.
-      await redis
-        .pipeline()
-        .incr(`${VIEWS_PREFIX}${adId}`)
-        .expire(`${VIEWS_PREFIX}${adId}`, VIEWS_BUFFER_TTL_SECONDS)
-        .exec();
+      // The dedup claim and counter increment must be one atomic operation.
+      // A separate SET NX followed by pipeline INCR can permanently suppress
+      // a retry for an hour if the increment fails after the claim succeeds.
+      // Use an unused-but-valid second key when deduplication is disabled; the
+      // Lua script never touches it unless ARGV[1] is '1'.
+      const dedupEnabled = Boolean(viewerKey);
+      const dedupKey = dedupEnabled
+        ? `views_dedup:${adId}:${viewerKey}`
+        : `views_dedup_disabled:${adId}`;
+      const incremented = await (redis as any).eval(
+        INCREMENT_VIEW_SCRIPT,
+        2,
+        `${VIEWS_PREFIX}${adId}`,
+        dedupKey,
+        dedupEnabled ? '1' : '0',
+        '3600',
+        String(VIEWS_BUFFER_TTL_SECONDS)
+      );
+      if (Number(incremented) !== 1) return false;
       if (env.nodeEnv === 'test') {
         await prisma.ad.updateMany({
           where: { id: adId, status: { not: 'DELETED' } },
@@ -133,8 +159,13 @@ export const viewsBuffer = {
                     err,
                   });
                   try {
-                    await redis.incrby(`${VIEWS_PREFIX}${adId}`, count);
-                    await redis.expire(`${VIEWS_PREFIX}${adId}`, VIEWS_BUFFER_TTL_SECONDS);
+                    await (redis as any).eval(
+                      RESTORE_VIEW_BUFFER_SCRIPT,
+                      1,
+                      `${VIEWS_PREFIX}${adId}`,
+                      String(count),
+                      String(VIEWS_BUFFER_TTL_SECONDS)
+                    );
                   } catch (restoreErr) {
                     logger.error(
                       'Views update failed AND buffer restore failed — those views are permanently lost',

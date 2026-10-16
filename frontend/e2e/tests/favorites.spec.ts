@@ -92,25 +92,30 @@ test.describe('Favorites', () => {
     // toast.error(...); return; }`), so it must not inherit a logged-in
     // session from the 
     const context = await browser.newContext();
-    const guestPage = await context.newPage();
+    try {
+      const guestPage = await context.newPage();
 
-    // Reuse an ad created by a separate authenticated context, since
-    // ad creation itself requires auth.
-    const authorContext = await browser.newContext();
-    const authorPage = await authorContext.newPage();
-    await registerViaUI(authorPage, makeTestUser());
-    const title = await createAdViaUI(authorPage);
-    const adUrl = authorPage.url();
-    await authorContext.close();
+      // Reuse an ad created by a separate authenticated context, since
+      // ad creation itself requires auth.
+      const authorContext = await browser.newContext();
+      try {
+        const authorPage = await authorContext.newPage();
+        await registerViaUI(authorPage, makeTestUser());
+        const title = await createAdViaUI(authorPage);
+        const adUrl = authorPage.url();
 
-    await guestPage.goto(adUrl);
-    await expect(guestPage.getByRole('heading', { name: title })).toBeVisible();
+        await guestPage.goto(adUrl);
+        await expect(guestPage.getByRole('heading', { name: title })).toBeVisible();
 
-    await guestPage.getByRole('button', { name: 'حفظ' }).click();
-    await expect(guestPage.getByText('يرجى تسجيل الدخول أولاً')).toBeVisible();
-    // Must not have optimistically toggled the icon despite being blocked.
-    await expect(guestPage.locator('svg.fill-destructive')).not.toBeVisible();
-
-    await context.close();
+        await guestPage.getByRole('button', { name: 'حفظ' }).click();
+        await expect(guestPage.getByText('يرجى تسجيل الدخول أولاً')).toBeVisible();
+        // Must not have optimistically toggled the icon despite being blocked.
+        await expect(guestPage.locator('svg.fill-destructive')).not.toBeVisible();
+      } finally {
+        await authorContext.close();
+      }
+    } finally {
+      await context.close();
+    }
   });
 });

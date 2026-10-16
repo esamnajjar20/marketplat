@@ -1,4 +1,4 @@
-import { makeSendCommand } from '../../src/middlewares/rateLimit.middleware';
+import { makeSendCommand, userOrIpKey } from '../../src/middlewares/rateLimit.middleware';
 import { redis } from '../../src/config/redis';
 
 /**
@@ -94,4 +94,23 @@ describe('rateLimit.middleware — makeSendCommand fail-open/fail-closed', () =>
     });
   });
 
+});
+
+
+describe('rateLimit.middleware — userOrIpKey', () => {
+  it('uses a stable user-specific key for authenticated requests', () => {
+    const req = { user: { userId: 'user-28' }, ip: '203.0.113.4' } as any;
+    expect(userOrIpKey(req)).toBe('u:user-28');
+  });
+
+  it('uses the IP for unauthenticated IPv4 requests', () => {
+    const req = { ip: '203.0.113.4' } as any;
+    expect(userOrIpKey(req)).toBe('ip:203.0.113.4');
+  });
+
+  it('normalizes IPv6 addresses to prevent privacy-address rotation bypasses', () => {
+    const first = { ip: '2001:db8:abcd:1200::1' } as any;
+    const second = { ip: '2001:db8:abcd:12ff::9' } as any;
+    expect(userOrIpKey(first)).toBe(userOrIpKey(second));
+  });
 });

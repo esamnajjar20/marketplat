@@ -149,6 +149,54 @@ describe('redisMemoryMonitor', () => {
     redisMemoryMonitor.stop();
   });
 
+  it('does not overwrite valid gauges when INFO memory is incomplete', async () => {
+    const { redis, logger } = await freshMocks();
+    jest.spyOn(redis, 'info').mockResolvedValue('used_memory:850000000\r\n');
+
+    const { redisMemoryMonitor, redisMemoryUsedBytes, redisMemoryMaxBytes } = await import(
+      '../../src/shared/utils/redisMemoryMonitor'
+    );
+
+    // Seed the gauges with known values, then verify a malformed response
+    // is reported rather than misrepresented as zero/unbounded memory.
+    redisMemoryUsedBytes.set(700_000_000);
+    redisMemoryMaxBytes.set(1_000_000_000);
+    redisMemoryMonitor.start();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect((await redisMemoryUsedBytes.get()).values[0].value).toBe(700_000_000);
+    expect((await redisMemoryMaxBytes.get()).values[0].value).toBe(1_000_000_000);
+    expect(logger.error).toHaveBeenCalledWith(
+      'Redis memory monitor poll failed',
+      expect.any(Error),
+    );
+    redisMemoryMonitor.stop();
+  });
+
+  it.each([
+    ['unsafe used_memory', 'used_memory:9007199254740992\r\nmaxmemory:1000000000\r\n'],
+    ['unsafe maxmemory', 'used_memory:500000000\r\nmaxmemory:9007199254740992\r\n'],
+  ])('does not overwrite valid gauges when INFO contains %s', async (_label, infoText) => {
+    const { redis, logger } = await freshMocks();
+    jest.spyOn(redis, 'info').mockResolvedValue(infoText);
+
+    const { redisMemoryMonitor, redisMemoryUsedBytes, redisMemoryMaxBytes } = await import(
+      '../../src/shared/utils/redisMemoryMonitor'
+    );
+    redisMemoryUsedBytes.set(700_000_000);
+    redisMemoryMaxBytes.set(1_000_000_000);
+
+    redisMemoryMonitor.start();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect((await redisMemoryUsedBytes.get()).values[0].value).toBe(700_000_000);
+    expect((await redisMemoryMaxBytes.get()).values[0].value).toBe(1_000_000_000);
+    expect(logger.error).toHaveBeenCalledWith('Redis memory monitor poll failed', expect.any(Error));
+    redisMemoryMonitor.stop();
+  });
+
   it('logs an error but does not throw when the INFO call itself fails', async () => {
     const { redis, logger } = await freshMocks();
     jest.spyOn(redis, 'info').mockRejectedValue(new Error('connection reset'));

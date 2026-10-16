@@ -57,6 +57,35 @@ import { serviceProvidersService } from '../../modules/service-providers/service
 export const KEEP_WARM_INTERVAL_MS = 4 * 60_000;
 export const KEEP_WARM_LEADER_KEY = 'cache:keepwarm:leader';
 export const WARMUP_PAUSE_MS = 150;
+const CACHE_PRESSURE_RATIO = 0.85;
+const MIN_WARMUP_PRIORITY_UNDER_PRESSURE = 85;
+
+/**
+ * Under memory pressure, do not re-create low-priority cache entries.
+ * The dedicated cache Redis should use allkeys-lru/allkeys-lfu to evict
+ * cold disposable payloads automatically; this prevents the warmup loop
+ * from immediately filling the space again with city variants and strips.
+ */
+async function isCacheUnderPressure(): Promise<boolean> {
+  try {
+    const client = cacheClient();
+    if (typeof client.info !== 'function') return false; // minimal test doubles may omit INFO
+    const info = await client.info('memory');
+    const usedMatch = info.match(/^used_memory:(\d+)\s*$/m);
+    const maxMatch = info.match(/^maxmemory:(\d+)\s*$/m);
+    if (!usedMatch || !maxMatch) return false;
+    const used = Number(usedMatch[1]);
+    const max = Number(maxMatch[1]);
+    if (!Number.isSafeInteger(used) || !Number.isSafeInteger(max) || used < 0 || max <= 0) {
+      return false;
+    }
+    return used / max >= CACHE_PRESSURE_RATIO;
+  } catch (error) {
+    logger.warn('[cache-warmup] unable to inspect cache memory; preserving normal warmup', error);
+    return false;
+  }
+}
+
 
 export interface WarmupTask {
   name: string;
@@ -153,8 +182,18 @@ export async function warmPublicCaches(
   const startedAt = Date.now();
 
   const orderedTasks = [...tasks].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
-  for (let i = 0; i < orderedTasks.length; i += 1) {
-    const task = orderedTasks[i];
+  const underPressure = await isCacheUnderPressure();
+  const eligibleTasks = underPressure
+    ? orderedTasks.filter(task => (task.priority ?? 0) >= MIN_WARMUP_PRIORITY_UNDER_PRESSURE)
+    : orderedTasks;
+  if (underPressure) {
+    logger.warn('[cache-warmup] cache memory >= 85%; skipping low-priority warmup tasks', {
+      skipped: orderedTasks.filter(task => (task.priority ?? 0) < MIN_WARMUP_PRIORITY_UNDER_PRESSURE).map(task => task.name),
+      retained: eligibleTasks.map(task => task.name),
+    });
+  }
+  for (let i = 0; i < eligibleTasks.length; i += 1) {
+    const task = eligibleTasks[i];
     const taskStartedAt = process.hrtime.bigint();
     try {
       await task.run();
@@ -170,7 +209,7 @@ export async function warmPublicCaches(
         Number(process.hrtime.bigint() - taskStartedAt) / 1e9
       );
     }
-    if (pauseMs > 0 && i < orderedTasks.length - 1) await sleep(pauseMs);
+    if (pauseMs > 0 && i < eligibleTasks.length - 1) await sleep(pauseMs);
   }
 
   logger.info('[cache-warmup] done', { ok, failed, ms: Date.now() - startedAt });

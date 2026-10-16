@@ -50,6 +50,41 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
     resetCacheGuard();
   });
 
+  it('skips low-priority warmup tasks when cache memory reaches the pressure threshold', async () => {
+    fake.redis.info = jest.fn().mockResolvedValue('used_memory:900\\r\\nmaxmemory:1000\\r\\n');
+    const high = jest.fn().mockResolvedValue(undefined);
+    const low = jest.fn().mockResolvedValue(undefined);
+
+    const result = await warmPublicCaches(
+      [
+        { name: 'important-home', priority: 100, run: high },
+        { name: 'low-priority-city-variant', priority: 60, run: low },
+      ],
+      0,
+    );
+
+    expect(high).toHaveBeenCalledTimes(1);
+    expect(low).not.toHaveBeenCalled();
+    expect(result).toEqual({ ok: 1, failed: 0 });
+  });
+
+  it('keeps all warmup tasks when memory pressure cannot be confirmed', async () => {
+    fake.redis.info = jest.fn().mockRejectedValue(new Error('INFO unavailable'));
+    const high = jest.fn().mockResolvedValue(undefined);
+    const low = jest.fn().mockResolvedValue(undefined);
+
+    await warmPublicCaches(
+      [
+        { name: 'important-home', priority: 100, run: high },
+        { name: 'low-priority-city-variant', priority: 60, run: low },
+      ],
+      0,
+    );
+
+    expect(high).toHaveBeenCalledTimes(1);
+    expect(low).toHaveBeenCalledTimes(1);
+  });
+
   it('covers general home, category trees, default ads lists, and every allow-listed city (FIX ADS-WARM-TTL-01)', () => {
     expect(WARMUP_TASKS.map(t => t.name)).toEqual([
       'home:general',

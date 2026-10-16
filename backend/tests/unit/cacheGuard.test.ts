@@ -25,6 +25,12 @@ describe('cacheGuard (FIX REDIS-CACHE-TIMEOUT-01)', () => {
     await expect(withCacheTimeout(async () => { throw new Error('boom'); })).rejects.toThrow('boom');
   });
 
+  it('rejects a synchronous throw from the operation and clears its deadline', async () => {
+    const operation = jest.fn(() => { throw new Error('sync boom'); });
+    await expect(withCacheTimeout(operation)).rejects.toThrow('sync boom');
+    expect(operation).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects with CacheTimeoutError when the command hangs', async () => {
     jest.useFakeTimers();
     const p = withCacheTimeout(() => new Promise<string>(() => {}));

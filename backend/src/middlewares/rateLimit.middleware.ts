@@ -24,9 +24,36 @@ import { ErrorCode } from '../shared/errors/errorCodes';
 //
 // The "u:" / "ip:" prefixes ensure a userId that happens to look like
 // an IPv6 string can never collide with a real req.ip value.
-function userOrIpKey(req: Request): string {
+/**
+ * Normalizes an IP address into a stable rate-limit key.
+ * - IPv4: returned as-is.
+ * - IPv4-mapped IPv6 (::ffff:a.b.c.d): reduced to the IPv4 address.
+ * - IPv6: reduced to its /64 subnet (first 4 hextets) so clients cannot
+ *   rotate privacy addresses within the same subnet to evade limits.
+ * Replaces express-rate-limit's `ipKeyGenerator`, which is not exported
+ * from the installed 7.5.1 build.
+ */
+function normalizeIpForKey(ip: string): string {
+  if (!ip.includes(':')) return ip;
+
+  const v4Mapped = ip.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  if (v4Mapped) return v4Mapped[1];
+
+  const hextets = ip.split(':').filter(part => part !== '');
+  if (hextets.length < 4) return ip.toLowerCase();
+  return hextets.slice(0, 4).join(':').toLowerCase();
+}
+
+export function userOrIpKey(req: Request): string {
   const userId = (req as { user?: { userId?: string } }).user?.userId;
-  return userId ? `u:${userId}` : `ip:${req.ip ?? 'unknown'}`;
+  if (userId) return `u:${userId}`;
+
+  // Normalize IPv6 addresses to a subnet key. Using the raw IPv6 address
+  // lets clients rotate privacy addresses within the same subnet to evade
+  // unauthenticated rate limits. express-rate-limit's helper applies the
+  // package's configured/default IPv6 subnet semantics consistently.
+  const ip = req.ip;
+  return `ip:${ip ? normalizeIpForKey(ip) : 'unknown'}`;
 }
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import { redis } from '../config/redis';

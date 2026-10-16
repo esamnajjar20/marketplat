@@ -61,6 +61,12 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      // *.mobile.spec.ts only makes sense under the mobile-chromium
+      // project below; without this ignore, Playwright would run the
+      // mobile specs a second time under Desktop Chrome, doubling runtime
+      // and producing false failures (mobile-only UI assertions never
+      // match on a desktop viewport).
+      testIgnore: /.*\.mobile\.spec\.ts/,
     },
     // Mobile viewport matters specifically for this app: MobileNav,
     // the mobile search row in PublicHeader, and the mobile ImageUpload
