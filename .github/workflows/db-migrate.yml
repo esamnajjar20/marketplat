@@ -20,16 +20,13 @@ jobs:
   migrate:
     if: inputs.confirm == 'MIGRATE'
     runs-on: ubuntu-latest
+    container:
+      image: postgres:18
     timeout-minutes: 30
 
     steps:
-      - name: Install PostgreSQL 18 client (PGDG repo)
+      - name: Verify pg_dump version
         run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client-18
           pg_dump --version
           psql --version
 
@@ -38,15 +35,15 @@ jobs:
         env:
           NEON_URL: ${{ secrets.NEON_DIRECT_URL }}
         run: |
-          pg_dump "$NEON_URL" --no-owner --no-privileges --no-acl --format=custom --compress=9 --file=neon-backup.dump
-          ls -lh neon-backup.dump
+          pg_dump "$NEON_URL" --no-owner --no-privileges --no-acl --format=custom --compress=9 --file=/tmp/neon-backup.dump
+          ls -lh /tmp/neon-backup.dump
 
       - name: Upload backup artifact
         if: inputs.mode == 'backup-restore'
         uses: actions/upload-artifact@v4
         with:
           name: neon-backup
-          path: neon-backup.dump
+          path: /tmp/neon-backup.dump
           retention-days: 30
 
       - name: Restore to Aiven
@@ -54,7 +51,7 @@ jobs:
         env:
           AIVEN_URL: ${{ secrets.AIVEN_DATABASE_URL }}
         run: |
-          pg_restore "$AIVEN_URL" --no-owner --no-privileges --no-acl --clean --if-exists --verbose neon-backup.dump 2>&1 | tail -50 || echo "Restore completed with warnings"
+          pg_restore "$AIVEN_URL" --no-owner --no-privileges --no-acl --clean --if-exists --verbose /tmp/neon-backup.dump 2>&1 | tail -50 || echo "Restore completed with warnings"
 
       - name: Verify counts (Neon)
         env:
