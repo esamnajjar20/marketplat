@@ -1,205 +1,147 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-/**
- * Browser-level simulations for low-coverage authenticated business journeys.
- * All external APIs are mocked: these tests exercise the UI/request contract,
- * not real payment, push delivery, Cloudinary, or production authorization.
- */
-const apiMeta = { total: 0, page: 1, limit: 50, totalPages: 0, hasNextPage: false, hasPrevPage: false };
-const user = {
-  id: 'e2e-user-001', name: 'مستخدم اختبار', email: 'e2e@example.test', role: 'USER',
-  avatarUrl: null, city: 'نابلس', emailVerified: true, needsProfileCompletion: false,
-};
-const bootstrap = {
-  me: user, notificationsUnread: 0, conversationsUnread: 0,
-  notifications: { items: [], meta: apiMeta }, sellerProfile: null, sellerAttention: null,
-  adStats: { activeAds: 1, soldAds: 0, totalViews: 0, favoritesCount: 0 },
-  favorites: { items: [], meta: apiMeta }, store: null, serviceProvider: null,
-};
+/** Real database-backed journeys. Legacy filename is kept to replace the old mocked suite in-place. */
+const buyer = { email: 'e2e-buyer@example.test', password: 'E2eBuyerPass123!' };
+const seller = { email: 'e2e-seller@example.test', password: 'E2eSellerPass123!' };
+const admin = { email: 'e2e-admin@example.test', password: 'E2eAdminPass123!' };
+const adId = 'e2e-seeded-ad';
+const productId = 'e2e-seeded-product';
+const serviceId = 'e2e-seeded-service';
+const sellerId = 'e2e-seller-user';
 
-async function installAuthenticatedApiMocks(page: Page) {
-  await page.route('**/*auth/refresh*', async (route: Route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      success: true, data: { tokens: { accessToken: 'e2e-access-token', expiresIn: 3600 }, csrfToken: 'e2e-csrf-token' },
-    }) });
-  });
-  await page.route('**/*users/me/bootstrap*', async (route: Route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: bootstrap }) });
-  });
-  await page.route('**/api/**', async (route: Route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname.includes('/auth/refresh') || url.pathname.includes('/users/me/bootstrap')) return route.fallback();
-    const body = { items: [], data: [], meta: apiMeta, total: 0, unreadCount: 0 };
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: body }) });
-  });
-  await page.addInitScript(() => {
-    // Zustand persists only display metadata. The real access token is still
-    // obtained from the mocked refresh endpoint, as in the production flow.
-    localStorage.setItem('marketplace-auth', JSON.stringify({
-      state: { user: {
-        id: 'e2e-user-001', name: 'مستخدم اختبار', email: 'e2e@example.test', role: 'USER',
-        avatarUrl: null, city: 'نابلس', emailVerified: true, needsProfileCompletion: false,
-      }, lastKnownRoles: { isSeller: true, isProvider: true, hasActiveStore: true } }, version: 1,
-    }));
-  });
-}
+test.describe('real low-coverage business journeys (live frontend + backend + test database)', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.setTimeout(60_000);
 
-async function openProtected(page: Page, path: string, heading: RegExp | string) {
-  await page.goto(path, { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('body')).toBeVisible();
-  await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible({ timeout: 15_000 });
-}
-
-test.describe('missing business journeys — mocked authenticated browser', () => {
-  test.beforeEach(async ({ page }) => installAuthenticatedApiMocks(page));
-
-  test('advertisement creation route renders its form gate', async ({ page }) => {
-    await openProtected(page, '/ads/create', 'نشر إعلان جديد');
-    await expect(page.locator('main')).toBeVisible();
-  });
-
-  test('editing an owned advertisement route handles a missing/mock listing safely', async ({ page }) => {
-    await page.goto('/my-ads/e2e-ad-id/edit', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('body')).toBeVisible();
+  async function login(page: Page, account: typeof buyer | typeof seller | typeof admin) {
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    await page.locator('#email').fill(account.email);
+    await page.locator('#password').fill(account.password);
+    await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+    await expect(page).not.toHaveURL(/\/login(?:[/?#]|$)/, { timeout: 20_000 });
     await expect(page.locator('body')).not.toBeEmpty();
-    await expect(page).not.toHaveURL(/\/login(?:[/?#]|$)/, { timeout: 15_000 });
-  });
+  }
 
-  test('new store product page renders', async ({ page }) => {
-    await openProtected(page, '/my-store/products/new', 'إضافة منتج جديد');
-  });
-
-  test('new service listing page renders', async ({ page }) => {
-    await openProtected(page, '/my-services/new', 'نشر خدمة جديدة');
-  });
-
-  test('following sellers page renders an empty state instead of crashing', async ({ page }) => {
-    await openProtected(page, '/following', 'متابعاتي');
-    await expect(page.locator('main')).toBeVisible();
-  });
-
-  test('favorites page renders for a signed-in user', async ({ page }) => {
-    await openProtected(page, '/favorites', 'المفضلة');
-  });
-
-  test('messages inbox renders for a signed-in user', async ({ page }) => {
-    await page.goto('/messages', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('body')).toBeVisible();
-    await expect(page.getByText('اختر محادثة')).toBeVisible({ timeout: 15_000 });
-  });
-
-  test('notifications page renders with an empty mocked feed', async ({ page }) => {
-    await page.goto('/notifications', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
-  });
-
-  test('account settings route renders', async ({ page }) => {
-    await page.goto('/settings', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
-  });
-
-  test('sales dashboard renders with mocked zero-valued summaries', async ({ page }) => {
-    await openProtected(page, '/account/sales', 'لوحة المبيعات');
-  });
-
-  test('CRM customer form opens and requires a name', async ({ page }) => {
-    await openProtected(page, '/account/customers', 'إدارة العملاء CRM');
+  test('CRM creates a customer and persists a VIP update through the real API', async ({ page }) => {
+    await login(page, seller);
+    await page.goto('/account/customers', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'إدارة العملاء CRM' })).toBeVisible();
+    const name = `E2E Customer ${Date.now()}`;
     await page.getByRole('button', { name: 'عميل جديد' }).click();
-    await expect(page.getByRole('heading', { name: 'عميل جديد' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'حفظ العميل' })).toBeDisabled();
-    await page.getByPlaceholder('الاسم *').fill('عميل تجريبي');
-    await expect(page.getByRole('button', { name: 'حفظ العميل' })).toBeEnabled();
-  });
-
-  test('CRM customer creation sends the entered name to the API', async ({ page }) => {
-    let captured: unknown;
-    await page.route('**/customers**', async (route) => {
-      if (route.request().method() === 'POST') {
-        captured = route.request().postDataJSON();
-        await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, data: { id: 'customer-e2e', name: 'عميل تجريبي' } }) });
-      } else await route.fallback();
-    });
-    await openProtected(page, '/account/customers', 'إدارة العملاء CRM');
-    await page.getByRole('button', { name: 'عميل جديد' }).click();
-    await page.getByPlaceholder('الاسم *').fill('عميل تجريبي');
+    await page.getByPlaceholder('الاسم *').fill(name);
     await page.getByRole('button', { name: 'حفظ العميل' }).click();
-    await expect.poll(() => captured).toMatchObject({ name: 'عميل تجريبي' });
+    const card = page.locator('article').filter({ hasText: name });
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await card.getByRole('button', { name: 'تعيين VIP' }).click();
+    await expect(card.getByRole('button', { name: 'إزالة VIP' })).toBeVisible({ timeout: 15_000 });
   });
 
-  test('service requests owned by the user render safely', async ({ page }) => {
-    await page.goto('/requests/me', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
-  });
-
-  test('creating a customer request route renders', async ({ page }) => {
-    await page.goto('/requests/new', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
-  });
-
-  test('service offers route renders', async ({ page }) => {
-    await page.goto('/requests/offers', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
-  });
-
-  test('saved searches route renders with empty data', async ({ page }) => {
+  test('saved search is created by the UI and appears in the real saved-search list', async ({ page }) => {
+    await login(page, buyer);
+    const label = `E2E saved search ${Date.now()}`;
+    await page.goto(`/search?q=${encodeURIComponent(`سيارة اختبار ${Date.now()}`)}`, { waitUntil: 'domcontentloaded' });
+    const save = page.getByRole('button', { name: 'حفظ البحث', exact: true });
+    await expect(save).toBeVisible({ timeout: 15_000 });
+    await save.click();
+    await page.getByRole('button', { name: 'إعلان', exact: true }).click();
+    await page.locator('#saved-search-label').fill(label);
+    await page.getByRole('dialog').getByRole('button', { name: 'حفظ البحث', exact: true }).click();
     await page.goto('/saved-searches', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
+    await expect(page.getByText(label, { exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
-  test('store management route renders', async ({ page }) => {
+  test('favorite toggle persists for a real seeded advertisement', async ({ page }) => {
+    await login(page, buyer);
+    await page.goto(`/ads/${adId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'E2E سيارة اختبار للبيع' })).toBeVisible({ timeout: 20_000 });
+    const add = page.getByRole('button', { name: 'إضافة إلى المفضلة', exact: true });
+    if (await add.count()) await add.click();
+    await expect(page.getByRole('button', { name: 'إزالة من المفضلة', exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.goto('/favorites', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('E2E سيارة اختبار للبيع', { exact: true })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('following a real seller updates the following list', async ({ page }) => {
+    await login(page, buyer);
+    await page.goto(`/profile/${sellerId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'E2E Seller' })).toBeVisible({ timeout: 15_000 });
+    const follow = page.getByRole('button', { name: 'متابعة', exact: true });
+    if (await follow.count()) await follow.click();
+    await expect(page.getByRole('button', { name: 'إلغاء المتابعة', exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.goto('/following', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('E2E Seller')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('real messaging creates or reuses a conversation and persists a sent message', async ({ page }) => {
+    await login(page, buyer);
+    await page.goto(`/profile/${sellerId}`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'مراسلة', exact: true }).click();
+    await expect(page).toHaveURL(/\/messages\/[^/?#]+/, { timeout: 20_000 });
+    const message = `E2E message ${Date.now()}`;
+    await page.getByRole('textbox', { name: 'نص الرسالة' }).fill(message);
+    await page.getByRole('button', { name: 'إرسال' }).click();
+    await expect(page.getByText(message, { exact: true })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('notification data is loaded from the database and marked read through the UI', async ({ page }) => {
+    await login(page, buyer);
+    await page.goto('/notifications', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('إشعار اختبار E2E', { exact: true })).toBeVisible({ timeout: 15_000 });
+    const markAll = page.getByRole('button', { name: 'تعليم الكل كمقروء', exact: true });
+    if (await markAll.count()) await markAll.click();
+    await expect(page.getByText('كل شيء مقروء')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('editing an owned ad persists the change to the real backend', async ({ page }) => {
+    await login(page, seller);
+    await page.goto(`/my-ads/${adId}/edit`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#title')).toBeVisible({ timeout: 20_000 });
+    const title = `E2E updated ad ${Date.now()}`;
+    await page.locator('#title').fill(title);
+    await page.locator('#desc').fill('وصف محدث من اختبار متصفح حقيقي يتصل بقاعدة البيانات والباك اند.');
+    await page.getByRole('button', { name: 'حفظ التعديلات', exact: true }).click();
+    await page.goto(`/ads/${adId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('editing a real store product persists through the backend', async ({ page }) => {
+    await login(page, seller);
+    await page.goto(`/my-store/products/${productId}/edit`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#name')).toBeVisible({ timeout: 20_000 });
+    const name = `E2E updated product ${Date.now()}`;
+    await page.locator('#name').fill(name);
+    await page.locator('#description').fill('وصف منتج معدل لاختبار واجهة المتجر مع API وقاعدة بيانات حقيقية.');
+    await page.getByRole('button', { name: 'حفظ التعديلات', exact: true }).click();
+    await page.goto(`/products/${productId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('editing a real service listing persists through the backend', async ({ page }) => {
+    await login(page, seller);
+    await page.goto(`/my-services/${serviceId}/edit`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#title')).toBeVisible({ timeout: 20_000 });
+    const title = `E2E updated service ${Date.now()}`;
+    await page.locator('#title').fill(title);
+    await page.locator('#description').fill('وصف خدمة معدل لاختبار حقيقي على خادم التطبيق وقاعدة بيانات الاختبار.');
+    await page.getByRole('button', { name: 'حفظ التعديلات', exact: true }).click();
+    await page.goto(`/services/${serviceId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('authenticated seller can open live sales, settings, and store pages', async ({ page }) => {
+    await login(page, seller);
+    await page.goto('/account/sales', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'لوحة المبيعات' })).toBeVisible({ timeout: 15_000 });
+    await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'الإعدادات' })).toBeVisible({ timeout: 15_000 });
     await page.goto('/my-store', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
+    await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
   });
 
-  test('installment sales sub-route handles an empty response', async ({ page }) => {
-    await page.goto('/account/sales/installments', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
-  });
-
-  test('sales debt sub-route handles an empty response', async ({ page }) => {
-    await page.goto('/account/sales/debts', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('body')).not.toBeEmpty();
-  });
-
-  test('admin page remains isolated from a normal USER account', async ({ page }) => {
+  test('seeded admin can access the real administration dashboard', async ({ page }) => {
+    await login(page, admin);
     await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('body')).toBeVisible();
-    // The app may redirect or show an authorization page; it must not render
-    // the administrative dashboard to a normal account.
-    await expect(page.getByRole('heading', { name: /إدارة النظام|لوحة الإدارة|Admin Dashboard/i })).toHaveCount(0, { timeout: 5_000 });
-  });
-});
-
- test.describe('mocked high-risk operation boundaries', () => {
-  test('payment-shaped API requests never leave the test browser', async ({ page }) => {
-    const externalRequests: string[] = [];
-    page.on('request', request => {
-      if (/stripe|paypal|checkout\.com/i.test(request.url())) externalRequests.push(request.url());
-    });
-    await installAuthenticatedApiMocks(page);
-    await page.goto('/saved-payments', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('body')).toBeVisible();
-    expect(externalRequests).toEqual([]);
-  });
-
-  test('no real image upload provider is contacted by listing forms', async ({ page }) => {
-    const externalUploads: string[] = [];
-    page.on('request', request => {
-      if (/cloudinary\.com|api\.cloudinary/i.test(request.url())) externalUploads.push(request.url());
-    });
-    await installAuthenticatedApiMocks(page);
-    await page.goto('/ads/create', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'نشر إعلان جديد' })).toBeVisible({ timeout: 15_000 });
-    expect(externalUploads).toEqual([]);
+    await expect(page.locator('main')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: /إدارة النظام|لوحة الإدارة|لوحة التحكم/ })).toBeVisible({ timeout: 20_000 });
   });
 });

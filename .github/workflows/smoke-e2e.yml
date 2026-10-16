@@ -93,6 +93,13 @@ jobs:
           fi
           npx prisma migrate deploy
 
+      # Seed real E2E fixtures (buyer/seller/admin/ad/store/product/service/notification)
+      # into the test DB. Required by the DB-backed business-journey specs;
+      # without this, login via the UI fails because the accounts don't exist.
+      - name: Seed E2E fixtures
+        working-directory: backend
+        run: npm run seed:e2e
+
       - name: Build backend
         working-directory: backend
         run: npm run build
