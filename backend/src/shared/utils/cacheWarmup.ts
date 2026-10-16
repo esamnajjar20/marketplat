@@ -214,6 +214,12 @@ export async function runKeepWarmCycle(
 export function startCacheKeepWarm(
   options: { initialDelayMs?: number; intervalMs?: number } = {}
 ): () => void {
+  // KEEP-WARM-KILL-SWITCH: disabled via env to stop Neon drain.
+  if (process.env.KEEP_WARM_ENABLED === 'false') {
+    // eslint-disable-next-line no-console
+    console.log('[warmup] disabled via KEEP_WARM_ENABLED=false');
+    return () => {};
+  }
   const { initialDelayMs = 2_000, intervalMs = KEEP_WARM_INTERVAL_MS } = options;
   let running = false;
   let interval: NodeJS.Timeout | undefined;
