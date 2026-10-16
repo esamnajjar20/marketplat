@@ -1,4 +1,5 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import v8 from 'node:v8';
 import { prisma } from '../../config/prisma';
 import { AdStatus, AuditEventType, ReportStatus, Role, Prisma } from '@prisma/client';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
@@ -940,6 +941,7 @@ export const adminService = {
     }
 
     const runtimeMemory = process.memoryUsage();
+    const heapStats = v8.getHeapStatistics();
     const runtimeUptimeSeconds = Math.floor(process.uptime());
     const runtimeNodeVersion = process.version;
     const runtimeEnvironment = process.env.NODE_ENV ?? 'unknown';
@@ -1009,9 +1011,10 @@ export const adminService = {
         memoryRssBytes: runtimeMemory.rss,
         memoryHeapUsedBytes: runtimeMemory.heapUsed,
         memoryHeapTotalBytes: runtimeMemory.heapTotal,
+        memoryHeapLimitBytes: heapStats.heap_size_limit,
         memoryHeapUsedPercent:
-          runtimeMemory.heapTotal > 0
-            ? Math.round((runtimeMemory.heapUsed / runtimeMemory.heapTotal) * 1000) / 10
+          heapStats.heap_size_limit > 0
+            ? Math.round((runtimeMemory.heapUsed / heapStats.heap_size_limit) * 1000) / 10
             : 0,
         nodeVersion: runtimeNodeVersion,
         environment: runtimeEnvironment,
