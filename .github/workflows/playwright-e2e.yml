@@ -172,6 +172,15 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      - name: Print backend log (last 80 lines, on failure)
+        if: failure()
+        run: |
+          echo "═══ backend.log آخر 80 سطر ═══"
+          tail -80 /tmp/backend.log || true
+          echo ""
+          echo "═══ frontend.log آخر 40 سطر ═══"
+          tail -40 /tmp/frontend.log || true
+
       - name: Upload runtime logs
         if: always()
         uses: actions/upload-artifact@v4
