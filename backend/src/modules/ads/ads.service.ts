@@ -441,8 +441,8 @@ export const adsService = {
       if (createdNew) {
         // FIX AUDIT-V4-06: invalidate cached listings — a newly created
         // active ad must appear in /ads results immediately, not after
-        // up to 30s of TTL expiry.
-        await bumpAdsCacheVersion();
+        // up to 30s of TTL expiry. (Edge purge: its city's lists + home/search.)
+        await bumpAdsCacheVersion({ adId: ad.id, city: ad.city ?? null, kind: 'create' });
 
         // Saved-search alerts are now delivered by the transactional outbox worker.
 
@@ -747,10 +747,21 @@ export const adsService = {
     // in cached /ads results immediately, not after up to 30s.
     // A status change away from ACTIVE (sold/expired/...) must also leave
     // the homepage immediately (FIX HOME-CACHE-INVALIDATE-01).
+    // Edge purge targets this ad's detail + the lists of its city (and the previous
+    // city when the edit moved it), so "تم البيع" is visible immediately.
+    const edgeCtx = {
+      adId,
+      city: updated.city ?? null,
+      prevCity: ad.city ?? null,
+    };
     if (input.status && input.status !== AdStatus.ACTIVE) {
-      await bumpAdsCacheVersionAndHome();
+      await bumpAdsCacheVersionAndHome({ ...edgeCtx, kind: 'hide' });
     } else {
-      await bumpAdsCacheVersion();
+      await bumpAdsCacheVersion({
+        ...edgeCtx,
+        // a restored ad (non-ACTIVE -> ACTIVE) reappears on home/search like a new one
+        kind: input.status === AdStatus.ACTIVE && ad.status !== AdStatus.ACTIVE ? 'create' : 'edit',
+      });
     }
 
     // Gap #10: fire-and-forget, see createAd's own comment above for
@@ -860,7 +871,7 @@ export const adsService = {
         // FIX AUDIT-V4-06: cached listing payloads include `images` —
         // without this, a newly added photo wouldn't show up in /ads
         // results for up to 30s.
-        await bumpAdsCacheVersion();
+        await bumpAdsCacheVersion({ adId, city: freshAd.city ?? null });
         return updated;
       } catch (error) {
         await cleanupUploadedImages(uploads.map(upload => upload.publicId));
@@ -948,7 +959,7 @@ export const adsService = {
       const updated = await adsRepository.removeImage(adId, imageUrl);
       // FIX AUDIT-V4-06: same reasoning as addImages — keep cached
       // listing payloads from showing a just-removed image.
-      await bumpAdsCacheVersion();
+      await bumpAdsCacheVersion({ adId, city: freshAd.city ?? null });
       return updated;
     });
   },
@@ -1009,7 +1020,7 @@ export const adsService = {
       // FIX AUDIT-V4-06 pattern: keep cached listing payloads (which
       // include `images`) from showing the pre-reorder order for up to
       // 30s.
-      await bumpAdsCacheVersion();
+      await bumpAdsCacheVersion({ adId, city: freshAd.city ?? null });
       return updated;
     });
   },
@@ -1024,7 +1035,7 @@ export const adsService = {
     // FIX AUDIT-V4-06: a deleted ad must stop appearing in /ads results
     // immediately, not after up to 30s of cache TTL. Also clears the
     // homepage cache, which embeds ads (FIX HOME-CACHE-INVALIDATE-01).
-    await bumpAdsCacheVersionAndHome();
+    await bumpAdsCacheVersionAndHome({ adId, city: ad.city ?? null, kind: 'hide' });
 
     // Gap #10: fire-and-forget, see createAd's own comment above for
     // the contract this relies on. Logged for `userId` (the acting

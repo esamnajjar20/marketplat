@@ -151,8 +151,15 @@ let registrationContainer: ServiceWorkerContainer | null = null;
 //   - offline (a reload would re-serve the same cached shell)
 //   - a previous update happened within JUST_UPDATED_SUPPRESS_MS
 //     (already handled by wasJustUpdated())
-const PWA_AUTO_APPLY_AFTER_MS = 5 * 60 * 1000;      // 5 min
-const PWA_AUTO_APPLY_HIDDEN_MIN_MS = 30 * 1000;     // 30 s
+// DEV-TUNING-01: when NEXT_PUBLIC_ENABLE_SW_DEV=true, shrink the
+// auto-apply delays from (5 min / 30 s) to (3 s / 1 s) so a code change
+// reflects in the tab quickly. Production values are unchanged — the
+// slow delays exist specifically for Gaza mobile networks where tabs
+// go hidden dozens of times a day and a 30 s hidden window would
+// trigger on routine switches.
+const DEV_SW = process.env.NEXT_PUBLIC_ENABLE_SW_DEV === 'true';
+const PWA_AUTO_APPLY_AFTER_MS      = DEV_SW ? 3_000 : 5 * 60 * 1000;
+const PWA_AUTO_APPLY_HIDDEN_MIN_MS = DEV_SW ? 1_000 : 30 * 1000;
 
 let autoApplyScheduled = false;
 

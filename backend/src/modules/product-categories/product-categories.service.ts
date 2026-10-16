@@ -15,6 +15,7 @@ import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
 import { bumpPublicListCache } from '../../shared/utils/publicListCache';
 import { invalidateHomeCache } from '../home/home.cache.keys';
+import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 
 // versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
@@ -36,6 +37,8 @@ const invalidateProductCategoriesCache = async (): Promise<void> => {
   // The homepage has its own assembled payload and does not automatically
   // observe the product-list soft generation bump.
   await invalidateHomeCache();
+  // Workers-KV copy of GET /product-categories at the edge.
+  purgeReferenceKv();
 };
 
 export const productCategoriesService = {

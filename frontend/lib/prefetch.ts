@@ -262,8 +262,10 @@ export async function prefetchHomeFeed(
       qc.prefetchQuery({
         queryKey: homeFeedQueryKey(undefined, null, false),
         queryFn: async () => {
-          const res = await serverFetch<HomeFeedPayload>('/home/feed');
-          if (!res.data) throw new Error('empty /home/feed response');
+          // Guest SSR: the public /home/static is served from the Cloudflare edge
+          // (the private /home/feed always went to Render).
+          const res = await serverFetch<HomeFeedPayload>('/home/static');
+          if (!res.data) throw new Error('empty /home/static response');
           return res.data;
         },
         staleTime: 60_000,

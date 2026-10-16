@@ -1,0 +1,20 @@
+// مثال إعداد الـ API Worker (v4). انسخه إلى wrangler.jsonc وعدّل القيم.
+{
+  "name": "marketplat-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+
+  // تحذير الـ Cache API: لا يعمل على *.workers.dev ولا يمكن purge بالـ Tag هناك.
+  // لتفعيل #8 يجب أن يخدم الـ Worker عبر Route على نطاقك (zone) — مثال:
+  // "routes": [{ "pattern": "api.example.com/*", "zone_name": "example.com" }],
+
+  // #10 طبقة KV للتصنيفات (اختياري — بدونها يعمل الـ Worker كما هو):
+  //   npx wrangler kv namespace create REFERENCE_KV
+  "kv_namespaces": [{ "binding": "REFERENCE_KV", "id": "<KV_NAMESPACE_ID>" }],
+
+  // السر لمسار POST /__purge__ (يطابق EDGE_WORKER_PURGE_TOKEN في الباك-إند):
+  //   npx wrangler secret put PURGE_TOKEN
+
+  // keep-warm كل 4 دقائق (كما هو مدروس في الجرد)
+  "triggers": { "crons": ["*/4 * * * *"] }
+}

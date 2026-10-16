@@ -11,6 +11,7 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
+import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 
@@ -25,6 +26,8 @@ export const invalidateServiceCategoriesCache = async (): Promise<void> => {
   } catch {
     // silent fail — cache miss is acceptable
   }
+  // Workers-KV copy of GET /service-categories (and /service-types, which calls this).
+  purgeReferenceKv();
 };
 
 export const serviceCategoriesService = {

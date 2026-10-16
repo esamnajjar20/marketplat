@@ -18,8 +18,13 @@ export function useHomeFeed() {
     queryKey: queryKeys.home.feed(city, identity, explicitAll),
     enabled: isHydrated && isReady,
     queryFn: async (): Promise<HomeFeedPayload> => {
-      const payload = await homeFeedApi.get({ city, explicitAll }).then((response) => response.data.data);
-      if (!payload) throw new Error('empty /home/feed response');
+      // Anonymous visitors read the public, edge-cached /home/static; only a signed-in
+      // user pays for the private, personalised /home/feed. Same payload shape.
+      const request = identity
+        ? homeFeedApi.get({ city, explicitAll })
+        : homeFeedApi.getStatic({ city, explicitAll });
+      const payload = await request.then((response) => response.data.data);
+      if (!payload) throw new Error(`empty /home/${identity ? 'feed' : 'static'} response`);
       return payload;
     },
     placeholderData: (previous) => {

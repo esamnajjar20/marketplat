@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v63';
+const CACHE_VERSION = 'v64';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -412,6 +412,7 @@ const PUBLIC_LIST_API_PREFIXES = [
   '/api/v1/product-categories',
   '/api/v1/service-categories',
   '/api/v1/home',
+  '/api/v1/home/static',
 
   '/api/v1/home/feed',
 ];

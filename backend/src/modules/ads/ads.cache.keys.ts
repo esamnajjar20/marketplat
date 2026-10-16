@@ -1,6 +1,7 @@
 import { bumpGeneration } from '../../shared/utils/swrCache';
 import { HOME_GEN_KEY, invalidateHomeCache } from '../home/home.cache.keys';
 import { logger } from '../../shared/utils/logger';
+import { purgeAdEdge, type AdEdgeContext } from '../../shared/cache/edgePurge';
 
 /**
  * Generation keys + invalidation helpers for the GET /ads list cache.
@@ -19,21 +20,30 @@ export const ADS_GEN_SOFT_KEY = 'ads:gen:soft';
  * but is still legitimately visible. Stale-while-revalidate handles it.
  * Name kept for the existing call sites in ads / admin / republish services.
  */
-export async function bumpAdsCacheVersion(): Promise<void> {
+export async function bumpAdsCacheVersion(edge?: AdEdgeContext): Promise<void> {
   await bumpGeneration(ADS_GEN_SOFT_KEY);
+  // Edge (Cloudflare) copy: purge AFTER the origin generation moved, otherwise an
+  // edge refill could re-cache the pre-change payload from Redis.
+  purgeAdEdge({ kind: 'edit', ...edge });
 }
 
 /**
  * Hard invalidation: an ad must stop appearing NOW. Every cached list entry
  * becomes unusable and the next read rebuilds synchronously from the DB.
  */
-export async function bumpAdsCacheHard(): Promise<boolean> {
+export async function bumpAdsCacheHard(
+  edge?: AdEdgeContext,
+  opts: { skipEdgePurge?: boolean } = {}
+): Promise<boolean> {
   const ok = await bumpGeneration(ADS_GEN_HARD_KEY, { retryDependentGenKeys: [HOME_GEN_KEY] });
   if (!ok) {
     logger.error(
       'Ads hard cache invalidation failed; removed or unavailable ads may remain in cached lists until hard TTL'
     );
   }
+  // No context (seller suspension, bulk takedown…) => purges every ads/home/search
+  // response. Callers that also invalidate home purge once, at the end, themselves.
+  if (!opts.skipEdgePurge) purgeAdEdge({ kind: 'hide', ...edge });
   return ok;
 }
 
@@ -48,9 +58,13 @@ export async function bumpAdsCacheHard(): Promise<boolean> {
  * appearing on the homepage within the soft TTL is fine; a removed ad
  * lingering is not.
  */
-export async function bumpAdsCacheVersionAndHome(): Promise<void> {
-  const adsInvalidated = await bumpAdsCacheHard();
+export async function bumpAdsCacheVersionAndHome(edge?: AdEdgeContext): Promise<void> {
+  const adsInvalidated = await bumpAdsCacheHard(edge, { skipEdgePurge: true });
   if (!adsInvalidated) {
+    // The edge copy is a separate layer: purge it even when Redis failed, so the
+    // CDN doesn't keep a removed ad for the (long) purge-mode TTL. Origin may
+    // briefly refill it from the stale Redis entry, but only until its hard TTL.
+    purgeAdEdge({ kind: 'hide', ...edge });
     // Do not trigger homepage listeners/re-warming from a potentially stale ad-list
     // cache. Keeping the old homepage until TTL is safer than republishing removed ads
     // under a new homepage generation while Redis invalidation is failing.
@@ -60,4 +74,6 @@ export async function bumpAdsCacheVersionAndHome(): Promise<void> {
     return;
   }
   await invalidateHomeCache();
+  // Last step on purpose: both Redis layers already serve the post-change data.
+  purgeAdEdge({ kind: 'hide', ...edge });
 }

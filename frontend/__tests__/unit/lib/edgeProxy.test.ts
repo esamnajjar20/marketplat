@@ -15,7 +15,7 @@ const no = (p: string) => !yes(p);
 describe('isViewerIndependentPath', () => {
   it('accepts public lists and details', () => {
     for (const p of [
-      'home', 'categories', 'categories/5', 'categories/slug/cars',
+      'home', 'home/static', 'categories', 'categories/5', 'categories/slug/cars',
       'ads', 'ads/search', 'ads/abc123', 'ads/abc123/related',
       'products', 'products/p1', 'stores', 'stores/s1', 'stores/s1/reviews',
       'service-listings', 'service-listings/l1', 'service-listings/l1/matches',
@@ -28,7 +28,7 @@ describe('isViewerIndependentPath', () => {
 
   it('rejects viewer-specific and owner-only routes', () => {
     for (const p of [
-      'home/feed', 'recommendations', 'requests', 'requests/r1', 'requests/me',
+      'home/feed', 'home/for-you', 'recommendations', 'requests', 'requests/r1', 'requests/me',
       'requests/offers/me', 'ads/me', 'ads/me/stats', 'products/me',
       'products/stock/summary', 'products/stock/history', 'stores/me',
       'stores/me/followed', 'stores/me/analytics', 'stores/s1/members',

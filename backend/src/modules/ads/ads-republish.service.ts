@@ -194,7 +194,7 @@ export const adsRepublishService = {
       // All four run after the transaction commits, same contract as
       // createAd: a failure in any of them must never fail the ad
       // that already exists.
-      await bumpAdsCacheVersion();
+      await bumpAdsCacheVersion({ adId: created.id, city: created.city ?? null, kind: 'create' });
 
       savedSearchEvents.onAdCreated(created).catch(err =>
         logger.error('Failed to process saved-search matches for republished ad', {

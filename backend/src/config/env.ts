@@ -236,6 +236,17 @@ const envSchema = z.object({
   // is intentionally kept separate so a team can route them to different
   // channels (e.g. ops alerting vs. a dedicated security channel).
   SECURITY_ALERT_WEBHOOK_URL: z.string().url().optional(),
+  // ── Edge cache purge (Cloudflare) ─────────────────────────────────────
+  // Optional, opt-in. When BOTH the zone id and an API token (scope:
+  // Zone → Cache Purge) are set, content mutations purge the edge by Cache-Tag
+  // and the ads routes switch to long edge TTLs (see shared/cache/edgePurge.ts).
+  // Unset = nothing changes: short TTLs, no outbound calls.
+  CF_PURGE_ZONE_ID: z.string().optional(),
+  CF_PURGE_API_TOKEN: z.string().optional(),
+  // Flush of the Worker's KV reference tier (POST <url> + x-purge-token header).
+  // e.g. https://api.example.com/__purge__ — must match the Worker's PURGE_TOKEN.
+  EDGE_WORKER_PURGE_URL: z.string().url().optional(),
+  EDGE_WORKER_PURGE_TOKEN: z.string().optional(),
   // previously there was no cap on how many active ads
   // a single user could have simultaneously. Combined with no per-user
   // listing quota, a single account (even unverified) could create an
@@ -797,6 +808,16 @@ export const env = {
   },
   securityAlert: {
     webhookUrl: _env.SECURITY_ALERT_WEBHOOK_URL || '',
+  },
+  edgePurge: {
+    zoneId: (_env.CF_PURGE_ZONE_ID ?? '').trim(),
+    apiToken: (_env.CF_PURGE_API_TOKEN ?? '').trim(),
+    workerPurgeUrl: (_env.EDGE_WORKER_PURGE_URL ?? '').trim(),
+    workerPurgeToken: (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim(),
+    // Never fire real Cloudflare calls from the test suite.
+    enabled:
+      _env.NODE_ENV !== 'test' &&
+      Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim()),
   },
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),

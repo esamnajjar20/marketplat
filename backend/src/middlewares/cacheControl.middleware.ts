@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { cachePolicy } from '../shared/cache/cachePolicy';
+import { purgeAwareSharedMaxAge } from '../shared/cache/edgePurge';
 
 /**
  * Sets Cache-Control headers for public, cacheable responses.
@@ -88,11 +89,46 @@ const PUBLIC_DETAIL = cachePolicy('publicDetail').http;
 const REFERENCE = cachePolicy('reference').http;
 
 export const CACHE = {
-  STATIC: cacheControl(REFERENCE.maxAgeSec, REFERENCE.staleWhileRevalidateSec, sharedMaxOf(REFERENCE)),
-  LONG: cacheControl(REFERENCE.maxAgeSec, REFERENCE.staleWhileRevalidateSec, sharedMaxOf(REFERENCE)),
-  SHORT: cacheControl(PUBLIC_LIVE.maxAgeSec, PUBLIC_LIVE.staleWhileRevalidateSec, sharedMaxOf(PUBLIC_LIVE)),
-  MEDIUM: cacheControl(PUBLIC_DETAIL.maxAgeSec, PUBLIC_DETAIL.staleWhileRevalidateSec, sharedMaxOf(PUBLIC_DETAIL)),
-  LIVE: cacheControl(PUBLIC_LIVE.maxAgeSec, PUBLIC_LIVE.staleWhileRevalidateSec, sharedMaxOf(PUBLIC_LIVE)),
+  STATIC: cacheControl(
+    REFERENCE.maxAgeSec,
+    REFERENCE.staleWhileRevalidateSec,
+    sharedMaxOf(REFERENCE)
+  ),
+  LONG: cacheControl(
+    REFERENCE.maxAgeSec,
+    REFERENCE.staleWhileRevalidateSec,
+    sharedMaxOf(REFERENCE)
+  ),
+  SHORT: cacheControl(
+    PUBLIC_LIVE.maxAgeSec,
+    PUBLIC_LIVE.staleWhileRevalidateSec,
+    sharedMaxOf(PUBLIC_LIVE)
+  ),
+  MEDIUM: cacheControl(
+    PUBLIC_DETAIL.maxAgeSec,
+    PUBLIC_DETAIL.staleWhileRevalidateSec,
+    sharedMaxOf(PUBLIC_DETAIL)
+  ),
+  LIVE: cacheControl(
+    PUBLIC_LIVE.maxAgeSec,
+    PUBLIC_LIVE.staleWhileRevalidateSec,
+    sharedMaxOf(PUBLIC_LIVE)
+  ),
+  // Ads routes only: every ad mutation purges the edge by Cache-Tag (see
+  // shared/cache/edgePurge.ts), so when purging is configured the edge may keep
+  // these far longer than the policy's s-maxage. The browser max-age and
+  // stale-while-revalidate are untouched, and with purging OFF these are
+  // byte-identical to LIVE.
+  ADS_LIST: cacheControl(
+    PUBLIC_LIVE.maxAgeSec,
+    PUBLIC_LIVE.staleWhileRevalidateSec,
+    purgeAwareSharedMaxAge('adsList', sharedMaxOf(PUBLIC_LIVE))
+  ),
+  ADS_DETAIL: cacheControl(
+    PUBLIC_LIVE.maxAgeSec,
+    PUBLIC_LIVE.staleWhileRevalidateSec,
+    purgeAwareSharedMaxAge('adsDetail', sharedMaxOf(PUBLIC_LIVE))
+  ),
   PUBLIC_HOME: cachePolicyControl('publicHome'),
   PERSONAL: cachePolicyControl('personal'),
   MESSAGES: cachePolicyControl('messages'),

@@ -249,7 +249,7 @@ export const adminService = {
       // isFeatured value from cache for up to its 30s TTL — a featured
       // ad wouldn't actually appear "featured" to browsing users right
       // away, and vice versa when un-featuring.
-      await bumpAdsCacheVersion();
+      await bumpAdsCacheVersion({ adId, city: ad.city ?? null });
       return ad;
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
@@ -274,7 +274,7 @@ export const adminService = {
         reportBackgroundFailure('backend/src/modules/admin/admin.service.ts', error)
       );
       // BUGFIX: same reasoning as setAdFeatured above.
-      await bumpAdsCacheVersion();
+      await bumpAdsCacheVersion({ adId, city: ad.city ?? null });
       return ad;
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
@@ -284,7 +284,10 @@ export const adminService = {
 
   forceDeleteAd: async (adId: string, adminUserId = 'unknown', reason?: string) => {
     try {
-      await prisma.ad.update({ where: { id: adId }, data: { status: AdStatus.DELETED } });
+      const deletedAd = await prisma.ad.update({
+        where: { id: adId },
+        data: { status: AdStatus.DELETED },
+      });
       // same reordering as setAdFeatured
       // above. Particularly important on this path — an urgent admin
       // takedown (fraud, legal) is exactly when the audit trail
@@ -313,7 +316,11 @@ export const adminService = {
       // users for up to 30 more seconds" matters most.
       // also clear the homepage cache — an
       // urgent takedown must not linger on /home until its entry expires.
-      await bumpAdsCacheVersionAndHome();
+      await bumpAdsCacheVersionAndHome({
+        adId,
+        city: deletedAd.city ?? null,
+        kind: 'hide',
+      });
     } catch (e: any) {
       if (e?.code === 'P2025') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
       throw e;

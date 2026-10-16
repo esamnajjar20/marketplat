@@ -1,5 +1,6 @@
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
+import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
@@ -32,6 +33,8 @@ async function invalidate(): Promise<void> {
   } catch {
     logger.warn('Store types cache invalidation failed');
   }
+  // Workers-KV copy of GET /store-types at the edge.
+  purgeReferenceKv();
 }
 
 export const storeTypesService = {

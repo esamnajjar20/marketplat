@@ -15,7 +15,7 @@
  * matches one of the exact shapes below. Each shape was checked against the
  * backend route + controller and uses no `req.user` / Authorization.
  * Deliberately NOT listed (they vary per viewer or need auth):
- *   - home/feed            (varies by bearer identity)
+ *   - home/feed, home/for-you (vary by bearer identity)
  *   - recommendations      (personalised)
  *   - requests, requests/:id (optionalAuthenticate → viewerId)
  *   - any path with a me / admin / stock / members / offers segment
@@ -25,7 +25,7 @@
  * users until you add its shape here — the safe default.
  */
 
-const RESERVED_SEGMENTS = new Set(['me', 'stock', 'admin', 'feed', 'members', 'offers']);
+const RESERVED_SEGMENTS = new Set(['me', 'stock', 'admin', 'feed', 'for-you', 'members', 'offers']);
 
 type Shape = (segs: string[]) => boolean;
 
@@ -40,6 +40,8 @@ const root_slug = (root: string): Shape => (s) =>
 
 const SHAPES: Shape[] = [
   exact('home'),
+  // guest homepage feed — identical for every visitor (backend ignores identity)
+  root_literal('home', 'static'),
   // reference data
   ...['categories', 'product-categories', 'service-categories'].flatMap((r) => [
     exact(r), root_id(r), root_slug(r),
