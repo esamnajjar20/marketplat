@@ -4,7 +4,7 @@ name: E2E Only
 # مستخرج من ci.yml (job e2e) بدون if: false.
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   group: e2e-${{ github.workflow }}-${{ github.ref }}
