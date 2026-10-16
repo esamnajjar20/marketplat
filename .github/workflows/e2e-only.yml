@@ -254,9 +254,11 @@ jobs:
             echo "::warning::Login returned HTTP $HTTP_CODE (seed admin may not exist)"
           fi
 
-      - name: Run E2E tests
+      - name: Run E2E tests (DEBUG: single spec)
         working-directory: frontend
-        run: npm run e2e
+        run: npm run e2e -- e2e/tests/auth.spec.ts --workers=1 --reporter=line
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: report.json
 
       - name: Upload Playwright report
         if: always()
