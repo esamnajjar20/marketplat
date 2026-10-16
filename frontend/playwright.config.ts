@@ -32,6 +32,7 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './e2e/tests',
+  timeout: 90000, // 90s — registerViaUI + real backend needs more than the 30s default in CI
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,

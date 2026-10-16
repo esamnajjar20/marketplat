@@ -12,7 +12,7 @@ describe('cache invalidation failure safety', () => {
   );
 
   it('does not invalidate/rewarm homepage if ad-list hard invalidation fails', () => {
-    expect(adsKeysSource).toContain('export async function bumpAdsCacheHard(): Promise<boolean>');
+    expect(adsKeysSource).toMatch(/export async function bumpAdsCacheHard\s*\([\s\S]*?\)\s*:\s*Promise<boolean>/);
     expect(adsKeysSource).toContain('const adsInvalidated = await bumpAdsCacheHard()');
     expect(adsKeysSource).toContain('if (!adsInvalidated)');
     expect(adsKeysSource.indexOf('if (!adsInvalidated)')).toBeLessThan(
