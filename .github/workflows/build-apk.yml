@@ -49,6 +49,14 @@ jobs:
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
           fi
 
+      - name: Ensure SDK 35 is installed
+        run: |
+          if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" >/dev/null 2>&1 || true
+            echo "SDK 35 install attempted"
+            ls "$ANDROID_HOME/platforms" || true
+          fi
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
