@@ -235,6 +235,11 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
             type="search"
             value={value}
             onChange={(e) => {
+              // Clear a previously highlighted suggestion synchronously with
+              // typing. Waiting for the value/showSuggestions effects leaves a
+              // brief window where Enter can pick a stale recent-search row
+              // instead of submitting the text the user just entered.
+              setActiveIndex(-1);
               setValue(e.target.value);
               setShowSuggestions(true);
             }}

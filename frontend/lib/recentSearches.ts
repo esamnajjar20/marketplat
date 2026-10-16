@@ -20,7 +20,15 @@ export interface RecentSearchEntry {
 }
 
 function canUseStorage(): boolean {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+  // Accessing the localStorage property itself can throw in privacy modes,
+  // sandboxed documents, and browsers that deny storage before getItem is
+  // reached. Keep this probe side-effect free and fail closed.
+  if (typeof window === 'undefined') return false;
+  try {
+    return Boolean(window.localStorage);
+  } catch {
+    return false;
+  }
 }
 
 function storageKey(): string {

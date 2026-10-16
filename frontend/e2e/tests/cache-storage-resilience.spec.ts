@@ -33,3 +33,36 @@ test.describe('client storage and page lifecycle resilience', () => {
     expect(new URL(page.url()).searchParams.get('q')).toBe(query);
   });
 });
+
+  test('search submission still works when storage access throws at the property boundary', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        Object.defineProperty(window, 'localStorage', {
+          configurable: true,
+          get() { throw new DOMException('Storage access denied', 'SecurityError'); },
+        });
+      } catch {
+        // Browser-specific property descriptors may prevent this simulation.
+      }
+    });
+    await page.goto('/search', { waitUntil: 'domcontentloaded' });
+    const input = page.locator('main').getByRole('search').first().getByRole('searchbox', { name: 'بحث' });
+    await expect(input).toBeVisible();
+    await input.fill('استمرار البحث');
+    await input.press('Enter');
+    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('استمرار البحث');
+  });
+
+  test('corrupt recent-search JSON does not prevent search from loading', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('marketplat:recent-searches-v2:guest', '{not-json');
+      } catch {
+        // Storage can be disabled by the browser; that case is covered above.
+      }
+    });
+    const response = await page.goto('/search', { waitUntil: 'domcontentloaded' });
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBeLessThan(500);
+    await expect(page.locator('main').getByRole('search').first().getByRole('searchbox', { name: 'بحث' })).toBeVisible();
+  });
