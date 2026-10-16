@@ -18,7 +18,6 @@ import {
   X,
   Inbox,
   CalendarClock,
-  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -47,6 +46,7 @@ const STATUS_LABELS: Record<ServiceListingStatus, string> = {
 };
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
+import { Spinner } from '@/components/ui/spinner';
 export function MyServiceListingsList() {
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
   const router = useRouter();
@@ -303,7 +303,7 @@ export function MyServiceListingsList() {
             disabled={bulkBusy !== null}
             className="gap-1.5"
           >
-            {bulkBusy === 'delete' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {bulkBusy === 'delete' ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
             حذف المحدد
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy !== null}>

@@ -4,7 +4,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, Loader2, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
 import { useSetConversationFlags, useMessageMarkMutation } from '@/hooks/mutations/useConversationMutations';
@@ -34,6 +34,7 @@ import { ChatMessageRow, type DisplayMessage } from './ChatMessageRow';
 import { cn } from '@/lib/utils';
 import type { Conversation, Message } from '@/types/conversation.types';
 
+import { Spinner } from '@/components/ui/spinner';
 const MESSAGES_PAGE_SIZE = 50;
 
 interface Props {
@@ -599,7 +600,7 @@ export function ChatWindow({ conversationId }: Props) {
               disabled={messagesFetching}
               onClick={() => void refetchMessages()}
             >
-              {messagesFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'إعادة المحاولة'}
+              {messagesFetching ? <Spinner size="sm" /> : 'إعادة المحاولة'}
             </Button>
           </div>
         ) : messages.length === 0 ? (
@@ -613,7 +614,7 @@ export function ChatWindow({ conversationId }: Props) {
             {hasMoreOlder && (
               <div className="flex justify-center pb-1">
                 <Button variant="ghost" size="sm" disabled={fetchingOlder} onClick={handleLoadOlder}>
-                  {fetchingOlder ? <Loader2 className="h-4 w-4 animate-spin" /> : 'تحميل رسائل أقدم'}
+                  {fetchingOlder ? <Spinner size="sm" /> : 'تحميل رسائل أقدم'}
                 </Button>
               </div>
             )}

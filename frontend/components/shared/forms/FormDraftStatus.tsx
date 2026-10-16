@@ -1,8 +1,9 @@
 'use client';
 
-import { Check, CloudOff, Loader2 } from 'lucide-react';
+import { Check, CloudOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { Spinner } from '@/components/ui/spinner';
 const DRAFT_TIME_FORMATTER = typeof Intl !== 'undefined' ? new Intl.DateTimeFormat('ar', { hour: 'numeric', minute: '2-digit' }) : null;
 
 interface Props {
@@ -51,7 +52,7 @@ export function FormDraftStatus({
       )}
     >
       {saving && !saveError ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        <Spinner size="xs" />
       ) : saveError ? (
         <CloudOff className="h-3.5 w-3.5" aria-hidden />
       ) : savedAt ? (

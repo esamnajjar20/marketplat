@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'react';
-import { Play, Pause, Loader2, AlertTriangle } from 'lucide-react';
+import { Play, Pause, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { Spinner } from '@/components/ui/spinner';
 interface Props {
   src: string;
   /** 'mine' = on primary-colored bubble (light controls), 'theirs' = on card (dark controls). */
@@ -125,7 +126,7 @@ export function VoiceMessagePlayer({ src, variant = 'theirs', className, onError
         {error ? (
           <AlertTriangle className="h-4 w-4" />
         ) : loading && !playing ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Spinner size="sm" />
         ) : playing ? (
           <Pause className="h-4 w-4" fill="currentColor" />
         ) : (

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useClampedPage } from '@/hooks/useClampedPage';
 import Link from 'next/link';
-import { FolderOpen, Store, UserRound, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react';
+import { FolderOpen, Store, UserRound, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMyFollowing, useFollowStatus } from '@/hooks/queries/useFollows';
 import { useToggleFollow } from '@/hooks/mutations/useFollowMutations';
 import { useAuthStore } from '@/store/auth.store';
@@ -11,6 +11,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import type { FollowCategory, FollowPerson, FollowStore, FollowTargetType } from '@/api/follows.api';
 import type { PaginationMeta } from '@/types/api.types';
 
+import { Spinner } from '@/components/ui/spinner';
 export function FollowPagination({ meta, page, onPageChange }: { meta?: PaginationMeta; page: number; onPageChange: (page: number) => void }) {
   if (!meta || meta.totalPages <= 1) return null;
   return (
@@ -80,7 +81,7 @@ export function TargetRow({ type, target }: { type: FollowTargetType; target: Fo
         onClick={() => toggle.mutate({ targetType: type, targetId })}
         className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-60 sm:px-4 ${following ? 'border-border bg-muted/60 text-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive' : 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'}`}
       >
-        {(statusLoading || toggle.isPending) && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+        {(statusLoading || toggle.isPending) && <Spinner size="xs" />}
         {statusLoading ? 'جارٍ التحقق' : toggle.isPending ? 'جارٍ التحديث' : following ? 'تتابعه' : 'متابعة'}
       </button>
     </div>
@@ -95,7 +96,7 @@ export function MyFollowingList() {
   if (isError) return <div className="rounded-2xl border border-dashed border-border p-8 text-center"><p className="text-sm text-muted-foreground">تعذّر تحميل قائمة المتابعة.</p><button type="button" onClick={() => void refetch()} className="mt-3 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted">إعادة المحاولة</button></div>;
   if (!data?.items.length && page === 1) return <div className="rounded-2xl border border-dashed border-border p-10 text-center"><UserRound className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-semibold">لا توجد متابعات بعد</p><p className="mt-1 text-sm text-muted-foreground">عندما تتابع مستخدمًا أو متجرًا أو فئة، ستظهر هنا.</p></div>;
   return <>
-    <div className="mb-3 flex items-center justify-between gap-3 text-sm text-muted-foreground"><span>{data?.meta.total ?? 0} متابعة</span>{isFetching && <span className="inline-flex items-center gap-1"><LoaderCircle className="h-3.5 w-3.5 animate-spin" /> تحديث القائمة</span>}</div>
+    <div className="mb-3 flex items-center justify-between gap-3 text-sm text-muted-foreground"><span>{data?.meta.total ?? 0} متابعة</span>{isFetching && <span className="inline-flex items-center gap-1"><Spinner size="xs" /> تحديث القائمة</span>}</div>
     <div className="space-y-2.5">{data?.items.map((item) => <TargetRow key={item.id} type={item.targetType} target={item.target} />)}</div>
     <FollowPagination meta={data?.meta} page={page} onPageChange={setPage} />
   </>;
@@ -112,7 +113,7 @@ function FollowPersonRow({ user }: { user: FollowPerson }) {
         <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{user.name}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{user.city || 'مستخدم في Marketplat'}</span></span>
       </Link>
       {currentUserId !== user.id && <button type="button" disabled={statusLoading || toggle.isPending} aria-pressed={following} onClick={() => toggle.mutate({ targetType: 'USER', targetId: user.id })} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition disabled:opacity-60 ${following ? 'border-border bg-muted/60 hover:bg-muted' : 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'}`}>
-        {(statusLoading || toggle.isPending) && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}{statusLoading ? 'جارٍ التحقق' : toggle.isPending ? 'جارٍ التحديث' : following ? 'تتابعه' : 'متابعة'}
+        {(statusLoading || toggle.isPending) && <Spinner size="xs" />}{statusLoading ? 'جارٍ التحقق' : toggle.isPending ? 'جارٍ التحديث' : following ? 'تتابعه' : 'متابعة'}
       </button>}
     </div>
   );

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import {
   Bell,
   CheckCheck,
-  Loader2,
   Settings,
   Trash2,
   RefreshCw,
@@ -40,6 +39,7 @@ import {
   isPushSupported,
 } from '@/lib/pwa';
 
+import { Spinner } from '@/components/ui/spinner';
 const PAGE_SIZE = 20;
 
 type ReadTab = 'all' | 'unread';
@@ -178,7 +178,7 @@ export function NotificationsPage() {
               className="min-h-10 gap-1.5"
             >
               {markAllRead.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner size="xs" />
               ) : (
                 <CheckCheck className="h-3.5 w-3.5" />
               )}
@@ -194,7 +194,7 @@ export function NotificationsPage() {
             className="gap-1.5 text-muted-foreground"
           >
             {deleteAllRead.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Spinner size="xs" />
             ) : (
               <Trash2 className="h-3.5 w-3.5" />
             )}
@@ -421,7 +421,7 @@ export function NotificationsPage() {
               onClick={() => setLimit((l) => l + PAGE_SIZE)}
               className="gap-2"
             >
-              {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {loadingMore ? <Spinner size="sm" /> : null}
               تحميل المزيد
             </Button>
           </div>

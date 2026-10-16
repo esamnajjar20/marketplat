@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, Loader2, Save } from 'lucide-react';
+import { Check, Save } from 'lucide-react';
 import { serviceProvidersApi } from '@/api/service-providers.api';
 import { serviceTypesApi } from '@/api/service-types.api';
 import { Button } from '@/components/shared/ui/Button';
@@ -11,6 +11,7 @@ import { ServiceTypeFieldsForm } from './ServiceTypeFieldsForm';
 import type { ServiceProviderServiceTypeProfile } from '@/types/service.types';
 import { queryKeys } from '@/lib/queryKeys';
 
+import { Spinner } from '@/components/ui/spinner';
 export function ServiceProviderServiceTypesEditor() {
   const queryClient = useQueryClient();
   const profiles = useQuery({ queryKey: queryKeys.serviceProviders.myServiceTypes(), queryFn: () => serviceProvidersApi.getMyServiceTypeProfiles().then(r => r.data.data) });
@@ -58,7 +59,7 @@ export function ServiceProviderServiceTypesEditor() {
         <ServiceTypeFieldsForm compact scope="PROVIDER" fields={fields} values={values} onChange={(key, value) => setDrafts(d => ({ ...d, [profile.serviceTypeId]: { ...values, [key]: value } }))} />
         {dirty ? (
           <Button size="sm" disabled={isSaving} onClick={() => { setSavingTypeId(profile.serviceTypeId); save.mutate({ serviceTypeId: profile.serviceTypeId, attributes: values }); }} className="gap-1.5">
-            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Save className="h-3.5 w-3.5" aria-hidden />}
+            {isSaving ? <Spinner size="xs" /> : <Save className="h-3.5 w-3.5" aria-hidden />}
             {isSaving ? 'جارٍ الحفظ…' : 'حفظ التغييرات'}
           </Button>
         ) : null}

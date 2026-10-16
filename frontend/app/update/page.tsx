@@ -22,6 +22,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { onPwaUpdateAvailable, getPwaUpdateRegistration } from '@/components/pwa/UpdatePrompt';
 import { activateWaitingServiceWorker, type UpdateStage } from '@/lib/pwa';
 
+import { Spinner } from '@/components/ui/spinner';
 type Status = 'idle' | UpdateStage;
 
 const STAGE_LABEL: Record<UpdateStage, string> = {
@@ -103,7 +104,7 @@ export default function UpdatePage() {
         <Button onClick={handleStart} disabled={isUpdating}>
           {isUpdating ? (
             <>
-              <Loader2 className="me-2 h-4 w-4 animate-spin" />
+              <Spinner size="sm" className="me-2" />
               جارٍ التحديث…
             </>
           ) : (

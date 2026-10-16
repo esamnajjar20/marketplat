@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, ShieldCheck, Terminal, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ShieldCheck, Terminal, ToggleLeft, ToggleRight } from 'lucide-react';
 import { adminApi } from '@/api/admin.api';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { toast } from 'sonner';
 
+import { Spinner } from '@/components/ui/spinner';
 export function AdminDeveloperToolsControl() {
   const role = useAuthStore(selectUser)?.role;
   const [enabled, setEnabled] = useState(false);
@@ -61,7 +62,7 @@ export function AdminDeveloperToolsControl() {
           </div>
         </div>
         <button type="button" onClick={() => void toggle()} disabled={!loaded || saving} aria-pressed={enabled} className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${enabled ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border bg-background hover:bg-muted'}`}>
-          {saving || !loaded ? <Loader2 className="h-4 w-4 animate-spin" /> : enabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
+          {saving || !loaded ? <Spinner size="sm" /> : enabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
           {saving ? 'جارٍ الحفظ…' : !loaded ? 'جارٍ التحميل…' : enabled ? 'مفعّلة — اضغط للتعليق' : 'معلّقة — اضغط للتفعيل'}
         </button>
       </div>

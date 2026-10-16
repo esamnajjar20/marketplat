@@ -19,7 +19,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, Download, Loader2 } from 'lucide-react';
+import { Check, Download } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -30,6 +30,7 @@ import {
   type SavedEntityType,
 } from '@/lib/offlineSavedEntities';
 
+import { Spinner } from '@/components/ui/spinner';
 interface Props {
   type: SavedEntityType;
   id: string;
@@ -112,7 +113,7 @@ export function SaveOfflineButton({
         )}
       >
         {isBusy ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Spinner size="sm" />
         ) : isSaved ? (
           <Check className="h-4 w-4" />
         ) : (
@@ -131,7 +132,7 @@ export function SaveOfflineButton({
       className={cn('gap-1.5', className)}
     >
       {isBusy ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Spinner size="sm" />
       ) : isSaved ? (
         <Check className="h-4 w-4" />
       ) : (

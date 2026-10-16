@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  FileEdit, Trash2, RefreshCw, Loader2, AlertCircle, Clock,
+  FileEdit, Trash2, RefreshCw, AlertCircle, Clock,
   Inbox, Upload, Eraser,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,6 +23,7 @@ import {
 import { resumeHrefForDraft } from '@/lib/offlineDraftResume';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 
+import { Spinner } from '@/components/ui/spinner';
 type TabKey = 'all' | 'draft' | 'failed' | 'synced';
 
 const STATUS_LABEL: Record<AdDraftStatus, string> = {
@@ -201,7 +202,7 @@ export function DraftsCenterClient() {
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Spinner size="sm" />
           جارٍ التحميل…
         </div>
       ) : visible.length === 0 ? (

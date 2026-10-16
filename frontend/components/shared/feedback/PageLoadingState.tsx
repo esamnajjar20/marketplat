@@ -1,32 +1,45 @@
 /**
  * حالة تحميل صفحة/قسم — شريط تقدّم + هيكل مفهوم + رسالة.
+ *
+ * `delayed` (الافتراضي true): يبقى شفافاً أول 200ms عبر CSS فقط (.loading-delayed)،
+ * فلا يومض عند التنقّل السريع، ويعمل داخل Server Components مثل loading.tsx.
+ * المساحة محجوزة طوال الوقت فلا قفزة في التخطيط.
  */
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { Spinner } from '@/components/ui/spinner';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface PageLoadingStateProps {
   title?: string;
   description?: string;
-  variant?: 'bar' | 'cards' | 'list' | 'detail' | 'minimal';
+  variant?: 'bar' | 'cards' | 'list' | 'detail' | 'table' | 'minimal';
+  /** إخفاء أول 200ms لمنع الوميض (افتراضي true). */
+  delayed?: boolean;
   className?: string;
 }
 
 export function PageLoadingState({
-  title = 'جارٍ التحميل',
+  title = LOADING_COPY.default,
   description = 'نجهّز المحتوى لك…',
   variant = 'cards',
+  delayed = true,
   className,
 }: PageLoadingStateProps) {
   return (
-    <div className={cn('w-full', className)} role="status" aria-busy="true" aria-label={title}>
+    <div
+      className={cn('w-full', delayed && 'loading-delayed', className)}
+      role="status"
+      aria-busy="true"
+      aria-label={title}
+    >
       <div className="fixed inset-x-0 top-0 z-[200] h-1 overflow-hidden bg-primary/10" aria-hidden="true">
         <div className="nav-progress-bar h-full w-full" />
       </div>
 
       {(variant === 'minimal' || variant === 'bar') && (
         <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 px-4">
-          <LoadingSpinner size="lg" hideLabel />
+          <Spinner size="xl" className="text-primary" />
           <div className="space-y-1 text-center">
             <p className="text-sm font-semibold text-foreground">{title}</p>
             <p className="text-xs text-muted-foreground">{description}</p>
@@ -37,7 +50,7 @@ export function PageLoadingState({
       {variant === 'cards' && (
         <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8">
           <div className="flex items-center gap-3">
-            <LoadingSpinner size="sm" hideLabel />
+            <Spinner size="md" className="text-primary" />
             <div className="space-y-1">
               <p className="text-sm font-semibold">{title}</p>
               <p className="text-xs text-muted-foreground">{description}</p>
@@ -64,7 +77,7 @@ export function PageLoadingState({
       {variant === 'list' && (
         <div className="container mx-auto max-w-2xl space-y-4 px-4 py-8">
           <div className="flex items-center gap-3">
-            <LoadingSpinner size="sm" hideLabel />
+            <Spinner size="md" className="text-primary" />
             <div className="space-y-1">
               <p className="text-sm font-semibold">{title}</p>
               <p className="text-xs text-muted-foreground">{description}</p>
@@ -95,6 +108,28 @@ export function PageLoadingState({
               <Skeleton className="h-11 flex-1 rounded-xl" />
               <Skeleton className="h-11 flex-1 rounded-xl" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {variant === 'table' && (
+        <div className="container mx-auto max-w-5xl space-y-4 px-4 py-8">
+          <div className="flex items-center gap-3">
+            <Spinner size="md" className="text-primary" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">{title}</p>
+              <p className="text-xs text-muted-foreground">{description}</p>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+            <Skeleton className="h-11 w-full rounded-none" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 border-t border-border/60 p-3">
+                <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="ms-auto h-4 w-1/6" />
+              </div>
+            ))}
           </div>
         </div>
       )}

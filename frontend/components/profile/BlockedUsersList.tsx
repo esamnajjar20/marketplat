@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -11,6 +11,7 @@ import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatDate } from '@/lib/formatters';
 
+import { Spinner } from '@/components/ui/spinner';
 /**
  * BlockedUsersList — /settings/blocked-users. Same structure as
  * ActiveSessionsList (per-row pending state so unblocking one user
@@ -75,7 +76,7 @@ export function BlockedUsersList() {
               onClick={() => handleUnblock(row.blockedId)}
             >
               {pendingUserId === row.blockedId ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner size="sm" />
               ) : (
                 'إلغاء الحظر'
               )}

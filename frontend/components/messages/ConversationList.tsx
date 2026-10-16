@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, MessageSquare, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, MessageSquare, Search, X } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { useMyConversations } from '@/hooks/queries/useConversations';
@@ -16,6 +16,7 @@ import type { Conversation, ConversationListItem } from '@/types/conversation.ty
 import { ConversationRow } from './ConversationRow';
 import { Skeleton } from '@/components/ui/skeleton';
 
+import { Spinner } from '@/components/ui/spinner';
 /** Whichever side the caller ISN'T — the person this thread is with. */
 function otherParty(conversation: Conversation, userId: string | undefined) {
   return conversation.buyerId === userId ? conversation.seller : conversation.buyer;
@@ -361,7 +362,7 @@ export function ConversationList({ selectedId }: Props = {}) {
                 onClick={() => setLimit((l) => l + PAGE_SIZE)}
                 className="gap-2"
               >
-                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {loadingMore ? <Spinner size="sm" /> : null}
                 تحميل المزيد
               </Button>
             </div>

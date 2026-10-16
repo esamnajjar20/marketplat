@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
-import { Send, Ban, ImagePlus, X, Mic, Square, Loader2, Paperclip, WifiOff } from 'lucide-react';
+import { Send, Ban, ImagePlus, X, Mic, Square, Paperclip, WifiOff } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
@@ -18,6 +18,7 @@ import { RecordingTimer } from './RecordingTimer';
 import { MessageBodyEditor, type MessageBodyEditorHandle } from './MessageBodyEditor';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
+import { Spinner } from '@/components/ui/spinner';
 interface Props {
   conversationId: string;
   disabled?: boolean;
@@ -332,7 +333,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
       )}
       {uploading && (
         <div role="status" aria-live="polite" className="flex items-center gap-2 border-b bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
+          <Spinner size="sm" className="text-primary" />
           <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري رفع الصورة…' : uploadKind === 'file' ? 'جاري رفع الملف…' : 'جاري الإرسال…'}</span>
         </div>
       )}
@@ -342,7 +343,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
           { }
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg">
             <img src={imagePreview} alt="معاينة الصورة" className="h-full w-full object-cover" />
-            {uploading && <div className="absolute inset-0 flex items-center justify-center bg-black/45"><Loader2 className="h-5 w-5 animate-spin text-white" aria-hidden /></div>}
+            {uploading && <div className="absolute inset-0 flex items-center justify-center bg-black/45"><Spinner size="md" className="h-5 w-5 text-white" /></div>}
           </div>
           <button
             type="button"

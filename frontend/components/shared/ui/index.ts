@@ -4,4 +4,5 @@ export { Button } from './Button';
 export { Card } from './Card';
 export { Input } from './Input';
 export { Skeleton } from './Skeleton';
+export { Spinner } from '@/components/ui/spinner';
 export { StatusBadge } from './StatusBadge';

@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Loader2, Check, X, Smartphone, ListChecks, Moon } from 'lucide-react';
+import { Check, X, Smartphone, ListChecks, Moon } from 'lucide-react';
 import { useMe } from '@/hooks/queries/useAuth';
 import { useUpdateNotificationPreferences } from '@/hooks/mutations/useUpdateProfile';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -20,6 +20,7 @@ import { NotificationDevicesList } from '@/components/pwa/NotificationDevicesLis
 import type { NotificationPreferences } from '@/types/user.types';
 import { cn } from '@/lib/utils';
 
+import { Spinner } from '@/components/ui/spinner';
 type PrefKey = keyof NotificationPreferences;
 type BooleanPrefKey =
   | 'newMessage'
@@ -322,7 +323,7 @@ export function NotificationSettingsForm() {
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         {busy ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          <Spinner size="sm" className="text-muted-foreground" />
                         ) : on ? (
                           <Check className="h-4 w-4 text-primary" aria-hidden />
                         ) : (

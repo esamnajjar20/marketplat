@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Loader2, Send, X } from 'lucide-react';
+import { ImagePlus, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreateStory } from '@/hooks/mutations/useStoryMutations';
 import type { StoryVisibility } from '@/api/stories.api';
 import { STORY_BACKGROUNDS } from '@/lib/storyBackgrounds';
 
 
+import { Spinner } from '@/components/ui/spinner';
 export function StoryComposer({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | undefined>();
@@ -77,7 +78,7 @@ export function StoryComposer({ onClose }: { onClose: () => void }) {
           <div className="mt-4"><p className="mb-2 text-xs font-semibold">من يمكنه رؤيتها؟</p><div className="grid grid-cols-2 gap-2">{(['FOLLOWERS', 'PUBLIC'] as StoryVisibility[]).map((value) => <button key={value} type="button" onClick={() => setVisibility(value)} className={`rounded-xl border px-3 py-2 text-sm ${visibility === value ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted'}`}>{value === 'FOLLOWERS' ? 'المتابعون فقط' : 'الجميع'}</button>)}</div></div>
         </div>
 
-        <div className="shrink-0 border-t border-border p-3"><button type="button" disabled={!canPublish || createStory.isPending} onClick={submit} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">{createStory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} نشر الستوري</button></div>
+        <div className="shrink-0 border-t border-border p-3"><button type="button" disabled={!canPublish || createStory.isPending} onClick={submit} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">{createStory.isPending ? <Spinner size="sm" /> : <Send className="h-4 w-4" />} نشر الستوري</button></div>
       </div>
     </div>
   );

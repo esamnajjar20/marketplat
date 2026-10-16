@@ -560,6 +560,34 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── نظام التحميل الموحّد (انظر docs/LOADING_SYSTEM.md) ─────────────────
+   .loading-delayed: يبقى شفافاً --loading-delay (200ms) ثم يظهر بنعومة.
+   CSS فقط ⇒ يعمل داخل Server Components (loading.tsx) وبلا وميض عند التنقّل السريع.
+   .loading-reveal: ظهور فوري ناعم (يُستخدم بعد أن قرّر useDelayedLoading الإظهار). */
+@keyframes loading-reveal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.loading-delayed {
+  opacity: 0;
+  animation: loading-reveal 180ms ease-out var(--loading-delay, 200ms) forwards;
+}
+
+.loading-reveal {
+  animation: loading-reveal 150ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* يبقى التأخير (يمنع الوميض) لكن بلا تلاشٍ متحرّك */
+  .loading-delayed {
+    animation-duration: 1ms;
+  }
+  .loading-reveal {
+    animation: none;
+  }
+}
+
 @keyframes nav-progress {
   0%   { background-position: 100% 0; opacity: 0.7; }
   50%  { opacity: 1; }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Layers, Plus, Pencil, Trash2, ChevronUp, ChevronDown, PackagePlus, AlertTriangle, EyeOff, Check, Square, CheckSquare, Loader2 } from 'lucide-react';
+import { Layers, Plus, Pencil, Trash2, ChevronUp, ChevronDown, PackagePlus, AlertTriangle, EyeOff, Check, Square, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -17,6 +17,7 @@ import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { ROUTES } from '@/lib/constants';
 import type { StoreCollectionWithCount } from '@/types/collection.types';
 
+import { Spinner } from '@/components/ui/spinner';
 /**
  * COLLECTIONS (P1): owner-facing collections tab — mirrors
  * MyPromotionsList.tsx's structure (skeleton/error/empty states, row
@@ -238,7 +239,7 @@ export function MyCollectionsList() {
               onClick={() => setConfirmBulkDelete(true)}
               disabled={bulkBusy || selected.size === 0}
             >
-              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {bulkBusy ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
               حذف
             </Button>
             <Button

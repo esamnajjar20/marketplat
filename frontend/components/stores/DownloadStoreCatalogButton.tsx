@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { toast } from 'sonner';
 import { productsApi } from '@/api/products.api';
@@ -12,6 +12,7 @@ import { recordCatalogDownload } from '@/lib/downloadStorage';
 import { getAvatarUrl, getDetailImageUrl, getThumbnailUrl } from '@/lib/cloudinary';
 import { reportClientError } from '@/lib/errorReporter'; // CATALOG-DOWNLOAD-REPORT-01
 import { normalizePaymentMethods } from '@/lib/storePaymentMethods';
+import { Spinner } from '@/components/ui/spinner';
 import { fetchWithTimeout } from '@/lib/fetchTimeout'; // NETWORK-FETCH-TIMEOUT-01
 
 interface Props {
@@ -493,7 +494,7 @@ export function DownloadStoreCatalogButton({
       aria-busy={loading}
     >
       {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        <Spinner size="sm" />
       ) : (
         <Download className="h-4 w-4" aria-hidden />
       )}

@@ -1,9 +1,9 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 
+import { Spinner } from '@/components/ui/spinner';
 interface InfiniteScrollTriggerProps {
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
@@ -49,7 +49,7 @@ export function InfiniteScrollTrigger({
     <div ref={sentinelRef} className="flex min-h-16 items-center justify-center pt-2" aria-live="polite">
       {isFetchingNextPage ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          <Spinner size="sm" />
           <span>{loadingLabel}</span>
         </div>
       ) : (

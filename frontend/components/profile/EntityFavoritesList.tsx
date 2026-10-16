@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { useLongPress } from '@/hooks/ui/useLongPress';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { Heart, AlertTriangle, Check, CheckSquare, Loader2, X } from 'lucide-react';
+import { Heart, AlertTriangle, Check, CheckSquare, X } from 'lucide-react';
 import Link from 'next/link';
 import { ROUTES } from '@/lib/constants';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
@@ -22,6 +22,7 @@ import type { ProductWithStore } from '@/types/product.types';
 import type { StoreWithSeller } from '@/types/store.types';
 import type { ServiceListingWithProvider } from '@/types/service.types';
 
+import { Spinner } from '@/components/ui/spinner';
 interface Props {
   type: FavoriteEntityKind;
 }
@@ -226,7 +227,7 @@ export function EntityFavoritesList({ type }: Props) {
               className="gap-1.5"
             >
               {bulkBusy === 'remove' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner size="xs" />
               ) : (
                 <Heart className="h-3.5 w-3.5" />
               )}

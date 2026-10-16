@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Tag, Plus, AlertTriangle, XCircle, Check, Loader2 } from 'lucide-react';
+import { Tag, Plus, AlertTriangle, XCircle, Check } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -16,6 +16,7 @@ import { formatPrice, formatDateTime } from '@/lib/formatters';
 import type { Promotion, PromotionStatus } from '@/types/promotion.types';
 import { cn } from '@/lib/utils';
 
+import { Spinner } from '@/components/ui/spinner';
 const STATUS_LABELS: Record<PromotionStatus, string> = {
   DRAFT: 'مسودة',
   SCHEDULED: 'مجدول',
@@ -171,7 +172,7 @@ export function MyPromotionsList() {
               disabled={bulkBusy !== null}
               className="gap-1.5"
             >
-              {bulkBusy === 'cancel' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+              {bulkBusy === 'cancel' ? <Spinner size="xs" /> : <XCircle className="h-3.5 w-3.5" />}
               إلغاء المحدد
             </Button>
             <Button

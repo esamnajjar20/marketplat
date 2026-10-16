@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Monitor, Smartphone, Loader2, AlertTriangle } from 'lucide-react';
+import { Monitor, Smartphone, AlertTriangle } from 'lucide-react';
 import { Button }            from '@/components/shared/ui/Button';
 import { Badge }             from '@/components/shared/ui/Badge';
 import { LoadingSpinner }    from '@/components/shared/feedback/LoadingSpinner';
@@ -10,6 +10,7 @@ import { useAuthSessions }   from '@/hooks/queries/useAuth';
 import { useRevokeSession, useLogoutAll } from '@/hooks/mutations/useAuthMutations';
 import { formatDate }        from '@/lib/formatters';
 
+import { Spinner } from '@/components/ui/spinner';
 /**
  * this used to render `IP: {s.ip}` in full — a
  * security screen leaking the exact network address of every
@@ -82,7 +83,7 @@ export function ActiveSessionsList() {
         <h2 className="font-semibold">الجلسات النشطة</h2>
         <Button variant="destructive" size="sm" disabled={loggingOut}
           onClick={() => setConfirmLogoutAllOpen(true)}>
-          {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : 'تسجيل الخروج من الكل'}
+          {loggingOut ? <Spinner size="sm" /> : 'تسجيل الخروج من الكل'}
         </Button>
       </div>
 
@@ -111,7 +112,7 @@ export function ActiveSessionsList() {
             {!s.isCurrent && (
               <Button variant="ghost" size="sm" className="shrink-0" disabled={pendingSessionId === s.sessionId}
                 onClick={() => handleRevoke(s.sessionId)}>
-                {pendingSessionId === s.sessionId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'إنهاء'}
+                {pendingSessionId === s.sessionId ? <Spinner size="sm" /> : 'إنهاء'}
               </Button>
             )}
           </div>

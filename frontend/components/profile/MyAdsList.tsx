@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Pencil, Trash2, Eye, CheckCircle, Check, X, CheckSquare, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, Eye, CheckCircle, Check, X, CheckSquare } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { PinAdButton } from '@/components/ads/PinAdButton';
 import { RepublishAdButton } from '@/components/ads/RepublishAdButton';
@@ -30,6 +30,7 @@ import type { AdStatus } from '@/types/ad.types';
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
+import { Spinner } from '@/components/ui/spinner';
 export function MyAdsList() {
   // Page/status logic shared with MyServiceListingsList and
   // MyProductsList — see useOwnedListPage.
@@ -410,7 +411,7 @@ export function MyAdsList() {
               disabled={bulkBusy !== null || selected.size === 0}
               className="gap-1.5"
             >
-              {bulkBusy === 'sold' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+              {bulkBusy === 'sold' ? <Spinner size="xs" /> : <CheckCircle className="h-3.5 w-3.5" />}
               كمباع
             </Button>
             <Button
@@ -421,7 +422,7 @@ export function MyAdsList() {
               disabled={bulkBusy !== null || selected.size === 0}
               className="gap-1.5"
             >
-              {bulkBusy === 'delete' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {bulkBusy === 'delete' ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
               حذف
             </Button>
             <Button

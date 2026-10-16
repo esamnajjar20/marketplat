@@ -17,7 +17,6 @@ import {
   Layers,
   Search,
   X,
-  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
@@ -50,6 +49,7 @@ const AVAIL_LABELS: Record<ProductAvailability, string> = {
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
+import { Spinner } from '@/components/ui/spinner';
 export function MyProductsList() {
   const router = useRouter();
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
@@ -279,7 +279,7 @@ export function MyProductsList() {
             disabled={bulkBusy !== null}
             className="gap-1.5"
           >
-            {bulkBusy === 'delete' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {bulkBusy === 'delete' ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
             حذف المحدد
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy !== null}>

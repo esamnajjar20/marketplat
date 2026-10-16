@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FolderInput, Loader2 } from 'lucide-react';
+import { FolderInput } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import { useFavoriteLists } from '@/hooks/queries/useFavoriteLists';
 import { useMoveFavoritesToList } from '@/hooks/mutations/useFavoriteListMutations';
 import { ROUTES } from '@/lib/constants';
 
+import { Spinner } from '@/components/ui/spinner';
 interface Props {
   favoriteIds: string[];
   currentListId?: string | null;
@@ -46,7 +47,7 @@ export function MoveSelectedToListMenu({ favoriteIds, currentListId = null, disa
           disabled={disabled || count === 0}
           className="gap-1.5"
         >
-          {move.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderInput className="h-3.5 w-3.5" aria-hidden />}
+          {move.isPending ? <Spinner size="xs" /> : <FolderInput className="h-3.5 w-3.5" aria-hidden />}
           نقل إلى قائمة
         </Button>
       </DropdownMenuTrigger>

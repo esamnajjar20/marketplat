@@ -26,7 +26,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Wifi, WifiOff, Trash2, Loader2,
+  Wifi, WifiOff, Trash2,
   Play, Square, RotateCcw, ListChecks,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -52,6 +52,7 @@ import {
 } from '@/lib/warmingProgress';
 import { OfflineRoutesList } from './OfflineRoutesList';
 
+import { Spinner } from '@/components/ui/spinner';
 const MODES: WarmingMode[] = ['fast', 'full', 'off'];
 
 interface Snapshot {
@@ -440,7 +441,7 @@ export function OfflineControlClient() {
             disabled={anyBusy || !online || mode === 'off' || warmingActive}
           >
             {(busy === 'start' || warmingActive)
-              ? <Loader2 className="h-4 w-4 animate-spin" />
+              ? <Spinner size="sm" />
               : <Play className="h-4 w-4" />}
             {startLabel}
           </Button>
@@ -461,7 +462,7 @@ export function OfflineControlClient() {
             onClick={handleResumeRemaining}
             disabled={anyBusy || !online || warmingActive}
           >
-            {busy === 'resume' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListChecks className="h-4 w-4" />}
+            {busy === 'resume' ? <Spinner size="sm" /> : <ListChecks className="h-4 w-4" />}
             أكمل الناقص والفاشلة
           </Button>
           <Button
@@ -471,7 +472,7 @@ export function OfflineControlClient() {
             onClick={handleFullReset}
             disabled={anyBusy || !online || warmingActive}
           >
-            {busy === 'reset' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            {busy === 'reset' ? <Spinner size="sm" /> : <RotateCcw className="h-4 w-4" />}
             أعد التحميل من الصفر
           </Button>
           <Button
@@ -481,7 +482,7 @@ export function OfflineControlClient() {
             onClick={handleClearWarming}
             disabled={anyBusy || warmingActive}
           >
-            {busy === 'clear' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            {busy === 'clear' ? <Spinner size="sm" /> : <Trash2 className="h-4 w-4" />}
             امسح كل التسخين
           </Button>
         </div>

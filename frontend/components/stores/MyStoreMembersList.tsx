@@ -16,7 +16,6 @@ import {
   Check,
   Square,
   CheckSquare,
-  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
@@ -38,6 +37,7 @@ import { BecomeStoreOwnerCard } from './BecomeStoreOwnerCard';
 import type { ParsedError } from '@/lib/errorParser';
 import type { StoreMember, StoreMemberRole } from '@/types/store-member.types';
 
+import { Spinner } from '@/components/ui/spinner';
 const ROLE_LABELS: Record<StoreMemberRole, string> = {
   MANAGER: 'مدير',
   STAFF: 'موظف',
@@ -435,7 +435,7 @@ export function MyStoreMembersList() {
               onClick={() => setConfirmBulkRemove(true)}
               disabled={bulkBusy || selected.size === 0}
             >
-              {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {bulkBusy ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
               إزالة
             </Button>
             <Button

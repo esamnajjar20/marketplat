@@ -10,13 +10,14 @@ import { useFavorites }  from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { Heart, HeartOff, AlertTriangle, Check, CheckSquare, Loader2, X } from 'lucide-react';
+import { Heart, HeartOff, AlertTriangle, Check, CheckSquare, X } from 'lucide-react';
 import { MoveSelectedToListMenu } from '@/components/favorites/MoveSelectedToListMenu';
 import { Button }        from '@/components/shared/ui/Button';
 import { ROUTES }        from '@/lib/constants';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { cn }            from '@/lib/utils';
 
+import { Spinner } from '@/components/ui/spinner';
 export function FavoritesList() {
   const sp   = useSearchParams();
   // clamp URL page param to positive integer.
@@ -202,7 +203,7 @@ export function FavoritesList() {
               className="gap-1.5"
             >
               {bulkBusy === 'remove' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner size="xs" />
               ) : (
                 <Heart className="h-3.5 w-3.5" />
               )}

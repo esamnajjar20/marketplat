@@ -23,7 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   RefreshCw, Trash2, ExternalLink, CheckCircle2, AlertTriangle,
-  Clock, MinusCircle, Loader2, Check, X, CheckSquare,
+  Clock, MinusCircle, Check, X, CheckSquare,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -41,6 +41,7 @@ import {
 } from '@/lib/offlineRouteShells';
 import { readSnapshot, type RouteWarmingMeta } from '@/lib/offlineWarmingState';
 
+import { Spinner } from '@/components/ui/spinner';
 type Filter = 'all' | 'complete' | 'failed' | 'pending';
 type Status = 'complete' | 'failed' | 'pending' | 'missing' | 'incomplete';
 
@@ -526,7 +527,7 @@ export function OfflineRoutesList() {
             disabled={bulkBusy !== null || counts.failed === 0}
             className="gap-1.5"
           >
-            {bulkBusy === 'retry-all' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            {bulkBusy === 'retry-all' ? <Spinner size="xs" /> : <RefreshCw className="h-3.5 w-3.5" />}
             أعد الفاشلة
           </Button>
           <Button
@@ -537,7 +538,7 @@ export function OfflineRoutesList() {
             disabled={bulkBusy !== null}
             className="gap-1.5"
           >
-            {bulkBusy === 'clear-public' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {bulkBusy === 'clear-public' ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
             امسح العامة
           </Button>
           <Button
@@ -554,7 +555,7 @@ export function OfflineRoutesList() {
             className="gap-1.5"
           >
             {bulkBusy === 'clear-largest' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Spinner size="xs" />
             ) : (
               <Trash2 className="h-3.5 w-3.5" />
             )}
@@ -643,7 +644,7 @@ export function OfflineRoutesList() {
                         aria-label={'إعادة تحميل ' + row.route}
                         className="h-7 w-7 p-0"
                       >
-                        {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        {isBusy ? <Spinner size="xs" /> : <RefreshCw className="h-3.5 w-3.5" />}
                       </Button>
                       <Button
                         type="button" variant="ghost" size="sm"
@@ -692,7 +693,7 @@ export function OfflineRoutesList() {
               disabled={bulkBusy !== null || selected.size === 0}
               className="gap-1.5"
             >
-              {bulkBusy === 'retry-selected' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {bulkBusy === 'retry-selected' ? <Spinner size="xs" /> : <RefreshCw className="h-3.5 w-3.5" />}
               حمّل المحدد
             </Button>
             <Button
@@ -701,7 +702,7 @@ export function OfflineRoutesList() {
               disabled={bulkBusy !== null || selected.size === 0}
               className="gap-1.5"
             >
-              {bulkBusy === 'delete-selected' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {bulkBusy === 'delete-selected' ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
               احذف المحدد
             </Button>
             <Button

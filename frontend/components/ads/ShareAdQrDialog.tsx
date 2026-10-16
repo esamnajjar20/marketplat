@@ -15,7 +15,7 @@ import { reportBackgroundFailure } from '../../lib/backgroundTask';
  */
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Copy } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ import {
   type SharedPayload,
 } from '@/lib/shareQr';
 
+import { Spinner } from '@/components/ui/spinner';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -131,7 +132,7 @@ export function ShareAdQrDialog({ open, onOpenChange, payload }: Props) {
           <div className="relative flex h-[280px] w-[280px] items-center justify-center rounded-xl border bg-white">
             {busy && (
               <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Spinner size="md" />
               </span>
             )}
             {qrError && !busy && (

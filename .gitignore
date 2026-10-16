@@ -77,3 +77,6 @@ frontend-full.txt
 *.bak
 *.old
 *.tmp
+app-debug.apk
+*.apk
+*.aab

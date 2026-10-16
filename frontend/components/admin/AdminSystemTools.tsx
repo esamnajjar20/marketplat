@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { adminApi } from '@/api/admin.api';
 import { toast } from 'sonner';
 
+import { Spinner } from '@/components/ui/spinner';
 async function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -64,7 +65,7 @@ export function AdminSystemTools() {
           onClick={() => void exportUsers()}
         >
           {busy === 'users' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <Download className="h-4 w-4" />
           )}
@@ -78,7 +79,7 @@ export function AdminSystemTools() {
           onClick={() => void exportReports()}
         >
           {busy === 'reports' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <FileSpreadsheet className="h-4 w-4" />
           )}
