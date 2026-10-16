@@ -34,7 +34,8 @@ test.describe('search journeys and URL state', () => {
     await searchInput(page).fill('أثاث');
     await page.locator('main').getByRole('search').first().getByRole('button', { name: 'بحث', exact: true }).click();
 
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('أثاث');
+    // arabicNormalize folds hamza-bearing alef to bare alef before navigation.
+    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('اثاث');
     await expect.poll(() => new URL(page.url()).searchParams.get('city')).toBe('غزة');
     await expect.poll(() => new URL(page.url()).searchParams.has('page')).toBe(false);
   });

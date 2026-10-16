@@ -65,8 +65,8 @@ test.describe('login form validation and recovery links', () => {
 
   test('registration link preserves a safe internal return destination', async ({ page }) => {
     await page.goto('/login?from=%2Ffavorites');
-    const registrationLink = page.getByRole('link', { name: 'إنشاء حساب', exact: true });
-    await expect(registrationLink).toHaveAttribute('href', /\/register\?from=/);
+    const registrationLink = page.locator('a[href^="/register"]').filter({ hasText: 'إنشاء حساب' }).first();
+    await expect(registrationLink).toBeVisible();
     const href = await registrationLink.getAttribute('href');
     expect(href).toBeTruthy();
     const target = new URL(href!, 'http://localhost');

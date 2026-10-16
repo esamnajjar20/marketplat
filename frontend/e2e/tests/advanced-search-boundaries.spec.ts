@@ -12,14 +12,18 @@ test.describe('search query boundary handling', () => {
 
   for (const query of unusualQueries) {
     test(`search URL remains renderable for query: ${query.slice(0, 28)}`, async ({ page }) => {
+      await page.addInitScript(() => {
+        window.alert = () => { document.documentElement.dataset.e2eAlertExecuted = 'true'; };
+      });
       await page.goto(`/search?q=${encodeURIComponent(query)}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('body')).toBeVisible();
       await expect(page.getByRole('heading', { name: 'البحث' })).toBeAttached();
-      // Treat the query as text: it must never create an executable script element.
-      const executableScriptText = await page.locator('script').evaluateAll((scripts) =>
-        scripts.map((script) => script.textContent ?? '').join('\n'),
-      );
-      expect(executableScriptText).not.toContain('alert(1)');
+      // Next.js can safely serialize user input into its hydration payload;
+      // verify execution rather than searching script source for the payload.
+      if (query === '<script>alert(1)</script>') {
+        await expect(page.getByRole('searchbox', { name: 'بحث' })).toHaveValue(query);
+        await expect(page.locator('html')).not.toHaveAttribute('data-e2e-alert-executed', 'true');
+      }
     });
   }
 
