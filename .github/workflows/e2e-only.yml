@@ -218,6 +218,42 @@ jobs:
           cat /tmp/frontend.log || true
           exit 1
 
+      # ── Smoke test: التقط ما إذا كان /auth/register يعمل قبل Playwright ──
+      # لو فشل هذا، نعرف مباشرة أن المشكلة في Backend (CORS، cookies، إلخ)
+      # بدل انتظار 67 دقيقة لـ timeout في Playwright.
+      - name: Smoke test — /auth/register
+        run: |
+          echo "═══ POST /api/v1/auth/register ═══"
+          EMAIL="e2e-smoke-$(date +%s)@example.test"
+          RESPONSE=$(curl -sS -w "\nHTTP_CODE:%{http_code}" \
+            -X POST http://localhost:5000/api/v1/auth/register \
+            -H "Content-Type: application/json" \
+            -H "Origin: http://localhost:3000" \
+            -d "{\"name\":\"Smoke Test\",\"email\":\"$EMAIL\",\"password\":\"TestPass123!\"}" \
+            2>&1) || true
+          echo "$RESPONSE"
+          HTTP_CODE=$(echo "$RESPONSE" | grep -oP "HTTP_CODE:\\K[0-9]+")
+          if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Register endpoint failed with HTTP $HTTP_CODE"
+            echo "═══ backend.log آخر 100 سطر ═══"
+            tail -100 /tmp/backend.log || true
+            exit 1
+          fi
+          echo "✅ Register returned HTTP $HTTP_CODE"
+
+      - name: Smoke test — /auth/login
+        run: |
+          echo "═══ POST /api/v1/auth/login ═══"
+          HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:5000/api/v1/auth/login \
+            -H "Content-Type: application/json" \
+            -H "Origin: http://localhost:3000" \
+            -d '{"email":"e2e-admin@example.test","password":"E2eAdminPass123!"}') || true
+          echo "HTTP_CODE: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Login returned HTTP $HTTP_CODE (seed admin may not exist)"
+          fi
+
       - name: Run E2E tests
         working-directory: frontend
         run: npm run e2e
