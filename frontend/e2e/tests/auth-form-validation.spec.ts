@@ -66,7 +66,12 @@ test.describe('login form validation and recovery links', () => {
   test('registration link preserves a safe internal return destination', async ({ page }) => {
     await page.goto('/login?from=%2Ffavorites');
     const registrationLink = page.getByRole('link', { name: 'إنشاء حساب', exact: true });
-    await expect(registrationLink).toHaveAttribute('href', '/register?from=%2Ffavorites');
+    await expect(registrationLink).toHaveAttribute('href', /\/register\?from=/);
+    const href = await registrationLink.getAttribute('href');
+    expect(href).toBeTruthy();
+    const target = new URL(href!, 'http://localhost');
+    expect(target.pathname).toBe('/register');
+    expect(target.searchParams.get('from')).toBe('/favorites');
   });
 
   test('login fields expose programmatic labels', async ({ page }) => {

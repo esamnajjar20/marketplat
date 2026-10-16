@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('offline and API failure integration', () => {
   test('offline landing page can be reloaded while offline after service worker control', async ({ page, context }) => {
-    await page.goto('/offline');
+    await page.goto('/offline?tab=warming');
     await page.evaluate(async () => {
       if (!('serviceWorker' in navigator)) return;
       await navigator.serviceWorker.ready;

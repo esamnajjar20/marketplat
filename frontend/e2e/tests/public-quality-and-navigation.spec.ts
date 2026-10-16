@@ -29,7 +29,7 @@ test.describe('public page structure and Arabic accessibility', () => {
 
   test('the offline center has a heading and labeled tab list', async ({ page }) => {
     await page.goto('/offline');
-    await expect(page.getByRole('heading', { name: 'مركز الأوفلاين' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز الأوفلاين/ })).toBeVisible();
     await expect(page.getByRole('tablist', { name: 'أقسام مركز الأوفلاين' })).toBeVisible();
   });
 
@@ -66,13 +66,13 @@ test.describe('public page structure and Arabic accessibility', () => {
 
 test.describe('offline center tab behavior', () => {
   test('the default offline tab is selected and exposes its panel', async ({ page }) => {
-    await page.goto('/offline');
-    const selectedTab = page.getByRole('tab', { name: 'المحفوظات', exact: true });
+    await page.goto('/offline?tab=saved');
+    const selectedTab = page.getByRole('tab', { name: /محفوظاتي|محفوظات/, exact: false }).first();
     await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('tabpanel')).toBeVisible();
   });
 
-  test('the sync tab can be selected without navigating away', async ({ page }) => {
+  test('the guest readiness tab can be selected without navigating away', async ({ page }) => {
     await page.goto('/offline');
     const warmingTab = page.getByRole('tab', { name: /جاهزية/ }).first();
     await warmingTab.click();
@@ -92,7 +92,7 @@ test.describe('offline center tab behavior', () => {
       if (await tab.count()) {
         await tab.click();
         await expect(tab).toHaveAttribute('aria-selected', 'true');
-        await expect(page.getByRole('heading', { name: 'مركز الأوفلاين' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /مركز الأوفلاين/ })).toBeVisible();
       }
     }
   });

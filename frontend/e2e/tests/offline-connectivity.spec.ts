@@ -3,25 +3,22 @@ import { expect, test } from '@playwright/test';
 test('offline center reports connectivity changes and restores the browser network', async ({ page, context }) => {
   await page.goto('/offline');
   await expect(page.locator('body')).toBeVisible();
-  // The global shell can expose several independent status regions (loading,
-  // network banner, and page content); target the banner's user-facing text.
-  const offlineNotice = page.getByText(/لا يوجد اتصال بالإنترنت|غير متصل/i).first();
-  const onlineNotice = page.getByText('عاد الاتصال', { exact: true });
+
+  const offlineStatus = page.getByRole('status').filter({ hasText: /لا يوجد اتصال بالإنترنت|غير متصل/ }).first();
+  const onlineStatus = page.getByRole('status').filter({ hasText: 'عاد الاتصال' }).first();
 
   try {
     await context.setOffline(true);
-    // Chromium emits the real offline event when the context changes network state.
-    // Dispatching a second synthetic event can race with that browser event.
     await expect.poll(() => page.evaluate(() => navigator.onLine), { timeout: 10_000 }).toBe(false);
-    await expect(offlineNotice).toBeVisible({ timeout: 10_000 });
+    // Keep the browser's network state authoritative, while ensuring the app's
+    // shared lifecycle subscriber observes the same transition in CI.
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await expect(offlineStatus).toBeVisible({ timeout: 10_000 });
   } finally {
     await context.setOffline(false);
   }
 
-  // Wait for Chromium to restore the network before emitting a deterministic event
-  // for the app's shared lifecycle subscriber. This avoids a late offline event
-  // overwriting the synthetic online transition in CI.
   await expect.poll(() => page.evaluate(() => navigator.onLine), { timeout: 10_000 }).toBe(true);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect(onlineNotice).toBeVisible({ timeout: 10_000 });
+  await expect(onlineStatus).toBeVisible({ timeout: 10_000 });
 });

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('search journey', () => {
   test('submitting an Arabic search updates the query string and keeps the query visible', async ({ page }) => {
     await page.goto('/search');
-    const search = page.getByRole('search');
+    const search = page.locator('main').getByRole('search').first();
     const input = search.getByRole('searchbox', { name: 'بحث' });
 
     await input.fill('  سيارة   مستعملة  ');
@@ -16,12 +16,12 @@ test.describe('search journey', () => {
 
   test('a query supplied in the URL is reflected in the search field', async ({ page }) => {
     await page.goto('/search?q=' + encodeURIComponent('هاتف ذكي'));
-    await expect(page.getByRole('searchbox', { name: 'بحث' })).toHaveValue('هاتف ذكي');
+    await expect(page.locator('main').getByRole('searchbox', { name: 'بحث' }).first()).toHaveValue('هاتف ذكي');
   });
 
   test('submitting an empty search does not create an empty q parameter', async ({ page }) => {
     await page.goto('/search?q=' + encodeURIComponent('عبارة سابقة'));
-    const search = page.getByRole('search');
+    const search = page.locator('main').getByRole('search').first();
     await search.getByRole('searchbox', { name: 'بحث' }).fill('   ');
     await search.getByRole('button', { name: 'بحث' }).click();
 
@@ -53,14 +53,14 @@ test.describe('search URL edge cases', () => {
   test('a query containing Arabic punctuation is restored from the URL', async ({ page }) => {
     const query = 'سوق غزة؟ سيارات، شقق!';
     await page.goto('/search?q=' + encodeURIComponent(query));
-    await expect(page.getByRole('searchbox', { name: 'بحث' })).toHaveValue(query);
+    await expect(page.locator('main').getByRole('searchbox', { name: 'بحث' }).first()).toHaveValue(query);
   });
 
   test('an explicit empty query does not crash the search page', async ({ page }) => {
     const response = await page.goto('/search?q=');
     expect(response).not.toBeNull();
     expect(response!.status()).toBeLessThan(500);
-    await expect(page.getByRole('searchbox', { name: 'بحث' })).toBeVisible();
+    await expect(page.locator('main').getByRole('searchbox', { name: 'بحث' }).first()).toBeVisible();
   });
 
   test('invalid nearby coordinates do not crash search rendering', async ({ page }) => {
@@ -74,6 +74,6 @@ test.describe('search URL edge cases', () => {
     const query = 'هاتف مستعمل';
     await page.goto('/search?q=' + encodeURIComponent(query));
     await page.reload();
-    await expect(page.getByRole('searchbox', { name: 'بحث' })).toHaveValue(query);
+    await expect(page.locator('main').getByRole('searchbox', { name: 'بحث' }).first()).toHaveValue(query);
   });
 });
