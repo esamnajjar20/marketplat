@@ -13,6 +13,9 @@
 import { AdStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { notificationEvents } from '../modules/notifications/notifications.service';
+import { bumpAdsCacheVersionAndHome } from '../modules/ads/ads.cache.keys';
+import { flushEdgePurge } from '../shared/cache/edgePurge';
+import { redis } from '../config/redis';
 
 const WARNING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -65,10 +68,22 @@ async function main(): Promise<void> {
     }
   }
 
+  // This runs in its own process: without this the EXPIRED ads stayed in Redis
+  // list/home caches until their hard TTL and (with edge purging) on the CDN.
+  if (expired > 0) {
+    await bumpAdsCacheVersionAndHome({ kind: 'hide' });
+    await flushEdgePurge(); // the purge is debounced; the process is about to exit
+  }
+
   console.log(`[expire-ads] warned=${warningAds.length} expired=${expired}`);
 }
 
-main().catch(error => {
-  console.error('[expire-ads] failed:', error);
-  process.exitCode = 1;
-});
+main()
+  .catch(error => {
+    console.error('[expire-ads] failed:', error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    // The cache invalidation opens Redis connections; let the process exit.
+    await Promise.allSettled([prisma.$disconnect(), redis.quit()]);
+  });

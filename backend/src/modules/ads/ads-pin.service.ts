@@ -7,6 +7,7 @@ import { prisma } from '../../config/prisma';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { bumpAdsCacheVersion } from './ads.cache.keys';
 
 export const adsPinService = {
   setPinned: async (userId: string, adId: string, isPinned: boolean) => {
@@ -28,10 +29,12 @@ export const adsPinService = {
           'ADMIN_PINNED'
         );
       }
-      return prisma.ad.update({
+      const unpinned = await prisma.ad.update({
         where: { id: adId },
         data: { isPinned: false, pinnedByAdmin: false },
       });
+      await bumpAdsCacheVersion({ adId, city: unpinned.city ?? null });
+      return unpinned;
     }
 
     // two concurrent pin requests for
@@ -76,6 +79,10 @@ export const adsPinService = {
       throw e;
     }
 
-    return prisma.ad.findUniqueOrThrow({ where: { id: adId } });
+    const pinned = await prisma.ad.findUniqueOrThrow({ where: { id: adId } });
+    // Pinned ads sort first: the unpinned sibling is in the same user's lists, so
+    // an unknown-scope purge of the city lists is enough.
+    await bumpAdsCacheVersion({ adId, city: pinned.city ?? null });
+    return pinned;
   },
 };

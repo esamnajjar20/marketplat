@@ -28,6 +28,31 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────────────────────
+  # Edge cache: API Worker tests + canonical cache-policy audit.
+  # No dependencies (plain node) → seconds, and it catches policy drift between
+  # shared/, frontend/ and backend/ copies (what broke after the s-maxage change).
+  # ─────────────────────────────────────────────────────────────
+  edge-cache:
+    name: Edge cache (worker tests, policy audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: API Worker cache tests
+        run: node workers/cf-api-proxy/cache-policy.test.mjs
+      - name: Policy copies are in sync with shared/cache-policy.json
+        working-directory: frontend
+        run: |
+          node scripts/sync-cache-policy.mjs
+          git diff --exit-code -- ../shared ../backend/src/shared/cache ../frontend/lib ../frontend/public/cache-policy.js ../frontend/public/cache-contract.js
+      - name: Cache layer audit
+        working-directory: frontend
+        run: node scripts/cache-layer-audit.mjs
+
+  # ─────────────────────────────────────────────────────────────
   # Backend: lint → type-check → unit tests → integration tests
   # ─────────────────────────────────────────────────────────────
   backend:

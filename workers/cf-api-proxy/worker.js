@@ -79,6 +79,15 @@ const DETAIL_TAG_PREFIX = {
   'service-providers': 'provider',
 };
 
+// Cache-busting guard: a client can make every URL unique with junk params and
+// turn the edge into a pass-through to Neon. Pathological shapes are served
+// uncached (and counted as BYPASS-SHAPE) instead of polluting the cache.
+const MAX_PARAMS = 16;
+const MAX_KEY_LENGTH = 1024;
+
+// Keep-warm only refreshes entries that have used more than this share of their ttl.
+const WARM_REFRESH_AFTER = 0.5;
+
 const inflight = new Map();
 
 /* ───────────────────────── canonicalisation (#7) ───────────────────────── */
@@ -657,6 +666,16 @@ async function warmCache(env, ctx) {
     const canon = canonicalize(new URL(RENDER_ORIGIN + path));
     const cacheKey = makeCacheKey(canon);
     try {
+      // Don't hit the origin (Neon) for entries that are still young: the warm-up
+      // only exists to renew entries before they expire.
+      const existing = await cache.match(cacheKey);
+      if (existing) {
+        const info = storedInfo(existing);
+        if (!info.neg && info.age <= info.ttl * WARM_REFRESH_AFTER) {
+          results.push({ path, status: 'FRESH', age: Math.floor(info.age) });
+          continue;
+        }
+      }
       const desc = await originLoad({ canon, request: null, cache, cacheKey, ctx, env, awaitStore: true });
       const status = desc.headers.get('x-proxy-cache');
       if (status === 'MISS') {
@@ -687,11 +706,36 @@ function corsHeaders(req) {
   };
 }
 
+/**
+ * Optional measurement (Workers Analytics Engine, binding CACHE_METRICS).
+ * One data point per cacheable request: blobs=[cache status, route, colo],
+ * doubles=[upstream ms, http status]. No binding => no-op. Never throws.
+ * Query it with the SQL in EDGE_CACHE_ROUND3_REPORT.md to get the REAL hit ratio.
+ */
+function recordMetric(env, ctx, canon, response, request) {
+  try {
+    if (!env || !env.CACHE_METRICS) return;
+    const colo = (request.cf && request.cf.colo) || 'unknown';
+    env.CACHE_METRICS.writeDataPoint({
+      blobs: [response.headers.get('x-proxy-cache') || 'NONE', canon.route || 'root', String(colo)],
+      doubles: [Number(response.headers.get('x-upstream-ms')) || 0, response.status],
+      indexes: [canon.route || 'root'],
+    });
+  } catch {
+    /* metrics must never affect a response */
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (url.pathname === '/__warm__') {
+      // When PURGE_TOKEN is configured the manual trigger needs it (the cron does not).
+      const secret = env && env.PURGE_TOKEN;
+      if (secret && !timingSafeEqual(request.headers.get('x-purge-token'), secret)) {
+        return new Response('Forbidden', { status: 403 });
+      }
       const results = await warmCache(env, ctx);
       return new Response(JSON.stringify(results, null, 2), {
         headers: { 'content-type': 'application/json' },
@@ -735,7 +779,17 @@ export default {
       !deliberatelyPrivatePath &&
       CACHEABLE_PREFIXES.some((p) => canon.path === p || canon.path.startsWith(`${p}/`));
 
-    if (isCacheable) return handleCacheable(request, canon, ctx, env);
+    if (isCacheable) {
+      if (canon.pairs.length > MAX_PARAMS || canon.key.length > MAX_KEY_LENGTH) {
+        const res = await handlePassthrough(request, url);
+        res.headers.set('x-proxy-cache', 'BYPASS-SHAPE');
+        recordMetric(env, ctx, canon, res, request);
+        return res;
+      }
+      const res = await handleCacheable(request, canon, ctx, env);
+      recordMetric(env, ctx, canon, res, request);
+      return res;
+    }
     return handlePassthrough(request, url);
   },
 

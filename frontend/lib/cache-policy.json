@@ -9,7 +9,8 @@
     },
     "http": {
       "maxAgeSec": 30,
-      "staleWhileRevalidateSec": 30
+      "staleWhileRevalidateSec": 120,
+      "sharedMaxAgeSec": 120
     },
     "client": {
       "staleTimeMs": 90000,
@@ -29,7 +30,8 @@
     },
     "http": {
       "maxAgeSec": 30,
-      "staleWhileRevalidateSec": 30
+      "staleWhileRevalidateSec": 180,
+      "sharedMaxAgeSec": 180
     },
     "client": {
       "staleTimeMs": 60000,
@@ -49,7 +51,8 @@
     },
     "http": {
       "maxAgeSec": 30,
-      "staleWhileRevalidateSec": 30
+      "staleWhileRevalidateSec": 180,
+      "sharedMaxAgeSec": 180
     },
     "client": {
       "staleTimeMs": 90000,

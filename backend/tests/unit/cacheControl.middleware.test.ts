@@ -6,7 +6,7 @@ describe('cacheControl middleware', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('sets short cache headers (publicLive policy: 30s + swr 30s)', () => {
+  it('sets short cache headers (publicLive policy: 30s browser, 120s edge + swr 120s)', () => {
     const req = {} as Request;
     const res = { setHeader: jest.fn() } as unknown as Response;
 
@@ -14,7 +14,7 @@ describe('cacheControl middleware', () => {
 
     expect(res.setHeader).toHaveBeenCalledWith(
       'Cache-Control',
-      'public, max-age=30, stale-while-revalidate=30'
+      'public, max-age=30, s-maxage=120, stale-while-revalidate=120'
     );
     expect(next).toHaveBeenCalled();
   });
@@ -40,7 +40,7 @@ describe('cacheControl middleware', () => {
     );
   });
 
-  it('sets medium cache headers (publicDetail policy: 30s + swr 30s)', () => {
+  it('sets medium cache headers (publicDetail policy: 30s browser, 180s edge + swr 180s)', () => {
     const req = {} as Request;
     const res = { setHeader: jest.fn() } as unknown as Response;
 
@@ -48,7 +48,7 @@ describe('cacheControl middleware', () => {
 
     expect(res.setHeader).toHaveBeenCalledWith(
       'Cache-Control',
-      'public, max-age=30, stale-while-revalidate=30'
+      'public, max-age=30, s-maxage=180, stale-while-revalidate=180'
     );
   });
 
@@ -60,7 +60,7 @@ describe('cacheControl middleware', () => {
 
     expect(res.setHeader).toHaveBeenCalledWith(
       'Cache-Control',
-      'public, max-age=30, stale-while-revalidate=30'
+      'public, max-age=30, s-maxage=120, stale-while-revalidate=120'
     );
     expect(res.setHeader).toHaveBeenCalledWith('Vary', 'Authorization');
   });

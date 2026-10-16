@@ -1,4 +1,5 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 import { reportsRepository, ReportWithDetails } from './reports.repository';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
 import { usersService } from '../users'; // FEAT-REPORT-USER-STORE: target-exists check for USER reports
@@ -80,6 +81,9 @@ const submitReport = async (
       );
       if (reportCount >= env.fraud.reportAutoHideThreshold) {
         autoHidden = await reportsRepository.autoHideAdIfStillActive(targetId);
+        // The ad just left public discovery: purge Redis lists/home and the edge
+        // (previously nothing invalidated, so it stayed listed until a hard TTL).
+        if (autoHidden) await bumpAdsCacheVersionAndHome({ adId: targetId, kind: 'hide' });
       }
     }
 

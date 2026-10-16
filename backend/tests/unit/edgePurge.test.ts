@@ -182,8 +182,8 @@ describe('purge-aware edge TTL (only safe once purging works)', () => {
 
   it('ADS_* presets lengthen ONLY s-maxage when purging is on; other routes are untouched', () => {
     const CACHE = loadCache(ENABLED);
-    expect(header(CACHE.ADS_DETAIL)).toMatch(/max-age=30, s-maxage=3600, stale-while-revalidate=30$/);
-    expect(header(CACHE.ADS_LIST)).toMatch(/max-age=30, s-maxage=600, stale-while-revalidate=30$/);
+    expect(header(CACHE.ADS_DETAIL)).toMatch(/max-age=30, s-maxage=3600, stale-while-revalidate=120$/);
+    expect(header(CACHE.ADS_LIST)).toMatch(/max-age=30, s-maxage=600, stale-while-revalidate=120$/);
     expect(header(CACHE.LIVE)).not.toMatch(/s-maxage=(600|3600)/);
     expect(header(CACHE.MEDIUM)).not.toMatch(/s-maxage=3600/);
   });

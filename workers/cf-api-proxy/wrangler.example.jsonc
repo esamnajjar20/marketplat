@@ -12,7 +12,10 @@
   //   npx wrangler kv namespace create REFERENCE_KV
   "kv_namespaces": [{ "binding": "REFERENCE_KV", "id": "<KV_NAMESPACE_ID>" }],
 
-  // السر لمسار POST /__purge__ (يطابق EDGE_WORKER_PURGE_TOKEN في الباك-إند):
+  // قياس HIT ratio الحقيقي (اختياري) — Workers Analytics Engine:
+  "analytics_engine_datasets": [{ "binding": "CACHE_METRICS", "dataset": "marketplat_cache" }],
+
+  // السر لمسار POST /__purge__ ولتشغيل /__warm__ يدوياً (x-purge-token) (يطابق EDGE_WORKER_PURGE_TOKEN في الباك-إند):
   //   npx wrangler secret put PURGE_TOKEN
 
   // keep-warm كل 4 دقائق (كما هو مدروس في الجرد)

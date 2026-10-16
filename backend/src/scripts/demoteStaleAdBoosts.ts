@@ -12,6 +12,9 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../shared/utils/logger';
 import { env } from '../config/env';
+import { bumpAdsCacheVersion } from '../modules/ads/ads.cache.keys';
+import { flushEdgePurge } from '../shared/cache/edgePurge';
+import { redis } from '../config/redis';
 
 const prisma = new PrismaClient();
 const STALE_BOOST_DAYS = env.reports.staleBoostDays;
@@ -42,6 +45,12 @@ async function main(): Promise<void> {
     data: { isFeatured: false, isPinned: false },
   });
 
+  if (result.count > 0) {
+    // Boost flags drive list ordering; refresh Redis + edge (separate process).
+    await bumpAdsCacheVersion();
+    await flushEdgePurge();
+  }
+
   logger.info('demoteStaleAdBoosts finished', {
     updated: result.count,
     olderThan: olderThan.toISOString(),
@@ -55,5 +64,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await Promise.allSettled([prisma.$disconnect(), redis.quit()]);
   });

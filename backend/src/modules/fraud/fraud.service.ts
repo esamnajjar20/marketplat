@@ -1,4 +1,5 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 import { fraudRepository } from './fraud.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { env } from '../../config/env';
@@ -212,6 +213,8 @@ export const fraudService = {
           });
 
           if (flaggedForReview) {
+            // Flagged ads are filtered from public lists: purge so it vanishes now.
+            await bumpAdsCacheVersionAndHome({ adId: input.id, city: input.city ?? null, kind: 'hide' });
             logger.warn('Ad auto-flagged for fraud review', {
               adId: input.id,
               userId: input.userId,
@@ -343,6 +346,8 @@ export const fraudService = {
   /** Admin decided a flagged ad is legitimate — clears the review flag without deleting the historical signals. */
   clearAdFlag: async (adId: string, adminUserId: string): Promise<void> => {
     await fraudRepository.clearAdFlag(adId);
+    // Un-flagged ad is visible again.
+    await bumpAdsCacheVersion({ adId, kind: 'create' });
     auditLog({
       event: AuditEvent.ADMIN_FRAUD_SIGNAL_REVIEWED,
       userId: adminUserId,
@@ -371,6 +376,7 @@ export const fraudService = {
         data: { flaggedForReview: true, riskScore: newRiskScore },
       });
     });
+    await bumpAdsCacheVersionAndHome({ adId, kind: 'hide' });
 
     auditLog({
       event: AuditEvent.ADMIN_FRAUD_MANUAL_FLAG,

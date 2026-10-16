@@ -317,13 +317,69 @@ const PUBLIC_LIVE = {
 /* ───────────── warm-up writes the SAME keys real requests read ───────────── */
 {
   const h = harness({ upstream: async () => json({ items: [] }, PUBLIC_LIVE) });
-  const results = await h.context.__worker.scheduled({}, {}, { waitUntil: (p) => p });
-  void results;
+  const warmed = [];
+  await h.context.__worker.scheduled({}, {}, { waitUntil: (p) => warmed.push(p) });
+  await Promise.all(warmed);
   await h.context.__worker.fetch(new Request(`${EDGE}/__warm__`), {}, { waitUntil() {} });
   const before = h.upstreamLog.length;
   const r = await h.call('/api/v1/ads?limit=10');
   assert.equal(r.headers.get('x-proxy-cache'), 'HIT', 'warmed entry must be hit by a real request');
   assert.equal(h.upstreamLog.length, before);
+}
+
+/* ───────────── cache-busting shapes are never stored ───────────── */
+{
+  const h = harness({ upstream: async () => json({ ok: 1 }, PUBLIC_LIVE) });
+  const many = Array.from({ length: 20 }, (_, i) => `p${i}=${i}`).join('&');
+  const r = await h.call(`/api/v1/ads?${many}`);
+  assert.equal(r.headers.get('x-proxy-cache'), 'BYPASS-SHAPE');
+  const long = await h.call(`/api/v1/ads?q=${'x'.repeat(1100)}`);
+  assert.equal(long.headers.get('x-proxy-cache'), 'BYPASS-SHAPE');
+  await h.settle();
+  assert.equal(h.store.size, 0);
+  // a normal request is still cached
+  assert.equal((await h.call('/api/v1/ads?limit=5')).headers.get('x-proxy-cache'), 'MISS');
+}
+
+/* ───────────── keep-warm: no origin hit while entries are young; token guard ───────────── */
+{
+  const h = harness({ upstream: async () => json({ items: [] }, PUBLIC_LIVE) });
+  const env = {};
+  const pend = [];
+  const ctx = { waitUntil: (p) => pend.push(p) };
+  const cron = async () => { await h.context.__worker.scheduled({}, env, ctx); await Promise.all(pend.splice(0)); };
+  await cron();
+  const afterFirst = h.upstreamLog.length;
+  assert.equal(afterFirst, 13, 'first warm populates every path');
+  await cron();
+  assert.equal(h.upstreamLog.length, afterFirst, 'second warm right after must not touch the origin');
+  // entries past 50% of ttl (120s) get renewed
+  await h.ageEntry(() => true, 70);
+  await cron();
+  assert.equal(h.upstreamLog.length, afterFirst * 2, 'aged entries are renewed');
+
+  const guarded = { PURGE_TOKEN: 's3cret' };
+  const denied = await h.context.__worker.fetch(new Request(`${EDGE}/__warm__`), guarded, ctx);
+  assert.equal(denied.status, 403);
+  const allowed = await h.context.__worker.fetch(
+    new Request(`${EDGE}/__warm__`, { headers: { 'x-purge-token': 's3cret' } }), guarded, ctx);
+  assert.equal(allowed.status, 200);
+}
+
+/* ───────────── optional Analytics Engine metrics ───────────── */
+{
+  const points = [];
+  const h = harness({ upstream: async () => json({ ok: 1 }, PUBLIC_LIVE) });
+  const env = { CACHE_METRICS: { writeDataPoint: (p) => points.push(p) } };
+  const ctx = { waitUntil: (p) => p };
+  await h.context.__worker.fetch(new Request(`${EDGE}/api/v1/ads?limit=1`), env, ctx);
+  await h.context.__worker.fetch(new Request(`${EDGE}/api/v1/ads?limit=1`), env, ctx);
+  assert.deepEqual(points.map((p) => p.blobs[0]), ['MISS', 'HIT']);
+  assert.equal(points[0].blobs[1], 'ads');
+  // a throwing binding must never break the response
+  const broken = { CACHE_METRICS: { writeDataPoint: () => { throw new Error('x'); } } };
+  const ok = await h.context.__worker.fetch(new Request(`${EDGE}/api/v1/ads?limit=1`), broken, ctx);
+  assert.equal(ok.status, 200);
 }
 
 console.log('PASS API Worker cache: policy, key normalisation, SWR, negative cache, KV tier, tags, single-flight');
