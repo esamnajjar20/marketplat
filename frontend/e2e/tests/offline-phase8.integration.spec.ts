@@ -16,7 +16,18 @@ test.describe('offline and API failure integration', () => {
       }));
       const controlled = await page.evaluate(() => Boolean(navigator.serviceWorker?.controller));
       test.skip(!controlled, 'Service worker is not controlling this browser session');
+
+      // The worker's install handler pre-caches /offline and its document assets.
+      // Wait for that cache contract explicitly before cutting the network; otherwise
+      // the test can reload in the small interval between controllerchange and cache
+      // population on slower CI runners.
+      await expect.poll(
+        () => page.evaluate(async () => Boolean(await caches.match(new URL('/offline', location.origin).href))),
+        { timeout: 10_000 },
+      ).toBe(true);
+
       await context.setOffline(true);
+      await expect.poll(() => page.evaluate(() => navigator.onLine), { timeout: 10_000 }).toBe(false);
       await page.reload();
       const offlineHeading = { name: 'جاهزية التطبيق بدون نت' };
       await expect(page.getByRole('heading', { name: offlineHeading.name })).toBeVisible();
