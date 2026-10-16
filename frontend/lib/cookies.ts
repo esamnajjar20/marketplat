@@ -102,6 +102,10 @@ export function getSafeRedirectPath(
   fallback = '/dashboard',
 ): string {
   if (!from) return fallback;
+  // Backslashes and control characters can be normalized by URL parsers in
+  // surprising ways (for example `/\\attacker.example` in special URLs).
+  // Reject them before accepting a path based only on its leading slash.
+  if (/[\\\u0000-\u001F\u007F]/.test(from)) return fallback;
   // Only allow paths that start with / and do NOT start with // (protocol-relative)
   // or contain protocol schemes (e.g. javascript:, data:).
   //

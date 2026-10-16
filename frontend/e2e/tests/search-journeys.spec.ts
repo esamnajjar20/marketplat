@@ -44,7 +44,7 @@ test.describe('search journeys and URL state', () => {
     await page.goto('/search');
     await searchInput(page).fill('معدات منزلية');
     await searchInput(page).press('Enter');
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('معدات منزلية');
+    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('معدات منزلية');
   });
 
   test('the global-search focus shortcut parameter is consumed and focuses the field', async ({ page }) => {

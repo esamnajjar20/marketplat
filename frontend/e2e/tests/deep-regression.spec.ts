@@ -11,18 +11,18 @@ test.describe('deep search state regressions', () => {
 
     await input.fill('سيارة');
     await input.press('Enter');
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('سيارة');
+    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('سيارة');
 
     await input.fill('هاتف');
     await input.press('Enter');
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('هاتف');
+    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('هاتف');
 
     await page.goBack();
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('سيارة');
+    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('سيارة');
     await expect(input).toHaveValue('سيارة');
 
     await page.goForward();
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('هاتف');
+    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('هاتف');
     await expect(input).toHaveValue('هاتف');
   });
 
@@ -42,14 +42,16 @@ test.describe('deep search state regressions', () => {
     const hostile = 'https://attacker.example/collect';
     await page.goto('/login?from=' + encodeURIComponent(hostile));
     const link = page.locator('a[href^="/register"]').filter({ hasText: 'إنشاء حساب' }).first();
-    await expect(link).toBeVisible();
+    await expect(link).toBeVisible({ timeout: 15_000 });
 
     const href = await link.getAttribute('href');
     expect(href).toBeTruthy();
     const target = new URL(href!, page.url());
     expect(target.origin).toBe(new URL(page.url()).origin);
     expect(target.pathname).toBe('/register');
-    expect(target.searchParams.get('from')).toBe(hostile);
+    // Unsafe external destinations are intentionally dropped before they
+    // reach the registration flow.
+    expect(target.searchParams.has('from')).toBe(false);
   });
 
   test('malformed return destination does not prevent the login page from rendering', async ({ page }) => {

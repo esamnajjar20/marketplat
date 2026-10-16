@@ -40,7 +40,9 @@ export function LoginForm() {
   // who arrived here via /login?from=X and has no account yet doesn't
   // lose that destination when bouncing to /register — RegisterForm
   // reads this the same way LoginForm reads its own `from`.
-  const from = searchParams.get('from');
+  const from = getSafeRedirectPath(searchParams.get('from'), '');
+  // Do not propagate an external/protocol-relative return URL into the
+  // registration flow. Safe same-origin paths still survive login → register.
   const registerHref = from ? `${ROUTES.register}?from=${encodeURIComponent(from)}` : ROUTES.register;
 
   function validate() {

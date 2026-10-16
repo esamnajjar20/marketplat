@@ -3,6 +3,12 @@ import { expect, test } from '@playwright/test';
 test('offline center remains usable across real browser network transitions', async ({ page, context }) => {
   await page.goto('/offline');
   await expect(page.locator('body')).toBeVisible();
+  // The hub starts on the saved-items tab; readiness content is rendered
+  // only after explicitly selecting its tab.
+  const readinessTab = page.getByRole('tab', { name: /جاهزية/ }).first();
+  await expect(readinessTab).toBeVisible();
+  await readinessTab.click();
+  await expect(readinessTab).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('heading', { name: 'جاهزية التطبيق بدون نت' })).toBeVisible();
 
   try {

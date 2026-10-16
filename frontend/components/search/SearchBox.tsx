@@ -30,6 +30,7 @@ interface Props {
 export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
+  const urlQuery = sp.get('q');
   const [value, setValue] = useState(defaultValue);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
@@ -63,8 +64,11 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   // already moved on. Syncing here keeps the visible value honest.
   // (Deeper solution: key={q} on the caller — see SearchBox usage.)
   useEffect(() => {
-    setValue(defaultValue);
-  }, [defaultValue]);
+    // The URL is the source of truth when browser back/forward changes only
+    // search params and the App Router keeps this client component mounted.
+    // Prefer the live q param; defaultValue covers the initial server render.
+    setValue(urlQuery ?? defaultValue);
+  }, [defaultValue, urlQuery]);
 
   // SW-SEARCHBOX-KBD-01: reset selection whenever the query changes
   // or the dropdown closes. Otherwise ArrowDown, then typing a new
