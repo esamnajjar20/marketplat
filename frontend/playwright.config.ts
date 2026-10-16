@@ -20,8 +20,19 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-chromium', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      // Restrict mobile project to *.mobile.spec.ts. Without this split,
+      // every test runs twice (desktop + Pixel 7), doubling CI runtime and
+      // producing false failures against desktop-tuned components.
+      testIgnore: /.*\.mobile\.spec\.ts/,
+    },
+    {
+      name: 'mobile-chromium',
+      use: { ...devices['Pixel 7'] },
+      testMatch: /.*\.mobile\.spec\.ts/,
+    },
   ],
   webServer: externalServer ? undefined : {
     command: 'npm run build && npm run start',

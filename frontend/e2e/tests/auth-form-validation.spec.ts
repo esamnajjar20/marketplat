@@ -12,7 +12,7 @@ test.describe('login form validation and recovery links', () => {
 
     const email = page.locator('#email');
     const password = page.locator('#password');
-    const submit = page.locator('form').first().locator('button[type="submit"]');
+    const submit = page.locator('#email').locator('xpath=ancestor::form').locator('button[type="submit"]');
     await expect(email).toBeVisible();
     await expect(password).toBeVisible();
     await expect(submit).toBeDisabled();
@@ -32,7 +32,7 @@ test.describe('login form validation and recovery links', () => {
     await page.goto('/login');
     await page.locator('#email').fill('not-an-email');
     await page.locator('#password').fill('password');
-    await page.locator('form').first().locator('button[type="submit"]').click();
+    await page.locator('#email').locator('xpath=ancestor::form').locator('button[type="submit"]').click();
 
     await expect(page.getByText('بريد إلكتروني غير صالح', { exact: true })).toBeVisible();
     expect(loginRequests).toBe(0);
@@ -42,7 +42,7 @@ test.describe('login form validation and recovery links', () => {
     await page.goto('/login');
     await page.locator('#email').fill('   ');
     await page.locator('#password').fill('some-password');
-    await expect(page.locator('form').first().locator('button[type="submit"]')).toBeDisabled();
+    await expect(page.locator('#email').locator('xpath=ancestor::form').locator('button[type="submit"]')).toBeDisabled();
   });
 
   test('session expiry is explained by its specific message', async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('registration and password recovery validation', () => {
 
   test('registration submit enables only when required values are plausible', async ({ page }) => {
     await page.goto('/register');
-    const submit = page.locator('form').first().locator('button[type="submit"]');
+    const submit = page.locator('#email').locator('xpath=ancestor::form').locator('button[type="submit"]');
     await expect(submit).toBeDisabled();
     await page.locator('#name').fill('مستخدم تجريبي');
     await page.locator('#email').fill('test@example.com');
@@ -125,7 +125,7 @@ test.describe('registration and password recovery validation', () => {
     await page.locator('#confirmPassword').fill('Different123!');
     await page.locator('#confirmPassword').blur();
     await expect(page.getByText('كلمتا المرور غير متطابقتين', { exact: true })).toBeVisible();
-    await expect(page.locator('form').first().locator('button[type="submit"]')).toBeDisabled();
+    await expect(page.locator('#email').locator('xpath=ancestor::form').locator('button[type="submit"]')).toBeDisabled();
   });
 
   test('invalid optional phone number is explained before submit', async ({ page }) => {
@@ -137,7 +137,7 @@ test.describe('registration and password recovery validation', () => {
 
   test('recovery submit is disabled while email is empty', async ({ page }) => {
     await page.goto('/forgot-password');
-    await expect(page.locator('form').first().locator('button[type="submit"]')).toBeDisabled();
+    await expect(page.locator('#email').locator('xpath=ancestor::form').locator('button[type="submit"]')).toBeDisabled();
   });
 
   test('malformed recovery email is rejected without an API request', async ({ page }) => {
@@ -149,7 +149,7 @@ test.describe('registration and password recovery validation', () => {
 
     await page.goto('/forgot-password');
     await page.locator('#email').fill('bad-address');
-    await page.locator('form').first().locator('button[type="submit"]').click();
+    await page.locator('#email').locator('xpath=ancestor::form').locator('button[type="submit"]').click();
     await expect(page.getByText('بريد إلكتروني غير صالح', { exact: true })).toBeVisible();
     expect(recoveryRequests).toBe(0);
   });

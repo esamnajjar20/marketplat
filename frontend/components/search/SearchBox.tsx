@@ -39,6 +39,14 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   // Owned here so ArrowUp/Down can drive it while the input keeps
   // focus. See the onKeyDown handler below.
   const [activeIndex, setActiveIndex] = useState(-1);
+  // Keep the selected row synchronously aligned with typing. React state
+  // updates are scheduled; a very fast Enter after an input event must not
+  // activate a suggestion that was selected for the previous query.
+  const activeIndexRef = useRef(-1);
+  const updateActiveIndex = useCallback((next: number) => {
+    activeIndexRef.current = next;
+    setActiveIndex(next);
+  }, []);
   const [suggestionsList, setSuggestionsList] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -74,8 +82,8 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   // or the dropdown closes. Otherwise ArrowDown, then typing a new
   // character, would leave the highlight on a stale index.
   useEffect(() => {
-    setActiveIndex(-1);
-  }, [value, showSuggestions]);
+    updateActiveIndex(-1);
+  }, [value, showSuggestions, updateActiveIndex]);
 
   // Hoisted above the two dropdown blocks so the keyboard handler
   // below can reference them. `trimmed` is derived from value (never
@@ -98,9 +106,9 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   // activeIndex could point past the end.
   useEffect(() => {
     if (activeIndex >= activeListLength) {
-      setActiveIndex(activeListLength > 0 ? activeListLength - 1 : -1);
+      updateActiveIndex(activeListLength > 0 ? activeListLength - 1 : -1);
     }
-  }, [activeListLength, activeIndex]);
+  }, [activeListLength, activeIndex, updateActiveIndex]);
 
   // Keep the highlighted option scrolled into view as the user arrows
   // through a long list. The recent list and the suggestions list both
@@ -178,7 +186,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
         if (showSuggestions) {
           e.preventDefault();
           setShowSuggestions(false);
-          setActiveIndex(-1);
+          updateActiveIndex(-1);
         }
         return;
       }
@@ -187,23 +195,24 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActiveIndex((i) => (i + 1 >= len ? 0 : i + 1));
+        updateActiveIndex((activeIndexRef.current + 1 >= len ? 0 : activeIndexRef.current + 1));
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setActiveIndex((i) => (i - 1 < 0 ? len - 1 : i - 1));
+        updateActiveIndex((activeIndexRef.current - 1 < 0 ? len - 1 : activeIndexRef.current - 1));
         return;
       }
       if (e.key === 'Enter') {
-        if (activeIndex < 0 || activeIndex >= len) return;
+        const selectedIndex = activeIndexRef.current;
+        if (selectedIndex < 0 || selectedIndex >= len) return;
         // Only intercept Enter when a row is actually selected —
         // otherwise the form's own submit (search for the typed text)
         // is what the user wants.
         e.preventDefault();
         const picked = showRecent
-          ? recent[activeIndex]
-          : suggestionsList[activeIndex];
+          ? recent[selectedIndex]
+          : suggestionsList[selectedIndex];
         if (picked) handleSelectSuggestion(picked);
       }
     },
@@ -215,7 +224,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
     // and the underlying setters are React-stable. If this ever needs
     // a stale-safe call, refactor handleSelectSuggestion to a ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeListLength, activeIndex, showRecent, showSuggestions, recent, suggestionsList],
+    [activeListLength, activeIndex, showRecent, showSuggestions, recent, suggestionsList, updateActiveIndex],
   );
 
   function handleSelectSuggestion(suggestion: string) {
@@ -239,7 +248,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
               // typing. Waiting for the value/showSuggestions effects leaves a
               // brief window where Enter can pick a stale recent-search row
               // instead of submitting the text the user just entered.
-              setActiveIndex(-1);
+              updateActiveIndex(-1);
               setValue(e.target.value);
               setShowSuggestions(true);
             }}

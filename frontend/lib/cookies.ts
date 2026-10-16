@@ -102,41 +102,34 @@ export function getSafeRedirectPath(
   fallback = '/dashboard',
 ): string {
   if (!from) return fallback;
-  // Backslashes and control characters can be normalized by URL parsers in
-  // surprising ways (for example `/\\attacker.example` in special URLs).
-  // Reject them before accepting a path based only on its leading slash.
+
+  // Reject characters that browsers and URL parsers can normalize in ways
+  // that turn a path-looking value into a different authority.
   if (/[\\\u0000-\u001F\u007F]/.test(from)) return fallback;
-  // Only allow paths that start with / and do NOT start with // (protocol-relative)
-  // or contain protocol schemes (e.g. javascript:, data:).
-  //
-  // Two cases, both validated against the DECODED form (to catch
-  // encoded attacks like %2F%2Fevil.com or %2Fjavascript:...):
-  //   1. `from` is ALREADY a literal valid path (its own leading `/`
-  //      isn't itself percent-encoded) — return it UNCHANGED, so any
-  //      percent-encoding inside a query value (e.g. ?city=%D8%BA...)
-  //      survives intact rather than being decoded into raw bytes.
-  //   2. `from`'s leading `/` only appears after decoding (e.g. the
-  //      whole path was encoded as %2Fdashboard) — the encoding was
-  //      hiding the path itself, not a data value, so return the
-  //      DECODED form.
-  if (/^\/[^/]/.test(from) || from === '/') {
-    return from;
+
+  // A literal same-origin path is preferred so percent-encoded query values
+  // (for example Arabic search terms) remain encoded exactly as supplied.
+  // Support a fully encoded path for older middleware callers, but decode it
+  // only when the value does not already begin with a slash.
+  let candidate = from;
+  if (!candidate.startsWith('/')) {
+    try {
+      candidate = decodeURIComponent(candidate);
+    } catch {
+      return fallback;
+    }
   }
-  // T673 — decodeURIComponent throws URIError on malformed percent
-  // sequences (e.g. ?from=% or ?from=%zz). Since `from` is a raw
-  // search-param value, a crafted URL could crash the login page's
-  // render (or whatever call site consumes this helper). Treating
-  // malformed encoding as "no valid redirect target" is both the
-  // intended behavior (nothing legitimate encodes a valid path that
-  // way) and safe (no uncaught exception).
-  let decoded: string;
+
+  // Reject protocol-relative URLs and anything that still isn't a rooted path.
+  if (!candidate.startsWith('/') || candidate.startsWith('//')) return fallback;
+  if (candidate.startsWith('/\\')) return fallback;
+
   try {
-    decoded = decodeURIComponent(from);
+    const base = 'https://marketplat.invalid';
+    const resolved = new URL(candidate, base);
+    if (resolved.origin !== base || !resolved.pathname.startsWith('/')) return fallback;
+    return candidate;
   } catch {
     return fallback;
   }
-  if (/^\/[^/]/.test(decoded) || decoded === '/') {
-    return decoded;
-  }
-  return fallback;
 }
