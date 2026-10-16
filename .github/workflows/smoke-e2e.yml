@@ -62,14 +62,35 @@ jobs:
             backend/package-lock.json
             frontend/package-lock.json
 
+      - name: Cache backend node_modules
+        uses: actions/cache@v4
+        id: backend-nm
+        with:
+          path: backend/node_modules
+          key: backend-nm-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            backend-nm-${{ runner.os }}-
+
       - name: Install backend deps
+        if: steps.backend-nm.outputs.cache-hit != 'true'
         working-directory: backend
         run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Cache Prisma client
+        uses: actions/cache@v4
+        id: prisma-cache
+        with:
+          path: backend/node_modules/.prisma
+          key: prisma-${{ runner.os }}-${{ hashFiles('backend/prisma/schema.prisma') }}
 
       - name: Prisma generate + migrate
         working-directory: backend
         run: |
-          npx prisma generate
+          if [ "${{ steps.prisma-cache.outputs.cache-hit }}" != "true" ]; then
+            npx prisma generate
+          else
+            echo "Prisma client cache hit — skipping generate"
+          fi
           npx prisma migrate deploy
 
       - name: Build backend
@@ -92,13 +113,37 @@ jobs:
           done
           echo "::error::backend not ready"; cat /tmp/backend.log || true; exit 1
 
+      - name: Cache frontend node_modules
+        uses: actions/cache@v4
+        id: frontend-nm
+        with:
+          path: frontend/node_modules
+          key: frontend-nm-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            frontend-nm-${{ runner.os }}-
+
       - name: Install frontend deps
+        if: steps.frontend-nm.outputs.cache-hit != 'true'
         working-directory: frontend
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Install Playwright browser
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            pw-chromium-${{ runner.os }}-
+
+      - name: Install Playwright browser binary
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Playwright system deps
+        working-directory: frontend
+        run: npx playwright install-deps chromium
 
       - name: Build frontend
         working-directory: frontend

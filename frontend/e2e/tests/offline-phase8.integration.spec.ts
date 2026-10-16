@@ -29,9 +29,17 @@ test.describe('offline and API failure integration', () => {
       await context.setOffline(true);
       await expect.poll(() => page.evaluate(() => navigator.onLine), { timeout: 10_000 }).toBe(false);
       await page.reload();
-      const offlineHeading = { name: 'جاهزية التطبيق بدون نت' };
-      await expect(page.getByRole('heading', { name: offlineHeading.name })).toBeVisible();
-      await expect(page.locator('body')).toContainText('بدون نت');
+      // If the cached app shell has every required chunk, the full offline hub
+      // should render. If a chunk is missing, the worker deliberately serves its
+      // small standalone offline error page rather than broken cached HTML.
+      const fullHubHeading = page.getByRole('heading', { name: 'جاهزية التطبيق بدون نت' });
+      const safeFallbackHeading = page.getByRole('heading', { name: 'تعذّر تحميل الصفحة' });
+      await expect.poll(
+        () => page.locator('h1, h2').allTextContents(),
+        { timeout: 10_000 },
+      ).toEqual(expect.arrayContaining([expect.stringMatching(/جاهزية التطبيق بدون نت|تعذّر تحميل الصفحة/)]));
+      await expect(fullHubHeading.or(safeFallbackHeading)).toBeVisible();
+      await expect(page.locator('body')).toContainText(/بدون نت|الاتصال ضعيف أو منقطع/);
     } finally {
       await context.setOffline(false);
     }

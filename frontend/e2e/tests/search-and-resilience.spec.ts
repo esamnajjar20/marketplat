@@ -25,8 +25,9 @@ test.describe('search journey', () => {
     await search.getByRole('searchbox', { name: 'بحث' }).fill('   ');
     await search.getByRole('button', { name: 'بحث' }).click();
 
+    // Wait for the App Router navigation to commit before checking the URL.
+    await expect.poll(() => new URL(page.url()).searchParams.has('q')).toBe(false);
     await expect(page).toHaveURL(/\/search(?:\?.*)?$/);
-    expect(new URL(page.url()).searchParams.has('q')).toBe(false);
   });
 });
 
@@ -45,5 +46,34 @@ test.describe('resilience and error handling', () => {
     expect(response).not.toBeNull();
     expect(response!.status()).toBeLessThan(500);
     await expect(page.locator('body')).toBeVisible();
+  });
+});
+
+test.describe('search URL edge cases', () => {
+  test('a query containing Arabic punctuation is restored from the URL', async ({ page }) => {
+    const query = 'سوق غزة؟ سيارات، شقق!';
+    await page.goto('/search?q=' + encodeURIComponent(query));
+    await expect(page.getByRole('searchbox', { name: 'بحث' })).toHaveValue(query);
+  });
+
+  test('an explicit empty query does not crash the search page', async ({ page }) => {
+    const response = await page.goto('/search?q=');
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBeLessThan(500);
+    await expect(page.getByRole('searchbox', { name: 'بحث' })).toBeVisible();
+  });
+
+  test('invalid nearby coordinates do not crash search rendering', async ({ page }) => {
+    const response = await page.goto('/search?lat=abc&lng=def&sort=distance');
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBeLessThan(500);
+    await expect(page.locator('body')).toBeVisible();
+  });
+
+  test('the search page can be reloaded with the same query', async ({ page }) => {
+    const query = 'هاتف مستعمل';
+    await page.goto('/search?q=' + encodeURIComponent(query));
+    await page.reload();
+    await expect(page.getByRole('searchbox', { name: 'بحث' })).toHaveValue(query);
   });
 });
