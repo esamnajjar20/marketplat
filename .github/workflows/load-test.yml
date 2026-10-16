@@ -1,295 +1,238 @@
-name: Load Test (k6, self-contained)
+name: Load Test (k6)
 
-# يعمل فقط بالتشغيل اليدوي — بخلاف النسخة السابقة من هذا الملف (التي
-# كانت تضرب رابطًا خارجيًا توفّره أنت)، هذا الإصدار ذاتي الاكتفاء بالكامل:
-# يشغّل Postgres وRedis كخدمات داخل الـrunner نفسه، يبني الباك اند من
-# الكود المسحوب للتو، يشغّله محليًا على 127.0.0.1:5000، ثم يوجّه k6 ضده
-# مباشرة. لا حاجة لبيئة load-test منفصلة ولا لرابط خارجي — لكن هذا يعني
-# أيضًا أن الأرقام هنا قياس نسبي (regression) على موارد runner مشتركة
-# (نفس الأنوية تُقسَم بين التطبيق ومولّد الحمل نفسه)، وليست رقم سعة
-# حقيقي لبيئة إنتاج فعلية — لذلك استخدم النتائج لرصد التراجع بين
-# التشغيلات، لا كرقم "أقصى مستخدمين متزامنين" نهائي.
-#
-# ⚠️ قيد seed:e2e الحقيقي (راجع backend/load-tests/README.md): السكربت
-# يزرع مستخدم أدمن + تصنيفين فقط — بلا أي إعلانات (ads). سيناريوهات
-# browsing/search ستُنفَّذ ضد جدول ads شبه فارغ، فأرقام الأداء الناتجة
-# لا تعكس أداء استعلام/فهرس حقيقي تحت حمل — القيمة هنا في التحقق من
-# عدم كسر المسار نفسه (500s، تسريبات، تدهور حاد)، لا في قراءة زمن
-# استجابة كرقم سعة موثوق. لأرقام سعة حقيقية زد بيانات إعلانات بكمية
-# واقعية قبل التشغيل، أو استخدم سيناريو auth-rate-limit/connection-pool-stress
-# اللذين لا يعتمدان على حجم بيانات ads.
-#
-# ⚠️ globalRateLimit (600 طلب/15 دقيقة لكل IP على كامل /api — app.ts):
-# كل السيناريوهات هنا تُطلَق من IP واحد (الـrunner)، فأي حمل حقيقي
-# يصطدم بهذا السقف بسرعة ويُنتج 429 بكثرة يبدو كفشل أداء وهو ليس كذلك.
-# لذلك يُعطَّل عبر DISABLE_RATE_LIMIT=true لكل سيناريو ما عدا
-# auth-rate-limit (الذي يختبر الـlimiter نفسه ويحتاجه مفعّلاً). راجع
-# خطوة "Start backend" أدناه.
-#
-# مُدخَل "vus" أدناه يتحكم بذروة الـVUs مباشرة من صفحة Run workflow —
-# بلا تعديل أي ملف k6 ولا commit. راجع تعليق المُدخَل نفسه لمعرفة أي
-# سيناريوهات يطبَّق عليها وأيها له آلية تحكم مختلفة.
 on:
   workflow_dispatch:
     inputs:
-      scenario:
-        description: 'Which load-tests/scenarios/*.js file to run'
+      target:
+        description: 'API base URL'
         required: true
-        type: choice
-        default: browsing
-        options:
-          - browsing
-          - search
-          - stress-ramp
-          - spike
-          - soak
-          - connection-pool-stress
-          - auth-rate-limit
-          - ad-creation
-          - max-payload-upload
-      # قيمة ذروة الـVUs، تُقرأ عبر LOAD_TEST_VUS من داخل السكربتات نفسها
-      # (browsing.js/search.js/spike.js/connection-pool-stress.js) —
-      # بلا أي تعديل أو commit على ملفات k6 لتجربة رقم مختلف، فقط اكتب
-      # الرقم هنا في نموذج Run workflow. يُتجاهل لثلاثة سيناريوهات بتصميم
-      # متعمد لا علاقة له بحجم الحمل: auth-rate-limit (VUs ثابتة عمدًا
-      # لاختبار صحة الـlimiter نفسه عند تجاوز بسيط لسقفه، لا لقياس سعة)،
-      # وad-creation (يحاكي عددًا واقعيًا صغيرًا من البائعين المتزامنين،
-      # ومُقيَّد أصلًا بسقف createAdRateLimit 20/ساعة/IP بغض النظر عن
-      # الـVUs)، وmax-payload-upload (له مُدخَل LOAD_TEST_UPLOAD_VUS
-      # الخاص به أدناه بدل هذا). stress-ramp يستخدم stress_scale تحته
-      # مباشرة بدل هذا (آلية مختلفة: نسبة تصغير للسلّم الكامل 100-5000،
-      # لا رقم ذروة واحد).
-      vus:
-        description: 'Peak concurrent VUs — used by browsing/search/spike/connection-pool-stress. Ignored by auth-rate-limit, ad-creation (see stress_scale below for stress-ramp, or the upload-specific input for max-payload-upload).'
-        required: false
-        type: string
-        default: '100'
-      # stress-ramp.js's own STRESS_SCALE knob — رقم بين 0 و1 لتصغير كل
-      # درجات السلّم معًا. مهم بشكل خاص هنا لأن k6 والباك اند يتقاسمان
-      # نفس أنوية الـrunner — القيمة الافتراضية الكاملة (1) قد تُنتج
-      # نتائج مضلَّلة (اختناق مولّد الحمل نفسه لا التطبيق).
-      stress_scale:
-        description: 'stress-ramp.js only: scales every VU target down together. Recommended well below 1 here since k6 shares CPU with the app on the same runner.'
-        required: false
-        type: string
-        default: '0.2'
-      soak_duration:
-        description: 'soak.js only — overrides its default 1h run length (e.g. 10m). Keep short here — this job shares one runner for the full duration.'
-        required: false
-        type: string
-        default: '10m'
-      login_email:
-        description: 'Needed for ad-creation / max-payload-upload / connection-pool-stress. Defaults to the seedE2E admin account (safe: throwaway CI database only).'
-        required: false
-        type: string
-        default: 'e2e-admin@example.test'
-      upload_vus:
-        description: 'max-payload-upload.js only — concurrent uploaders (its own LOAD_TEST_UPLOAD_VUS knob, separate from "vus" above since each upload request is 5x5MB, not comparable load to a GET).'
-        required: false
-        type: string
-        default: '5'
-
-concurrency:
-  group: load-test-${{ github.workflow }}
-  cancel-in-progress: false
+        default: 'https://marketplat-api.esamnajjar6.workers.dev'
+      max_vus:
+        description: 'Max virtual users (peak of the ramp)'
+        required: true
+        default: '200'
+      duration:
+        description: 'Steady-state duration at peak (seconds)'
+        required: true
+        default: '30'
+      warmup:
+        description: 'Warm up the edge cache before the ramp'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 jobs:
-  load-test:
-    name: k6 — ${{ github.event.inputs.scenario }}
+  k6:
     runs-on: ubuntu-latest
-    # stress-ramp عند STRESS_SCALE الكامل قد يمتد طويلاً، وsoak قابل
-    # للتخصيص أيضًا — الحد هنا يعطي هامشًا فوق إعداد + seed + build +
-    # أطول سيناريو متوقع بالقيم الافتراضية المصغّرة أعلاه.
-    timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: backend
-
-    env:
-      # 22 مطابق لـci.yml — مصدر حقيقة واحد للإصدار عبر الـworkflows.
-      NODE_VERSION: '22'
-
-    # قاعدة بيانات مخصصة لهذا التشغيل فقط (اسمها يحتوي "loadtest" الذي
-    # يطابق نمط أمان seedE2E.ts — يرفض العمل إن لم يحتوِ اسم القاعدة
-    # على "test" أو "e2e"). Redis بلا كلمة مرور، مقبول هنا لأنه معزول
-    # داخل شبكة الـrunner المؤقتة نفسها.
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: classifieds_loadtest
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      # نفس فحص ci.yml: يفشل مبكرًا وبوضوح إن غاب مجلد migrations من
-      # الالتزام بدل فشل غامض لاحقًا بأخطاء SQL لا علاقة لها بالمشكلة
-      # الحقيقية.
-      - name: Verify migration files are committed
-        run: |
-          if [ -z "$(ls -A prisma/migrations 2>/dev/null)" ]; then
-            echo "::error::prisma/migrations is empty or missing — commit your migrations, do not rely on 'prisma migrate dev' in CI"
-            exit 1
-          fi
-
-      - name: Run migrations against load-test database
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_loadtest?connection_limit=20&pool_timeout=30
-
-      # يزرع مستخدم أدمن ثابت (e2e-admin@example.test) + تصنيفين فقط —
-      # راجع التحذير أعلى الملف حول عدم وجود إعلانات مزروعة.
-      - name: Seed test data
-        run: npm run seed:e2e
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_loadtest?connection_limit=20&pool_timeout=30
-
-      - name: Build backend
-        run: npm run build
-
-      # نفس منطق job الـe2e في ci.yml: تشغيل في الخلفية مع توجيه
-      # المخرجات لملف، وحفظ الـPID للخطوات التالية.
-      # DISABLE_RATE_LIMIT=true (مدعوم أصلاً في rateLimit.middleware.ts —
-      # bypassRateLimit) يعطّل الـglobalRateLimit (600 طلب/15 دقيقة لكل IP
-      # على /api كله — app.ts). بدون هذا، أي سيناريو يرسل أكثر من ~600
-      # طلب خلال 15 دقيقة من IP الـrunner الواحد سيصطدم بهذا السقف
-      # ويُرجع 429 بكثرة (وهذا فعليًا ما حدث في أول تشغيل: 94.86%
-      # http_req_failed رغم أن الباك اند والاستعلامات نفسها كانت سليمة
-      # تمامًا — لم تكن مشكلة أداء، كانت مشكلة سقف طلبات لا علاقة له
-      # بالمسار المُختبَر). يبقى مُفعَّلاً (false) حصرًا لسيناريو
-      # auth-rate-limit لأن ذلك السيناريو يختبر الـlimiter نفسه ويتوقع
-      # 429s كنتيجة صحيحة — تعطيله هناك يُبطل الاختبار كليًا.
-      - name: Start backend
-        run: |
-          npm start > /tmp/backend.log 2>&1 &
-          echo "BACKEND_PID=$!" >> "$GITHUB_ENV"
-        env:
-          NODE_ENV: test
-          PORT: '5000'
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_loadtest?connection_limit=20&pool_timeout=30
-          JWT_SECRET: ci-test-jwt-secret-please-change-me-32chars
-          JWT_REFRESH_SECRET: ci-test-refresh-secret-please-change-me-32c
-          FRONTEND_URL: http://localhost:3000
-          REDIS_HOST: localhost
-          REDIS_PORT: '6379'
-          TRUST_PROXY: '0'
-          DISABLE_RATE_LIMIT: ${{ github.event.inputs.scenario != 'auth-rate-limit' && 'true' || 'false' }}
-
-      - name: Verify backend process started
-        run: |
-          sleep 3
-          if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-            echo "::error::Backend process exited immediately after start"
-            cat /tmp/backend.log || true
-            exit 1
-          fi
-
-      # /ready يتحقق فعليًا من اتصال قاعدة البيانات وRedis (healthCache.ts)
-      # بخلاف /health الذي يؤكد فقط أن العملية حية.
-      - name: Wait for backend readiness
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:5000/ready > /dev/null; then
-              echo "Backend is ready"
-              exit 0
-            fi
-            echo "Waiting for backend readiness... ($i/30)"
-            sleep 2
-          done
-          echo "::error::Backend did not become ready in time"
-          echo "----- backend.log -----"
-          cat /tmp/backend.log || true
-          exit 1
-
       - name: Install k6
-        uses: grafana/setup-k6-action@v1
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+          k6 version
 
-      - name: Run k6 scenario
-        uses: grafana/run-k6-action@v1
-        with:
-          path: backend/load-tests/scenarios/${{ github.event.inputs.scenario }}.js
-          flags: --summary-export=k6-summary.json
-        env:
-          # ثابت عمدًا (127.0.0.1:5000) — الهدف الوحيد الممكن هو الباك
-          # اند الذي شُغِّل للتو في نفس الـrunner؛ config.js يبني منه
-          # API كـ `${BASE_URL}/api/v1`.
-          LOAD_TEST_BASE_URL: http://127.0.0.1:5000
-          # يُقرأ في browsing.js/search.js/spike.js/connection-pool-stress.js
-          # عبر __ENV.LOAD_TEST_VUS — السكربتات التي تتجاهله (auth-rate-limit,
-          # ad-creation, stress-ramp, soak, max-payload-upload) تبقى كما هي
-          # لأن كل واحد منها له آلية تحكّم خاصة به موضّحة أعلاه.
-          LOAD_TEST_VUS: ${{ github.event.inputs.vus }}
-          # soak.js يقرأ SOAK_VUS تحديدًا (VUs ثابتة طوال مدة soak، لا
-          # سلّم تصاعدي) — نمرر نفس قيمة "vus" الواحدة إليه بدل مُدخَل
-          # منفصل، حفاظًا على واجهة تشغيل واحدة بسيطة.
-          SOAK_VUS: ${{ github.event.inputs.vus }}
-          STRESS_SCALE: ${{ github.event.inputs.stress_scale }}
-          SOAK_DURATION: ${{ github.event.inputs.soak_duration }}
-          LOAD_TEST_UPLOAD_VUS: ${{ github.event.inputs.upload_vus }}
-          LOAD_TEST_LOGIN_EMAIL: ${{ github.event.inputs.login_email }}
-          # كلمة مرور حساب seedE2E الثابت — ليست سرًّا حقيقيًا (موجودة
-          # أصلًا كنص صريح في seedE2E.ts ولا تُستخدم إلا ضد قاعدة بيانات
-          # مؤقتة تُحذف مع انتهاء الـjob)، فوضعها هنا مباشرة آمن. إن
-          # ضُبط سرّ LOAD_TEST_LOGIN_PASSWORD على مستوى المستودع فسيُستخدم
-          # بدلاً منها (مثلاً لتشغيل هذا ضد حساب اختبار مختلف عمدًا).
-          LOAD_TEST_LOGIN_PASSWORD: ${{ secrets.LOAD_TEST_LOGIN_PASSWORD || 'E2eAdminPass123!' }}
-          LOAD_TEST_AD_ID: ${{ secrets.LOAD_TEST_AD_ID }}
+      - name: Warmup edge cache
+        if: inputs.warmup
+        run: |
+          echo "🔥 Warmup..."
+          for path in \
+            /api/v1/categories \
+            /api/v1/home/static \
+            /api/v1/ads?limit=10 \
+            "/api/v1/ads?sort=latest&city=%D8%BA%D8%B2%D8%A9" \
+            "/api/v1/ads?city=rafah&limit=5" \
+            /api/v1/products?limit=10 \
+            /api/v1/stores?limit=10 ; do
+            curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" \
+              "${{ inputs.target }}$path" || true
+            sleep 0.5
+          done
+          echo "🔥 Warmup done"
 
-      - name: Upload k6 summary
+      - name: Write k6 script
+        run: |
+          cat > /tmp/load.js <<'K6'
+          import http from 'k6/http';
+          import { check, sleep, group } from 'k6';
+          import { Trend, Counter, Rate } from 'k6/metrics';
+
+          // ─── Custom metrics ───
+          const cacheHits        = new Counter('cache_hits_total');
+          const cacheMisses      = new Counter('cache_misses_total');
+          const cacheOther       = new Counter('cache_other_total');
+          const hitLatency       = new Trend('hit_latency_ms', true);
+          const missLatency      = new Trend('miss_latency_ms', true);
+          const hitRatio         = new Rate('hit_ratio');
+
+          // ─── Options ───
+          const MAX_VUS  = Number(__ENV.MAX_VUS  || 200);
+          const DURATION = Number(__ENV.DURATION || 30);
+
+          export const options = {
+            scenarios: {
+              ramp: {
+                executor: 'ramping-vus',
+                startVUs: 0,
+                stages: [
+                  { duration: '15s', target: Math.min(25,  MAX_VUS) },
+                  { duration: '15s', target: Math.min(50,  MAX_VUS) },
+                  { duration: '15s', target: Math.min(100, MAX_VUS) },
+                  { duration: `${DURATION}s`, target: MAX_VUS },
+                  { duration: '10s', target: 0 },
+                ],
+                gracefulRampDown: '5s',
+              },
+            },
+            thresholds: {
+              'http_req_failed':  ['rate<0.01'],       // < 1% errors
+              'http_req_duration': ['p(95)<1500'],     // p95 < 1.5s
+              'checks':           ['rate>0.99'],       // > 99% checks pass
+            },
+            summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
+          };
+
+          // ─── Test data ───
+          const paths = [
+            '/api/v1/categories',
+            '/api/v1/home/static',
+            '/api/v1/ads?limit=10',
+            '/api/v1/ads?sort=latest&city=%D8%BA%D8%B2%D8%A9',
+            '/api/v1/ads?city=rafah&limit=5',
+            '/api/v1/products?limit=10',
+            '/api/v1/stores?limit=10',
+          ];
+
+          export default function () {
+            const path = paths[Math.floor(Math.random() * paths.length)];
+            const url  = `${__ENV.TARGET}${path}`;
+
+            const res = http.get(url, {
+              headers: { 'Accept': 'application/json' },
+              tags:    { path },
+            });
+
+            check(res, {
+              'status 200': (r) => r.status === 200,
+            });
+
+            const cache = String(res.headers['X-Proxy-Cache'] || 'NONE');
+            const isHit = cache.startsWith('HIT') || cache.startsWith('STALE') || cache.startsWith('KV-HIT');
+
+            if (isHit) {
+              cacheHits.add(1);
+              hitLatency.add(res.timings.duration);
+              hitRatio.add(1);
+            } else if (cache.startsWith('MISS')) {
+              cacheMisses.add(1);
+              missLatency.add(res.timings.duration);
+              hitRatio.add(0);
+            } else {
+              cacheOther.add(1);
+            }
+
+            sleep(0.05);
+          }
+
+          // ─── Custom summary ───
+          export function handleSummary(data) {
+            const md = [];
+            md.push('# 📊 k6 Load Test Report\n');
+            md.push(`**Target:** \`${__ENV.TARGET}\``);
+            md.push(`**Max VUs:** ${MAX_VUS}`);
+            md.push(`**Steady duration:** ${DURATION}s\n`);
+
+            md.push('## Cache\n');
+            const hits   = data.metrics.cache_hits_total?.values?.count   || 0;
+            const misses = data.metrics.cache_misses_total?.values?.count || 0;
+            const other  = data.metrics.cache_other_total?.values?.count  || 0;
+            const total  = hits + misses + other;
+            if (total > 0) {
+              md.push(`- **HIT:**  ${hits} (${(hits / total * 100).toFixed(1)}%)`);
+              md.push(`- **MISS:** ${misses} (${(misses / total * 100).toFixed(1)}%)`);
+              md.push(`- **Other:** ${other} (${(other / total * 100).toFixed(1)}%)\n`);
+            }
+
+            const t = data.metrics.http_req_duration?.values || {};
+            md.push('## Latency (all requests)\n');
+            md.push(`| Metric | Value |`);
+            md.push(`|--------|-------|`);
+            md.push(`| avg    | ${(t.avg   || 0).toFixed(0)}ms |`);
+            md.push(`| p50    | ${(t['med'] || 0).toFixed(0)}ms |`);
+            md.push(`| p90    | ${(t['p(90)'] || 0).toFixed(0)}ms |`);
+            md.push(`| p95    | ${(t['p(95)'] || 0).toFixed(0)}ms |`);
+            md.push(`| p99    | ${(t['p(99)'] || 0).toFixed(0)}ms |`);
+            md.push(`| max    | ${(t.max   || 0).toFixed(0)}ms |\n`);
+
+            const h = data.metrics.hit_latency_ms?.values || {};
+            if (h.avg) {
+              md.push('## HIT latency only\n');
+              md.push(`- p50: ${(h['med'] || 0).toFixed(0)}ms`);
+              md.push(`- p95: ${(h['p(95)'] || 0).toFixed(0)}ms\n`);
+            }
+            const m = data.metrics.miss_latency_ms?.values || {};
+            if (m.avg) {
+              md.push('## MISS latency only\n');
+              md.push(`- p50: ${(m['med'] || 0).toFixed(0)}ms`);
+              md.push(`- p95: ${(m['p(95)'] || 0).toFixed(0)}ms\n`);
+            }
+
+            const reqs     = data.metrics.http_reqs?.values?.count   || 0;
+            const failed   = data.metrics.http_req_failed?.values?.rate || 0;
+            const duration = data.state?.testRunDurationMs / 1000 || 1;
+            md.push('## Throughput\n');
+            md.push(`- Total requests: **${reqs}**`);
+            md.push(`- Throughput:     **${(reqs / duration).toFixed(1)} req/s**`);
+            md.push(`- Error rate:     **${(failed * 100).toFixed(2)}%**\n`);
+
+            return {
+              'stdout': JSON.stringify(data.metrics, null, 2).slice(0, 4000),
+              '/tmp/k6-summary.md': md.join('\n'),
+              '/tmp/k6-summary.json': JSON.stringify(data, null, 2),
+            };
+          }
+          K6
+
+      - name: Run k6
+        run: |
+          k6 run \
+            -e TARGET="${{ inputs.target }}" \
+            -e MAX_VUS="${{ inputs.max_vus }}" \
+            -e DURATION="${{ inputs.duration }}" \
+            --summary-export=/tmp/k6-export.json \
+            /tmp/load.js
+        continue-on-error: true
+
+      - name: Publish to job summary
+        if: always()
+        run: |
+          if [ -f /tmp/k6-summary.md ]; then
+            cat /tmp/k6-summary.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ k6 report missing" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: k6-summary-${{ github.event.inputs.scenario }}
-          path: backend/k6-summary.json
+          name: k6-load-test-report
+          path: |
+            /tmp/k6-summary.md
+            /tmp/k6-summary.json
+            /tmp/k6-export.json
           retention-days: 30
           if-no-files-found: warn
-
-      # سجل الباك اند وقت التشغيل — ضروري لتشخيص أي 500s أو تعطّل يظهر
-      # في نتائج k6 دون سبب واضح من مخرجاته هو نفسه.
-      - name: Upload backend runtime log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-log-${{ github.event.inputs.scenario }}
-          path: /tmp/backend.log
-          retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Stop backend
-        if: always()
-        run: kill "$BACKEND_PID" 2>/dev/null || true
