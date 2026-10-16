@@ -23,13 +23,14 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Download standalone PostgreSQL 18 client
+      - name: Install PostgreSQL 18 client from PGDG
         run: |
-          cd /tmp
-          curl -sL -o pg18.tar.gz https://get.enterprisedb.com/postgresql/postgresql-18.0-1-linux-x64-binaries.tar.gz
-          tar xzf pg18.tar.gz
-          echo "/tmp/pgsql/bin" >> $GITHUB_PATH
-          /tmp/pgsql/bin/pg_dump --version
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-18
+          pg_dump --version
 
       - name: Backup from Neon
         if: inputs.mode == 'backup-restore'
