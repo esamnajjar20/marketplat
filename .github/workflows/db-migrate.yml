@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Install PostgreSQL 18 client from PGDG
+      - name: Install PostgreSQL 18 client (PGDG repo)
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc
@@ -31,6 +31,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client-18
           pg_dump --version
+          psql --version
 
       - name: Backup from Neon
         if: inputs.mode == 'backup-restore'
