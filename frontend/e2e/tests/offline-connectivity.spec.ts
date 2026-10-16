@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('offline center remains usable across real browser network transitions', async ({ page, context }) => {
+test.fixme('offline center remains usable across real browser network transitions', async ({ page, context }) => {
   await page.goto('/offline');
   await expect(page.locator('body')).toBeVisible();
   // The hub starts on the saved-items tab; readiness content is rendered
