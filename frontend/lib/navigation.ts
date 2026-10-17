@@ -237,3 +237,31 @@ export function navChildIsActive(
 
   return pathname.startsWith(`${child.href}/`);
 }
+
+// ──────────────────────────────────────────────────────────────
+// Safe back navigation — appended separately (do not overwrite
+// the navigation data above).
+// ──────────────────────────────────────────────────────────────
+export interface BackCapableRouter {
+  back: () => void;
+  push: (href: string) => void;
+}
+
+export function safeBack(router: BackCapableRouter, fallback = "/"): void {
+  if (typeof window === "undefined") {
+    router.push(fallback);
+    return;
+  }
+  const ref = document.referrer;
+  let sameOrigin = false;
+  try {
+    sameOrigin = Boolean(ref) && new URL(ref).origin === window.location.origin;
+  } catch {
+    sameOrigin = false;
+  }
+  if (sameOrigin && window.history.length > 1) {
+    router.back();
+  } else {
+    router.push(fallback);
+  }
+}
