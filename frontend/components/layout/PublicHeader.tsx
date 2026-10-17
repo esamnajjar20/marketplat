@@ -103,16 +103,16 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           while staying on the same theme tokens as the rest of the
           header so it needs no separate dark-mode treatment. */}
       <div className="flex h-14 items-center justify-between px-4 lg:hidden">
-        {/* Keep the hamburger first in the RTL row so it stays on the right,
-            matching ProtectedHeader on every public page. */}
+        {/* RTL order: the first flex item is placed at the right edge.
+            Keep the hamburger first so it matches ProtectedHeader on mobile. */}
         <MobileNav />
-        <Link prefetch={false} href={ROUTES.home} className="shrink-0">
-          <Logo size="sm" />
-        </Link>
         <div className="flex items-center gap-1">
           {isAuthenticated && <NotificationBell />}
           <ThemeToggle />
         </div>
+        <Link prefetch={false} href={ROUTES.home} className="shrink-0">
+          <Logo size="sm" />
+        </Link>
       </div>
 
       <div className="container mx-auto hidden min-h-16 max-w-7xl items-center gap-3 px-4 py-2 lg:gap-4 lg:flex">

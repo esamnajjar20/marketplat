@@ -60,18 +60,19 @@ export function PublicProfileHeader({ user }: Props) {
   return (
     <div className="mx-auto w-full max-w-5xl">
       <section className="relative isolate overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-28 bg-gradient-to-l from-primary/15 via-violet-500/10 to-cyan-500/15" />
-      <div className="relative z-10 pb-5 pt-7 sm:pb-8 sm:pt-9">
-      <div className="relative z-10 flex flex-col items-center px-3 text-center sm:px-6">
-        <div className={`relative shrink-0 rounded-full p-[3px] ${profileStories.length ? 'bg-gradient-to-tr from-amber-500 via-pink-500 to-violet-600' : 'bg-transparent'}`}>
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-32 rounded-b-[1.75rem] bg-gradient-to-br from-primary-soft to-accent-soft" />
+      <div className="relative z-10 pb-6 pt-14 sm:pb-8 sm:pt-16">
+      <div className="relative z-10 flex flex-col items-center px-3 text-center sm:px-6 lg:flex-row lg:items-start lg:gap-10 lg:px-10 lg:text-start">
+        <div className="flex w-full flex-col items-center lg:w-72 lg:shrink-0 lg:items-start">
+<div className={`relative shrink-0 rounded-full p-[3px] ${profileStories.length ? 'bg-gradient-to-tr from-rating via-accent to-primary' : 'bg-transparent'}`}>
           <button
             type="button"
             disabled={profileStories.length === 0}
             onClick={() => profileStories.length > 0 && setActiveStoryGroup({ user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null }, stories: profileStories, hasUnseen: profileStories.some((story) => !story.viewed), latestCreatedAt: profileStories[profileStories.length - 1]?.createdAt ?? user.createdAt })}
-            className="relative block h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-[3px] border-background bg-muted shadow-md sm:h-24 sm:w-24"
+            className="relative block h-24 w-24 overflow-hidden rounded-full border-4 border-card bg-primary-soft shadow-lg sm:h-28 sm:w-28"
             aria-label={profileStories.length ? 'مشاهدة قصص المستخدم' : undefined}
           >
-            <SafeImage variant="avatar" src={avatar} alt={user.name} fill className="object-cover" sizes="96px" />
+            <SafeImage variant="avatar" src={avatar} alt={user.name} fill className="object-cover" sizes="112px" />
           </button>
           {seller?.verified && (
             <div className="absolute -bottom-0.5 -end-0.5 z-10">
@@ -87,42 +88,48 @@ export function PublicProfileHeader({ user }: Props) {
           )}
         </div>
 
-        <h1 className="mt-3.5 text-lg font-bold text-foreground sm:text-xl">{user.name}</h1>
+        <h1 className="mt-3.5 text-xl font-extrabold text-foreground sm:text-2xl">{user.name}</h1>
 
         <ProfileBadges sellerProfile={seller} className="mt-2" />
 
         {seller && seller.totalRatings > 0 && (
-          <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-warning-soft px-3 py-1 text-sm font-semibold text-foreground">
             <Star className="h-4 w-4 fill-rating text-rating" />
             {rating.toFixed(1)} ({seller.totalRatings} تقييم)
           </span>
         )}
 
-        {/* Stats card */}
-        <div className="mt-5 w-full max-w-3xl rounded-2xl border border-border/70 bg-background/90 p-3 shadow-sm sm:p-4">
+        {user.bio && (
+          <p className="mt-4 max-w-sm text-center lg:text-start text-sm leading-relaxed text-muted-foreground">{user.bio}</p>
+        )}
+
+        </div>
+<div className="flex w-full min-w-0 flex-1 flex-col items-center lg:pt-14">
+{/* Stats card */}
+        <div className="mt-5 w-full max-w-3xl rounded-2xl lg:mt-0 lg:max-w-none border border-border/70 bg-background/90 p-3 shadow-sm sm:p-4">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
+            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
               <FileText className="mb-1 h-4 w-4 text-primary" />
-              <span className="text-lg font-bold tabular-nums text-foreground">{user._count.ads}</span>
+              <span className="text-xl font-extrabold tabular-nums text-foreground">{user._count.ads}</span>
               <span className="text-xs text-muted-foreground">إعلان</span>
             </div>
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
-              <span className="text-lg font-bold tabular-nums text-foreground">{user.followStats.followers}</span>
+            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
+              <span className="text-xl font-extrabold tabular-nums text-foreground">{user.followStats.followers}</span>
               <span className="text-xs text-muted-foreground">متابع</span>
             </div>
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
-              <span className="text-lg font-bold tabular-nums text-foreground">{user.followStats.following}</span>
+            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
+              <span className="text-xl font-extrabold tabular-nums text-foreground">{user.followStats.following}</span>
               <span className="text-xs text-muted-foreground">أتابعهم</span>
             </div>
             {user.city && (
               <>
-                    <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
+                    <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
                   <MapPin className="mb-1 h-4 w-4 text-primary" />
                   <span className="max-w-full truncate text-xs text-muted-foreground">{user.city}</span>
                 </div>
               </>
             )}
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-xl bg-muted/55 px-2 py-3">
+            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
               <Calendar className="mb-1 h-4 w-4 text-primary" />
               <span className="max-w-full text-center text-xs leading-4 text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
             </div>
@@ -133,22 +140,18 @@ export function PublicProfileHeader({ user }: Props) {
           </div>
         </div>
 
-        {user.bio && (
-          <p className="mt-5 max-w-sm text-center text-sm leading-relaxed text-muted-foreground">{user.bio}</p>
-        )}
-
         {/* FEAT-REPORT-USER-STORE / FEAT-BLOCK-FROM-PROFILE: message,
             block, and report gate themselves on the viewer (via
             useAuthStore) — only show on someone else's profile; edit
             only shows on your own. */}
-        <div className="mt-5 w-full max-w-3xl space-y-3">
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
+        <div className="mt-5 w-full max-w-3xl space-y-3 lg:max-w-none">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
             {!isOwnProfile && (
               <button
                 type="button"
                 disabled={toggleFollow.isPending}
                 onClick={() => toggleFollow.mutate({ targetType: 'USER', targetId: user.id })}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+                className={`inline-flex min-h-11 items-center gap-2 rounded-2xl border px-5 py-2 text-sm font-bold transition disabled:opacity-60 ${isFollowing ? 'border-border bg-background hover:border-primary/40 hover:bg-primary/5' : 'border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'}`}
               >
                 {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                 {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
@@ -162,13 +165,14 @@ export function PublicProfileHeader({ user }: Props) {
             />
             <EditProfileButtonGate targetUserId={user.id} />
           </div>
-          <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-1 text-xs lg:justify-start text-muted-foreground">
             <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />
             <ReportUserButtonGate targetUserId={user.id} />
           </div>
         </div>
 
-        {activeStoryGroup && <StoryViewer group={activeStoryGroup} onClose={() => setActiveStoryGroup(null)} />}
+        </div>
+{activeStoryGroup && <StoryViewer group={activeStoryGroup} onClose={() => setActiveStoryGroup(null)} />}
 
       </div>
       </div>
