@@ -3,7 +3,7 @@
 import { useRef, type KeyboardEvent } from 'react';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Package, Tag, Layers, Star, Megaphone, Info, MapPin, Phone, Clock } from 'lucide-react';
+import { Star, Info, MapPin, Phone, Clock } from 'lucide-react';
 import { StoreAds } from '@/components/stores/StoreAds';
 import { StoreProducts } from '@/components/stores/StoreProducts';
 import { StoreCollections } from '@/components/stores/StoreCollections';

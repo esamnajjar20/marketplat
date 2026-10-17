@@ -6,7 +6,6 @@ import { safeBack } from '@/lib/navigation';
 
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Star, Plus, UserMinus, ChevronRight, ChevronLeft, BadgeCheck } from 'lucide-react';
-import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { getAvatarUrl }   from '@/lib/cloudinary';
 import { useIsUserOnline } from '@/hooks/queries/usePresence';
 import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
