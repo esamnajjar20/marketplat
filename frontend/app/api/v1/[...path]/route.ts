@@ -29,16 +29,20 @@ const DEFAULT_API_ORIGIN = 'https://marketplat.onrender.com';
  * instead of the migrated/seeded test database.
  */
 function getApiOrigin(): string {
-  const configured = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  // Only API_BASE_URL is consulted (not NEXT_PUBLIC_API_URL).
+  // NEXT_PUBLIC_API_URL on Cloudflare points at the API Worker itself;
+  // fetching one *.workers.dev Worker from another on the same zone is
+  // blocked by Cloudflare (error 1042) and returns the Workers 404 page,
+  // which manifested as a broken login and stale "element not found"
+  // toasts for authenticated users.
+  const configured = process.env.API_BASE_URL;
   const candidate = configured?.trim();
   if (!candidate) return DEFAULT_API_ORIGIN;
 
   const url = new URL(candidate);
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('API_BASE_URL/NEXT_PUBLIC_API_URL must use http or https');
+    throw new Error('API_BASE_URL must use http or https');
   }
-  // Accept either an origin or a value already ending in /api/v1 without
-  // accidentally generating /api/v1/api/v1/... when proxying the request.
   const basePath = url.pathname
     .replace(/\/api\/v1\/?$/, '')
     .replace(/\/+$/, '');

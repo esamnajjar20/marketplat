@@ -46,6 +46,7 @@ jobs:
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: '6379'
       TRUST_PROXY: '0'
+      API_BASE_URL: http://127.0.0.1:5000
       NEXT_PUBLIC_API_URL: http://127.0.0.1:5000
       NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
       E2E_BASE_URL: http://127.0.0.1:3000
