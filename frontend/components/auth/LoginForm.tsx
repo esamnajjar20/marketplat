@@ -89,7 +89,7 @@ export function LoginForm() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
+    if (isPending || !validate()) return;
     // FIX AUTH-06: getSafeRedirectPath was built and unit-tested but never
     // actually called — login always landed on /dashboard, ignoring the
     // ?from= target middleware.ts attaches when redirecting an
@@ -165,7 +165,13 @@ export function LoginForm() {
           toast (not this block) is the pattern used by every other
           mutation in the app (see useAuthMutations.ts). */}
 
-      <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={isFormIncomplete || isPending}>
+      <Button
+        type="submit"
+        size="lg"
+        className={`h-12 w-full rounded-xl text-base ${isFormIncomplete ? 'opacity-60' : ''}`}
+        aria-disabled={isFormIncomplete || isPending}
+        disabled={isPending}
+      >
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
       </Button>
       {isFormIncomplete && !isPending && (

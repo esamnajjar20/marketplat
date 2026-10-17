@@ -6,7 +6,8 @@
  * Workers على نفس نطاق *.workers.dev (خطأ 1042).
  *
  * Public GET/HEAD بدون Authorization/Cookie → عبر API Worker (edge cache).
- * الباقي (POST/PATCH, auth, admin) → مباشرة إلى Render.
+ * الباقي (POST/PATCH, auth, admin) → مباشرة إلى أصل الـAPI المضبوط
+ * عبر API_BASE_URL / NEXT_PUBLIC_API_URL، مع Render كقيمة افتراضية للإنتاج.
  *
  * EDGE-AUTH-STRIP-01: المستخدم المسجّل يرسل Authorization + cookie مع كل طلب،
  * فكان يتجاوز الـedge بالكامل حتى للقوائم العامة المتطابقة للجميع. الآن، لمسارات
@@ -18,7 +19,31 @@ import type { NextRequest } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { isViewerIndependentPath, stripIdentityHeaders } from '@/lib/edgeProxy';
 
-const RENDER = 'https://marketplat.onrender.com';
+const DEFAULT_API_ORIGIN = 'https://marketplat.onrender.com';
+
+/**
+ * Keep the server-side proxy pointed at the same backend as the app.
+ * CI and local development set NEXT_PUBLIC_API_URL to the disposable
+ * backend (for example http://localhost:5000); hard-coding Render here
+ * made browser login and all authenticated E2E journeys hit production
+ * instead of the migrated/seeded test database.
+ */
+function getApiOrigin(): string {
+  const configured = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL;
+  const candidate = configured?.trim();
+  if (!candidate) return DEFAULT_API_ORIGIN;
+
+  const url = new URL(candidate);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('API_BASE_URL/NEXT_PUBLIC_API_URL must use http or https');
+  }
+  // Accept either an origin or a value already ending in /api/v1 without
+  // accidentally generating /api/v1/api/v1/... when proxying the request.
+  const basePath = url.pathname
+    .replace(/\/api\/v1\/?$/, '')
+    .replace(/\/+$/, '');
+  return `${url.origin}${basePath}`;
+}
 
 const CACHEABLE_GET = new Set([
   'home', 'categories', 'product-categories', 'service-categories',
@@ -86,8 +111,8 @@ async function proxy(
     }
   }
 
-  // Render مباشرة (authenticated أو غير قابل للـcache)
-  return fetch(`${RENDER}/api/v1/${pathStr}${search}`, init);
+  // Direct backend fallback (authenticated or non-cacheable requests).
+  return fetch(`${getApiOrigin()}/api/v1/${pathStr}${search}`, init);
 }
 
 export const GET = proxy;
