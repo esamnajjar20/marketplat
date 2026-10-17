@@ -103,13 +103,15 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           while staying on the same theme tokens as the rest of the
           header so it needs no separate dark-mode treatment. */}
       <div className="flex h-14 items-center justify-between px-4 lg:hidden">
+        {/* Keep the hamburger first in the RTL row so it stays on the right,
+            matching ProtectedHeader on every public page. */}
+        <MobileNav />
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo size="sm" />
         </Link>
         <div className="flex items-center gap-1">
-          <ThemeToggle />
           {isAuthenticated && <NotificationBell />}
-          <MobileNav />
+          <ThemeToggle />
         </div>
       </div>
 
