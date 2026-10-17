@@ -4,6 +4,8 @@ import { useDebts } from '@/hooks/queries/useDebts';
 import { useDebtSummary } from '@/hooks/queries/useSales';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function SalesDebtsSection() {
   const [page, setPage] = useState(1);
@@ -17,7 +19,7 @@ export function SalesDebtsSection() {
         <p className="text-sm text-muted-foreground">المبيعات التي ما زال عليها مبلغ مستحق.</p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[['إجمالي الدين', summary.data?.totalDue ?? 0], ['متأخر', summary.data?.overdueDue ?? 0], ['مستحق اليوم', summary.data?.dueToday ?? 0], ['عدد المدينين', summary.data?.debtorCount ?? 0]].map(([label,value]) => <div key={String(label)} className="rounded-xl border bg-card p-4"><span className="text-xs text-muted-foreground">{label}</span><strong className="mt-1 block">{label === 'عدد المدينين' ? value : `${Number(value).toFixed(2)} ₪`}</strong></div>)}</div>
-      {query.isLoading ? <div className="py-12 text-center text-muted-foreground">جارٍ تحميل الديون…</div> :
+      {query.isLoading ? <LoadingGate loading={query.isLoading} label="جارٍ تحميل الديون" fallback={<div className="grid gap-3 md:grid-cols-2" aria-hidden="true">{Array.from({length:4},(_,i)=><Skeleton key={i} className="h-28 rounded-xl" />)}</div>}>{null}</LoadingGate> :
        query.isError ? <div className="py-12 text-center text-destructive">تعذر تحميل الديون.</div> :
        !query.data?.rows?.length ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">لا توجد ديون مستحقة.</div> :
        <div className="grid gap-3 md:grid-cols-2">

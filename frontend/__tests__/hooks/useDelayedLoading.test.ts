@@ -17,13 +17,13 @@ describe('useDelayedLoading', () => {
   it('shows after the delay when loading persists', () => {
     const { result } = renderHook(() => useDelayedLoading(true));
     expect(result.current).toBe(false);
-    act(() => { vi.advanceTimersByTime(200); });
+    act(() => { vi.advanceTimersByTime(500); });
     expect(result.current).toBe(true);
   });
 
   it('stays visible for minDuration once shown', () => {
     const { result, rerender } = renderHook(({ l }) => useDelayedLoading(l), { initialProps: { l: true } });
-    act(() => { vi.advanceTimersByTime(200); });
+    act(() => { vi.advanceTimersByTime(500); });
     expect(result.current).toBe(true);
     act(() => { vi.advanceTimersByTime(100); });
     rerender({ l: false });
@@ -35,7 +35,7 @@ describe('useDelayedLoading', () => {
 
   it('stays visible when loading restarts before it hides', () => {
     const { result, rerender } = renderHook(({ l }) => useDelayedLoading(l), { initialProps: { l: true } });
-    act(() => { vi.advanceTimersByTime(200); });
+    act(() => { vi.advanceTimersByTime(500); });
     rerender({ l: false });
     act(() => { vi.advanceTimersByTime(100); });
     rerender({ l: true });

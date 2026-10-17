@@ -16,7 +16,7 @@ export interface DelayedLoadingOptions {
  */
 export function useDelayedLoading(
   isLoading: boolean,
-  { delay = 200, minDuration = 500 }: DelayedLoadingOptions = {},
+  { delay = 500, minDuration = 500 }: DelayedLoadingOptions = {},
 ): boolean {
   const [visible, setVisible] = useState(false);
   const shownAt = useRef(0);

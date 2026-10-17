@@ -14,6 +14,8 @@ import { useAdminStoreTypes } from '@/hooks/queries/useAdmin';
 import { StoreTypeFieldsAdmin } from '@/components/admin/StoreTypeFieldsAdmin';
 import type { AdminStoreType, CreateAdminStoreTypePayload } from '@/types/admin.types';
 import { DEFAULT_STORE_TYPE_PRESENTATION, type StoreTypePresentation } from '@/types/store.types';
+import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const EMPTY_LABELS = {
   products: 'المنتجات',
@@ -128,7 +130,7 @@ export function StoreTypesAdmin() {
       )}
 
       {isLoading ? (
-        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">جارٍ التحميل…</div>
+        <LoadingGate loading={isLoading} label="جارٍ تحميل أنواع المتاجر" fallback={<div className="space-y-3" aria-hidden="true">{Array.from({length:4},(_,i)=><Skeleton key={i} className="h-20 rounded-xl" />)}</div>}>{null}</LoadingGate>
       ) : (
         <div className="grid gap-3">
           {types.map((type) => (

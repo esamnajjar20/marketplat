@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useDebts } from '@/hooks/queries/useDebts';
 import { Button } from '@/components/ui/button';
+import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DebtsPage() {
   const [page, setPage] = useState(1);
@@ -12,7 +14,7 @@ export default function DebtsPage() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-5 p-4 sm:p-6" dir="rtl">
       <header><h1 className="text-2xl font-bold">الديون</h1><p className="text-sm text-muted-foreground">المبيعات التي ما زال عليها مبلغ مستحق.</p></header>
-      {query.isLoading ? <div>جارٍ التحميل…</div> : query.isError ? <div className="text-destructive">تعذر تحميل الديون.</div> : !rows.length ? <div className="rounded-xl border border-dashed p-10 text-center">لا توجد ديون مستحقة.</div> : (
+      {query.isLoading ? <LoadingGate loading={query.isLoading} label="جارٍ تحميل الديون" fallback={<div className="grid gap-3 md:grid-cols-2" aria-hidden="true">{Array.from({length:4}).map((_,i)=><Skeleton key={i} className="h-28 rounded-xl" />)}</div>}>{null}</LoadingGate> : query.isError ? <div className="text-destructive">تعذر تحميل الديون.</div> : !rows.length ? <div className="rounded-xl border border-dashed p-10 text-center">لا توجد ديون مستحقة.</div> : (
         <div className="grid gap-3 md:grid-cols-2">{rows.map((sale) => {
           const text = `مرحبًا ${sale.buyerName}، تذكير بوجود مبلغ مستحق قدره ${Number(sale.dueAmount).toFixed(2)} ₪ على الفاتورة ${sale.invoiceNumber ?? ''}.`;
           const href = sale.buyerPhone ? `https://wa.me/${sale.buyerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;

@@ -5,6 +5,8 @@ import { useUpcomingInstallments, useOverdueInstallments } from '@/hooks/queries
 import { usePayInstallment } from '@/hooks/mutations/useInstallmentMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Installment = {
   id: string;
@@ -42,7 +44,7 @@ export function SalesInstallmentsSection() {
   const pay = usePayInstallment();
   const onPay = async (id: string, amount: number) => { await pay.mutateAsync({ id, amount }); };
 
-  if (upcoming.isLoading || overdue.isLoading) return <div className="py-12 text-center text-muted-foreground">جارٍ تحميل الأقساط…</div>;
+  if (upcoming.isLoading || overdue.isLoading) return <LoadingGate loading={upcoming.isLoading || overdue.isLoading} label="جارٍ تحميل الأقساط" fallback={<div className="grid gap-3 md:grid-cols-2" aria-hidden="true">{Array.from({length:4},(_,i)=><Skeleton key={i} className="h-28 rounded-xl" />)}</div>}>{null}</LoadingGate>;
   if (upcoming.isError || overdue.isError) return <div className="py-12 text-center text-destructive">تعذر تحميل الأقساط.</div>;
 
   return <div className="space-y-6"><div><h2 className="text-xl font-bold">الأقساط</h2><p className="text-sm text-muted-foreground">تابع الأقساط القادمة والمتأخرة وسجّل الدفعات.</p></div><Group title="متأخرة" rows={(overdue.data ?? []) as Installment[]} onPay={onPay} /><Group title="قادمة" rows={(upcoming.data ?? []) as Installment[]} onPay={onPay} /></div>;

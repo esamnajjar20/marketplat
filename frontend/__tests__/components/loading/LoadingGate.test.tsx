@@ -19,7 +19,7 @@ describe('LoadingGate', () => {
     expect(screen.queryByText('content')).not.toBeInTheDocument();
     expect(region).toHaveClass('opacity-0');
     expect(region).toHaveAttribute('aria-hidden', 'true');
-    act(() => { vi.advanceTimersByTime(200); });
+    act(() => { vi.advanceTimersByTime(500); });
     expect(region).toHaveClass('loading-reveal');
     expect(region).toHaveAttribute('aria-hidden', 'false');
     expect(region).toHaveAttribute('aria-busy', 'true');

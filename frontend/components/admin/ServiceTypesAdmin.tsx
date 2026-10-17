@@ -10,6 +10,8 @@ import { queryKeys } from '@/lib/queryKeys';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { Badge } from '@/components/shared/ui/Badge';
+import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { CreateServiceTypeFieldPayload, CreateServiceTypePayload, ServiceType, ServiceTypeField, ServiceTypeFieldType } from '@/types/service.types';
 
 const FIELD_TYPES: ServiceTypeFieldType[] = ['TEXT', 'TEXTAREA', 'NUMBER', 'BOOLEAN', 'SELECT', 'MULTI_SELECT'];
@@ -39,9 +41,11 @@ export function ServiceTypesAdmin() {
       <Button size="sm" className="gap-1.5" onClick={() => { setEditing('new'); setForm(structuredClone(EMPTY_TYPE)); }}><Plus className="h-4 w-4" /> نوع خدمة جديد</Button>
     </div>
     {editing === 'new' && <TypeEditor form={form} setForm={setForm} pending={create.isPending} onSave={save} onCancel={() => setEditing(null)} />}
-    {isLoading ? <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">جارٍ التحميل…</div> : <div className="grid gap-3">
-      {types.map((type) => <ServiceTypeRow key={type.id} type={type} editing={editing} setEditing={setEditing} form={form} setForm={setForm} onSave={save} onCancel={() => setEditing(null)} pending={update.isPending} invalidate={invalidate} />)}
-    </div>}
+    <LoadingGate loading={isLoading} fallback={<div className="grid gap-3"><Skeleton className="h-24" /><Skeleton className="h-24" /></div>}>
+      <div className="grid gap-3">
+        {types.map((type) => <ServiceTypeRow key={type.id} type={type} editing={editing} setEditing={setEditing} form={form} setForm={setForm} onSave={save} onCancel={() => setEditing(null)} pending={update.isPending} invalidate={invalidate} />)}
+      </div>
+    </LoadingGate>
   </div>;
 }
 

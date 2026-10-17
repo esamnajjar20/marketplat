@@ -6,6 +6,8 @@ import { useCustomers } from '@/hooks/queries/useCustomers';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { Badge } from '@/components/shared/ui/Badge';
+import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function SalesCustomersSection() {
   const [q, setQ] = useState('');
@@ -30,7 +32,7 @@ export function SalesCustomersSection() {
       </div>
 
       {query.isLoading ? (
-        <div className="py-12 text-center text-muted-foreground">جارٍ تحميل العملاء…</div>
+        <LoadingGate loading={query.isLoading} label="جارٍ تحميل العملاء" fallback={<div className="grid gap-3 md:grid-cols-2" aria-hidden="true">{Array.from({length:4},(_,i)=><Skeleton key={i} className="h-28 rounded-xl" />)}</div>}>{null}</LoadingGate>
       ) : query.isError ? (
         <div className="py-12 text-center text-destructive">تعذر تحميل العملاء.</div>
       ) : items.length === 0 ? (

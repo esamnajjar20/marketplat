@@ -14,10 +14,10 @@
 
 ## القواعد
 1. **`isLoading` للتحميل الأول فقط** (لا بيانات بعد) ⇒ هيكل Skeleton. **`isFetching`** (تحديث خلفي) ⇒ لا هيكل؛ مؤشر صغير أو لا شيء. أنماط `keepPreviousData` تبقى كما هي.
-2. **لا وميض:** أي مؤشر يظهر بعد 200ms ويبقى 500ms على الأقل (`useDelayedLoading` / `.loading-delayed`). الهيكل يحجز مكانه فوراً فلا قفزة تخطيط.
+2. **لا وميض:** أي مؤشر يظهر بعد 500ms ويبقى 500ms على الأقل (`useDelayedLoading` / `.loading-delayed`). الهيكل يحجز مكانه فوراً فلا قفزة تخطيط.
 3. **إعلان واحد لقارئ الشاشة:** `role="status"` على الحاوية فقط؛ الـ Spinner بدون `label` زخرفي (`aria-hidden`). لا تضع `label` على Spinner داخل حاوية status.
 4. **`prefers-reduced-motion`:** مدعوم داخل Spinner وCSS التأخير؛ لا حاجة لشيء إضافي.
 5. **`RefreshCw`** الدوّارة في أزرار «تحديث» أيقونة معنوية (إعادة تحميل) وليست مؤشر انتظار — تبقى كما هي.
 
 ## تفعيل `loading.tsx` (قرار منفصل)
-ملفات `loading.tsx.disabled` الخمسة في `app/(public)` معطّلة عمداً (انظر تعليق `PageTransition`: تجنّب الوميض). `PageLoadingState` الآن لا يومض (CSS فقط، 200ms)، فإعادة التفعيل = إزالة اللاحقة `.disabled`. اختبرها على `/ads` أولاً (تعليق @418-FIX في `app/(public)/ads/page.tsx`).
+ملفات `loading.tsx.disabled` الخمسة في `app/(public)` معطّلة عمداً (انظر تعليق `PageTransition`: تجنّب الوميض). `PageLoadingState` الآن لا يومض (CSS فقط، 500ms)، فإعادة التفعيل = إزالة اللاحقة `.disabled`. اختبرها على `/ads` أولاً (تعليق @418-FIX في `app/(public)/ads/page.tsx`).

@@ -12,6 +12,8 @@ import type { ServiceProviderServiceTypeProfile } from '@/types/service.types';
 import { queryKeys } from '@/lib/queryKeys';
 
 import { Spinner } from '@/components/ui/spinner';
+import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/ui/skeleton';
 export function ServiceProviderServiceTypesEditor() {
   const queryClient = useQueryClient();
   const profiles = useQuery({ queryKey: queryKeys.serviceProviders.myServiceTypes(), queryFn: () => serviceProvidersApi.getMyServiceTypeProfiles().then(r => r.data.data) });
@@ -32,7 +34,7 @@ export function ServiceProviderServiceTypesEditor() {
     },
   });
 
-  if (profiles.isLoading) return <div className="text-sm text-muted-foreground">جارٍ تحميل تخصصات مقدم الخدمة…</div>;
+  if (profiles.isLoading) return <LoadingGate loading={profiles.isLoading} label="جارٍ تحميل تخصصات مقدم الخدمة" fallback={<div className="space-y-3" aria-hidden="true">{Array.from({length:3},(_,i)=><Skeleton key={i} className="h-24 rounded-xl" />)}</div>}>{null}</LoadingGate>;
   const items = (profiles.data ?? []) as ServiceProviderServiceTypeProfile[];
   if (!items.length) return <p className="text-sm text-muted-foreground">أضف خدمة أولًا، وستظهر هنا الحقول الخاصة بمجالها.</p>;
 
