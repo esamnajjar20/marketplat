@@ -750,3 +750,17 @@ html[data-app-mode='native'] .pwa-safe-bottom {
 @media (prefers-reduced-motion: reduce) {
   [data-sonner-toast].market-toast button[data-button] { transition: none; }
 }
+
+/* PRIMARY-STRONG: darker green for text on primary-soft backgrounds.
+   Defined once here so a future theme change edits one place. */
+@layer utilities {
+  .text-primary-strong {
+    color: hsl(145 38% 22%);
+  }
+  .from-primary-strong {
+    --tw-gradient-from: hsl(145 38% 22%) var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+}
+

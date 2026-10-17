@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { safeBack } from '@/lib/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Star, Phone, MapPin, Sparkles, UserPlus, UserMinus, PackagePlus, Package, Settings2, BarChart3 } from 'lucide-react';
+import { Star, Phone, MapPin, Plus, UserMinus, ChevronRight, PackagePlus, Package, Settings2, BarChart3 } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
-import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { StoreBadges } from '@/components/stores/StoreBadges';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
-import { formatPhone } from '@/lib/formatters';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
@@ -52,24 +52,25 @@ interface Props {
 }
 
 /**
- * REDESIGN: rebuilt to match the "متجر" mock (cover photo with rounded
- * bottom corners, overlapping circular avatar + verified badge, centered
- * name/stats card, full-width call + follow row, centered bio). All
- * data/behavior is unchanged from before — same store fields, same
- * follow/own-store/report logic — only the layout and visual treatment
- * moved to match the design. Kept scoped to this component rather than
- * the shared Button/Badge primitives or Tailwind theme, since only this
- * page was asked to match the mock.
+ * REDESIGN v2 — matches the approved "صفحة المتجر" mockup 1:1 on mobile:
+ * rounded cover with back/share/favorite circles, 92px logo + verified
+ * badge, type label, name, plan tag + rating, location, open chip, bio,
+ * 3-tile stats card, [follow | call | message-icon] row. Desktop (lg+)
+ * puts the logo and identity side by side. All data/behavior is unchanged
+ * (follow / own-store / report / payments / catalog / hours).
  */
+const CIRCLE_BTN =
+  'flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/90 p-0 text-foreground shadow-md backdrop-blur hover:bg-white';
+const OUTLINE_BTN =
+  'flex h-[46px] items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-primary/25 bg-card text-[15px] font-bold text-primary-strong transition hover:bg-primary-soft active:scale-[0.98]';
+
 export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
+  const router = useRouter();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
   const toggleFollow = useToggleStoreFollow();
   const derivedIsFollowing = useIsFollowingStore(store.id);
   const isFollowing = isFollowingProp ?? derivedIsFollowing;
-  // sellerProfile is typed non-optional but can
-  // be null for stores whose owner never finished seller onboarding
-  // (see ProductDetail.tsx's ) — every access is guarded.
   const isOwnStore = currentUser?.id === store.sellerProfile?.userId;
   const shareUrl = `${APP_URL}${ROUTES.storeDetail(store.id)}`;
   const waDigits = store.phone.replace(/\D/g, '');
@@ -81,33 +82,160 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
   const avatar = getAvatarUrl(store.logoUrl ?? '', 128);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;
   const rating = parseFloat(store.sellerProfile?.averageRating ?? '0');
+  const totalRatings = store.sellerProfile?.totalRatings ?? 0;
   const storeLabels = getStoreTypeLabels(store.storeType);
   const presentation = getStoreTypePresentation(store.storeType);
+  const showFollow = isAuthenticated && !isOwnStore;
+  const place = [store.city, store.address].filter(Boolean).join(' — ');
 
   return (
-    <section className="mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
-      {/* الغلاف — الصورة فقط داخل القص؛ الشعار خارجها */}
-      <div className="relative">
-        <div className="relative h-40 w-full overflow-hidden rounded-b-[1.75rem] bg-muted sm:h-52 md:h-60 lg:h-72">
-          {cover ? (
-            <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1024px" priority />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-muted to-primary/80" aria-hidden>
-              <svg className="absolute inset-0 h-full w-full" viewBox="0 0 390 168" preserveAspectRatio="xMidYMid slice" fill="none" stroke="white" strokeOpacity={0.12} strokeWidth={1.5} aria-hidden="true">
-                <circle cx="330" cy="40" r="70" /><circle cx="330" cy="40" r="110" /><circle cx="40" cy="170" r="60" />
-                <path d="M0 120l60-40 60 40M120 120l60-40 60 40" />
-              </svg>
+    <section className="mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
+      {/* الغلاف */}
+      <div className="relative h-[168px] w-full overflow-hidden rounded-b-[28px] bg-muted sm:h-52 md:h-60 lg:h-72">
+        {cover ? (
+          <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1024px" priority />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-strong via-primary to-primary-muted" aria-hidden>
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 390 168" preserveAspectRatio="xMidYMid slice" fill="none" stroke="white" strokeOpacity={0.12} strokeWidth={1.5} aria-hidden="true">
+              <circle cx="330" cy="40" r="70" /><circle cx="330" cy="40" r="110" /><circle cx="40" cy="170" r="60" />
+              <path d="M0 120l60-40 60 40M120 120l60-40 60 40" />
+            </svg>
+          </div>
+        )}
+        <div className="absolute inset-x-3.5 top-3.5 z-10 flex items-center justify-between">
+          <button type="button" onClick={() => safeBack(router as any)} aria-label="رجوع" className={CIRCLE_BTN}>
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
+          <div className="flex items-center gap-2">
+            <ShareAdButton
+              title={store.name}
+              url={shareUrl}
+              variant="icon"
+              className={CIRCLE_BTN}
+              qrPayload={{
+                kind: 'store',
+                title: store.name,
+                price: null,
+                city: store.city ?? '',
+                extra: store.plan === 'FEATURED' ? 'متجر مميز' : 'متجر',
+                desc: store.description ?? '',
+              }}
+            />
+            <FavoriteButton entityType="STORE" entityId={store.id} warm className={`${CIRCLE_BTN} text-accent`} />
+          </div>
+        </div>
+      </div>
+
+      {/* الهوية */}
+      <div className="relative z-10 -mt-[46px] flex flex-col items-center px-4 lg:-mt-14 lg:flex-row lg:items-start lg:gap-6 lg:px-10">
+        <div className="relative shrink-0">
+          <div className="relative h-[92px] w-[92px] overflow-hidden rounded-full border-4 border-background bg-primary-soft shadow-lg lg:h-28 lg:w-28">
+            <SafeImage variant="avatar" src={avatar} alt={store.name} fill className="object-cover" sizes="112px" />
+          </div>
+          {store.sellerProfile?.verified && (
+            <div className="absolute -bottom-0.5 -end-0.5 z-10">
+              <VerifiedBadge className="h-[26px] w-[26px] border-[3px]" />
             </div>
           )}
-          <FavoriteButton
-            entityType="STORE"
-            entityId={store.id}
-            warm
-            className="absolute top-3 end-3 z-10 rounded-full bg-background/80 shadow-sm backdrop-blur-sm"
-          />
-          {/* SAVE-ENTITY-01-STORE: save the store's API response + its
-              logo and cover into Cache Storage. icon variant so it sits
-              next to FavoriteButton without crowding the cover. */}
+        </div>
+
+        <div className="flex min-w-0 flex-col items-center text-center lg:flex-1 lg:items-start lg:pt-16 lg:text-start">
+          <span className="mt-2 text-[13px] font-semibold text-primary lg:mt-0">{presentation.page.title}</span>
+          <h1 className="mt-0.5 text-[23px] font-extrabold leading-snug text-foreground">{store.name}</h1>
+          {presentation.page.subtitle && <p className="max-w-2xl text-xs leading-5 text-muted-foreground sm:text-sm">{presentation.page.subtitle}</p>}
+
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+            {store.plan === 'FEATURED' && (
+              <span className="inline-flex h-[26px] items-center rounded-full bg-accent-soft px-2.5 text-xs font-bold text-accent">متجر مميز</span>
+            )}
+            {totalRatings > 0 && (
+              <span className="inline-flex items-center gap-1 text-sm font-bold text-foreground">
+                <Star className="h-[15px] w-[15px] fill-rating text-rating" />
+                {rating.toFixed(1)}
+                <span className="font-normal text-muted-foreground">({totalRatings} تقييم)</span>
+              </span>
+            )}
+          </div>
+
+          {place && (
+            <span className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="max-w-[28rem] truncate">{place}</span>
+            </span>
+          )}
+
+          {store.isOpen !== null && (
+            <span className={`mt-2.5 inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-xs font-bold ${store.isOpen ? 'bg-primary-soft text-primary-strong' : 'bg-muted text-muted-foreground'}`}>
+              <span className={`h-2 w-2 rounded-full ${store.isOpen ? 'bg-primary' : 'bg-muted-foreground/60'}`} />
+              {store.isOpen ? 'مفتوح الآن' : 'مغلق الآن'}
+            </span>
+          )}
+
+          <StoreBadges storeId={store.id} className="mt-2 lg:justify-start" />
+
+          {store.description && (
+            <p className="mx-1.5 mt-3 line-clamp-3 max-w-2xl text-sm leading-[1.8] text-foreground/75">{store.description}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="px-4 pb-6 lg:px-10 lg:pb-10">
+        <StoreAttributesSummary storeTypeId={store.storeTypeId} fields={store.storeType?.fields} attributes={store.attributes} presentation={store.storeType?.presentation} />
+
+        {/* بطاقة الإحصائيات */}
+        <div className="mt-4 flex gap-2 rounded-[20px] border border-border bg-card p-2.5 shadow-sm">
+          {[
+            { v: store._count.products, l: storeLabels.product },
+            { v: store._count.followers, l: 'متابع' },
+            { v: rating > 0 ? rating.toFixed(1) : '—', l: 'التقييم' },
+          ].map((t) => (
+            <div key={t.l} className="flex flex-1 flex-col items-center gap-0.5 rounded-[14px] bg-surface-2 px-1 py-3">
+              <span className="text-[19px] font-extrabold leading-tight tabular-nums text-foreground">{t.v}</span>
+              <span className="text-xs text-muted-foreground">{t.l}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* متابعة | اتصال | مراسلة */}
+        <div className="mt-3.5 flex gap-2 lg:max-w-2xl">
+          {showFollow && (
+            <Button
+              variant={isFollowing ? 'outline' : 'default'}
+              disabled={toggleFollow.isPending}
+              onClick={() => toggleFollow.mutate(store.id)}
+              className="h-[46px] flex-[1.4] gap-2 rounded-[14px] text-[15px] font-bold"
+            >
+              {isFollowing ? <UserMinus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
+            </Button>
+          )}
+          <a href={`tel:${store.phone}`} className={`${OUTLINE_BTN} ${showFollow ? 'flex-1' : 'flex-[1.4]'}`}>
+            <Phone className="h-5 w-5" /> اتصال
+          </a>
+          {!isOwnStore && (
+            <MessageUserButtonGate
+              targetUserId={store.sellerProfile?.userId ?? ''}
+              size="icon"
+              variant="outline"
+              label=""
+              ariaLabel="مراسلة المتجر"
+              className={`${OUTLINE_BTN} w-[46px] shrink-0 gap-0 p-0`}
+            />
+          )}
+        </div>
+
+        {/* أدوات إضافية */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {!isOwnStore && waPhone.length >= 9 && (
+            <a
+              href={`https://wa.me/${waPhone}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 items-center justify-center rounded-[14px] border border-success/25 bg-success-soft px-4 text-sm font-bold text-success transition-colors hover:bg-success/15"
+            >
+              واتساب
+            </a>
+          )}
           <SaveOfflineButton
             type="store"
             id={store.id}
@@ -117,236 +245,46 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             thumbnail={store.logoUrl ?? null}
             imageUrls={[store.logoUrl, store.coverImageUrl].filter(Boolean) as string[]}
             variant="icon"
-            className="absolute top-3 end-14 z-10"
           />
-        </div>
-
-        {/* الشعار خارج الغلاف — توسيط آمن لـ RTL/LTR */}
-        <div className="relative z-10 -mt-14 flex justify-center lg:justify-start lg:px-10">
-          <div className="relative shrink-0">
-            <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-card bg-primary-soft shadow-lg sm:h-28 sm:w-28">
-              <SafeImage variant="avatar" src={avatar} alt={store.name} fill className="object-cover" sizes="112px" />
-            </div>
-            {store.sellerProfile?.verified && (
-              <div className="absolute -bottom-0.5 -end-0.5 z-10">
-                <VerifiedBadge />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* المحتوى — وسط الشاشة */}
-      <div className="relative mt-0 flex flex-col items-center gap-1 px-3 pb-6 text-center sm:px-6 sm:pb-8 lg:items-stretch lg:px-10 lg:pb-10 lg:text-start">
-        <div className="flex w-full flex-col items-center gap-1 lg:-mt-28 lg:items-start lg:pt-16 lg:ps-[8.5rem]">
-        <p className="mt-3 text-xs font-semibold text-primary">{presentation.page.title}</p>
-        <h1 className="flex flex-wrap items-center justify-center gap-2 lg:justify-start text-xl font-extrabold leading-snug text-foreground sm:text-2xl">
-          {store.name}
-          {store.plan === 'FEATURED' && (
-            <Badge className="gap-1 border-0 bg-accent-soft text-accent hover:bg-accent-soft">
-              <Sparkles className="h-3.5 w-3.5" /> مميز
-            </Badge>
-          )}
-        </h1>
-        {presentation.page.subtitle && <p className="max-w-2xl text-xs leading-5 text-muted-foreground sm:text-sm">{presentation.page.subtitle}</p>}
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:justify-start">
-          {store.city && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{store.city}</span>}
-          {store.address && <span className="max-w-[28rem] truncate">{store.address}</span>}
-        </div>
-
-        {/* STOREHEADER-NULL-GUARD-01: sellerProfile is documented as
-            possibly null (see SW-FIX-STOREHEADER-SP at the top of this
-            file) — every other access uses ?., this one didn't. A null
-            profile crashed the whole header instead of just skipping
-            the rating line. */}
-        {store.sellerProfile?.totalRatings != null && store.sellerProfile.totalRatings > 0 && (
-          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-warning-soft px-3 py-1 text-sm font-semibold text-foreground">
-            <Star className="h-3.5 w-3.5 fill-rating text-rating" />
-            {rating.toFixed(1)} ({store.sellerProfile.totalRatings} تقييم)
-          </span>
-        )}
-
-        {/* STORE-HOURS (Foundation v1): isOpen is computed server-side
-            from workingHours + the current time — null (nothing
-            rendered) means the owner hasn't set hours at all, same
-            "unknown, don't claim closed" reasoning as
-            stores.service.ts's computeIsOpen doc comment. Same
-            dot+label visual convention as ServiceProviderHeader's
-            AVAILABILITY_DOT, just derived instead of a stored enum. */}
-        {store.isOpen !== null && (
-          <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${store.isOpen ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}>
-            <span className={`h-2 w-2 rounded-full ${store.isOpen ? 'bg-success' : 'bg-muted-foreground/60'}`} />
-            {store.isOpen ? 'مفتوح الآن' : 'مغلق الآن'}
-          </span>
-        )}
-
-        {/* BADGES: computed trust signals (verified/highly-rated/
-            popular/new) — placed right under the open/closed line so
-            they read as part of the store's identity summary, before
-            the stats card. */}
-        <StoreBadges storeId={store.id} className="mt-2 lg:justify-start" />
-        </div>
-
-        {/* Stats card */}
-        <div className="mt-5 w-full max-w-4xl rounded-2xl border border-border/70 bg-background/90 p-3 shadow-sm sm:p-4 lg:max-w-none">
-          <div className="grid grid-cols-3 items-stretch gap-2 sm:gap-3">
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-              <span className="text-xl font-extrabold tabular-nums text-foreground">{store._count.followers}</span>
-              <span className="text-xs text-muted-foreground">متابع</span>
-            </div>
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-              <span className="text-xl font-extrabold tabular-nums text-foreground">{store._count.products}</span>
-              <span className="text-xs text-muted-foreground">{storeLabels.product}</span>
-            </div>
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-              <span className="max-w-full truncate text-sm font-bold text-foreground">{store.city}</span>
-              <span className="text-xs text-muted-foreground">الموقع</span>
-            </div>
-          </div>
-        </div>
-
-        <StoreAttributesSummary storeTypeId={store.storeTypeId} fields={store.storeType?.fields} attributes={store.attributes} presentation={store.storeType?.presentation} />
-
-        {/* Call + follow row */}
-        <div className="mt-5 flex w-full max-w-4xl flex-col gap-2 lg:max-w-none lg:flex-row">
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex-1">
-          <a
-            href={`tel:${store.phone}`}
-            className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 active:scale-[0.98]"
-          >
-            <Phone className="h-4 w-4" /> {formatPhone(store.phone)}
-          </a>
-          {isAuthenticated && !isOwnStore && (
-            <Button
-              variant={isFollowing ? 'outline' : 'default'}
-              disabled={toggleFollow.isPending}
-              onClick={() => toggleFollow.mutate(store.id)}
-              className="h-auto min-h-11 flex-1 gap-2 rounded-2xl py-2.5 font-bold"
-            >
-              {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-              {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
-            </Button>
-          )}
-        </div>
-
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex-1">
-          {!isOwnStore && waPhone.length >= 9 && (
-            <a
-              href={`https://wa.me/${waPhone}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex min-h-10 items-center justify-center rounded-2xl border border-success/25 bg-success-soft px-3 py-2 text-center text-sm font-medium text-success transition-colors hover:bg-success/15 dark:text-success"
-            >
-              واتساب
-            </a>
-          )}
-          {/* SHARE-QR-WIRE-STORE: store has no price; extra shows
-              plan status (مميز / عادي) so the receiver knows what
-              they're looking at offline. */}
-          <ShareAdButton
-            title={store.name}
-            url={shareUrl}
-            variant="button"
-            className="w-full"
-            qrPayload={{
-              kind: 'store',
-              title: store.name,
-              price: null,
-              city: store.city ?? '',
-              extra: store.plan === 'FEATURED' ? 'متجر مميز' : 'متجر',
-              desc: store.description ?? '',
-            }}
-          />
-        </div>
-
-        </div>
-
-        {/* تحميل كتالوج المنتجات كاملًا كملف HTML للمشاهدة بدون إنترنت */}
-        <div className="mt-3 w-full max-w-4xl lg:max-w-none">
           <DownloadStoreCatalogButton
             storeId={store.id}
             storeName={store.name}
             variant="outline"
-            className="w-full rounded-2xl py-2.5 h-auto gap-2 text-sm font-medium"
+            className="h-10 gap-2 rounded-[14px] text-sm font-medium"
           />
         </div>
 
-        {/* دفع فقط (بطاقات النت في الرئيسية) */}
-        {/* UNIFY-PAYMENTS-STORES: read from sellerProfile — store no
-            longer has its own paymentMethods column. */}
         <StorePaymentMethods
           paymentMethods={store.sellerProfile?.paymentMethods}
           entityName={store.name}
           storeName={store.name}
           fallbackName={store.name}
           fallbackPhone={store.phone}
-          className="w-full"
+          className="mt-3 w-full"
         />
 
-        {/* FEAT-MSG-UNIFY: "مراسلة المتجر" — unified messaging entry
-            point (MessageUserButtonGate) targeting the store's owner
-            user, exactly like SellerCard/ProductDetail's own "راسل
-            المتجر" button. Reuses the same (buyerId, sellerId) thread
-            as any other entry point for this owner — no store-specific
-            conversation. The component already hides itself on the
-            owner's own store and handles the unauthenticated case, so
-            no extra isOwnStore/isAuthenticated guard is needed here. */}
-        {!isOwnStore && (
-          <div className="mt-3 w-full max-w-4xl lg:max-w-none">
-            <MessageUserButtonGate
-              targetUserId={store.sellerProfile?.userId ?? ''}
-              size="lg"
-              variant="outline"
-              label="مراسلة المتجر"
-              className="w-full rounded-2xl py-3 h-auto gap-2 font-medium"
-            />
-          </div>
-        )}
-
-        {/* Owner tools — products + store management (NOT classified ads).
-            Ads stay on /ads/create from dashboard/nav; the store surface
-            is for catalog products. Shown for the owner regardless of
-            ACTIVE so PENDING stores can still prepare products/settings. */}
         {isOwnStore && (
-          <div className="mt-5 w-full max-w-4xl space-y-3 rounded-2xl lg:max-w-none border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
+          <div className="mt-4 space-y-3 rounded-[20px] border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
             {store.status === 'ACTIVE' && (
-              <Button asChild className="w-full rounded-2xl py-3 h-auto gap-2 font-semibold">
+              <Button asChild className="h-auto w-full gap-2 rounded-[14px] py-3 font-bold">
                 <Link href={ROUTES.myStoreProductCreate}>
                   <PackagePlus className="h-4 w-4" aria-hidden />
                   {storeLabels.addProduct}
                 </Link>
               </Button>
             )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
-                <Link href={ROUTES.myStoreProducts}>
-                  <Package className="h-4 w-4" aria-hidden />
-                  {storeLabels.products}
-                </Link>
+            <div className="grid grid-cols-3 gap-2">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
+                <Link href={ROUTES.myStoreProducts}><Package className="h-4 w-4" aria-hidden />{storeLabels.products}</Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
-                <Link href={ROUTES.myStoreAnalytics}>
-                  <BarChart3 className="h-4 w-4" aria-hidden />
-                  الإحصائيات
-                </Link>
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
+                <Link href={ROUTES.myStoreAnalytics}><BarChart3 className="h-4 w-4" aria-hidden />الإحصائيات</Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
-                <Link href={ROUTES.myStore}>
-                  <Settings2 className="h-4 w-4" aria-hidden />
-                  تعديل المتجر
-                </Link>
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
+                <Link href={ROUTES.myStore}><Settings2 className="h-4 w-4" aria-hidden />تعديل المتجر</Link>
               </Button>
             </div>
           </div>
-        )}
-
-        {store.description && (
-          <section className="mt-5 w-full max-w-2xl rounded-2xl lg:max-w-none border border-border/70 bg-card p-4 text-start shadow-sm sm:p-5">
-            <h2 className="text-sm font-semibold text-foreground">{presentation.page.details}</h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            {store.description}
-          </p>
-          </section>
         )}
 
         {store.latitude && store.longitude && (
@@ -354,25 +292,17 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             href={`https://www.openstreetmap.org/?mlat=${store.latitude}&mlon=${store.longitude}#map=16/${store.latitude}/${store.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 self-center lg:self-start rounded-2xl border border-border/70 bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-muted/50"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-[14px] border border-border bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-muted/50"
           >
             <MapPin className="h-3.5 w-3.5" />
             {presentation.page.location}
           </a>
         )}
 
-        {/* STORE-HOURS (Foundation v1): full weekly schedule, shown only
-            when the owner has set at least one day — same trigger as
-            the isOpen badge above. Collapsed under a <details> so it
-            doesn't compete with the description/follow row for space
-            on first paint; a buyer who wants the full week can expand
-            it. */}
         {store.workingHours && (
-          <details className="mt-4 w-full max-w-2xl rounded-2xl lg:max-w-none border border-border/70 bg-card p-4 text-sm text-start shadow-sm">
-            <summary className="cursor-pointer select-none font-semibold text-foreground">
-              ساعات العمل
-            </summary>
-            <ul className="mt-3 space-y-1 rounded-xl bg-muted/35 p-3">
+          <details className="mt-3 w-full rounded-[20px] border border-border bg-card p-4 text-start text-sm shadow-sm lg:max-w-2xl">
+            <summary className="cursor-pointer select-none font-semibold text-foreground">ساعات العمل</summary>
+            <ul className="mt-3 space-y-1 rounded-xl bg-surface-2 p-3">
               {STORE_HOURS_DAYS.map(({ key, label }) => {
                 const schedule = store.workingHours![key];
                 return (
@@ -386,14 +316,8 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           </details>
         )}
 
-
         {isAuthenticated && !isOwnStore && (
           <div className="mt-3">
-            {/* FEAT-REPORT-USER-STORE: same isOwnStore/isAuthenticated
-                guard the follow button above uses — a store's own
-                seller shouldn't see (or submit) a report against their
-                own store, matching the self-report check
-                reports.service.ts already enforces server-side. */}
             <ReportStoreButton storeId={store.id} />
           </div>
         )}

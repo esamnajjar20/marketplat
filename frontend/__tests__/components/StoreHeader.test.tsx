@@ -97,7 +97,7 @@ describe('StoreHeader', () => {
     render(<StoreHeader store={store} />);
 
     expect(screen.getByText('متجر السلام')).toBeInTheDocument();
-    expect(screen.getByText(/4\.7/)).toBeInTheDocument();
+    expect(screen.getAllByText(/4\.7/).length).toBeGreaterThan(0);
   });
 
   it('omits the rating line when totalRatings is 0', () => {
@@ -109,7 +109,7 @@ describe('StoreHeader', () => {
   it('shows the FEATURED plan badge only for a FEATURED store (FIX P1-4)', () => {
     render(<StoreHeader store={{ ...store, plan: 'FEATURED' }} />);
 
-    expect(screen.getByText('مميز')).toBeInTheDocument();
+    expect(screen.getByText('متجر مميز')).toBeInTheDocument();
   });
 
   it('renders follower/product counts and city', () => {
@@ -120,10 +120,10 @@ describe('StoreHeader', () => {
     expect(screen.getAllByText('خان يونس').length).toBeGreaterThan(0);
   });
 
-  it('renders a tel: call link with the formatted phone number', () => {
+  it('renders a tel: call link', () => {
     render(<StoreHeader store={store} />);
 
-    const callLink = screen.getByText(/0599/).closest('a');
+    const callLink = screen.getByText('اتصال').closest('a');
     expect(callLink).toHaveAttribute('href', 'tel:0599111222');
   });
 

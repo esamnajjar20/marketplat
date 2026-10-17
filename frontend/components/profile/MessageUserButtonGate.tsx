@@ -28,10 +28,12 @@ interface Props {
   size?: 'default' | 'sm' | 'lg' | 'icon';
   variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link';
   label?: string;
+  /** accessible name for icon-only usage (label=""). */
+  ariaLabel?: string;
   context?: { type: 'product' | 'service'; id: string };
 }
 
-export function MessageUserButtonGate({ targetUserId, className, size = 'sm', variant = 'outline', label = 'مراسلة', context }: Props) {
+export function MessageUserButtonGate({ targetUserId, className, size = 'sm', variant = 'outline', label = 'مراسلة', ariaLabel, context }: Props) {
   const router = useRouter();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
@@ -65,10 +67,11 @@ export function MessageUserButtonGate({ targetUserId, className, size = 'sm', va
       className={className ?? 'gap-2 min-h-11'}
       disabled={startConversation.isPending}
       aria-busy={startConversation.isPending}
+      aria-label={ariaLabel ?? (label || 'مراسلة')}
       onClick={handleMessage}
     >
-      <MessageSquare className="h-4 w-4" />
-      {startConversation.isPending ? 'جارٍ التحضير…' : label}
+      <MessageSquare className={label ? 'h-4 w-4' : 'h-5 w-5'} />
+      {label ? (startConversation.isPending ? 'جارٍ التحضير…' : label) : null}
     </Button>
   );
 }

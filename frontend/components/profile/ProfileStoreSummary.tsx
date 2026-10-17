@@ -2,8 +2,6 @@
 
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Sparkles } from 'lucide-react';
-import { Badge } from '@/components/shared/ui/Badge';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { ROUTES } from '@/lib/constants';
 import type { PublicProfileStore } from '@/types/user.types';
@@ -31,7 +29,7 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
     <div className="space-y-4">
       <Link
         href={ROUTES.storeDetail(store.id)}
-        className="group block overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="group block overflow-hidden rounded-[20px] border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         {cover && (
           <div className="relative h-32 w-full bg-muted sm:h-40">
@@ -39,22 +37,20 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
           </div>
         )}
         <div className="flex items-center gap-4 p-4 sm:p-5">
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-border/70 bg-muted shadow-sm">
-            <SafeImage variant="avatar" src={logo} alt={store.name} fill className="object-cover" sizes="64px" />
+          <div className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[14px] bg-primary-soft">
+            <SafeImage variant="avatar" src={logo} alt={store.name} fill className="object-cover" sizes="52px" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-base font-bold text-foreground transition-colors group-hover:text-primary sm:text-lg">{store.name}</h3>
+              <h3 className="truncate text-[15px] font-extrabold text-foreground transition-colors group-hover:text-primary sm:text-lg">{store.name}</h3>
               {store.plan === 'FEATURED' && (
-                <Badge className="shrink-0 gap-1 bg-accent text-accent-foreground hover:bg-accent">
-                  <Sparkles className="h-3 w-3" /> مميز
-                </Badge>
+                <span className="inline-flex h-[26px] shrink-0 items-center rounded-full bg-accent-soft px-2.5 text-xs font-bold text-accent">متجر مميز</span>
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{store.city || 'متجر على المنصة'}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">{store._count.products} منتج</span>
-              <span className="rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground">{store._count.followers} متابع</span>
+              <span className="rounded-full bg-primary-soft px-2.5 py-1 font-bold text-primary-strong">{store._count.products} منتج</span>
+              <span className="rounded-full bg-surface-2 px-2.5 py-1 font-bold text-foreground/80">{store._count.followers} متابع</span>
             </div>
           </div>
         </div>
@@ -65,7 +61,7 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
         entityName={store.name}
         fallbackName={store.name}
         fallbackPhone={(store as { phone?: string }).phone}
-        className="w-full rounded-2xl border border-border/70 bg-card p-3 sm:p-4"
+        className="w-full rounded-[20px] border border-border bg-card p-3 sm:p-4"
       />
     </div>
   );
