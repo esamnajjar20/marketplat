@@ -20,6 +20,7 @@ import {
   clearActiveOfflineDraftId,
 } from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 export function useCreateRequest() {
   const qc = useQueryClient();
@@ -55,8 +56,13 @@ export function useCreateRequest() {
       clearActiveOfflineDraftId();
       void invalidateRequestCaches(qc, created?.id);
       toast.success('تم نشر طلبك');
-      if (created?.id) router.push(ROUTES.request(created.id));
-      else router.push(ROUTES.requests);
+      if (created?.id) {
+        signalNavigationStart(ROUTES.request(created.id));
+        router.push(ROUTES.request(created.id));
+      } else {
+        signalNavigationStart(ROUTES.requests);
+        router.push(ROUTES.requests);
+      }
     },
     onError: async (err, input) => {
       const parsed = parseApiError(err);
@@ -175,6 +181,7 @@ export function useAcceptRequestOffer() {
       const conversationId = (data as { conversationId?: string } | undefined)?.conversationId;
       if (conversationId) {
         toast.success('تم قبول العرض — جاري فتح المحادثة');
+        signalNavigationStart(ROUTES.conversationDetail(conversationId));
         router.push(ROUTES.conversationDetail(conversationId));
         return;
       }
@@ -183,6 +190,7 @@ export function useAcceptRequestOffer() {
         action: {
           label: 'الرسائل',
           onClick: () => {
+            signalNavigationStart(ROUTES.messages);
             router.push(ROUTES.messages);
           },
         },

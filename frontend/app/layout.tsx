@@ -38,6 +38,7 @@ import '@fontsource/cairo/400.css';
 import '@fontsource/cairo/600.css';
 import '@fontsource/ibm-plex-sans-arabic/400.css';
 import '@fontsource/ibm-plex-mono/400.css';
+import './navigation-progress.css';
 import { headers }                    from 'next/headers';
 import { AppProviders }               from '@/providers/AppProviders';
 import { WebVitals }                  from '@/components/shared/WebVitals';

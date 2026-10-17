@@ -32,6 +32,7 @@ import { useAuthStore, selectPatchUser, selectLogout } from '@/store/auth.store'
 import { clearAuthCookies } from './useAuthMutations';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { unwrapData } from '@/lib/apiPagination';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import type { UpdateProfilePayload, NotificationPreferences } from '@/types/user.types';
 
 export function useUpdateProfile() {
@@ -166,6 +167,7 @@ export function useDeleteAccount() {
       // and notifications clear that were already here.
       clearSensitiveLocalData();
       toast.success('تم حذف حسابك بنجاح');
+      signalNavigationStart(ROUTES.home);
       router.push(ROUTES.home);
     },
     onError: (err) => toast.error(parseApiError(err).message),

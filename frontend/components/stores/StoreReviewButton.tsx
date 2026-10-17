@@ -7,6 +7,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { StoreReviewDialog } from './StoreReviewDialog';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 interface Props {
   storeId: string;
@@ -30,7 +31,9 @@ export function StoreReviewButton({ storeId, storeName, ownerUserId }: Props) {
     if (!isAuthenticated) {
       // see StickyContactBar's identical fix —
       // LoginForm reads `?from=`, not `?next=`.
-      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.storeDetail(storeId))}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(ROUTES.storeDetail(storeId))}`;
+      signalNavigationStart(destination);
+      router.push(destination);
       return;
     }
     setOpen(true);

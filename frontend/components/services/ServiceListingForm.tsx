@@ -32,7 +32,8 @@ import {
 import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { reconcileImages } from '@/lib/reconcileImages';
-import { MAX_IMAGES, ROUTES } from '@/lib/constants';;
+import { MAX_IMAGES, ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
 import { ServiceListingFormPreview } from '@/components/services/ServiceListingFormPreview';
@@ -358,6 +359,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
     if (typeof window !== 'undefined' && window.history.length > 1) {
       history.back();
     } else {
+      signalNavigationStart(ROUTES.myServices);
       router.push(ROUTES.myServices);
     }
   }
@@ -771,8 +773,8 @@ export function ServiceListingForm({ mode, listing }: Props) {
               </Button>
             )}
             {(!isWizard || step === totalSteps) && (
-              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete || isPending}>
-                {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الخدمة' : 'حفظ التعديلات'}
+              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete} loading={isPending} loadingText="جارٍ الحفظ…">
+                {mode === 'create' ? 'نشر الخدمة' : 'حفظ التعديلات'}
               </Button>
             )}
           </div>

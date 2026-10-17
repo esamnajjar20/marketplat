@@ -47,7 +47,7 @@ export function RecentProductsSection() {
   for (const id of shownAbove) promotedIds.add(id);
   const items = dedupeKeepingMin(rail?.items ?? [], promotedIds).slice(0, limit);
   const showLoading = feed.isPending;
-  const showError = feed.isError;
+  const showError = feed.isError && !feed.data;
 
   const header = (
     <SectionHeader

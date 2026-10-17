@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/s
 import { useCreateServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { toast } from 'sonner';
 
 interface Props {
@@ -47,6 +48,7 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
     if (!isAuthenticated) {
       // see StickyContactBar's identical fix —
       // LoginForm reads `?from=`, not `?next=`.
+      signalNavigationStart(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.serviceDetail(listingId))}`);
       router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.serviceDetail(listingId))}`);
       return;
     }
@@ -67,7 +69,10 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
           toast.success('تم إرسال الطلب — تابع حالته من «طلباتي»', {
             action: {
               label: 'طلباتي',
-              onClick: () => router.push(ROUTES.myServiceRequests),
+              onClick: () => {
+                signalNavigationStart(ROUTES.myServiceRequests);
+                router.push(ROUTES.myServiceRequests);
+              },
             },
           });
         },
@@ -129,9 +134,11 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={details.trim().length < MIN_DETAILS_LENGTH || createRequest.isPending}
+                  disabled={details.trim().length < MIN_DETAILS_LENGTH}
+                  loading={createRequest.isPending}
+                  loadingText="جارٍ الإرسال…"
                 >
-                  {createRequest.isPending ? 'جارٍ الإرسال…' : 'إرسال الطلب'}
+                  إرسال الطلب
                 </Button>
               </div>
             </div>

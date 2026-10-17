@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 /**
  * FEAT-REPORT-USER-STORE: extracted from ReportAdButton.tsx's dialog +
  * mutation pattern (itself from ) so ReportUserButton and
@@ -61,7 +63,9 @@ export function ReportButton<TData, TError>({
       const returnTo = typeof window !== 'undefined'
         ? `${window.location.pathname}${window.location.search}`
         : '/';
-      router.push(`${ROUTES.login}?from=${encodeURIComponent(returnTo)}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(returnTo)}`;
+      signalNavigationStart(destination);
+      router.push(destination);
       return;
     }
     setReason('SCAM');
@@ -134,8 +138,8 @@ export function ReportButton<TData, TError>({
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setOpen(false)} disabled={mutation.isPending}>إلغاء</Button>
-              <Button variant="destructive" onClick={handleSubmit} disabled={mutation.isPending} aria-busy={mutation.isPending}>
-                {mutation.isPending ? 'جارٍ الإرسال…' : 'إرسال البلاغ'}
+              <Button variant="destructive" onClick={handleSubmit} loading={mutation.isPending} loadingText="جارٍ الإرسال…">
+                إرسال البلاغ
               </Button>
             </div>
           </div>

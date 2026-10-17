@@ -172,9 +172,11 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
         <Button
           type="submit"
           className="min-h-11 flex-1 sm:flex-none"
-          disabled={submit.isPending || !canEdit || !Number.isFinite(Number(price)) || Number(price) <= 0}
+          disabled={!canEdit || !Number.isFinite(Number(price)) || Number(price) <= 0}
+          loading={submit.isPending}
+          loadingText="جاري الإرسال…"
         >
-          {submit.isPending ? 'جاري الإرسال…' : myOffer ? 'تحديث العرض' : 'إرسال العرض'}
+          {myOffer ? 'تحديث العرض' : 'إرسال العرض'}
         </Button>
         {myOffer?.status === 'PENDING' && (
           <Button

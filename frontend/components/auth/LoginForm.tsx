@@ -171,8 +171,10 @@ export function LoginForm() {
         className={`h-12 w-full rounded-xl text-base ${isFormIncomplete ? 'opacity-60' : ''}`}
         aria-disabled={isFormIncomplete || isPending}
         disabled={isFormIncomplete || isPending}
+        loading={isPending}
+        loadingText="جارٍ الدخول…"
       >
-        {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
+        تسجيل الدخول
       </Button>
       {isFormIncomplete && !isPending && (
         <p className="text-center text-xs text-muted-foreground">أدخل البريد وكلمة المرور للمتابعة</p>

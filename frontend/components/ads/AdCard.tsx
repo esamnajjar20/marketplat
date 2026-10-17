@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { AdListItem } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { CardKindBadge, CardOfflineBadgeView, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
 import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_FOCUS, CARD_HOVER, CARD_IMAGE_HOVER, CARD_HEART_BUTTON_BASE, CARD_HEART_BUTTON_BG, CARD_HEART_ICON_FILLED, CARD_HEART_ICON_OUTLINE, CARD_IMAGE_43, CARD_IMAGE_SHADE, CARD_META_ITEM, CARD_PRICE_ROW, CARD_MAX_BADGES, CARD_PRESS, CARD_PRICE_UNSET, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
 
@@ -53,7 +54,7 @@ export const AdCard = memo(function AdCard({ ad, context = 'public', className, 
 
   function handleFavoriteClick(e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation();
-    if (!isAuth) { toast.error('سجّل الدخول لحفظ الإعلان'); router.push(`${ROUTES.login}?from=${encodeURIComponent(detailHref)}`); return; }
+    if (!isAuth) { toast.error('سجّل الدخول لحفظ الإعلان'); const destination = `${ROUTES.login}?from=${encodeURIComponent(detailHref)}`; signalNavigationStart(destination); router.push(destination); return; }
     if (!isFavorited) setPopKey((k) => k + 1);
     toggleFavorite.mutate(ad.id);
   }

@@ -300,12 +300,13 @@ export function PushNotificationToggle() {
           <Button
             variant="outline"
             size="sm"
-            disabled={testing}
+            loading={testing}
+            loadingText="جارٍ الإرسال…"
             onClick={() => void handleTest()}
             className="gap-1.5"
           >
             <Send className="h-3.5 w-3.5 rtl:-scale-x-100" aria-hidden />
-            {testing ? 'جارٍ الإرسال…' : 'إرسال إشعار تجريبي'}
+            إرسال إشعار تجريبي
           </Button>
         </div>
       )}

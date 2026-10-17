@@ -34,7 +34,8 @@ export function AdminExportButton({ kind, label }: { kind: Kind; label: string }
       variant="outline"
       size="sm"
       className="gap-1.5"
-      disabled={pending}
+      loading={pending}
+      loadingText="جارٍ التصدير…"
       onClick={async () => {
         setPending(true);
         try {
@@ -48,7 +49,7 @@ export function AdminExportButton({ kind, label }: { kind: Kind; label: string }
       }}
     >
       <Download className="h-3.5 w-3.5" />
-      {pending ? 'جارٍ التصدير…' : label}
+      {label}
     </Button>
   );
 }

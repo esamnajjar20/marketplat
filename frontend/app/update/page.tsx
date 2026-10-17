@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
+import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { onPwaUpdateAvailable, getPwaUpdateRegistration } from '@/components/pwa/UpdatePrompt';
 import { activateWaitingServiceWorker, type UpdateStage } from '@/lib/pwa';
@@ -67,7 +67,7 @@ export default function UpdatePage() {
         }`}
       >
         {isUpdating ? (
-          <Loader2 className="h-10 w-10 animate-spin" />
+          <Spinner size="xl" className="text-current" />
         ) : hasUpdate ? (
           <RefreshCw className="h-10 w-10" />
         ) : (

@@ -13,6 +13,7 @@ import { FormSteps }  from '@/components/shared/forms/FormSteps';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { PriceInput }  from '@/components/shared/forms/PriceInput';
 import { CITIES, CONDITION_LABELS, MAX_IMAGES, ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
@@ -216,6 +217,7 @@ export function AdForm({ mode, ad }: Props) {
     if (typeof window !== 'undefined' && window.history.length > 1) {
       history.back();
     } else {
+      signalNavigationStart(ROUTES.myAds);
       router.push(ROUTES.myAds);
     }
   }
@@ -727,8 +729,8 @@ export function AdForm({ mode, ad }: Props) {
               </Button>
             )}
             {(!isWizard || step === totalSteps) && (
-              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete || isPending}>
-                {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
+              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete} loading={isPending} loadingText="جارٍ الحفظ…">
+                {mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
               </Button>
             )}
           </div>

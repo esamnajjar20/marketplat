@@ -147,10 +147,11 @@ export function ProfileSettingsForm() {
             type="button"
             variant="outline"
             size="sm"
-            disabled={uploadAvatar.isPending}
+            loading={uploadAvatar.isPending}
+            loadingText="جارٍ الرفع…"
             onClick={() => avatarInputRef.current?.click()}
           >
-            {uploadAvatar.isPending ? 'جارٍ الرفع…' : 'تغيير الصورة'}
+            تغيير الصورة
           </Button>
           <input
             ref={avatarInputRef}
@@ -189,8 +190,8 @@ export function ProfileSettingsForm() {
         <p className="text-xs text-muted-foreground text-end">{bio.length}/300</p>
       </FormField>
 
-      <Button type="submit" disabled={isFormIncomplete || updateProfile.isPending}>
-        {updateProfile.isPending ? 'جارٍ الحفظ…' : 'حفظ التغييرات'}
+      <Button type="submit" disabled={isFormIncomplete} loading={updateProfile.isPending} loadingText="جارٍ الحفظ…">
+        حفظ التغييرات
       </Button>
     </form>
   );

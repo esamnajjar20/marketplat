@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
@@ -113,15 +114,15 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
           className,
         )}
       >
-        <Heart
+        {toggleFavorite.isPending ? <Spinner size="xs" /> : <Heart
           key={popKey}
           className={cn(
             'h-4 w-4',
             popKey > 0 && 'motion-safe:animate-heart-pop',
             isFavorited ? 'fill-destructive text-destructive' : 'text-foreground',
           )}
-        />
-        {toggleFavorite.isPending ? PENDING_LABEL : textLabel}
+        />}
+        {textLabel}
       </button>
     );
   }
@@ -142,7 +143,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
         className,
       )}
     >
-      <Heart
+      {toggleFavorite.isPending ? <Spinner size="xs" /> : <Heart
         key={popKey}
         className={cn(
           iconDim,
@@ -151,7 +152,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
             ? isCard ? CARD_HEART_ICON_FILLED : 'fill-destructive text-destructive'
             : isCard ? CARD_HEART_ICON_OUTLINE : 'text-foreground',
         )}
-      />
+      />}
     </button>
   );
 }

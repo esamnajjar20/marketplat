@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 /**
  * CompleteProfileForm — FEAT-GOOGLE-COMPLETE-PROFILE.
  *
@@ -97,7 +99,7 @@ export function CompleteProfileForm() {
     // form only needs to react to success by leaving the page.
     updateProfile.mutate(
       { name: name.trim(), city },
-      { onSuccess: () => router.replace(ROUTES.home) }
+      { onSuccess: () => { signalNavigationStart(ROUTES.home); router.replace(ROUTES.home); } }
     );
   }
 
@@ -125,8 +127,8 @@ export function CompleteProfileForm() {
         </Select>
       </FormField>
 
-      <Button type="submit" className="h-12 w-full rounded-xl" disabled={updateProfile.isPending}>
-        {updateProfile.isPending ? 'جارٍ الحفظ...' : 'متابعة'}
+      <Button type="submit" className="h-12 w-full rounded-xl" disabled={updateProfile.isPending} loading={updateProfile.isPending} loadingText="جارٍ الحفظ...">
+        متابعة
       </Button>
     </form>
   );

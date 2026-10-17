@@ -205,8 +205,8 @@ export function RegisterForm() {
         </Select>
       </FormField>
 
-      <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base mt-2" disabled={isFormIncomplete || isPending}>
-        {isPending ? 'جارٍ التسجيل…' : 'إنشاء الحساب'}
+      <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base mt-2" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ التسجيل…">
+        إنشاء الحساب
       </Button>
 
       <AuthDivider />

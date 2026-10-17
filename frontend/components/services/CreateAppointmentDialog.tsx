@@ -113,9 +113,11 @@ export function CreateAppointmentDialog({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!selectedRange || createAppointment.isPending}
+              disabled={!selectedRange}
+              loading={createAppointment.isPending}
+              loadingText="جارٍ الحجز…"
             >
-              {createAppointment.isPending ? 'جارٍ الحجز…' : 'تأكيد الحجز'}
+              تأكيد الحجز
             </Button>
           </div>
         </div>

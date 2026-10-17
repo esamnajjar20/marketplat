@@ -631,9 +631,11 @@ export function CreateRequestForm() {
           <Button
             type="submit"
             className="min-h-11 min-w-[8rem]"
-            disabled={create.isPending || !categoryId || title.trim().length < 5}
+            disabled={!categoryId || title.trim().length < 5}
+            loading={create.isPending}
+            loadingText="جاري النشر…"
           >
-            {create.isPending ? 'جاري النشر…' : 'نشر الطلب'}
+            نشر الطلب
           </Button>
         )}
       </div>

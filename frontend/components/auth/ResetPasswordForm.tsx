@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -68,6 +70,7 @@ export function ResetPasswordForm({ token }: Props) {
       {
         onSuccess: () => {
           toast.success('تم تغيير كلمة المرور بنجاح');
+          signalNavigationStart(ROUTES.login);
           router.push(ROUTES.login);
         },
         onError: (err) => {
@@ -105,8 +108,8 @@ export function ResetPasswordForm({ token }: Props) {
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
-        {isPending ? 'جارٍ الحفظ…' : 'تعيين كلمة المرور'}
+      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ الحفظ…">
+        تعيين كلمة المرور
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">

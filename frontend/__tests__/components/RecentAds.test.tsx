@@ -64,9 +64,16 @@ describe('RecentAds', () => {
     expect(screen.getAllByTestId(/^ad-card-/)).toHaveLength(6);
   });
 
+  it('continues rendering saved ads when an offline refetch errors', () => {
+    mockUseHomeFeed.mockReturnValue(feed({ isError: true, error: new Error('offline'), data: { rails: { ads: { items: [makeAd('cached-ad', 'إعلان محفوظ')] } } } }) as never);
+    render(<RecentAds />);
+    expect(screen.getByTestId('ad-card-cached-ad')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'إعادة المحاولة' })).not.toBeInTheDocument();
+  });
+
   it('shows an inline retry action when the home feed errors', () => {
     const refetch = vi.fn();
-    mockUseHomeFeed.mockReturnValue(feed({ isError: true, error: new Error('offline'), refetch }) as never);
+    mockUseHomeFeed.mockReturnValue(feed({ isError: true, data: undefined, error: new Error('offline'), refetch }) as never);
     render(<RecentAds />);
     screen.getByRole('button', { name: 'إعادة المحاولة' }).click();
     expect(refetch).toHaveBeenCalledTimes(1);

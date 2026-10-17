@@ -42,6 +42,7 @@ import { BottomNav }        from '@/components/layout/BottomNav';
 import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { PageTransition }   from '@/components/shared/PageTransition';
 import { SessionRestorationStatus } from '@/components/shared/SessionRestorationStatus';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { ROUTES }           from '@/lib/constants';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -111,7 +112,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       }
       // ROUTE-FIX-01: keep ?tab=… so hub tabs survive the login round-trip.
       const search = typeof window !== 'undefined' ? window.location.search : '';
-      router.replace(`${ROUTES.login}?from=${encodeURIComponent(pathname + search)}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(pathname + search)}`;
+      signalNavigationStart(destination);
+      router.replace(destination);
     }, 900);
 
     return () => clearTimeout(timer);

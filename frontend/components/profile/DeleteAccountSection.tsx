@@ -85,9 +85,11 @@ export function DeleteAccountSection() {
               <Button
                 variant="destructive"
                 onClick={handleDelete}
-                disabled={confirmText !== CONFIRM_WORD || deleteAccount.isPending}
+                disabled={confirmText !== CONFIRM_WORD}
+                loading={deleteAccount.isPending}
+                loadingText="جارٍ الحذف…"
               >
-                {deleteAccount.isPending ? 'جارٍ الحذف…' : 'حذف حسابي نهائياً'}
+                حذف حسابي نهائياً
               </Button>
             </div>
           </div>

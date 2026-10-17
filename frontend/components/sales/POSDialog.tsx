@@ -147,7 +147,7 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           <div className="rounded-xl border bg-muted/30 p-4"><div className="flex justify-between text-sm"><span>الإجمالي</span><strong className="text-xl">{total.toFixed(2)} ₪</strong></div><p className="mt-1 text-xs text-muted-foreground">الخصومات محسوبة على مستوى كل منتج.</p></div>
         </section>
       </div>
-      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button><Button disabled={create.isPending || !cart.length || total <= 0 || stockIssues.length > 0 || (paymentMode === 'partial' && (mixedTotal <= 0 || mixedTotal > total)) || (paymentMode === 'installments' && (!installments.length || Math.abs(installmentTotal - total) > 0.009))} onClick={() => void submit()}>{create.isPending ? 'جارٍ التسجيل…' : 'إتمام البيع'}</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button><Button loading={create.isPending} loadingText="جارٍ التسجيل…" disabled={!cart.length || total <= 0 || stockIssues.length > 0 || (paymentMode === 'partial' && (mixedTotal <= 0 || mixedTotal > total)) || (paymentMode === 'installments' && (!installments.length || Math.abs(installmentTotal - total) > 0.009))} onClick={() => void submit()}>إتمام البيع</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }

@@ -45,7 +45,7 @@ export function NearbyProvidersSection() {
     );
   }
 
-  if (feed.isError) {
+  if (feed.isError && !feed.data) {
     return (
       <section className="container mx-auto max-w-7xl space-y-3 rounded-2xl border border-brand-nearby/15 bg-brand-nearby/[0.04] px-3 py-3 sm:space-y-4 sm:px-4 sm:py-4">
         {header}

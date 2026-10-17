@@ -32,7 +32,7 @@ export function ForYouMixedSection() {
     );
   }
 
-  if (feed.isError) {
+  if (feed.isError && !feed.data) {
     return (
       <section className="container mx-auto max-w-7xl space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3">
         <SectionHeader tone="featured" eyebrow={isAuth ? 'لك' : 'رائج'} title={isAuth ? 'مخصص لك' : 'رائج الآن'} icon={<Sparkles className="h-3.5 w-3.5" />} />

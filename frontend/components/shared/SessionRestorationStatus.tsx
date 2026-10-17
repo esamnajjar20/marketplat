@@ -1,5 +1,7 @@
 'use client';
 
+import { Spinner } from '@/components/ui/spinner';
+
 interface SessionRestorationStatusProps {
   message?: string;
 }
@@ -15,7 +17,7 @@ export function SessionRestorationStatus({
       aria-busy="true"
       className="flex min-h-[60vh] min-h-[60dvh] flex-col items-center justify-center gap-3 p-6 text-center"
     >
-      <div aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent motion-reduce:animate-none" />
+      <Spinner size="lg" className="text-primary" />
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );

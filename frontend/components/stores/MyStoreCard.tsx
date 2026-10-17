@@ -168,10 +168,11 @@ export function MyStoreCard({ store }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={uploadLogo.isPending}
+              loading={uploadLogo.isPending}
+              loadingText="جارٍ الرفع…"
               onClick={() => logoInputRef.current?.click()}
             >
-              {uploadLogo.isPending ? 'جارٍ الرفع…' : 'تغيير الشعار'}
+              تغيير الشعار
             </Button>
             <input
               ref={logoInputRef}
@@ -206,10 +207,11 @@ export function MyStoreCard({ store }: Props) {
             type="button"
             variant="outline"
             size="sm"
-            disabled={uploadCover.isPending}
+            loading={uploadCover.isPending}
+            loadingText="جارٍ الرفع…"
             onClick={() => coverInputRef.current?.click()}
           >
-            {uploadCover.isPending ? 'جارٍ الرفع…' : 'تغيير صورة الغلاف'}
+            تغيير صورة الغلاف
           </Button>
           <input
             ref={coverInputRef}
@@ -336,8 +338,8 @@ export function MyStoreCard({ store }: Props) {
             store is displayed publicly (StoreHeader, ProductDetail,
             ProfileStoreSummary) via store.sellerProfile.paymentMethods. */}
 
-        <Button type="submit" disabled={isFormIncomplete || updateStore.isPending}>
-          {updateStore.isPending ? 'جارٍ الحفظ…' : 'حفظ التعديلات'}
+        <Button type="submit" disabled={isFormIncomplete} loading={updateStore.isPending} loadingText="جارٍ الحفظ…">
+          حفظ التعديلات
         </Button>
       </form>
 

@@ -5,7 +5,7 @@
  * Does not fight native overscroll on iOS when pull distance is small.
  */
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -90,10 +90,10 @@ export function PullToRefresh({
         aria-hidden={!refreshing && offset < 8}
       >
         {(refreshing || offset > 12) && (
-          <Loader2
+          <Spinner
+            size="sm"
             className={cn(
-              'h-5 w-5 text-muted-foreground',
-              refreshing && 'animate-spin',
+              'text-muted-foreground',
               !refreshing && offset >= threshold && 'text-primary',
             )}
           />

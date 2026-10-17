@@ -87,8 +87,8 @@ export function ForgotPasswordForm() {
           placeholder="example@email.com" />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending}>
-        {isPending ? 'جارٍ الإرسال…' : 'إرسال رابط الاسترداد'}
+      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ الإرسال…">
+        إرسال رابط الاسترداد
       </Button>
 
       {/* FEAT-GOOGLE-VERIFY-RESET: alternative reset path that does

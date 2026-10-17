@@ -9,6 +9,7 @@ import { useCreateSellerProfile } from '@/hooks/mutations/useSellerMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { parseApiError } from '@/lib/errorParser';
 import { getSafeRedirectPath } from '@/lib/cookies';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 export function BecomeSellerCard() {
   const user = useAuthStore(selectUser);
@@ -57,7 +58,11 @@ export function BecomeSellerCard() {
       },
       {
         onSuccess: () => {
-          if (from) router.push(getSafeRedirectPath(from));
+          if (from) {
+            const destination = getSafeRedirectPath(from);
+            signalNavigationStart(destination);
+            router.push(destination);
+          }
         },
         onError: err => setServerErrors(parseApiError(err).fieldErrors),
       }
@@ -122,8 +127,13 @@ export function BecomeSellerCard() {
           </p>
         )}
 
-        <Button type="submit" disabled={isFormIncomplete || createProfile.isPending}>
-          {createProfile.isPending ? 'جارٍ الإنشاء…' : 'إنشاء ملف البائع'}
+        <Button
+          type="submit"
+          disabled={isFormIncomplete}
+          loading={createProfile.isPending}
+          loadingText="جارٍ الإنشاء…"
+        >
+          إنشاء ملف البائع
         </Button>
       </form>
     </div>

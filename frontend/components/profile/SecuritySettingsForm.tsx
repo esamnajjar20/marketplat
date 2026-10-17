@@ -154,8 +154,8 @@ export function SecuritySettingsForm() {
         <PasswordInput id="confirmp" dir="ltr" autoComplete="new-password"
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
-      <Button type="submit" disabled={isFormIncomplete || changePassword.isPending}>
-        {changePassword.isPending ? 'جارٍ التغيير…' : 'تغيير كلمة المرور'}
+      <Button type="submit" disabled={isFormIncomplete} loading={changePassword.isPending} loadingText="جارٍ التغيير…">
+        تغيير كلمة المرور
       </Button>
     </form>
     <GoogleLinkSection />

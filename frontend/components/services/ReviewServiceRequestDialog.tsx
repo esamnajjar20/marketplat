@@ -112,8 +112,8 @@ export function ReviewServiceRequestDialog({ requestId, open, onOpenChange, list
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               إلغاء
             </Button>
-            <Button onClick={handleSubmit} disabled={!isReviewScore(score) || createReview.isPending}>
-              {createReview.isPending ? 'جارٍ الإرسال…' : 'إرسال التقييم'}
+            <Button onClick={handleSubmit} disabled={!isReviewScore(score)} loading={createReview.isPending} loadingText="جارٍ الإرسال…">
+              إرسال التقييم
             </Button>
           </div>
         </div>

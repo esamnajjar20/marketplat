@@ -30,6 +30,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { unwrapData }    from '@/lib/apiPagination';
 import { toast }         from 'sonner';
 import type { AuthResultUser, AuthTokens, LoginPayload, RegisterPayload } from '@/types/auth.types';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 /**
  * Sets the cookies the middleware reads for route protection. Used by
@@ -178,6 +179,7 @@ export function useLogin() {
       // an unauthenticated user away from a protected page. getSafeRedirectPath
       // was built and unit-tested for exactly this but never called from
       // here. LoginForm now passes the validated `from` value through.
+      signalNavigationStart(data.redirectTo ?? ROUTES.dashboard);
       router.push(data.redirectTo ?? ROUTES.dashboard);
     },
 
@@ -246,6 +248,7 @@ export function useRegister() {
       // /login?from=X → "إنشاء حساب" → here). Mirrors useLogin's
       // AUTH-06 fix exactly — RegisterForm now passes the validated
       // `from` value through the same way LoginForm does.
+      signalNavigationStart(data.redirectTo ?? ROUTES.dashboard);
       router.push(data.redirectTo ?? ROUTES.dashboard);
     },
 
@@ -301,6 +304,7 @@ function useClearLocalSession() {
     // itself. Both are optional so useLogout / useLogoutAll keep their
     // existing behavior unchanged when called with no arguments.
     if (options?.toastMessage) toast.success(options.toastMessage);
+    signalNavigationStart(options?.destination ?? ROUTES.home);
     router.push(options?.destination ?? ROUTES.home);
   };
 }

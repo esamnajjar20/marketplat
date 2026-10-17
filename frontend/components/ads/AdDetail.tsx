@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -83,13 +85,19 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   function handleStickyMessage() {
     if (!isAuth) {
       toast.error('سجّل الدخول لمراسلة البائع');
-      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(ad.id))}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(ad.id))}`;
+      signalNavigationStart(destination);
+      router.push(destination);
       return;
     }
     track('CONTACT_CLICK', { adId: ad.id, sellerId: ad.user.id });
     startConversation.mutate(
       { adId: ad.id },
-      { onSuccess: (conversation) => router.push(ROUTES.conversationDetail(conversation!.id)) }
+      { onSuccess: (conversation) => {
+        const destination = ROUTES.conversationDetail(conversation!.id);
+        signalNavigationStart(destination);
+        router.push(destination);
+      } }
     );
   }
 
@@ -309,7 +317,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 variant={favorited ? 'default' : 'outline'}
                 size="sm"
                 onClick={handleFavorite}
-                disabled={toggleFavorite.isPending}
+                loading={toggleFavorite.isPending}
                 aria-label={favorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
                 aria-pressed={favorited}
                 className="gap-1.5"
@@ -463,11 +471,12 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
               variant="default"
               size="lg"
               className="shrink-0 gap-2 rounded-xl"
-              disabled={startConversation.isPending}
+              loading={startConversation.isPending}
+              loadingText="جارٍ…"
               onClick={handleStickyMessage}
             >
               <MessageSquare className="h-4 w-4" />
-              {startConversation.isPending ? 'جارٍ…' : 'مراسلة'}
+              مراسلة
             </Button>
           </div>
         </div>

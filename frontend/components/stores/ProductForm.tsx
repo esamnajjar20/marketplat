@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
@@ -369,6 +371,7 @@ export function ProductForm({ mode, product }: Props) {
     if (typeof window !== 'undefined' && window.history.length > 1) {
       history.back();
     } else {
+      signalNavigationStart(ROUTES.myStoreProducts);
       router.push(ROUTES.myStoreProducts);
     }
   }
@@ -810,8 +813,8 @@ export function ProductForm({ mode, product }: Props) {
               </Button>
             )}
             {(!isWizard || step === totalSteps) && (
-              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete || isPending}>
-                {isPending ? 'جارٍ الحفظ…' : mode === 'create' ? 'إضافة المنتج' : 'حفظ التعديلات'}
+              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete} loading={isPending} loadingText="جارٍ الحفظ…">
+                {mode === 'create' ? 'إضافة المنتج' : 'حفظ التعديلات'}
               </Button>
             )}
           </div>

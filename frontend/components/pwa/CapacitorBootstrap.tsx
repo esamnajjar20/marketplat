@@ -16,6 +16,7 @@ import {
   registerNativeDeepLinks,
 } from '@/lib/runtime/navigation';
 import { getAppMode } from '@/lib/runtime/appMode';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 export function CapacitorBootstrap() {
   const router = useRouter();
@@ -44,12 +45,15 @@ export function CapacitorBootstrap() {
         const raw = notification.url;
         if (!raw) return;
         if (raw.startsWith('/')) {
+          signalNavigationStart(raw);
           router.push(raw);
           return;
         }
         try {
           const parsed = new URL(raw);
-          router.push(`${parsed.pathname}${parsed.search}` || '/');
+          const destination = `${parsed.pathname}${parsed.search}` || '/';
+          signalNavigationStart(destination);
+          router.push(destination);
         } catch {
           /* malformed */
         }

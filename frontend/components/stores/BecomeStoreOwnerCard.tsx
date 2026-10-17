@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -150,7 +152,11 @@ export function BecomeStoreOwnerCard() {
         onSuccess: () => {
           // PHASE-OFFLINE-DRAFTS: لا داعي لمسودة بعد إنشاء المتجر فعليًا.
           clearDraft();
-          if (from) router.push(getSafeRedirectPath(from));
+          if (from) {
+            const destination = getSafeRedirectPath(from);
+            signalNavigationStart(destination);
+            router.push(destination);
+          }
         },
         onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
       }
@@ -264,8 +270,8 @@ export function BecomeStoreOwnerCard() {
           </FormField>
         </div>
 
-        <Button type="submit" disabled={isFormIncomplete || createStore.isPending}>
-          {createStore.isPending ? 'جارٍ الإنشاء…' : 'إنشاء المتجر'}
+        <Button type="submit" disabled={isFormIncomplete} loading={createStore.isPending} loadingText="جارٍ الإنشاء…">
+          إنشاء المتجر
         </Button>
       </form>
     </div>

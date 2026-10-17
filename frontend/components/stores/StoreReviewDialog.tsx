@@ -91,8 +91,8 @@ export function StoreReviewDialog({ storeId, storeName, open, onOpenChange }: Pr
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               إلغاء
             </Button>
-            <Button onClick={handleSubmit} disabled={score < 1 || createReview.isPending}>
-              {createReview.isPending ? 'جارٍ الإرسال…' : 'إرسال التقييم'}
+            <Button onClick={handleSubmit} disabled={score < 1} loading={createReview.isPending} loadingText="جارٍ الإرسال…">
+              إرسال التقييم
             </Button>
           </div>
         </div>

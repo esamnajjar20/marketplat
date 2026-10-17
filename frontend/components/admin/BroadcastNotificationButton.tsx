@@ -126,8 +126,8 @@ export function BroadcastNotificationButton() {
               <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={broadcast.isPending}>
                 إلغاء
               </Button>
-              <Button onClick={handleSubmit} disabled={broadcast.isPending}>
-                {broadcast.isPending ? 'جارٍ الإرسال…' : 'إرسال'}
+              <Button onClick={handleSubmit} loading={broadcast.isPending} loadingText="جارٍ الإرسال…">
+                إرسال
               </Button>
             </div>
           </div>

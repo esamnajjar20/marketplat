@@ -11,6 +11,7 @@ import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { saveAdDraft, filesToPublishFiles } from '@/lib/offlineAdDrafts';
 import { toastOfflineSaved, toastSoftNetworkDraft } from '@/lib/offlinePublishFeedback';
 import { bestEffortCompressPublish, bestEffortCompressPreviews } from '@/lib/imageOfflineHelpers';
@@ -61,6 +62,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
       clearActiveOfflineDraftId();
       void invalidateServiceListingCaches(queryClient);
       toast.success('تم نشر الخدمة بنجاح');
+      signalNavigationStart(ROUTES.myServices);
       router.push(ROUTES.myServices);
     },
     onError: async (err, payload) => {
@@ -120,7 +122,8 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
               mode: 'create',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
-            router.push(ROUTES.myServices);
+            signalNavigationStart(ROUTES.myServices);
+      router.push(ROUTES.myServices);
           } else {
             toastSoftNetworkDraft({ mode: 'create' });
           }
@@ -154,6 +157,7 @@ export function useUpdateServiceListing(listingId: string) {
       // browse/search queries don't keep showing stale data.
       void invalidateServiceListingCaches(queryClient, listingId);
       toast.success('تم حفظ التعديلات');
+      signalNavigationStart(ROUTES.myServices);
       router.push(ROUTES.myServices);
     },
     onError: async (err, payload) => {
@@ -197,7 +201,8 @@ export function useUpdateServiceListing(listingId: string) {
               mode: 'edit',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
-            router.push(ROUTES.myServices);
+            signalNavigationStart(ROUTES.myServices);
+      router.push(ROUTES.myServices);
           } else {
             toastSoftNetworkDraft({ mode: 'edit' });
           }

@@ -14,6 +14,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { getSafeRedirectPath } from '@/lib/cookies';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import type { ServiceBusinessType, WorkingHours } from '@/types/service.types';
 
 const EMPTY_HOURS: WorkingHours = {
@@ -167,7 +168,11 @@ export function BecomeServiceProviderCard() {
           // unmount ever stops being guaranteed — e.g. if the
           // invalidation fails silently and the card lingers.
           isSubmittingRef.current = false;
-          if (from) router.push(getSafeRedirectPath(from));
+          if (from) {
+            const destination = getSafeRedirectPath(from);
+            signalNavigationStart(destination);
+            router.push(destination);
+          }
         },
         onError: (err) => {
           isSubmittingRef.current = false;
@@ -256,8 +261,13 @@ export function BecomeServiceProviderCard() {
           )}
         </div>
 
-        <Button type="submit" disabled={isFormIncomplete || createProvider.isPending}>
-          {createProvider.isPending ? 'جارٍ الإنشاء…' : 'إنشاء ملف مقدم الخدمة'}
+        <Button
+          type="submit"
+          disabled={isFormIncomplete}
+          loading={createProvider.isPending}
+          loadingText="جارٍ الإنشاء…"
+        >
+          إنشاء ملف مقدم الخدمة
         </Button>
       </form>
     </div>

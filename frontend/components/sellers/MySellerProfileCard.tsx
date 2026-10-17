@@ -140,8 +140,13 @@ export function MySellerProfileCard({ profile }: Props) {
           </FormField>
 
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={updateProfile.isPending}>
-              {updateProfile.isPending ? 'جارٍ الحفظ…' : 'حفظ'}
+            <Button
+              type="submit"
+              size="sm"
+              loading={updateProfile.isPending}
+              loadingText="جارٍ الحفظ…"
+            >
+              حفظ
             </Button>
             <Button
               type="button"
@@ -168,9 +173,10 @@ export function MySellerProfileCard({ profile }: Props) {
             type="button"
             size="sm"
             onClick={savePaymentMethods}
-            disabled={updateProfile.isPending}
+            loading={updateProfile.isPending}
+            loadingText="جارٍ الحفظ…"
           >
-            {updateProfile.isPending ? 'جارٍ الحفظ…' : 'حفظ طرق الدفع'}
+            حفظ طرق الدفع
           </Button>
         )}
       </div>
@@ -274,11 +280,12 @@ export function MySellerProfileCard({ profile }: Props) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              disabled={requestVerification.isPending}
+              loading={requestVerification.isPending}
+              loadingText="جارٍ الإرسال…"
               onClick={() => requestVerification.mutate()}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
-              {requestVerification.isPending ? 'جارٍ الإرسال…' : 'إعادة طلب التوثيق'}
+              إعادة طلب التوثيق
             </Button>
           </div>
         ) : (
@@ -290,11 +297,12 @@ export function MySellerProfileCard({ profile }: Props) {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              disabled={requestVerification.isPending}
+              loading={requestVerification.isPending}
+              loadingText="جارٍ الإرسال…"
               onClick={() => requestVerification.mutate()}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
-              {requestVerification.isPending ? 'جارٍ الإرسال…' : 'طلب توثيق الحساب'}
+              طلب توثيق الحساب
             </Button>
           </div>
         ))}

@@ -147,8 +147,8 @@ export function CollectionForm({ open, onOpenChange, collection }: Props) {
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button type="submit" disabled={isFormIncomplete || mutation.isPending}>
-              {mutation.isPending ? 'جارٍ الحفظ…' : isEdit ? 'حفظ التعديلات' : 'إنشاء المجموعة'}
+            <Button type="submit" disabled={isFormIncomplete} loading={mutation.isPending} loadingText="جارٍ الحفظ…">
+              {isEdit ? 'حفظ التعديلات' : 'إنشاء المجموعة'}
             </Button>
           </div>
         </form>

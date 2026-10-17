@@ -28,7 +28,7 @@ export function RecentAds() {
     );
   }
 
-  if (feed.isError) return <ApiError error={feed.error} onRetry={() => void feed.refetch()} variant="inline" />;
+  if (feed.isError && !feed.data) return <ApiError error={feed.error} onRetry={() => void feed.refetch()} variant="inline" />;
 
   return (
     <HomeScrollRail className="stagger-fade-in">

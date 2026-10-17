@@ -176,8 +176,8 @@ export function EditEntityCategoryDialog<TCategory extends EditableCategory>({
               <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={updateCategory.isPending}>
                 إلغاء
               </Button>
-              <Button onClick={handleSave} disabled={updateCategory.isPending}>
-                {updateCategory.isPending ? 'جارٍ الحفظ…' : 'حفظ'}
+              <Button onClick={handleSave} loading={updateCategory.isPending} loadingText="جارٍ الحفظ…">
+                حفظ
               </Button>
             </div>
           </div>

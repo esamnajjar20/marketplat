@@ -21,7 +21,7 @@ export function FeaturedStoresSection() {
   const carouselStoreIds = collectIds(feed.data?.featured.carousel.stores?.items);
   const items = dedupeKeepingMin(rail?.items ?? [], carouselStoreIds).slice(0, limit);
   const showLoading = feed.isPending;
-  const showError = feed.isError;
+  const showError = feed.isError && !feed.data;
 
   const header = (
     <SectionHeader

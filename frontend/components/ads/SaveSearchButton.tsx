@@ -42,6 +42,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/s
 import { useCreateSavedSearch } from '@/hooks/mutations/useSavedSearchMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { toast } from 'sonner';
 import type { SavedSearchFilters, SavedSearchType } from '@/types/savedSearch.types';
 import type { AdCondition } from '@/types/ad.types';
@@ -155,7 +156,9 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
     if (!isAuth) {
       const returnTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : ROUTES.search;
       toast.error('سجّل الدخول لحفظ البحث');
-      router.push(`${ROUTES.login}?from=${encodeURIComponent(returnTo)}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(returnTo)}`;
+      signalNavigationStart(destination);
+      router.push(destination);
       return;
     }
     if (type) {
@@ -242,8 +245,8 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
                     <Button variant="ghost" onClick={() => setStep('type')}>رجوع</Button>
                   )}
                   <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-                  <Button onClick={handleSubmit} disabled={createSavedSearch.isPending}>
-                    {createSavedSearch.isPending ? 'جارٍ الحفظ…' : 'حفظ'}
+                  <Button onClick={handleSubmit} loading={createSavedSearch.isPending} loadingText="جارٍ الحفظ…">
+                    حفظ
                   </Button>
                 </div>
               </div>

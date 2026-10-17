@@ -30,6 +30,7 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -53,7 +54,9 @@ export function GlobalSearchShortcut() {
         document.getElementById('global-search-input')?.focus();
         return;
       }
-      router.push(`${ROUTES.search}?focus=1`);
+      const destination = `${ROUTES.search}?focus=1`;
+      signalNavigationStart(destination);
+      router.push(destination);
     }
 
     window.addEventListener('keydown', handleKeyDown);

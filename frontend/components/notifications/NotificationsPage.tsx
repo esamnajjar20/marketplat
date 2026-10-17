@@ -173,15 +173,11 @@ export function NotificationsPage() {
               type="button"
               variant="outline"
               size="sm"
-              disabled={markAllRead.isPending}
+              loading={markAllRead.isPending}
               onClick={() => markAllRead.mutate()}
               className="min-h-10 gap-1.5"
             >
-              {markAllRead.isPending ? (
-                <Spinner size="xs" />
-              ) : (
-                <CheckCheck className="h-3.5 w-3.5" />
-              )}
+              <CheckCheck className="h-3.5 w-3.5" />
               تعليم الكل كمقروء
             </Button>
           )}
@@ -189,15 +185,11 @@ export function NotificationsPage() {
             type="button"
             variant="ghost"
             size="sm"
-            disabled={deleteAllRead.isPending}
+            loading={deleteAllRead.isPending}
             onClick={() => setConfirmDeleteRead(true)}
             className="gap-1.5 text-muted-foreground"
           >
-            {deleteAllRead.isPending ? (
-              <Spinner size="xs" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
-            )}
+            <Trash2 className="h-3.5 w-3.5" />
             مسح المقروء
           </Button>
           <ConfirmDialog

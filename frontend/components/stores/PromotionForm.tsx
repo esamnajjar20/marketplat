@@ -287,8 +287,8 @@ export function PromotionForm({ open, onOpenChange, initialProductId }: Props) {
                 directly — bypassing the reset and leaving stale form
                 values on the next open. */}
             <Button type="button" variant="outline" onClick={() => { reset(); onOpenChange(false); }}>إلغاء</Button>
-            <Button type="submit" disabled={isFormIncomplete || create.isPending}>
-              {create.isPending ? 'جارٍ الحفظ…' : 'إنشاء العرض'}
+            <Button type="submit" disabled={isFormIncomplete} loading={create.isPending} loadingText="جارٍ الحفظ…">
+              إنشاء العرض
             </Button>
           </div>
         </form>

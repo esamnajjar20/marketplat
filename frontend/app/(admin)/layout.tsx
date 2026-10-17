@@ -32,6 +32,7 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader }  from '@/components/admin/AdminHeader';
 import { PageTransition } from '@/components/shared/PageTransition';
 import { SessionRestorationStatus } from '@/components/shared/SessionRestorationStatus';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 // Gap #20 (admin permission tiers) / ADMIN-HUB-01: every admin section is a tab
 // of the /admin hub now, so the page-level gate only has to admit the hub
@@ -71,7 +72,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isAuthenticated) {
       // keep the current admin tab (?tab=…) across login.
       const search = typeof window !== 'undefined' ? window.location.search : '';
-      router.replace(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.admin.root + search)}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(ROUTES.admin.root + search)}`;
+      signalNavigationStart(destination);
+      router.replace(destination);
       return;
     }
     if (!isAdminTier) {
@@ -82,11 +85,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // The redirect itself was never the problem (the actual
       // protection is correct); only the missing explanation was.
       toast.error('هذه الصفحة مخصصة للمشرفين فقط');
+      signalNavigationStart(ROUTES.dashboard);
       router.replace(ROUTES.dashboard);
       return;
     }
     if (isOutOfScopeForModerator) {
       toast.error('هذا القسم غير متاح لدور المشرف المساعد');
+      signalNavigationStart(ROUTES.admin.ads);
       router.replace(ROUTES.admin.ads);
     }
   }, [isAuthenticated, isAdminTier, isOutOfScopeForModerator, isResolved, router]);

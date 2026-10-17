@@ -22,6 +22,7 @@ import {
 } from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { CreateProductPayload, UpdateProductPayload } from '@/types/product.types';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 
 /**
@@ -58,6 +59,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
       clearActiveOfflineDraftId();
       void invalidateProductBrowseCaches(queryClient, { includeStock: true });
       toast.success('تم إضافة المنتج بنجاح');
+      signalNavigationStart(ROUTES.myStoreProducts);
       router.push(ROUTES.myStoreProducts);
     },
     onError: async (err, payload) => {
@@ -118,6 +120,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
               mode: 'create',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            signalNavigationStart(`${ROUTES.myStore}?tab=products`);
             router.push(`${ROUTES.myStore}?tab=products`);
           } else {
             toastSoftNetworkDraft({ mode: 'create' });
@@ -153,6 +156,7 @@ export function useUpdateProduct(productId: string) {
         includeStockHistory: payload.stockQuantity !== undefined,
       });
       toast.success('تم حفظ التعديلات');
+      signalNavigationStart(ROUTES.myStoreProducts);
       router.push(ROUTES.myStoreProducts);
     },
     onError: async (err, payload) => {
@@ -197,6 +201,7 @@ export function useUpdateProduct(productId: string) {
               mode: 'edit',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            signalNavigationStart(`${ROUTES.myStore}?tab=products`);
             router.push(`${ROUTES.myStore}?tab=products`);
           } else {
             toastSoftNetworkDraft({ mode: 'edit' });

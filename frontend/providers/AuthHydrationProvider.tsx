@@ -79,6 +79,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { subscribeToSessionEnded } from '@/lib/authSessionBroadcast';
 import { buildSessionExpiredLoginUrl } from '@/lib/sessionRedirect';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 /**
  * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
@@ -131,7 +132,9 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // back to an auth page as the post-login target.
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : ROUTES.dashboard;
         const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
-        router.replace(buildSessionExpiredLoginUrl(currentPath, currentSearch));
+        const destination = buildSessionExpiredLoginUrl(currentPath, currentSearch);
+        signalNavigationStart(destination);
+        router.replace(destination);
       });
     });
   }, [router]);

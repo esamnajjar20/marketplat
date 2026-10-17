@@ -361,9 +361,10 @@ function StatusHero({
             <Button
               className="min-h-11 w-full"
               onClick={onRetryAll}
-              disabled={retrying}
+              loading={retrying}
+              loadingText="جاري الإرسال…"
             >
-              {retrying ? 'جاري الإرسال…' : 'إرسال المعلّق الآن'}
+              إرسال المعلّق الآن
             </Button>
           )}
           {isOnline && failedQueue === 0 && pendingQueue === 0 && draftsCount > 0 && (

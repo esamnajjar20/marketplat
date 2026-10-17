@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useNotificationStream, type LiveStreamPayload } from '@/hooks/useNotificationStream';
 import { ROUTES } from '@/lib/constants';
 import { hrefFor } from '@/lib/notificationMeta';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import type { NotificationType } from '@/types/notification.types';
 
 // FIX NOTIF-TOAST-CRITICAL-SYNC-01: the Open Requests marketplace
@@ -74,7 +75,10 @@ export function NotificationToasts() {
         descriptionClassName: 'market-live-notification-description',
         action: {
           label: 'عرض التفاصيل',
-          onClick: () => router.push(href),
+          onClick: () => {
+            signalNavigationStart(href);
+            router.push(href);
+          },
         },
       });
     },

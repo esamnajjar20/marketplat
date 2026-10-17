@@ -25,6 +25,7 @@
  */
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 interface UseOwnershipGuardOptions {
   /** True once every query this check depends on has settled. */
@@ -53,6 +54,7 @@ export function useOwnershipGuard({
 
   useEffect(() => {
     if (!isLoading && item && !isOwner) {
+      signalNavigationStart(redirectTo);
       router.replace(redirectTo);
     }
   }, [isLoading, item, isOwner, redirectTo, router]);

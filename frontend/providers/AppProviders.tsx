@@ -47,6 +47,7 @@ const ReactQueryDevtools =
       )
     : null;
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
+import { NavigationProgress } from '@/components/shared/NavigationProgress';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
@@ -169,6 +170,7 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         </AuthHydrationProvider>
 
         <ThemedToaster />
+        <NavigationProgress />
 
         <PwaBootstrap />
         {/* PLAN-runtime-separation (مرحلة 2/6): استُخرج من PwaBootstrap —

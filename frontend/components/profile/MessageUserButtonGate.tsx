@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 /**
  * FEAT: PublicProfileHeader's "مراسلة" button. Previously the only way
  * to contact a user was via SellerCard on one of their ad detail pages
@@ -50,13 +52,19 @@ export function MessageUserButtonGate({ targetUserId, className, size = 'sm', va
       const returnTo = typeof window !== 'undefined'
         ? `${window.location.pathname}${window.location.search}`
         : ROUTES.userProfile(targetUserId);
-      router.push(`${ROUTES.login}?from=${encodeURIComponent(returnTo)}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(returnTo)}`;
+      signalNavigationStart(destination);
+      router.push(destination);
       return;
     }
     track('CONTACT_CLICK', { sellerId: targetUserId, source: 'product_or_profile' });
     startConversation.mutate(
       { userId: targetUserId, ...(context ? { context } : {}) },
-      { onSuccess: (conversation) => router.push(ROUTES.conversationDetail(conversation!.id)) }
+      { onSuccess: (conversation) => {
+        const destination = ROUTES.conversationDetail(conversation!.id);
+        signalNavigationStart(destination);
+        router.push(destination);
+      } }
     );
   }
 

@@ -44,10 +44,11 @@ export function EmailVerificationBanner() {
           variant="outline"
           size="sm"
           className="h-7 border-warning bg-transparent text-warning-strong hover:bg-warning/10 dark:border-warning/60 dark:text-warning dark:hover:bg-warning/20"
-          disabled={resend.isPending}
+          loading={resend.isPending}
+          loadingText="جارٍ الإرسال…"
           onClick={() => resend.mutate()}
         >
-          {resend.isPending ? 'جارٍ الإرسال…' : 'إعادة إرسال الرابط'}
+          إعادة إرسال الرابط
         </Button>
         <button
           type="button"

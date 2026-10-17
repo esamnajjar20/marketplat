@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 /**
  * ProfileCompletionGate — FEAT-GOOGLE-COMPLETE-PROFILE.
  *
@@ -43,6 +45,7 @@ export function ProfileCompletionGate() {
   useEffect(() => {
     if (!isAuthenticated || !user?.needsProfileCompletion) return;
     if (pathname === ROUTES.completeProfile) return;
+    signalNavigationStart(ROUTES.completeProfile);
     router.replace(ROUTES.completeProfile);
   }, [isAuthenticated, user?.needsProfileCompletion, pathname, router]);
 

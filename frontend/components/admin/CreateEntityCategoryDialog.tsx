@@ -165,8 +165,8 @@ export function CreateEntityCategoryDialog({
               <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={createCategory.isPending}>
                 إلغاء
               </Button>
-              <Button onClick={handleCreate} disabled={createCategory.isPending}>
-                {createCategory.isPending ? 'جارٍ الإنشاء…' : 'إنشاء'}
+              <Button onClick={handleCreate} loading={createCategory.isPending} loadingText="جارٍ الإنشاء…">
+                إنشاء
               </Button>
             </div>
           </div>

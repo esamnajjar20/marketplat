@@ -3,13 +3,12 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 
 export const OFFLINE_QUERY_CACHE_DB = 'marketplat-offline-query-cache-v1';
 export const OFFLINE_QUERY_CACHE_STORE = 'queries';
-// CACHE-SIZE-01: 64 KB was too small for real API payloads.
-// The unified home feed (/api/v1/home/feed) is 200-500 KB because it
-// contains many rails (ads, products, services, stores, providers,
-// featured carousel, categories). Category and product lists are
-// similar. Raised per-entry to 512 KB and total to 20 MB; well within
-// IndexedDB quotas (typically 50% of free disk).
+// CACHE-SIZE-01: keep ordinary query snapshots bounded, but give the unified
+// homepage feed its own larger cap. It serializes several rails plus category
+// metadata and may exceed 512 KiB; rejecting it drops every homepage section.
+// The global store budget still limits aggregate IndexedDB usage.
 export const OFFLINE_QUERY_MAX_ENTRY_BYTES = 512 * 1024;
+export const OFFLINE_HOME_FEED_MAX_ENTRY_BYTES = 2 * 1024 * 1024;
 export const OFFLINE_QUERY_MAX_ENTRIES = 500;
 export const OFFLINE_QUERY_MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 export const OFFLINE_QUERY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -44,7 +43,7 @@ export function isValidOfflineQueryCacheEntry(record: unknown, now = Date.now())
     if (entry.dataUpdatedAt > now + 60_000 || now - entry.dataUpdatedAt > OFFLINE_QUERY_MAX_AGE_MS) return false;
     if (entry.savedAt > now + 60_000 || now - entry.savedAt > OFFLINE_QUERY_MAX_AGE_MS) return false;
     const actualBytes = getOfflineQueryDataBytes(entry.data);
-    return actualBytes !== null && actualBytes === entry.bytes && actualBytes <= OFFLINE_QUERY_MAX_ENTRY_BYTES;
+    return actualBytes !== null && actualBytes === entry.bytes && actualBytes <= maxEntryBytesForQueryKey(entry.queryKey);
   } catch {
     // One corrupt IndexedDB record must not prevent restoring other valid entries.
     return false;
@@ -85,6 +84,12 @@ function stableJson(value: unknown): string {
   return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(',')}}`;
 }
 const keyIdentity = (key: QueryKey) => stableJson(key);
+
+function maxEntryBytesForQueryKey(queryKey: QueryKey): number {
+  return queryKey[0] === 'home' && queryKey[1] === 'feed'
+    ? OFFLINE_HOME_FEED_MAX_ENTRY_BYTES
+    : OFFLINE_QUERY_MAX_ENTRY_BYTES;
+}
 // Cache-contract prefixes are intentionally NOT sufficient here: keys such as
 // ['products', 'me', ...] share a broad prefix with public catalogue queries.
 // Persist only the exact public shapes this app actually uses.
@@ -127,7 +132,9 @@ export function isOfflinePersistableQueryKey(queryKey: QueryKey): boolean {
     // which was the reason this branch previously excluded home.feed.
     // Persisting it lets the home page render its rails offline instead of
     // the generic skeletons the user was seeing.
-    if (queryKey.length === 4 && child === 'feed') return true;
+    if (queryKey.length === 4 && child === 'feed'
+      && (third === null || typeof third === 'string')
+      && typeof fourth === 'string' && fourth.length > 0) return true;
     return false;
   }
   if (EXACT_PUBLIC_ROOTS.has(root)) {
@@ -161,7 +168,7 @@ export function selectPersistableQueries(queries: Array<{ queryKey: QueryKey; st
   for (const query of queries) {
     if (query.state.data === undefined || !Number.isFinite(query.state.dataUpdatedAt) || query.state.dataUpdatedAt <= 0 || query.state.dataUpdatedAt > now + 60_000 || now - query.state.dataUpdatedAt > OFFLINE_QUERY_MAX_AGE_MS || !isOfflinePersistableQueryKey(query.queryKey)) continue;
     const bytes = getOfflineQueryDataBytes(query.state.data);
-    if (bytes === null || bytes > OFFLINE_QUERY_MAX_ENTRY_BYTES) continue;
+    if (bytes === null || bytes > maxEntryBytesForQueryKey(query.queryKey)) continue;
     candidates.push({ id: keyIdentity(query.queryKey), queryKey: query.queryKey, data: query.state.data, dataUpdatedAt: query.state.dataUpdatedAt, savedAt: now, bytes });
   }
   return candidates.sort((a, b) => b.dataUpdatedAt - a.dataUpdatedAt).slice(0, OFFLINE_QUERY_MAX_ENTRIES);

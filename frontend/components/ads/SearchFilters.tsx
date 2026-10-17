@@ -10,6 +10,7 @@ import {
 import { CITIES, CONDITION_LABELS, ROUTES } from '@/lib/constants';
 import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
 import { SlidersHorizontal } from 'lucide-react';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 // FIX P2-5: price inputs used to fire a navigation on onBlur — tabbing
 // from "من" to "إلى" (a completely normal way to fill both fields)
@@ -98,13 +99,19 @@ export function SearchFilters({ categorySlug }: Props = {}) {
   // actually active.
   function updateCategory(categoryId: string) {
     if (!categoryId) {
+      // Clearing the category on a category detail page changes the page
+      // destination; clearing it on search only updates the current route.
+      if (categorySlug && pathname !== ROUTES.search) signalNavigationStart(ROUTES.search);
       router.push(categorySlug ? ROUTES.search : pathname);
       return;
     }
     const flat = (categories ?? []).flatMap((c) => [c, ...(c.children ?? [])]);
     const match = flat.find((c) => c.id === categoryId);
-    if (match) router.push(ROUTES.category(match.slug));
-    else update('categoryId', categoryId);
+    if (match) {
+      const destination = ROUTES.category(match.slug);
+      if (destination !== pathname) signalNavigationStart(destination);
+      router.push(destination);
+    } else update('categoryId', categoryId);
   }
 
   return (

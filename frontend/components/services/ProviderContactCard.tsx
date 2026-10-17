@@ -7,6 +7,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
 import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
@@ -56,6 +57,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
     }
     if (!isAuth) {
       toast.error('يرجى تسجيل الدخول أولاً');
+      signalNavigationStart(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.serviceDetail(listing.id))}`);
       router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.serviceDetail(listing.id))}`);
       return;
     }
@@ -64,6 +66,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
       {
         onSuccess: (conversation) => {
           if (conversation?.id) {
+            signalNavigationStart(ROUTES.conversationDetail(conversation.id));
             router.push(ROUTES.conversationDetail(conversation.id));
           }
         },
@@ -116,11 +119,12 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
         <Button
           type="button"
           className="w-full min-h-11 gap-2"
-          disabled={startConversation.isPending}
+          loading={startConversation.isPending}
+          loadingText="جاري الفتح…"
           onClick={handleMessage}
         >
           <MessageSquare className="h-4 w-4" aria-hidden />
-          {startConversation.isPending ? 'جاري الفتح…' : 'مراسلة'}
+          مراسلة
         </Button>
       )}
 

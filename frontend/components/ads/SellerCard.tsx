@@ -1,5 +1,7 @@
 'use client';
 
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useRouter } from 'next/navigation';
@@ -57,7 +59,9 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
     // current ad as the return target. Was a bare toast.
     if (!isAuth) {
       toast.error('سجّل الدخول لمراسلة البائع');
-      router.push(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(adId))}`);
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(adId))}`;
+      signalNavigationStart(destination);
+      router.push(destination);
       return;
     }
     // Gap #7 (product analytics): the search→contact conversion metric
@@ -68,7 +72,11 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
     track('CONTACT_CLICK', { adId, sellerId: seller.id });
     startConversation.mutate(
       { adId },
-      { onSuccess: (conversation) => router.push(ROUTES.conversationDetail(conversation!.id)) }
+      { onSuccess: (conversation) => {
+        const destination = ROUTES.conversationDetail(conversation!.id);
+        signalNavigationStart(destination);
+        router.push(destination);
+      } }
     );
   }
 

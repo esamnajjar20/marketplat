@@ -36,6 +36,7 @@ import {
   clearActiveOfflineDraftId,
 } from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 
 /**
@@ -85,7 +86,11 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
         description: 'شاركه مع معارفك لزيادة المشاهدات. يمكنك تعديله لاحقاً من «إعلاناتي».',
         duration: 5000,
       });
-      if (ad) router.push(`${ROUTES.adDetail(ad.id)}?published=1`);
+      if (ad) {
+        const destination = `${ROUTES.adDetail(ad.id)}?published=1`;
+        signalNavigationStart(destination);
+        router.push(destination);
+      }
     },
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
@@ -164,6 +169,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
               mode: 'create',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            signalNavigationStart(ROUTES.myAds);
             router.push(ROUTES.myAds);
           } else {
             toastSoftNetworkDraft({ mode: 'create' });
@@ -193,7 +199,10 @@ export function useUpdateAd(adId: string) {
       clearActiveOfflineDraftId();
       void invalidateAdEntityCaches(queryClient, adId);
       toast.success('تم حفظ التعديلات');
-      if (ad) router.push(ROUTES.adDetail(ad.id));
+      if (ad) {
+        signalNavigationStart(ROUTES.adDetail(ad.id));
+        router.push(ROUTES.adDetail(ad.id));
+      }
     },
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
@@ -234,6 +243,7 @@ export function useUpdateAd(adId: string) {
               mode: 'edit',
               queuedBySw: Boolean(parsed.queued) && !offline,
             });
+            signalNavigationStart(ROUTES.myAds);
             router.push(ROUTES.myAds);
           } else {
             toastSoftNetworkDraft({ mode: 'edit' });
