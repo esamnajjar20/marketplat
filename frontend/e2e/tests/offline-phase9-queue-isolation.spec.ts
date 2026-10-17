@@ -50,7 +50,6 @@ test('offline create request queues stable operation identity and owner without 
         });
       } finally { db.close(); }
     }, OP_ID);
-    const operationId = queued[0]?.operationId;
     expect(queued[0].operationId).toBe(OP_ID);
     expect(queued[0].ownerUserId).toBe(OWNER_ID);
     expect(queued[0].needsAuth).toBe(true);
@@ -72,7 +71,7 @@ test('offline create request queues stable operation identity and owner without 
           if (!queueName) return;
           await new Promise<void>((resolve, reject) => {
             const tx = db.transaction(queueName, 'readwrite');
-            tx.objectStore('requests').delete(id);
+            tx.objectStore(queueName).delete(id);
             tx.oncomplete = () => resolve();
             tx.onerror = () => reject(tx.error);
           });

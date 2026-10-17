@@ -14,7 +14,7 @@ test.describe('E2E hardening regression contracts', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('استعلام جديد بلوحة المفاتيح');
   });
 
-  test.fixme('clearing query keeps unrelated filters and removes page cursor', async ({ page }) => {
+  test('clearing query keeps unrelated filters and removes page cursor', async ({ page }) => {
     await page.goto('/search?q=' + encodeURIComponent('إعلان قديم') + '&city=' + encodeURIComponent('غزة') + '&type=ads&page=12');
     const input = searchInput(page);
     await expect(input).toBeVisible();

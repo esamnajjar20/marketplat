@@ -15,11 +15,11 @@ vi.mock('@/lib/formatters', () => ({
 }));
 
 // TODO(2026-10-16): un-skip after updating loading-state assertions to match unified loading system (1f2c898a)
-describe.skip('AdminPlatformTrends', () => {
+describe('AdminPlatformTrends', () => {
   beforeEach(() => {
     vi.mocked(useAdminPlatformTrends).mockReturnValue({
       data: {
-        points: [
+        series: [
           { date: '2026-01-01', users: 10, ads: 5, reports: 1 },
           { date: '2026-01-02', users: 12, ads: 7, reports: 0 },
         ],
@@ -55,6 +55,6 @@ describe.skip('AdminPlatformTrends', () => {
   it('renders range controls', () => {
     render(<AdminPlatformTrends />);
     expect(screen.getByText('7 أيام')).toBeInTheDocument();
-    expect(screen.getByText(/30/)).toBeInTheDocument();
+    expect(screen.getByText('30 يوماً')).toBeInTheDocument();
   });
 });

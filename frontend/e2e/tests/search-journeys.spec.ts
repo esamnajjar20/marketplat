@@ -5,7 +5,7 @@ function searchInput(page: import('@playwright/test').Page) {
 }
 
 test.describe('search journeys and URL state', () => {
-  test.fixme('submitting a query with repeated spaces normalizes it in the URL', async ({ page }) => {
+  test('submitting a query with repeated spaces normalizes it in the URL', async ({ page }) => {
     await page.goto('/search');
     const input = searchInput(page);
     await input.fill('  سيارة   مستعملة  ');
@@ -29,7 +29,7 @@ test.describe('search journeys and URL state', () => {
     await expect.poll(() => new URL(page.url()).searchParams.has('page')).toBe(false);
   });
 
-  test.fixme('search submit preserves unrelated filters while resetting pagination', async ({ page }) => {
+  test('search submit preserves unrelated filters while resetting pagination', async ({ page }) => {
     await page.goto('/search?city=غزة&page=3');
     await searchInput(page).fill('أثاث');
     await page.locator('main').getByRole('search').first().getByRole('button', { name: 'بحث', exact: true }).click();

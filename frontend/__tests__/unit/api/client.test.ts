@@ -46,6 +46,7 @@ import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/store/auth.store';
 import { API_BASE_URL } from '@/lib/constants';
 import { deleteCookie } from '@/lib/cookies';
+import { toast } from 'sonner';
 
 // UX-FIX P0-1: client.ts's 401/refresh-failure branch now shows a toast
 // before redirecting — mocked here the same way other test files in
@@ -468,7 +469,8 @@ describe('api/client.ts — silent refresh on 401', () => {
     expect(window.location.href).not.toContain('reason=session_expired');
   });
 
-  it.skip('on refresh failure, shows a toast and redirects to /login with `from` and `reason` params', async () => {
+  it('on refresh failure, shows a toast and redirects to /login with `from` and `reason` params', async () => {
+    vi.mocked(toast.error).mockClear();
     setAuthenticatedState('expired-access-token');
 
     getMswServer()?.use(
@@ -494,6 +496,7 @@ describe('api/client.ts — silent refresh on 401', () => {
       () => expect(window.location.href).toBe('/login?from=%2Fdashboard&reason=session_expired'),
       { timeout: 2000, interval: 50 },
     );
+    expect(toast.error).toHaveBeenCalledWith('انتهت جلستك، الرجاء تسجيل الدخول مجددًا');
   });
 
   it('does not retry a request that already failed once (the _retry guard)', async () => {

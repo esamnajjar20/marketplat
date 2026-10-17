@@ -20,7 +20,7 @@ check('connectivity test restores online mode in finally even after assertion fa
   const offlineAt = test.indexOf('await context.setOffline(true)');
   const finallyAt = test.indexOf('} finally {', offlineAt);
   const restoreAt = test.indexOf('await context.setOffline(false)', finallyAt);
-  const reconnectAssertionAt = test.indexOf("await expect(page.getByText('متصل', { exact: true })).toBeVisible", restoreAt);
+  const reconnectAssertionAt = test.indexOf("await expect.poll(() => readOnlineState(page), { timeout: 10_000 }).toBe(true)", restoreAt);
   return offlineAt >= 0 && finallyAt > offlineAt && restoreAt > finallyAt && reconnectAssertionAt > restoreAt;
 })());
 check('warming actions read live browser connectivity at the action boundary', warming.includes('const isOnlineAtActionBoundary = () =>') && warming.includes("typeof navigator === 'undefined' ? online : navigator.onLine") && warming.includes('if (!isOnlineAtActionBoundary())'));

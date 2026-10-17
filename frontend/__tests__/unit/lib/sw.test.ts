@@ -29,10 +29,8 @@
  * as-is; only indexedDB has no Node equivalent) so that logic can
  * actually run and be locked in against regression.
  */
-// TODO(test-session-2): 6 tests below assume pre-refactor SW behavior
-// (handleMutation IndexedDB path, replayQueue leases, query-key isolation,
-// offline reload from user partition). SW logic has since changed — needs
-// alignment between test mocks and current sw.js. Tracked for session 2.
+// Some legacy scenarios remain skipped pending dedicated fixture alignment;
+// query-key isolation and live processing-lease behavior are active regressions.
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
@@ -800,7 +798,7 @@ describe('sw.js — service worker logic', () => {
       expect(fallback.type).toBe('error');
     });
 
-    it.skip('keeps different query strings as separate USER_DATA_CACHE keys', async () => {
+    it('keeps different query strings as separate USER_DATA_CACHE keys', async () => {
       ctx.setFetch(async () =>
         new Response(JSON.stringify({ items: [{ id: 'a' }] }), {
           status: 200,
@@ -1097,14 +1095,18 @@ describe('sw.js — service worker logic', () => {
       expect(result).toBe(okResponse);
     });
 
-    it.skip('queues the request in IndexedDB and returns 202 when the network fails, preserving the body as a Blob (FIX OFFLINE-ADS-01)', async () => {
+    it('queues an explicitly identified ad mutation and returns 202 when the network fails, preserving the body as a Blob (FIX OFFLINE-ADS-01)', async () => {
       ctx.setFetch(async () => {
         throw new TypeError('network error');
       });
       const request = makeFakeRequest({
         url: 'https://example.com/api/v1/ads',
         method: 'POST',
-        headers: { authorization: 'Bearer tok123', 'content-type': 'application/json' },
+        headers: {
+          authorization: 'Bearer tok123',
+          'content-type': 'application/json',
+          'x-offline-op-id': 'ad-create-test-001',
+        },
         body: '{"title":"test"}',
       });
 
@@ -1355,7 +1357,7 @@ describe('sw.js — service worker logic', () => {
   });
 
   describe('replayQueue (ordering across multiple entries)', () => {
-    it.skip('does not let a failed 4xx block the rest of the queue, but a real network failure stops further processing (FIX CONFLICT-01)', async () => {
+    it('does not let a failed 4xx block the rest of the queue, but a real network failure stops further processing (FIX CONFLICT-01)', async () => {
       await ctx.sandbox.queueRequestEntry({
         url: 'https://example.com/api/v1/a',
         method: 'POST',
@@ -1399,7 +1401,7 @@ describe('sw.js — service worker logic', () => {
       expect(statusByPath.c).toBe('pending'); // never attempted — queue stopped at "b"
     });
 
-    it.skip('skips a row with a live processing lease to prevent duplicate replay', async () => {
+    it('skips a row with a live processing lease to prevent duplicate replay', async () => {
       await ctx.sandbox.queueRequestEntry({
         url: 'https://example.com/api/v1/in-flight',
         method: 'POST',
@@ -1418,12 +1420,15 @@ describe('sw.js — service worker logic', () => {
 
       await ctx.sandbox.replayQueue();
 
+      // A live lease is owned by another drain; no refresh or replay fetch
+      // should be issued by this drain.
       expect(fetchCalls).toBe(0);
       const [entry] = await ctx.sandbox.getAllQueuedEntries();
       expect(entry.status).toBe('pending');
+      expect(entry.processing).toBe(true);
     });
 
-    it.skip('recovers a stale or legacy processing marker and replays the row', async () => {
+    it('recovers a stale or legacy processing marker and replays the row', async () => {
       await ctx.sandbox.queueRequestEntry({
         url: 'https://example.com/api/v1/stale-processing',
         method: 'POST',
@@ -1434,15 +1439,18 @@ describe('sw.js — service worker logic', () => {
         processing: true,
         // No processingStartedAt simulates a row written by an older SW.
       });
-      let fetchCalls = 0;
-      ctx.setFetch(async () => {
-        fetchCalls += 1;
+      let replayCalls = 0;
+      ctx.setFetch(async (input: any) => {
+        const url = typeof input === 'string' ? input : input.url;
+        if (String(url).endsWith('/stale-processing')) replayCalls += 1;
         return new Response('{}', { status: 200 });
       });
 
       await ctx.sandbox.replayQueue();
 
-      expect(fetchCalls).toBe(1);
+      // Credential refresh may make its own request; assert the queued
+      // operation itself is replayed exactly once.
+      expect(replayCalls).toBe(1);
       expect(await ctx.sandbox.getAllQueuedEntries()).toHaveLength(0);
     });
 

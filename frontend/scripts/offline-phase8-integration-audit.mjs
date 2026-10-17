@@ -13,7 +13,7 @@ const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
 
 check('phase 8 suite uses real Playwright browser contexts, not mocked app modules', spec.includes("from '@playwright/test'") && !spec.includes('vi.mock('));
 check('test verifies active service worker controls the page before offline reload', spec.includes('navigator.serviceWorker.ready') && spec.includes('navigator.serviceWorker.controller') && spec.includes('context.setOffline(true)'));
-check('offline reload asserts cached offline hub content and offline status', spec.includes("page.reload()") && spec.includes("name: 'جاهزية التطبيق بدون نت'") && spec.includes("'بدون نت'"));
+check('offline reload asserts cached offline hub content and offline status', spec.includes("page.reload()") && spec.includes("name: 'جاهزية التطبيق بدون نت'") && spec.includes('/بدون نت|الاتصال ضعيف أو منقطع/'));
 check('connectivity is restored in a finally block', spec.includes('finally {') && spec.includes('await context.setOffline(false)'));
 check('API failure integration case exercises a real API-driven listing and asserts its error state', spec.includes("page.route('**/api/**'") && spec.includes("route.abort('failed')") && spec.includes("page.goto('/products')") && spec.includes('interceptedApiRequests') && spec.includes('حدث خطأ أثناء تحميل المنتجات'));
 const apiFailureTestStart = spec.indexOf("test('the products listing exposes its error state when its API request fails'");

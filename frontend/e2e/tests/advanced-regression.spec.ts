@@ -13,7 +13,7 @@ test.describe('advanced regression contracts', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 }).toBe('سيارة');
   });
 
-  test.fixme('clearing a search query preserves unrelated filters but removes pagination', async ({ page }) => {
+  test('clearing a search query preserves unrelated filters but removes pagination', async ({ page }) => {
     await page.goto('/search?q=' + encodeURIComponent('هاتف') + '&city=' + encodeURIComponent('غزة') + '&type=ads&page=8');
     await searchInput(page).fill('   ');
     await searchInput(page).press('Enter');

@@ -452,6 +452,17 @@ describe('registerServiceWorker', () => {
     expect(result).toBe(registration);
   });
 
+  it('does not start a background update check while offline', async () => {
+    process.env.NODE_ENV = 'production';
+    const { registration } = installServiceWorkerStub();
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
+
+    await registerServiceWorker();
+
+    expect(registration.update).not.toHaveBeenCalled();
+    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+  });
+
   it('notifies waiting-update listeners immediately if a worker is already waiting', async () => {
     process.env.NODE_ENV = 'production';
     const waitingWorker = { postMessage: vi.fn() };

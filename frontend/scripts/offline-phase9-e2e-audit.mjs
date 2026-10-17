@@ -19,7 +19,7 @@ check('asserts stable operation identity is persisted', spec.includes('row.opera
 check('asserts owner binding is persisted', spec.includes('expect(queued[0].ownerUserId).toBe(OWNER_ID)'));
 check('asserts bearer credentials are not persisted in queue headers', spec.includes('expect(queued[0].needsAuth).toBe(true)') && spec.includes("not.toContain('authorization')") && sw.includes("if (lower === 'authorization')"));
 check('restores online state in finally', spec.includes('finally {') && spec.includes('await context.setOffline(false)'));
-check('cleans only the row created by this test', spec.includes('queuedId !== null') && spec.includes('objectStore(\'requests\').delete(id)') && !spec.includes('CLEAR_QUEUE'));
+check('cleans only the row created by this test', spec.includes('queuedId !== null') && spec.includes('tx.objectStore(queueName).delete(id)') && spec.includes('const queueName = db.objectStoreNames.contains(\'requests\')') && !spec.includes('CLEAR_QUEUE'));
 check('phase 9 audit command is registered', pkg.scripts['offline:phase9-e2e-audit'] === 'node scripts/offline-phase9-e2e-audit.mjs');
 
 for (const item of checks) console.log(`[offline-phase9] ${item.ok ? 'PASS' : 'FAIL'} ${item.name}`);

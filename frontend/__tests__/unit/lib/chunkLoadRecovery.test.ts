@@ -24,6 +24,11 @@ describe('handleChunkLoadError', () => {
     expect(isChunkLoadError(new Error('boom'))).toBe(false);
   });
 
+  it('recognizes the Webpack module-table TypeError seen in device logs', () => {
+    expect(isChunkLoadError(new TypeError("Cannot read properties of undefined (reading 'call')"))).toBe(true);
+    expect(isChunkLoadError(new TypeError("Cannot read properties of null (reading 'name')"))).toBe(false);
+  });
+
   it('reloads once when online', () => {
     onLineSpy.mockReturnValue(true);
     expect(handleChunkLoadError(chunkError)).toBe(true);

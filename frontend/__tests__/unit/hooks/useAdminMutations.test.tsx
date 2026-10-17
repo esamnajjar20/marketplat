@@ -181,21 +181,29 @@ describe('useAdminToggleUserActive', () => {
     });
   }
 
-  it.skip('optimistically updates isActive, rolling back on failure', async () => {
+  it('optimistically updates isActive, rolling back on failure', async () => {
     const queryClient = makeClient();
     seedUsersList(queryClient);
-    (adminApi.toggleUserActive as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fail'));
+
+    // Keep the mutation in flight long enough to assert the optimistic state
+    // before rejecting it; an immediately rejected promise races the async
+    // onMutate cancellation/snapshot and made the old test flaky.
+    let rejectToggle!: (error: Error) => void;
+    (adminApi.toggleUserActive as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((_resolve, reject) => { rejectToggle = reject; }),
+    );
 
     const { result } = renderHook(() => useAdminToggleUserActive(), { wrapper: createWrapper(queryClient) });
     act(() => { result.current.mutate({ userId: 'user-1', isActive: false }); });
 
-    await waitFor(() => expect(queryClient.getQueryData<any>(queryKeys.admin.users()).items[0].isActive).toBe(false));
-    const duringFlight = queryClient.getQueryData<any>(queryKeys.admin.users());
-    expect(duringFlight.items[0].isActive).toBe(false);
+    await waitFor(() => {
+      expect(queryClient.getQueryData<any>(queryKeys.admin.users()).items[0].isActive).toBe(false);
+    });
+    expect(queryClient.getQueryData<any>(queryKeys.admin.users()).items[0].isActive).toBe(false);
 
+    await act(async () => { rejectToggle(new Error('fail')); });
     await waitFor(() => expect(result.current.isError).toBe(true));
-    const afterRollback = queryClient.getQueryData<any>(queryKeys.admin.users());
-    expect(afterRollback.items[0].isActive).toBe(true);
+    expect(queryClient.getQueryData<any>(queryKeys.admin.users()).items[0].isActive).toBe(true);
   });
 
   it('shows the correct toast for activation vs deactivation', async () => {

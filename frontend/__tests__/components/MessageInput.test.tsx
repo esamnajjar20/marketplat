@@ -212,7 +212,7 @@ describe('MessageInput', () => {
     expect(screen.getByLabelText('إرسال')).toBeDisabled();
   });
 
-  it.skip('marks the composer busy and blocks attachments (but keeps the editor enabled) while a send is pending', () => {
+  it('marks the composer busy and blocks attachments (but keeps the editor enabled) while a send is pending', () => {
     (useSendMessage as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate: mockMutate,
       isPending: true,

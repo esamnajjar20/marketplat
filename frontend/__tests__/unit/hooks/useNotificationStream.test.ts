@@ -6,6 +6,7 @@ import { renderHook } from '@testing-library/react';
 import {
   isNotificationStreamConnected,
   useNotificationStream,
+  splitSseFrames,
 } from '@/hooks/useNotificationStream';
 
 vi.mock('@/store/auth.store', () => ({
@@ -31,6 +32,28 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 describe('useNotificationStream', () => {
+
+  it('splits LF-delimited SSE frames and retains an incomplete tail', () => {
+    expect(splitSseFrames('event: notification\ndata: {}\n\nevent: message\ndata: {"x":1}'))
+      .toEqual({
+        frames: ['event: notification\ndata: {}'],
+        remainder: 'event: message\ndata: {"x":1}',
+      });
+  });
+
+  it('supports CRLF and CR-only SSE frame delimiters', () => {
+    expect(splitSseFrames('event: notification\r\ndata: {}\r\n\r\nevent: message\rdata: ok\r\r'))
+      .toEqual({
+        frames: ['event: notification\r\ndata: {}', 'event: message\rdata: ok'],
+        remainder: '',
+      });
+  });
+
+  it('does not dispatch a frame until its blank-line terminator arrives', () => {
+    expect(splitSseFrames('event: notification\r\ndata: {}\r'))
+      .toEqual({ frames: [], remainder: 'event: notification\r\ndata: {}\r' });
+  });
+
   it('isNotificationStreamConnected starts false', () => {
     expect(typeof isNotificationStreamConnected()).toBe('boolean');
   });

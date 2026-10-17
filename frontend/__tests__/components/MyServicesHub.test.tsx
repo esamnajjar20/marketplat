@@ -42,7 +42,7 @@ const provider = {
 };
 
 // TODO(2026-10-16): un-skip after updating loading-state assertions to match unified loading system (1f2c898a)
-describe.skip('MyServicesHub', () => {
+describe('MyServicesHub', () => {
   beforeEach(() => {
     vi.mocked(useMyServiceProviderAnalytics).mockReturnValue({ data: null } as never);
     vi.mocked(useMyServiceProvider).mockReturnValue({
@@ -104,7 +104,8 @@ describe.skip('MyServicesHub', () => {
       data: { pendingRequests: 3, upcomingAppointments: 0 },
     } as never);
     render(<MyServicesHub />);
-    expect(screen.getByText(/لديك 3 عنصراً يحتاج إلى متابعة/)).toBeInTheDocument();
+    expect(screen.getByText('يحتاج إلى إجراء')).toBeInTheDocument();
+    expect(screen.getByText(/[٣3]/)).toBeInTheDocument();
     expect(screen.getByText('طلبات بانتظار ردك')).toBeInTheDocument();
   });
 });

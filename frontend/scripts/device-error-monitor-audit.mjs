@@ -15,6 +15,7 @@ const checks = [
   ['unhandled promise rejection capture', /unhandledrejection/.test(files.monitor)],
   ['console error/warning and opt-in debug capture', /console\.error\s*=/.test(files.monitor) && /console\.warn\s*=/.test(files.monitor) && /isReproduceMode\(\)/.test(files.monitor)],
   ['HTTP 5xx and failed network request capture', /network-request/.test(files.monitor) && /response\.status >= 500/.test(files.monitor)],
+  ['diagnostic endpoint failures do not recursively flood the error journal', /function isErrorReportingRequest\(/.test(files.monitor) && /!isErrorReportingRequest\(url\).*response\.status >= 500/.test(files.monitor) && /!isErrorReportingRequest\(url\).*category: 'network-request'/.test(files.monitor)],
   ['bounded breadcrumbs include navigation, clicks, API and storage', /MAX_BREADCRUMBS = 20/.test(files.monitor) && /addBreadcrumb\('navigation'/.test(files.monitor) && /addBreadcrumb\('click'/.test(files.monitor) && /addBreadcrumb\('api'/.test(files.monitor) && /addBreadcrumb\('storage'/.test(files.monitor)],
   ['IndexedDB journal and localStorage fallback', /indexedDB\.open/.test(files.monitor) && /LOCALSTORAGE_MIRROR_RECORDS/.test(files.monitor) && /getDeviceErrorsAsync/.test(files.monitor)],
   ['cross-tab synchronization', /BroadcastChannel/.test(files.monitor) && /DEVICE_ERRORS_CHANNEL/.test(files.monitor)],

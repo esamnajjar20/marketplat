@@ -18,7 +18,7 @@ vi.mock('@/hooks/mutations/useStoreMemberMutations', () => ({
 }));
 
 // TODO(2026-10-16): un-skip after updating loading-state assertions to match unified loading system (1f2c898a)
-describe.skip('MyMemberInvites', () => {
+describe('MyMemberInvites', () => {
   beforeEach(() => {
     vi.mocked(useAcceptStoreMemberInvite).mockReturnValue({
       mutate: vi.fn(),
@@ -44,7 +44,7 @@ describe.skip('MyMemberInvites', () => {
     } as never);
     const { container } = render(<MyMemberInvites />);
     // may be empty DOM or empty state text
-    expect(container).toBeTruthy();
+    expect(container.firstChild).toBeNull();
   });
 
   it('renders invite cards', () => {
@@ -61,6 +61,6 @@ describe.skip('MyMemberInvites', () => {
     } as never);
     render(<MyMemberInvites />);
     expect(screen.getByText(/متجر الأمل/)).toBeInTheDocument();
-    expect(screen.getByText(/محرر/)).toBeInTheDocument();
+    expect(screen.getByText('محرر منتجات')).toBeInTheDocument();
   });
 });
