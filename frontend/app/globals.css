@@ -691,10 +691,32 @@ html[data-app-mode='native'] .pwa-safe-bottom {
 [data-sonner-toast].market-toast button[data-button]:active { transform: scale(0.97); }
 [data-sonner-toast].market-toast [data-close-button],
 [data-sonner-toast].market-toast .market-toast-close {
-  border-radius: 9px !important;
-  border-color: hsl(var(--border)) !important;
-  background: hsl(var(--card)) !important;
-  color: hsl(var(--muted-foreground)) !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  border: 1px solid hsl(var(--border) / 0.9) !important;
+  background: hsl(var(--muted) / 0.72) !important;
+  color: hsl(var(--foreground)) !important;
+  opacity: 0.88;
+  transition: background-color 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+[data-sonner-toast].market-toast [data-close-button]:hover,
+[data-sonner-toast].market-toast .market-toast-close:hover {
+  opacity: 1;
+  background: hsl(var(--accent)) !important;
+}
+[data-sonner-toast].market-toast [data-close-button]:active,
+[data-sonner-toast].market-toast .market-toast-close:active {
+  transform: scale(0.94);
+}
+[data-sonner-toast].market-toast:focus-visible {
+  outline: 2px solid hsl(var(--ring)) !important;
+  outline-offset: 3px;
 }
 
 .market-live-notification {
@@ -716,7 +738,11 @@ html[data-app-mode='native'] .pwa-safe-bottom {
 
 @media (max-width: 480px) {
   [data-sonner-toaster] { left: 0 !important; right: 0 !important; padding-inline: 12px !important; }
-  [data-sonner-toast].market-toast { width: calc(100vw - 24px) !important; border-radius: 16px !important; padding: 12px 13px !important; }
+  [data-sonner-toast].market-toast { width: calc(100vw - 24px) !important; min-height: 64px; border-radius: 16px !important; padding: 12px 13px !important; }
+  [data-sonner-toast].market-toast [data-title],
+  [data-sonner-toast].market-toast .market-toast-title { font-size: 14px !important; }
+  [data-sonner-toast].market-toast [data-description],
+  [data-sonner-toast].market-toast .market-toast-description { font-size: 12px !important; }
   [data-sonner-toast].market-toast button[data-button],
   [data-sonner-toast].market-toast .market-toast-action { min-height: 38px; }
 }

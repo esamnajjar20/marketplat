@@ -168,7 +168,10 @@ export function useLogin() {
       // exception. Uses the minimal user set by setAuth above (name is
       // always present on AuthResultUser), so this doesn't wait on the
       // background getMe() enrichment call.
-      toast.success(`مرحبًا بعودتك، ${data.user.name}!`);
+      toast.success('تم تسجيل الدخول بنجاح', {
+        description: `أهلًا بعودتك ${data.user.name}، يسعدنا وجودك مجددًا.`,
+        duration: 4200,
+      });
 
       // FIX AUTH-06: previously always pushed ROUTES.dashboard, ignoring
       // the ?from= redirect target middleware.ts attaches when bouncing
@@ -234,7 +237,10 @@ export function useRegister() {
       // with a toast before/alongside navigating; register was the one
       // silent exception despite being a bigger, one-time moment for a
       // new user.
-      toast.success(`مرحبًا ${data.user.name}! تم إنشاء حسابك بنجاح`);
+      toast.success('أهلًا بك في منصتنا!', {
+        description: `تم إنشاء حسابك بنجاح يا ${data.user.name}. يمكنك الآن البدء باستكشاف الخدمات.`,
+        duration: 4800,
+      });
       // AUDIT-FIX auth#1: previously always pushed ROUTES.dashboard,
       // ignoring a ?from= target carried over from middleware.ts (via
       // /login?from=X → "إنشاء حساب" → here). Mirrors useLogin's

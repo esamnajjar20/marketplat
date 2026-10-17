@@ -661,6 +661,40 @@ describe('notificationEvents — service requests & appointments', () => {
     });
   });
 
+  describe('getMyNotifications category filters', () => {
+    beforeEach(() => {
+      (notificationsRepository.findManyForUser as jest.Mock).mockResolvedValue({ notifications: [], total: 0 });
+    });
+
+    it('filters following notifications to follower and followed-activity types', async () => {
+      await notificationsService.getMyNotifications(userId, { category: 'following' });
+      const types = (notificationsRepository.findManyForUser as jest.Mock).mock.calls[0][1].types as string[];
+      expect(types).toEqual([
+        'NEW_FOLLOWER',
+        'FOLLOWED_USER_ACTIVITY',
+        'FOLLOWED_STORE_ACTIVITY',
+        'FOLLOWED_CATEGORY_ACTIVITY',
+      ]);
+    });
+
+    it('includes ad lifecycle and moderation notifications in the system category', async () => {
+      await notificationsService.getMyNotifications(userId, { category: 'system' });
+      const types = (notificationsRepository.findManyForUser as jest.Mock).mock.calls[0][1].types as string[];
+      expect(types).toEqual(expect.arrayContaining([
+        'AD_EXPIRING_SOON',
+        'AD_EXPIRED',
+        'MODERATION_REPORT_RECEIVED',
+        'MODERATION_DECISION',
+      ]));
+    });
+
+    it('filters sales notifications from the shared category definition', async () => {
+      await notificationsService.getMyNotifications(userId, { category: 'sales' });
+      const types = (notificationsRepository.findManyForUser as jest.Mock).mock.calls[0][1].types as string[];
+      expect(types).toContain('SALES_SMART_INSIGHT');
+    });
+  });
+
   describe('getMyNotifications category "services"', () => {
     it('includes the three new types so the UI filter shows them', async () => {
       (notificationsRepository.findManyForUser as jest.Mock).mockResolvedValue({ notifications: [], total: 0 });

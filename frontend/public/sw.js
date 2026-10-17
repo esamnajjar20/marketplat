@@ -2778,15 +2778,15 @@ self.addEventListener('push', (event) => {
   const options = {
     body: typeof data.body === 'string' ? data.body.slice(0, 400) : '',
     tag: pushTag,
-    renotify: Boolean(pushTag),
     timestamp: Date.now(),
     data: { url: targetUrl, type: typeof data.type === 'string' ? data.type : 'GENERAL' },
     icon: '/icon-192',
     badge: '/icon-192',
 
-    vibrate: data.urgent ? [120, 60, 120] : [80],
+    vibrate: data.urgent ? [100, 50, 100] : [50],
 
     requireInteraction: data.urgent === true,
+    renotify: Boolean(pushTag),
 
     dir: 'rtl',
     lang: 'ar',

@@ -96,6 +96,9 @@ function ThemedToaster() {
       expand
       duration={4600}
       closeButton
+      // Let users dismiss every transient feedback message with a horizontal swipe.
+      // Sonner owns the gesture lifecycle so swiping does not activate toast actions.
+      swipeDirections={['left', 'right']}
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
       offset="max(1rem, env(safe-area-inset-top))"
       toastOptions={{

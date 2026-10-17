@@ -47,26 +47,26 @@ function NotificationRow({
   const content = (
     <div
       className={cn(
-        'flex items-start gap-2.5 p-3 text-start transition-colors hover:bg-muted/50',
-        isUnread && 'bg-primary/5',
+        'notification-dropdown-row flex items-start gap-3 p-3.5 text-start transition-colors hover:bg-muted/50',
+        isUnread && 'notification-dropdown-row-unread bg-primary/5',
       )}
     >
       <div
         className={cn(
-          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-          isUnread ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+          'notification-dropdown-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+          isUnread ? 'notification-dropdown-icon-unread bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
         )}
       >
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex items-start justify-between gap-2">
-          <p className={cn('text-sm line-clamp-1', isUnread && 'font-medium')}>
+          <p className={cn('notification-dropdown-title text-sm line-clamp-2', isUnread && 'font-semibold')}>
             {notification.title}
           </p>
           {isUnread && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">{notification.body}</p>
+        <p className="notification-dropdown-body text-xs leading-relaxed text-muted-foreground line-clamp-2">{notification.body}</p>
         <p className="text-2xs text-muted-foreground">
           {<HydrationSafeRelativeTime date={notification.createdAt} />}
         </p>
@@ -235,8 +235,8 @@ export function NotificationBell() {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between gap-2 p-3">
+      <DropdownMenuContent align="end" className="notification-dropdown-panel w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl p-0 shadow-xl">
+        <div className="notification-dropdown-header flex items-center justify-between gap-2 p-4">
           <DropdownMenuLabel className="p-0 font-normal">الإشعارات</DropdownMenuLabel>
           <div className="flex items-center gap-2">
           {pushDenied && (
@@ -262,7 +262,7 @@ export function NotificationBell() {
         </div>
         <DropdownMenuSeparator className="m-0" />
 
-        <div className="max-h-96 overflow-y-auto">
+        <div className="notification-dropdown-scroll max-h-[min(28rem,70vh)] overflow-y-auto">
           {pwaReg && (
             <Link
               href="/update"
@@ -327,10 +327,10 @@ export function NotificationBell() {
         </div>
 
         <DropdownMenuSeparator className="m-0" />
-        <div className="p-2">
+        <div className="notification-dropdown-footer p-2.5">
           <Link
             href={ROUTES.notifications}
-            className="flex w-full items-center justify-center rounded-md px-3 py-2 text-sm font-medium text-primary hover:bg-muted/60"
+            className="flex min-h-10 w-full items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             عرض كل الإشعارات
           </Link>

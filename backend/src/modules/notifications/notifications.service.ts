@@ -18,6 +18,7 @@ import {
   labelForNativePlatform,
   labelFromUserAgent,
 } from '../../shared/utils/deviceLabel';
+import { NOTIFICATION_CATEGORY_TYPES, NotificationCategory } from './notifications.validation';
 
 export type DeviceKind = 'web' | 'native';
 
@@ -126,45 +127,10 @@ export const notificationsService = {
     if (query.type) {
       types = [query.type as NotificationType];
     } else if (query.category) {
-      const map: Record<string, NotificationType[]> = {
-        messages: ['NEW_MESSAGE'],
-        favorites: ['FAV_AD_PRICE_CHANGED', 'FAV_AD_SOLD', 'SAVED_SEARCH_MATCH'],
-        stores: [
-          'STORE_NEW_PRODUCT',
-          'STORE_PROMOTION_STARTED',
-          'STORE_PRODUCT_RESTOCKED',
-          'PROMOTION_STATUS_CHANGE',
-          'STORE_MEMBER_INVITED',
-        ],
-        services: [
-          'NEW_SERVICE_QUOTE',
-          'SERVICE_QUOTE_ACCEPTED',
-          'NEW_REQUEST_OFFER',
-          'REQUEST_OFFER_ACCEPTED',
-          'SERVICE_REQUEST_NEW',
-          'SERVICE_REQUEST_UPDATE',
-          'APPOINTMENT_UPDATE',
-        ],
-        sales: [
-          'SALES_DAILY_REMINDER',
-          'SALES_LOW_STOCK',
-          'SALES_OVERDUE_INSTALLMENT',
-          'SALES_DEBT_REMINDER',
-          'SALES_WEEKLY_REPORT',
-          'SALES_OVERDUE_DEBT',
-          'SALES_UPCOMING_INSTALLMENT',
-          'SALES_INACTIVE_CUSTOMER',
-          'SALES_DAILY_SUMMARY',
-          'SALES_SMART_INSIGHT',
-        ],
-        system: [
-          'PROMOTION',
-          'WEEKLY_AD_VIEWS_REPORT',
-          'WEEKLY_STORE_VIEWS_REPORT',
-          'WEEKLY_SERVICE_VIEWS_REPORT',
-        ],
-      };
-      types = map[query.category];
+      // Keep category filtering in sync with request validation and the UI.
+      // A missing category must never silently remove the filter and return all notifications.
+      const category = query.category as NotificationCategory;
+      types = [...(NOTIFICATION_CATEGORY_TYPES[category] ?? [])] as NotificationType[];
     }
     const { notifications, total } = await notificationsRepository.findManyForUser(userId, {
       page: query.page,

@@ -69,7 +69,9 @@ export function NotificationToasts() {
           </span>
         ),
         className: 'market-live-notification',
-        duration: 6500,
+        duration: 5800,
+        dismissible: true,
+        descriptionClassName: 'market-live-notification-description',
         action: {
           label: 'عرض التفاصيل',
           onClick: () => router.push(href),
