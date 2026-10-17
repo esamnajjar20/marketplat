@@ -55,15 +55,15 @@ export const ProductCard = memo(function ProductCard({ product, context = 'publi
           </div>
         </div>
         <div className={cn('min-w-0', compact ? CARD_BODY_COMPACT : CARD_BODY_DEFAULT)}>
-          <h3 title={product.name} className="line-clamp-2 min-h-[2.8em] text-sm font-bold leading-[1.4] text-foreground">{product.name}</h3>
+          <div className={CARD_PRICE_ROW}><span dir="ltr" className={cn('font-mono font-bold tabular-nums tracking-tight', compact ? 'text-base' : 'text-lg', outOfStock ? 'text-muted-foreground line-through' : 'text-primary')}>{product.price == null && !hasDiscount ? CARD_PRICE_UNSET : formatPrice(hasDiscount && effectivePrice.discountPrice != null ? effectivePrice.discountPrice : product.price)}</span>{hasDiscount && <span dir="ltr" className="font-mono text-xs text-muted-foreground line-through tabular-nums">{formatPrice(product.price)}</span>}</div>
+          <h3 title={product.name} className="line-clamp-2 min-h-[2.6em] text-sm font-bold leading-6 text-foreground">{product.name}</h3>
           {product.wholesalePrice && product.wholesaleMinQty && <p className="text-xs text-muted-foreground" dir="ltr">{formatPrice(product.wholesalePrice)} عند شراء {product.wholesaleMinQty}+</p>}
-          <div className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            {showLocation && product.store.city && <span className={cn(CARD_META_ITEM, 'bg-transparent p-0')}><MapPin className="h-3 w-3 shrink-0" aria-hidden /><span className="truncate">{product.store.city}</span></span>}
-            {showStore && <span className={cn(CARD_META_ITEM, 'bg-transparent p-0')}><Store className="h-3 w-3 shrink-0" aria-hidden /><span className="truncate">{product.store.name}</span></span>}
-            {showTime && now !== null && <span className={cn(CARD_META_ITEM, 'bg-transparent p-0 ms-auto shrink-0 whitespace-nowrap tabular-nums', timeColorClass)}><Clock3 className="h-3 w-3" aria-hidden />{formatRelativeTime(product.createdAt, now)}</span>}
-            {showTime && now === null && <span className={cn(CARD_META_ITEM, 'bg-transparent p-0 ms-auto shrink-0')}><Clock3 className="h-3 w-3" aria-hidden />{TIME_PLACEHOLDER}</span>}
+          <div className="mt-auto flex min-h-6 flex-wrap items-center gap-1.5 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+            {showLocation && product.store.city && <span className={CARD_META_ITEM}><MapPin className="h-3 w-3 shrink-0" aria-hidden /><span className="truncate">{product.store.city}</span></span>}
+            {showStore && <span className={CARD_META_ITEM}><Store className="h-3 w-3 shrink-0" aria-hidden /><span className="truncate">{product.store.name}</span></span>}
+            {showTime && now !== null && <span className={cn(CARD_META_ITEM, 'ms-auto shrink-0 whitespace-nowrap tabular-nums', timeColorClass)}><Clock3 className="h-3 w-3" aria-hidden />{formatRelativeTime(product.createdAt, now)}</span>}
+            {showTime && now === null && <span className={cn(CARD_META_ITEM, 'ms-auto shrink-0')}><Clock3 className="h-3 w-3" aria-hidden />{TIME_PLACEHOLDER}</span>}
           </div>
-          <div className={cn(CARD_PRICE_ROW, 'mt-auto')}><span dir="ltr" className={cn('font-extrabold tabular-nums tracking-tight', compact ? 'text-base' : 'text-lg', outOfStock ? 'text-muted-foreground line-through' : 'text-primary-strong')}>{product.price == null && !hasDiscount ? CARD_PRICE_UNSET : formatPrice(hasDiscount && effectivePrice.discountPrice != null ? effectivePrice.discountPrice : product.price)}</span>{hasDiscount && <span dir="ltr" className="font-mono text-xs text-muted-foreground line-through tabular-nums">{formatPrice(product.price)}</span>}</div>
         </div>
       </Link>
       {showHeart && <FavoriteButton entityType="PRODUCT" entityId={product.id} returnTo={detailHref} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
