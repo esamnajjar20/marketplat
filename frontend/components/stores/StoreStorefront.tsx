@@ -16,13 +16,13 @@ import { getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeek
 
 type Tab = 'products' | 'offers' | 'collections' | 'ads' | 'reviews' | 'about';
 
-const TABS: { id: Tab; label: string; icon: typeof Package }[] = [
-  { id: 'products', label: 'المنتجات', icon: Package },
-  { id: 'offers', label: 'العروض', icon: Tag },
-  { id: 'collections', label: 'المجموعات', icon: Layers },
-  { id: 'ads', label: 'الإعلانات', icon: Megaphone },
-  { id: 'reviews', label: 'التقييمات', icon: Star },
-  { id: 'about', label: 'عن المتجر', icon: Info },
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'products', label: 'المنتجات' },
+  { id: 'offers', label: 'العروض' },
+  { id: 'collections', label: 'المجموعات' },
+  { id: 'ads', label: 'الإعلانات' },
+  { id: 'reviews', label: 'التقييمات' },
+  { id: 'about', label: 'عن المتجر' },
 ];
 
 const STORE_HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
@@ -79,11 +79,11 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   return (
     <div className="space-y-5">
       <div
-        className="sticky top-[var(--protected-header-offset,4rem)] z-20 -mx-2 flex gap-1.5 overflow-x-auto overscroll-x-contain border-b border-border/70 bg-background/95 px-2 py-2 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/85"
+        className="sticky top-[var(--protected-header-offset,4rem)] z-20 -mx-2 flex gap-1.5 overflow-x-auto overscroll-x-contain border-b border-border bg-background/95 px-4 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/85"
         role="tablist"
         aria-label="أقسام المتجر"
       >
-        {tabs.map(({ id, label, icon: Icon }, index) => (
+        {tabs.map(({ id, label }, index) => (
           <button
             key={id}
             type="button"
@@ -96,13 +96,12 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
             onKeyDown={(event) => handleTabKeyDown(event, index)}
             onClick={() => setTab(id)}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors',
+              'h-12 shrink-0 whitespace-nowrap border-b-[3px] px-3 text-sm transition-colors',
               active === id
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-muted/45 text-muted-foreground hover:bg-muted hover:text-foreground',
+                ? 'border-primary font-extrabold text-primary-strong'
+                : 'border-transparent font-semibold text-muted-foreground hover:text-foreground',
             )}
           >
-            <Icon className="h-4 w-4" aria-hidden />
             {label}
           </button>
         ))}

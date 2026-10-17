@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { safeBack } from '@/lib/navigation';
 
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { MapPin, Calendar, FileText, Star, UserPlus, UserMinus } from 'lucide-react';
+import { MapPin, Star, Plus, UserMinus, ChevronRight, ChevronLeft, BadgeCheck } from 'lucide-react';
 import { VerifiedBadge } from '@/components/shared/VerifiedBadge';
 import { getAvatarUrl }   from '@/lib/cloudinary';
-import { formatDate }     from '@/lib/formatters';
 import { useIsUserOnline } from '@/hooks/queries/usePresence';
 import { ReportUserButtonGate } from '@/components/profile/ReportUserButtonGate';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
@@ -26,26 +27,23 @@ import { useAuthStore } from '@/store/auth.store';
 
 interface Props { user: PublicUser; }
 
+const CIRCLE_BTN =
+  'flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/90 p-0 text-foreground shadow-md backdrop-blur hover:bg-white';
+
 /**
- * REDESIGN: matches the same mock StoreHeader.tsx was rebuilt against —
- * centered avatar, name, a stats card, centered bio. A plain user has no
- * cover photo or follow relationship the way a store does, so those
- * pieces of the mock are simply omitted here rather than faked; the
- * stats card uses what a profile actually has (ad count / city /
- * member-since) in place of store's (followers/products/city).
- *
- * UNIFIED-PROFILE: this is now the single entry point for a person
- * regardless of whether they're also a seller/store-owner/service-
- * provider (see /profile/[id]/page.tsx's ProfileTabsSection for the
- * per-role tab content) — the header itself only surfaces the verified
- * badge + aggregate rating a seller profile carries, since a store's
- * own name/logo/cover and a service provider's own business name stay
- * inside their respective tabs rather than replacing this header's
- * identity (this is the *person's* name, not the store's).
+ * REDESIGN v2 — matches the approved "الملف الشخصي" mockup 1:1 on mobile:
+ * soft band with back/share circles, gradient-ringed 92px avatar, name,
+ * verified + member-since tags (plus the existing role badges), rating,
+ * city, bio, 3-tile stats card (followers/following tiles link to their
+ * lists), [follow | message] row, and a "متجره" row card. Desktop (lg+)
+ * splits into identity (start) and stats/actions (end). Behavior and data
+ * are unchanged (stories, presence, follow, block, report, edit).
  */
 export function PublicProfileHeader({ user }: Props) {
+  const router = useRouter();
   const avatar = getAvatarUrl(user.avatarUrl ?? '', 128);
   const seller = user.sellerProfile;
+  const store = seller?.storeDetails ?? null;
   const rating = seller ? parseFloat(seller.averageRating) : 0;
   const isOnline = useIsUserOnline(user.id);
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
@@ -54,128 +52,147 @@ export function PublicProfileHeader({ user }: Props) {
   const toggleFollow = useToggleFollow();
   const { data: profileStories = [] } = useUserStories(user.id);
   const [activeStoryGroup, setActiveStoryGroup] = useState<StoryGroup | null>(null);
+  const memberYear = new Date(user.createdAt).getFullYear();
 
-
+  const stats = [
+    { value: user._count.ads, label: 'إعلان', href: null as string | null },
+    { value: user.followStats.followers, label: 'متابع', href: `/profile/${user.id}/followers` },
+    { value: user.followStats.following, label: 'أتابعهم', href: `/profile/${user.id}/following` },
+  ];
+  const tileCls = 'flex flex-1 flex-col items-center gap-0.5 rounded-[14px] bg-surface-2 px-1 py-3';
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <section className="relative isolate overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-32 rounded-b-[1.75rem] bg-gradient-to-br from-primary-soft to-accent-soft" />
-      <div className="relative z-10 pb-6 pt-14 sm:pb-8 sm:pt-16">
-      <div className="relative z-10 flex flex-col items-center px-3 text-center sm:px-6 lg:flex-row lg:items-start lg:gap-10 lg:px-10 lg:text-start">
-        <div className="flex w-full flex-col items-center lg:w-72 lg:shrink-0 lg:items-start">
-<div className={`relative shrink-0 rounded-full p-[3px] ${profileStories.length ? 'bg-gradient-to-tr from-rating via-accent to-primary' : 'bg-transparent'}`}>
-          <button
-            type="button"
-            disabled={profileStories.length === 0}
-            onClick={() => profileStories.length > 0 && setActiveStoryGroup({ user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null }, stories: profileStories, hasUnseen: profileStories.some((story) => !story.viewed), latestCreatedAt: profileStories[profileStories.length - 1]?.createdAt ?? user.createdAt })}
-            className="relative block h-24 w-24 overflow-hidden rounded-full border-4 border-card bg-primary-soft shadow-lg sm:h-28 sm:w-28"
-            aria-label={profileStories.length ? 'مشاهدة قصص المستخدم' : undefined}
-          >
-            <SafeImage variant="avatar" src={avatar} alt={user.name} fill className="object-cover" sizes="112px" />
+      <section className="relative isolate overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
+        {/* الشريط العلوي */}
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[120px] rounded-b-[28px] bg-gradient-to-br from-primary-soft to-accent-soft" />
+        <div className="absolute inset-x-3.5 top-3.5 z-20 flex items-center justify-between">
+          <button type="button" onClick={() => safeBack(router as any)} aria-label="رجوع" className={CIRCLE_BTN}>
+            <ChevronRight className="h-5 w-5" aria-hidden />
           </button>
-          {seller?.verified && (
-            <div className="absolute -bottom-0.5 -end-0.5 z-10">
-              <VerifiedBadge />
-            </div>
-          )}
-          {isOnline && (
-            <span
-              className="absolute bottom-0.5 end-0.5 z-10 h-3.5 w-3.5 rounded-full bg-online ring-2 ring-background"
-              aria-label="متصل الآن"
-              title="متصل الآن"
-            />
-          )}
+          <ShareAdButton title={user.name} url={`${APP_URL}${ROUTES.userProfile(user.id)}`} variant="icon" className={CIRCLE_BTN} />
         </div>
 
-        <h1 className="mt-3.5 text-xl font-extrabold text-foreground sm:text-2xl">{user.name}</h1>
+        <div className="relative z-10 pb-6 pt-[72px] lg:pb-8">
+          <div className="flex flex-col items-center px-4 text-center lg:flex-row lg:items-start lg:gap-10 lg:px-10 lg:text-start">
+            {/* الهوية */}
+            <div className="flex w-full flex-col items-center lg:w-72 lg:shrink-0 lg:items-start">
+              <div className="relative shrink-0 rounded-full bg-gradient-to-br from-rating via-accent to-primary p-[3px]">
+                <button
+                  type="button"
+                  disabled={profileStories.length === 0}
+                  onClick={() => profileStories.length > 0 && setActiveStoryGroup({ user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null }, stories: profileStories, hasUnseen: profileStories.some((story) => !story.viewed), latestCreatedAt: profileStories[profileStories.length - 1]?.createdAt ?? user.createdAt })}
+                  className="relative block h-[92px] w-[92px] overflow-hidden rounded-full border-4 border-background bg-primary-soft lg:h-28 lg:w-28"
+                  aria-label={profileStories.length ? 'مشاهدة قصص المستخدم' : undefined}
+                >
+                  <SafeImage variant="avatar" src={avatar} alt={user.name} fill className="object-cover" sizes="112px" />
+                </button>
+                {isOnline && (
+                  <span
+                    className="absolute bottom-1.5 start-1.5 z-10 h-[18px] w-[18px] rounded-full border-[3px] border-background bg-online"
+                    aria-label="متصل الآن"
+                    title="متصل الآن"
+                  />
+                )}
+              </div>
 
-        <ProfileBadges sellerProfile={seller} className="mt-2" />
+              <h1 className="mt-2.5 text-[23px] font-extrabold leading-snug text-foreground">{user.name}</h1>
 
-        {seller && seller.totalRatings > 0 && (
-          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-warning-soft px-3 py-1 text-sm font-semibold text-foreground">
-            <Star className="h-4 w-4 fill-rating text-rating" />
-            {rating.toFixed(1)} ({seller.totalRatings} تقييم)
-          </span>
-        )}
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+                {seller?.verified && (
+                  <span className="inline-flex h-[26px] items-center gap-1 rounded-full bg-primary-soft px-2.5 text-xs font-bold text-primary-strong">
+                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> بائع موثّق
+                  </span>
+                )}
+                <span className="inline-flex h-[26px] items-center rounded-full bg-surface-2 px-2.5 text-xs font-bold text-foreground/80">عضو منذ {memberYear}</span>
+              </div>
 
-        {user.bio && (
-          <p className="mt-4 max-w-sm text-center lg:text-start text-sm leading-relaxed text-muted-foreground">{user.bio}</p>
-        )}
+              <ProfileBadges sellerProfile={seller} className="mt-2 lg:justify-start" />
 
-        </div>
-<div className="flex w-full min-w-0 flex-1 flex-col items-center lg:pt-14">
-{/* Stats card */}
-        <div className="mt-5 w-full max-w-3xl rounded-2xl lg:mt-0 lg:max-w-none border border-border/70 bg-background/90 p-3 shadow-sm sm:p-4">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-              <FileText className="mb-1 h-4 w-4 text-primary" />
-              <span className="text-xl font-extrabold tabular-nums text-foreground">{user._count.ads}</span>
-              <span className="text-xs text-muted-foreground">إعلان</span>
+              {seller && seller.totalRatings > 0 && (
+                <span className="mt-2.5 inline-flex items-center gap-1 text-sm font-bold text-foreground">
+                  <Star className="h-[15px] w-[15px] fill-rating text-rating" />
+                  {rating.toFixed(1)}
+                  <span className="font-normal text-muted-foreground">({seller.totalRatings} تقييم)</span>
+                </span>
+              )}
+
+              {user.city && (
+                <span className="mt-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                  <MapPin className="h-4 w-4" aria-hidden />{user.city}
+                </span>
+              )}
+
+              {user.bio && (
+                <p className="mx-2 mt-2.5 max-w-sm text-sm leading-[1.8] text-foreground/75 lg:mx-0">{user.bio}</p>
+              )}
             </div>
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-              <span className="text-xl font-extrabold tabular-nums text-foreground">{user.followStats.followers}</span>
-              <span className="text-xs text-muted-foreground">متابع</span>
-            </div>
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-              <span className="text-xl font-extrabold tabular-nums text-foreground">{user.followStats.following}</span>
-              <span className="text-xs text-muted-foreground">أتابعهم</span>
-            </div>
-            {user.city && (
-              <>
-                    <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-                  <MapPin className="mb-1 h-4 w-4 text-primary" />
-                  <span className="max-w-full truncate text-xs text-muted-foreground">{user.city}</span>
-                </div>
-              </>
-            )}
-            <div className="flex min-h-[76px] flex-col items-center justify-center rounded-2xl bg-surface-2 px-2 py-3">
-              <Calendar className="mb-1 h-4 w-4 text-primary" />
-              <span className="max-w-full text-center text-xs leading-4 text-muted-foreground">عضو منذ {formatDate(user.createdAt)}</span>
+
+            {/* الإحصائيات والأزرار */}
+            <div className="flex w-full min-w-0 flex-1 flex-col items-stretch lg:pt-14">
+              <div className="mt-4 flex gap-2 rounded-[20px] border border-border bg-card p-2.5 shadow-sm lg:mt-0">
+                {stats.map((t) => {
+                  const inner = (
+                    <>
+                      <span className="text-[19px] font-extrabold leading-tight tabular-nums text-foreground">{t.value}</span>
+                      <span className="text-xs text-muted-foreground">{t.label}</span>
+                    </>
+                  );
+                  return t.href ? (
+                    <Link key={t.label} href={t.href} className={`${tileCls} transition hover:bg-primary-soft`}>{inner}</Link>
+                  ) : (
+                    <div key={t.label} className={tileCls}>{inner}</div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3.5 flex flex-wrap gap-2">
+                {!isOwnProfile && (
+                  <button
+                    type="button"
+                    disabled={toggleFollow.isPending}
+                    onClick={() => toggleFollow.mutate({ targetType: 'USER', targetId: user.id })}
+                    className={`flex h-[46px] flex-[1.4] items-center justify-center gap-2 rounded-[14px] text-[15px] font-bold transition active:scale-[0.98] disabled:opacity-60 ${isFollowing ? 'border-[1.5px] border-primary/25 bg-card text-primary-strong hover:bg-primary-soft' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                  >
+                    {isFollowing ? <UserMinus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                    {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
+                  </button>
+                )}
+                <MessageUserButtonGate
+                  targetUserId={user.id}
+                  size="default"
+                  variant="outline"
+                  className="flex h-[46px] flex-1 items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-primary/25 bg-card text-[15px] font-bold text-primary-strong hover:bg-primary-soft"
+                />
+                <EditProfileButtonGate targetUserId={user.id} />
+              </div>
+
+              {store && (
+                <Link
+                  href={ROUTES.storeDetail(store.id)}
+                  className="mt-4 flex items-center gap-3 rounded-[20px] border border-border bg-card p-3 text-start shadow-sm transition hover:border-primary/30"
+                >
+                  <span className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[14px] bg-primary-soft">
+                    <SafeImage variant="avatar" src={getAvatarUrl(store.logoUrl ?? '', 96)} alt={store.name} fill className="object-cover" sizes="52px" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-primary">متجره</span>
+                    <span className="block truncate text-[15px] font-extrabold text-foreground">{store.name}</span>
+                    <span className="block text-xs text-muted-foreground">{store._count.products} منتج · {store._count.followers} متابع</span>
+                  </span>
+                  <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              )}
+
+              <div className="mt-3 flex items-center justify-center gap-1 text-xs text-muted-foreground lg:justify-start">
+                <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />
+                <ReportUserButtonGate targetUserId={user.id} />
+              </div>
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-center gap-4 text-xs font-medium text-primary">
-            <Link href={`/profile/${user.id}/followers`} className="hover:text-foreground hover:underline">المتابعون</Link>
-            <Link href={`/profile/${user.id}/following`} className="hover:text-foreground hover:underline">أتابعهم</Link>
-          </div>
-        </div>
 
-        {/* FEAT-REPORT-USER-STORE / FEAT-BLOCK-FROM-PROFILE: message,
-            block, and report gate themselves on the viewer (via
-            useAuthStore) — only show on someone else's profile; edit
-            only shows on your own. */}
-        <div className="mt-5 w-full max-w-3xl space-y-3 lg:max-w-none">
-          <div className="flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
-            {!isOwnProfile && (
-              <button
-                type="button"
-                disabled={toggleFollow.isPending}
-                onClick={() => toggleFollow.mutate({ targetType: 'USER', targetId: user.id })}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-2xl border px-5 py-2 text-sm font-bold transition disabled:opacity-60 ${isFollowing ? 'border-border bg-background hover:border-primary/40 hover:bg-primary/5' : 'border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'}`}
-              >
-                {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
-              </button>
-            )}
-            <MessageUserButtonGate targetUserId={user.id} />
-            <ShareAdButton
-              title={user.name}
-              url={`${APP_URL}${ROUTES.userProfile(user.id)}`}
-              variant="button"
-            />
-            <EditProfileButtonGate targetUserId={user.id} />
-          </div>
-          <div className="flex items-center justify-center gap-1 text-xs lg:justify-start text-muted-foreground">
-            <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />
-            <ReportUserButtonGate targetUserId={user.id} />
-          </div>
+          {activeStoryGroup && <StoryViewer group={activeStoryGroup} onClose={() => setActiveStoryGroup(null)} />}
         </div>
-
-        </div>
-{activeStoryGroup && <StoryViewer group={activeStoryGroup} onClose={() => setActiveStoryGroup(null)} />}
-
-      </div>
-      </div>
       </section>
     </div>
   );
