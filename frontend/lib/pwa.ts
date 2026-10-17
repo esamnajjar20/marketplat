@@ -133,6 +133,44 @@ function wasJustUpdated(): boolean {
 let registrationInFlight: Promise<ServiceWorkerRegistration | null> | null = null;
 let registrationContainer: ServiceWorkerContainer | null = null;
 
+// Update checks are best-effort background work. On unstable connections,
+// registration.update() can reject repeatedly even while the app remains
+// usable. Coalesce overlapping visibility/online/interval checks and throttle
+// reports so a transient fetch failure does not flood console telemetry.
+let swUpdateCheckInFlight = false;
+let lastSwUpdateFailureReportAt = 0;
+const SW_UPDATE_FAILURE_REPORT_INTERVAL_MS = 15 * 60 * 1000;
+
+function isTransientSwUpdateFailure(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  if (error instanceof TypeError) return true;
+  if (error instanceof DOMException && ['AbortError', 'NetworkError', 'TimeoutError'].includes(error.name)) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /failed to fetch|network ?error|load failed|offline|connection (?:reset|lost|closed)|timed? ?out/i.test(message);
+}
+
+function checkServiceWorkerUpdate(registration: ServiceWorkerRegistration): void {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (swUpdateCheckInFlight) return;
+  swUpdateCheckInFlight = true;
+  void Promise.resolve()
+    .then(() => registration.update())
+    .catch((error: unknown) => {
+      const now = Date.now();
+      // Network failures are expected on intermittent connectivity. Keep one
+      // sampled diagnostic at most per 15 minutes instead of reporting every
+      // retry; non-network failures are also throttled to avoid duplicate
+      // lifecycle events producing a telemetry storm.
+      if (now - lastSwUpdateFailureReportAt < SW_UPDATE_FAILURE_REPORT_INTERVAL_MS) return;
+      if (isTransientSwUpdateFailure(error) && typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      lastSwUpdateFailureReportAt = now;
+      reportBackgroundFailure('frontend/lib/pwa.ts', error, { operation: 'service-worker-update-check' });
+    })
+    .finally(() => {
+      swUpdateCheckInFlight = false;
+    });
+}
+
 // ── PWA-AUTO-APPLY-01 ─────────────────────────────────────────────
 // Applies a waiting SW update automatically, without the user having
 // to find and press the "update available" bar. Two independent
@@ -333,7 +371,7 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
     // UPDATE_CHECK_MS = 60 دقيقة) — طويل جدًا ليكتشف النشر الجديد في
     // جلسة استخدام عادية. هذا هو السبب الفعلي الذي جعل شريط "تحديث متوفر"
     // لا يظهر في الاختبار بعد كل نشر جديد.
-    void registration.update().catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error));
+    checkServiceWorkerUpdate(registration);
 
     // فحص دوري — الآن كل 5 دقائق بدل ساعة. trade-off: طلب واحد صغير من
     // المتصفح لـ /sw.js (الرد 304 عادةً) كل 5 دقائق لكل مستخدم نشط. على
@@ -352,7 +390,7 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
       // تحديث نُشِر ثم عاد الاتصال. الآن نفحص فوراً عند 'online' بدل
       // انتظار 5 دقائق.
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-      void registration.update().catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error));
+      checkServiceWorkerUpdate(registration);
     };
     window.setInterval(checkUpdate, UPDATE_CHECK_MS);
     const onVisible = () => {

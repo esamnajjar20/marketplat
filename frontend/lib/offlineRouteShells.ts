@@ -327,6 +327,24 @@ function isUsableStaticAssetResponse(url: string, response: Response | undefined
   return false;
 }
 
+/** Keep chunk-warming failures actionable without recording response bodies or
+ * arbitrary headers. In particular, a 200 HTML fallback for a missing JS chunk
+ * must be distinguishable from a real 404/502 or an unexpected MIME type.
+ */
+function describeInvalidStaticAssetResponse(url: string, response: Response | undefined): string {
+  let pathname = url;
+  try {
+    pathname = new URL(url, typeof window === 'undefined' ? 'https://offline.invalid' : window.location.origin).pathname;
+  } catch { /* retain the supplied path */ }
+  const status = response ? String(response.status) : 'no-response';
+  const rawContentType = response?.headers.get('content-type') ?? 'missing';
+  const contentType = (rawContentType.split(';')[0] ?? '').trim().toLowerCase().replace(/[^a-z0-9.+/-]/g, '_') || 'missing';
+  const edgeCache = (response?.headers.get('cf-cache-status') ?? 'unknown')
+    .trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+  const redirect = response?.redirected ? 'yes' : 'no';
+  return `chunk-invalid-status-${status}-type-${contentType}-redirect-${redirect}-cf-cache-${edgeCache}-${pathname}`;
+}
+
 async function putTimestamped(
   cache: Cache,
   request: string,
@@ -795,7 +813,7 @@ async function warmRouteAtomic(
       if (isUsableStaticAssetResponse(url, alreadyLive)) return { url, skipped: true };
       if (alreadyLive) await staticCache.delete(url);
       const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
-      if (!isUsableStaticAssetResponse(url, res)) throw new Error(`chunk-invalid-${url}`);
+      if (!isUsableStaticAssetResponse(url, res)) throw new Error(describeInvalidStaticAssetResponse(url, res));
       const length = Number(res.headers.get('content-length'));
       if (Number.isFinite(length) && length > 0) recordWarmingTransfer(route, length);
       await putTimestamped(stagingCache, url, res, 'warm-asset');
@@ -1269,7 +1287,7 @@ async function warmPersonalRouteAtomic(
       if (isUsableStaticAssetResponse(url, alreadyLive)) return;
       if (alreadyLive) await staticCache.delete(url);
       const res = await fetchWithTimeout(url, { credentials: 'same-origin' });
-      if (!isUsableStaticAssetResponse(url, res)) throw new Error(`chunk-invalid-${url}`);
+      if (!isUsableStaticAssetResponse(url, res)) throw new Error(describeInvalidStaticAssetResponse(url, res));
       await putTimestamped(stagingCache, url, res, 'warm-asset');
       stagedPaths.push(url);
     });

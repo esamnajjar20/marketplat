@@ -101,11 +101,21 @@ export function isOfflineChunkLoadError(
 
 export function isChunkLoadError(error: Error | null | undefined): boolean {
   const message = error?.message ?? '';
+  // Webpack/Next runtime can surface a missing or mismatched chunk as a
+  // module-table TypeError instead of the more obvious ChunkLoadError.
+  // The device log included Chrome's exact message below on /products; treat
+  // this narrowly as stale-runtime recovery, while leaving unrelated TypeErrors
+  // to the normal error boundary.
+  const missingWebpackModuleCall =
+    /cannot read properties of undefined \(reading ['"]call['"]\)/i.test(message) ||
+    /cannot read property ['"]call['"] of undefined/i.test(message);
+
   return (
     error?.name === 'ChunkLoadError' ||
     message.includes('Loading chunk') ||
     message.includes('Loading CSS chunk') ||
-    message.includes('Failed to fetch dynamically imported module')
+    message.includes('Failed to fetch dynamically imported module') ||
+    missingWebpackModuleCall
   );
 }
 

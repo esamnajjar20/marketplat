@@ -109,6 +109,25 @@ function fingerprintOf(input: Pick<DeviceErrorRecord, 'category' | 'title' | 'me
   const normalized = input.message.replace(/\b\d{5,}\b/g, '#').slice(0, 500);
   return [input.category, input.title, normalized, input.route, input.source ?? ''].join('|').toLowerCase();
 }
+
+/**
+ * Do not record failures of the diagnostic endpoint as ordinary application
+ * network errors. The reporter cannot reliably report its own outage; doing
+ * so only creates a self-referential error storm (one extra record per failed
+ * telemetry POST) and obscures the original failures that triggered reporting.
+ */
+function isErrorReportingRequest(url: string): boolean {
+  try {
+    const parsed = new URL(url, typeof window === 'undefined' ? 'https://marketplat.invalid' : window.location.href);
+    if (/\/observability\/client-error\/?$/i.test(parsed.pathname)) return true;
+    const configuredReporter = process.env.NEXT_PUBLIC_ERROR_REPORTER_URL;
+    if (configuredReporter) {
+      const reporter = new URL(configuredReporter, parsed.origin);
+      return reporter.origin === parsed.origin && reporter.pathname.replace(/\/$/, '') === parsed.pathname.replace(/\/$/, '');
+    }
+  } catch { /* malformed URLs are handled as ordinary requests */ }
+  return false;
+}
 export function isReproduceMode(): boolean {
   if (typeof window === 'undefined') return false;
   try { return window.localStorage.getItem(REPRODUCE_MODE_KEY) === '1'; } catch { return false; }
@@ -315,10 +334,10 @@ function installCapture(): void {
     let response: Response;
     try { response = await originalFetch(...args); }
     catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) recordDeviceError({ category: 'network-request', severity: 'network', title: 'فشل طلب الشبكة', message: `${method} ${scrubRoute(url)}: ${toReadable(error)}`, source: url, stack: errorStack(error) });
+      if (!isErrorReportingRequest(url) && !(error instanceof DOMException && error.name === 'AbortError')) recordDeviceError({ category: 'network-request', severity: 'network', title: 'فشل طلب الشبكة', message: `${method} ${scrubRoute(url)}: ${toReadable(error)}`, source: url, stack: errorStack(error) });
       throw error;
     }
-    if (response.status >= 500) recordDeviceError({ category: 'http-server', severity: 'error', title: `خطأ خادم HTTP ${response.status}`, message: `أعاد طلب الشبكة الحالة ${response.status} ${response.statusText}.`, source: url, details: `method=${method}` });
+    if (!isErrorReportingRequest(url) && response.status >= 500) recordDeviceError({ category: 'http-server', severity: 'error', title: `خطأ خادم HTTP ${response.status}`, message: `أعاد طلب الشبكة الحالة ${response.status} ${response.statusText}.`, source: url, details: `method=${method}` });
     return response;
   };
 }

@@ -170,7 +170,7 @@ export function LoginForm() {
         size="lg"
         className={`h-12 w-full rounded-xl text-base ${isFormIncomplete ? 'opacity-60' : ''}`}
         aria-disabled={isFormIncomplete || isPending}
-        disabled={isPending}
+        disabled={isFormIncomplete || isPending}
       >
         {isPending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
       </Button>

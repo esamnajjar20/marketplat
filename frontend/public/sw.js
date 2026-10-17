@@ -2011,9 +2011,14 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
   let freshCreds = null;
 
   let refreshReason = null;
+  // An entry protected by a live processing lease belongs to another
+  // in-flight replay. Do not refresh credentials solely for work this
+  // drain must skip; doing so adds network traffic and can race the active
+  // replay's own refresh/retry sequence.
   const anyNeedsCsrf = entries.some(
     (e) =>
       e.status !== 'failed' && e.status !== 'cancelled' &&
+      !hasActiveProcessingLease(e) &&
       (e.needsCsrf || e.needsAuth || isUnsafeMethod(e.method)),
   );
   if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
@@ -2097,8 +2102,11 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
         lastSoftError: result,
         processing: false,
       });
-      if (trulyOffline) { metrics.stillOffline = true; break; }
-      if (orderSensitive) break;
+      // A failed fetch is evidence that this drain cannot currently reach
+      // the origin, even when navigator.onLine still reports true. Stop here
+      // instead of issuing more requests that are likely to fail as well.
+      if (trulyOffline || result === 'still-offline') metrics.stillOffline = true;
+      if (trulyOffline || result === 'still-offline' || orderSensitive) break;
       continue;
     }
 
@@ -2141,7 +2149,7 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
       ...(result === 'retryable-http' ? {} : { retryNotBefore: 0 }),
     });
 
-    if (trulyOffline) {
+    if (trulyOffline || result === 'still-offline') {
       metrics.stillOffline = true;
       break;
     }

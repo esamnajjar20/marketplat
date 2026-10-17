@@ -57,6 +57,39 @@ type Options = {
   onEvent?: (event: LiveStreamPayload) => void;
 };
 
+/** Split complete SSE frames using every line-ending form allowed by the
+ * event-stream format (LF, CRLF, or CR), retaining the incomplete tail.
+ * Keeping this pure makes framing behavior independently testable.
+ */
+export function splitSseFrames(buffer: string): { frames: string[]; remainder: string } {
+  const frames: string[] = [];
+  let frameStart = 0;
+  let previousLineEndingStart = -1;
+  let previousLineEndingEnd = -1;
+
+  // Scan line endings as tokens rather than a repeated regex group: a CRLF
+  // pair is one line ending, not two, and may straddle fetch reader chunks.
+  for (let i = 0; i < buffer.length;) {
+    const char = buffer[i];
+    if (char !== '\r' && char !== '\n') {
+      i += 1;
+      continue;
+    }
+    const length = char === '\r' && buffer[i + 1] === '\n' ? 2 : 1;
+    if (previousLineEndingEnd === i) {
+      frames.push(buffer.slice(frameStart, previousLineEndingStart));
+      frameStart = i + length;
+      previousLineEndingStart = -1;
+      previousLineEndingEnd = -1;
+    } else {
+      previousLineEndingStart = i;
+      previousLineEndingEnd = i + length;
+    }
+    i += length;
+  }
+  return { frames, remainder: buffer.slice(frameStart) };
+}
+
 /** Module-level flag so message queries can skip aggressive polling. */
 let streamConnected = false;
 export function isNotificationStreamConnected(): boolean {
@@ -270,10 +303,10 @@ export function useNotificationStream(options?: Options) {
           const { done, value } = result;
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          const chunks = buffer.split('\n\n');
-          buffer = chunks.pop() ?? '';
-          for (const chunk of chunks) {
-            const lines = chunk.split('\n');
+          const { frames, remainder } = splitSseFrames(buffer);
+          buffer = remainder;
+          for (const chunk of frames) {
+            const lines = chunk.split(/\r\n|\r|\n/);
             let eventName = 'message';
             let eventId: string | undefined;
             const dataLines: string[] = [];
