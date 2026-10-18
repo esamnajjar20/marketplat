@@ -166,30 +166,52 @@ export async function enqueueOfflineMutationFallback(
   // so the SW can restore it on replay after an interrupted acknowledgement.
   safeHeaders['x-offline-op-id'] = operationId;
   const db = await openQueueDb();
+  let duplicateFound = false;
   try {
     await new Promise<void>((resolve, reject) => {
+      // Read and insert in one readwrite transaction: repeated fallback calls
+      // for the same operation must not create duplicate durable mutations.
       const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).add({
-        status: 'pending',
-        url: url.href,
-        method,
-        headers: safeHeaders,
-        body,
-        queuedAt: Date.now(),
-        operationId,
-        ownerUserId: input.ownerUserId,
-        needsAuth,
-        needsCsrf,
-        priority: /messages|conversations/.test(url.pathname) ? 'critical' : 'normal',
-        retryCount: 0,
-        pageFallback: true,
-      });
+      const store = tx.objectStore(STORE_NAME);
+      const existingRequest = store.getAll();
+      existingRequest.onsuccess = () => {
+        const existing = (existingRequest.result || []) as Array<{
+          id?: number; operationId?: string | null; ownerUserId?: string | null;
+          status?: QueuedRequestStatus; processing?: boolean;
+        }>;
+        const duplicate = existing.find((entry) =>
+          entry.operationId === operationId &&
+          entry.ownerUserId === input.ownerUserId &&
+          entry.status !== 'failed' && entry.status !== 'cancelled'
+        );
+        if (duplicate) { duplicateFound = true; return; }
+        store.add({
+          status: 'pending',
+          url: url.href,
+          method,
+          headers: safeHeaders,
+          body,
+          queuedAt: Date.now(),
+          operationId,
+          ownerUserId: input.ownerUserId,
+          needsAuth,
+          needsCsrf,
+          priority: /messages|conversations/.test(url.pathname) ? 'critical' : 'normal',
+          retryCount: 0,
+          pageFallback: true,
+        });
+      };
+      existingRequest.onerror = () => reject(existingRequest.error ?? new Error('queue fallback dedupe read failed'));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error ?? new Error('queue fallback transaction failed'));
       tx.onabort = () => reject(tx.error ?? new Error('queue fallback transaction aborted'));
     });
   } finally {
     db.close();
+  }
+
+  if (duplicateFound) {
+    return { queued: false, reason: 'duplicate-operation', operationId };
   }
 
   // Best effort: if an active worker exists, ask it to drain now. The row is

@@ -47,11 +47,11 @@ export function ServiceListingsGrid() {
   const query = useInfiniteQuery({
     queryKey: queryKeys.serviceListings.infinite({ search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => serviceListingsApi.getAll({
+    queryFn: ({ pageParam, signal }) => serviceListingsApi.getAll({
       search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
       page: pageParam,
       limit: pageSize,
-    }).then((r) => r.data.data),
+    }, { signal }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;

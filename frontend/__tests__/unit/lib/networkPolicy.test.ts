@@ -63,6 +63,21 @@ describe('networkPolicy', () => {
     expect(policy.pageSizeMultiplier).toBe(0.65);
   });
 
+  it('disables background warming on slow connections when data saver is enabled', () => {
+    Object.defineProperty(navigator, 'connection', {
+      configurable: true,
+      value: { effectiveType: '3g', downlink: 0.8, saveData: true },
+    });
+
+    const policy = getNetworkPolicy();
+
+    expect(policy.tier).toBe('slow');
+    expect(policy.saveData).toBe(true);
+    expect(policy.allowBackgroundWarming).toBe(false);
+    expect(policy.allowPrefetch).toBe(false);
+    expect(policy.allowOriginalImages).toBe(false);
+  });
+
   it('treats 4g as fast when saveData is off', () => {
     Object.defineProperty(navigator, 'connection', {
       configurable: true,

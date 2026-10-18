@@ -58,9 +58,9 @@ export function ProductsGrid() {
   const query = useInfiniteQuery({
     queryKey: queryKeys.products.infinite({ search, city, sortBy, sortOrder, hasPromotion, pageSize }),
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => productsApi.getAll({
+    queryFn: ({ pageParam, signal }) => productsApi.getAll({
       search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,
-    }).then((r) => r.data.data),
+    }, { signal }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;

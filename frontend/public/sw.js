@@ -1607,9 +1607,10 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
   if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
 
   await markQueuedEntry(entry.id, { processing: true, processingStartedAt: Date.now() });
-  // CLEAR_QUEUE may have advanced the lifecycle fence while the lease write was pending.
-  if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
   try {
+    // Keep the lifecycle check inside try/finally so an interrupted replay always
+    // attempts to release its processing lease, even if CLEAR_QUEUE races this write.
+    if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
 
     if ((entry.needsCsrf || entry.needsAuth) && !freshCreds) {
       if (refreshReason === 'auth') {
@@ -1704,11 +1705,15 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       return 'failed';
     }
     if (queuedOwner && currentOwner && queuedOwner !== currentOwner) {
+      // Keep this as an explicit recovery case: the row must never be
+      // replayed automatically with another user's credentials, but may be
+      // retried after the original account signs back in.
       await markQueuedEntry(entry.id, {
         status: 'failed',
+        needsRecovery: true,
         lastError: {
           status: 403,
-          message: 'هذه العملية مرتبطة بحساب آخر ولن تُرسل بهذا الحساب',
+          message: 'هذه العملية مرتبطة بحساب آخر. سجّل الدخول بالحساب الأصلي قبل إعادة المحاولة.',
         },
       });
       await notifyClients({
@@ -1716,7 +1721,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         id: entry.id,
         url: entry.url,
         status: 403,
-        message: 'هذه العملية مرتبطة بحساب آخر ولن تُرسل بهذا الحساب',
+        message: 'هذه العملية مرتبطة بحساب آخر. سجّل الدخول بالحساب الأصلي قبل إعادة المحاولة.',
         operationId: entry.operationId || null,
       });
       return 'failed';
@@ -1791,6 +1796,26 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     }
 
     const retryableHttp = [408, 425, 429, 502, 503, 504].includes(response.status);
+    // These statuses describe unsupported functionality/protocol versions, not
+    // temporary overload. Replaying the same mutation cannot fix them.
+    const permanentServerError = [501, 505].includes(response.status);
+    if (permanentServerError) {
+      await markQueuedEntry(entry.id, {
+        status: 'failed',
+        lastError: { status: response.status, message },
+        retryNotBefore: 0,
+      });
+      await notifyClients({
+        type: 'QUEUE_ITEM_FAILED',
+        id: entry.id,
+        url: entry.url,
+        status: response.status,
+        message: message || 'الخادم لا يدعم هذه العملية أو إصدار البروتوكول؛ أوقفنا إعادة المحاولة التلقائية.',
+        operationId: entry.operationId || null,
+      });
+      return 'failed';
+    }
+
     if (retryableHttp) {
       const retryAfterRaw = response.headers.get('retry-after');
       let retryAfterMs = 0;
@@ -2048,6 +2073,22 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
     if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) break;
     if (processedEntries >= maxDrainEntries) break;
     if (entry.status === 'failed' || entry.status === 'cancelled') continue;
+
+    // Do not let priority sorting make a later chat/message mutation overtake
+    // an earlier outstanding one. This guard also respects an earlier live
+    // processing lease owned by another drain/worker.
+    if (isOrderSensitiveQueueEntry(entry)) {
+      const entryQueuedAt = typeof entry.queuedAt === 'number' ? entry.queuedAt : 0;
+      const hasEarlierOutstandingOrderedEntry = entries.some((candidate) => {
+        if (candidate.id === entry.id) return false;
+        if (candidate.status === 'failed' || candidate.status === 'cancelled') return false;
+        if (!isOrderSensitiveQueueEntry(candidate)) return false;
+        const candidateQueuedAt = typeof candidate.queuedAt === 'number' ? candidate.queuedAt : 0;
+        return candidateQueuedAt < entryQueuedAt ||
+          (candidateQueuedAt === entryQueuedAt && candidate.id < entry.id);
+      });
+      if (hasEarlierOutstandingOrderedEntry) continue;
+    }
 
     if (hasActiveProcessingLease(entry)) continue;
     if (entry.processing) {

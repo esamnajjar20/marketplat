@@ -5,6 +5,7 @@ import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import { getPublicListStaleTime } from '@/lib/networkCachePolicy';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
 import type { ServiceListingsQuery, ServiceListing, ServiceListingWithProvider } from '@/types/service.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -87,7 +88,7 @@ export function useServiceListings(
         throw err;
       }
     },
-    staleTime: CACHE_TTL.adsList,
+    staleTime: getPublicListStaleTime(CACHE_TTL.adsList),
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   });

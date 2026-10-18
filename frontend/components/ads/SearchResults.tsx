@@ -102,11 +102,11 @@ export function SearchResults({ categorySlug }: Props = {}) {
   const infiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.ads.infinite(isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => {
+    queryFn: ({ pageParam, signal }) => {
       if (isSearch) {
-        return adsApi.searchAds({ q, page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }).then((r) => r.data.data);
+        return adsApi.searchAds({ q, page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { signal }).then((r) => r.data.data);
       }
-      return adsApi.getAll({ page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder })
+      return adsApi.getAll({ page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { signal })
         .then((r) => r.data.data);
     },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,

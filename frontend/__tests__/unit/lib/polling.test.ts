@@ -1,16 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/lib/networkPolicy', () => ({
+  getNetworkPolicy: vi.fn(() => ({ tier: 'normal', saveData: false })),
+}));
+
 vi.mock('@/hooks/useNotificationStream', () => ({
   isNotificationStreamConnected: vi.fn(() => false),
 }));
 
 import { isNotificationStreamConnected } from '@/hooks/useNotificationStream';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
 import { canBackgroundPoll, pollingInterval } from '@/lib/polling';
 
 const streamConnected = vi.mocked(isNotificationStreamConnected);
+const networkPolicy = vi.mocked(getNetworkPolicy);
 
 afterEach(() => {
   streamConnected.mockReturnValue(false);
+  networkPolicy.mockReturnValue({ tier: 'normal', saveData: false } as unknown as ReturnType<typeof getNetworkPolicy>);
   Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
 });
@@ -33,6 +40,17 @@ describe('background polling policy', () => {
   it('keeps the configured interval when visible and online', () => {
     expect(canBackgroundPoll()).toBe(true);
     expect(pollingInterval(60_000, 1)).toBe(60_000);
+  });
+
+  it('stretches polling on slow networks and data saver', () => {
+    networkPolicy.mockReturnValue({ tier: 'slow', saveData: false } as unknown as ReturnType<typeof getNetworkPolicy>);
+    expect(pollingInterval(10_000)).toBe(20_000);
+
+    networkPolicy.mockReturnValue({ tier: 'very-slow', saveData: false } as unknown as ReturnType<typeof getNetworkPolicy>);
+    expect(pollingInterval(10_000)).toBe(40_000);
+
+    networkPolicy.mockReturnValue({ tier: 'normal', saveData: true } as unknown as ReturnType<typeof getNetworkPolicy>);
+    expect(pollingInterval(10_000)).toBe(40_000);
   });
 
   it('stretches backup polling when the notification stream is connected', () => {

@@ -114,7 +114,7 @@ export function SearchResults() {
   const infiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.search.infinite({ q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort, lat, lng, radius: effectiveRadius, pageSize }),
     initialPageParam: 1,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const params = {
         q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort,
         page: pageParam,
@@ -122,7 +122,7 @@ export function SearchResults() {
         lat, lng, radius: effectiveRadius,
       };
       try {
-        const r = await searchApi.search(params);
+        const r = await searchApi.search(params, { signal });
         return r.data.data;
       } catch (err) {
         if (pageParam === 1) {

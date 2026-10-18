@@ -160,7 +160,7 @@ export function getNetworkPolicy(): NetworkPolicy {
       rttMs: conn?.rtt ?? avgMs,
       consecutiveFailures: failures,
       allowPrefetch: false,
-      allowBackgroundWarming: failures < 3,
+      allowBackgroundWarming: failures < 3 && !saveData,
       allowBackgroundSync: true,
       allowOriginalImages: false,
       pageSizeMultiplier: 0.65,

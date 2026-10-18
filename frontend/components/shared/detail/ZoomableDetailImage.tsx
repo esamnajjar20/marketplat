@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type TouchEvent, type WheelEv
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
 import { isDataSaverEnabled } from '@/lib/dataSaver';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
 
 interface Props {
   src: string;
@@ -28,7 +29,9 @@ export function ZoomableDetailImage({ src, alt, onSwipeNext, onSwipePrevious, pr
   // Warm only the immediately adjacent full-size images while the lightbox is open.
   // Respect data-saver settings and release handlers on image changes/unmount.
   useEffect(() => {
-    if (isDataSaverEnabled()) return;
+    // Do not spend bandwidth warming adjacent full-size images on slow links.
+    // The central policy also covers measured latency, not only Save-Data.
+    if (isDataSaverEnabled() || !getNetworkPolicy().allowPrefetch) return;
     const candidates = [nextSrc, previousSrc].filter((value): value is string => Boolean(value && value !== src));
     const preloads = candidates.map((candidate) => {
       const image = new window.Image();

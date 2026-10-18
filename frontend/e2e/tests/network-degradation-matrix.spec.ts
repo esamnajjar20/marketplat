@@ -31,3 +31,39 @@ test('offline page remains rendered when fetch calls reject', async ({ page }) =
   expect(response!.status()).toBeLessThan(500);
   await expect(page.locator('body')).toBeVisible();
 });
+
+
+test('public shell remains interactive under a throttled mobile connection', async ({ page, context }) => {
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Network.enable');
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 350,
+    downloadThroughput: (1.5 * 1024 * 1024) / 8,
+    uploadThroughput: (512 * 1024) / 8,
+    connectionType: 'cellular3g',
+  });
+
+  try {
+    const response = await page.goto('/search', {
+      waitUntil: 'domcontentloaded',
+      timeout: 40_000,
+    });
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBeLessThan(500);
+    const search = page.getByRole('searchbox').first();
+    await expect(search).toBeVisible({ timeout: 15_000 });
+    await search.fill('slow network smoke test');
+    await search.press('Enter');
+    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 15_000 })
+      .toBe('slow network smoke test');
+  } finally {
+    await cdp.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: 0,
+      downloadThroughput: -1,
+      uploadThroughput: -1,
+    }).catch(() => undefined);
+    await cdp.detach().catch(() => undefined);
+  }
+});

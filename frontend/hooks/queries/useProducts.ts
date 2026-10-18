@@ -5,6 +5,7 @@ import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { productsApi } from '@/api/products.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+import { getPublicListStaleTime } from '@/lib/networkCachePolicy';
 import type { ProductsQuery, Product, ProductWithStore } from '@/types/product.types';
 import type { PaginationMeta } from '@/types/api.types';
 import {
@@ -95,7 +96,7 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
         throw err;
       }
     },
-    staleTime: CACHE_TTL.adsList,
+    staleTime: getPublicListStaleTime(CACHE_TTL.adsList),
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   });

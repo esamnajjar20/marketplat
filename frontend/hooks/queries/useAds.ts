@@ -27,6 +27,7 @@ import {
   selectHasAccessToken,
 } from '@/store/auth.store';
 import { CACHE_TTL } from '@/lib/constants';
+import { getPublicListStaleTime } from '@/lib/networkCachePolicy';
 import type { AdSearchParams, AdSearchQuery, AdListItem } from '@/types/ad.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { offlineMeta } from '@/lib/apiPagination';
@@ -156,7 +157,7 @@ export function useAds(
       }
     },
     placeholderData:  keepPreviousData,
-    staleTime:        CACHE_TTL.adsList,
+    staleTime:        getPublicListStaleTime(CACHE_TTL.adsList),
     enabled:          options?.enabled,
   });
 }
@@ -167,7 +168,7 @@ export function useSearchAds(params: AdSearchQuery) {
     queryKey:        queryKeys.ads.search(params),
     queryFn:         ({ signal }) => adsApi.searchAds(params, { signal }).then((r) => r.data.data as AdsPage),
     placeholderData: keepPreviousData,
-    staleTime:       CACHE_TTL.adsList,
+    staleTime:       getPublicListStaleTime(CACHE_TTL.adsList),
     // API-INT-06 FIX: params.q could be undefined at runtime even though
     // AdSearchQuery types it as string (callers may pass uncontrolled input).
     // .trim() on undefined throws a TypeError that crashes the query.
@@ -196,7 +197,7 @@ export function useRelatedAds(id: string) {
   return useQuery({
     queryKey:  queryKeys.ads.related(id),
     queryFn:   ({ signal }) => adsApi.getRelated(id, { signal }).then((r) => r.data.data ?? []),
-    staleTime: CACHE_TTL.adsList,             // FIX Q-03: unified staleTime
+    staleTime: getPublicListStaleTime(CACHE_TTL.adsList), // FIX Q-03: unified staleTime
     enabled:   Boolean(id),
   });
 }

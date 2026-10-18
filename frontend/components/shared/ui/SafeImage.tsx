@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { PLACEHOLDER_SVG, PLACEHOLDER_AVATAR_SVG } from '@/lib/cloudinary';
 import { isDataSaverEnabled } from '@/lib/dataSaver';
+import { getNetworkPolicy } from '@/lib/networkPolicy';
 
 /**
  * SafeImage — next/image with a real runtime error fallback.
@@ -60,7 +61,9 @@ export function SafeImage({
   // the data-saver behaviour after hydration.
   const [saver, setSaver] = useState(false);
   useEffect(() => {
-    setSaver(isDataSaverEnabled());
+    // Blur-up placeholders are a second network request per image. Skip them
+    // when the shared network policy disallows prefetching on slow links.
+    setSaver(isDataSaverEnabled() || !getNetworkPolicy().allowPrefetch);
   }, []);
   const blurProps = errored || saver ? {} : { placeholder, blurDataURL };
 
