@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source = fs.readFileSync(new URL('./worker.js', import.meta.url), 'utf8')
   .replace('export default {', 'globalThis.__worker = {');
 
-const ORIGIN = 'https://marketplat.onrender.com';
+const ORIGIN = 'https://ueue39sehkj8-production-q72vlbju.europe-west1.suga.run';
 const EDGE = 'https://marketplat-api.esamnajjar6.workers.dev';
 
 /** Fresh isolate per scenario: fake Cache API, fake KV, scripted origin. */

@@ -19,7 +19,7 @@
  * Keeps v3: ETag/304, stale-on-error, single-flight, metrics headers, /__warm__.
  */
 
-const RENDER_ORIGIN = 'https://marketplat.onrender.com';
+const RENDER_ORIGIN = 'https://marketplat-nz19.onrender.com';
 
 const CACHEABLE_PREFIXES = [
   '/api/v1/home',
