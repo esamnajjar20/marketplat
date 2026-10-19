@@ -625,22 +625,49 @@ async function handleCacheable(request, canon, ctx, env) {
   }
 }
 
+
 async function handlePassthrough(request, url) {
   const targetUrl = new URL(url.pathname + url.search, RENDER_ORIGIN);
-  const headers = cleanUpstreamHeaders(request);
-  const init = { method: request.method, headers, redirect: 'manual' };
+  
+  // تمرير كل الترويسات الأصلية بما فيها Content-Type و Cookie
+  const headers = new Headers(request.headers);
+  headers.set('host', new URL(RENDER_ORIGIN).host);
+  
+  // إزالة الترويسات التي تسبب مشاكل في Cloudflare
+  for (const x of ['cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor', 'x-forwarded-proto', 'x-forwarded-for']) {
+    headers.delete(x);
+  }
+
+  const init = {
+    method: request.method,
+    headers: headers,
+    redirect: 'manual',
+  };
+
+  // تمرير جسم الطلب (Body) لطلبات POST/PUT/PATCH
   const isGet = request.method === 'GET' || request.method === 'HEAD';
-  if (!isGet) init.body = request.body;
+  if (!isGet) {
+    // في Cloudflare Workers، يجب استخدام request.body مباشرة لطلبات البث
+    init.body = request.body; 
+  }
 
-  const { res: upstream } = await fetchUpstream(targetUrl.toString(), init);
-  if (!upstream) return new Response('Upstream error', { status: 502 });
+  try {
+    const upstream = await fetch(targetUrl.toString(), init);
+    const h = new Headers(upstream.headers);
+    
+    // إصلاح CORS
+    h.set('access-control-allow-origin', request.headers.get('origin') || '*');
+    h.set('access-control-allow-credentials', 'true');
+    h.set('x-proxy-cache', 'BYPASS');
+    h.delete('cf-cache-status');
 
-  const h = new Headers(upstream.headers);
-  h.set('x-proxy-cache', 'BYPASS');
-  h.set('access-control-allow-origin', request.headers.get('origin') || '*');
-  h.set('access-control-allow-credentials', 'true');
-  h.delete('cf-cache-status');
-  return new Response(upstream.body, { status: upstream.status, headers: h });
+    return new Response(upstream.body, { status: upstream.status, headers: h });
+  } catch (e) {
+    return new Response(JSON.stringify({ success: false, message: "Proxy connection failed: " + e.message }), {
+      status: 502,
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+    });
+  }
 }
 
 const WARM_PATHS = [
