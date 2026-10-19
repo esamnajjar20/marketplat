@@ -22,6 +22,17 @@ describe('permanent route-shell policy', () => {
     expect(isPermanentShellRoute('/my-ads/123/edit', true)).toBe(false);
   });
 
+  it('includes public discovery routes in adaptive warming without pinning personalized pages', () => {
+    expect(CORE_ROUTES).toContain('/categories');
+    expect(CORE_ROUTES).toContain('/trending');
+    expect(CORE_ROUTES).toContain('/promoted');
+    expect(CORE_ROUTES).not.toContain('/for-you');
+    expect(CORE_ROUTES).not.toContain('/suggestions');
+    expect(isPermanentShellRoute('/categories')).toBe(false);
+    expect(isPermanentShellRoute('/trending')).toBe(false);
+    expect(isPermanentShellRoute('/promoted')).toBe(false);
+  });
+
   it('pins the sales hub and similar fixed tool pages', () => {
     expect(isPermanentShellRoute('/account/sales', true)).toBe(true);
     expect(isPermanentShellRoute('/account/customers', true)).toBe(true);

@@ -25,6 +25,8 @@ import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
 import { RelatedAds }     from '@/components/ads/RelatedAds';
 import { AdDetailsSkeleton } from '@/components/shared/skeletons';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
+import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
+import { OfflineStaleDataNotice } from '@/components/shared/feedback/OfflineStaleDataNotice';
 import { useAd }          from '@/hooks/queries/useAds';
 import { useFavoriteCheck, useIsFavorited } from '@/hooks/queries/useFavorites';
 import { parseApiError }  from '@/lib/errorParser';
@@ -59,12 +61,18 @@ export function AdDetailSection({ id }: { id: string }) {
   // own internals stay aria-hidden, matching loading.tsx's usage) so
   // screen-reader users still get a "loading" announcement, same as
   // the LoadingSpinner this replaces.
-  if (isLoading) {
+  if (isLoading && !ad) {
     return (
-      <div role="status" aria-live="polite" aria-busy="true">
-        <span className="sr-only">جارٍ تحميل الإعلان…</span>
-        <AdDetailsSkeleton />
-      </div>
+      <OfflineQueryFallback
+        title="الإعلان غير متاح دون اتصال"
+        loading={isLoading}
+        fallback={
+          <div role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">جارٍ تحميل الإعلان…</span>
+            <AdDetailsSkeleton />
+          </div>
+        }
+      />
     );
   }
 
@@ -76,7 +84,9 @@ export function AdDetailSection({ id }: { id: string }) {
   // way back to browsing, while every other failure (network, 5xx)
   // gets the same recoverable retry pattern already used in
   // SearchResults/ServiceListingsGrid, since retrying might actually work.
-  if (isError || !ad) {
+  // Keep the last successful detail visible when only its background refresh failed.
+  // A refetch error must not mask valid cached content.
+  if (!ad) {
     const status = isError ? parseApiError(error).statusCode : 404;
 
     if (status === 404) {
@@ -99,20 +109,25 @@ export function AdDetailSection({ id }: { id: string }) {
     }
 
     return (
-      <EmptyState
-        icon={<AlertTriangle className="h-10 w-10" />}
-        title="حدث خطأ أثناء تحميل الإعلان"
-        description="تعذّر تحميل تفاصيل هذا الإعلان، حاول مرة أخرى"
-        action={
-          <button
-            type="button"
-            disabled={isFetching}
-            aria-busy={isFetching}
-            onClick={() => { if (!isFetching) void refetch(); }}
-            className="text-sm text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isFetching ? 'جارٍ إعادة المحاولة…' : 'إعادة المحاولة'}
-          </button>
+      <OfflineQueryFallback
+        title="الإعلان غير متاح دون اتصال"
+        fallback={
+          <EmptyState
+            icon={<AlertTriangle className="h-10 w-10" />}
+            title="حدث خطأ أثناء تحميل الإعلان"
+            description="تعذّر تحميل تفاصيل هذا الإعلان، حاول مرة أخرى"
+            action={
+              <button
+                type="button"
+                disabled={isFetching}
+                aria-busy={isFetching}
+                onClick={() => { if (!isFetching) void refetch(); }}
+                className="text-sm text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isFetching ? 'جارٍ إعادة المحاولة…' : 'إعادة المحاولة'}
+              </button>
+            }
+          />
         }
       />
     );
@@ -120,6 +135,7 @@ export function AdDetailSection({ id }: { id: string }) {
 
   return (
     <div className="space-y-8">
+      {isError && <OfflineStaleDataNotice onRetry={() => { if (!isFetching) void refetch(); }} isFetching={isFetching} />}
       <AdBreadcrumb ad={ad} />
       <AdDetail ad={ad} isFavorited={isFavorited} />
       <RelatedAds adId={id} />

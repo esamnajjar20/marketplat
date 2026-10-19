@@ -35,7 +35,7 @@ check('single-route deletion scans actual HTML in both caches before deleting sh
 check('RSC payloads do not consume the priority reserved for HTML route shells', sw.includes("if (parsedRequestUrl.searchParams.has('__offline_rsc_shell')) return 8;"));
 check('trim prioritizes visited HTML above warm-only shells', /contentType\.includes\('text\/html'\) && source === 'visit'[\s\S]{0,120}\? 100000/.test(sw));
 check('asset verifier accepts single/double quotes and requires every asset response to be usable', sw.includes("html.matchAll(/(?:src|href)=[\"']") && /if \(!isUsableStaticAssetResponse\(url, hit\)\) return false;/.test(sw));
-check('asset verifier rejects unverifiable empty HTML shells', /if \(chunkUrls\.length === 0\) return false;/.test(sw));
+check('asset verifier accepts contentful static HTML but rejects empty shells', sw.includes('if (chunkUrls.length === 0) return /<body') && sw.includes('test(html);'));
 check('public and protected hub navigations normalize tab query to one shell', (sw.match(/hubDocumentKey\(request, url\)/g) || []).length >= 2);
 check('personal shells remain in a dedicated logout-cleared cache', /PERSONAL_SHELL_CACHE/.test(sw) && /caches\.delete\(PERSONAL_SHELL_CACHE\)/.test(sw));
 check('authentication pages bypass offline page caching', /if \(isAuthPage\(url\)\)\s*\{\s*return;/.test(sw));

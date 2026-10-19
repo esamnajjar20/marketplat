@@ -27,3 +27,16 @@ test('phase 1 audit command is available in frontend package scripts', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(frontendRoot, 'package.json'), 'utf8'));
   assert.equal(pkg.scripts['offline:phase1-audit'], 'node scripts/offline-system-inventory.mjs --write && node --test scripts/offline-phase1-guardrails.test.mjs');
 });
+
+
+test('public profile query persistence is exact-shape and excludes personalized recommendations', () => {
+  const cache = fs.readFileSync(path.join(frontendRoot, 'lib/offlineQueryCache.ts'), 'utf8');
+  const unit = fs.readFileSync(path.join(frontendRoot, '__tests__/unit/lib/offlineQueryCache.test.ts'), 'utf8');
+  assert.match(cache, /root === 'sellers'[\s\S]*child === 'ranking'[\s\S]*Number\.isInteger\(third\)[\s\S]*third <= 100/);
+  assert.match(cache, /root === 'users'[\s\S]*third === 'ads'[\s\S]*hasUnsafeQueryParams\(fourth\)/);
+  assert.match(cache, /root === 'public-store-sales-stats'[\s\S]*queryKey\.length === 2/);
+  assert.match(unit, /\['users', 'user-1'\]/);
+  assert.match(unit, /\['public-store-sales-stats', 'store-slug'\]/);
+  assert.match(unit, /Recommendations can be personalized by the bearer token/);
+  assert.doesNotMatch(cache, /root === 'recommendations'/);
+});

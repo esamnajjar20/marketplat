@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Toaster }             from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { useTheme }            from 'next-themes';
 import { makeQueryClient }     from '@/lib/queryClient';
 import { AuthHydrationProvider } from './AuthHydrationProvider';
@@ -135,6 +135,35 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
   // dev is a no-op on the second pass.
   useEffect(() => {
     installGlobalErrorHandlers();
+  }, []);
+
+  // Storage quota failures must be visible: silently failing an IndexedDB/local
+  // write can make users believe an offline mutation or draft was preserved.
+  useEffect(() => {
+    const onLocalStorageError = (event: Event) => {
+      const detail = (event as CustomEvent<{ reason?: string }>).detail;
+      if (detail?.reason === 'quota') {
+        toast.error('مساحة التخزين على الجهاز ممتلئة', {
+          description: 'قد لا تُحفظ العملية أو المسودة محليًا. اتصل بالإنترنت لمزامنة المعلّق، وحرّر مساحة قبل إعادة المحاولة.',
+          duration: 9000,
+        });
+        return;
+      }
+      if (detail?.reason === 'body-too-large') {
+        toast.error('المرفقات أكبر من حد الحفظ دون اتصال', {
+          description: 'لم تُحفظ هذه العملية في الطابور المحلي. اتصل بالإنترنت ثم أعد إرسالها، واحتفظ بنسخة من الملفات قبل مغادرة الصفحة.',
+          duration: 10000,
+        });
+      }
+      if (detail?.reason === 'queue-full') {
+        toast.error('طابور العمليات دون اتصال ممتلئ', {
+          description: 'لم تُحفظ العملية الجديدة. اتصل بالإنترنت لمزامنة العمليات المعلّقة، أو راجع مركز المزامنة واحذف العناصر الفاشلة بعد التأكد منها، ثم أعد المحاولة.',
+          duration: 11000,
+        });
+      }
+    };
+    window.addEventListener('marketplat:local-error', onLocalStorageError);
+    return () => window.removeEventListener('marketplat:local-error', onLocalStorageError);
   }, []);
 
   // Restore safe public query snapshots without blocking initial rendering.

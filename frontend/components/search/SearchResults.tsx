@@ -181,6 +181,7 @@ export function SearchResults() {
     return (
       <OfflineQueryFallback
         title="لا توجد نسخة محفوظة من نتائج البحث"
+        loading={isLoading}
         description="لا تتوفر بيانات نتائج البحث المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">

@@ -51,6 +51,11 @@ export const OFFLINE_LIST_KEYS = {
   adsBrowse: 'ads-browse',
   myAds: 'my-ads',
   productsBrowse: 'products-browse',
+  // First-page snapshots for the actual infinite-query public grids. Kept
+  // separate from useProducts/useAds slots so adaptive page sizes cannot
+  // overwrite the full browse snapshot with a truncated list.
+  productsGridBrowse: 'products-grid-browse',
+  adsGridBrowse: 'ads-grid-browse',
   servicesBrowse: 'services-browse',
   storesBrowse: 'stores-browse',
   // Separate bounded snapshots for homepage's intentionally small sections.
@@ -81,6 +86,8 @@ export const OFFLINE_LIST_LIMITS = {
   adsBrowse: OFFLINE_DATA_LIMITS.adsBrowse,
   myAds: OFFLINE_DATA_LIMITS.myAds,
   productsBrowse: OFFLINE_DATA_LIMITS.productsBrowse,
+  productsGridBrowse: 16,
+  adsGridBrowse: 16,
   servicesBrowse: OFFLINE_DATA_LIMITS.servicesBrowse,
   storesBrowse: OFFLINE_DATA_LIMITS.storesBrowse,
   homeProducts: 8,

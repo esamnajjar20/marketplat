@@ -62,6 +62,11 @@ const PRIORITY_ROUTES = [
   '/services',
   '/service-providers',
   '/sellers/ranking',
+  // Secondary public discovery routes are prioritized after the core browse
+  // set but are not protected from adaptive budgets on weak connections.
+  '/categories',
+  '/trending',
+  '/promoted',
   // QR-share receiver: without it the sender's QR is useless offline.
   '/shared',
   // ── 2. Offline reading tools: now tabs of '/offline' (first above) ──

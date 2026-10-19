@@ -14,6 +14,13 @@ describe('OfflineQueryFallback', () => {
     expect(screen.queryByText('هذه البيانات غير متاحة دون اتصال')).not.toBeInTheDocument();
   });
 
+  it('keeps the loading UI while an offline query is still checking its saved snapshot', () => {
+    vi.mocked(useOnlineStatus).mockReturnValue(false);
+    render(<OfflineQueryFallback loading fallback={<div>Loading skeleton</div>} title="لا توجد نسخة محفوظة" />);
+    expect(screen.getByText('Loading skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('لا توجد نسخة محفوظة')).not.toBeInTheDocument();
+  });
+
   it('replaces an endless loading fallback with a clear offline explanation', () => {
     vi.mocked(useOnlineStatus).mockReturnValue(false);
     render(<OfflineQueryFallback fallback={<div>Loading skeleton</div>} title="لا توجد نسخة محفوظة" />);

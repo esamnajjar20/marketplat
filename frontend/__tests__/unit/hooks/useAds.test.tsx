@@ -42,7 +42,7 @@ vi.mock('@/lib/offlineListCache', () => ({
   getOfflineList: (...args: unknown[]) => getOfflineList(...args),
   saveOfflineList: (...args: unknown[]) => saveOfflineList(...args),
   OFFLINE_LIST_KEYS: { adsBrowse: 'adsBrowse' },
-  OFFLINE_LIST_LIMITS: { adsBrowse: 40 },
+  OFFLINE_LIST_LIMITS: { adsBrowse: 60 },
 }));
 
 function createWrapper() {

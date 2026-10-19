@@ -8,9 +8,7 @@
  * للـ refresh — هذه الطبقة لرموز الجهاز (FCM) وتفضيلات التثبيت/الإشعارات
  * وليس لاستبدال مسار المصادقة.
  *
- * تثبيت Preferences اختياري:
- *   npm i @capacitor/preferences
- *   npx cap sync
+ * ملاحظة: Preferences ليس مخزنًا مشفرًا؛ لا تستخدمه لحفظ أسرار جلسات أو مفاتيح طويلة الأمد.
  */
 
 import { isNativePlatform } from '@/lib/capacitor/platform';
@@ -71,11 +69,10 @@ async function resolveDriver(): Promise<Driver> {
     return cached;
   }
   try {
-    // Optional peer: install with `npm i @capacitor/preferences && npx cap sync`
-    // Using a variable keeps TS from resolving the module at compile time,
-    // so the build succeeds whether or not the optional peer is installed.
-    const pkgName = '@capacitor/preferences';
-    const mod = (await import(/* webpackIgnore: true */ pkgName)) as {
+    // Keep this import visible to the bundler. `webpackIgnore` plus a
+    // variable/bare-specifier import can fail at runtime inside WebView,
+    // silently forcing the less durable localStorage fallback.
+    const mod = (await import('@capacitor/preferences')) as unknown as {
       Preferences: {
         get: (opts: { key: string }) => Promise<{ value: string | null }>;
         set: (opts: { key: string; value: string }) => Promise<void>;

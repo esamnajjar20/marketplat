@@ -14,7 +14,7 @@ const services=read('src/modules/service-listings/service-listings.service.ts'),
 check('Offline allowlist fails closed and requires operation id for queued mutations', policy.includes('Boolean(input.operationId)') && policy.includes("method === 'POST' && Boolean(input.operationId)"));
 check('Sensitive auth/payment/checkout/appointment and favorites endpoints are excluded', /auth\|payments\|checkout\|appointments/.test(policy) && policy.includes('favorites'));
 check('Service Worker generates stable id and reattaches it on every replay', sw.includes('createOfflineOperationId()') && sw.includes("sendHeaders['x-offline-op-id'] = entry.operationId.trim().slice(0, 128)"));
-check('Page fallback persists operation id in header and queue record', fallback.includes("safeHeaders['x-offline-op-id'] = operationId") && fallback.includes('operationId,\n        ownerUserId'));
+check('Page fallback persists operation id in header and queue record', fallback.includes("safeHeaders['x-offline-op-id'] = operationId") && /operationId,\n\s+ownerUserId/.test(fallback));
 check('Five queued create entities have unique offline operation IDs', ['Ad','Product','ServiceListing','Request','ServiceRequest'].every(m=>/offlineOperationId\s+String\?\s+@unique/.test(model(m))));
 check('Sales operation id uniqueness is scoped to seller', /@@unique\(\[sellerId, offlineOperationId\]\)/.test(model('SaleRecord')));
 check('Messages operation id uniqueness is scoped to sender', /@@unique\(\[senderId, clientOperationId\]\)/.test(model('Message')));

@@ -34,7 +34,9 @@ export default async function AdDetailPage({ params }: Props) {
       (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
       (err as { response?: { status?: number } })?.response?.status;
     if (statusCode === 404) notFound();
-    throw err;
+    // A transient network/5xx failure must not abort the route. The client
+    // detail section can restore persisted query data or show an explicit
+    // offline fallback instead of returning a server error page.
   }
 
   // SW-SEO-JSONLD-AD-01: read the same Ad object that generateMetadata

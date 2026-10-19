@@ -24,11 +24,11 @@
 /*.ttf
   Cache-Control: public, max-age=31536000, immutable
 
-# Favicon + PWA manifest — 1 day
+# Favicon + PWA manifest — align with Next.js config (browser 1 hour)
 /favicon.ico
-  Cache-Control: public, max-age=86400
+  Cache-Control: public, max-age=3600
 /manifest.webmanifest
-  Cache-Control: public, max-age=86400
+  Cache-Control: public, max-age=3600
 
 # SEO files — 1 hour
 /robots.txt

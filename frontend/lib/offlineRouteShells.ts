@@ -228,6 +228,12 @@ export const CORE_ROUTES = [
   '/services',
   '/service-providers',
   '/sellers/ranking',
+  // Public discovery pages. These use generic route shells and client-side
+  // data queries; they are eligible for adaptive warming but deliberately
+  // are not in the protected first tranche, so weak links keep core browsing.
+  '/categories',
+  '/trending',
+  '/promoted',
   // SHARE-QR-WARM-01: receiver side of the QR-share flow. Without
   // this route in CORE_ROUTES, the sender's QR can be created offline
   // but the receiver opens /shared and finds nothing warmed — the

@@ -37,6 +37,7 @@ type RouterLike = {
 };
 
 import { isNativePlatform } from './platform';
+import { APP_URL } from '@/lib/constants';
 
 function extractInAppPath(openedUrl: string): string | null {
   try {
@@ -45,11 +46,15 @@ function extractInAppPath(openedUrl: string): string | null {
       // Capacitor's appUrlOpen gives the full `marketplat://ads/123` —
       // for a custom scheme, the "host" segment IS the first path part.
       const rest = `${url.hostname}${url.pathname}${url.search}`.replace(/^\/+/, '');
-      return `/${rest}`;
+      return `/${rest}${url.hash}`;
     }
-    // https://... form (App Links / Universal Links) — just take the
-    // path+query, same origin handling Next's own router would do.
-    return `${url.pathname}${url.search}` || '/';
+    // Accept HTTPS deep links only from the configured application origin.
+    // Without this check, any website could ask the OS to route an arbitrary
+    // path into the app through a broadly configured VIEW intent-filter.
+    if (url.protocol !== 'https:') return null;
+    const appOrigin = new URL(APP_URL).origin;
+    if (url.origin !== appOrigin) return null;
+    return `${url.pathname}${url.search}${url.hash}` || '/';
   } catch {
     return null;
   }

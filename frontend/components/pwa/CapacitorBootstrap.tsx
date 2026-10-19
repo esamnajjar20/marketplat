@@ -12,6 +12,7 @@ import { isNativePlatform } from '@/lib/capacitor/platform';
 import { onNativePushTapped } from '@/lib/capacitor/nativePush';
 import {
   applyNativeChrome,
+  normalizeNativeNavigationTarget,
   registerNativeBackButton,
   registerNativeDeepLinks,
 } from '@/lib/runtime/navigation';
@@ -44,19 +45,10 @@ export function CapacitorBootstrap() {
       cleanupPushTap = await onNativePushTapped((notification) => {
         const raw = notification.url;
         if (!raw) return;
-        if (raw.startsWith('/')) {
-          signalNavigationStart(raw);
-          router.push(raw);
-          return;
-        }
-        try {
-          const parsed = new URL(raw);
-          const destination = `${parsed.pathname}${parsed.search}` || '/';
-          signalNavigationStart(destination);
-          router.push(destination);
-        } catch {
-          /* malformed */
-        }
+        const destination = normalizeNativeNavigationTarget(raw);
+        if (!destination) return;
+        signalNavigationStart(destination);
+        router.push(destination);
       });
     })().catch((err) => {
       // UNHANDLED-CATCH-FIX: the native setup awaits several plugins

@@ -126,6 +126,29 @@ describe('offlineQueue', () => {
       operationId: 'op-create-ad-1',
     };
 
+    it('reports a storage-quota failure instead of claiming the mutation was saved', async () => {
+      const openReq: FakeIDBRequest = {
+        result: undefined,
+        error: new DOMException('storage full', 'QuotaExceededError'),
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: { open: vi.fn(() => { scheduleError(openReq); return openReq; }) },
+        configurable: true,
+        writable: true,
+      });
+      const storageError = vi.fn();
+      window.addEventListener('marketplat:local-error', storageError, { once: true });
+      await expect(enqueueOfflineMutationFallback(baseInput)).resolves.toMatchObject({
+        queued: false,
+        reason: 'storage-quota',
+        operationId: baseInput.operationId,
+      });
+      expect(storageError).toHaveBeenCalledOnce();
+    });
+
     it('refuses to queue work owned by a different account', async () => {
       await expect(enqueueOfflineMutationFallback({ ...baseInput, ownerUserId: 'user-b' }))
         .resolves.toMatchObject({ queued: false, reason: 'missing-or-stale-owner' });

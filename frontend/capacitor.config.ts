@@ -1,15 +1,13 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Capacitor config — NEW (project had no Capacitor setup at all).
+ * Capacitor config — hosted Next.js app with a bundled offline startup shell.
  *
- * `server.url` points the Android/iOS shell at the deployed frontend
- * (Railway/Vercel) rather than bundling a static export, per the chosen
- * "thin native shell around the existing hosted Next.js app" approach —
- * this is intentional: the backend requires a live API, Next.js's SSR
- * routes (middleware.ts auth checks, dynamic OG/manifest routes) don't
- * work from a `next export` static bundle, and it means shipping a
- * backend/frontend fix does not require a new app-store release.
+ * The production shell starts locally so first launch can render a useful
+ * offline state. Once the hosted frontend is reachable, www/index.html
+ * navigates to it; the actual Next.js app remains server-rendered. This does
+ * not make all content available offline on first launch; it prevents a blank
+ * WebView and provides retry guidance without deleting local user data.
  *
  * Set NEXT_PUBLIC_APP_URL (already read by lib/constants.ts's APP_URL)
  * to your deployed frontend origin before running `npx cap sync` —
@@ -24,6 +22,10 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const devServerUrl = process.env.CAP_SERVER_URL;
 const prodServerUrl = 'https://marketplat.esamnajjar6.workers.dev';
+const allowedNavigationHosts = [
+  new URL(prodServerUrl).hostname,
+  ...(devServerUrl ? [new URL(devServerUrl).hostname] : []),
+];
 
 const config: CapacitorConfig = {
   appId: 'com.marketplat.app',
@@ -39,7 +41,11 @@ const config: CapacitorConfig = {
   // www/index.html's own comment.
   webDir: 'www',
   server: {
-    url: devServerUrl || prodServerUrl || undefined,
+    // Production starts from the bundled, offline-capable www/index.html.
+    // That page probes connectivity and redirects to prodServerUrl only when
+    // reachable. Keep CAP_SERVER_URL as an explicit developer override.
+    url: devServerUrl || undefined,
+    allowNavigation: allowedNavigationHosts,
     // Only relevant if the above resolves to an http:// URL (local dev
     // server). Never true against the production https:// origin.
     cleartext: Boolean(devServerUrl && devServerUrl.startsWith('http://')),

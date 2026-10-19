@@ -31,6 +31,7 @@ import { getPublicListStaleTime } from '@/lib/networkCachePolicy';
 import type { AdSearchParams, AdSearchQuery, AdListItem } from '@/types/ad.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { offlineMeta } from '@/lib/apiPagination';
+import { getVisitedAd, saveVisitedAd } from '@/lib/offlineVisitedAds';
 import {
   getOfflineList,
   saveOfflineList,
@@ -185,10 +186,26 @@ export function useSearchAds(params: AdSearchQuery) {
 /** GET /ads/:id — full ad detail */
 export function useAd(id: string) {
   return useQuery({
-    queryKey:  queryKeys.ads.detail(id),
-    queryFn:   ({ signal }) => adsApi.getById(id, { signal }).then((r) => r.data.data),
+    queryKey: queryKeys.ads.detail(id),
+    queryFn: async ({ signal }) => {
+      try {
+        const ad = await adsApi.getById(id, { signal }).then((r) => r.data.data);
+        if (ad?.id === id && ad.status !== 'DELETED') saveVisitedAd(ad);
+        return ad;
+      } catch (error) {
+        if (signal.aborted || (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ERR_CANCELED')) throw error;
+        // A real 404 means the ad is gone; do not resurrect a stale snapshot.
+        const status = typeof error === 'object' && error !== null && 'response' in error
+          ? (error as { response?: { status?: number } }).response?.status
+          : undefined;
+        if (status === 404) throw error;
+        const cached = getVisitedAd(id);
+        if (cached) return cached;
+        throw error;
+      }
+    },
     staleTime: CACHE_TTL.adDetail,
-    enabled:   Boolean(id),
+    enabled: Boolean(id),
   });
 }
 

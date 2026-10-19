@@ -21,4 +21,15 @@ describe('unified cache policy', () => {
     expect(policy.storage.serviceWorker.staticBytes).toBeGreaterThan(0);
     expect(policy.storage.serviceWorker.userDataBytes).toBeGreaterThan(0);
   });
+
+  it('uses the enlarged but finite offline storage budgets', () => {
+    expect(policy.storage.serviceWorker.apiEntries).toBe(200);
+    expect(policy.storage.serviceWorker.imageEntries).toBe(300);
+    expect(policy.storage.serviceWorker.staticEntries).toBe(1200);
+    expect(policy.storage.serviceWorker.staticBytes).toBe(100 * 1024 * 1024);
+    expect(policy.storage.serviceWorker.userDataEntries).toBe(600);
+    expect(policy.storage.serviceWorker.userDataBytes).toBe(80 * 1024 * 1024);
+    expect(policy.storage.serviceWorker.savedAdsEntries).toBe(1500);
+    expect(policy.storage.serviceWorker.personalShellEntries).toBe(750);
+  });
 });

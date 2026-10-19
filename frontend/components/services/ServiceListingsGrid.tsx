@@ -69,6 +69,7 @@ export function ServiceListingsGrid() {
     return (
       <OfflineQueryFallback
         title="لا توجد نسخة محفوظة من الخدمات"
+        loading={isLoading}
         description="لا تتوفر بيانات الخدمات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">

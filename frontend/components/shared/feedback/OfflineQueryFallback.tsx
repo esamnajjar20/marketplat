@@ -9,6 +9,8 @@ interface OfflineQueryFallbackProps {
   fallback: ReactNode;
   title?: string;
   description?: string;
+  /** Keep the normal loading UI visible until the query has attempted its offline snapshot fallback. */
+  loading?: boolean;
 }
 
 /**
@@ -20,10 +22,11 @@ export function OfflineQueryFallback({
   fallback,
   title = 'هذه البيانات غير متاحة دون اتصال',
   description = 'لا توجد نسخة محفوظة لهذه البيانات على الجهاز. اتصل بالإنترنت لتحميلها، وستُتاح دون اتصال في زيارة لاحقة إذا كانت ضمن بيانات الكاش.',
+  loading = false,
 }: OfflineQueryFallbackProps) {
   const isOnline = useOnlineStatus();
 
-  if (isOnline) return <>{fallback}</>;
+  if (isOnline || loading) return <>{fallback}</>;
 
   return (
     <section

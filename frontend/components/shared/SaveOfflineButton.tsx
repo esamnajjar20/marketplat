@@ -71,9 +71,13 @@ export function SaveOfflineButton({
     setIsBusy(true);
     try {
       if (isSaved) {
-        await unsaveEntityOffline(type, id, userId);
-        setIsSaved(false);
-        toast.success('أُزيل من المحفوظات');
+        const ok = await unsaveEntityOffline(type, id, userId);
+        if (ok) {
+          setIsSaved(false);
+          toast.success('أُزيل من المحفوظات');
+        } else {
+          toast.error('تعذّرت إزالة العنصر من المحفوظات؛ لم يتغير الحفظ المحلي.');
+        }
       } else {
         const ok = await saveEntityOffline(
           type,
@@ -83,7 +87,7 @@ export function SaveOfflineButton({
         if (ok) {
           setIsSaved(true);
           toast.success('محفوظ للعرض بدون نت', {
-            description: 'ستجده في «إعلانات محفوظة دون اتصال».',
+            description: 'ستجده في «المحفوظات دون اتصال».',
           });
         } else {
           toast.error('تعذّر الحفظ — تحقق من اتصالك');

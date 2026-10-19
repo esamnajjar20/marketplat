@@ -17,7 +17,7 @@ interface Props {
  * إعلانات منشورة باسم هذا المتجر (storeId) — منفصلة عن إعلانات البائع الشخصية.
  */
 export function StoreAds({ storeId, storeName }: Props) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.ads.list({ storeId, limit: 24 }),
     queryFn: async () => {
       const res = await adsApi.getAll({ storeId, limit: 24, page: 1 } as never);
@@ -31,7 +31,7 @@ export function StoreAds({ storeId, storeName }: Props) {
     },
   });
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -41,8 +41,13 @@ export function StoreAds({ storeId, storeName }: Props) {
     );
   }
 
-  if (isError) {
-    return <p className="text-sm text-destructive">تعذّر تحميل إعلانات المتجر</p>;
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col items-start gap-2 text-sm" role="status">
+        <p className="text-destructive">تعذّر تحميل إعلانات المتجر ولا توجد نسخة محفوظة.</p>
+        <button type="button" className="underline underline-offset-4" onClick={() => void refetch()}>إعادة المحاولة</button>
+      </div>
+    );
   }
 
   const items = (data?.items ?? []) as Parameters<typeof AdCard>[0]['ad'][];
@@ -58,10 +63,18 @@ export function StoreAds({ storeId, storeName }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+    <div className="space-y-2">
+      {isError && data && (
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground" role="status">
+          <span>تعذّر التحديث؛ تُعرض آخر نسخة محفوظة من إعلانات المتجر.</span>
+          <button type="button" className="shrink-0 underline underline-offset-4" onClick={() => void refetch()}>إعادة المحاولة</button>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
       {items.map((ad) => (
         <AdCard key={ad.id} ad={ad} context="store" />
       ))}
+      </div>
     </div>
   );
 }

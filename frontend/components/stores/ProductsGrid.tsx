@@ -20,8 +20,11 @@ import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTr
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getStablePageSize } from '@/lib/networkPolicy';
-import type { ProductSortField } from '@/types/product.types';
+import type { ProductSortField, ProductWithStore } from '@/types/product.types';
 import { queryKeys } from '@/lib/queryKeys';
+import { offlineMeta } from '@/lib/apiPagination';
+import { getOfflineList, saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from '@/lib/offlineListCache';
+import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offlineBrowseSnapshots';
 
 /**
  * GET /products directory grid — mirrors StoresGrid's layout/behavior
@@ -55,12 +58,36 @@ export function ProductsGrid() {
   const networkPolicy = useNetworkPolicy();
   const pageSize = getStablePageSize(12, networkPolicy);
 
+  // Only the unfiltered, default-sorted first page belongs in the generic
+  // grid snapshot. Filtered/search results must never replace it.
+  const isBaseOfflineBrowse = !search && !city && hasPromotion === undefined
+    && sortBy === 'createdAt' && sortOrder === 'desc';
   const query = useInfiniteQuery({
     queryKey: queryKeys.products.infinite({ search, city, sortBy, sortOrder, hasPromotion, pageSize }),
     initialPageParam: 1,
-    queryFn: ({ pageParam, signal }) => productsApi.getAll({
-      search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,
-    }, { signal }).then((r) => r.data.data),
+    queryFn: async ({ pageParam, signal }) => {
+      try {
+        const page = await productsApi.getAll({
+          search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,
+        }, { signal }).then((r) => r.data.data);
+        if (pageParam === 1 && Array.isArray(page?.items)) {
+          saveOfflineBrowseSnapshot('products', { search: search || undefined, city: city || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined }, page.items);
+          if (isBaseOfflineBrowse) saveOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse, page.items, OFFLINE_LIST_LIMITS.productsGridBrowse);
+        }
+        return page;
+      } catch (error) {
+        if (signal.aborted || (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ERR_CANCELED')) throw error;
+        if (pageParam === 1) {
+          const snapshot = getOfflineBrowseSnapshot<ProductWithStore>('products', { search: search || undefined, city: city || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined });
+          if (snapshot?.items.length) return { items: snapshot.items, meta: offlineMeta(snapshot.items.length) };
+          if (isBaseOfflineBrowse) {
+            const cached = getOfflineList<ProductWithStore>(OFFLINE_LIST_KEYS.productsGridBrowse);
+            if (cached?.items.length) return { items: cached.items, meta: offlineMeta(cached.items.length) };
+          }
+        }
+        throw error;
+      }
+    },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
@@ -74,6 +101,7 @@ export function ProductsGrid() {
     return (
       <OfflineQueryFallback
         title="لا توجد نسخة محفوظة من المنتجات"
+        loading={isLoading}
         description="لا تتوفر بيانات المنتجات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">

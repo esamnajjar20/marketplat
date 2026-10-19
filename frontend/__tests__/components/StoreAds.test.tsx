@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { createElement, type ReactNode } from 'react';
 import { StoreAds } from '@/components/stores/StoreAds';
 import { adsApi } from '@/api/ads.api';
@@ -51,4 +52,17 @@ describe('StoreAds', () => {
       expect(screen.getByText('إعلان تجريبي')).toBeInTheDocument();
     });
   });
+  it('keeps cached store ads visible when an offline refresh fails', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
+    qc.setQueryData(queryKeys.ads.list({ storeId: 's1', limit: 24 }), { items: [{ id: 'cached-1', title: 'إعلان محفوظ' }] });
+    vi.mocked(adsApi.getAll).mockRejectedValue(new Error('offline'));
+    render(
+      <QueryClientProvider client={qc}>
+        <StoreAds storeId="s1" storeName="متجر" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('إعلان محفوظ')).toBeInTheDocument();
+    expect(await screen.findByText(/تُعرض آخر نسخة محفوظة/)).toBeInTheDocument();
+  });
+
 });

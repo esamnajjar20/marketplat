@@ -204,6 +204,7 @@ export function RequestsPageClient() {
         {isLoading && !data ? (
           <OfflineQueryFallback
             title="لا توجد نسخة محفوظة من الطلبات"
+        loading={isLoading}
             description="لا تتوفر الطلبات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
             fallback={<RequestListSkeleton />}
           />

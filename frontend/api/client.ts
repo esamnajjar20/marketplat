@@ -628,6 +628,11 @@ apiClient.interceptors.response.use(
           needsCsrf: !SAFE_METHODS.has(methodForFallback),
           operationId: operationHeader,
         });
+        if (!queued.queued && queued.reason === 'body-too-large' && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('marketplat:local-error', {
+            detail: { key: 'offline-queue', reason: 'body-too-large' },
+          }));
+        }
         if (queued.queued) {
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent(QUEUE_UPDATED_EVENT));
@@ -643,6 +648,39 @@ apiClient.interceptors.response.use(
       } catch (queueError) {
         console.warn('[queue] page-side mutation fallback failed:', queueError);
       }
+    }
+
+    // If both the Service Worker and page fallback could not persist the
+    // mutation because the origin quota is full, tell the user explicitly.
+    // Do this only after fallback has had a chance to save it successfully.
+    if (
+      queueFallbackEligible && original &&
+      error.response?.status === 503 && responseCode === 'QUEUE_STORE_FAILED' &&
+      (error.response?.data as { reason?: unknown } | undefined)?.reason === 'quota'
+    ) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('marketplat:local-error', {
+          detail: { key: 'offline-queue', reason: 'quota' },
+        }));
+      }
+    }
+
+    // A full queue is a distinct, actionable failure: the SW has deliberately
+    // preserved existing pending/failed entries and rejected this new mutation.
+    // Do not retry into the page fallback here, because that would bypass the
+    // shared queue capacity guard and create inconsistent limits between stores.
+    if (responseCode === 'QUEUE_LIMIT_EXCEEDED' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('marketplat:local-error', {
+        detail: { key: 'offline-queue', reason: 'queue-full' },
+      }));
+    }
+
+    // Oversized offline mutations are not persisted by the Service Worker.
+    // Tell the user explicitly; never imply a local draft was saved.
+    if (responseCode === 'QUEUE_BODY_TOO_LARGE' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('marketplat:local-error', {
+        detail: { key: 'offline-queue', reason: 'body-too-large' },
+      }));
     }
 
     // Phase 2: automatically retry only safe/idempotent HTTP methods.

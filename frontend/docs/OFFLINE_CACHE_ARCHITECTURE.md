@@ -205,7 +205,7 @@ User-scoped API warming caches are partitioned by authenticated user subject (`m
 
 ## Expanded offline storage limits (v55)
 
-The configured Service Worker bounds are now: static assets 800 entries / 60 MiB; authenticated JSON data 400 entries / 50 MiB per user partition; public API responses 120 entries; viewed images 160 entries; personal page shells 500 entries; and explicitly cached ads up to 1,000 entries. Offline list snapshots were also increased (for example, up to 40 browse pages for ads/products/services/stores, 80 conversations, and 150 messages per conversation). These are cache ceilings, not a guarantee that every item will be retained: browser quota, storage pressure, response eligibility, and device eviction still apply.
+The configured Service Worker bounds are now: static assets 1,200 entries / 100 MiB; authenticated JSON data 600 entries / 80 MiB per user partition; public API responses 200 entries; viewed images 300 entries; personal page shells 750 entries; and explicitly cached ads up to 1,500 entries. Offline list snapshots were also increased (for example, up to 60 browse pages for ads/products/services/stores, 100 conversations, and 200 messages per conversation). These are cache ceilings, not a guarantee that every item will be retained: browser quota, storage pressure, response eligibility, and device eviction still apply.
 
 ## Visited-page and authenticated-data guarantee (v55)
 
@@ -213,7 +213,7 @@ Every successfully visited non-admin route that is eligible for document caching
 
 Successful authenticated JSON GET responses are persisted in the JWT-subject-partitioned `USER_DATA_CACHE`, rather than the shared `API_CACHE`. This now covers safe private reads (for example, the user's own listings, profile-related reads, saved lists, messages, and order history) as well as public lists. On network failure, an authenticated request may only read its subject-partitioned cache, never another user's shared API response. Logout clears personal shells and per-user data caches. Auth/session/CSRF/token/payment-confirmation and admin endpoints are excluded. Opaque bearer tokens without a verifiable subject are not persisted.
 
-The limits are finite (400 entries / 50 MiB per user partition; static assets up to 800 entries / 60 MiB; images up to 160 entries; public API up to 120 entries), so this is a best-effort local snapshot, not an unlimited archive. Browser storage eviction, unavailable assets, an endpoint without a bearer subject, or an API response that is not JSON can still make data unavailable offline. Mutations are not treated as successful until the server confirms them; offline writes continue through the explicit mutation queue policy.
+The limits are finite (600 entries / 80 MiB per user partition; static assets up to 1,200 entries / 100 MiB; images up to 300 entries; public API up to 200 entries), so this is a best-effort local snapshot, not an unlimited archive. Browser storage eviction, unavailable assets, an endpoint without a bearer subject, or an API response that is not JSON can still make data unavailable offline. Mutations are not treated as successful until the server confirms them; offline writes continue through the explicit mutation queue policy.
 
 
 ## Cache privacy hardening (v56)
@@ -235,7 +235,7 @@ The limits are finite (400 entries / 50 MiB per user partition; static assets up
 
 ## Aggregate offline queue limits (v58)
 
-- The IndexedDB mutation queue is capped at 500 entries and an estimated 20 MiB of payload plus metadata. The existing per-request 6 MiB body limit remains in place.
+- The IndexedDB mutation queue is capped at 500 entries and an estimated 20 MiB of payload plus metadata. This queue limit intentionally remains unchanged when disposable caches are enlarged; queued user mutations must not be evicted to free cache space. The existing per-request 6 MiB body limit remains in place.
 - When the aggregate limit is reached, the Service Worker rejects the new enqueue with `QUEUE_LIMIT_EXCEEDED` and a visible 503 response. It does not silently delete pending, failed, or cancelled user actions.
 - The estimate counts Blob/ArrayBuffer/string payloads by their byte lengths and adds serialized metadata. Browser storage accounting differs by engine, so this is an application-level guard, not a guarantee of physical disk usage.
 - Before release, run the unit tests with the project's installed Vitest version and test real IndexedDB quota failures in at least one mobile browser. The fake IndexedDB test harness cannot fully emulate transaction scheduling or device quota behavior.

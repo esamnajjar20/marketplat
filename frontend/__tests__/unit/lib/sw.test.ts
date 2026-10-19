@@ -631,6 +631,42 @@ describe('sw.js — service worker logic', () => {
       expect(await userDataCache.match(request)).toBeDefined();
     });
 
+    it('stores authenticated public entity detail only in the matching user cache', async () => {
+      ctx.setFetch(async () => new Response(JSON.stringify({ id: 'product-42', title: 'Cached product' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+      const event = makeEvent();
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/products/product-42',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+
+      const apiCache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      expect(await apiCache.match(request)).toBeUndefined();
+      expect(await userCache.match(request)).toBeDefined();
+    });
+
+    it('serves a previously visited authenticated public entity detail offline', async () => {
+      const request = makeFakeRequest({
+        url: 'https://example.com/api/v1/ads/ad-42',
+        headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
+      });
+      const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      await userCache.put(request, new Response(JSON.stringify({ id: 'ad-42', title: 'Cached ad' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+      ctx.setFetch(async () => { throw new Error('offline'); });
+
+      const response = await ctx.sandbox.networkFirstApi(makeEvent(), request, new URL(request.url));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ id: 'ad-42', title: 'Cached ad' });
+    });
+
     it('stores authenticated private GET responses only in the matching user cache', async () => {
       ctx.setFetch(async () =>
         new Response(JSON.stringify({ items: [] }), {
@@ -885,6 +921,41 @@ describe('sw.js — service worker logic', () => {
     });
   });
 
+  describe('canonical public document cache keys', () => {
+    it('removes tracking parameters while preserving content-defining query parameters', () => {
+      const canonical = ctx.sandbox.canonicalDocumentUrl(new URL(
+        'https://example.com/products?page=2&utm_source=newsletter&FBCLID=abc&sort=price',
+      ));
+      expect(canonical.href).toBe('https://example.com/products?page=2&sort=price');
+    });
+
+    it('serves a cached public document when only tracking parameters differ', async () => {
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      await cache.put('https://example.com/products', new Response(
+        '<!doctype html><html><body>cached products</body></html>',
+        { status: 200, headers: { 'content-type': 'text/html' } },
+      ));
+      const request = makeFakeRequest({
+        url: 'https://example.com/products?utm_campaign=summer&gclid=tracking-only',
+        mode: 'navigate',
+      });
+      const result = await ctx.sandbox.lookupShellWithFallback(cache, request, new URL(request.url));
+      expect(result).toBeTruthy();
+      expect(await result.text()).toContain('cached products');
+    });
+
+    it('does not discard meaningful query parameters during canonical lookup', async () => {
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      await cache.put('https://example.com/products?page=1', new Response(
+        '<!doctype html><html><body>page one</body></html>',
+        { status: 200, headers: { 'content-type': 'text/html' } },
+      ));
+      const request = makeFakeRequest({ url: 'https://example.com/products?page=2&utm_source=share', mode: 'navigate' });
+      const result = await ctx.sandbox.lookupShellWithFallback(cache, request, new URL(request.url));
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('legacy HTML cache migration', () => {
     it('removes Vary from previously cached HTML without deleting the page', async () => {
       const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
@@ -1001,6 +1072,24 @@ describe('sw.js — service worker logic', () => {
       expect((await cache.match('https://example.com/products')).headers.get('vary')).toBeNull();
       expect((await cache.match('https://example.com/products')).headers.get('X-SW-Cache-Source')).toBe('visit');
       expect((await cache.match('/_next/static/chunks/app.js')).headers.get('X-SW-Cache-Source')).toBe('visit-asset');
+    });
+
+    it('caches and accepts a public HTML page that has no local JS/CSS chunks', async () => {
+      ctx.setFetch(async (input: any) => {
+        const raw = typeof input === 'string' ? input : input.url;
+        if (new URL(raw, 'https://example.com').pathname === '/public-info') {
+          return new Response('<!doctype html><html><body>public info</body></html>', {
+            status: 200, headers: { 'content-type': 'text/html' },
+          });
+        }
+        throw new Error(`unexpected fetch: ${raw}`);
+      });
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      await ctx.sandbox.cacheVisitedDocumentShell(new URL('https://example.com/public-info'), cache);
+      const cached = await cache.match('https://example.com/public-info');
+      expect(cached).toBeTruthy();
+      expect(await cached.text()).toContain('public info');
+      expect(await ctx.sandbox.verifyCachedChunks(cached, cache)).toBe(true);
     });
 
     it('does not cache a hard-navigation document if its initial asset fails MIME validation', async () => {
@@ -1476,6 +1565,33 @@ describe('sw.js — service worker logic', () => {
       expect(fetchCalls).toBe(0);
     });
   });
+  describe('JSON integrity for offline API snapshots', () => {
+    it('does not persist malformed JSON even when the content type says application/json', async () => {
+      ctx.setFetch(async () => new Response('{not-json', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+      const request = makeFakeRequest({ url: 'https://example.com/api/v1/categories' });
+      const event = makeEvent();
+      await ctx.sandbox.networkFirstApi(event, request, new URL(request.url));
+      await Promise.all(event._waits);
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      expect(await cache.match(request)).toBeUndefined();
+    });
+
+    it('rejects malformed legacy JSON cache entries during offline fallback', async () => {
+      const request = makeFakeRequest({ url: 'https://example.com/api/v1/categories' });
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__API_CACHE);
+      await cache.put(request, new Response('{broken', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+      ctx.setFetch(async () => { throw new TypeError('offline'); });
+      const fallback = await ctx.sandbox.networkFirstApi(makeEvent(), request, new URL(request.url));
+      expect(fallback.type).toBe('error');
+    });
+  });
+
   // FIX OFFLINE-AUTH-RELOAD-01 / FIX OFFLINE-CACHE-MIGRATE-01
   describe('offline reload without a token and data-cache migration', () => {
     const TOKEN_A = 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature';

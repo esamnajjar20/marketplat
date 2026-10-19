@@ -1,7 +1,10 @@
 import { reportBackgroundFailure } from './backgroundTask';
 import { clearOfflineJson, OFFLINE_JSON_KEYS } from '@/lib/offlineJsonCache';
 import { clearOfflineList, OFFLINE_LIST_KEYS } from '@/lib/offlineListCache';
+import { clearOfflineBrowseSnapshots } from '@/lib/offlineBrowseSnapshots';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
+import { clearVisitedProducts } from './offlineVisitedProducts';
+import { clearVisitedAds } from './offlineVisitedAds';
 
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
 
@@ -14,9 +17,9 @@ function matchingRule(pathname: string): CacheInvalidationRule | null {
 
 function clearLocal(slot: CacheInvalidationRule['local'][number]): void {
   switch (slot) {
-    case 'ads': clearOfflineList(OFFLINE_LIST_KEYS.adsBrowse); break;
+    case 'ads': clearOfflineList(OFFLINE_LIST_KEYS.adsBrowse); clearOfflineList(OFFLINE_LIST_KEYS.adsGridBrowse); clearOfflineBrowseSnapshots('ads'); clearVisitedAds(); break;
     case 'myAds': clearOfflineList(OFFLINE_LIST_KEYS.myAds); break;
-    case 'products': clearOfflineList(OFFLINE_LIST_KEYS.productsBrowse); break;
+    case 'products': clearOfflineList(OFFLINE_LIST_KEYS.productsBrowse); clearOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse); clearOfflineBrowseSnapshots('products'); clearVisitedProducts(); break;
     case 'services': clearOfflineList(OFFLINE_LIST_KEYS.servicesBrowse); break;
     case 'stores': clearOfflineList(OFFLINE_LIST_KEYS.storesBrowse); break;
     case 'categories': clearOfflineList(OFFLINE_LIST_KEYS.categories); break;

@@ -68,6 +68,20 @@ interface RawQueueEntry {
 }
 
 const MAX_PAGE_QUEUE_BODY_BYTES = 6 * 1024 * 1024;
+
+function isQuotaExceededError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const name = 'name' in error ? String((error as { name?: unknown }).name ?? '') : '';
+  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED';
+}
+
+function notifyLocalStorageFailure(reason: 'quota' | 'unknown', key = 'offline-queue'): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new CustomEvent('marketplat:local-error', { detail: { key, reason } }));
+  } catch { /* browser event delivery is best-effort */ }
+}
+
 const PAGE_QUEUE_STRIP_HEADERS = new Set([
   'authorization', 'x-csrf-token', 'content-length', 'host', 'connection',
   'keep-alive', 'transfer-encoding', 'te', 'trailer', 'upgrade',
@@ -165,7 +179,13 @@ export async function enqueueOfflineMutationFallback(
   // Keep the stable operation identity in both the record and request headers
   // so the SW can restore it on replay after an interrupted acknowledgement.
   safeHeaders['x-offline-op-id'] = operationId;
-  const db = await openQueueDb();
+  let db: IDBDatabase;
+  try { db = await openQueueDb(); }
+  catch (error) {
+    const reason = isQuotaExceededError(error) ? 'storage-quota' : 'storage-unavailable';
+    if (reason === 'storage-quota') notifyLocalStorageFailure('quota');
+    return { queued: false, reason, operationId };
+  }
   let duplicateFound = false;
   try {
     await new Promise<void>((resolve, reject) => {
@@ -206,6 +226,10 @@ export async function enqueueOfflineMutationFallback(
       tx.onerror = () => reject(tx.error ?? new Error('queue fallback transaction failed'));
       tx.onabort = () => reject(tx.error ?? new Error('queue fallback transaction aborted'));
     });
+  } catch (error) {
+    const reason = isQuotaExceededError(error) ? 'storage-quota' : 'storage-unavailable';
+    if (reason === 'storage-quota') notifyLocalStorageFailure('quota');
+    return { queued: false, reason, operationId };
   } finally {
     db.close();
   }

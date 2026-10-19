@@ -305,22 +305,25 @@ function buildCsp(nonce: string, isDev: boolean): string {
   ].join('; ');
 }
 
-// CACHE-TIERS-01: HTML cache tiers by page category.
-// Longer cache for pages that rarely change; short for market feed
-// pages where stale items hurt UX (a sold ad should disappear fast).
+// CACHE-TIERS-02: Separate browser HTML freshness from shared-CDN caching.
+// Browsers/WebViews must revalidate HTML on navigation so a document from
+// build A is not reused after deployment B while its hash-named chunks have
+// been replaced. Keep s-maxage for shared caches; do not add stale-while-
+// revalidate to HTML because a stale document can reference deleted chunks.
+// Offline navigation remains the Service Worker's responsibility.
 // Returns null for authenticated pages (Next.js default = no-store).
 function getHtmlCacheControl(pathname: string): string | null {
   // Tier 1 — static content pages (rarely change)
   if (['/about', '/privacy', '/contact', '/terms'].includes(pathname)) {
-    return 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400';
+    return 'public, max-age=0, must-revalidate, s-maxage=7200';
   }
   // Tier 2 — category index + detail
   if (pathname === '/categories' || pathname.startsWith('/categories/')) {
-    return 'public, max-age=600, s-maxage=1200, stale-while-revalidate=3600';
+    return 'public, max-age=0, must-revalidate, s-maxage=1200';
   }
   // Tier 3 — store/service indexes + seller ranking (change slowly)
   if (['/stores', '/services', '/service-providers', '/sellers/ranking', '/trending', '/shared', '/saved-payments'].includes(pathname)) {
-    return 'public, max-age=300, s-maxage=600, stale-while-revalidate=1800';
+    return 'public, max-age=0, must-revalidate, s-maxage=600';
   }
   // Tier 4 — profile / seller / store-stats (bio/avatar rarely change)
   if (
@@ -331,18 +334,18 @@ function getHtmlCacheControl(pathname: string): string | null {
     /^\/stores\/[^/]+$/.test(pathname) ||
     /^\/service-providers\/[^/]+$/.test(pathname)
   ) {
-    return 'public, max-age=300, s-maxage=600, stale-while-revalidate=1800';
+    return 'public, max-age=0, must-revalidate, s-maxage=600';
   }
   // Tier 5 — individual ad/product/service/request (can be removed)
   if (/^\/(ads|products|services|requests)\/[^/]+$/.test(pathname)) {
-    return 'public, max-age=60, s-maxage=120, stale-while-revalidate=300';
+    return 'public, max-age=0, must-revalidate, s-maxage=120';
   }
   // Tier 6 — market feed pages (default for public HTML routes)
   if (['/promoted', '/stories', '/for-you', '/suggestions', '/requests'].includes(pathname)) {
-    return 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+    return 'public, max-age=0, must-revalidate, s-maxage=60';
   }
   if (isPublicHtmlRoute(pathname)) {
-    return 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+    return 'public, max-age=0, must-revalidate, s-maxage=60';
   }
   // Authenticated/private — do NOT cache
   return null;

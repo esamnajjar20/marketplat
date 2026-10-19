@@ -26,6 +26,10 @@ import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTr
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
+import { offlineMeta } from '@/lib/apiPagination';
+import { getOfflineList, saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from '@/lib/offlineListCache';
+import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offlineBrowseSnapshots';
+import type { AdListItem as AdListItemData } from '@/types/ad.types';
 
 interface Props {
   /**
@@ -99,15 +103,38 @@ export function SearchResults({ categorySlug }: Props = {}) {
   const networkPolicy = useNetworkPolicy();
   const pageSize = getAdaptivePageSize(12, networkPolicy);
 
+  // This screen uses useInfiniteQuery directly (not useAds), so its first
+  // page previously bypassed the offline list snapshot entirely. Cache only
+  // the unfiltered/default browse shape, in a dedicated slot separate from
+  // useAds' full-page slot and homepage previews.
+  const isBaseOfflineBrowse = !isSearch && !categoryId && !city && !condition
+    && minPrice === undefined && maxPrice === undefined
+    && sortBy === 'createdAt' && sortOrder === 'desc';
   const infiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.ads.infinite(isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
-    queryFn: ({ pageParam, signal }) => {
-      if (isSearch) {
-        return adsApi.searchAds({ q, page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { signal }).then((r) => r.data.data);
+    queryFn: async ({ pageParam, signal }) => {
+      try {
+        const page = isSearch
+          ? await adsApi.searchAds({ q, page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { signal }).then((r) => r.data.data)
+          : await adsApi.getAll({ page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { signal }).then((r) => r.data.data);
+        if (pageParam === 1 && Array.isArray(page?.items)) {
+          saveOfflineBrowseSnapshot('ads', { mode: isSearch ? 'search' : 'browse', q: isSearch ? q : undefined, categoryId: categoryId || undefined, city: city || undefined, condition: condition || undefined, minPrice: minPrice ?? undefined, maxPrice: maxPrice ?? undefined, sortBy, sortOrder }, page.items);
+          if (isBaseOfflineBrowse) saveOfflineList(OFFLINE_LIST_KEYS.adsGridBrowse, page.items, OFFLINE_LIST_LIMITS.adsGridBrowse);
+        }
+        return page;
+      } catch (error) {
+        if (signal.aborted || (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ERR_CANCELED')) throw error;
+        if (pageParam === 1) {
+          const snapshot = getOfflineBrowseSnapshot<AdListItemData>('ads', { mode: isSearch ? 'search' : 'browse', q: isSearch ? q : undefined, categoryId: categoryId || undefined, city: city || undefined, condition: condition || undefined, minPrice: minPrice ?? undefined, maxPrice: maxPrice ?? undefined, sortBy, sortOrder });
+          if (snapshot?.items.length) return { items: snapshot.items, meta: offlineMeta(snapshot.items.length) };
+          if (isBaseOfflineBrowse) {
+            const cached = getOfflineList<AdListItemData>(OFFLINE_LIST_KEYS.adsGridBrowse);
+            if (cached?.items.length) return { items: cached.items, meta: offlineMeta(cached.items.length) };
+          }
+        }
+        throw error;
       }
-      return adsApi.getAll({ page: pageParam, limit: pageSize, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder }, { signal })
-        .then((r) => r.data.data);
     },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
@@ -129,6 +156,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
     return (
       <OfflineQueryFallback
         title="لا توجد نسخة محفوظة من الإعلانات"
+        loading={isLoading}
         description="لا تتوفر بيانات الإعلانات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">

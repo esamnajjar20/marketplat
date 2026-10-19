@@ -58,6 +58,7 @@ export function StoresGrid() {
     return (
       <OfflineQueryFallback
         title="لا توجد نسخة محفوظة من المتاجر"
+        loading={isLoading}
         description="لا تتوفر بيانات المتاجر المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">

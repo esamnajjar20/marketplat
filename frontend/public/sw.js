@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v64';
+const CACHE_VERSION = 'v77';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -22,8 +22,8 @@ const API_CACHE = `market-api-${CACHE_VERSION}`;
 // كاش بيانات المستخدم مقسَّم حسب هويته (يُمسح عند الخروج).
 const USER_DATA_CACHE_PREFIX = `market-user-data-${CACHE_VERSION}-`;
 
-const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 400;
-const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 52428800;
+const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 600;
+const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 83886080;
 
 // الباك-إند يوقّع userId، و sub مدعوم أيضًا.
 function jwtSubject(payload) {
@@ -139,6 +139,102 @@ async function migrateDataCaches(cacheNames) {
   }
 }
 
+const SHELL_CACHE_MIGRATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isSafeShellMigrationEntry(request, response, sourceCacheName) {
+  if (!request || !response || !response.ok || response.status === 206) return false;
+  let url;
+  try { url = new URL(request.url); } catch { return false; }
+  if (url.origin !== self.location.origin) return false;
+  if (url.pathname.startsWith('/api/') || url.pathname === '/api') return false;
+  if (url.pathname.startsWith('/admin') || isAuthPage(url) || isProtectedPage(url)) return false;
+  if (url.pathname.startsWith('/_next/image')) return false;
+
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  const isStaticAsset = url.pathname.startsWith('/_next/static/') &&
+    (contentType.includes('javascript') || contentType.includes('ecmascript') ||
+     contentType.includes('text/css') || contentType.startsWith('font/') ||
+     contentType.includes('application/font') || contentType.includes('woff'));
+  const isHtml = contentType.includes('text/html');
+  const isRsc = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
+  if (sourceCacheName.startsWith('market-personal-shell-')) {
+    return PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname) && (isHtml || isRsc);
+  }
+  if (isStaticAsset) return true;
+  if (isHtml || isRsc) {
+    // Don't migrate arbitrary query-specific pages; RSC keys are explicitly supported.
+    if (url.search && !isRsc) return false;
+    return true;
+  }
+  return false;
+}
+
+async function migrateShellCaches(cacheNames) {
+  const migrations = [];
+  for (const name of cacheNames) {
+    let match = /^market-static-v(\d+)$/.exec(name);
+    if (match && name !== STATIC_CACHE) {
+      migrations.push({ from: name, to: STATIC_CACHE, version: Number(match[1]) });
+      continue;
+    }
+    match = /^market-personal-shell-v(\d+)$/.exec(name);
+    if (match && name !== PERSONAL_SHELL_CACHE) {
+      migrations.push({ from: name, to: PERSONAL_SHELL_CACHE, version: Number(match[1]) });
+    }
+  }
+  migrations.sort((a, b) => b.version - a.version);
+
+  // Pass 1: migrate eligible hashed assets first. HTML must not be copied
+  // before its referenced chunks have a chance to reach the new static cache.
+  const pendingShells = [];
+  for (const migration of migrations) {
+    try {
+      const from = await caches.open(migration.from);
+      const to = await caches.open(migration.to);
+      for (const request of await from.keys()) {
+        try {
+          if (await to.match(request, { ignoreVary: true })) continue;
+          const response = await from.match(request, { ignoreVary: true });
+          if (!isSafeShellMigrationEntry(request, response, migration.from)) continue;
+          const cachedAt = Number(response.headers.get('X-SW-Cached-At')) || 0;
+          const url = new URL(request.url);
+          const permanent = migration.to === STATIC_CACHE
+            ? PERMANENT_PUBLIC_SHELL_PATHS.has(url.pathname)
+            : PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname);
+          if (!permanent && (!cachedAt || Date.now() - cachedAt > SHELL_CACHE_MIGRATION_MAX_AGE_MS)) continue;
+
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const isStaticAsset = url.pathname.startsWith('/_next/static/') &&
+            (contentType.includes('javascript') || contentType.includes('ecmascript') ||
+             contentType.includes('text/css') || contentType.startsWith('font/') ||
+             contentType.includes('application/font') || contentType.includes('woff'));
+          const isHtml = contentType.includes('text/html');
+          const isRsc = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
+          if (isStaticAsset) {
+            await to.put(request, response.clone());
+          } else if (isHtml || isRsc) {
+            pendingShells.push({ migration, request, response, cachedAt, permanent, isHtml, isRsc });
+          }
+        } catch { /* One stale or unsupported entry must not block the rest. */ }
+      }
+    } catch { /* A missing/corrupt legacy cache must not block activation. */ }
+  }
+
+  // Pass 2: migrate shells only after the asset pass. A page whose JS/CSS
+  // chunks are missing would otherwise survive migration but be unusable offline.
+  let staticCache;
+  try { staticCache = await caches.open(STATIC_CACHE); } catch { return; }
+  for (const item of pendingShells) {
+    try {
+      const { migration, request, response, isHtml } = item;
+      const to = await caches.open(migration.to);
+      if (await to.match(request, { ignoreVary: true })) continue;
+      if (isHtml && !(await verifyCachedChunks(response, staticCache))) continue;
+      await to.put(request, response.clone());
+    } catch { /* Keep activation resilient to a single broken entry. */ }
+  }
+}
+
 // شكل الصفحات الشخصية — منفصل ويُمسح عند الخروج.
 const PERSONAL_SHELL_CACHE = `market-personal-shell-${CACHE_VERSION}`;
 
@@ -148,17 +244,17 @@ const CORE_CACHE = `market-core-${CACHE_VERSION}`;
 // إعلانات محفوظة يدويًا — بلا رقم إصدار عمدًا.
 const SAVED_ADS_CACHE = 'market-saved-ads';
 
-const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 120;
+const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 200;
 
-const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 160;
+const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 300;
 
-const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 800;
+const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 1200;
 
-const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 62914560;
+const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 104857600;
 
-const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1000;
+const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1500;
 
-const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 500;
+const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 750;
 
 // ⚠️ Must match PERMANENT_*_SHELL_ROUTES in lib/offlineRouteShells.ts
 // (enforced by __tests__/unit/lib/permanentShellParity.test.ts).
@@ -418,9 +514,14 @@ const PUBLIC_LIST_API_PREFIXES = [
 ];
 
 function isPublicListApiPath(url) {
-
   const path = url.pathname;
   return PUBLIC_LIST_API_PREFIXES.some((prefix) => path === prefix);
+}
+
+// تفاصيل العناصر العامة تُخزّن في مساحة المستخدم عند وجود Authorization،
+// كي تعمل الصفحات التي زارها المستخدم وهو مسجّل دون تسريبها إلى الكاش المشترك.
+function isPublicEntityDetailApiPath(url) {
+  return /^\/api\/v\d+\/(?:ads|products|stores|sellers|service-listings)\/[^/]+\/?$/.test(url.pathname);
 }
 
 function isImageRequest(request, url) {
@@ -479,6 +580,24 @@ const HUB_PATHS = new Set([
   '/settings',
   '/activity',
   ]);
+
+// Tracking-only query parameters must not create separate offline copies of the same public page.
+const TRACKING_QUERY_KEYS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'utm_id', 'utm_source_platform', 'utm_creative_format', 'utm_marketing_tactic',
+  'gclid', 'dclid', 'gbraid', 'wbraid', 'fbclid', 'msclkid', 'ttclid',
+  'twclid', 'igshid', 'mc_cid', 'mc_eid',
+]);
+
+function canonicalDocumentUrl(input) {
+  const url = input instanceof URL ? new URL(input.href) : new URL(String(input), self.location.origin);
+  url.searchParams.delete('_rsc');
+  for (const key of [...url.searchParams.keys()]) {
+    if (TRACKING_QUERY_KEYS.has(key.toLowerCase())) url.searchParams.delete(key);
+  }
+  if (HUB_PATHS.has(url.pathname)) url.search = '';
+  return url;
+}
 
 function hubDocumentKey(request, url) {
   if (
@@ -593,18 +712,7 @@ function isUsableStaticAssetResponse(assetUrl, response) {
 // يحفظ HTML الصفحة وملفاتها الأولية معًا أو لا يحفظ شيئًا.
 async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
   try {
-    const docUrl = new URL(url.href);
-
-    const rawParts = docUrl.search.slice(1).split('&').filter(Boolean);
-    const keptParts = rawParts.filter((part) => {
-      const rawKey = part.split('=')[0];
-      try {
-        return decodeURIComponent(rawKey.replace(/\+/g, ' ')) !== '_rsc';
-      } catch {
-        return rawKey !== '_rsc';
-      }
-    });
-    docUrl.search = keptParts.length ? `?${keptParts.join('&')}` : '';
+    const docUrl = canonicalDocumentUrl(url);
 
     const response = documentResponse
       ? documentResponse.clone()
@@ -625,8 +733,9 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
     )
       .map((match) => match[1])
       .filter((value) => typeof value === 'string' && value.length > 0))];
-    if (assetUrls.length === 0) return;
-
+    // بعض صفحات المحتوى العام قد تكون HTML بسيطة بلا chunks محلية.
+    // لا تُسقط نسخة الصفحة لمجرد أن قائمة الأصول فارغة؛ احفظ HTML وتحقق
+    // من كل أصل تم اكتشافه فقط.
     const staticCache = await caches.open(STATIC_CACHE);
     const missing = [];
     const alreadyCached = [];
@@ -734,7 +843,9 @@ async function verifyCachedChunks(cachedResponse, cache) {
     )
       .map((match) => match[1])
       .filter((value) => typeof value === 'string' && value.length > 0);
-    if (chunkUrls.length === 0) return false;
+    // اسمح بصفحات HTML العامة البسيطة بلا chunks فقط إذا احتوت جسمًا
+    // فعليًا؛ لا تعرض shell فارغًا على أنه نسخة أوفلاين صالحة.
+    if (chunkUrls.length === 0) return /<body[^>]*>[\s\S]*?\S[\s\S]*?<\/body>/i.test(html);
     for (const url of chunkUrls) {
       const hit = await cache.match(url);
       if (!isUsableStaticAssetResponse(url, hit)) return false;
@@ -751,6 +862,12 @@ async function lookupShellWithFallback(cache, request, url) {
   if (exact) return exact;
   if (request.mode !== 'navigate' && !isRsc) return null;
   if (url.search) {
+    const canonicalUrl = canonicalDocumentUrl(url);
+    if (canonicalUrl.href !== url.href) {
+      const canonicalKey = isRsc ? rscShellKey(canonicalUrl) : canonicalUrl.href;
+      const canonicalHit = await cache.match(canonicalKey);
+      if (canonicalHit) return canonicalHit;
+    }
     const bareKey = isRsc ? rscShellKey(url.origin + url.pathname) : url.origin + url.pathname;
     const bare = await cache.match(bareKey);
     if (bare) return bare;
@@ -844,6 +961,81 @@ async function networkFirstPage(event, request, cacheKey) {
 }
 
 const protectedNavGeneration = new Map();
+
+
+// SWR: عرض الكاش فورًا + تحديث في الخلفية مع التحقق من chunks
+async function staleWhileRevalidatePage(event, request, cacheKey) {
+  const cache = await caches.open(STATIC_CACHE);
+  const cached = await lookupShellWithFallback(cache, request, new URL(request.url));
+
+  const revalidatePromise = (async () => {
+    try {
+      const response = await withNetworkTimeout(fetch(request), NETWORK_TIMEOUT_MS);
+      if (!response || !response.ok || response.status === 206 || !isSameOriginResponse(response)) {
+        return;
+      }
+
+      const isHtml = request.mode === 'navigate' &&
+        (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+
+      if (!isHtml) {
+        const toStore = await stripVaryAndClone(response.clone());
+        await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
+        await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+        return;
+      }
+
+      const html = await response.clone().text();
+      const chunkUrls = [...html.matchAll(/(?:src|href)=["']([^"']+)/g)]
+        .map((m) => m[1])
+        .filter((v) => typeof v === 'string' && v.startsWith('/_next/static/'));
+
+      if (chunkUrls.length > 0) {
+        const missing = [];
+        for (const url of chunkUrls) {
+          const hit = await cache.match(url);
+          if (!hit) missing.push(url);
+        }
+        if (missing.length > 0) {
+          const results = await Promise.allSettled(
+            missing.map((u) => fetch(u).then((r) => {
+              if (!r.ok) throw new Error('chunk fetch failed');
+              return cache.put(u, r);
+            }))
+          );
+          if (results.some((r) => r.status === 'rejected')) {
+            console.warn('[SWR] Skipping HTML cache update: some chunks could not be fetched');
+            return;
+          }
+        }
+      }
+
+      const toStore = await stripVaryAndClone(response.clone());
+      await putTimestamped(cache, cacheKey, toStore, 'visit');
+      await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+    } catch (err) {
+      console.warn('[SWR] revalidation failed:', err && err.message);
+    }
+  })();
+
+  if (cached) {
+    event.waitUntil(revalidatePromise);
+    return cached;
+  }
+
+  try {
+    await revalidatePromise;
+    const fresh = await cache.match(cacheKey);
+    if (fresh) return fresh;
+    return await fetch(request);
+  } catch {
+    if (request.mode === 'navigate') {
+      const offlineFallback = await cache.match(OFFLINE_URL);
+      return offlineFallback || Response.error();
+    }
+    return Response.error();
+  }
+}
 
 // صفحات محمية: شبكة أولًا؛ كاش PERSONAL_SHELL للمسارات المسموحة فقط.
 async function handleProtectedPage(event, request, url) {
@@ -968,42 +1160,90 @@ async function handlePageRequest(event, request, url) {
   }
 
   const cacheKey = isRscShellRequest(request) ? rscShellKey(url) : hubDocumentKey(request, url);
-  return networkFirstPage(event, request, cacheKey);
+
+  if (isCriticalNavigationRoute(url)) {
+    return networkFirstPage(event, request, cacheKey);
+  }
+
+  return staleWhileRevalidatePage(event, request, cacheKey);
+}
+
+function isCriticalNavigationRoute(url) {
+  const p = url.pathname;
+  return p.startsWith('/checkout') ||
+         p.startsWith('/account/security') ||
+         p.startsWith('/account/delete') ||
+         p.startsWith('/verify') ||
+         p.startsWith('/reset-password');
+}
+
+// Do not treat HTML error/login responses as images: some CDNs/proxies
+// return status 200 for an HTML fallback, which otherwise becomes a poisoned
+// offline image cache entry.
+function isUsableCachedImage(response) {
+  if (!response) return false;
+  // Cross-origin <img> requests may be opaque by design: their headers/body
+  // cannot be inspected, but caching them is necessary for offline images.
+  // Their storage remains bounded by MAX_IMAGE_ENTRIES.
+  if (response.type === 'opaque') return true;
+  if (!response.ok || response.status === 206) return false;
+  const contentType = (response.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+  return contentType.startsWith('image/');
+}
+
+async function findUsableImage(cache, request) {
+  const cached = await cache.match(request);
+  if (!cached) return null;
+  if (isUsableCachedImage(cached)) return cached;
+  // Remove only the bad exact-key entry; never return it as an image.
+  try { await cache.delete(request); } catch {}
+  return null;
+}
+
+// Next.js may request an optimized URL (/_next/image?url=...&w=...&q=...),
+// while the original image was cached under its source URL. Try every bounded
+// image-capable cache for that source before giving up offline.
+async function findCachedNextImageSource(url) {
+  if (url.pathname !== '/_next/image') return null;
+  const inner = url.searchParams.get('url');
+  if (!inner) return null;
+  let sourceRequest;
+  try {
+    const sourceUrl = new URL(inner, url.origin);
+    if (sourceUrl.protocol !== 'https:' && sourceUrl.protocol !== 'http:') return null;
+    sourceRequest = new Request(sourceUrl.href, { method: 'GET' });
+  } catch {
+    return null;
+  }
+  for (const cacheName of [IMAGE_CACHE, SAVED_ADS_CACHE, CORE_CACHE]) {
+    try {
+      const cache = await caches.open(cacheName);
+      const hit = await findUsableImage(cache, sourceRequest);
+      if (hit) return hit;
+    } catch {
+      // A missing/inaccessible cache should not prevent checking the others.
+    }
+  }
+  return null;
 }
 
 // الصور: IMAGE_CACHE ثم SAVED_ADS ثم CORE ثم الشبكة.
 async function cacheFirstImage(event, request, url) {
 
   const cache = await caches.open(IMAGE_CACHE);
-  const cached = await cache.match(request);
-  if (cached) {
-    return cached;
-  }
+  const cached = await findUsableImage(cache, request);
+  if (cached) return cached;
 
   const savedCache = await caches.open(SAVED_ADS_CACHE);
-  const savedHit = await savedCache.match(request);
+  const savedHit = await findUsableImage(savedCache, request);
   if (savedHit) {
-
     event.waitUntil(trimCache(SAVED_ADS_CACHE, MAX_SAVED_ADS_ENTRIES));
     return savedHit;
   }
 
-  if (url.pathname === '/_next/image') {
-    const inner = url.searchParams.get('url');
-    if (inner) {
-      try {
-
-        const rawHit = await savedCache.match(inner);
-        if (rawHit) return rawHit;
-      } catch {
-
-      }
-    }
-  }
-
   try {
     const coreCache = await caches.open(CORE_CACHE);
-    const coreHit = await coreCache.match(request.url);
+    const coreHit = await findUsableImage(coreCache, request);
     if (coreHit) return coreHit;
   } catch {
 
@@ -1012,40 +1252,40 @@ async function cacheFirstImage(event, request, url) {
   try {
     const response = await fetch(request);
 
-    if (response && response.ok && response.status !== 206) {
-
-      const len = response.headers.get('content-length');
-      const lenNum = len ? Number(len) : 0;
-      const tooLarge = Number.isFinite(lenNum) && lenNum > 2.5 * 1024 * 1024;
-      if (!tooLarge) {
-
-        const toCache = response.clone();
-        event.waitUntil(
-          shouldSkipDisposableCacheWrite(IMAGE_CACHE).then((skip) => {
-            if (skip) return;
-            return putTimestamped(cache, request, toCache).then(() =>
-              trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES),
-            );
-          }).catch(() => {}),
-        );
+    if (isUsableCachedImage(response)) {
+      // Opaque cross-origin images cannot expose MIME, length, or body bytes;
+      // retain them under the existing strict entry-count cap.
+      if (response.type === 'opaque') {
+        const opaqueCopy = response.clone();
+        event.waitUntil((async () => {
+          try {
+            if (await shouldSkipDisposableCacheWrite(IMAGE_CACHE)) return;
+            await putTimestamped(cache, request, opaqueCopy);
+            await trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES);
+          } catch {}
+        })());
+        return response;
       }
+      const len = response.headers.get('content-length');
+      const declaredLength = len ? Number(len) : NaN;
+      // Enforce a real byte limit even when servers omit Content-Length.
+      const toCache = response.clone();
+      event.waitUntil((async () => {
+        try {
+          if (Number.isFinite(declaredLength) && declaredLength > 2.5 * 1024 * 1024) return;
+          const body = await toCache.clone().arrayBuffer();
+          if (body.byteLength === 0 || body.byteLength > 2.5 * 1024 * 1024) return;
+          if (await shouldSkipDisposableCacheWrite(IMAGE_CACHE)) return;
+          await putTimestamped(cache, request, toCache);
+          await trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES);
+        } catch {}
+      })());
     }
     return response;
   } catch (error) {
 
-    if (url.pathname === '/_next/image') {
-      try {
-        const inner = url.searchParams.get('url');
-        if (inner) {
-          const coreCache = await caches.open(CORE_CACHE);
-
-          const warmed = await coreCache.match(inner);
-          if (warmed) return warmed;
-        }
-      } catch {
-
-      }
-    }
+    const cachedSourceAfterNetworkFailure = await findCachedNextImageSource(url);
+    if (cachedSourceAfterNetworkFailure) return cachedSourceAfterNetworkFailure;
     console.warn('[SW IMAGE] network error', request.url, error && error.message);
     return Response.error();
   }
@@ -1266,6 +1506,19 @@ function isSafeUserApiSnapshot(response) {
     !responseVariesBy(response, 'authorization');
 }
 
+// لا نثق بوجود المفتاح وحده: بعض الخوادم قد تعيد JSON مشوّهًا أو استجابة قديمة غير JSON.
+async function isValidJsonApiSnapshot(response) {
+  if (!response || !response.ok || response.status === 206) return false;
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  if (!contentType.includes('application/json')) return false;
+  try {
+    JSON.parse(await response.clone().text());
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 // GET للـ API: شبكة أولًا ثم كاش آمن حسب الهوية.
 async function networkFirstApi(event, request, url) {
   const cache = await caches.open(API_CACHE);
@@ -1273,6 +1526,7 @@ async function networkFirstApi(event, request, url) {
   const hadAuth = request.headers.get('authorization') != null;
   const userCacheName = hadAuth ? userDataCacheForRequest(request) : null;
   const publicListOk = isPublicListApiPath(url);
+  const publicEntityDetail = isPublicEntityDetailApiPath(url);
   const isAdminApi = url.pathname === '/api/admin' || url.pathname.startsWith('/api/admin/') || /\/api\/v\d+\/admin(?:\/|$)/i.test(url.pathname);
   const isSensitiveApi = isNeverCache(url) || isAdminApi || /\/(?:auth|csrf|sessions?|tokens?|password|payment-intents?|checkout\/confirm)(?:\/|$)/i.test(url.pathname);
 
@@ -1282,6 +1536,7 @@ async function networkFirstApi(event, request, url) {
     const contentType = (headers.get('content-type') || '').toLowerCase();
     const cacheControl = headers.get('cache-control') || '';
     if (!(response.ok && response.status !== 206 && isSameOriginResponse(response) && contentType.includes('application/json'))) return;
+    if (!(await isValidJsonApiSnapshot(response))) return;
     if (cacheControlRequiresValidation(cacheControl) || headers.has('set-cookie')) return;
 
     if (!hadAuth) {
@@ -1292,7 +1547,7 @@ async function networkFirstApi(event, request, url) {
       return;
     }
 
-    if (!userCacheName || responseVariesBy(response, 'cookie') || responseVariesBy(response, 'authorization')) return;
+    if (!userCacheName || (!publicListOk && !publicEntityDetail) || responseVariesBy(response, 'cookie') || responseVariesBy(response, 'authorization')) return;
     const userDataCache = await caches.open(userCacheName);
     await putTimestamped(userDataCache, request, response.clone());
     await trimCache(userCacheName, MAX_USER_DATA_ENTRIES, MAX_USER_DATA_BYTES);
@@ -1312,15 +1567,15 @@ async function networkFirstApi(event, request, url) {
       if (!isSensitiveApi && userCacheName) {
         const userDataCache = await caches.open(userCacheName);
         const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
-        if (cachedUserData && isSafeUserApiSnapshot(cachedUserData)) return cachedUserData;
+        if (cachedUserData && isSafeUserApiSnapshot(cachedUserData) && await isValidJsonApiSnapshot(cachedUserData)) return cachedUserData;
       }
 
-      if (publicListOk && !isSensitiveApi) {
+      if ((publicListOk || publicEntityDetail) && !isSensitiveApi) {
         const cachedApi = await cache.match(request, { ignoreVary: true });
-        if (cachedApi && isSafeSharedApiSnapshot(cachedApi)) return cachedApi;
+        if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
         const coreCache = await caches.open(CORE_CACHE);
         const cachedCore = await coreCache.match(request.url);
-        if (cachedCore && isSafeSharedApiSnapshot(cachedCore)) return cachedCore;
+        if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
       }
     } else {
 
@@ -1329,20 +1584,20 @@ async function networkFirstApi(event, request, url) {
         if (lastUserId) {
           const lastUserCache = await caches.open(userDataCacheName(lastUserId));
           const cachedForUser = await lastUserCache.match(request, { ignoreVary: true });
-          if (cachedForUser && isSafeUserApiSnapshot(cachedForUser)) return cachedForUser;
+          if (cachedForUser && isSafeUserApiSnapshot(cachedForUser) && await isValidJsonApiSnapshot(cachedForUser)) return cachedForUser;
         }
       }
       const cachedApi = await cache.match(request, { ignoreVary: true });
-      if (cachedApi && isSafeSharedApiSnapshot(cachedApi)) return cachedApi;
+      if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
       const coreCache = await caches.open(CORE_CACHE);
       const cachedCore = await coreCache.match(request.url);
-      if (cachedCore && isSafeSharedApiSnapshot(cachedCore)) return cachedCore;
+      if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
     }
 
     if (!isSensitiveApi) {
       const savedCache = await caches.open(SAVED_ADS_CACHE);
       const cachedSaved = await savedCache.match(request.url);
-      if (cachedSaved) return cachedSaved;
+      if (cachedSaved && await isValidJsonApiSnapshot(cachedSaved)) return cachedSaved;
     }
     if (timedOut) return fetchPromise.catch(() => Response.error());
     return Response.error();
@@ -1729,16 +1984,21 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     const replayController = new AbortController();
     activeReplayControllers.add(replayController);
     let response;
+    let replayTimeoutId;
     try {
+      replayTimeoutId = setTimeout(() => {
+        try { replayController.abort(new DOMException('Offline queue request timed out', 'TimeoutError')); }
+        catch { replayController.abort(); }
+      }, QUEUE_REQUEST_TIMEOUT_MS);
       response = await fetch(entry.url, {
         method: entry.method,
         headers: sendHeaders,
         body: entry.body ?? undefined,
         signal: replayController.signal,
-
         credentials: 'include',
       });
     } finally {
+      if (replayTimeoutId !== undefined) clearTimeout(replayTimeoutId);
       activeReplayControllers.delete(replayController);
     }
 
@@ -1975,6 +2235,8 @@ let queueLifecycleVersion = 0;
 const activeReplayControllers = new Set();
 
 const QUEUE_PROCESSING_LEASE_MS = 2 * 60_000;
+// Bound each replay request so a half-open mobile connection cannot hold the queue lease indefinitely.
+const QUEUE_REQUEST_TIMEOUT_MS = 15_000;
 function hasActiveProcessingLease(entry, now = Date.now()) {
   if (!entry?.processing) return false;
   const startedAt = entry.processingStartedAt;
@@ -2284,7 +2546,7 @@ async function handleMutation(request) {
           queued: false,
           code: 'QUEUE_BODY_TOO_LARGE',
           message:
-            'حجم المرفقات كبير للأوفلاين — حُفظت مسودة محلية وستُرفع عند عودة الاتصال.',
+            'حجم المرفقات يتجاوز حد الحفظ دون اتصال؛ لم تُحفظ هذه العملية. اتصل بالإنترنت وأعد المحاولة.',
         }),
         { status: 503, headers: { 'Content-Type': 'application/json' } },
       );
@@ -2355,15 +2617,19 @@ async function handleMutation(request) {
         storeErr?.code === 'QUEUE_LIFECYCLE_CHANGED' ||
         queueClearInFlight || enqueueLifecycleVersion !== queueLifecycleVersion;
       console.warn('[SW] queueRequestEntry failed:', storeErr && storeErr.message);
+      const storageQuotaExceeded = storeErr?.name === 'QuotaExceededError' || storeErr?.name === 'NS_ERROR_DOM_QUOTA_REACHED';
       return new Response(
         JSON.stringify({
           queued: false,
           code: lifecycleChanged ? 'QUEUE_SESSION_CHANGED' : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED' ? 'QUEUE_LIMIT_EXCEEDED' : 'QUEUE_STORE_FAILED',
+          reason: storageQuotaExceeded ? 'quota' : undefined,
           message: lifecycleChanged
             ? 'تغيّرت الجلسة أثناء حفظ العملية؛ لم تُحفظ لإعادة الإرسال بحساب آخر.'
             : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED'
               ? 'وصل طابور الأوفلاين إلى حد التخزين الآمن. أرسل العمليات المعلّقة أو احذف العناصر الفاشلة قبل إضافة عمليات جديدة.'
-              : 'تعذّر حفظ العملية في طابور الأوفلاين — حُفظت مسودة محلية إن أمكن وستُرفع عند عودة الاتصال.',
+              : storageQuotaExceeded
+                ? 'مساحة التخزين على الجهاز ممتلئة؛ لم تُحفظ هذه العملية. اتصل بالإنترنت لمزامنة البيانات وحرّر مساحة ثم أعد المحاولة.'
+                : 'تعذّر حفظ العملية في طابور الأوفلاين — لم يتم تأكيد حفظها محليًا؛ تحقق من المساحة ثم أعد المحاولة.',
         }),
         { status: lifecycleChanged ? 409 : 503, headers: { 'Content-Type': 'application/json' } },
       );
@@ -2448,6 +2714,8 @@ self.addEventListener('activate', (event) => {
       const cacheNames = await caches.keys();
 
       await migrateDataCaches(cacheNames);
+      // Preserve recent, safe visited-page shells and their hashed chunks before old versions are deleted.
+      await migrateShellCaches(cacheNames);
       await Promise.all(
         cacheNames
           .filter((name) =>

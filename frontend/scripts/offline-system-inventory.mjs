@@ -115,8 +115,8 @@ if (candidates.length === 0) lines.push('- None detected.');
 else for (const { file } of candidates) lines.push(`- ${rel(file)} — zero static importers in the scanned source set. Check framework entrypoints, tests, side effects, and dynamic usage before deciding whether it is dead code.`);
 lines.push('', '## Phase 2 updates', '',
   '- Replaced broad contract-prefix persistence with a shape-aware allowlist for known public query-key forms. Private/admin siblings, user-owned resources, stock data, search text, coordinates, and the identity-bearing personalized home-feed branch are excluded.',
-  '- Restore now checks key identity, timestamp bounds, actual stable-serialized UTF-8 byte size, the recorded byte count, and the 64 KiB per-entry cap; a corrupt row is rejected independently.',
-  '- Preserved the 500-entry, 5 MiB aggregate, and seven-day limits. Added regression coverage for private/admin sibling keys, contextual params, 30 KiB payloads, oversize payloads, corrupted byte counts, and invalid timestamps.',
+  '- Restore checks key identity, timestamp bounds, actual stable-serialized UTF-8 byte size, and the recorded byte count. Ordinary query entries are capped at 512 KiB; the unified homepage feed has a dedicated 2 MiB cap.',
+  '- Preserved the 500-entry, 20 MiB aggregate, and seven-day limits. Regression coverage includes private/admin sibling keys, contextual params, payload size limits, corrupted byte counts, and invalid timestamps.',
   '- Static phase 2 guardrail and dependency-free phase 1 guardrail pass. Vitest, full TypeScript validation, production build, and real-browser offline tests still require installed project dependencies and a browser run.',
   '',
   '## Phase 1 decisions', '',

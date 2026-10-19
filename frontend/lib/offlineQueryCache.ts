@@ -7,10 +7,10 @@ export const OFFLINE_QUERY_CACHE_STORE = 'queries';
 // homepage feed its own larger cap. It serializes several rails plus category
 // metadata and may exceed 512 KiB; rejecting it drops every homepage section.
 // The global store budget still limits aggregate IndexedDB usage.
-export const OFFLINE_QUERY_MAX_ENTRY_BYTES = 512 * 1024;
-export const OFFLINE_HOME_FEED_MAX_ENTRY_BYTES = 2 * 1024 * 1024;
-export const OFFLINE_QUERY_MAX_ENTRIES = 500;
-export const OFFLINE_QUERY_MAX_TOTAL_BYTES = 20 * 1024 * 1024;
+export const OFFLINE_QUERY_MAX_ENTRY_BYTES = 768 * 1024;
+export const OFFLINE_HOME_FEED_MAX_ENTRY_BYTES = 3 * 1024 * 1024;
+export const OFFLINE_QUERY_MAX_ENTRIES = 800;
+export const OFFLINE_QUERY_MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 export const OFFLINE_QUERY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LAST_CACHE_AT_KEY = 'marketplat:offline-query-cache:last-saved-at';
 const SAVE_DEBOUNCE_MS = 250;
@@ -121,6 +121,107 @@ export function isOfflinePersistableQueryKey(queryKey: QueryKey): boolean {
   const child = queryKey[1];
   const third = queryKey[2];
   const fourth = queryKey[3];
+  // Public seller profile pages use ['sellers', sellerId], while the
+  // account's own profile uses ['sellers', 'me']. Persist only the former.
+  // IDs are opaque strings; reserved branches are explicitly excluded so a
+  // future private sibling cannot become persistable by sharing this prefix.
+  if (root === 'sellers') {
+    if (queryKey.length === 2 && typeof child === 'string'
+      && child.length > 0 && !new Set(['me', 'admin', 'ranking', 'attention']).has(child)) return true;
+    // The ranking page is public and already has a separate bounded offline
+    // list cache. This exact key is safe for React Query persistence too.
+    if (queryKey.length === 3 && child === 'ranking' && typeof third === 'number'
+      && Number.isInteger(third) && third > 0 && third <= 100) return true;
+    // Public seller ratings use ['sellers', sellerId, 'ratings', {page, limit}].
+    // Keep this narrowly allowlisted: only pagination is accepted, never
+    // account/admin branches or arbitrary contextual parameters.
+    if (queryKey.length === 4 && typeof child === 'string' && child.length > 0
+      && !new Set(['me', 'admin', 'ranking', 'attention']).has(child)
+      && third === 'ratings' && !!fourth && typeof fourth === 'object'
+      && !Array.isArray(fourth)
+      && Object.entries(fourth as Record<string, unknown>).every(([key, value]) =>
+        (key === 'page' || key === 'limit')
+        && typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 1000)) return true;
+    return false;
+  }
+  // Public user profile endpoints explicitly return a PII-safe projection.
+  // Keep the public detail and that user's public ads only; never persist
+  // account/session branches or keys that contain search/location context.
+  if (root === 'users') {
+    if (queryKey.length === 2 && typeof child === 'string'
+      && child.length > 0 && !new Set(['me', 'admin', 'presence']).has(child)) return true;
+    return queryKey.length === 4 && typeof child === 'string'
+      && !new Set(['me', 'admin', 'presence']).has(child)
+      && third === 'ads' && !!fourth && typeof fourth === 'object'
+      && !Array.isArray(fourth) && !hasUnsafeQueryParams(fourth);
+  }
+  // Deterministic public alternatives for a public service listing. The backend
+  // route is unauthenticated and computes matches only from public listing,
+  // category, city and provider-trust fields; it does not vary by viewer.
+  // The component always requests the fixed default limit (8), so listing ID
+  // fully identifies the response. Keep this exact shape only.
+  if (root === 'service-listing-matches') {
+    return queryKey.length === 2 && typeof child === 'string' && child.length > 0
+      && !new Set(['me', 'admin', 'nearby']).has(child);
+  }
+  // Public review lists are viewer-independent and contain published reviews only.
+  // Keep pagination keys exact; never persist mutation, moderation, or owner-only branches.
+  if (root === 'store-reviews') {
+    return queryKey.length === 3 && typeof child === 'string' && child.length > 0
+      && !!third && typeof third === 'object' && !Array.isArray(third)
+      && Object.entries(third as Record<string, unknown>).every(([key, value]) =>
+        (key === 'page' || key === 'limit')
+        && typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 1000);
+  }
+  if (root === 'service-reviews') {
+    return queryKey.length === 4 && child === 'seller'
+      && typeof third === 'string' && third.length > 0
+      && !!fourth && typeof fourth === 'object' && !Array.isArray(fourth)
+      && Object.entries(fourth as Record<string, unknown>).every(([key, value]) =>
+        (key === 'page' || key === 'limit')
+        && typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 1000);
+  }
+  // Public storefront collections and their active product lists. Do not
+  // allow the private owner collection branches ['collections','me'|'detail', ...].
+  if (root === 'collections') {
+    if (queryKey.length === 3 && child === 'store' && typeof third === 'string' && third.length > 0) return true;
+    return queryKey.length === 3 && typeof child === 'string' && child.length > 0
+      && !new Set(['me', 'detail', 'admin']).has(child) && third === 'products';
+  }
+  // Public badges are read-only projections for storefront/provider pages.
+  if (root === 'badges') {
+    return queryKey.length === 3 && (child === 'store' || child === 'provider')
+      && typeof third === 'string' && third.length > 0;
+  }
+  // Public aggregate statistics are served by the explicit /public/stores
+  // endpoint and keyed by a store slug, not by the current account.
+  if (root === 'public-store-sales-stats') {
+    return queryKey.length === 2 && typeof child === 'string' && child.length > 0;
+  }
+  // Public store-type reference data powers storefront filters and the
+  // dynamic fields in product/store forms. The same query-key factory is
+  // also reused by the admin editor with an `admin:` sentinel, so only the
+  // public root list and concrete non-admin type IDs may be persisted.
+  if (root === 'store-types') {
+    if (queryKey.length === 1) return true;
+    return queryKey.length === 3
+      && child === 'fields'
+      && typeof third === 'string'
+      && third.length > 0
+      && !third.startsWith('admin:');
+  }
+  // Public open-request browse is viewer-independent: the API builds this
+  // feed from the query alone. Keep only the exact ['requests', 'open', params]
+  // shape and reject real search text or contextual location coordinates.
+  // Do NOT persist ['requests', 'detail', id]: GET /requests/:id varies by
+  // viewer because owners see all offers, signed-in offerers see their own,
+  // and anonymous viewers see no offers. Reusing that response across auth
+  // states could expose private offer data.
+  if (root === 'requests') {
+    return queryKey.length === 3 && child === 'open'
+      && !!third && typeof third === 'object' && !Array.isArray(third)
+      && !hasUnsafeQueryParams(third);
+  }
   if (root === 'home') {
     // The legacy homepage payload.
     if (queryKey.length === 3 && child === 'page' && (third === null || typeof third === 'string')) return true;
@@ -145,6 +246,16 @@ export function isOfflinePersistableQueryKey(queryKey: QueryKey): boolean {
     && !new Set(['list', 'me', 'nearby', 'admin', 'stock', 'analytics']).has(child)) return true;
   const children = PUBLIC_CHILD_KEYS.get(root);
   if (!children || typeof child !== 'string' || !children.has(child)) return false;
+  // The ads infinite-query factory has the concrete shape
+  // ['ads', 'infinite', mode, params], unlike the ordinary list keys.
+  // Persist only the non-search browse feed; search results may encode a
+  // user's private search terms and must never be restored from this store.
+  if (root === 'ads' && child === 'infinite') {
+    return queryKey.length === 4
+      && third === 'browse'
+      && !!fourth && typeof fourth === 'object' && !Array.isArray(fourth)
+      && !hasUnsafeQueryParams(fourth);
+  }
   if (child === 'detail' || child === 'related') return queryKey.length === 3 && typeof third === 'string' && third !== 'me' && third !== 'admin';
   if (child === 'slug') return queryKey.length === 3 && typeof third === 'string';
   if (child === 'promoted') return queryKey.length === 4 && third === 'infinite' && typeof fourth === 'number';

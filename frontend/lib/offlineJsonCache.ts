@@ -32,8 +32,8 @@ export function saveOfflineJson<T>(
   name: string,
   data: T,
   userId?: string | null,
-): void {
-  saveOfflineEnvelope(key(name), 'data', data, userId);
+): boolean {
+  return saveOfflineEnvelope(key(name), 'data', data, userId);
 }
 
 export function getOfflineJson<T>(

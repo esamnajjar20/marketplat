@@ -8,6 +8,7 @@ import { CACHE_TTL } from '@/lib/constants';
 import { getPublicListStaleTime } from '@/lib/networkCachePolicy';
 import type { ProductsQuery, Product, ProductWithStore } from '@/types/product.types';
 import type { PaginationMeta } from '@/types/api.types';
+import { getVisitedProduct, saveVisitedProduct } from '@/lib/offlineVisitedProducts';
 import {
   getOfflineList,
   saveOfflineList,
@@ -106,7 +107,23 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
 export function useProduct(id: string) {
   return useQuery({
     queryKey: queryKeys.products.detail(id),
-    queryFn: ({ signal }) => productsApi.getById(id, { signal }).then((r) => r.data.data),
+    queryFn: async ({ signal }) => {
+      try {
+        const product = (await productsApi.getById(id, { signal })).data.data;
+        if (product?.id === id) saveVisitedProduct(product);
+        return product;
+      } catch (error) {
+        if (signal.aborted || (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ERR_CANCELED')) throw error;
+        // A real 404 means the product is gone; do not resurrect it from an offline snapshot.
+        const status = typeof error === 'object' && error !== null && 'response' in error
+          ? (error as { response?: { status?: number } }).response?.status
+          : undefined;
+        if (status === 404) throw error;
+        const cached = getVisitedProduct(id);
+        if (cached) return cached;
+        throw error;
+      }
+    },
     staleTime: CACHE_TTL.adDetail,
     enabled: Boolean(id),
   });

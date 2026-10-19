@@ -1,10 +1,10 @@
 # Offline System — Phase 1 Inventory and Audit
 
-Generated: 2026-10-17T20:51:30.715Z
+Generated: 2026-10-18T16:24:56.309Z
 
 ## Scope and method
 
-Static import inventory of frontend/shared/backend runtime source files. Scanned 1377 source files and identified 120 offline/cache/network/queue/warming-related modules. Import counts are static approximations: runtime registration, framework route entrypoints, worker entrypoints, dynamic imports, and string-based loading may not appear as ordinary imports. No source modules are deleted or rewritten by this script.
+Static import inventory of frontend/shared/backend runtime source files. Scanned 1379 source files and identified 121 offline/cache/network/queue/warming-related modules. Import counts are static approximations: runtime registration, framework route entrypoints, worker entrypoints, dynamic imports, and string-based loading may not appear as ordinary imports. No source modules are deleted or rewritten by this script.
 
 ## Inventory by responsibility
 
@@ -14,11 +14,11 @@ Static import inventory of frontend/shared/backend runtime source files. Scanned
 -  frontend/lib/networkErrors.ts — 2 static importers; used by frontend/api/client.ts, frontend/api/media.api.ts
 -  frontend/lib/networkLifecycle.ts — 10 static importers; used by frontend/components/offline/OfflineHub.tsx, frontend/components/pwa/OfflineBootstrap.tsx, frontend/components/shared/PresenceHeartbeat.tsx, frontend/hooks/queries/usePendingMessages.ts, and 6 more
 -  frontend/lib/networkObservability.ts — 4 static importers; used by frontend/api/client.ts, frontend/api/media.api.ts, frontend/components/pwa/OfflineBootstrap.tsx, frontend/lib/connectionQuality.ts
--  frontend/lib/networkPolicy.ts — 21 static importers; used by frontend/api/client.ts, frontend/api/media.api.ts, frontend/components/ads/SearchResults.tsx, frontend/components/promoted/PromotedPageClient.tsx, and 17 more
+-  frontend/lib/networkPolicy.ts — 25 static importers; used by frontend/api/client.ts, frontend/api/media.api.ts, frontend/components/ads/SearchResults.tsx, frontend/components/promoted/PromotedPageClient.tsx, and 21 more
 -  frontend/lib/networkRequestMonitor.ts — 4 static importers; used by frontend/components/admin/AdminConsolePanel.tsx, frontend/components/admin/AdminMonitoringCenter.tsx, frontend/components/admin/AdminNetworkRequestsPanel.tsx, frontend/components/debug/DeviceErrorCapture.tsx
 -  frontend/lib/offlineError.ts — 2 static importers; used by frontend/lib/offline/index.ts, frontend/lib/sales-offline/salesSync.ts
 
-### Data cache and freshness (41)
+### Data cache and freshness (42)
 
 -  backend/src/middlewares/cacheControl.middleware.ts — 28 static importers; used by backend/src/modules/activity/activity.routes.ts, backend/src/modules/admin/admin.routes.ts, backend/src/modules/ads/ads.routes.ts, backend/src/modules/appointments/appointments.routes.ts, and 24 more
 -  backend/src/modules/ads/ads.cache.keys.ts — 7 static importers; used by backend/src/modules/ads/ads-pin.service.ts, backend/src/modules/ads/ads.service.ts, backend/src/modules/categories/categories.service.ts, backend/src/modules/fraud/fraud.service.ts, and 3 more
@@ -46,6 +46,7 @@ Static import inventory of frontend/shared/backend runtime source files. Scanned
 -  frontend/lib/cache/queryCacheInvalidation.ts — 1 static importer; used by frontend/api/client.ts
 -  frontend/lib/cachePolicy.ts — 3 static importers; used by frontend/lib/offlineCachePolicy.ts, frontend/lib/offlineFreshness.ts, frontend/lib/queryClient.ts
 -  frontend/lib/cacheVersion.ts — 3 static importers; used by frontend/lib/offlineCoreBundle.ts, frontend/lib/offlineRouteShells.ts, frontend/lib/offlineWarmingUserData.ts
+-  frontend/lib/networkCachePolicy.ts — 3 static importers; used by frontend/hooks/queries/useAds.ts, frontend/hooks/queries/useProducts.ts, frontend/hooks/queries/useServiceListings.ts
 -  frontend/lib/notificationsCache.ts — 4 static importers; used by frontend/hooks/mutations/useAuthMutations.ts, frontend/hooks/queries/useNotifications.ts, frontend/lib/authCleanup.ts, frontend/lib/offlineCacheInvalidation.ts
 -  frontend/lib/offlineCacheEnvelope.ts — 2 static importers; used by frontend/lib/offlineJsonCache.ts, frontend/lib/offlineListCache.ts
 -  frontend/lib/offlineCacheInvalidation.ts — 1 static importer; used by frontend/components/pwa/OfflineBootstrap.tsx
@@ -164,9 +165,10 @@ Static import inventory of frontend/shared/backend runtime source files. Scanned
 ## Phase 2 updates
 
 - Replaced broad contract-prefix persistence with a shape-aware allowlist for known public query-key forms. Private/admin siblings, user-owned resources, stock data, search text, coordinates, and the identity-bearing personalized home-feed branch are excluded.
-- Restore now checks key identity, timestamp bounds, actual stable-serialized UTF-8 byte size, the recorded byte count, and the 64 KiB per-entry cap; a corrupt row is rejected independently.
-- Preserved the 500-entry, 5 MiB aggregate, and seven-day limits. Added regression coverage for private/admin sibling keys, contextual params, 30 KiB payloads, oversize payloads, corrupted byte counts, and invalid timestamps.
+- Restore checks key identity, timestamp bounds, actual stable-serialized UTF-8 byte size, and the recorded byte count. Ordinary query entries are capped at 512 KiB; the unified homepage feed has a dedicated 2 MiB cap.
+- Preserved the 500-entry, 20 MiB aggregate, and seven-day limits. Regression coverage includes private/admin sibling keys, contextual params, payload size limits, corrupted byte counts, and invalid timestamps.
 - Static phase 2 guardrail and dependency-free phase 1 guardrail pass. Vitest, full TypeScript validation, production build, and real-browser offline tests still require installed project dependencies and a browser run.
+- Phase 3 public-page coverage: added exact-shape persistence for public seller profiles, seller ranking keys, PII-safe public user profile projections, public user-ad lists without search/location context, and public store aggregate stats. Personalized recommendations remain deliberately excluded because the API can personalize based on the bearer token even if a caller labels a query key as guest. Regression tests cover these allow/deny cases.
 
 ## Phase 1 decisions
 

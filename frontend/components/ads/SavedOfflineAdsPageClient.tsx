@@ -18,6 +18,8 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import {
   listSavedEntities,
+  checkSavedEntityCacheStatus,
+  saveEntityOffline,
   unsaveEntityOffline,
   type SavedEntityMeta,
   type SavedEntityType,
@@ -61,6 +63,8 @@ export function SavedOfflineAdsPageClient() {
   const [items, setItems] = useState<SavedEntityMeta[]>([]);
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<Tab>('all');
+  const [missingSnapshots, setMissingSnapshots] = useState<Set<string>>(() => new Set());
+  const [repairingSnapshots, setRepairingSnapshots] = useState<Set<string>>(() => new Set());
 
   const refresh = useCallback(() => {
     setItems(listSavedEntities(undefined, userId));
@@ -69,6 +73,20 @@ export function SavedOfflineAdsPageClient() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Verify saved API snapshots after reload. Keep the index intact when a
+  // snapshot is missing so this diagnostic cannot destroy recovery metadata.
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(items.map(async (item) => ({
+      key: `${item.type}:${item.id}`,
+      status: await checkSavedEntityCacheStatus(item),
+    }))).then((results) => {
+      if (cancelled) return;
+      setMissingSnapshots(new Set(results.filter((r) => r.status === 'missing').map((r) => r.key)));
+    });
+    return () => { cancelled = true; };
+  }, [items]);
 
   const filteredByTab = useMemo(
     () => (tab === 'all' ? items : items.filter((e) => e.type === tab)),
@@ -92,10 +110,51 @@ export function SavedOfflineAdsPageClient() {
     return c;
   }, [items]);
 
+  async function handleRepair(e: SavedEntityMeta) {
+    const key = `${e.type}:${e.id}`;
+    setRepairingSnapshots((current) => new Set(current).add(key));
+    try {
+      const ok = await saveEntityOffline(e.type, {
+        id: e.id,
+        title: e.title,
+        subtitle: e.subtitle,
+        city: e.city,
+        thumbnail: e.thumbnail,
+        imageUrls: e.imageUrls,
+      }, userId);
+      if (!ok) {
+        toast.error('تعذّر استرجاع النسخة المحلية. تحقق من الاتصال ثم أعد المحاولة.');
+        return;
+      }
+      const status = await checkSavedEntityCacheStatus(e);
+      if (status === 'available') {
+        setMissingSnapshots((current) => {
+          const next = new Set(current);
+          next.delete(key);
+          return next;
+        });
+        toast.success('تم تحديث النسخة المحلية بنجاح');
+        refresh();
+      } else {
+        toast.error('تمت محاولة الحفظ لكن تعذّر التحقق من النسخة المحلية.');
+      }
+    } finally {
+      setRepairingSnapshots((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
+  }
+
   async function handleRemove(e: SavedEntityMeta) {
-    await unsaveEntityOffline(e.type, e.id, userId);
-    toast.success('أُزيل من المحفوظات');
-    refresh();
+    const ok = await unsaveEntityOffline(e.type, e.id, userId);
+    if (ok) {
+      toast.success('أُزيل من المحفوظات');
+      refresh();
+    } else {
+      toast.error('تعذّرت إزالة العنصر من المحفوظات؛ لم يتغير الحفظ المحلي.');
+    }
   }
 
   if (items.length === 0) {
@@ -168,18 +227,36 @@ export function SavedOfflineAdsPageClient() {
                   <SafeImage src={e.thumbnail} alt={e.title} fill className="object-cover" sizes="64px" />
                 )}
               </Link>
-              <Link href={hrefFor(e)} className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
-                    {TYPE_LABEL[e.type]}
-                  </span>
-                </div>
-                <p className="truncate font-semibold">{e.title}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {e.subtitle ?? '—'}
-                  {e.city ? ` · ${e.city}` : ''}
-                </p>
-              </Link>
+              <div className="min-w-0 flex-1">
+                <Link href={hrefFor(e)} className="block min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
+                      {TYPE_LABEL[e.type]}
+                    </span>
+                  </div>
+                  <p className="truncate font-semibold">{e.title}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {e.subtitle ?? '—'}
+                    {e.city ? ` · ${e.city}` : ''}
+                  </p>
+                </Link>
+                {missingSnapshots.has(`${e.type}:${e.id}`) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-medium text-destructive" role="status">
+                      نسخة المحتوى غير موجودة محليًا؛ قد لا يفتح دون إنترنت
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={repairingSnapshots.has(`${e.type}:${e.id}`)}
+                      onClick={() => void handleRepair(e)}
+                    >
+                      {repairingSnapshots.has(`${e.type}:${e.id}`) ? 'جارٍ الاسترجاع…' : 'إعادة حفظ النسخة'}
+                    </Button>
+                  </div>
+                )}
+              </div>
               <Button
                 type="button"
                 variant="ghost"

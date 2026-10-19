@@ -96,8 +96,10 @@ export function localSet(key: string, value: unknown): boolean {
     // بصمت — المتصلون (saveAdDraft/saveOfflineList/saveOfflineJson) لا
     // يفحصون القيمة، فيظن المستخدم أن البيانات محفوظة بينما ضاعت فعلاً.
     // الآن: نُسجّل + نُطلق event كي تعرض الواجهة تحذيرًا (مستقبلًا).
-    const isQuota = err instanceof DOMException
-      && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED');
+    const errorName = err && typeof err === 'object' && 'name' in err
+      ? String((err as { name?: unknown }).name ?? '')
+      : '';
+    const isQuota = errorName === 'QuotaExceededError' || errorName === 'NS_ERROR_DOM_QUOTA_REACHED';
     console.warn(
       isQuota
         ? `[localStore] localStorage quota exceeded for key: ${key}`
