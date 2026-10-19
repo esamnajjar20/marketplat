@@ -1,0 +1,28 @@
+name: SQLFluff — SQL Lint
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sqlfluff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install sqlfluff
+      - name: Lint SQL files
+        working-directory: backend
+        run: |
+          echo "=== migrations ==="
+          sqlfluff lint prisma/migrations/ \
+            --dialect postgres \
+            --exclude-rules L016,L031,L034 \
+            || true
+          echo ""
+          echo "=== diagnostics ==="
+          sqlfluff lint prisma/diagnostics/ \
+            --dialect postgres \
+            --exclude-rules L016,L031,L034 \
+            || true

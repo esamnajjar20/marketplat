@@ -1,0 +1,21 @@
+name: TruffleHog — Deep Secret Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  trufflehog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ''
+          head: HEAD
+          extra_args: --debug --only-verified

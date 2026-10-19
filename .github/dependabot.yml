@@ -1,0 +1,52 @@
+version: 2
+updates:
+  # Backend (Express + Prisma)
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns: ['*']
+    labels: [dependencies, backend]
+    commit-message:
+      prefix: 'chore(deps-be)'
+    ignore:
+      - dependency-name: 'prisma'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@prisma/client'
+        update-types: ['version-update:semver-major']
+
+  # Frontend (Next.js + React)
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns: ['*']
+    labels: [dependencies, frontend]
+    commit-message:
+      prefix: 'chore(deps-fe)'
+    ignore:
+      # Keep Next major upgrades manual — RSC/edge compat
+      - dependency-name: 'next'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
+
+  # GitHub Actions workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels: [dependencies, ci]

@@ -1,0 +1,24 @@
+name: Linkinator — Broken Links
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linkinator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Wait for service
+        run: sleep 5
+      - name: Scan site
+        run: |
+          npx linkinator https://marketplat.esamnajjar6.workers.dev/ \
+            --recurse \
+            --concurrency 2 \
+            --timeout 60000 \
+            --skip "_next/static/**" \
+            --skip "https://marketplat-api.*"
+        continue-on-error: true

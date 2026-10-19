@@ -1,0 +1,51 @@
+name: Scheduled Jobs (daily)
+
+# Runs the backend cron:scheduled script once per day. GitHub Actions
+# evaluates cron in UTC; the runner internally matches weekday-restricted
+# jobs against Asia/Gaza (weekly reports + Sunday cleanups). Daily jobs
+# run on every invocation. Every job script is idempotent.
+#
+# 04:00 UTC = 06:00 or 07:00 Gaza depending on DST — a quiet hour with
+# low traffic so the runner never competes with user requests.
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: scheduled-jobs
+  cancel-in-progress: false
+
+jobs:
+  run-due-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Prisma generate
+        working-directory: backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Run scheduled jobs
+        working-directory: backend
+        run: npm run cron:scheduled
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          ANALYTICS_RETENTION_DAYS: '90'
