@@ -11,7 +11,7 @@ import {
   selectHasAccessToken,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { pollingInterval } from '@/lib/polling';
+// import { pollingInterval } from '@/lib/polling'; // FIX: unused after disabling polling
 import {
   getNotificationsCache,
   saveNotificationsItemsCache,
@@ -71,7 +71,7 @@ export function useMyNotifications(params?: NotificationsQuery, options?: { enab
     queryFn: ({ signal }) => notificationsApi.getMine(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.notifications,
     // SSE updates the inbox; poll is a slow backup, paused when hidden/offline.
-    refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
+    // refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true), // FIX: Disabled polling to save server resources
     enabled: (options?.enabled ?? true) && isAuthenticated && (hasToken || !isOnline),
   });
 
@@ -115,7 +115,7 @@ export function useUnreadNotificationCount() {
     queryKey,
     queryFn: ({ signal }) => notificationsApi.getUnreadCount({ signal }).then((r) => r.data.data?.count ?? 0),
     staleTime: CACHE_TTL.notifications,
-    refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true),
+    // refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true), // FIX: Disabled polling to save server resources
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
 

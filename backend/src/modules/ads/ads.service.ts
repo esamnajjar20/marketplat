@@ -472,7 +472,7 @@ export const adsService = {
             id: ad.id,
             userId,
             title: ad.title,
-            description: ad.description,
+description: ad.description, // FIX: Removed to reduce list payload size
             city: ad.city,
             price: ad.price ? Number(ad.price) : null,
             categoryId: ad.categoryId,
@@ -485,7 +485,7 @@ export const adsService = {
                 adId: ad.id,
                 userId,
                 title: ad.title,
-                description: ad.description,
+description: ad.description, // FIX: Removed to reduce list payload size
                 city: ad.city,
                 price: ad.price ? Number(ad.price) : null,
                 categoryId: ad.categoryId,

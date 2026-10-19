@@ -24,7 +24,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { adminApi }  from '@/api/admin.api';
 import { analyticsApi, type GetAnalyticsSummaryParams } from '@/api/analytics.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { pollingInterval } from '@/lib/polling';
+// import { pollingInterval } from '@/lib/polling'; // FIX: unused after disabling polling
 import { CACHE_TTL } from '@/lib/constants';
 import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, AdminGetStoresParams, AdminGetAuditLogsParams, AdminGetFlaggedAdsParams, AdminGetFraudSignalsParams } from '@/types/admin.types';
 
@@ -152,7 +152,7 @@ export function useAdminOpsQueue() {
     // Respect visibility/online policy: do not poll admin counters in a
     // hidden tab or while offline. These are operational summaries, not
     // a real-time transport, so the regular 60s cadence is sufficient.
-    refetchInterval: () => pollingInterval(60_000, 1),
+    // refetchInterval: () => pollingInterval(60_000, 1), // FIX: Disabled polling to save server resources
   });
 }
 
@@ -257,7 +257,7 @@ export function useAdminSystemHealth() {
     // Respect visibility/online policy: do not poll admin counters in a
     // hidden tab or while offline. These are operational summaries, not
     // a real-time transport, so the regular 60s cadence is sufficient.
-    refetchInterval: () => pollingInterval(60_000, 1),
+    // refetchInterval: () => pollingInterval(60_000, 1), // FIX: Disabled polling to save server resources
   });
 }
 

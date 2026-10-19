@@ -82,6 +82,7 @@ const nextConfig: NextConfig = {
   compress: true,
 
   images: {
+    unoptimized: true, // FIX: Bypass Next.js image proxy to save bandwidth
     remotePatterns: [
       {
         protocol: 'https',
