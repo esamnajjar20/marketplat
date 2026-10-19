@@ -28,7 +28,7 @@ import { CircuitBreaker } from './circuitBreaker';
  * Callers already wrap cache access in try/catch and fall back to the DB, so
  * both helpers simply throw on timeout / open circuit.
  */
-export const CACHE_COMMAND_TIMEOUT_MS = 300;
+export const CACHE_COMMAND_TIMEOUT_MS = 1500;
 
 export class CacheTimeoutError extends Error {
   constructor(ms: number) {

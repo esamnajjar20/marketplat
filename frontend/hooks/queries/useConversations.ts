@@ -12,7 +12,7 @@ import {
   selectUser,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { pollingInterval } from '@/lib/polling';
+// import { pollingInterval } from '@/lib/polling'; // FIX: unused after disabling polling
 import type { ConversationsQuery, MessagesQuery } from '@/types/conversation.types';
 import {
   saveConversationsList,
@@ -54,7 +54,7 @@ export function useMyConversations(params?: ConversationsQuery) {
       }
     },
     staleTime: CACHE_TTL.conversations,
-    refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 6),
+    // refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 6), // FIX: Disabled polling to save server resources
     // أونلاين: فقط مع توكن. أوفلاين: شغّل queryFn لإرجاع الكاش المحلي.
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
@@ -158,7 +158,7 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
       }
     },
     staleTime: CACHE_TTL.messages,
-    refetchInterval: () => pollingInterval(CACHE_TTL.messages, 8),
+    // refetchInterval: () => pollingInterval(CACHE_TTL.messages, 8), // FIX: Disabled polling to save server resources
     enabled: isAuthenticated && Boolean(conversationId) && params?.before !== '__disabled__' && (hasToken || !isOnline),
   });
 }
@@ -195,8 +195,8 @@ export function useUnreadConversationCount() {
     // the ?? could only fire if someone renamed/deleted it,
     // silently falling back to a different semantic TTL.
     staleTime: CACHE_TTL.conversationUnreadCount,
-    refetchInterval: () =>
-      pollingInterval(CACHE_TTL.conversationUnreadCount, 3),
+    // refetchInterval: () => // FIX: Disabled polling to save server resources
+      // pollingInterval(CACHE_TTL.conversationUnreadCount, 3), // FIX: Disabled polling
     // HYDRATION-DEDUP: ProtectedSidebar and MessagesLink (desktop) and
     // BottomNav (mobile) all mount this hook on protected routes.
     // Without this flag each one fetched independently before the cache
