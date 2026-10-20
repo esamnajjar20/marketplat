@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/shared/ui/Button';
 import { reportClientError, handleChunkLoadError, isChunkLoadError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 
 interface ErrorPageProps {
@@ -47,7 +46,13 @@ useEffect(() => {
     }
   }, [error]);
 
-  if (recovering) return null;
+  if (recovering) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-8 text-center">
+        <p className="text-sm text-muted-foreground">جاري تحديث الصفحة…</p>
+      </div>
+    );
+  }
 
   const chunkFailed = isChunkLoadError(error);
 
@@ -67,10 +72,16 @@ useEffect(() => {
         </code>
       )}
       {/* FIX CHUNK-OFFLINE-01: reset() only re-renders — it can keep hitting
-          the same failed chunk. A full reload re-requests it. */}
-      <Button onClick={chunkFailed ? () => window.location.reload() : reset}>
+          the same failed chunk. A full reload re-requests it.
+          NOTE: plain <button> instead of <Button> so this error UI can render
+          even when the shared Button chunk itself is among the 404s. */}
+      <button
+        type="button"
+        className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={chunkFailed ? () => window.location.reload() : reset}
+      >
         حاول مجدداً
-      </Button>
+      </button>
     </div>
   );
 }

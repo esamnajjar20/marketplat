@@ -135,17 +135,37 @@ export function handleChunkLoadError(error: Error): boolean {
   }
 
   const KEY = 'chunk-load-reload-at';
+  const PURGE_AT_KEY = 'chunk-load-purged-at';
   const RELOAD_WINDOW_MS = 30_000;
 
   try {
     const last = Number(sessionStorage.getItem(KEY) ?? 0);
+    const lastPurgeAt = Number(sessionStorage.getItem(PURGE_AT_KEY) ?? 0);
     const now = Date.now();
+
     if (last && now - last < RELOAD_WINDOW_MS) {
-      // Already reloaded recently and still failing — do not loop. Let
-      // the normal error UI render so the user can retry manually.
-      console.warn('[chunk-recovery] skipped: reload within last 30s, letting error UI show');
-      return false;
+      // A plain reload already ran within the last 30s and the same
+      // chunk is still missing — classic symptom of a stale HTML
+      // document served from the Service Worker cache that points at
+      // rotated chunk hashes. A second plain reload would just loop.
+      if (lastPurgeAt && now - lastPurgeAt < RELOAD_WINDOW_MS) {
+        // We already tried the hard purge and it still failed — this
+        // is a genuine server-side issue (bad build, missing chunk).
+        // Let the error UI show so the user can report it.
+        console.warn('[chunk-recovery] skipped: purge already attempted, letting error UI show');
+        return false;
+      }
+
+      // HARD PURGE: unregister every Service Worker and wipe every
+      // Cache Storage bucket, then reload. This guarantees the next
+      // navigation hits the network for HTML, so the manifest and the
+      // chunk hashes finally match.
+      console.warn('[chunk-recovery] reload did not fix — purging SW + caches');
+      try { sessionStorage.setItem(PURGE_AT_KEY, String(now)); } catch {}
+      void purgeCachesThenReload();
+      return true;
     }
+
     sessionStorage.setItem(KEY, String(now));
   } catch {
     // sessionStorage unavailable — still reload once, since the lack of
@@ -155,6 +175,27 @@ export function handleChunkLoadError(error: Error): boolean {
   console.warn('[chunk-recovery] stale chunk detected — forcing reload to fetch new build');
   window.location.reload();
   return true;
+}
+
+/**
+ * Last-resort recovery: unregister all Service Workers and clear all
+ * Cache Storage buckets, then reload. Safe to call from the browser
+ * console for manual debugging too.
+ */
+async function purgeCachesThenReload(): Promise<void> {
+  try {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } catch { /* ignore */ }
+  try {
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch { /* ignore */ }
+  window.location.reload();
 }
 
 // ── Global unhandled rejection filter ─────────────────────────────
