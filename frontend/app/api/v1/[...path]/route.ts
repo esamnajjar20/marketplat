@@ -19,7 +19,7 @@ import type { NextRequest } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { isViewerIndependentPath, stripIdentityHeaders } from '@/lib/edgeProxy';
 
-const DEFAULT_API_ORIGIN = 'https://marketplat.onrender.com';
+const DEFAULT_API_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
 
 /**
  * Keep the server-side proxy pointed at the same backend as the app.
