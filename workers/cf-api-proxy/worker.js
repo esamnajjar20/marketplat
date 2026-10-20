@@ -626,14 +626,13 @@ async function handleCacheable(request, canon, ctx, env) {
 }
 
 
+
 async function handlePassthrough(request, url) {
   const targetUrl = new URL(url.pathname + url.search, RENDER_ORIGIN);
   
-  // تمرير كل الترويسات الأصلية بما فيها Content-Type و Cookie
   const headers = new Headers(request.headers);
   headers.set('host', new URL(RENDER_ORIGIN).host);
   
-  // إزالة الترويسات التي تسبب مشاكل في Cloudflare
   for (const x of ['cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor', 'x-forwarded-proto', 'x-forwarded-for']) {
     headers.delete(x);
   }
@@ -644,10 +643,8 @@ async function handlePassthrough(request, url) {
     redirect: 'manual',
   };
 
-  // تمرير جسم الطلب (Body) لطلبات POST/PUT/PATCH
   const isGet = request.method === 'GET' || request.method === 'HEAD';
   if (!isGet) {
-    // في Cloudflare Workers، يجب استخدام request.body مباشرة لطلبات البث
     init.body = request.body; 
   }
 
@@ -655,7 +652,7 @@ async function handlePassthrough(request, url) {
     const upstream = await fetch(targetUrl.toString(), init);
     const h = new Headers(upstream.headers);
     
-    // إصلاح CORS
+    // إرجاع الترويسات الصحيحة للمتصفح
     h.set('access-control-allow-origin', request.headers.get('origin') || '*');
     h.set('access-control-allow-credentials', 'true');
     h.set('x-proxy-cache', 'BYPASS');
@@ -663,9 +660,9 @@ async function handlePassthrough(request, url) {
 
     return new Response(upstream.body, { status: upstream.status, headers: h });
   } catch (e) {
-    return new Response(JSON.stringify({ success: false, message: "Proxy connection failed: " + e.message }), {
+    return new Response(JSON.stringify({ success: false, message: "Proxy error: " + e.message }), {
       status: 502,
-      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': request.headers.get('origin') || '*' }
     });
   }
 }
@@ -727,7 +724,7 @@ function corsHeaders(req) {
   return {
     'access-control-allow-origin': req.headers.get('origin') || '*',
     'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-    'access-control-allow-headers': 'Content-Type, Authorization, X-Offline-Op-Id, If-None-Match',
+    'access-control-allow-headers': 'Content-Type, Authorization, X-Offline-Op-Id, If-None-Match, X-CSRF-Token, X-Requested-With, Accept, Origin',
     'access-control-allow-credentials': 'true',
     'access-control-max-age': '86400',
   };
