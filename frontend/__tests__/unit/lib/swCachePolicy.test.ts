@@ -36,6 +36,15 @@ describe('service worker cache policy', () => {
     expect(sw).toMatch(/respondWith\(cacheFirstImage\(event, request, url\)\)/);
   });
 
+  it('validates cached page chunks before serving stale HTML', () => {
+    const body = fnBody(sw, 'staleWhileRevalidatePage');
+    expect(body).toMatch(/verifyCachedChunks\(cached, cache\)/);
+    expect(body).toMatch(/isRscShellRequest\(request\)\s*\?/);
+    expect(body).toMatch(/isUsableStaticAssetResponse\(assetUrl, hit\)/);
+    expect(body).toMatch(/isUsableStaticAssetResponse\(assetUrl, response\)/);
+    expect(body).toMatch(/Skipping HTML cache update: some chunks could not be fetched or validated/);
+  });
+
   it('networkFirstApi gates shared API_CACHE writes on !hadAuth', () => {
     const body = fnBody(sw, 'networkFirstApi');
     expect(body).toMatch(/const hadAuth = request\.headers\.get\('authorization'\) != null/);
@@ -51,6 +60,18 @@ describe('service worker cache policy', () => {
     expect(body).toMatch(/cache\.match\(request, \{ ignoreVary: true \}\)/);
     expect(body).toMatch(/userDataCache\.match\(request, \{ ignoreVary: true \}\)/);
     expect(body).toMatch(/if \(timedOut\) return fetchPromise\.catch/);
+  });
+
+  it('rejects stale or un-timestamped API snapshots after their offline hard TTL', () => {
+    expect(sw).toMatch(/function apiSnapshotMaxAgeMs\(url\)/);
+    expect(sw).toMatch(/policy\.reference\?\.offline\?\.hardAfterMs/);
+    expect(sw).toMatch(/function isFreshCachedApiSnapshot\(url, response, now = Date\.now\(\)\)/);
+    expect(sw).toMatch(/cachedAt > now \+ 60_000/);
+    expect(sw).toMatch(/now - cachedAt <= maxAge/);
+    const body = fnBody(sw, 'networkFirstApi');
+    expect(body.match(/isFreshCachedApiSnapshot\(url, cachedApi\)/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(body).toMatch(/isFreshCachedApiSnapshot\(url, cachedUserData\)/);
+    expect(body).toMatch(/isFreshCachedApiSnapshot\(url, cachedCore\)/);
   });
 });
 

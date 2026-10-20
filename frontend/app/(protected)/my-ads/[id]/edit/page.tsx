@@ -71,7 +71,7 @@ export default function EditAdPage({ params }: EditAdPageProps) {
 
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (isError || !ad) return notFound();
-  if (isRedirecting) return null;
+  if (isRedirecting) return <div role="status" aria-live="polite" className="flex min-h-[45vh] flex-col items-center justify-center gap-3 p-6 text-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" aria-hidden="true" /><p className="text-sm text-muted-foreground">جارٍ نقلك إلى الصفحة المناسبة…</p></div>;
 
   return (
     // FIX DESKTOP-WIDTH-02: max-w-2xl → max-w-5xl, matching

@@ -658,6 +658,15 @@ async function handlePassthrough(request, url) {
     h.set('x-proxy-cache', 'BYPASS');
     h.delete('cf-cache-status');
 
+    // Never cache or transform Server-Sent Events. Preserve streaming through
+    // the Worker so notification frames/heartbeats reach mobile clients promptly.
+    if (url.pathname.endsWith('/notifications/stream')) {
+      h.set('cache-control', 'no-cache, no-transform');
+      h.set('x-accel-buffering', 'no');
+      h.delete('content-length');
+      h.delete('content-encoding');
+    }
+
     return new Response(upstream.body, { status: upstream.status, headers: h });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, message: "Proxy error: " + e.message }), {

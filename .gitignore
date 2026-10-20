@@ -81,3 +81,5 @@ app-debug.apk
 *.apk
 *.aab
 *.bak2
+*.bak*
+*.bak3

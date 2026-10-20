@@ -43,7 +43,15 @@ useEffect(() => {
     }
   }, [error]);
 
-  if (recovering) return null;
+  if (recovering) {
+    return (
+      <div role="status" aria-live="polite" className="flex min-h-[45vh] flex-col items-center justify-center gap-3 p-6 text-center">
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">جارٍ استعادة ملفات الصفحة…</p>
+        <button type="button" className="rounded-md border px-4 py-2 text-sm" onClick={() => window.location.reload()}>إعادة تحميل الصفحة</button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">

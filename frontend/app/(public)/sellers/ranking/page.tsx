@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
-import { SellersRankingList } from '@/components/sellers/SellersRankingList';
+import { SellersRankingClient } from '@/components/sellers/SellersRankingClient';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
@@ -17,9 +16,7 @@ export default function SellersRankingPage() {
           الترتيب يعتمد على التقييم، الثقة، سرعة الرد، ونشاط الحساب — وليس عدد الإعلانات فقط.
         </p>
       </div>
-      <Suspense>
-        <SellersRankingList limit={30} />
-      </Suspense>
+      <SellersRankingClient limit={30} />
     </div>
   );
 }

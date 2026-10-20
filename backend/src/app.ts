@@ -103,7 +103,17 @@ app.use(
 // text so compressing them isn't harmful, just unnecessary — not worth
 // a filter exception. Cheap CPU/response-size tradeoff at this scale.
 // N3: threshold 1KB avoids compressing tiny health payloads; level 6 = size/CPU balance.
-app.use(compression({ threshold: 1024, level: 6 }));
+app.use(compression({
+  threshold: 1024,
+  level: 6,
+  // SSE responses must be flushed as events arrive. Compression middleware can
+  // buffer small chunks and delay heartbeats, making mobile clients report
+  // `TypeError: Failed to fetch`/heartbeat timeouts on the notification stream.
+  filter: (req, res) => {
+    if (req.path.endsWith('/notifications/stream')) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // parses the refreshToken/csrfToken cookies (see
 // shared/utils/authCookies.ts) into req.cookies. Registered right

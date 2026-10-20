@@ -11,9 +11,9 @@
  *   1. Waits FORCE_ACTIVATE_AFTER_MS (5 minutes) before firing. Enough
  *      time for a short interaction to finish, short enough that the
  *      new SW activates within the same session instead of the next day.
- *   2. isUserBusy() refuses to fire while the user has focus in an
- *      input/textarea/contenteditable, has an open draft, or is
- *      selecting text. The next trigger retries within 60s.
+ *   2. isUserBusyForServiceWorkerUpdate() refuses to fire while the user has focus in an
+ *      input/textarea/select/contenteditable, has an open draft, or is
+ *      selecting text. The same shared predicate is used by pwa.ts. The next trigger retries within 60s.
  *   3. sessionStorage guard: at most one auto-activation per tab session.
  *   4. controllerchange resets waitingSince so the next deploy's waiting
  *      SW starts a fresh window (UpdatePrompt's manual activation also
@@ -27,6 +27,8 @@
  *     sessions where the user never navigates and never backgrounds)
  */
 'use client';
+
+import { isUserBusyForServiceWorkerUpdate } from '@/lib/swUpdateSafety';
 
 // SW-ACTIVATION-DELAY-01: reduced from the original 48h. 48h was chosen
 // to protect against pathological deploy loops; 5 minutes gives the same
@@ -60,29 +62,6 @@ function markFired(): void {
   }
 }
 
-/**
- * SW-ACTIVATION-BUSY-CHECK-01: refuse to reload the page while the user
- * is mid-typing or selecting. A stale-SW activation reloads the whole
- * document — losing an unsaved message or listing is a worse outcome
- * than waiting another 60 seconds for the next check.
- */
-function isUserBusy(): boolean {
-  if (typeof document === 'undefined') return false;
-  try {
-    const el = document.activeElement as HTMLElement | null;
-    if (el) {
-      const tag = el.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable) return true;
-    }
-    if (document.querySelector('[data-draft-open="true"]')) return true;
-    const sel = typeof window !== 'undefined' ? window.getSelection() : null;
-    if (sel && sel.toString().length > 0) return true;
-  } catch {
-    // Defensive: any throw means "unknown", prefer to wait.
-    return true;
-  }
-  return false;
-}
 
 function evaluate(reg: ServiceWorkerRegistration): void {
   // Never activate a waiting worker while offline: activation emits
@@ -98,7 +77,7 @@ function evaluate(reg: ServiceWorkerRegistration): void {
     return;
   }
   if (Date.now() - waitingSince < FORCE_ACTIVATE_AFTER_MS) return;
-  if (isUserBusy()) return;
+  if (isUserBusyForServiceWorkerUpdate()) return;
   try {
     reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
     markFired();

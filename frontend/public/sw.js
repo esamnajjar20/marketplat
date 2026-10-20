@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v80';
+const CACHE_VERSION = 'v83';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -986,25 +986,32 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
       }
 
       const html = await response.clone().text();
-      const chunkUrls = [...html.matchAll(/(?:src|href)=["']([^"']+)/g)]
+      const chunkUrls = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+)/g)]
         .map((m) => m[1])
-        .filter((v) => typeof v === 'string' && v.startsWith('/_next/static/'));
+        .filter((v) => typeof v === 'string' && v.startsWith('/_next/static/')) )];
 
       if (chunkUrls.length > 0) {
         const missing = [];
-        for (const url of chunkUrls) {
-          const hit = await cache.match(url);
-          if (!hit) missing.push(url);
+        for (const assetUrl of chunkUrls) {
+          const hit = await cache.match(assetUrl);
+          // A 200 HTML fallback cached under a .js/.css URL is not a usable chunk.
+          if (!isUsableStaticAssetResponse(assetUrl, hit)) {
+            if (hit) await cache.delete(assetUrl);
+            missing.push(assetUrl);
+          }
         }
         if (missing.length > 0) {
           const results = await Promise.allSettled(
-            missing.map((u) => fetch(u).then((r) => {
-              if (!r.ok) throw new Error('chunk fetch failed');
-              return cache.put(u, r);
-            }))
+            missing.map(async (assetUrl) => {
+              const response = await fetch(assetUrl, { credentials: 'same-origin' });
+              if (!isUsableStaticAssetResponse(assetUrl, response)) {
+                throw new Error(`chunk fetch invalid: ${assetUrl}`);
+              }
+              await putTimestamped(cache, assetUrl, response, 'visit-asset');
+            })
           );
           if (results.some((r) => r.status === 'rejected')) {
-            console.warn('[SWR] Skipping HTML cache update: some chunks could not be fetched');
+            console.warn('[SWR] Skipping HTML cache update: some chunks could not be fetched or validated');
             return;
           }
         }
@@ -1019,14 +1026,30 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
   })();
 
   if (cached) {
-    event.waitUntil(revalidatePromise);
-    return cached;
+    // Never serve a cached HTML shell whose hashed JS/CSS chunks are missing,
+    // stale-poisoned (e.g. HTML fallback under a .js URL), or otherwise invalid.
+    // Returning such HTML immediately is a common cause of a blank page after deploy.
+    const safeCachedShell = isRscShellRequest(request)
+      ? cached.ok
+      : await verifyCachedChunks(cached, cache);
+    if (safeCachedShell) {
+      event.waitUntil(revalidatePromise);
+      return cached;
+    }
+    try { await cache.delete(request); } catch { /* best-effort invalid-shell eviction */ }
+    if (cacheKey !== request) {
+      try { await cache.delete(cacheKey); } catch { /* best-effort invalid-shell eviction */ }
+    }
   }
 
   try {
     await revalidatePromise;
-    const fresh = await cache.match(cacheKey);
-    if (fresh) return fresh;
+    const fresh = await lookupShellWithFallback(cache, request, new URL(request.url));
+    if (fresh && (isRscShellRequest(request) ? fresh.ok : await verifyCachedChunks(fresh, cache))) return fresh;
+    if (request.mode === 'navigate') {
+      const offlineFallback = await cache.match(OFFLINE_URL);
+      if (offlineFallback && await verifyCachedChunks(offlineFallback, cache)) return offlineFallback;
+    }
     return await fetch(request);
   } catch {
     if (request.mode === 'navigate') {
@@ -1358,10 +1381,32 @@ async function storagePressureRatio() {
 }
 
 function adaptiveCacheLimits(cacheName, maxEntries, maxBytes, ratio) {
-  if (ratio == null || (cacheName !== API_CACHE && cacheName !== IMAGE_CACHE)) return { maxEntries, maxBytes };
-  if (ratio >= 0.95) return { maxEntries: Math.max(10, Math.floor(maxEntries * 0.25)), maxBytes: maxBytes ? Math.floor(maxBytes * 0.25) : undefined };
-  if (ratio >= 0.90) return { maxEntries: Math.max(20, Math.floor(maxEntries * 0.5)), maxBytes: maxBytes ? Math.floor(maxBytes * 0.5) : undefined };
-  return { maxEntries, maxBytes };
+  if (ratio == null) return { maxEntries, maxBytes };
+
+  // Under quota pressure, trim disposable data first while preserving the
+  // permanent/public shell and explicitly saved ads through the eviction score.
+  let factor = 1;
+  if (ratio >= 0.97) {
+    if (cacheName === API_CACHE || cacheName === IMAGE_CACHE) factor = 0.20;
+    else if (cacheName.startsWith(USER_DATA_CACHE_PREFIX)) factor = 0.50;
+    else if (cacheName === STATIC_CACHE) factor = 0.70;
+    else if (cacheName === PERSONAL_SHELL_CACHE) factor = 0.75;
+  } else if (ratio >= 0.95) {
+    if (cacheName === API_CACHE || cacheName === IMAGE_CACHE) factor = 0.25;
+    else if (cacheName.startsWith(USER_DATA_CACHE_PREFIX)) factor = 0.60;
+    else if (cacheName === STATIC_CACHE) factor = 0.80;
+    else if (cacheName === PERSONAL_SHELL_CACHE) factor = 0.85;
+  } else if (ratio >= 0.90) {
+    if (cacheName === API_CACHE || cacheName === IMAGE_CACHE) factor = 0.50;
+    else if (cacheName.startsWith(USER_DATA_CACHE_PREFIX)) factor = 0.75;
+    else if (cacheName === STATIC_CACHE || cacheName === PERSONAL_SHELL_CACHE) factor = 0.90;
+  }
+
+  if (factor === 1) return { maxEntries, maxBytes };
+  return {
+    maxEntries: Math.max(10, Math.floor(maxEntries * factor)),
+    maxBytes: maxBytes ? Math.max(1024 * 1024, Math.floor(maxBytes * factor)) : undefined,
+  };
 }
 
 async function shouldSkipDisposableCacheWrite(cacheName) {
@@ -1506,6 +1551,35 @@ function isSafeUserApiSnapshot(response) {
     !responseVariesBy(response, 'authorization');
 }
 
+// حدّ صريح لعمر بيانات API عند العمل دون شبكة. نعتمد hardAfterMs من
+// السياسة المشتركة، ولا نسمح ببيانات مجهولة العمر أو بطابع زمني من المستقبل.
+function apiSnapshotMaxAgeMs(url) {
+  const policy = self.MARKET_CACHE_POLICY || {};
+  const path = typeof url === 'string' ? new URL(url, self.location.origin).pathname : url.pathname;
+  if (/\/api\/v\d+\/(?:categories|product-categories|service-categories)(?:\/|$)/i.test(path)) {
+    return Number(policy.reference?.offline?.hardAfterMs) || 48 * 60 * 60 * 1000;
+  }
+  if (/\/api\/v\d+\/(?:recommendations|suggestions)(?:\/|$)/i.test(path)) {
+    return Number(policy.recommendations?.offline?.hardAfterMs) || 24 * 60 * 60 * 1000;
+  }
+  if (/\/api\/v\d+\/home(?:\/|$)/i.test(path)) {
+    return Number(policy.publicHome?.offline?.hardAfterMs) || 24 * 60 * 60 * 1000;
+  }
+  if (isPublicEntityDetailApiPath({ pathname: path })) {
+    return Number(policy.publicDetail?.offline?.hardAfterMs) || 24 * 60 * 60 * 1000;
+  }
+  return Number(policy.publicLive?.offline?.hardAfterMs) || 24 * 60 * 60 * 1000;
+}
+
+function isFreshCachedApiSnapshot(url, response, now = Date.now()) {
+  if (!response) return false;
+  const raw = response.headers?.get('X-SW-Cached-At');
+  const cachedAt = raw ? Number(raw) : NaN;
+  if (!Number.isFinite(cachedAt) || cachedAt <= 0 || cachedAt > now + 60_000) return false;
+  const maxAge = apiSnapshotMaxAgeMs(url);
+  return Number.isFinite(maxAge) && maxAge > 0 && now - cachedAt <= maxAge;
+}
+
 // لا نثق بوجود المفتاح وحده: بعض الخوادم قد تعيد JSON مشوّهًا أو استجابة قديمة غير JSON.
 async function isValidJsonApiSnapshot(response) {
   if (!response || !response.ok || response.status === 206) return false;
@@ -1567,15 +1641,18 @@ async function networkFirstApi(event, request, url) {
       if (!isSensitiveApi && userCacheName) {
         const userDataCache = await caches.open(userCacheName);
         const cachedUserData = await userDataCache.match(request, { ignoreVary: true });
-        if (cachedUserData && isSafeUserApiSnapshot(cachedUserData) && await isValidJsonApiSnapshot(cachedUserData)) return cachedUserData;
+        if (cachedUserData && isSafeUserApiSnapshot(cachedUserData) && isFreshCachedApiSnapshot(url, cachedUserData) && await isValidJsonApiSnapshot(cachedUserData)) return cachedUserData;
+        if (cachedUserData && !isFreshCachedApiSnapshot(url, cachedUserData)) await userDataCache.delete(request).catch(() => {});
       }
 
       if ((publicListOk || publicEntityDetail) && !isSensitiveApi) {
         const cachedApi = await cache.match(request, { ignoreVary: true });
-        if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
+        if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && isFreshCachedApiSnapshot(url, cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
+        if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
         const coreCache = await caches.open(CORE_CACHE);
         const cachedCore = await coreCache.match(request.url);
-        if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
+        if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
+        if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
       }
     } else {
 
@@ -1584,14 +1661,17 @@ async function networkFirstApi(event, request, url) {
         if (lastUserId) {
           const lastUserCache = await caches.open(userDataCacheName(lastUserId));
           const cachedForUser = await lastUserCache.match(request, { ignoreVary: true });
-          if (cachedForUser && isSafeUserApiSnapshot(cachedForUser) && await isValidJsonApiSnapshot(cachedForUser)) return cachedForUser;
+          if (cachedForUser && isSafeUserApiSnapshot(cachedForUser) && isFreshCachedApiSnapshot(url, cachedForUser) && await isValidJsonApiSnapshot(cachedForUser)) return cachedForUser;
+          if (cachedForUser && !isFreshCachedApiSnapshot(url, cachedForUser)) await lastUserCache.delete(request).catch(() => {});
         }
       }
       const cachedApi = await cache.match(request, { ignoreVary: true });
-      if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
+      if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && isFreshCachedApiSnapshot(url, cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
+      if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
       const coreCache = await caches.open(CORE_CACHE);
       const cachedCore = await coreCache.match(request.url);
-      if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
+      if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
+      if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
     }
 
     if (!isSensitiveApi) {

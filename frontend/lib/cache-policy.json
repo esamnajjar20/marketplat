@@ -142,29 +142,29 @@
   },
   "storage": {
     "serviceWorker": {
-      "apiEntries": 200,
-      "imageEntries": 300,
-      "savedAdsEntries": 1500,
-      "staticEntries": 1200,
-      "staticBytes": 104857600,
-      "personalShellEntries": 750,
-      "userDataEntries": 600,
-      "userDataBytes": 83886080
+      "apiEntries": 120,
+      "imageEntries": 160,
+      "savedAdsEntries": 1000,
+      "staticEntries": 800,
+      "staticBytes": 62914560,
+      "personalShellEntries": 500,
+      "userDataEntries": 400,
+      "userDataBytes": 52428800
     },
     "offlineLists": {
-      "adsBrowse": 60,
-      "myAds": 75,
-      "productsBrowse": 60,
-      "servicesBrowse": 60,
-      "storesBrowse": 60,
-      "categories": 160,
-      "activity": 80,
-      "savedSearches": 50,
-      "sellersRanking": 75,
-      "notifications": 75,
-      "conversations": 100,
-      "messagesPerConversation": 200,
-      "savedAdsExplicit": 75
+      "adsBrowse": 40,
+      "myAds": 50,
+      "productsBrowse": 40,
+      "servicesBrowse": 40,
+      "storesBrowse": 40,
+      "categories": 120,
+      "activity": 60,
+      "savedSearches": 30,
+      "sellersRanking": 50,
+      "notifications": 50,
+      "conversations": 80,
+      "messagesPerConversation": 150,
+      "savedAdsExplicit": 50
     }
   }
 }

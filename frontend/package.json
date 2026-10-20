@@ -121,7 +121,11 @@
     "ux:route-navigation-loading-phase27-audit": "node scripts/route-navigation-loading-audit.mjs",
     "ux:route-navigation-loading-phase28-audit": "node scripts/route-navigation-loading-audit.mjs",
     "ux:route-navigation-loading-phase29-audit": "node scripts/route-navigation-loading-audit.mjs",
-    "ux:route-navigation-loading-phase30-audit": "node scripts/route-navigation-loading-audit.mjs"
+    "ux:route-navigation-loading-phase30-audit": "node scripts/route-navigation-loading-audit.mjs",
+    "hydration:browse-phase1-audit": "node scripts/browse-hydration-phase1-audit.mjs",
+    "blank-screen:audit": "node scripts/blank-screen-navigation-audit.mjs",
+    "sw:api-freshness-audit": "node scripts/sw-api-freshness-audit.mjs",
+    "sw:lifecycle-resilience-audit": "node scripts/sw-lifecycle-resilience-audit.mjs && node --check public/sw.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

@@ -1,3 +1,4 @@
+import { NavigationProgress } from '@/components/shared/NavigationProgress';
 /**
  * Root layout — applies to every route.
  *
@@ -208,6 +209,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <DeviceErrorCapture />
           <AdminScriptConsole />
           <DeferredFonts />
+          <NavigationProgress />
         {children}
         </AppProviders>
 

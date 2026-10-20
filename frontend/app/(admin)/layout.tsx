@@ -100,14 +100,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <SessionRestorationStatus />;
   }
 
-  if (!isAuthenticated || !isAdminTier || isOutOfScopeForModerator) return null;
+  if (!isAuthenticated || !isAdminTier || isOutOfScopeForModerator) {
+    return <SessionRestorationStatus message="جارٍ توجيهك إلى الصفحة المناسبة…" />;
+  }
 
   return (
     <div className="flex min-h-screen min-h-dvh bg-surface-1">
       {/* useSearchParams() inside needs a Suspense boundary. */}
-      <Suspense fallback={null}>
-        <AdminSidebar />
-      </Suspense>
+      <Suspense fallback={<div className="w-12 shrink-0" aria-hidden="true" />}><AdminSidebar /></Suspense>
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}

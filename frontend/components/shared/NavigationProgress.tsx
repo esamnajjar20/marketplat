@@ -7,15 +7,11 @@ const START_EVENT = 'marketplace:nav-start';
 const SHOW_DELAY_MS = 120;
 const FAILSAFE_MS = 12_000;
 
-/**
- * Lightweight App Router navigation feedback. It watches same-origin anchor
- * clicks and the existing signalNavigationStart event, then clears when the
- * pathname changes. Route-level loading.tsx boundaries remain responsible for
- * their own page skeletons; this thin bar only signals that navigation began.
- */
+/** Global route feedback plus a visible recovery action for stalled App Router transitions. */
 export function NavigationProgress() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
+  const [stalledHref, setStalledHref] = useState<string | null>(null);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedPath = useRef<string | null>(null);
@@ -30,64 +26,42 @@ export function NavigationProgress() {
       hideTimer.current = null;
     };
 
-    const finish = () => {
-      clearTimers();
-      startedPath.current = null;
-      startedHref.current = null;
-      setVisible(false);
-    };
-
     const start = (href: string, sourcePath = window.location.pathname) => {
       if (!href || href.startsWith('#')) return;
       let target: URL;
-      try {
-        target = new URL(href, window.location.href);
-      } catch {
-        return;
-      }
-      if (target.origin !== window.location.origin) return;
-      // This component is for page-to-page navigation, not in-page state.
-      // Query-only filters and hash tabs may not change pathname, so starting
-      // the bar for them could leave it visible until the failsafe timer fires.
-      if (target.pathname === window.location.pathname) return;
-
-      // Repeated clicks on the same destination must not keep resetting the
-      // failsafe timer; otherwise a stalled route could leave the bar alive
-      // indefinitely under rapid repeated clicks.
+      try { target = new URL(href, window.location.href); } catch { return; }
+      if (target.origin !== window.location.origin || target.pathname === window.location.pathname) return;
       if (startedHref.current === target.href) return;
+
       clearTimers();
+      setStalledHref(null);
       startedPath.current = sourcePath;
       startedHref.current = target.href;
       showTimer.current = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
-      hideTimer.current = setTimeout(finish, FAILSAFE_MS);
+      hideTimer.current = setTimeout(() => {
+        // Keep a recovery surface instead of silently dropping progress on a stalled route.
+        if (showTimer.current) clearTimeout(showTimer.current);
+        showTimer.current = null;
+        hideTimer.current = null;
+        setVisible(false);
+        setStalledHref(target.href);
+      }, FAILSAFE_MS);
     };
 
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const anchor = target.closest('a[href]');
+      const node = event.target;
+      if (!(node instanceof Element)) return;
+      const anchor = node.closest('a[href]');
       if (!(anchor instanceof HTMLAnchorElement)) return;
-      if (anchor.target && anchor.target !== '_self') return;
-      if (anchor.hasAttribute('download') || anchor.getAttribute('aria-disabled') === 'true') return;
-      // Next.js <Link> calls preventDefault() intentionally to perform a
-      // client-side route transition. Therefore defaultPrevented after event
-      // dispatch cannot distinguish a real App Router navigation from a
-      // cancelled click. Start for eligible same-origin page links here;
-      // pathname changes clear the indicator and the failsafe bounds stalls.
+      if ((anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download') || anchor.getAttribute('aria-disabled') === 'true') return;
       start(anchor.href);
     };
 
     const onPopState = () => {
-      // The browser updates location before React's pathname hook rerenders.
-      // Use the last committed path as the navigation source so Back/Forward
-      // transitions get feedback and are cleared by the pathname effect.
       const previousPath = lastPathname.current;
-      if (previousPath !== window.location.pathname) {
-        start(previousPath, previousPath);
-      }
+      if (previousPath !== window.location.pathname) start(previousPath, previousPath);
     };
-
     const onProgrammaticStart = (event: Event) => {
       const detail = (event as CustomEvent<{ href?: string }>).detail;
       if (detail?.href) start(detail.href);
@@ -114,16 +88,23 @@ export function NavigationProgress() {
       startedPath.current = null;
       startedHref.current = null;
       setVisible(false);
+      setStalledHref(null);
     }
   }, [pathname]);
 
+  if (stalledHref) {
+    return (
+      <div className="fixed inset-x-3 top-3 z-[10000] mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl border bg-background p-3 text-foreground shadow-lg" role="alert" aria-live="assertive">
+        <p className="text-sm">تأخر فتح الصفحة. يمكنك إعادة المحاولة.</p>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" onClick={() => window.location.assign(stalledHref)}>إعادة المحاولة</button>
+          <button type="button" className="rounded-md border px-3 py-2 text-sm" onClick={() => { setStalledHref(null); startedPath.current = null; startedHref.current = null; }}>إغلاق</button>
+        </div>
+      </div>
+    );
+  }
   if (!visible) return null;
-
-  return (
-    <div className="nav-progress-track" role="progressbar" aria-label="جارٍ الانتقال بين الصفحات" aria-valuetext="جارٍ تحميل الصفحة">
-      <div className="nav-progress-bar" />
-    </div>
-  );
+  return <div className="nav-progress-track" role="progressbar" aria-label="جارٍ الانتقال بين الصفحات" aria-valuetext="جارٍ تحميل الصفحة"><div className="nav-progress-bar" /></div>;
 }
 
 /** Call before router.push/replace when navigation is initiated programmatically. */

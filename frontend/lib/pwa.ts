@@ -11,6 +11,7 @@ import { reportBackgroundFailure } from './backgroundTask';
 import { apiClient } from '@/api/client';
 import { getRawVapidPublicKey } from '@/lib/env';
 import { isPushOptedOut } from '@/lib/runtime/pushPreference';
+import { isUserBusyForServiceWorkerUpdate } from '@/lib/swUpdateSafety';
 
 // FIX PWA-05: previously read once as a module-level constant
 // (`const VAPID_PUBLIC_KEY = process.env...`), which freezes the value at
@@ -198,6 +199,9 @@ function checkServiceWorkerUpdate(registration: ServiceWorkerRegistration): void
 const DEV_SW = process.env.NEXT_PUBLIC_ENABLE_SW_DEV === 'true';
 const PWA_AUTO_APPLY_AFTER_MS      = DEV_SW ? 3_000 : 5 * 60 * 1000;
 const PWA_AUTO_APPLY_HIDDEN_MIN_MS = DEV_SW ? 1_000 : 30 * 1000;
+const PWA_BUSY_RETRY_MS = 60 * 1000;
+
+
 
 let autoApplyScheduled = false;
 
@@ -222,26 +226,32 @@ function scheduleAutoApply(reg: ServiceWorkerRegistration): void {
   autoApplyScheduled = true;
   let hiddenSince = 0;
   let cleanedUp = false;
+  let timer: number | undefined;
 
   // PWA-AUTO-APPLY-CLEANUP-01
   const cleanup = () => {
     if (cleanedUp) return;
     cleanedUp = true;
-    window.clearTimeout(timer);
+    if (timer !== undefined) window.clearTimeout(timer);
     document.removeEventListener('visibilitychange', onVis);
     window.removeEventListener('offline', onOfflineLost);
   };
 
   const apply = (reason: string) => {
-    cleanup();
-    // Re-check: the user may have pressed "update now" in the interim,
-    // in which case `waiting` is already gone and SKIP_WAITING is a
-    // no-op via the ?. — but we still want to reset the flag so a
-    // FUTURE new update can schedule again.
+    // The update can be discovered while a form is open. Never force the
+    // controller swap/reload in the middle of typing, draft editing, or text
+    // selection; retry in bounded intervals until it is safe.
     if (!reg.waiting) {
+      cleanup();
       autoApplyScheduled = false;
       return;
     }
+    if (isUserBusyForServiceWorkerUpdate()) {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => apply('deferred-after-edit'), PWA_BUSY_RETRY_MS);
+      return;
+    }
+    cleanup();
     console.info('[pwa] auto-applying update:', reason);
     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
     // The controllerchange listener (registered in
@@ -272,7 +282,7 @@ function scheduleAutoApply(reg: ServiceWorkerRegistration): void {
 
   document.addEventListener('visibilitychange', onVis);
   window.addEventListener('offline', onOfflineLost, { once: true });
-  const timer = window.setTimeout(
+  timer = window.setTimeout(
     () => apply('5-min-grace'),
     PWA_AUTO_APPLY_AFTER_MS,
   );
