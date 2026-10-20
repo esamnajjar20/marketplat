@@ -12,8 +12,8 @@ const check = (name, ok) => checks.push([name, Boolean(ok)]);
 const rootLoadingPath = path.join(appRoot, 'loading.tsx');
 const rootLoading = fs.existsSync(rootLoadingPath) ? fs.readFileSync(rootLoadingPath, 'utf8') : '';
 check('root app loading.tsx exists as a global fallback', rootLoading.length > 0);
-check('global fallback uses shared PageLoadingState', /PageLoadingState/.test(rootLoading) && /variant="minimal"/.test(rootLoading));
-check('global fallback exposes accessible loading status via shared component', /title="جارٍ الانتقال بين الصفحات"/.test(rootLoading));
+check('global fallback uses the same shared RouteLoadingState as route groups', /RouteLoadingState/.test(rootLoading));
+check('global fallback exposes accessible loading status through shared LoadingState', /RouteLoadingState/.test(rootLoading));
 
 const navigationProgressPath = path.join(frontendRoot, 'components/shared/NavigationProgress.tsx');
 const navigationProgress = fs.existsSync(navigationProgressPath) ? fs.readFileSync(navigationProgressPath, 'utf8') : '';
@@ -29,7 +29,7 @@ const navigationProgressCss = read('app/navigation-progress.css');
 check('navigation progress stays fixed and does not block page interactions', /position: fixed/.test(navigationProgressCss) && /pointer-events: none/.test(navigationProgressCss));
 check('reduced-motion preference disables continuous navigation-bar animation', /prefers-reduced-motion:\s*reduce/.test(navigationProgressCss) && /animation:\s*none/.test(navigationProgressCss));
 check('reduced-motion navigation cue remains visible without transform motion', /prefers-reduced-motion:[\s\S]*?width:\s*100%[\s\S]*?transform:\s*none/.test(navigationProgressCss));
-check('navigation progress has an accessible progressbar label', /role="progressbar"/.test(navigationProgress) && /aria-label="جارٍ الانتقال بين الصفحات"/.test(navigationProgress));
+check('navigation progress has an accessible progressbar label', /role="progressbar"/.test(navigationProgress) && /aria-label=\{LOADING_COPY\.navigating\}/.test(navigationProgress) && /LOADING_COPY\.page/.test(navigationProgress));
 check('navigation progress has a failsafe to avoid remaining stuck', /FAILSAFE_MS/.test(navigationProgress) && /12_000/.test(navigationProgress));
 check('query-only and hash-only changes do not start a page navigation indicator', /target\.pathname === window\.location\.pathname\) return/.test(navigationProgress));
 check('programmatic navigation start event is supported', /window\.addEventListener\(START_EVENT, onProgrammaticStart\)/.test(navigationProgress) && /function signalNavigationStart\(href: string\)/.test(navigationProgress));
@@ -37,13 +37,13 @@ check('browser Back/Forward navigation is observed through popstate', /window\.a
 check('Back/Forward navigation uses the last committed pathname', /const previousPath = lastPathname\.current/.test(navigationProgress) && /start\(previousPath, previousPath\)/.test(navigationProgress));
 check('last committed pathname is refreshed after route changes', /lastPathname\.current = pathname/.test(navigationProgress));
 check('repeated clicks on the same destination do not reset the failsafe', /startedHref = useRef<string \| null>\(null\)/.test(navigationProgress) && /if \(startedHref\.current === target\.href\) return/.test(navigationProgress));
-check('a new destination replaces old timers instead of inheriting the old failsafe', /if \(startedHref\.current === target\.href\) return;\s*clearTimers\(\);\s*startedPath\.current = sourcePath;\s*startedHref\.current = target\.href;/.test(navigationProgress));
+check('a new destination replaces old timers instead of inheriting the old failsafe', /if \(startedHref\.current === target\.href\) return;[\s\S]*?clearTimers\(\);[\s\S]*?startedPath\.current = sourcePath;[\s\S]*?startedHref\.current = target\.href;/.test(navigationProgress));
 check('navigation listeners and timers are cleaned up on unmount', /return \(\) => \{[\s\S]*?document\.removeEventListener\('click', onClick, true\);[\s\S]*?clearTimers\(\);[\s\S]*?\};/.test(navigationProgress));
 check('navigation destination state is cleared when navigation finishes', /startedHref\.current = null/.test(navigationProgress));
 check('pathname changes cancel both pending show and failsafe timers', /if \(showTimer\.current\) clearTimeout\(showTimer\.current\);[\s\S]*?if \(hideTimer\.current\) clearTimeout\(hideTimer\.current\);[\s\S]*?startedPath\.current = null/.test(navigationProgress));
 check('pathname change resets visible progress state', /pathname !== startedPath\.current[\s\S]*?setVisible\(false\)/.test(navigationProgress));
 check('delayed progress indicator is bounded by both show delay and failsafe', /SHOW_DELAY_MS = 120/.test(navigationProgress) && /FAILSAFE_MS = 12_000/.test(navigationProgress));
-check('intercepted Next.js internal links still start navigation loading', /start\(anchor\.href\)/.test(navigationProgress) && /defaultPrevented after event/.test(navigationProgress));
+check('intercepted Next.js internal links still start navigation loading', /start\(anchor\.href\)/.test(navigationProgress) && /event\.defaultPrevented/.test(navigationProgress));
 
 const programmaticNavigationFiles = [
   ['components/auth/ProfileCompletionGate.tsx', 'profile-completion redirect signals navigation'],

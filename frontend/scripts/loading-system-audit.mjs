@@ -9,6 +9,9 @@ const pkg = JSON.parse(read('package.json'));
 const spinner = read('components/ui/spinner.tsx');
 const gate = read('components/shared/feedback/LoadingGate.tsx');
 const pageState = read('components/shared/feedback/PageLoadingState.tsx');
+const sharedLoadingState = read('components/shared/feedback/LoadingState.tsx');
+const routeLoadingState = read('components/shared/RouteLoadingState.tsx');
+const loadingSpinner = read('components/shared/feedback/LoadingSpinner.tsx');
 const session = read('components/shared/SessionRestorationStatus.tsx');
 const pullToRefresh = read('components/shared/ui/PullToRefresh.tsx');
 const updatePage = read('app/update/page.tsx');
@@ -59,7 +62,10 @@ const checks = [
   ['Spinner is decorative unless an accessible label is provided', spinner.includes("{ 'aria-hidden': true }") && spinner.includes("role: 'status'")],
   ['LoadingGate delegates timing to useDelayedLoading', gate.includes('useDelayedLoading(loading')],
   ['LoadingGate keeps the caller-provided content fallback', gate.includes('fallback: ReactNode') && gate.includes('{fallback}')],
-  ['Route loading uses the shared PageLoadingState', pageState.includes("import { Spinner } from '@/components/ui/spinner'") && pageState.includes('variant === \'cards\'')],
+  ['Page skeleton variants use the shared LoadingState and preserve specialized layouts', pageState.includes("import { LoadingState } from '@/components/shared/feedback/LoadingState'") && pageState.includes('variant === \'cards\'') && pageState.includes('announce={false}')],
+  ['LoadingState is the shared accessible presentation layer for loading UI', sharedLoadingState.includes('export function LoadingState') && sharedLoadingState.includes("role: 'status'") && sharedLoadingState.includes("'aria-live': 'polite'") && sharedLoadingState.includes("'aria-busy': true")],
+  ['RouteLoadingState delegates to the shared LoadingState', routeLoadingState.includes('LoadingState') && routeLoadingState.includes('variant=\"page\"')],
+  ['LoadingSpinner is a compatibility facade over the shared LoadingState', loadingSpinner.includes('LoadingState') && !/import\s*\{\s*Spinner\s*\}/.test(loadingSpinner)],
   ['Session restoration uses the shared Spinner', session.includes("import { Spinner } from '@/components/ui/spinner'") && session.includes('<Spinner size="lg"') && !session.includes('animate-spin')],
   ['Pull-to-refresh uses the shared Spinner, not a Lucide loader', pullToRefresh.includes("import { Spinner } from '@/components/ui/spinner'") && pullToRefresh.includes('<Spinner') && !/import\s+\{[^}]*Loader(?:2|Circle)[^}]*\}\s+from\s+['"]lucide-react['"]/.test(pullToRefresh)],
   ['Update progress uses the shared Spinner', updatePage.includes('<Spinner size="xl"') && !/import\s+\{[^}]*Loader(?:2|Circle)[^}]*\}\s+from\s+['"]lucide-react['"]/.test(updatePage)],

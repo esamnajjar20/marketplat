@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/generate-warming-manifest.mjs",
-    "build:cf": "opennextjs-cloudflare build",
+    "build:cf": "next build && node scripts/generate-warming-manifest.mjs && opennextjs-cloudflare build",
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
@@ -125,7 +125,8 @@
     "hydration:browse-phase1-audit": "node scripts/browse-hydration-phase1-audit.mjs",
     "blank-screen:audit": "node scripts/blank-screen-navigation-audit.mjs",
     "sw:api-freshness-audit": "node scripts/sw-api-freshness-audit.mjs",
-    "sw:lifecycle-resilience-audit": "node scripts/sw-lifecycle-resilience-audit.mjs && node --check public/sw.js"
+    "sw:lifecycle-resilience-audit": "node scripts/sw-lifecycle-resilience-audit.mjs && node --check public/sw.js",
+    "ux:loading-unification-audit": "node scripts/loading-unification-audit.mjs && npm run ux:loading-system-audit && npm run ux:route-navigation-loading-audit"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

@@ -5,7 +5,7 @@
  * فلا يومض عند التنقّل السريع، ويعمل داخل Server Components مثل loading.tsx.
  * المساحة محجوزة طوال الوقت فلا قفزة في التخطيط.
  */
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingState } from '@/components/shared/feedback/LoadingState';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { LOADING_COPY } from '@/lib/loadingCopy';
@@ -38,24 +38,19 @@ export function PageLoadingState({
       </div>
 
       {(variant === 'minimal' || variant === 'bar') && (
-        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 px-4">
-          <Spinner size="xl" className="text-primary" />
-          <div className="space-y-1 text-center">
-            <p className="text-sm font-semibold text-foreground">{title}</p>
-            <p className="text-xs text-muted-foreground">{description}</p>
-          </div>
-        </div>
+        <LoadingState
+          announce={false}
+          variant="page"
+          size="xl"
+          label={title}
+          description={description}
+          className="min-h-[40vh] px-4"
+        />
       )}
 
       {variant === 'cards' && (
         <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8">
-          <div className="flex items-center gap-3">
-            <Spinner size="md" className="text-primary" />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">{title}</p>
-              <p className="text-xs text-muted-foreground">{description}</p>
-            </div>
-          </div>
+          <LoadingState announce={false} variant="inline" size="md" label={title} description={description} />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
@@ -76,13 +71,7 @@ export function PageLoadingState({
 
       {variant === 'list' && (
         <div className="container mx-auto max-w-2xl space-y-4 px-4 py-8">
-          <div className="flex items-center gap-3">
-            <Spinner size="md" className="text-primary" />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">{title}</p>
-              <p className="text-xs text-muted-foreground">{description}</p>
-            </div>
-          </div>
+          <LoadingState announce={false} variant="inline" size="md" label={title} description={description} />
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex gap-3 rounded-2xl border border-border/60 bg-card p-3">
@@ -114,13 +103,7 @@ export function PageLoadingState({
 
       {variant === 'table' && (
         <div className="container mx-auto max-w-5xl space-y-4 px-4 py-8">
-          <div className="flex items-center gap-3">
-            <Spinner size="md" className="text-primary" />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">{title}</p>
-              <p className="text-xs text-muted-foreground">{description}</p>
-            </div>
-          </div>
+          <LoadingState announce={false} variant="inline" size="md" label={title} description={description} />
           <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
             <Skeleton className="h-11 w-full rounded-none" />
             {Array.from({ length: 6 }).map((_, i) => (

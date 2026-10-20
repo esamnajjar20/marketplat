@@ -1,14 +1,15 @@
-/** Shared non-empty loading UI for route transitions and slow connections. */
+import { LoadingState } from '@/components/shared/feedback/LoadingState';
+import { LOADING_COPY } from '@/lib/loadingCopy';
+
+/** One consistent App Router fallback, shared by root and route-group boundaries. */
 export function RouteLoadingState() {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-      className="flex min-h-[45vh] min-h-[45dvh] flex-col items-center justify-center gap-3 p-6 text-center"
-    >
-      <span className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" aria-hidden="true" />
-      <p className="text-sm text-muted-foreground">جارٍ تحميل الصفحة…</p>
-    </div>
+    <LoadingState
+      variant="page"
+      size="lg"
+      label={LOADING_COPY.page}
+      description="نجهّز المحتوى لك…"
+      className="min-h-[45vh] min-h-[45dvh]"
+    />
   );
 }

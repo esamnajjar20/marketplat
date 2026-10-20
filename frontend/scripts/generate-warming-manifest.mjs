@@ -202,7 +202,7 @@ console.log(`[warming-manifest] total assets: ${totalAssets}`);
 if (withChunks === 0) {
   const hasNextBuild = fs.existsSync(path.join(root, '.next'));
   if (hasNextBuild) {
-    console.warn('[warming-manifest] WARN: no chunks discovered after a real build.');
+    console.error('[warming-manifest] ERROR: no route chunks discovered after a real build; refusing to publish a broken manifest.');
     try { fs.unlinkSync(outputPath); } catch { /* not present */ }
   } else {
     console.log('[warming-manifest] pre-build run — keeping existing manifest (if any).');
@@ -210,7 +210,10 @@ if (withChunks === 0) {
   if (process.env.WARMING_DEBUG) {
     console.log('[warming-manifest] diagnostics:', JSON.stringify(diagnostics, null, 2));
   }
-  process.exit(0);
+  // A real build with zero discovered chunks must fail the build. Previously
+  // this exited successfully after deleting the manifest, allowing deployment
+  // to ship a missing /warming-manifest.json and only fail later in clients.
+  process.exit(hasNextBuild ? 1 : 0);
 }
 
 const sources = [];

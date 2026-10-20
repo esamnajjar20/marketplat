@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const START_EVENT = 'marketplace:nav-start';
 const SHOW_DELAY_MS = 120;
@@ -95,7 +96,7 @@ export function NavigationProgress() {
   if (stalledHref) {
     return (
       <div className="fixed inset-x-3 top-3 z-[10000] mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl border bg-background p-3 text-foreground shadow-lg" role="alert" aria-live="assertive">
-        <p className="text-sm">تأخر فتح الصفحة. يمكنك إعادة المحاولة.</p>
+        <p className="text-sm">{LOADING_COPY.navigationStalled}</p>
         <div className="flex shrink-0 gap-2">
           <button type="button" className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" onClick={() => window.location.assign(stalledHref)}>إعادة المحاولة</button>
           <button type="button" className="rounded-md border px-3 py-2 text-sm" onClick={() => { setStalledHref(null); startedPath.current = null; startedHref.current = null; }}>إغلاق</button>
@@ -104,7 +105,7 @@ export function NavigationProgress() {
     );
   }
   if (!visible) return null;
-  return <div className="nav-progress-track" role="progressbar" aria-label="جارٍ الانتقال بين الصفحات" aria-valuetext="جارٍ تحميل الصفحة"><div className="nav-progress-bar" /></div>;
+  return <div className="nav-progress-track" role="progressbar" aria-label={LOADING_COPY.navigating} aria-valuetext={LOADING_COPY.page}><div className="nav-progress-bar" /></div>;
 }
 
 /** Call before router.push/replace when navigation is initiated programmatically. */

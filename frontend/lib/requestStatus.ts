@@ -78,11 +78,15 @@ export function formatRequestBudget(
   return `حتى ${fmt(max!)}`;
 }
 
-export function isRequestExpiringSoon(expiresAt?: string | null, withinMs = 48 * 60 * 60 * 1000): boolean {
-  if (!expiresAt) return false;
+export function isRequestExpiringSoon(
+  expiresAt?: string | null,
+  withinMs = 48 * 60 * 60 * 1000,
+  nowMs = Date.now(),
+): boolean {
+  if (!expiresAt || !Number.isFinite(nowMs)) return false;
   const t = new Date(expiresAt).getTime();
   if (Number.isNaN(t)) return false;
-  const remaining = t - Date.now();
+  const remaining = t - nowMs;
   return remaining > 0 && remaining <= withinMs;
 }
 

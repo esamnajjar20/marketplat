@@ -9,7 +9,8 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BookmarkPlus, Loader2 } from 'lucide-react';
+import { BookmarkPlus } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import {
@@ -125,7 +126,7 @@ export function SaveFilterPresetButton({ isAuthenticated = true, className }: Pr
             disabled={saving}
             onClick={() => void handleSave()}
           >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'حفظ'}
+            {saving ? <><Spinner size="sm" /><span>جارٍ الحفظ…</span></> : 'حفظ'}
           </Button>
         </SheetContent>
       </Sheet>

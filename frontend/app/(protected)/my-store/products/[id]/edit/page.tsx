@@ -15,6 +15,7 @@
  */
 import { use } from 'react';
 import { notFound } from 'next/navigation';
+import { Spinner } from '@/components/ui/spinner';
 import { ProductForm } from '@/components/stores/ProductForm';
 import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -42,7 +43,7 @@ export default function EditProductPage({ params }: Props) {
 
   if (isLoadingOwnership) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (isError || !product) return notFound();
-  if (isRedirecting) return <div role="status" aria-live="polite" className="flex min-h-[45vh] flex-col items-center justify-center gap-3 p-6 text-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" aria-hidden="true" /><p className="text-sm text-muted-foreground">جارٍ نقلك إلى الصفحة المناسبة…</p></div>;
+  if (isRedirecting) return <div role="status" aria-live="polite" className="flex min-h-[45vh] flex-col items-center justify-center gap-3 p-6 text-center"><Spinner size="lg" /><p className="text-sm text-muted-foreground">جارٍ نقلك إلى الصفحة المناسبة…</p></div>;
 
   return (
     // FIX DESKTOP-WIDTH-02: max-w-2xl → max-w-5xl, matching

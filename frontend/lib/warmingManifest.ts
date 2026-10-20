@@ -41,7 +41,13 @@ export function getWarmingManifest(): Promise<WarmingManifest | null> {
   manifestPromise = fetch('/warming-manifest.json', { cache: 'no-store', credentials: 'same-origin' })
     .then((response) => response.ok ? response.json() : null)
     .then(normalize)
-    .catch(() => null);
+    .catch(() => {
+      // A transient network failure must not poison this module for the entire
+      // page lifetime. Keep the current caller best-effort, but allow a later
+      // route-warming attempt to retry instead of reusing a permanently-null promise.
+      manifestPromise = null;
+      return null;
+    });
   return manifestPromise;
 }
 

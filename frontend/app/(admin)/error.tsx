@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
+import { Spinner } from '@/components/ui/spinner';
 import { reportClientError, handleChunkLoadError, isOfflineChunkLoadError} from '@/lib/errorReporter';
 
 interface AdminErrorProps {
@@ -46,7 +47,7 @@ useEffect(() => {
   if (recovering) {
     return (
       <div role="status" aria-live="polite" className="flex min-h-[45vh] flex-col items-center justify-center gap-3 p-6 text-center">
-        <span className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" aria-hidden="true" />
+        <Spinner size="lg" />
         <p className="text-sm text-muted-foreground">جارٍ استعادة ملفات الصفحة…</p>
         <button type="button" className="rounded-md border px-4 py-2 text-sm" onClick={() => window.location.reload()}>إعادة تحميل الصفحة</button>
       </div>

@@ -53,7 +53,10 @@ for (const file of ['lib/offlineCoreBundle.ts', 'lib/offlineRouteShells.ts', 'li
 const pkg = JSON.parse(read('package.json'));
 if (!String(pkg.scripts?.build ?? '').includes('generate-warming-manifest.mjs')) fail('build script does not generate warming manifest');
 else if (!String(pkg.scripts.build).includes('next build') || !String(pkg.scripts.build).includes('&& node scripts/generate-warming-manifest.mjs')) fail('warming manifest is not regenerated after next build');
-else pass('build regenerates warming manifest after Next build');
+else pass('standard build regenerates warming manifest after Next build');
+const cfBuild = String(pkg.scripts?.['build:cf'] ?? '');
+if (!cfBuild.includes('next build') || !cfBuild.includes('&& node scripts/generate-warming-manifest.mjs') || !cfBuild.includes('&& opennextjs-cloudflare build')) fail('Cloudflare build must generate the warming manifest between Next build and OpenNext packaging');
+else pass('Cloudflare build generates warming manifest before OpenNext packages static assets');
 
 const sw = read('public/sw.js');
 const cacheVersion = sw.match(/const CACHE_VERSION = ['"]([^'"]+)['"]/)?.[1];
@@ -65,6 +68,11 @@ else pass(`cache version synchronized: ${cacheVersion}`);
 const manifestScript = read('scripts/generate-warming-manifest.mjs');
 if (!/function stripRouteGroups\(p\)\s*\{\s*return p\.replace\(/.test(manifestScript)) fail('manifest generator does not strip App Router route-group segments');
 else pass('manifest generator strips App Router route-group segments generically');
+if (!/process\.exit\(hasNextBuild \? 1 : 0\)/.test(manifestScript) || !manifestScript.includes('refusing to publish a broken manifest')) fail('manifest generator must fail a real build when it discovers zero route chunks');
+else pass('manifest generation failure is fatal after a real build, preventing silent missing-manifest deployments');
+const runtimeManifest = read('lib/warmingManifest.ts');
+if (!runtimeManifest.includes('manifestPromise = null;') || !runtimeManifest.includes('transient network failure')) fail('manifest fetch failure must allow a later retry instead of permanently caching null');
+else pass('transient manifest fetch failures allow later warming attempts to retry');
 
 if (process.exitCode) process.exit(1);
 console.log('[warming-audit] FINAL AUDIT PASSED');

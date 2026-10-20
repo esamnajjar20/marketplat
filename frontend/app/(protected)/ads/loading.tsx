@@ -1,16 +1,12 @@
-import { Skeleton } from '@/components/ui/skeleton';
+import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
+/** Route-specific skeleton content, rendered by the shared loading system. */
 export default function Loading() {
   return (
-    <main dir="rtl" aria-label="جارٍ تحميل إعلانات" className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:p-6">
-      <Skeleton className="h-8 w-40" />
-      <Skeleton className="h-4 w-64 max-w-full" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Skeleton key="item-0" className="h-28 w-full" />
-        <Skeleton key="item-1" className="h-28 w-full" />
-        <Skeleton key="item-2" className="h-28 w-full" />
-        <Skeleton key="item-3" className="h-28 w-full" />
-      </div>
-    </main>
+    <PageLoadingState
+      variant="cards"
+      title="جارٍ تحميل إعلاناتك"
+      description="نجهّز قائمة الإعلانات…"
+    />
   );
 }

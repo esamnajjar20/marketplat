@@ -8,7 +8,7 @@ import { REQUEST_STATUS_LABEL, REQUEST_STATUS_VARIANT, REQUEST_TYPE_LABEL, REQUE
 import type { RequestListItem } from '@/types/request.types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { CardContext } from '@/components/shared/cards/cardParts';
+import { useNowAfterMount, type CardContext } from '@/components/shared/cards/cardParts';
 // FIX REQCARD-RULES: CARD_PRESS للحصول على active:scale موحّد (Rule 12).
 import { CARD_PRESS, CARD_SHELL } from '@/components/shared/cards/cardTokens';
 
@@ -17,7 +17,13 @@ type Props = { request: RequestListItem; context?: CardContext; showStatus?: boo
 export function RequestCard({ request: r, context = 'public', showStatus = false, className }: Props) {
   const budget = formatRequestBudget(r.budgetMin, r.budgetMax);
   const offers = r._count?.offers;
-  const expiringSoon = isRequestExpiringSoon(r.expiresAt);
+  // Date.now() during render can differ between SSR and hydration, changing
+  // whether the conditional expiry badge exists and triggering React #418.
+  // The shared clock deliberately returns null on the server and first client
+  // render; evaluate the time-sensitive badge only after hydration.
+  const hydrationNow = useNowAfterMount(true);
+  const expiringSoon = hydrationNow !== null &&
+    isRequestExpiringSoon(r.expiresAt, undefined, hydrationNow);
   const showCity = context !== 'owner';
   const showTime = context !== 'related';
 
