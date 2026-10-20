@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v79';
+const CACHE_VERSION = 'v80';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
