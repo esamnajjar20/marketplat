@@ -313,11 +313,11 @@ export const PRESENCE_HEARTBEAT_INTERVAL = 60_000; // 60 s — raised from 45s: 
 //   - Client-side: '/api/v1' — relative, same-origin via Worker rewrites,
 //     keeps refreshToken first-party (the whole point of PROXY-API-01).
 export const API_BASE_URL = (() => {
-  if (typeof window === 'undefined') {
-    const raw = getRawApiUrl()?.trim() || 'https://marketplat-api.esamnajjar6.workers.dev';
-    return `${raw}/api/v1`;
+  // Force production to use the dedicated API Worker
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://marketplat-api.esamnajjar6.workers.dev/api/v1';
   }
-  return '/api/v1';
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 })();
 
 /**
