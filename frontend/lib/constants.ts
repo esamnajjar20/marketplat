@@ -2,7 +2,6 @@ import type { AdSortField, AdSortOrder } from '@/types/ad.types';
 import type { StoreSortField } from '@/types/store.types';
 import type { ProductSortField } from '@/types/product.types';
 import type { ServiceListingSortField } from '@/types/service.types';
-import { getRawApiUrl } from './env';
 
 export const APP_NAME = 'سوق غزة';
 const PRODUCTION_APP_URL = 'https://marketplat.esamnajjar6.workers.dev';
