@@ -435,7 +435,7 @@ export function ChatWindow({ conversationId }: Props) {
 
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+    <div className="native-chat-thread flex h-full min-h-0 flex-col overflow-hidden bg-background">
       <Sheet open={showMedia} onOpenChange={setShowMedia}>
         <SheetContent>
           <SheetHeader>
@@ -671,7 +671,9 @@ export function ChatWindow({ conversationId }: Props) {
           يكتب الآن…
         </p>
       )}
-      <MessageInput conversationId={conversationId} disabled={isBlocked} />
+      <div className="native-chat-composer shrink-0">
+        <MessageInput conversationId={conversationId} disabled={isBlocked} />
+        </div>
 
       <ConfirmDialog
         open={confirmBlockOpen}

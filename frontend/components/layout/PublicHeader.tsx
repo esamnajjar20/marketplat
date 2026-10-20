@@ -93,7 +93,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
       : 'text-muted-foreground hover:bg-muted hover:text-foreground';
 
   return (
-    <header className="pwa-safe-top sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+    <header className="site-public-header pwa-safe-top sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
       {/* VISUAL (mobile top-bar redesign): a dedicated compact title
           row for < md, replacing the cramped single h-16 row that used
           to squeeze the logo, bell and hamburger together with no
@@ -124,7 +124,7 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
             for lg and wider viewports. At 768–1023px, the full row can
             crowd the logo, search and account actions; use the compact
             header plus its complete drawer navigation until lg instead. */}
-        <nav aria-label="التنقل العام" className="hidden items-center gap-1 rounded-xl border border-border/50 bg-surface-1/50 p-1 lg:flex">
+        <nav aria-label="التنقل العام" className="site-header-desktop-nav hidden items-center gap-1 rounded-xl border border-border/50 bg-surface-1/50 p-1 lg:flex">
           {/* SPRINT-2-IA: desktop navigation now exposes the five primary
               discovery destinations consistently: search/explore, ads,
               products, services, and stores. Service providers remain

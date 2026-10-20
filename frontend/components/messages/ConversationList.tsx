@@ -17,6 +17,7 @@ import { ConversationRow } from './ConversationRow';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { Spinner } from '@/components/ui/spinner';
+import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
 /** Whichever side the caller ISN'T — the person this thread is with. */
 function otherParty(conversation: Conversation, userId: string | undefined) {
   return conversation.buyerId === userId ? conversation.seller : conversation.buyer;
@@ -167,6 +168,7 @@ export function ConversationList({ selectedId }: Props = {}) {
   }
 
   return (
+    <PullToRefresh onRefresh={() => refetch()} className="native-inbox-root h-full min-h-0">
     <div className="flex flex-col rounded-[var(--radius-card)] border border-border/70 bg-card shadow-xs overflow-hidden md:rounded-none md:border-0 md:shadow-none md:h-full">
       {/* Desktop sticky header */}
       <div className="hidden md:flex sticky top-0 z-10 flex-col gap-2 border-b bg-card/95 backdrop-blur-sm px-3 py-3">
@@ -383,5 +385,6 @@ export function ConversationList({ selectedId }: Props = {}) {
         }}
       />
     </div>
+    </PullToRefresh>
   );
 }

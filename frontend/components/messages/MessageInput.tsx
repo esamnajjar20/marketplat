@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { RecordingTimer } from './RecordingTimer';
 import { MessageBodyEditor, type MessageBodyEditorHandle } from './MessageBodyEditor';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { hapticMessageSent, hapticMessageError } from '@/lib/capacitor/nativeHaptics';
 
 import { Spinner } from '@/components/ui/spinner';
 interface Props {
@@ -225,8 +226,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
     if (attachmentFile) {
       setUploading(true); setUploadKind('file');
-      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
-      catch(err){const parsed=parseApiError(err); if(parsed.queued){bodyEditorRef.current?.clear(); setHasBody(false);clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);}else{setLastSendError(parsed.message);toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
+      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void hapticMessageSent(); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
+      catch(err){const parsed=parseApiError(err); if(parsed.queued){bodyEditorRef.current?.clear(); setHasBody(false);clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);void hapticMessageSent();}else{setLastSendError(parsed.message);void hapticMessageError();toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
     }
 
     if (imageFile) {
@@ -291,9 +292,15 @@ export function MessageInput({ conversationId, disabled }: Props) {
             bodyEditorRef.current?.setValue(trimmed); setHasBody(Boolean(trimmed));
             saveMessageDraft(conversationId, trimmed);
             setLastSendError(parsed.message || 'تعذّر الإرسال');
+            void hapticMessageError();
+          } else {
+            void hapticMessageSent();
           }
         },
-        onSuccess: () => setLastSendError(null),
+        onSuccess: () => {
+          setLastSendError(null);
+          void hapticMessageSent();
+        },
       },
     );
     keepComposerFocus();

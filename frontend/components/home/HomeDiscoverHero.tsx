@@ -41,7 +41,7 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
               السوق المحلي — ابحث، قارن، واكتشف
             </h1>
             {showGuestCopy ? (
-              <p className="mt-2 max-w-xl text-pretty text-sm leading-6 text-muted-foreground sm:mt-3 sm:text-base">
+              <p className="home-discover-hero-copy mt-2 max-w-xl text-pretty text-sm leading-6 text-muted-foreground sm:mt-3 sm:text-base">
                 إعلانات ومنتجات وخدمات ومتاجر في مكان واحد.
               </p>
             ) : null}

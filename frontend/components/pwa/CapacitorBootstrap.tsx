@@ -1,9 +1,7 @@
 'use client';
 
 /**
- * Native-shell bootstrap — sibling to PwaBootstrap (SW / web-PWA only).
- * No-op on plain web. Logic for back/deep-links/chrome lives in
- * lib/runtime/navigation.ts; push tap routing stays here (needs router).
+ * Native-shell bootstrap — Phases 1 + 6 (theme status bar sync).
  */
 
 import { useEffect } from 'react';
@@ -16,6 +14,7 @@ import {
   registerNativeBackButton,
   registerNativeDeepLinks,
 } from '@/lib/runtime/navigation';
+import { syncNativeStatusBarTheme } from '@/lib/runtime/applyNativeChrome';
 import { getAppMode } from '@/lib/runtime/appMode';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
@@ -26,21 +25,39 @@ export function CapacitorBootstrap() {
     let cleanupDeepLinks: (() => void) | undefined;
     let cleanupBackButton: (() => void) | undefined;
     let cleanupPushTap: (() => void) | undefined;
+    let themeObserver: MutationObserver | undefined;
 
     void (async () => {
-      // data-app-mode on <html> for CSS (safe-area, chrome) — all modes
       try {
         const mode = await getAppMode();
         document.documentElement.dataset.appMode = mode;
+        document.documentElement.classList.toggle('is-native-app', mode === 'native');
+        document.documentElement.classList.toggle('is-pwa', mode === 'pwa');
       } catch {
         /* ignore */
       }
 
       if (!(await isNativePlatform())) return;
 
+      try {
+        document.documentElement.style.overscrollBehavior = 'none';
+        document.body.style.overscrollBehavior = 'none';
+      } catch {
+        /* ignore */
+      }
+
       cleanupDeepLinks = await registerNativeDeepLinks(router);
       cleanupBackButton = await registerNativeBackButton(router);
       await applyNativeChrome();
+
+      // Keep status bar in sync when user toggles dark/light
+      themeObserver = new MutationObserver(() => {
+        void syncNativeStatusBarTheme();
+      });
+      themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class'],
+      });
 
       cleanupPushTap = await onNativePushTapped((notification) => {
         const raw = notification.url;
@@ -51,11 +68,6 @@ export function CapacitorBootstrap() {
         router.push(destination);
       });
     })().catch((err) => {
-      // UNHANDLED-CATCH-FIX: the native setup awaits several plugins
-      // (registerNativeDeepLinks / registerNativeBackButton /
-      // applyNativeChrome / onNativePushTapped) outside any try. A
-      // rejection from any of them previously reached the global
-      // handler as an unhandled promise rejection.
       console.warn('[capacitor] native bootstrap failed:', err);
     });
 
@@ -63,6 +75,7 @@ export function CapacitorBootstrap() {
       cleanupDeepLinks?.();
       cleanupBackButton?.();
       cleanupPushTap?.();
+      themeObserver?.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

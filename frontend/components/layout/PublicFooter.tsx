@@ -30,7 +30,7 @@ const FOOTER_LINKS = {
 
 export function PublicFooter() {
   return (
-    <footer className="border-t border-border/80 bg-surface-1">
+    <footer className="site-web-footer native-hide-on-app border-t border-border/80 bg-surface-1">
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           <div className="col-span-2 space-y-4 md:col-span-1">

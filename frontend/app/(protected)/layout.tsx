@@ -56,6 +56,13 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   // A conversation thread is a focused mobile view: it must use the
   // viewport below the header, without the global bottom-nav spacer.
   const isConversationThread = pathname.startsWith(`${ROUTES.messages}/`);
+  // Phase 6: full-screen "task" routes (create / edit flows) hide site chrome
+  const isImmersiveTask =
+    isConversationThread ||
+    pathname.includes('/create') ||
+    pathname.includes('/edit') ||
+    pathname.startsWith('/offline');
+
 
   // FIX AUTH-04: don't make any auth decision until both hydration AND
   // (if applicable) the async session-restore flow have completed.
@@ -144,11 +151,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     // handling (Timeline's overflow-x-auto overscroll-x-contain) actually take effect
     // instead of being bypassed by an ancestor refusing to shrink.
     <div className="flex min-h-screen min-h-dvh min-w-0 flex-col">
-      <ProtectedHeader />
-      {/* FIX FEAT-EMAIL-VERIFY: shows a yellow bar when the signed-in
-          user hasn't verified their email yet. Auto-hides for guests
-          and for verified users. Dismissible per-session. */}
-      <EmailVerificationBanner />
+      {/* Phase 5: hide site chrome inside an open conversation (WhatsApp-style). */}
+      {!isImmersiveTask && <ProtectedHeader />}
+      {!isImmersiveTask && <EmailVerificationBanner />}
       <div className="flex min-w-0 flex-1">
         <ProtectedSidebar />
         {/* FIX P1-3: pb-20 reserves space for BottomNav on mobile, same
@@ -162,14 +167,14 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
         <main
           id="main-content"
-          className={isConversationThread
+          className={isImmersiveTask
             ? 'min-w-0 min-h-0 flex-1 p-0 md:p-6 lg:p-8'
             : 'min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8'}
         >
           <PageTransition>{children}</PageTransition>
         </main>
       </div>
-      {!isConversationThread && <BottomNav />}
+      {!isImmersiveTask && <BottomNav />}
     </div>
   );
 }
