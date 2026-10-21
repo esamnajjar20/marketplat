@@ -68,7 +68,7 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      <div className={cn('min-w-0 md:flex-1 md:min-h-0', isInboxRoute ? 'hidden md:block' : 'block')}>
+      <div className={cn('min-w-0 md:flex-1 md:min-h-0', isInboxRoute ? 'hidden md:block' : 'flex h-full flex-col')}>
         {children}
       </div>
     </div>
