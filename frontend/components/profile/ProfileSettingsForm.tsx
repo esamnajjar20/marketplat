@@ -136,17 +136,19 @@ export function ProfileSettingsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-lg">
-      {/* Avatar */}
-      <div className="flex items-center gap-4">
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
-          <SafeImage variant="avatar" src={getAvatarUrl(user?.avatarUrl ?? '', 64)} alt={user?.name ?? ''} fill className="object-cover" sizes="64px" />
-        </div>
-        <div>
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="mx-auto max-w-lg space-y-5 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5 md:p-6"
+    >
+      {/* Avatar — matches design: avatar + change button side by side */}
+      <div className="flex items-center justify-end gap-3">
+        <div className="min-w-0 text-end">
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="rounded-full"
             loading={uploadAvatar.isPending}
             loadingText="جارٍ الرفع…"
             onClick={() => avatarInputRef.current?.click()}
@@ -160,37 +162,73 @@ export function ProfileSettingsForm() {
             className="hidden"
             onChange={handleAvatarChange}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
             JPG، PNG، أو WEBP — بحد أقصى {MAX_FILE_SIZE_MB} MB
           </p>
+        </div>
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-primary-soft text-lg font-extrabold text-primary">
+          <SafeImage
+            variant="avatar"
+            src={getAvatarUrl(user?.avatarUrl ?? '', 64)}
+            alt={user?.name ?? ''}
+            fill
+            className="object-cover"
+            sizes="56px"
+          />
         </div>
       </div>
 
       <FormField label="الاسم الكامل" htmlFor="pname" required error={fieldError('name')}>
-        <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input id="pname" className="h-11 rounded-xl" value={name} onChange={(e) => setName(e.target.value)} />
       </FormField>
 
       <FormField label="المدينة" htmlFor="pcity" required error={fieldError('city')}>
         <Select value={city} onValueChange={setCity}>
-          <SelectTrigger id="pcity"><SelectValue placeholder="اختر مدينتك" /></SelectTrigger>
+          <SelectTrigger id="pcity" className="h-11 rounded-xl">
+            <SelectValue placeholder="اختر مدينتك" />
+          </SelectTrigger>
           <SelectContent>
-            {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {CITIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </FormField>
 
       <FormField label="رقم الهاتف" htmlFor="pphone" hint="لن يُعرض للعامة" error={fieldError('phone')}>
-        <Input id="pphone" type="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+970..." />
+        <Input
+          id="pphone"
+          type="tel"
+          dir="ltr"
+          className="h-11 rounded-xl"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+970..."
+        />
       </FormField>
 
       <FormField label="نبذة شخصية" htmlFor="pbio">
-        <textarea id="pbio" rows={3} maxLength={300} value={bio} onChange={(e) => setBio(e.target.value)}
+        <textarea
+          id="pbio"
+          rows={3}
+          maxLength={300}
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
           placeholder="أخبر الآخرين عنك..."
-          className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
-        <p className="text-xs text-muted-foreground text-end">{bio.length}/300</p>
+          className="w-full resize-none rounded-xl border border-input bg-transparent px-3 py-2.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+        <p className="text-end text-xs text-muted-foreground">{bio.length}/300</p>
       </FormField>
 
-      <Button type="submit" disabled={isFormIncomplete} loading={updateProfile.isPending} loadingText="جارٍ الحفظ…">
+      <Button
+        type="submit"
+        className="h-12 w-full rounded-xl text-base font-bold"
+        disabled={isFormIncomplete}
+        loading={updateProfile.isPending}
+        loadingText="جارٍ الحفظ…"
+      >
         حفظ التغييرات
       </Button>
     </form>

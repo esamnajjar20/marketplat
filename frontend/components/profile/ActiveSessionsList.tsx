@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Monitor, Smartphone, AlertTriangle } from 'lucide-react';
+import { Monitor, Smartphone } from 'lucide-react';
 import { Button }            from '@/components/shared/ui/Button';
 import { Badge }             from '@/components/shared/ui/Badge';
 import { LoadingSpinner }    from '@/components/shared/feedback/LoadingSpinner';
@@ -61,16 +61,11 @@ export function ActiveSessionsList() {
   // simply unknown.
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل الجلسات النشطة</p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="text-sm text-primary hover:underline"
-        >
+      <div className="mx-auto max-w-lg rounded-2xl border border-border bg-card p-6 text-center shadow-xs">
+        <p className="font-bold text-destructive">حدث خطأ أثناء تحميل الجلسات النشطة</p>
+        <Button type="button" variant="outline" size="sm" className="mt-4 rounded-xl font-bold" onClick={() => refetch()}>
           إعادة المحاولة
-        </button>
+        </Button>
       </div>
     );
   }
@@ -78,47 +73,67 @@ export function ActiveSessionsList() {
   const list = sessions ?? [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">الجلسات النشطة</h2>
-        <Button variant="destructive" size="sm" disabled={loggingOut}
-          onClick={() => setConfirmLogoutAllOpen(true)}>
-          {loggingOut ? <Spinner size="sm" /> : 'تسجيل الخروج من الكل'}
-        </Button>
-      </div>
+    <div className="mx-auto max-w-lg space-y-3">
+      <p className="text-sm text-muted-foreground">الأجهزة المسجّل دخولك منها حاليًا.</p>
 
-      <div className="space-y-3">
-        {list.map((s) => (
-          <div key={s.sessionId} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
-            <div className="flex items-start gap-3 min-w-0">
-              {s.userAgent?.includes('Mobile') || s.userAgent?.includes('Android') || s.userAgent?.includes('iPhone')
-                ? <Smartphone className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                : <Monitor className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />}
-              {/*
-                UX-FIX: was `truncate max-w-[200px]`, which cut long user-agent
-                strings off mid-word inside the fixed-width card instead of
-                wrapping them. break-words lets long unbroken tokens (like a
-                UA string or IP) wrap onto a new line instead of overflowing
-                or being silently truncated.
-              */}
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-medium break-words">{s.userAgent ?? 'جهاز غير معروف'}</p>
-                  {s.isCurrent && <Badge variant="default" className="text-xs">الجلسة الحالية</Badge>}
+      <Button
+        variant="outline"
+        className="h-12 w-full rounded-xl border-destructive/30 font-bold text-destructive hover:bg-destructive/5"
+        disabled={loggingOut}
+        onClick={() => setConfirmLogoutAllOpen(true)}
+      >
+        {loggingOut ? <Spinner size="sm" /> : 'تسجيل الخروج من الكل'}
+      </Button>
+
+      <div className="space-y-2.5">
+        {list.map((s) => {
+          const isMobile =
+            s.userAgent?.includes('Mobile') ||
+            s.userAgent?.includes('Android') ||
+            s.userAgent?.includes('iPhone');
+          return (
+            <div
+              key={s.sessionId}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card p-3.5 shadow-xs"
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  {isMobile ? (
+                    <Smartphone className="h-5 w-5" />
+                  ) : (
+                    <Monitor className="h-5 w-5" />
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground break-words">IP: {maskIp(s.ip)} · آخر نشاط: {formatDate(s.lastSeen)}</p>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-bold break-words">{s.userAgent ?? 'جهاز غير معروف'}</p>
+                    {s.isCurrent && (
+                      <Badge variant="secondary" className="rounded-full bg-primary-soft text-[11px] font-bold text-primary">
+                        الجلسة الحالية
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground break-words">
+                    IP: {maskIp(s.ip)} · آخر نشاط: {s.isCurrent ? 'الآن' : formatDate(s.lastSeen)}
+                  </p>
+                </div>
               </div>
+              {!s.isCurrent && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 rounded-xl font-bold text-primary"
+                  disabled={pendingSessionId === s.sessionId}
+                  onClick={() => handleRevoke(s.sessionId)}
+                >
+                  {pendingSessionId === s.sessionId ? <Spinner size="sm" /> : 'إنهاء'}
+                </Button>
+              )}
             </div>
-            {!s.isCurrent && (
-              <Button variant="ghost" size="sm" className="shrink-0" disabled={pendingSessionId === s.sessionId}
-                onClick={() => handleRevoke(s.sessionId)}>
-                {pendingSessionId === s.sessionId ? <Spinner size="sm" /> : 'إنهاء'}
-              </Button>
-            )}
-          </div>
-        ))}
+          );
+        })}
         {list.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-6">لا توجد جلسات نشطة</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">لا توجد جلسات نشطة</p>
         )}
       </div>
 

@@ -2,8 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, MessageSquare, Search, X } from 'lucide-react';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { MessageSquare, Search, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useMyConversations } from '@/hooks/queries/useConversations';
 import { usePresence } from '@/hooks/queries/usePresence';
@@ -122,13 +121,10 @@ export function ConversationList({ selectedId }: Props = {}) {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center px-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-          <AlertTriangle className="h-6 w-6 text-destructive" />
-        </div>
-        <p className="font-medium text-destructive">حدث خطأ أثناء تحميل المحادثات</p>
-        <p className="text-sm text-muted-foreground">تحقق من الاتصال ثم أعد المحاولة</p>
-        <Button type="button" size="sm" variant="outline" onClick={() => refetch()}>
+      <div className="mx-4 my-6 rounded-2xl border border-border bg-card p-6 text-center shadow-xs">
+        <p className="font-bold text-destructive">حدث خطأ أثناء تحميل المحادثات</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">تحقق من الاتصال ثم أعد المحاولة</p>
+        <Button type="button" size="sm" variant="outline" className="mt-4 rounded-xl" onClick={() => refetch()}>
           إعادة المحاولة
         </Button>
       </div>
@@ -142,48 +138,121 @@ export function ConversationList({ selectedId }: Props = {}) {
   const hasActiveFilter = archivedOnly || unreadOnly || inbox !== 'all' || query.trim() !== '';
   if (items.length === 0 && !hasActiveFilter) {
     return (
-      <EmptyState
-        icon={<MessageSquare className="h-10 w-10" />}
-        title="لا توجد محادثات بعد"
-        description="ابدأ من إعلان أو خدمة عبر «راسل البائع» — المحادثات تظهر هنا مع آخر رسالة وعدد غير المقروء."
-        action={
-          <div className="flex flex-col items-center gap-2 sm:flex-row">
-            {/* SW-FIX-MSG-PREFETCH-MALFORM: `prefetch={false}` was placed
-                after the closing </Link> — as JSX text it rendered the literal
-                string "prefetch=" next to the button. Same malformed pattern
-                fixed in RecentAds. */}
-            <Button asChild size="sm">
-              <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link prefetch={false} href={ROUTES.ads}>كل الإعلانات</Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link href={ROUTES.home}>الرئيسية</Link>
-            </Button>
-          </div>
-        }
-      />
+      <div className="mx-4 my-8 rounded-2xl border border-border bg-card p-7 text-center shadow-xs">
+        <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft text-primary">
+          <MessageSquare className="h-7 w-7" />
+        </div>
+        <h2 className="text-base font-bold text-foreground">لا توجد محادثات بعد</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          ابدأ من إعلان أو خدمة عبر «راسل البائع» — المحادثات تظهر هنا مع آخر رسالة وعدد غير المقروء.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+          <Button asChild size="sm" className="rounded-xl">
+            <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline" className="rounded-xl">
+            <Link href={ROUTES.home}>الرئيسية</Link>
+          </Button>
+        </div>
+      </div>
     );
   }
 
   return (
     <PullToRefresh onRefresh={() => refetch()} className="native-inbox-root h-full min-h-0">
-    <div className="flex flex-col rounded-[var(--radius-card)] border border-border/70 bg-card shadow-xs overflow-hidden md:rounded-none md:border-0 md:shadow-none md:h-full">
-      {/* Desktop sticky header */}
-      <div className="hidden md:flex sticky top-0 z-10 flex-col gap-2 border-b bg-card/95 backdrop-blur-sm px-3 py-3">
+    <div className="native-inbox-panel flex flex-col rounded-[var(--radius-card)] border border-border/70 bg-card shadow-xs overflow-hidden md:rounded-none md:border-0 md:shadow-none md:h-full">
+      {/* Desktop sticky header — aligned with mobile design language */}
+      <div className="hidden md:flex sticky top-0 z-10 flex-col gap-2.5 border-b border-border/60 bg-background/95 backdrop-blur-sm px-3 py-3">
         <div className="flex items-center justify-between gap-2 px-1">
-          <h2 className="text-sm font-semibold">الرسائل</h2>
+          <h2 className="text-base font-extrabold tracking-tight">الرسائل</h2>
           {totalUnread > 0 && (
-            <span aria-label={`${totalUnread} محادثة غير مقروءة`} className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
+            <span
+              aria-label={`${totalUnread} محادثة غير مقروءة`}
+              className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary"
+            >
               {totalUnread} غير مقروءة
             </span>
           )}
         </div>
-        <div className="flex gap-1.5 px-1 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
+        <div className="flex gap-2 px-1 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
           {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
-            <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={cn('min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition-[background-color,border-color,color,box-shadow] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', inbox === value ? 'border-primary bg-primary text-primary-foreground shadow-xs' : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground')}>{label}</button>
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={inbox === value}
+              onClick={() => setInbox(value)}
+              className={cn(
+                'min-h-9 shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors',
+                inbox === value
+                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
           ))}
+        </div>
+        <div className="relative px-1">
+          <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="بحث في المحادثات…"
+            className="w-full min-h-11 rounded-xl border border-border bg-card py-2.5 pe-9 ps-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15"
+            aria-label="بحث في المحادثات"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute end-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="مسح البحث"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-5 border-b border-border/80 px-1" role="tablist" aria-label="حالة المحادثة">
+          {[
+            { value: 'all' as const, label: 'الكل', active: !unreadOnly && !archivedOnly },
+            { value: 'unread' as const, label: `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}`, active: unreadOnly && !archivedOnly },
+            { value: 'archived' as const, label: 'الأرشيف', active: archivedOnly },
+          ].map(({ value, label, active }) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => {
+                setUnreadOnly(value === 'unread');
+                setArchivedOnly(value === 'archived');
+              }}
+              className={cn(
+                'relative min-h-10 shrink-0 pb-2.5 pt-1 text-sm font-semibold transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label}
+              {active && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-t-full bg-primary" aria-hidden />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile header — matches design: title + badge, search, chips, underline tabs */}
+      <div className="md:hidden space-y-3 border-b border-border/60 bg-background px-4 pt-4 pb-0">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-extrabold tracking-tight text-foreground">الرسائل</h1>
+          {totalUnread > 0 && (
+            <span
+              aria-label={`${totalUnread} محادثة غير مقروءة`}
+              className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary"
+            >
+              {totalUnread} غير مقروءة
+            </span>
+          )}
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -191,8 +260,8 @@ export function ConversationList({ selectedId }: Props = {}) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="بحث في المحادثات…"
-            className="w-full min-h-11 rounded-full border bg-muted/50 py-2.5 pe-9 ps-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
+            placeholder="بحث في المحادثات..."
+            className="w-full min-h-11 rounded-xl border border-border bg-card py-2.5 pe-9 ps-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:bg-card focus-visible:ring-2 focus-visible:ring-primary/15"
             aria-label="بحث في المحادثات"
           />
           {query && (
@@ -206,93 +275,51 @@ export function ConversationList({ selectedId }: Props = {}) {
             </button>
           )}
         </div>
-        <div className="flex gap-1.5 px-1">
-          <button
-            type="button"
-            onClick={() => {
-              setUnreadOnly(false);
-              setArchivedOnly(false);
-            }}
-            className={
-              !unreadOnly && !archivedOnly
-                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'
-            }
-          >
-            الكل
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUnreadOnly(true);
-              setArchivedOnly(false);
-            }}
-            className={
-              unreadOnly && !archivedOnly
-                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'
-            }
-          >
-            غير مقروء{totalUnread > 0 ? ` (${totalUnread})` : ''}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setArchivedOnly(true);
-              setUnreadOnly(false);
-            }}
-            className={
-              archivedOnly
-                ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                : 'min-h-10 rounded-full border px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground'
-            }
-          >
-            الأرشيف
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile search */}
-      <div className="md:hidden space-y-2 border-b bg-card px-3 py-2">
-        <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
+        <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
           {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
-            <button key={value} type="button" role="tab" aria-selected={inbox === value} onClick={() => setInbox(value)} className={inbox === value ? 'min-h-10 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground' : 'min-h-10 rounded-full border px-3 py-2 text-xs text-muted-foreground'}>{label}</button>
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={inbox === value}
+              onClick={() => setInbox(value)}
+              className={cn(
+                'min-h-9 shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors',
+                inbox === value
+                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
           ))}
         </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="بحث…"
-            className="w-full rounded-full border bg-muted/40 py-2 pe-3 ps-9 text-sm outline-none focus:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15"
-            aria-label="بحث في المحادثات"
-          />
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-5 border-b border-border/80" role="tablist" aria-label="حالة المحادثة">
           {[
-            ['all', 'الكل'],
-            ['unread', `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}`],
-            ['archived', 'الأرشيف'],
-          ].map(([value, label]) => {
-            const active = value === 'all' ? !unreadOnly && !archivedOnly : value === 'unread' ? unreadOnly : archivedOnly;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setUnreadOnly(value === 'unread');
-                  setArchivedOnly(value === 'archived');
-                }}
-                className={active
-                  ? 'min-h-10 shrink-0 rounded-full bg-primary px-3.5 py-2 text-xs font-medium text-primary-foreground'
-                  : 'min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-xs text-muted-foreground'}
-              >
-                {label}
-              </button>
-            );
-          })}
+            { value: 'all' as const, label: 'الكل', active: !unreadOnly && !archivedOnly },
+            { value: 'unread' as const, label: `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}`, active: unreadOnly && !archivedOnly },
+            { value: 'archived' as const, label: 'الأرشيف', active: archivedOnly },
+          ].map(({ value, label, active }) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => {
+                setUnreadOnly(value === 'unread');
+                setArchivedOnly(value === 'archived');
+              }}
+              className={cn(
+                'relative min-h-10 shrink-0 pb-2.5 pt-1 text-sm font-semibold transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label}
+              {active && (
+                <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-t-full bg-primary" aria-hidden />
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -311,9 +338,8 @@ export function ConversationList({ selectedId }: Props = {}) {
       )}
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-12 px-4 text-center">
-          <Search className="h-8 w-8 text-muted-foreground/60" />
-          <p className="text-sm font-medium">
+        <div className="mx-4 my-6 rounded-2xl border border-border bg-card p-6 text-center shadow-xs">
+          <p className="text-base font-bold text-foreground">
             {query.trim()
               ? `لا نتائج لـ «${query}»`
               : unreadOnly
@@ -326,14 +352,13 @@ export function ConversationList({ selectedId }: Props = {}) {
                     ? 'لا توجد محادثات مع المستخدمين'
                     : 'لا نتائج'}
           </p>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            محادثة مطابقة للفلاتر الحالية: 0
+          </p>
           {(query.trim() || unreadOnly || archivedOnly || inbox !== 'all') && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="text-sm text-primary hover:underline"
-            >
-              إظهار الكل
-            </button>
+            <Button type="button" size="sm" variant="outline" className="mt-4 rounded-xl" onClick={clearFilters}>
+              مسح الفلتر
+            </Button>
           )}
         </div>
       ) : (

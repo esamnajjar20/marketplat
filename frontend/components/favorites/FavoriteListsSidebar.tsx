@@ -20,7 +20,7 @@ import {
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
-export function FavoriteListsSidebar() {
+export function FavoriteListsSidebar({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const sp = useSearchParams();
   const activeListId = sp.get('list') ?? null;
@@ -82,75 +82,101 @@ export function FavoriteListsSidebar() {
   const items = lists ?? [];
 
   return (
-    <aside className="rounded-xl border bg-surface-1 p-3 sm:p-4 lg:sticky lg:top-24" aria-label="قوائم المفضلة">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">قوائمي</h2>
+    <aside
+      className={cn(
+        embedded
+          ? 'space-y-3'
+          : 'space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-xs lg:sticky lg:top-24',
+      )}
+      aria-label="قوائم المفضلة"
+    >
+      {!embedded && (
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-extrabold">قوائمي</h2>
+            <p className="text-xs text-muted-foreground">نظّم العناصر المحفوظة ضمن قوائمك الخاصة.</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="h-9 gap-1 rounded-xl font-bold"
+            onClick={() => setShowCreate((v) => !v)}
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            جديدة
+          </Button>
+        </div>
+      )}
+
+      {embedded && (
         <Button
           type="button"
           size="sm"
-          variant="ghost"
-          className="min-h-10 gap-1 px-2.5"
+          className="h-10 w-full gap-1.5 rounded-xl font-bold"
           onClick={() => setShowCreate((v) => !v)}
         >
-          <FolderPlus className="h-3.5 w-3.5" />
+          <FolderPlus className="h-4 w-4" />
           جديدة
         </Button>
-      </div>
-
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        نظّم العناصر المحفوظة ضمن قوائمك الخاصة.
-      </p>
+      )}
 
       {showCreate && (
-        <form onSubmit={onCreate} className="flex gap-2">
+        <form onSubmit={onCreate} className="flex gap-2 rounded-xl border border-border bg-background p-1.5">
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="مثلاً: سيارات"
             maxLength={40}
-            className="h-9"
+            className="h-10 border-0 shadow-none focus-visible:ring-0"
             autoFocus
           />
-          <Button type="submit" size="sm" disabled={createList.isPending || !newName.trim()}>
+          <Button
+            type="submit"
+            size="sm"
+            className="h-10 shrink-0 rounded-xl font-bold"
+            disabled={createList.isPending || !newName.trim()}
+          >
             إضافة
           </Button>
         </form>
       )}
 
-      <nav className="space-y-0.5" aria-label="قوائم المفضلة">
+      <nav className="overflow-hidden rounded-2xl border border-border/70 bg-card divide-y divide-border/60" aria-label="قوائم المفضلة">
         <button
           type="button"
           onClick={() => selectList(null)}
           className={cn(
-            'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors',
+            'flex w-full items-center justify-between gap-2 px-3.5 py-3 text-sm transition-colors',
             !activeListId
-              ? 'bg-primary/10 font-medium text-primary'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              ? 'bg-primary-soft font-bold text-primary'
+              : 'font-medium text-foreground hover:bg-muted/40',
           )}
         >
-          <List className="h-4 w-4 shrink-0" />
-          <span className="truncate">الكل</span>
+          <span className="flex items-center gap-2">
+            <List className="h-4 w-4 shrink-0 opacity-70" />
+            الكل
+          </span>
         </button>
 
         {items.map((list) => (
-          <div key={list.id} className="rounded-md">
+          <div key={list.id}>
             {renameId === list.id ? (
-              <form onSubmit={onRename} className="flex gap-1 px-1 py-1">
+              <form onSubmit={onRename} className="flex flex-wrap items-center gap-2 px-3 py-2.5">
                 <Input
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10 min-w-0 flex-1 rounded-xl text-sm"
                   maxLength={40}
                   autoFocus
                 />
-                <Button type="submit" size="sm" className="h-8 shrink-0 px-2" disabled={renameList.isPending}>
+                <Button type="submit" size="sm" className="h-9 rounded-xl font-bold" disabled={renameList.isPending}>
                   حفظ
                 </Button>
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
-                  className="h-8 shrink-0 px-2"
+                  variant="outline"
+                  className="h-9 rounded-xl"
                   onClick={() => setRenameId(null)}
                 >
                   إلغاء
@@ -159,28 +185,29 @@ export function FavoriteListsSidebar() {
             ) : (
               <div
                 className={cn(
-                  'flex items-center gap-1 rounded-md px-1 py-0.5',
-                  activeListId === list.id ? 'bg-primary/10' : 'hover:bg-muted/80'
+                  'flex items-center gap-1 px-1.5 py-1',
+                  activeListId === list.id && 'bg-primary-soft/60',
                 )}
               >
                 <button
                   type="button"
                   onClick={() => selectList(list.id)}
                   className={cn(
-                    'min-w-0 flex-1 truncate rounded-md px-2 py-2 text-start text-sm',
+                    'min-w-0 flex-1 truncate rounded-xl px-2 py-2.5 text-start text-sm',
                     activeListId === list.id
-                      ? 'font-medium text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'font-bold text-primary'
+                      : 'font-medium text-foreground',
                   )}
                 >
                   {list.name}
-                  <span className="ms-1 tabular-nums text-xs opacity-70">({list.itemsCount})</span>
+                  <span className="ms-1.5 tabular-nums text-xs text-muted-foreground">
+                    {list.itemsCount}
+                  </span>
                 </button>
-                {/* أزرار في نهاية الصف — لا تغطي الاسم */}
                 <div className="flex shrink-0 items-center gap-0.5 pe-1">
                   <button
                     type="button"
-                    className="min-h-10 min-w-10 rounded-md p-2 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                     aria-label={`إعادة تسمية ${list.name}`}
                     title="إعادة تسمية"
                     onClick={() => {
@@ -192,7 +219,7 @@ export function FavoriteListsSidebar() {
                   </button>
                   <button
                     type="button"
-                    className="min-h-10 min-w-10 rounded-md p-2 text-muted-foreground hover:bg-background hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     aria-label={`حذف ${list.name}`}
                     title="حذف القائمة"
                     onClick={() => setDeleteTarget({ id: list.id, name: list.name })}
@@ -207,7 +234,7 @@ export function FavoriteListsSidebar() {
       </nav>
 
       {items.length === 0 && !showCreate && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           أنشئ قائمة (مثل «هواتف») ثم من شبكة المفضلة اضغط «نقل إلى قائمة».
         </p>
       )}

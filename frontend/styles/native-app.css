@@ -119,3 +119,36 @@ html[data-app-mode='native'] .native-offline-strip {
 html[data-app-mode='native'] .account-page-shell {
   padding-inline: 0.75rem;
 }
+
+/* ——— Messages design polish (aligned to chat UI mockups) ——— */
+
+.native-inbox-root {
+  background: hsl(var(--background));
+}
+
+/* Mobile: drop card chrome so the list feels full-bleed */
+@media (max-width: 767px) {
+  .native-inbox-panel {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+}
+
+/* Explicit class on each conversation row — avoids brittle attribute selectors */
+.native-inbox-row {
+  border-bottom: 1px solid hsl(var(--border) / 0.55);
+}
+
+.native-inbox-row:last-child {
+  border-bottom: none;
+}
+
+.native-chat-thread .native-chat-composer {
+  background: hsl(var(--card));
+}
+
+.native-chat-thread [role='note'] {
+  color: hsl(var(--warning-foreground));
+}

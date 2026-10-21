@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useMyBlockedUsers } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { getAvatarUrl } from '@/lib/cloudinary';
@@ -32,12 +30,11 @@ export function BlockedUsersList() {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل المستخدمين المحظورين</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+      <div className="mx-auto max-w-lg rounded-2xl border border-border bg-card p-6 text-center shadow-xs">
+        <p className="font-bold text-destructive">حدث خطأ أثناء تحميل المستخدمين المحظورين</p>
+        <Button type="button" variant="outline" size="sm" className="mt-4 rounded-xl font-bold" onClick={() => refetch()}>
           إعادة المحاولة
-        </button>
+        </Button>
       </div>
     );
   }
@@ -46,40 +43,54 @@ export function BlockedUsersList() {
 
   if (list.length === 0) {
     return (
-      <EmptyState
-        title="لا يوجد مستخدمون محظورون"
-        description="عند حظر مستخدم من إحدى المحادثات، سيظهر هنا"
-      />
+      <div className="mx-auto max-w-lg rounded-2xl border border-border/70 bg-card p-8 text-center shadow-xs">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <span className="text-lg" aria-hidden>⌀</span>
+        </div>
+        <p className="font-bold text-foreground">لا يوجد مستخدمون محظورون</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          عند حظر مستخدم من إحدى المحادثات، سيظهر هنا
+        </p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto max-w-lg space-y-2.5">
+      <p className="text-sm text-muted-foreground">من حظرتهم لن يتمكنوا من مراسلتك.</p>
       {list.map((row) => {
         const avatar = getAvatarUrl(row.blocked.avatarUrl ?? '', 40);
+        const initial = (row.blocked.name?.trim()?.[0] ?? '?').toUpperCase();
         return (
-          <div key={row.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="relative w-9 h-9 rounded-full overflow-hidden bg-muted shrink-0">
-                <SafeImage variant="avatar" src={avatar} alt={row.blocked.name} fill className="object-cover" sizes="36px" />
+          <div
+            key={row.id}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card p-3.5 shadow-xs"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-soft text-base font-extrabold text-primary">
+                <SafeImage
+                  variant="avatar"
+                  src={avatar}
+                  alt={row.blocked.name}
+                  fill
+                  className="object-cover"
+                  sizes="44px"
+                />
+                <span className="sr-only">{initial}</span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium line-clamp-1">{row.blocked.name}</p>
+                <p className="text-sm font-bold line-clamp-1">{row.blocked.name}</p>
                 <p className="text-xs text-muted-foreground">محظور منذ {formatDate(row.createdAt)}</p>
               </div>
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="shrink-0"
+              className="h-9 shrink-0 rounded-xl font-bold text-primary"
               disabled={pendingUserId === row.blockedId}
               onClick={() => handleUnblock(row.blockedId)}
             >
-              {pendingUserId === row.blockedId ? (
-                <Spinner size="sm" />
-              ) : (
-                'إلغاء الحظر'
-              )}
+              {pendingUserId === row.blockedId ? <Spinner size="sm" /> : 'إلغاء الحظر'}
             </Button>
           </div>
         );

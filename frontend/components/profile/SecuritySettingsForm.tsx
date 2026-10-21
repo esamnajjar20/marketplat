@@ -41,16 +41,25 @@ function GoogleLinkSection() {
   }, []);
 
   return (
-    <section className="max-w-lg space-y-3 rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
-      <div>
-        <h2 className="font-semibold">حساب Google</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          اربط Google بحسابك الحالي لتتمكن من تسجيل الدخول به لاحقًا. يجب أن يكون البريد مطابقًا لبريد حسابك.
-        </p>
+    <section className="mx-auto max-w-lg space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5 md:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-bold">حساب Google</h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            اربط Google بحسابك الحالي لتتمكن من تسجيل الدخول به لاحقًا. يجب أن يكون البريد مطابقًا لبريد حسابك.
+          </p>
+        </div>
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-extrabold text-foreground"
+          aria-hidden
+        >
+          G
+        </span>
       </div>
       <Button
         type="button"
         variant="outline"
+        className="h-11 w-full rounded-xl font-bold"
         onClick={() => {
           window.location.assign(`${API_BASE_URL}/auth/google?purpose=link`);
         }}
@@ -131,34 +140,68 @@ export function SecuritySettingsForm() {
   }
 
   return (
-    <div className="space-y-6">
-    <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-lg">
-      <h2 className="font-semibold">تغيير كلمة المرور</h2>
-      <FormField label="كلمة المرور الحالية" htmlFor="current" required error={errors.current}>
-        <PasswordInput id="current" dir="ltr" autoComplete="current-password"
-          value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="••••••••" />
-      </FormField>
-      <FormField
-        label="كلمة المرور الجديدة" htmlFor="newp" required error={errors.newPass}
-        hint={
-          <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-success')}>
-            {newPass.length >= 8 && <Check className="h-3.5 w-3.5" />}
-            8 أحرف على الأقل
-          </span>
-        }
+    <div className="space-y-4">
+      <GoogleLinkSection />
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="mx-auto max-w-lg space-y-5 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5 md:p-6"
       >
-        <PasswordInput id="newp" dir="ltr" autoComplete="new-password"
-          value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="••••••••" />
-      </FormField>
-      <FormField label="تأكيد كلمة المرور" htmlFor="confirmp" required error={errors.confirm}>
-        <PasswordInput id="confirmp" dir="ltr" autoComplete="new-password"
-          value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
-      </FormField>
-      <Button type="submit" disabled={isFormIncomplete} loading={changePassword.isPending} loadingText="جارٍ التغيير…">
-        تغيير كلمة المرور
-      </Button>
-    </form>
-    <GoogleLinkSection />
+        <h2 className="font-bold">تغيير كلمة المرور</h2>
+        <FormField label="كلمة المرور الحالية" htmlFor="current" required error={errors.current}>
+          <PasswordInput
+            id="current"
+            dir="ltr"
+            className="h-11 rounded-xl"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="••••••••"
+          />
+        </FormField>
+        <FormField
+          label="كلمة المرور الجديدة"
+          htmlFor="newp"
+          required
+          error={errors.newPass}
+          hint={
+            <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-success')}>
+              {newPass.length >= 8 && <Check className="h-3.5 w-3.5" />}
+              8 أحرف على الأقل
+            </span>
+          }
+        >
+          <PasswordInput
+            id="newp"
+            dir="ltr"
+            className="h-11 rounded-xl"
+            autoComplete="new-password"
+            value={newPass}
+            onChange={(e) => setNewPass(e.target.value)}
+            placeholder="••••••••"
+          />
+        </FormField>
+        <FormField label="تأكيد كلمة المرور" htmlFor="confirmp" required error={errors.confirm}>
+          <PasswordInput
+            id="confirmp"
+            dir="ltr"
+            className="h-11 rounded-xl"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="••••••••"
+          />
+        </FormField>
+        <Button
+          type="submit"
+          className="h-12 w-full rounded-xl text-base font-bold"
+          disabled={isFormIncomplete}
+          loading={changePassword.isPending}
+          loadingText="جارٍ التغيير…"
+        >
+          تغيير كلمة المرور
+        </Button>
+      </form>
     </div>
   );
 }

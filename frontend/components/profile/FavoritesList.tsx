@@ -4,13 +4,12 @@ import { useLongPress } from '@/hooks/ui/useLongPress';
 import Link from 'next/link';
 import { AdCard } from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
-import { EmptyState }    from '@/components/shared/feedback/EmptyState';
 import { Pagination }    from '@/components/shared/ui/Pagination';
 import { useFavorites }  from '@/hooks/queries/useFavorites';
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { Heart, HeartOff, AlertTriangle, Check, CheckSquare, X } from 'lucide-react';
+import { HeartOff, Check } from 'lucide-react';
 import { MoveSelectedToListMenu } from '@/components/favorites/MoveSelectedToListMenu';
 import { Button }        from '@/components/shared/ui/Button';
 import { ROUTES }        from '@/lib/constants';
@@ -119,108 +118,60 @@ export function FavoritesList() {
   // empty list.
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل المفضلة</p>
-        <button
+      <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-xs">
+        <p className="font-bold text-destructive">حدث خطأ أثناء تحميل المفضلة</p>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
+          className="mt-4 rounded-xl font-bold"
           onClick={() => refetch()}
-          className="text-sm text-primary hover:underline"
         >
           إعادة المحاولة
-        </button>
+        </Button>
       </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        icon={<HeartOff className="h-10 w-10" />}
-        title="لا توجد إعلانات محفوظة"
-        description="اضغط ♡ على أي إعلان أثناء التصفح ليظهر هنا لاحقاً — مفيد لمقارنة الخيارات قبل التواصل."
-        action={
-          <div className="flex flex-col items-center gap-2 sm:flex-row">
-            <Button asChild size="sm">
-              {/* SW-FIX-FAV-PREFETCH-MALFORM: `prefetch={false}` was on the
-                  line after </Link> — as JSX text it rendered the literal
-                  "prefetch=" above the button. Same malformed pattern fixed
-                  in RecentAds/ConversationList/EmptySearchAlternatives. */}
-              <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={ROUTES.home}>العودة للرئيسية</Link>
-            </Button>
-          </div>
-        }
-      />
+      <div className="rounded-2xl border border-border bg-card p-7 text-center shadow-xs">
+        <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft text-primary">
+          <HeartOff className="h-7 w-7" />
+        </div>
+        <h2 className="text-base font-bold">لا توجد إعلانات محفوظة</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          اضغط ♡ على أي إعلان أثناء التصفح ليظهر هنا لاحقاً — مفيد لمقارنة الخيارات قبل التواصل.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+          <Button asChild size="sm" className="rounded-xl font-bold">
+            <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>
+              تصفّح الإعلانات
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline" className="rounded-xl font-bold">
+            <Link href={ROUTES.home}>العودة للرئيسية</Link>
+          </Button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className={cn('space-y-4', selectionMode && 'pb-28 md:pb-32')}>
       {/* BULK-FAVORITES-REMOVE-01: header row + selection entry. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
-          {totalItems} عنصر محفوظ
-        </span>
+        <span className="text-xs text-muted-foreground">{totalItems} عنصر محفوظ</span>
         <Button
           type="button"
-          variant={selectionMode ? 'default' : 'outline'}
+          variant="outline"
           size="sm"
           onClick={() => (selectionMode ? clearSelection() : setSelectionMode(true))}
-          className="gap-1.5"
+          className="h-9 rounded-full px-3.5 text-xs font-bold"
         >
-          <CheckSquare className="h-3.5 w-3.5" />
           {selectionMode ? 'إلغاء التحديد' : 'تحديد'}
         </Button>
       </div>
-
-      {selectionMode && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/40 p-2.5 text-sm" role="toolbar" aria-label="أدوات تحديد المفضلة">
-          <span className="font-medium">{selected.size} محدد</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={selectAllVisible}
-            disabled={bulkBusy !== null}
-          >
-            تحديد الكل ({items.length})
-          </Button>
-          <div className="ms-auto flex flex-wrap gap-2">
-            <MoveSelectedToListMenu
-              favoriteIds={items.filter((fav) => selected.has(fav.ad.id)).map((fav) => fav.id)}
-              currentListId={listId}
-              disabled={bulkBusy !== null || selected.size === 0}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={() => setConfirmBulkRemove(true)}
-              disabled={bulkBusy !== null || selected.size === 0}
-              className="gap-1.5"
-            >
-              {bulkBusy === 'remove' ? (
-                <Spinner size="xs" />
-              ) : (
-                <Heart className="h-3.5 w-3.5" />
-              )}
-              إزالة المحدد
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={clearSelection}
-              disabled={bulkBusy !== null}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 stagger-fade-in">
         {items.map((fav) => {
@@ -259,18 +210,19 @@ export function FavoritesList() {
                   type="button"
                   onClick={() => toggleSelect(key)}
                   aria-label={isSelected ? 'إلغاء التحديد' : 'تحديد'}
-                  role="checkbox" aria-checked={isSelected}
+                  role="checkbox"
+                  aria-checked={isSelected}
                   className={cn(
-                    'absolute inset-0 z-10 flex items-start justify-end rounded-xl p-2 transition-colors',
-                    isSelected && 'bg-primary/15 ring-2 ring-primary ring-inset',
+                    'absolute inset-0 z-10 flex items-start justify-end rounded-2xl p-2.5 transition-colors',
+                    isSelected && 'bg-primary/10 ring-2 ring-primary ring-inset',
                   )}
                 >
                   <span
                     className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full border-2 bg-background shadow',
+                      'flex h-6 w-6 items-center justify-center rounded-md border-2 bg-background shadow-sm',
                       isSelected
                         ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-muted-foreground/60',
+                        : 'border-border',
                     )}
                   >
                     {isSelected && <Check className="h-3.5 w-3.5" />}
@@ -284,6 +236,46 @@ export function FavoritesList() {
 
       {totalPages > 1 && (
         <Pagination totalPages={totalPages} currentPage={page} baseUrl="/favorites" />
+      )}
+
+      {/* Selection bottom bar — matches design */}
+      {selectionMode && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 px-3 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] md:inset-x-auto md:bottom-6 md:left-1/2 md:w-[min(36rem,calc(100%-2rem))] md:-translate-x-1/2 md:rounded-2xl md:border md:shadow-lg md:pb-3"
+          role="toolbar"
+          aria-label="أدوات تحديد المفضلة"
+        >
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-bold">{selected.size} محدد</span>
+              <button
+                type="button"
+                className="text-xs font-bold text-primary"
+                onClick={selectAllVisible}
+                disabled={bulkBusy !== null}
+              >
+                تحديد الكل ({items.length})
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <MoveSelectedToListMenu
+                favoriteIds={items.filter((fav) => selected.has(fav.ad.id)).map((fav) => fav.id)}
+                currentListId={listId}
+                disabled={bulkBusy !== null || selected.size === 0}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 flex-1 gap-1.5 rounded-xl border-destructive/30 font-bold text-destructive"
+                onClick={() => setConfirmBulkRemove(true)}
+                disabled={bulkBusy !== null || selected.size === 0}
+              >
+                {bulkBusy === 'remove' ? <Spinner size="xs" /> : null}
+                إزالة المحدد
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog

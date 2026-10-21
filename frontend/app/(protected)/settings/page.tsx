@@ -12,7 +12,7 @@ export const metadata: Metadata = buildMetadata({ title: 'الإعدادات', n
 // identical for every tab. redirect via next.config.
 export default function SettingsPage() {
   return (
-    <AccountPageShell title="الإعدادات" description="تحكم في ملفك، أمان حسابك، إشعاراتك والجلسات المفتوحة من مكان واحد.">
+    <AccountPageShell title="الإعدادات" description="الملف، الأمان، الجلسات، الإشعارات والمحظورون — من مكان واحد.">
       <Suspense>
         <SettingsTabsHub />
       </Suspense>

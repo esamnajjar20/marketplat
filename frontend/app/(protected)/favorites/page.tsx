@@ -7,9 +7,7 @@ export const metadata: Metadata = buildMetadata({ title: 'المفضلة', noInd
 
 export default function FavoritesPage() {
   return (
-    <AccountPageShell
-      title="المفضلة"
-    >
+    <AccountPageShell title="المفضلة" description="العناصر التي حفظتها للمقارنة لاحقاً.">
       <FavoritesPageLayout />
     </AccountPageShell>
   );

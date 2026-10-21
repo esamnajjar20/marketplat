@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Check, X, Smartphone, ListChecks, Moon } from 'lucide-react';
+import { Smartphone, ListChecks, Moon } from 'lucide-react';
 import { useMe } from '@/hooks/queries/useAuth';
 import { useUpdateNotificationPreferences } from '@/hooks/mutations/useUpdateProfile';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -157,28 +157,61 @@ function getDeviceTimeZone(): string | null {
 }
 
 function SectionHeading({
-  step,
   icon: Icon,
   title,
   subtitle,
 }: {
-  step: number;
   icon: typeof Smartphone;
   title: string;
   subtitle: string;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Icon className="h-4 w-4" aria-hidden />
-      </div>
-      <div className="min-w-0">
-        <p className="text-2xs-tight font-medium text-muted-foreground">
-          الخطوة {step}
-        </p>
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0 text-end sm:text-start">
+        <h2 className="text-base font-bold text-foreground">{title}</h2>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{subtitle}</p>
       </div>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+        <Icon className="h-5 w-5" aria-hidden />
+      </div>
+    </div>
+  );
+}
+
+/** Shared preference row toggle matching design (green pill switch). */
+function PrefSwitch({
+  on,
+  busy,
+  label,
+  onToggle,
+}: {
+  on: boolean;
+  busy?: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      {busy ? <Spinner size="sm" className="text-muted-foreground" /> : null}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        disabled={busy}
+        onClick={onToggle}
+        className={cn(
+          'relative inline-flex h-7 w-12 rounded-full transition-colors disabled:opacity-50',
+          on ? 'bg-primary' : 'bg-input',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition-transform',
+            on ? 'start-[1.375rem]' : 'start-0.5',
+          )}
+        />
+      </button>
     </div>
   );
 }
@@ -246,15 +279,17 @@ export function NotificationSettingsForm() {
   const totalCount = GROUPS.flatMap((g) => g.items).length;
 
   return (
-    <div className="space-y-10">
+    <div className="mx-auto max-w-lg space-y-3">
       {/* ─── 1 · الجهاز ─── */}
-      <section className="space-y-4" aria-labelledby="notif-device-heading">
+      <section
+        className="space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5"
+        aria-labelledby="notif-device-heading"
+      >
         <div id="notif-device-heading">
           <SectionHeading
-            step={1}
             icon={Smartphone}
-            title="إشعارات هذا الجهاز"
-            subtitle="هل تريد أن يصل التنبيه للجوال أو المتصفح حتى وأنت خارج الموقع؟ هذا منفصل عن أنواع المحتوى أدناه."
+            title="هذا الجهاز"
+            subtitle="إشعارات الدفع على هذا الجهاز"
           />
         </div>
         <PushNotificationToggle />
@@ -262,28 +297,21 @@ export function NotificationSettingsForm() {
       </section>
 
       {/* ─── 2 · المحتوى ─── */}
-      <section className="space-y-4" aria-labelledby="notif-content-heading">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div id="notif-content-heading">
-            <SectionHeading
-              step={2}
-              icon={ListChecks}
-              title="ماذا يصلك؟"
-              subtitle={`أنواع التنبيهات داخل التطبيق وعلى الجهاز معاً · ${enabledCount}/${totalCount} مفعّل`}
-            />
+      <section className="space-y-3" aria-labelledby="notif-content-heading">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-xs">
+          <div id="notif-content-heading" className="min-w-0">
+            <p className="text-sm font-bold text-foreground">تفضيلات المحتوى</p>
+            <p className="text-xs text-muted-foreground">
+              {enabledCount}/{totalCount} مفعّل
+              {isSaving ? ' · جارٍ الحفظ…' : justSaved ? ' · تم الحفظ ✓' : ''}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span
-              role="status"
-              aria-live="polite"
-              className="min-w-[4.5rem] text-xs text-muted-foreground"
-            >
-              {isSaving ? 'جارٍ الحفظ…' : justSaved ? 'تم الحفظ ✓' : ''}
-            </span>
+          <div className="flex items-center gap-1.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="h-9 rounded-xl text-xs font-bold"
               disabled={bulkPending}
               onClick={() => setAll(true)}
             >
@@ -293,6 +321,7 @@ export function NotificationSettingsForm() {
               type="button"
               variant="ghost"
               size="sm"
+              className="h-9 rounded-xl text-xs font-bold"
               disabled={bulkPending}
               onClick={() => setAll(false)}
             >
@@ -301,54 +330,40 @@ export function NotificationSettingsForm() {
           </div>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-3">
           {GROUPS.map((group) => (
-            <div key={group.title} className="space-y-2">
-              <div>
-                <h3 className="text-sm font-semibold">{group.title}</h3>
-                <p className="text-xs text-muted-foreground">{group.description}</p>
+            <div
+              key={group.title}
+              className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-border/50 px-4 py-3">
+                <div className="min-w-0 text-end sm:text-start">
+                  <h3 className="text-sm font-bold text-foreground">{group.title}</h3>
+                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                </div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  <ListChecks className="h-4 w-4" aria-hidden />
+                </div>
               </div>
-              <div className="overflow-hidden rounded-xl border border-border/80 divide-y">
+              <div className="divide-y divide-border/60">
                 {group.items.map(({ key, label, desc }) => {
                   const on = Boolean(prefs[key]);
                   const busy = pendingKey === key || bulkPending;
                   return (
                     <div
                       key={key}
-                      className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4"
+                      className="flex items-center justify-between gap-3 px-4 py-3.5"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{label}</p>
+                        <p className="text-sm font-bold text-foreground">{label}</p>
                         <p className="text-xs leading-relaxed text-muted-foreground">{desc}</p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {busy ? (
-                          <Spinner size="sm" className="text-muted-foreground" />
-                        ) : on ? (
-                          <Check className="h-4 w-4 text-primary" aria-hidden />
-                        ) : (
-                          <X className="h-4 w-4 text-muted-foreground/50" aria-hidden />
-                        )}
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={on}
-                          aria-label={label}
-                          disabled={busy}
-                          onClick={() => toggle(key)}
-                          className={cn(
-                            'relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50',
-                            on ? 'bg-primary' : 'bg-input',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
-                              on ? 'start-[1.375rem]' : 'start-0.5',
-                            )}
-                          />
-                        </button>
-                      </div>
+                      <PrefSwitch
+                        on={on}
+                        busy={busy}
+                        label={label}
+                        onToggle={() => toggle(key)}
+                      />
                     </div>
                   );
                 })}
@@ -359,31 +374,33 @@ export function NotificationSettingsForm() {
       </section>
 
       {/* ─── 3 · التوقيت ─── */}
-      <section className="space-y-4" aria-labelledby="notif-timing-heading">
-        <div id="notif-timing-heading">
+      <section className="space-y-3" aria-labelledby="notif-timing-heading">
+        <div
+          id="notif-timing-heading"
+          className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5"
+        >
           <SectionHeading
-            step={3}
             icon={Moon}
             title="متى يصلك؟"
-            subtitle="ساعات الهدوء تمنع إشعارات الجهاز خلال الفترة، وما كان ينتظرك يصل بعد انتهائها. الإشعارات داخل التطبيق تُحفظ وتظهر عند فتحك للمنصة."
+            subtitle="ساعات الهدوء وتفضيلات التوقيت — الإشعارات داخل التطبيق تُحفظ وتظهر عند فتح المنصة."
           />
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border/80">
-          <div className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4">
+        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs">
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
             <div className="min-w-0">
-              <p id="email-fallback-label" className="text-sm font-medium">تنبيه بالبريد عند عدم القراءة</p>
+              <p id="email-fallback-label" className="text-sm font-bold">
+                تنبيه بالبريد عند عدم القراءة
+              </p>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 إن بقيت رسائلك أو طلباتك أو عروضك غير مقروءة نصف ساعة تقريباً، نرسل لك بريداً واحداً ملخّصاً (بحد أقصى مرة كل ساعة)
               </p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={Boolean(prefs.emailFallback)}
-              aria-labelledby="email-fallback-label"  /* FIX-F5-LABEL-01 */
-              disabled={bulkPending}
-              onClick={() => {
+            <PrefSwitch
+              on={Boolean(prefs.emailFallback)}
+              busy={bulkPending}
+              label="تنبيه بالبريد عند عدم القراءة"
+              onToggle={() => {
                 const next = !prefs.emailFallback;
                 setPrefs((p) => ({ ...p, emailFallback: next }));
                 updatePrefs.mutate(
@@ -391,36 +408,23 @@ export function NotificationSettingsForm() {
                   { onError: () => setPrefs((p) => ({ ...p, emailFallback: !next })) },
                 );
               }}
-              className={cn(
-                'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50',
-                prefs.emailFallback ? 'bg-primary' : 'bg-input',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
-                  prefs.emailFallback ? 'start-[1.375rem]' : 'start-0.5',
-                )}
-              />
-            </button>
+            />
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border/80 divide-y">
-          <div className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4">
+        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs divide-y divide-border/60">
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
             <div className="min-w-0">
-              <p className="text-sm font-medium">ساعات الهدوء</p>
+              <p className="text-sm font-bold">ساعات الهدوء</p>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 لا تصلك إشعارات الجهاز بين الوقتين أدناه (ما عدا العاجل إن سمحت)
               </p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={Boolean(prefs.quietHoursEnabled)}
-              aria-label="ساعات الهدوء"
-              disabled={bulkPending}
-              onClick={() => {
+            <PrefSwitch
+              on={Boolean(prefs.quietHoursEnabled)}
+              busy={bulkPending}
+              label="ساعات الهدوء"
+              onToggle={() => {
                 const next = !prefs.quietHoursEnabled;
                 // First enable: pin the window to this device's zone so "22:00"
                 // means the user's 22:00, not the server's.
@@ -431,23 +435,12 @@ export function NotificationSettingsForm() {
                 setPrefs((p) => ({ ...p, ...patch }));
                 updatePrefs.mutate(patch);
               }}
-              className={cn(
-                'relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50',
-                prefs.quietHoursEnabled ? 'bg-primary' : 'bg-input',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
-                  prefs.quietHoursEnabled ? 'start-[1.375rem]' : 'start-0.5',
-                )}
-              />
-            </button>
+            />
           </div>
 
           {prefs.quietHoursEnabled && (
             <>
-              <div className="flex flex-wrap items-center gap-3 bg-card px-3 py-3 sm:px-4">
+              <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
                 <label className="flex flex-col gap-1 text-xs">
                   <span className="text-muted-foreground">من</span>
                   <input
@@ -458,7 +451,7 @@ export function NotificationSettingsForm() {
                       setPrefs((p) => ({ ...p, quietHoursStart }));
                       updatePrefs.mutate({ quietHoursStart });
                     }}
-                    className="rounded-md border bg-background px-2 py-1.5 text-sm"
+                    className="h-10 rounded-xl border bg-background px-3 py-2 text-sm"
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-xs">
@@ -471,18 +464,18 @@ export function NotificationSettingsForm() {
                       setPrefs((p) => ({ ...p, quietHoursEnd }));
                       updatePrefs.mutate({ quietHoursEnd });
                     }}
-                    className="rounded-md border bg-background px-2 py-1.5 text-sm"
+                    className="h-10 rounded-xl border bg-background px-3 py-2 text-sm"
                   />
                 </label>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 bg-card px-3 py-3 text-xs text-muted-foreground sm:px-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-muted-foreground">
                 <span>
                   التوقيت المعتمد: <bdi className="font-medium text-foreground/80">{quietTimeZone}</bdi>
                 </span>
                 {deviceTimeZone && deviceTimeZone !== quietTimeZone && (
                   <button
                     type="button"
-                    className="text-primary underline-offset-2 hover:underline"
+                    className="font-medium text-primary underline-offset-2 hover:underline"
                     onClick={() => {
                       setPrefs((p) => ({ ...p, quietHoursTimeZone: deviceTimeZone }));
                       updatePrefs.mutate({ quietHoursTimeZone: deviceTimeZone });
@@ -492,36 +485,23 @@ export function NotificationSettingsForm() {
                   </button>
                 )}
               </div>
-              <div className="flex items-center justify-between gap-3 bg-card px-3 py-3 sm:px-4">
+              <div className="flex items-center justify-between gap-3 px-4 py-3.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">السماح بالعاجل أثناء الهدوء</p>
+                  <p className="text-sm font-bold">السماح بالعاجل أثناء الهدوء</p>
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     رسائل جديدة (وأحداث عاجلة مشابهة) تصل حتى في ساعات الهدوء
                   </p>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={prefs.quietHoursAllowUrgent !== false}
-                  aria-label="السماح بالعاجل أثناء الهدوء"
-                  disabled={bulkPending}
-                  onClick={() => {
+                <PrefSwitch
+                  on={prefs.quietHoursAllowUrgent !== false}
+                  busy={bulkPending}
+                  label="السماح بالعاجل أثناء الهدوء"
+                  onToggle={() => {
                     const next = prefs.quietHoursAllowUrgent === false;
                     setPrefs((p) => ({ ...p, quietHoursAllowUrgent: next }));
                     updatePrefs.mutate({ quietHoursAllowUrgent: next });
                   }}
-                  className={cn(
-                    'relative inline-flex h-6 w-11 rounded-full transition-colors disabled:opacity-50',
-                    prefs.quietHoursAllowUrgent !== false ? 'bg-primary' : 'bg-input',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform',
-                      prefs.quietHoursAllowUrgent !== false ? 'start-[1.375rem]' : 'start-0.5',
-                    )}
-                  />
-                </button>
+                />
               </div>
             </>
           )}

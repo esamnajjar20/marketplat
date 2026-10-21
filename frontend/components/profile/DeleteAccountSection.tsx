@@ -45,38 +45,54 @@ export function DeleteAccountSection() {
   }
 
   return (
-    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
-      <h2 className="font-semibold text-destructive">حذف الحساب</h2>
-      <p className="text-sm text-muted-foreground">
+    <div className="mx-auto max-w-lg space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5 md:p-6">
+      <h2 className="flex items-center justify-end gap-2 text-base font-bold text-destructive">
+        حذف الحساب
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-destructive/10 text-sm" aria-hidden>
+          ⚠
+        </span>
+      </h2>
+      <p className="text-sm leading-relaxed text-muted-foreground">
         سيتم إلغاء تفعيل حسابك بشكل دائم وإخفاء جميع إعلاناتك النشطة، وسيتم
         تسجيل خروجك من جميع الأجهزة. لا يمكن التراجع عن هذا الإجراء.
       </p>
-      <Button variant="destructive" onClick={handleOpen}>حذف حسابي</Button>
+      <div className="flex justify-start">
+        <Button variant="destructive" className="rounded-xl font-bold" onClick={handleOpen}>
+          حذف حسابي
+        </Button>
+      </div>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent>
+        <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>هل أنت متأكد من حذف حسابك؟</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-start">
+              هل أنت متأكد من حذف حسابك؟
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10 text-destructive" aria-hidden>
+                ⚠
+              </span>
+            </DialogTitle>
+            <DialogDescription className="text-start leading-relaxed">
               هذا الإجراء نهائي ولا يمكن التراجع عنه. ستُخفى جميع إعلاناتك
               النشطة وستفقد الوصول إلى حسابك فوراً.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-1">
             <div className="space-y-1.5">
               <label htmlFor="confirm-delete" className="text-sm font-medium">
-                اكتب <span className="font-mono font-bold">{CONFIRM_WORD}</span> للتأكيد
+                اكتب <span className="font-bold">{CONFIRM_WORD}</span> للتأكيد
               </label>
               <Input
                 id="confirm-delete"
+                className="h-11 rounded-xl border-destructive/40"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder={CONFIRM_WORD}
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex gap-2">
               <Button
                 variant="outline"
+                className="h-11 flex-1 rounded-xl font-bold"
                 onClick={() => handleOpenChange(false)}
                 disabled={deleteAccount.isPending}
               >
@@ -84,6 +100,7 @@ export function DeleteAccountSection() {
               </Button>
               <Button
                 variant="destructive"
+                className="h-11 flex-1 rounded-xl font-bold"
                 onClick={handleDelete}
                 disabled={confirmText !== CONFIRM_WORD}
                 loading={deleteAccount.isPending}

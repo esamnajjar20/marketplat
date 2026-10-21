@@ -49,10 +49,11 @@ export const ConversationRow = memo(function ConversationRow({
   selectedId,
   isOnline,
   isFlagPending,
-  isLast,
+  isLast: _isLast,
   onSetFlags,
   onDelete,
 }: Props) {
+  void _isLast;
   const party = otherParty(conversation, userId);
   const avatar = getAvatarUrl(party.avatarUrl ?? '', 56);
   const isSelected = conversation.id === selectedId;
@@ -70,47 +71,87 @@ export const ConversationRow = memo(function ConversationRow({
     new Date(settings.mutedUntil).getTime() > now,
   );
 
+  const timeLabel = now !== null ? formatRelativeTimeShort(conversation.updatedAt, now) : '';
+
   return (
     <div
       className={cn(
-        'group relative flex min-h-[4.5rem] items-center gap-2 px-2 py-2.5 transition-colors',
-        'hover:bg-muted/50',
-        isSelected && 'bg-primary/5 dark:bg-primary/10',
-        hasUnread && !isSelected && 'bg-primary/[0.03]',
-        '[content-visibility:auto] [contain-intrinsic-size:auto_76px]',
+        'native-inbox-row group relative flex min-h-[4.75rem] items-start gap-2 px-3 py-3.5 transition-colors',
+        'hover:bg-muted/40 active:bg-muted/50',
+        isSelected && 'bg-primary/[0.06]',
+        settings?.pinnedAt && !isSelected && 'bg-primary/[0.03]',
+        hasUnread && !isSelected && !settings?.pinnedAt && 'bg-primary/[0.02]',
+        '[content-visibility:auto] [contain-intrinsic-size:auto_80px]',
       )}
     >
       <Link
         href={ROUTES.conversationDetail(conversation.id)}
         aria-current={isSelected ? 'page' : undefined}
-        className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1 touch-manipulation"
+        className="flex min-w-0 flex-1 items-start gap-3 touch-manipulation"
       >
-        {isSelected && <span className="absolute inset-y-2 start-0 w-1 rounded-e-full bg-primary" aria-hidden />}
+        {isSelected && <span className="absolute inset-y-3 start-0 w-1 rounded-e-full bg-primary" aria-hidden />}
         <div className="relative shrink-0">
-          <div className={cn('relative h-14 w-14 overflow-hidden rounded-full bg-muted shadow-sm', isSelected ? 'ring-2 ring-primary/30' : 'ring-2 ring-card')}>
-            <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="56px" />
+          <div className={cn(
+            'relative flex h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full bg-primary-soft text-lg font-extrabold text-primary shadow-sm',
+            isSelected && 'ring-2 ring-primary/35',
+          )}>
+            <SafeImage variant="avatar" src={avatar} alt={party.name} fill className="object-cover" sizes="52px" />
           </div>
-          {isOnline && <span className="absolute bottom-0 end-0 h-3.5 w-3.5 rounded-full bg-online ring-2 ring-card" aria-label="متصل الآن" title="متصل الآن" />}
-          {hasUnread && <span aria-label={`${conversation.unreadCount} رسالة غير مقروءة`} className="absolute -top-1 -end-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-2xs-tight font-semibold text-primary-foreground ring-2 ring-card">{conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}</span>}
+          {isOnline && (
+            <span
+              className="absolute bottom-0.5 end-0.5 h-3 w-3 rounded-full bg-online ring-[2.5px] ring-background"
+              aria-label="متصل الآن"
+              title="متصل الآن"
+            />
+          )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-0.5 flex items-baseline justify-between gap-2">
-            <p className={cn('flex items-center gap-1 text-sm line-clamp-1', hasUnread ? 'font-bold text-foreground' : 'font-semibold text-foreground/90')}>
-              {settings?.pinnedAt && <Pin className="h-3 w-3 shrink-0 text-primary" aria-label="مثبّتة" />}
-              {party.name}
+        <div className="min-w-0 flex-1 pt-0.5">
+          <div className="mb-0.5 flex items-center justify-between gap-2">
+            <p className={cn(
+              'flex min-w-0 items-center gap-1.5 text-[15px] leading-tight line-clamp-1',
+              hasUnread ? 'font-bold text-foreground' : 'font-bold text-foreground/90',
+            )}>
+              {settings?.pinnedAt && <Pin className="h-3.5 w-3.5 shrink-0 text-primary opacity-80" aria-label="مثبّتة" />}
+              <span className="truncate">{party.name}</span>
+              {muted && (
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                  <BellOff className="h-2.5 w-2.5" /> عدم الإزعاج
+                </span>
+              )}
             </p>
-            <span className={cn('shrink-0 text-2xs leading-tight tabular-nums', hasUnread ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-              {now !== null ? formatRelativeTimeShort(conversation.updatedAt, now) : ''}
-            </span>
+            {timeLabel && (
+              <span
+                className={cn(
+                  'shrink-0 tabular-nums',
+                  hasUnread
+                    ? 'rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground'
+                    : 'text-[12px] text-muted-foreground',
+                )}
+              >
+                {timeLabel}
+              </span>
+            )}
           </div>
-          <p className={cn('text-xs line-clamp-1 leading-relaxed', hasUnread ? 'font-medium text-foreground/80' : 'text-muted-foreground')}>
+          <p className={cn(
+            'text-[13px] leading-snug line-clamp-1',
+            hasUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground',
+          )}>
             {previewText(conversation, userId)}
           </p>
-          <div className="mt-1 flex items-center gap-1.5 text-2xs text-muted-foreground/80">
-            {muted && <span className="inline-flex items-center gap-0.5"><BellOff className="h-3 w-3" /> عدم الإزعاج</span>}
-            {ctx && conversation.lastMessage && <span className="line-clamp-1">{muted ? '· ' : ''}بخصوص: {ctx}</span>}
-          </div>
+          {ctx && conversation.lastMessage && (
+            <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground/80 line-clamp-1">
+              بخصوص: {ctx}
+            </p>
+          )}
         </div>
+        {hasUnread && (
+          <span
+            aria-label={`${conversation.unreadCount} رسالة غير مقروءة`}
+            className="mt-1 flex h-5 min-w-5 shrink-0 items-center justify-center self-start rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground"
+          >
+            {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
+          </span>
+        )}
       </Link>
 
       <DropdownMenu>
@@ -135,7 +176,6 @@ export const ConversationRow = memo(function ConversationRow({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {!isLast && <div className="absolute bottom-0 inset-x-4 h-px bg-border/80" />}
     </div>
   );
 });

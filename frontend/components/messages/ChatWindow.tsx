@@ -451,9 +451,9 @@ export function ChatWindow({ conversationId }: Props) {
         <Link
           prefetch={false}
           href={contextCard.url}
-          className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-card px-3 py-2.5 transition-colors hover:bg-muted/40"
+          className="mx-3 mt-2.5 flex shrink-0 items-center gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-2.5 shadow-xs transition-colors hover:bg-muted/30"
         >
-          <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[10px] bg-muted">
             <SafeImage
               src={contextCard.imageUrl ? getThumbnailUrl(contextCard.imageUrl, 88, 88) : PLACEHOLDER_SVG}
               alt={contextCard.title}
@@ -463,27 +463,34 @@ export function ChatWindow({ conversationId }: Props) {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xs-tight text-muted-foreground">{contextCard.type === 'ad' ? 'بخصوص الإعلان' : contextCard.type === 'product' ? 'بخصوص المنتج' : 'بخصوص الخدمة'}</p>
-            <p className="text-sm font-medium line-clamp-1">{contextCard.title}</p>
+            <p className="text-[13px] font-bold leading-tight line-clamp-1 text-foreground">{contextCard.title}</p>
+            <p className="text-[12px] text-muted-foreground">
+              {contextCard.type === 'ad' ? 'بخصوص الإعلان' : contextCard.type === 'product' ? 'بخصوص المنتج' : 'بخصوص الخدمة'}
+            </p>
           </div>
+          {'price' in contextCard && contextCard.price != null ? (
+            <span className="shrink-0 rounded-full bg-primary-soft px-2.5 py-1 text-[13px] font-bold text-primary">
+              {String(contextCard.price)}
+            </span>
+          ) : null}
         </Link>
       )}
       {showSafetyTip && (
         <div
           role="note"
-          className="flex shrink-0 items-start gap-2 border-b border-warning/25 bg-warning-soft px-3 py-2 text-xs text-muted-foreground transition-opacity"
+          className="mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-xl bg-warning-soft px-3 py-2.5 text-[12px] leading-relaxed text-warning-foreground transition-opacity"
         >
           <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
-          <p className="min-w-0 flex-1">
+          <p className="min-w-0 flex-1 text-warning-foreground/90">
             نصيحة أمان: تفاوض داخل المنصة، ولا تدفع مقدّماً خارجها.
           </p>
           <button
             type="button"
             onClick={() => setShowSafetyTip(false)}
-            className="-my-1 flex h-[var(--touch-target)] w-[var(--touch-target)] shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-warning/10 hover:text-foreground"
+            className="-my-0.5 -me-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-warning/15 hover:text-foreground"
             aria-label="إخفاء نصيحة الأمان"
           >
-            <XIcon className="h-4 w-4" />
+            <XIcon className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

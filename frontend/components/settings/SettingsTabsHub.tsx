@@ -57,16 +57,16 @@ function TabBody({ tab }: { tab: SettingsTab }) {
   switch (tab) {
     case 'security':
       return (
-        <div className="space-y-6">
-          <h1 className="text-xl font-bold">إعدادات الأمان</h1>
+        <div className="space-y-4">
+          <h1 className="text-xl font-extrabold tracking-tight">إعدادات الأمان</h1>
           <SecuritySettingsForm />
           <DeleteAccountSection />
         </div>
       );
     case 'sessions':
       return (
-        <div className="space-y-6">
-          <h1 className="text-xl font-bold">الجلسات النشطة</h1>
+        <div className="space-y-4">
+          <h1 className="text-xl font-extrabold tracking-tight">الجلسات النشطة</h1>
           <ActiveSessionsList />
         </div>
       );
@@ -74,9 +74,9 @@ function TabBody({ tab }: { tab: SettingsTab }) {
       // PHASE-B: مصدر واحد — الجهاز + المحتوى + ساعات الهدوء داخل
       // NotificationSettingsForm (بدون تكرار PushNotificationToggle هنا).
       return (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div>
-            <h1 className="text-xl font-bold">الإشعارات</h1>
+            <h1 className="text-xl font-extrabold tracking-tight">الإشعارات</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               جهازك، أنواع التنبيهات، ووقت الإرسال — كل ذلك في مكان واحد.
             </p>
@@ -86,21 +86,21 @@ function TabBody({ tab }: { tab: SettingsTab }) {
       );
     case 'blocked-users':
       return (
-        <div className="space-y-6">
-          <h1 className="text-xl font-bold">المستخدمون المحظورون</h1>
+        <div className="space-y-4">
+          <h1 className="text-xl font-extrabold tracking-tight">المستخدمون المحظورون</h1>
           <BlockedUsersList />
         </div>
       );
     case 'profile':
     default:
       return (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <h1 className="text-xl font-bold">الملف الشخصي</h1>
+            <h1 className="text-xl font-extrabold tracking-tight">الملف الشخصي</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Link
                 href={ROUTES.offline.drafts}
-                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
               >
                 <FileEdit className="h-4 w-4" />
                 مركز المسودات
