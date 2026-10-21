@@ -69,7 +69,12 @@ export function AdminConsolePanel() {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
   const [running, setRunning] = useState(false);
+  const [debugEnabled, setDebugEnabled] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/debug-toggle').then((r) => r.json()).then((d) => setDebugEnabled(!!d.enabled)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -209,6 +214,23 @@ export function AdminConsolePanel() {
     return 'unknown command: "' + head + '" — type "help".';
   }, []);
 
+  const toggleDebugConsole = async () => {
+    const method = debugEnabled ? 'DELETE' : 'POST';
+    try {
+      const res = await fetch('/api/admin/debug-toggle', { method });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert('تعذر التبديل: ' + (err.error || res.status));
+        return;
+      }
+      const data = await res.json();
+      setDebugEnabled(!!data.enabled);
+      setTimeout(() => window.location.reload(), 400);
+    } catch (e) {
+      alert('خطأ: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
   const submit = async () => {
     const cmd = input.trim();
     if (!cmd || running) return;
@@ -274,6 +296,9 @@ export function AdminConsolePanel() {
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => void submit()} disabled={running || !input.trim()}>{running ? 'Running…' : 'تنفيذ الأمر ↵'}</Button>
           <Button size="sm" variant="outline" onClick={() => setEntries([])}>مسح المخرجات</Button>
+          <Button size="sm" variant={debugEnabled ? 'default' : 'outline'} onClick={() => void toggleDebugConsole()}>
+            {debugEnabled ? 'تعطيل الكونسول العائم' : 'تفعيل الكونسول العائم (>_ على كل الصفحات)'}
+          </Button>
           {['help', 'online', 'network summary', 'errors summary', 'route'].map((command) => (
             <Button key={command} size="sm" variant="ghost" onClick={() => setInput(command)}>{command}</Button>
           ))}

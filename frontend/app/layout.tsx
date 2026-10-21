@@ -40,7 +40,8 @@ import '@fontsource/cairo/600.css';
 import '@fontsource/ibm-plex-sans-arabic/400.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import './navigation-progress.css';
-import { headers }                    from 'next/headers';
+import { headers, cookies }            from 'next/headers';
+import FloatingDebugConsole             from '@/components/shared/FloatingDebugConsole';
 import { AppProviders }               from '@/providers/AppProviders';
 import { WebVitals }                  from '@/components/shared/WebVitals';
 import { ErudaDebug }                 from '@/components/debug/ErudaDebug';
@@ -182,6 +183,8 @@ export const viewport: Viewport = {
 // how a Server Component accesses a header middleware set on the
 // request.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const isDebugConsoleEnabled = cookieStore.get('mp_debug_console')?.value === '1';
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
@@ -211,6 +214,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <DeferredFonts />
           <NavigationProgress />
         {children}
+        {isDebugConsoleEnabled && <FloatingDebugConsole />}
         </AppProviders>
 
         {/* SW-SEO-JSONLD-SITE-01: Organization + WebSite — the two

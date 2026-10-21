@@ -244,7 +244,7 @@ function isPublicHtmlRoute(pathname: string): boolean {
   });
 }
 
-function buildCsp(nonce: string, isDev: boolean): string {
+function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): string {
   const apiOrigin = getRawApiUrl()?.trim() ?? '';
   return [
     "default-src 'self'",
@@ -259,7 +259,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // بدونه بعض المتصفحات ترفض تشغيل الكود حتى لو تحمّل بنجاح.
     // Google Sign-In widget loads its SDK from accounts.google.com (gsi/client)
     // and apis.google.com (legacy platform.js).
-    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com${isDev ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
+    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com${isDev ? " 'unsafe-eval' 'unsafe-inline'" : (allowEval ? " 'unsafe-eval'" : '')}`,
     // FIX OFFLINE-01: fonts.googleapis.com/fonts.gstatic.com dropped —
     // fonts are now self-hosted via @fontsource (see app/layout.tsx)
     // and served from this app's own origin, not Google's CDN, so
