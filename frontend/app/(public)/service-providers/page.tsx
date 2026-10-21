@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Users, Wrench } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
@@ -36,7 +37,9 @@ export default function ServiceProvidersPage() {
       </div>
 
       <div className="container mx-auto max-w-7xl space-y-5 px-3 pt-4 sm:px-4 sm:pt-6">
-        <NearbyServiceProviders />
+        <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted" role="status" aria-label="جارٍ تحميل مقدمي الخدمة" />}>
+          <NearbyServiceProviders />
+        </Suspense>
       </div>
     </div>
   );

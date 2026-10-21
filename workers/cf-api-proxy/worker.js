@@ -316,6 +316,14 @@ function cleanUpstreamHeaders(request, extra) {
   for (const x of ['cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor', 'x-forwarded-proto', 'x-forwarded-for']) {
     h.delete(x);
   }
+  // FIX IP-FORWARD-01: preserve real client IP for Render rate limiter.
+  // CF-Connecting-IP is Cloudflare-owned and cannot be spoofed by clients.
+  // Everything else (user-supplied XFF, CF-*) is deleted above to prevent spoofing.
+  const __clientIp = request.headers.get('cf-connecting-ip');
+  if (__clientIp && /^[0-9a-fA-F:.]+$/.test(__clientIp)) {
+    h.set('x-forwarded-for', __clientIp);
+    h.set('x-real-ip', __clientIp);
+  }
   if (!h.has('accept-encoding')) h.set('accept-encoding', 'gzip, br');
   if (extra) for (const [k, v] of Object.entries(extra)) h.set(k, v);
   return h;
@@ -646,6 +654,12 @@ async function handlePassthrough(request, url) {
   
   for (const x of ['cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor', 'x-forwarded-proto', 'x-forwarded-for']) {
     headers.delete(x);
+  }
+  // FIX IP-FORWARD-01: preserve real client IP for Render rate limiter.
+  const __clientIp = request.headers.get('cf-connecting-ip');
+  if (__clientIp && /^[0-9a-fA-F:.]+$/.test(__clientIp)) {
+    headers.set('x-forwarded-for', __clientIp);
+    headers.set('x-real-ip', __clientIp);
   }
 
   const init = {
