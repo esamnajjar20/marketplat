@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  FileEdit, Trash2, RefreshCw, AlertCircle, Clock,
+  Trash2, RefreshCw,
   Inbox, Upload, Eraser,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,27 +18,13 @@ import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { useAuthStore } from '@/store/auth.store';
 import {
   listAdDrafts, deleteAdDraft, draftDisplayTitle, draftKindLabel,
-  type AdDraft, type AdDraftStatus,
+  type AdDraft,
 } from '@/lib/offlineAdDrafts';
 import { resumeHrefForDraft } from '@/lib/offlineDraftResume';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 
 import { Spinner } from '@/components/ui/spinner';
 type TabKey = 'all' | 'draft' | 'failed' | 'synced';
-
-const STATUS_LABEL: Record<AdDraftStatus, string> = {
-  draft: 'مسودة',
-  pending_sync: 'قيد الرفع',
-  failed: 'فشل النشر',
-  synced: 'منشور',
-};
-
-const STATUS_CLASS: Record<AdDraftStatus, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending_sync: 'bg-info/10 text-info dark:bg-info/20 dark:text-info',
-  failed: 'bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive',
-  synced: 'bg-success/10 text-success dark:bg-success/20 dark:text-success',
-};
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'all', label: 'الكل' },
@@ -268,46 +254,58 @@ function DraftRow({
   const title = draftDisplayTitle(draft);
   const kind = draftKindLabel(draft.kind ?? 'ad');
   const resumeHref = resumeHrefForDraft(draft);
+  const isFailed = draft.status === 'failed';
+  const progress =
+    draft.status === 'synced' ? 100 : isFailed ? 0 : draft.status === 'pending_sync' ? 85 : 55;
+
   return (
-    <li className="rounded-lg border bg-card p-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={`rounded px-1.5 py-0.5 text-2xs font-medium ${STATUS_CLASS[draft.status]}`}
-            >
-              {STATUS_LABEL[draft.status]}
-            </span>
-            <span className="text-2xs-tight text-muted-foreground">{kind}</span>
-          </div>
-          <p className="mt-1 line-clamp-1 text-sm font-medium">{title}</p>
-          <p className="mt-0.5 flex items-center gap-1 text-2xs-tight text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            {formatDate(draft.updatedAt)}
-          </p>
-          {draft.status === 'failed' && draft.lastError && (
-            <p className="mt-1 flex items-start gap-1 text-2xs-tight text-destructive">
-              <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
-              <span className="line-clamp-2">{draft.lastError}</span>
-            </p>
-          )}
+    <li className="rounded-2xl border border-[#EAE3D6] bg-white p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+            isFailed
+              ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+              : 'bg-[#E8F1EC] text-[#1F4D33] dark:bg-primary/15 dark:text-primary'
+          }`}
+        >
+          {isFailed ? 'فشل الإرسال' : kind}
+        </span>
+        <span className="text-[11px] text-muted-foreground">{formatDate(draft.updatedAt)}</span>
+      </div>
+      <p className="mt-2 text-sm font-extrabold text-foreground">
+        {kind}: {title}
+      </p>
+      {isFailed && draft.lastError ? (
+        <p className="mt-1 line-clamp-2 text-xs text-destructive">{draft.lastError}</p>
+      ) : null}
+      <div className="mt-3 flex items-center gap-2">
+        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EDE7DC] dark:bg-muted">
+          <div
+            className={`h-full rounded-full ${isFailed ? 'bg-red-500' : 'bg-[#397F56]'}`}
+            style={{ width: `${progress}%` }}
+          />
         </div>
-        <div className="flex shrink-0 gap-1">
-          <Button asChild variant="ghost" size="sm" disabled={busy}>
-            <Link href={resumeHref} aria-label="تعديل المسودة">
-              <FileEdit className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDelete}
-            disabled={busy}
-            aria-label="حذف المسودة"
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
+        <span className="text-[11px] font-bold tabular-nums text-muted-foreground">{progress}%</span>
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onDelete}
+          disabled={busy}
+          aria-label="حذف المسودة"
+          className="h-10 w-10 shrink-0 rounded-xl border-[#EAE3D6] p-0 dark:border-border"
+        >
+          <Trash2 className="h-4 w-4 text-muted-foreground" />
+        </Button>
+        <Button
+          asChild
+          className="h-10 min-w-0 flex-1 rounded-full bg-[#397F56] text-sm font-bold text-white hover:bg-[#397F56]/90"
+          disabled={busy}
+        >
+          <Link href={resumeHref}>{isFailed ? 'إعادة المحاولة' : 'متابعة التعديل'}</Link>
+        </Button>
       </div>
     </li>
   );

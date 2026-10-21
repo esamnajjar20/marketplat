@@ -216,12 +216,12 @@ export function SavedOfflineAdsPageClient() {
           {filtered.map((e) => (
             <li
               key={`${e.type}:${e.id}`}
-              className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm"
+              className="flex items-center gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card"
             >
               <Link
                 prefetch={false}
                 href={hrefFor(e)}
-                className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
+                className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#E8F1EC] dark:bg-primary/10"
               >
                 {e.thumbnail && (
                   <SafeImage src={e.thumbnail} alt={e.title} fill className="object-cover" sizes="64px" />
@@ -230,11 +230,11 @@ export function SavedOfflineAdsPageClient() {
               <div className="min-w-0 flex-1">
                 <Link href={hrefFor(e)} className="block min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
+                    <span className="rounded-full bg-[#E8F1EC] px-2 py-0.5 text-[10px] font-bold text-[#1F4D33] dark:bg-primary/15 dark:text-primary">
                       {TYPE_LABEL[e.type]}
                     </span>
                   </div>
-                  <p className="truncate font-semibold">{e.title}</p>
+                  <p className="truncate text-sm font-extrabold text-foreground">{e.title}</p>
                   <p className="truncate text-sm text-muted-foreground">
                     {e.subtitle ?? '—'}
                     {e.city ? ` · ${e.city}` : ''}

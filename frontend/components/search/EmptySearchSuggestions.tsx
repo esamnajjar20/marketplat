@@ -77,15 +77,15 @@ export function EmptySearchSuggestions() {
   }
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-6 px-2 py-4 text-center">
+    <div className="mx-auto flex max-w-lg flex-col gap-5 px-1 py-2 text-start">
       {/* PHASE-3: recent searches */}
       {recent.length > 0 && (
         <div className="space-y-2">
-          <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-sm font-extrabold text-foreground">
             <History className="h-3.5 w-3.5" aria-hidden />
-            بحثت مؤخرًا
+            عمليات البحث الأخيرة
           </p>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap gap-2">
             {recent.map((q) => (
               <Link
                 prefetch={false}
@@ -105,10 +105,10 @@ export function EmptySearchSuggestions() {
 
       {/* Popular */}
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">
+        <p className="text-sm font-extrabold text-foreground">
           جرّب بحثًا شائعًا
         </p>
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap gap-2">
           {POPULAR_QUERIES.map(({ q, icon: Icon }) => (
             <Link
               prefetch={false}
@@ -129,19 +129,32 @@ export function EmptySearchSuggestions() {
       {/* PHASE-3: recently viewed ads */}
       {viewed.length > 0 && (
         <div className="space-y-2">
-          <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-sm font-extrabold text-foreground">
             <Eye className="h-3.5 w-3.5" aria-hidden />
             شوهد مؤخرًا
           </p>
-          <div className="flex flex-col gap-1.5 text-start">
-            {viewed.map((ad) => (
+          <div className="grid grid-cols-2 gap-2.5">
+            {viewed.slice(0, 4).map((ad) => (
               <Link
                 prefetch={false}
                 key={ad.id}
                 href={ROUTES.adDetail(ad.id)}
-                className="rounded-lg border bg-card px-3 py-2 text-sm hover:border-primary/40 hover:bg-primary/5"
+                className="overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card"
               >
-                <span className="line-clamp-1 font-medium">{ad.title}</span>
+                <div className="relative flex h-[88px] items-center justify-center bg-[#F6E7DB]">
+                  {ad.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={ad.thumbnail} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Package className="h-7 w-7 text-primary/40" aria-hidden />
+                  )}
+                  <span className="absolute end-2 top-2 rounded-full bg-[rgba(42,36,29,0.78)] px-2 py-0.5 text-[10px] font-bold text-white">
+                    إعلان
+                  </span>
+                </div>
+                <div className="px-2.5 py-2">
+                  <span className="line-clamp-2 text-[12px] font-bold leading-snug text-foreground">{ad.title}</span>
+                </div>
               </Link>
             ))}
           </div>
@@ -150,10 +163,10 @@ export function EmptySearchSuggestions() {
 
       {/* Entity type shortcuts */}
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">
+        <p className="text-sm font-extrabold text-foreground">
           أو تصفّح حسب النوع
         </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2">
           {TYPE_SHORTCUTS.map(({ type, label, icon: Icon }) => {
             const active = currentType === type;
             return (
@@ -162,15 +175,17 @@ export function EmptySearchSuggestions() {
                 key={type}
                 href={typeHref(type)}
                 className={cn(
-                  'flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-xs font-medium transition-colors',
+                  'flex min-h-[48px] items-center justify-between rounded-2xl border border-[#EAE3D6] bg-white px-3 py-2.5 text-sm font-bold transition-colors dark:border-border dark:bg-card',
                   active
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'bg-card hover:border-primary/40 hover:bg-primary/5',
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'hover:border-primary/40',
                 )}
                 aria-current={active ? 'page' : undefined}
               >
-                <Icon className="h-4 w-4" aria-hidden />
-                {label}
+                <span>{label}</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8F1EC] text-primary">
+                  <Icon className="h-4 w-4" aria-hidden />
+                </span>
               </Link>
             );
           })}

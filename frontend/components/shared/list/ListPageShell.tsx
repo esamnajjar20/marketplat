@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
  * UI-one header + toolbar + optional desktop sidebar + main column.
  */
 export interface ListPageShellProps {
-  icon: ReactNode;
+  /** Optional leading icon in the header. Omit for a title-only header. */
+  icon?: ReactNode;
   title: string;
   description?: string;
   /** Filters sheet, sort bar, chips — sits under the header. */
@@ -21,7 +22,7 @@ export interface ListPageShellProps {
 
 /** Consistent product/ad/search card grid on browse pages. */
 export const LIST_CARD_GRID_CLASS =
-  'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5';
+  'grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 lg:gap-4 2xl:grid-cols-5';
 
 /** Store directory cards (horizontal layout — fewer columns). */
 export const LIST_STORE_GRID_CLASS =
@@ -52,14 +53,16 @@ export function ListPageShell({
       <header className="border-b border-border/70 bg-surface-1/95 shadow-[0_1px_0_hsl(var(--border)/0.35)]">
         <div className="container mx-auto flex min-h-20 max-w-7xl flex-wrap items-center justify-between gap-4 px-3 py-4 sm:px-4 sm:py-5 lg:min-h-24 lg:py-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-              aria-hidden
-            >
-              {icon}
-            </div>
+            {icon ? (
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                aria-hidden
+              >
+                {icon}
+              </div>
+            ) : null}
             <div className="min-w-0">
-              <h1 id={titleId} className="text-balance text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-[1.65rem]">
+              <h1 id={titleId} className="text-balance text-xl font-extrabold tracking-tight text-foreground sm:text-2xl lg:text-[1.65rem]">
                 {title}
               </h1>
               {description ? (

@@ -50,7 +50,7 @@ export function SearchFilters() {
     type === 'ads' || type === 'products' || type === 'services' || type === 'all';
 
   return (
-    <div className="space-y-4 rounded-lg border bg-card p-4">
+    <div className="space-y-4 rounded-2xl border border-[#EAE3D6] bg-white p-4 dark:border-border dark:bg-card">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <SlidersHorizontal className="h-4 w-4" aria-hidden />
         تصفية النتائج

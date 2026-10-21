@@ -1,5 +1,7 @@
 'use client';
 
+import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
+
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
@@ -190,16 +192,11 @@ export function SearchResults({ categorySlug }: Props = {}) {
     // to recover short of a full page reload, even on a transient network
     // blip. Mirrors the retry pattern already used in app/offline/page.tsx.
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <p className="text-destructive">حدث خطأ أثناء تحميل الإعلانات</p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="text-sm text-primary hover:underline"
-        >
-          إعادة المحاولة
-        </button>
-      </div>
+      <QueryRetryCard
+        tone="error"
+        title="حدث خطأ أثناء تحميل الإعلانات"
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -210,9 +207,9 @@ export function SearchResults({ categorySlug }: Props = {}) {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[13px] font-extrabold text-foreground">
           {total > 0 ? `${total} إعلان` : 'لا توجد نتائج'}
-          {q && <> بحثاً عن «<span className="font-medium text-foreground">{q}</span>»</>}
+          {q && <> بحثاً عن «<span className="font-medium">{q}</span>»</>}
         </p>
         <div className="flex items-center gap-2">
           <SaveSearchButton />
@@ -265,7 +262,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
         </>
       ) : view === 'grid' ? (
         <div className={cn(LIST_CARD_GRID_CLASS, "stagger-fade-in")}>
-          {items.map((ad) => <AdCard key={ad.id} ad={ad} />)}
+          {items.map((ad) => <AdCard key={ad.id} ad={ad} context="catalog" designLayout />)}
         </div>
       ) : (
         <div className="space-y-3">

@@ -14,6 +14,7 @@ import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptySearchSuggestions } from '@/components/search/EmptySearchSuggestions';
+import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
 import { EmptySearchAlternatives } from '@/components/search/EmptySearchAlternatives';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
@@ -221,26 +222,60 @@ export function SearchResults() {
     // cannot succeed offline didn't distinguish this case at all.
     if (!isOnline) {
       return (
-        <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <p className="text-destructive">البحث يحتاج اتصال بالإنترنت</p>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            لا توجد بيانات محفوظة على الجهاز للبحث بدون نت بعد. افتح التطبيق
-            وأنت متصل مرة واحدة على الأقل ليتوفر بحث أساسي لاحقًا بدون اتصال.
-          </p>
-          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-            إعادة المحاولة
-          </button>
-        </div>
+        <QueryRetryCard
+          tone="offline"
+          title="البحث يحتاج اتصال بالإنترنت"
+          description="لا توجد بيانات محفوظة على الجهاز للبحث بدون نت بعد. افتح التطبيق وأنت متصل مرة واحدة على الأقل ليتوفر بحث أساسي لاحقًا بدون اتصال."
+          onRetry={() => void refetch()}
+          footer={
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-extrabold text-foreground">المتاح بدون اتصال</p>
+                <p className="text-xs text-muted-foreground">تصفّح ما حفظته على هذا الجهاز.</p>
+              </div>
+              <Link
+                href={ROUTES.favorites}
+                className="flex items-center justify-between rounded-2xl border border-[#EAE3D6] bg-white px-3 py-3 dark:border-border dark:bg-card"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E8F1EC] text-primary" aria-hidden>
+                    ♥
+                  </span>
+                  <span>
+                    <span className="block text-sm font-bold text-foreground">محفوظاتي</span>
+                    <span className="text-xs text-muted-foreground">متاح دون إنترنت</span>
+                  </span>
+                </span>
+                <span className="rounded-full border border-[#EAE3D6] px-3 py-1.5 text-xs font-bold text-[#1F4D33]">فتح</span>
+              </Link>
+              <Link
+                href={ROUTES.offline.hub}
+                className="flex items-center justify-between rounded-2xl border border-[#EAE3D6] bg-white px-3 py-3 dark:border-border dark:bg-card"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E8F1EC] text-primary" aria-hidden>
+                    📴
+                  </span>
+                  <span>
+                    <span className="block text-sm font-bold text-foreground">مركز الأوفلاين</span>
+                    <span className="text-xs text-muted-foreground">الجاهزية والمزامنة والمساحة</span>
+                  </span>
+                </span>
+                <span className="rounded-full border border-[#EAE3D6] px-3 py-1.5 text-xs font-bold text-[#1F4D33]">فتح</span>
+              </Link>
+            </div>
+          }
+        />
       );
     }
 
-    return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <p className="text-destructive">حدث خطأ أثناء تحميل النتائج</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-          إعادة المحاولة
-        </button>
-      </div>
+        return (
+      <QueryRetryCard
+        tone="error"
+        title="حدث خطأ أثناء تحميل النتائج"
+        description="تحقق من الاتصال ثم حاول مرة أخرى."
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -275,13 +310,12 @@ export function SearchResults() {
           there is no matcher a stores-typed SavedSearch could ever
           fire against. */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border/60 bg-card/70 px-3 py-2.5 sm:px-4">
-        <p className="text-xs text-muted-foreground sm:text-sm" role="status" aria-live="polite" aria-atomic="true">
+        <p className="text-[13px] font-extrabold text-foreground" role="status" aria-live="polite" aria-atomic="true">
           <span>{total > 0 ? `${total} نتيجة` : 'لا توجد نتائج'}</span>
           {q && (
-            <>
-              {' '}
-              بحثاً عن «<span className="font-medium text-foreground">{q}</span>»
-            </>
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+              بحثاً عن «{q}»
+            </span>
           )}
         </p>
         <div className="flex items-center gap-2">

@@ -1,5 +1,7 @@
 'use client';
 
+import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
+
 import { useSearchParams } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
@@ -14,7 +16,6 @@ import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { productsApi } from '@/api/products.api';
 import { cn } from '@/lib/utils';
 import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
-import { Button } from '@/components/shared/ui/Button';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
@@ -46,6 +47,7 @@ export function ProductsGrid() {
   const search = sp.get('search') ?? undefined;
   // clamp URL page param to positive integer.
   const city = sp.get('city') ?? undefined;
+  const categoryId = sp.get('categoryId') ?? undefined;
   const sortBy = (sp.get('sortBy') as ProductSortField) ?? 'createdAt';
   const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
   // PROMO-1 (): reads the same ?hasPromotion=true query param
@@ -60,25 +62,25 @@ export function ProductsGrid() {
 
   // Only the unfiltered, default-sorted first page belongs in the generic
   // grid snapshot. Filtered/search results must never replace it.
-  const isBaseOfflineBrowse = !search && !city && hasPromotion === undefined
+  const isBaseOfflineBrowse = !search && !city && !categoryId && hasPromotion === undefined
     && sortBy === 'createdAt' && sortOrder === 'desc';
   const query = useInfiniteQuery({
-    queryKey: queryKeys.products.infinite({ search, city, sortBy, sortOrder, hasPromotion, pageSize }),
+    queryKey: queryKeys.products.infinite({ search, city, categoryId, sortBy, sortOrder, hasPromotion, pageSize }),
     initialPageParam: 1,
     queryFn: async ({ pageParam, signal }) => {
       try {
         const page = await productsApi.getAll({
-          search, city, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,
+          search, city, categoryId, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,
         }, { signal }).then((r) => r.data.data);
         if (pageParam === 1 && Array.isArray(page?.items)) {
-          saveOfflineBrowseSnapshot('products', { search: search || undefined, city: city || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined }, page.items);
+          saveOfflineBrowseSnapshot('products', { search: search || undefined, city: city || undefined, categoryId: categoryId || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined }, page.items);
           if (isBaseOfflineBrowse) saveOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse, page.items, OFFLINE_LIST_LIMITS.productsGridBrowse);
         }
         return page;
       } catch (error) {
         if (signal.aborted || (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ERR_CANCELED')) throw error;
         if (pageParam === 1) {
-          const snapshot = getOfflineBrowseSnapshot<ProductWithStore>('products', { search: search || undefined, city: city || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined });
+          const snapshot = getOfflineBrowseSnapshot<ProductWithStore>('products', { search: search || undefined, city: city || undefined, categoryId: categoryId || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined });
           if (snapshot?.items.length) return { items: snapshot.items, meta: offlineMeta(snapshot.items.length) };
           if (isBaseOfflineBrowse) {
             const cached = getOfflineList<ProductWithStore>(OFFLINE_LIST_KEYS.productsGridBrowse);
@@ -127,12 +129,11 @@ export function ProductsGrid() {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <p className="text-destructive">حدث خطأ أثناء تحميل المنتجات</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
-          إعادة المحاولة
-        </Button>
-      </div>
+      <QueryRetryCard
+        tone="error"
+        title="حدث خطأ أثناء تحميل المنتجات"
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -148,11 +149,14 @@ export function ProductsGrid() {
       <div className="space-y-1.5">
       <BrowseCityHint />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-w-0 text-sm text-muted-foreground">
+        <p className="min-w-0 text-[13px] font-extrabold text-foreground">
           {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
-          {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
+          {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
         </p>
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto"><SaveSearchButton type="products" queryParamKey="search" /><ListViewToggle /></div>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <SaveSearchButton type="products" queryParamKey="search" />
+          <ListViewToggle />
+        </div>
       </div>
       </div>
 

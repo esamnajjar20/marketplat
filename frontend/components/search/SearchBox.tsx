@@ -235,9 +235,13 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
 
   return (
     <div className="relative w-full">
-      <form onSubmit={handleSubmit} role="search" className="flex w-full gap-2">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <form
+        onSubmit={handleSubmit}
+        role="search"
+        className="flex h-12 w-full items-center gap-1 rounded-full border border-[#EAE3D6] bg-white pe-1.5 ps-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card"
+      >
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute start-0 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={inputRef}
             id="global-search-input"
@@ -259,8 +263,11 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
               }, 150);
             }}
             onKeyDown={handleInputKeyDown}
-            placeholder="ابحث عن منتجات، محلات، إعلانات، خدمات..."
-            className={cn('ps-9', inputClassName)}
+            placeholder="ابحث…"
+            className={cn(
+              'h-10 border-0 bg-transparent ps-7 shadow-none focus-visible:ring-0',
+              inputClassName,
+            )}
             aria-label="بحث"
             aria-autocomplete="list"
             // SW-FIX-SEARCHBOX-ARIA-EXPANDED: was only true when the
@@ -280,7 +287,12 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
             autoComplete="off"
           />
         </div>
-        <Button type="submit">بحث</Button>
+        <Button
+          type="submit"
+          className="h-9 shrink-0 rounded-full bg-[#397F56] px-4 text-sm font-bold text-white hover:bg-[#397F56]/90"
+        >
+          بحث
+        </Button>
       </form>
 
       {showRecent && (
@@ -289,7 +301,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
           id="search-dropdown"
           role="listbox"
           aria-label="عمليات البحث الأخيرة"
-          className="absolute inset-x-0 top-full z-[100] mt-2 overflow-hidden rounded-[var(--radius-card)] border border-border/80 bg-popover text-popover-foreground shadow-[var(--shadow-2)]"
+          className="absolute inset-x-0 top-full z-[100] mt-2 overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white text-foreground shadow-md dark:border-border dark:bg-card"
         >
           <div className="flex items-center justify-between border-b px-3 py-1.5">
             <span className="text-xs font-medium text-muted-foreground">عمليات البحث الأخيرة</span>

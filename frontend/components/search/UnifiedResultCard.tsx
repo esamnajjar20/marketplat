@@ -59,7 +59,7 @@ export function UnifiedResultCard({ result, className, layout = 'grid' }: Props)
         href={result.url}
         prefetch={false}
         className={cn(
-          'flex h-full min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card',
+          'flex h-full min-w-0 overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card',
           isList ? 'flex-row items-stretch' : 'flex-col',
           'shadow-sm transition-[box-shadow,border-color] duration-200',
           'active:scale-[0.995]',

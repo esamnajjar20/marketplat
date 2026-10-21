@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ShoppingBag } from 'lucide-react';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
 
 const ProductsGrid = dynamic(
@@ -20,34 +19,44 @@ const ProductSearchSortBarWrapper = dynamic(
   () => import('@/components/stores/ProductSearchSortBarWrapper').then((module) => module.ProductSearchSortBarWrapper),
   { ssr: false, loading: () => <div className="min-h-10" aria-hidden="true" /> },
 );
+const ProductCategoryChips = dynamic(
+  () => import('@/components/stores/ProductCategoryChips').then((module) => module.ProductCategoryChips),
+  { ssr: false, loading: () => <div className="h-8" aria-hidden="true" /> },
+);
 
 function BrowseGridLoading({ label }: { label: string }) {
   return (
     <div className="space-y-3 py-4" role="status" aria-live="polite">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
         {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="h-40 animate-pulse rounded-xl bg-muted" />
+          <div key={index} className="h-44 animate-pulse rounded-2xl bg-muted" />
         ))}
       </div>
     </div>
   );
 }
 
-/** Browser/URL-bound list widgets mount after hydration to keep the initial HTML deterministic. */
+/**
+ * صفحة المنتجات العامة — مطابقة لتصميم المرجع:
+ * عنوان بدون أيقونة، شريط بحث، شرائح تصنيفات، ثم شبكة البطاقات.
+ */
 export function ProductsPageClient() {
   return (
     <ListPageShell
-      icon={<ShoppingBag className="h-6 w-6" />}
       title="المنتجات"
       description="تصفح منتجات المتاجر في سوق غزة"
+      className="bg-[#FBF9F4] dark:bg-background"
       toolbar={
-        <>
-          <ProductsFiltersSheet />
-          <div className="min-w-0 flex-1 sm:flex-none sm:w-48 lg:ms-auto">
+        <div className="flex w-full flex-col gap-3">
+          <div className="min-w-0 w-full">
             <ProductSearchSortBarWrapper />
           </div>
-        </>
+          <ProductCategoryChips />
+          <div className="lg:hidden">
+            <ProductsFiltersSheet />
+          </div>
+        </div>
       }
       sidebar={<ProductsFilters />}
     >

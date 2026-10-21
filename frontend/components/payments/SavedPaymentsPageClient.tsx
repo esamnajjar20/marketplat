@@ -265,7 +265,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
   return (
     <div className={cn('space-y-6', embedded && 'space-y-5')}>
       <div className={cn('grid gap-3 sm:grid-cols-3', embedded ? 'lg:grid-cols-3' : 'lg:grid-cols-3')}>
-        <div className="rounded-2xl border border-border/70 bg-card p-4">
+        <div className="rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-medium text-muted-foreground">جهات الدفع</p>
@@ -274,7 +274,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Banknote className="h-5 w-5" /></span>
           </div>
         </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-4">
+        <div className="rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-medium text-muted-foreground">بطاقات النت</p>
@@ -300,7 +300,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
         </div>
       )}
 
-      <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <p className="text-sm leading-6 text-muted-foreground">أضف جهات الدفع وبطاقات النت يدويًا. بيانات البطاقة محفوظة محليًا على هذا الجهاز، لذلك تجنب حفظها على جهاز مشترك.</p>
@@ -384,7 +384,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
           ) : (
             <ul className="grid gap-3 lg:grid-cols-2">
               {filteredPayees.map((p) => (
-                <li key={p.id} className="flex h-full flex-col justify-between space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                <li key={p.id} className="flex h-full flex-col justify-between space-y-4 rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold">{p.name}</p>
@@ -468,7 +468,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
           ) : (
             <ul className="grid gap-3 lg:grid-cols-2">
               {filteredCards.map((c) => (
-                <li key={c.id} className="flex h-full flex-col justify-between space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                <li key={c.id} className="flex h-full flex-col justify-between space-y-4 rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold">{c.label || 'بطاقة نت'}</p>

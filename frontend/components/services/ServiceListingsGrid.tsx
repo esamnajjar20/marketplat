@@ -1,5 +1,7 @@
 'use client';
 
+import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
+
 import { LIST_SERVICE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { cn } from '@/lib/utils';
 import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
@@ -97,12 +99,11 @@ export function ServiceListingsGrid() {
     // line with no way to recover from a transient failure short of a
     // full reload.
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <p className="text-destructive">حدث خطأ أثناء تحميل الخدمات</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
-          إعادة المحاولة
-        </Button>
-      </div>
+      <QueryRetryCard
+        tone="error"
+        title="حدث خطأ أثناء تحميل الخدمات"
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -114,9 +115,9 @@ export function ServiceListingsGrid() {
       {/* Toolbar — queryParamKey="search" for the same reason as
           ProductsGrid.tsx (see SaveSearchButton's own doc comment). */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[13px] font-extrabold text-foreground">
           {total > 0 ? `${total} خدمة` : 'لا توجد نتائج'}
-          {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
+          {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
         </p>
         <div className="flex items-center gap-2"><SaveSearchButton type="services" queryParamKey="search" /><ListViewToggle /></div>
       </div>
@@ -135,9 +136,16 @@ export function ServiceListingsGrid() {
           }
         />
       ) : (
-        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_SERVICE_GRID_CLASS, 'stagger-fade-in')}>
+        <div className={cn('grid grid-cols-1 gap-2.5', 'stagger-fade-in')}>
           {items.map((listing) => (
-            <ServiceListingCard key={listing.id} listing={listing} density={view === 'list' ? 'compact' : 'default'} layout={view} />
+            <ServiceListingCard
+              key={listing.id}
+              listing={listing}
+              density={view === 'list' ? 'compact' : 'default'}
+              layout={view === "list" ? "list" : "grid"}
+              designLayout
+              context="catalog"
+            />
           ))}
         </div>
       )}

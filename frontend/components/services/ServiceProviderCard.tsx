@@ -3,8 +3,7 @@
 import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Badge } from '@/components/ui/badge';
-import { MapPin } from 'lucide-react';
+import { MapPin, MessageCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
@@ -13,15 +12,18 @@ import { useAuthStore } from '@/store/auth.store';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
 
 interface Props {
-  provider: Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & { distanceKm?: number };
+  provider: Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & {
+    distanceKm?: number;
+    sellerProfile?: {
+      verified?: boolean;
+      averageRating?: string | number | null;
+      totalRatings?: number | null;
+      userId?: string;
+    };
+    serviceTypes?: { nameAr?: string; name?: string }[];
+  };
   className?: string;
 }
-
-const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'bg-success',
-  BUSY: 'bg-warning',
-  UNAVAILABLE: 'bg-muted-foreground',
-};
 
 const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
   AVAILABLE: 'متاح الآن',
@@ -29,16 +31,20 @@ const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
   UNAVAILABLE: 'غير متاح',
 };
 
+function initial(name: string) {
+  const t = name.trim();
+  return t ? t.charAt(0) : 'م';
+}
+
 /**
- * Directory card for /service-providers — design system aligned.
+ * بطاقة مقدّم خدمة — مطابقة لتصميم المرجع (أفاتار حرف، حالة، أزرار).
  */
 export const ServiceProviderCard = memo(function ServiceProviderCard({ provider, className }: Props) {
   const avatar = getAvatarUrl(provider.logoUrl ?? '', 96);
+  const hasLogo = Boolean(provider.logoUrl);
   const persistedUserCity = useAuthStore((s) => s.user?.city ?? null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  // Zustand persist may restore user.city from localStorage before the first
-  // browser render; do not let that client-only value change server HTML.
   const userCity = mounted ? persistedUserCity : null;
 
   const distanceLabel = formatDistanceKm(provider.distanceKm);
@@ -47,65 +53,119 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
       ? provider.serviceAreaCities.find((city) => city === userCity)
       : null;
 
+  const avail = provider.availabilityStatus;
+  const verified = provider.sellerProfile?.verified;
+  const rating = provider.sellerProfile?.averageRating;
+  const totalRatings = provider.sellerProfile?.totalRatings;
+  const profileHref = ROUTES.serviceProvider(provider.id);
+  const skills = (provider.serviceTypes ?? []).slice(0, 3);
+
   return (
-    <Link
-      href={ROUTES.serviceProvider(provider.id)}
-      prefetch={false}
+    <article
       className={cn(
-        'group flex h-full gap-3 rounded-2xl [content-visibility:auto] [contain-intrinsic-size:auto_180px] border border-border/80 bg-card p-3 shadow-sm',
-        'transition-[transform,box-shadow,border-color] duration-200 active:scale-[0.995]',
-        'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+        'rounded-2xl border border-[#EAE3D6] bg-white p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card',
         className,
       )}
     >
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/50">
-        <SafeImage
-          variant="avatar"
-          src={avatar}
-          alt={provider.businessName}
-          fill
-          className="object-cover"
-          sizes="64px"
-        />
-      </div>
+      <div className="flex items-start gap-3">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#E8F1EC] text-[#1F4D33] ring-1 ring-[#EAE3D6]">
+          {hasLogo ? (
+            <SafeImage variant="avatar" src={avatar} alt={provider.businessName} fill className="object-cover" sizes="48px" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-lg font-extrabold" aria-hidden>
+              {initial(provider.businessName)}
+            </span>
+          )}
+        </div>
 
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="truncate text-sm font-semibold sm:text-card-title">
-            {provider.businessName}
-          </h3>
-          {distanceLabel !== null ? (
-            <span className="shrink-0 text-2xs font-medium text-primary sm:text-xs">
-              {distanceLabel}
-            </span>
-          ) : sharedCity ? (
-            <span className="shrink-0 text-2xs font-medium text-primary sm:text-xs">
-              {sharedCity}
-            </span>
-          ) : null}
-          <Badge size="sm" variant="secondary" className="gap-1.5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-extrabold text-foreground">{provider.businessName}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {rating != null && rating !== '' ? (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-foreground">
+                    <span className="text-amber-500" aria-hidden>
+                      ★
+                    </span>
+                    {Number(rating).toFixed(1)}
+                    {totalRatings != null ? (
+                      <span className="font-normal text-muted-foreground">({totalRatings})</span>
+                    ) : null}
+                  </span>
+                ) : null}
+                {verified ? (
+                  <span className="inline-flex h-5 items-center gap-0.5 rounded-full bg-[#E8F1EC] px-1.5 text-[10px] font-bold text-[#1F4D33]">
+                    ✓ موثّق
+                  </span>
+                ) : null}
+              </div>
+            </div>
             <span
               className={cn(
-                'h-1.5 w-1.5 rounded-full',
-                AVAILABILITY_DOT[provider.availabilityStatus],
+                'inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-bold',
+                avail === 'AVAILABLE' && 'bg-[#E8F1EC] text-[#1F4D33]',
+                avail === 'BUSY' && 'bg-[#FBF0D9] text-[#7A4B07]',
+                avail === 'UNAVAILABLE' && 'bg-muted text-muted-foreground',
               )}
-            />
-            {AVAILABILITY_LABEL[provider.availabilityStatus]}
-          </Badge>
-        </div>
-        {provider.description?.trim() ? (
-          <p className="line-clamp-1 text-xs text-muted-foreground sm:text-sm">
-            {provider.description}
-          </p>
-        ) : null}
-        {provider.serviceAreaCities.length > 0 ? (
-          <div className="flex items-center gap-1 text-2xs text-muted-foreground sm:text-xs">
-            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="truncate">{provider.serviceAreaCities.join('، ')}</span>
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  avail === 'AVAILABLE' && 'bg-[#397F56]',
+                  avail === 'BUSY' && 'bg-amber-500',
+                  avail === 'UNAVAILABLE' && 'bg-muted-foreground',
+                )}
+              />
+              {AVAILABILITY_LABEL[avail]}
+            </span>
           </div>
-        ) : null}
+
+          {skills.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {skills.map((s, i) => (
+                <span
+                  key={i}
+                  className="inline-flex h-6 items-center rounded-full bg-[#F6F1E7] px-2 text-[11px] font-bold text-[#4A433A]"
+                >
+                  {s.nameAr || s.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">
+              {distanceLabel
+                ? distanceLabel
+                : sharedCity
+                  ? sharedCity
+                  : provider.serviceAreaCities.length > 0
+                    ? provider.serviceAreaCities.join('، ')
+                    : '—'}
+            </span>
+          </div>
+        </div>
       </div>
-    </Link>
+
+      <div className="mt-3 flex gap-2">
+        <Link
+          href={profileHref}
+          prefetch={false}
+          className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-[#397F56] px-3 text-sm font-bold text-white transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          عرض الملف
+        </Link>
+        <Link
+          href={profileHref}
+          prefetch={false}
+          className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#EAE3D6] bg-white px-3 text-sm font-bold text-[#1F4D33] transition-colors hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden />
+          تواصل
+        </Link>
+      </div>
+    </article>
   );
 });

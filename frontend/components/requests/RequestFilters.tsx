@@ -7,7 +7,6 @@ import { Search, X } from 'lucide-react';
 import { ROUTES, CITIES } from '@/lib/constants';
 import type { RequestType } from '@/types/request.types';
 import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
-import { Button } from '@/components/shared/ui/Button';
 import { cn } from '@/lib/utils';
 
 /** ترتيب قائمة الطلبات (واجهة — يُطبَّق على الصفحة الحالية) */
@@ -42,12 +41,7 @@ export function buildRequestsHref(opts: {
 }
 
 export function parseRequestSort(raw: string | null | undefined): RequestSort {
-  if (
-    raw === 'expiring' ||
-    raw === 'budget_high' ||
-    raw === 'fewest_offers' ||
-    raw === 'newest'
-  ) {
+  if (raw === 'expiring' || raw === 'budget_high' || raw === 'fewest_offers' || raw === 'newest') {
     return raw;
   }
   return 'newest';
@@ -60,13 +54,12 @@ type Props = {
   q?: string;
   sort?: RequestSort;
   className?: string;
-  /**
-   * إخفاء شرائح النوع هنا لأن الـ Hero في RequestsPageClient يعرضها.
-   * الافتراضي true لتجنّب تكرار UI. مرّر false فقط إذا استُخدم المكوّن
-   * بدون Hero (مثلاً صفحة فرعية).
-   */
-  hideTypeChips?: boolean;
+  /** عدد النتائج للعرض بجانب الترتيب */
+  totalLabel?: string;
 };
+
+const pill =
+  'h-10 w-full rounded-full border border-[#EAE3D6] bg-white px-3 text-sm font-semibold text-foreground dark:border-border dark:bg-card';
 
 export function RequestFilters({
   type,
@@ -75,8 +68,7 @@ export function RequestFilters({
   q,
   sort = 'newest',
   className,
-  // default true: type chips live in RequestsPageClient Hero — avoid duplicate filters
-  hideTypeChips = true,
+  totalLabel,
 }: Props) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState(q ?? '');
@@ -102,45 +94,40 @@ export function RequestFilters({
   }
 
   return (
-    <div
-      className={cn(
-        'space-y-3 rounded-xl border border-border/60 bg-card/95 p-3 shadow-xs',
-        'sticky top-0 z-10 -mx-1 backdrop-blur supports-[backdrop-filter]:bg-card/90',
-        'md:static md:mx-0 md:border md:border-border/50 md:bg-card/80 md:p-3 md:shadow-xs md:backdrop-blur-none',
-        className,
-      )}
-    >
-      <form onSubmit={onSearch} className="flex gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <input
-            className="flex h-11 w-full rounded-lg border border-input bg-background pe-3 ps-9 py-2 text-base sm:h-10 sm:text-sm"
-            placeholder="ابحث في العنوان أو الوصف…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            aria-label="بحث في الطلبات"
-            enterKeyHint="search"
-          />
-        </div>
-        <Button type="submit" variant="secondary" className="h-11 min-w-[4.5rem] sm:h-10">
-          بحث
-        </Button>
+    <div className={cn('space-y-2.5', className)}>
+      <form onSubmit={onSearch} className="relative">
+        <Search
+          className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <input
+          className={cn(pill, 'ps-9 pe-3')}
+          placeholder="ابحث في العنوان أو الوصف…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          aria-label="بحث في الطلبات"
+          enterKeyHint="search"
+        />
       </form>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="req-city-filter" className="text-sm text-muted-foreground">
-          المدينة
-        </label>
+      <div className="grid grid-cols-2 gap-2">
         <select
           id="req-city-filter"
-          className="h-11 min-w-[8rem] flex-1 rounded-lg border border-input bg-background px-3 text-base sm:h-9 sm:flex-none sm:min-w-[9rem] sm:text-sm"
+          className={pill}
           value={city ?? ''}
+          aria-label="المدينة"
           onChange={(e) => {
             const next = e.target.value || undefined;
-            router.replace(buildRequestsHref({ type, city: next, serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined, q, sort, page: 1 }));
+            router.replace(
+              buildRequestsHref({
+                type,
+                city: next,
+                serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined,
+                q,
+                sort,
+                page: 1,
+              }),
+            );
           }}
         >
           <option value="">كل المدن</option>
@@ -152,83 +139,76 @@ export function RequestFilters({
         </select>
 
         {type === 'SERVICE' ? (
-          <>
-            <label htmlFor="req-service-type-filter" className="text-sm text-muted-foreground">المجال</label>
-            <select
-              id="req-service-type-filter"
-              className="h-11 min-w-[8rem] flex-1 rounded-lg border border-input bg-background px-3 text-base sm:h-9 sm:flex-none sm:min-w-[10rem] sm:text-sm"
-              value={serviceTypeId ?? ''}
-              onChange={(e) => {
-                const next = e.target.value || undefined;
-                router.replace(buildRequestsHref({ type, city, serviceTypeId: next, q, sort, page: 1 }));
-              }}
-            >
-              <option value="">كل المجالات</option>
-              {(serviceTypes ?? []).filter((t) => t.isActive).map((t) => (
-                <option key={t.id} value={t.id}>{t.nameAr}</option>
+          <select
+            id="req-service-type-filter"
+            className={pill}
+            value={serviceTypeId ?? ''}
+            aria-label="المجال"
+            onChange={(e) => {
+              const next = e.target.value || undefined;
+              router.replace(buildRequestsHref({ type, city, serviceTypeId: next, q, sort, page: 1 }));
+            }}
+          >
+            <option value="">كل المجالات</option>
+            {(serviceTypes ?? [])
+              .filter((t) => t.isActive)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nameAr}
+                </option>
               ))}
-            </select>
-          </>
-        ) : null}
-
-        <label htmlFor="req-sort-filter" className="text-sm text-muted-foreground">
-          الترتيب
-        </label>
-        <select
-          id="req-sort-filter"
-          className="h-11 min-w-[8rem] flex-1 rounded-lg border border-input bg-background px-3 text-base sm:h-9 sm:flex-none sm:min-w-[10rem] sm:text-sm"
-          value={sort}
-          onChange={(e) => {
-            const next = parseRequestSort(e.target.value);
-            router.replace(buildRequestsHref({ type, city, serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined, q, sort: next, page: 1 }));
-          }}
-        >
-          {REQUEST_SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-
-        {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-9 gap-1" asChild>
-            <Link href={buildRequestsHref({ type, city, serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined, q, sort, page: 1 })}>
-              <X className="h-3.5 w-3.5" aria-hidden />
-              مسح الفلاتر
-            </Link>
-          </Button>
+          </select>
+        ) : (
+          <select className={cn(pill, 'opacity-60')} disabled aria-label="المجال" value="">
+            <option value="">كل المجالات</option>
+          </select>
         )}
       </div>
 
-      {!hideTypeChips && (
-        <div
-          className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-1 scrollbar-none"
-          role="group"
-          aria-label="نوع الطلب"
-        >
-          <Button
-            variant={!type ? 'default' : 'outline'}
-            size="sm"
-            className="h-9 shrink-0 rounded-full px-4"
-            asChild
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {totalLabel ? (
+          <p className="text-[13px] font-extrabold text-foreground">{totalLabel}</p>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-2">
+          <select
+            id="req-sort-filter"
+            className="h-9 rounded-full border border-[#EAE3D6] bg-white px-3 text-xs font-bold text-foreground dark:border-border dark:bg-card"
+            value={sort}
+            aria-label="الترتيب"
+            onChange={(e) => {
+              const next = parseRequestSort(e.target.value);
+              router.replace(
+                buildRequestsHref({
+                  type,
+                  city,
+                  serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined,
+                  q,
+                  sort: next,
+                  page: 1,
+                }),
+              );
+            }}
           >
-            <Link href={buildRequestsHref({ city, q, sort, page: 1 })}>الكل</Link>
-          </Button>
-          {(['SERVICE', 'PRODUCT', 'RENTAL'] as RequestType[]).map((t) => (
-            <Button
-              key={t}
-              variant={type === t ? 'default' : 'outline'}
-              size="sm"
-              className="h-9 shrink-0 rounded-full px-4"
-              asChild
+            {REQUEST_SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {hasFilters ? (
+            <Link
+              href={ROUTES.requests}
+              className="inline-flex h-9 items-center gap-1 rounded-full px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
             >
-              <Link href={buildRequestsHref({ type: t, city, q, sort, page: 1 })}>
-                {t === 'SERVICE' ? 'خدمة' : t === 'PRODUCT' ? 'منتج' : 'إيجار'}
-              </Link>
-            </Button>
-          ))}
+              <X className="h-3.5 w-3.5" aria-hidden />
+              مسح
+            </Link>
+          ) : null}
         </div>
-      )}
+      </div>
+
     </div>
   );
 }

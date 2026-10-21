@@ -83,8 +83,8 @@ const TAB_META: Record<
 function Intro({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-4">
-      <h2 className="text-lg font-bold tracking-tight">{title}</h2>
-      <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">{children}</p>
+      <h2 className="text-base font-extrabold tracking-tight text-foreground sm:text-lg">{title}</h2>
+      <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground sm:text-sm">{children}</p>
     </div>
   );
 }
@@ -112,13 +112,13 @@ function TabBody({ tab, syncProps }: { tab: OfflineTab; syncProps: SyncTabProps 
         <div className="space-y-8">
           <section>
             <Intro title="المحفوظات المتاحة دون اتصال">
-              تشمل الإعلانات والمنتجات والخدمات والمتاجر والبائعين الذين حفظتهم يدويًا لهذا الجهاز.
+              الإعلانات والمنتجات والخدمات والمتاجر التي حفظتها يدويًا على هذا الجهاز.
             </Intro>
             <SavedOfflineAdsPageClient />
           </section>
           <section>
             <Intro title="كتالوجات المتاجر المحمّلة">
-              هذه تنزيلات مستقلة عن المحفوظات اليدوية، وتبقى متاحة للتصفح دون اتصال.
+              تنزيلات مستقلة عن المحفوظات اليدوية، وتبقى متاحة للتصفح دون اتصال.
             </Intro>
             <DownloadsPageClient />
           </section>
@@ -156,7 +156,7 @@ function TabBody({ tab, syncProps }: { tab: OfflineTab; syncProps: SyncTabProps 
       return (
         <section>
           <Intro title="الدفع والبطاقات المحفوظة">
-            جهات الدفع وبطاقات النت التي حفظتها على جهازك. يمكنك البحث والتعديل والنسخ واستخدام USSD عند توفره، حتى بدون إنترنت.
+            جهات الدفع وبطاقات النت المحفوظة على جهازك. ابحث وانسخ واستخدم USSD عند توفره، حتى بدون إنترنت.
           </Intro>
           <SavedPaymentsPageClient embedded />
         </section>
@@ -165,8 +165,7 @@ function TabBody({ tab, syncProps }: { tab: OfflineTab; syncProps: SyncTabProps 
       return (
         <section>
           <Intro title="مساحة التخزين">
-            راقب ما يستهلكه التطبيق على جهازك. يمكنك تحرير مساحة دون حذف محفوظاتك اليدوية إن
-            اخترت ذلك.
+            راقب ما يستهلكه التطبيق على جهازك، وحرّر مساحة دون حذف محفوظاتك اليدوية.
           </Intro>
           <StorageManagementClient />
         </section>
@@ -196,12 +195,12 @@ function WifiOnlyToggle({
   networkLabel: string;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">مزامنة تلقائية على Wi‑Fi فقط</p>
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-3.5 dark:border-border dark:bg-card">
+      <div className="min-w-0 flex-1 text-start">
+        <p className="text-sm font-extrabold text-foreground">مزامنة تلقائية على Wi‑Fi فقط</p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-          عند التفعيل لن يُرسل المعلّق تلقائياً على بيانات الجوال. شبكتك الآن:{' '}
-          <span className="font-medium text-foreground">{networkLabel}</span>
+          عند التفعيل لن يُرسل المعلّق على بيانات الجوال. شبكتك الآن:{' '}
+          <span className="font-semibold text-foreground">{networkLabel}</span>
         </p>
       </div>
       <button
@@ -211,12 +210,12 @@ function WifiOnlyToggle({
         onClick={() => onChange(!enabled)}
         className={cn(
           'relative h-7 w-12 shrink-0 rounded-full transition-colors',
-          enabled ? 'bg-primary' : 'bg-muted',
+          enabled ? 'bg-[#397F56]' : 'bg-[#E8E2D6]',
         )}
       >
         <span
           className={cn(
-            'absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition-[inset-inline-start,box-shadow] duration-200',
+            'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-[inset-inline-start] duration-200',
             enabled ? 'inset-inline-start-5' : 'inset-inline-start-0.5',
           )}
         />
@@ -235,12 +234,16 @@ function ActivityPanel({
 }) {
   if (items.length === 0) return null;
   return (
-    <div className="mb-4 rounded-xl border border-border/70 bg-card p-3">
+    <div className="rounded-2xl border border-[#EAE3D6] bg-white p-3.5 dark:border-border dark:bg-card">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold">آخر النشاط</p>
-        <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={onClear}>
+        <p className="text-sm font-extrabold text-foreground">آخر النشاط</p>
+        <button
+          type="button"
+          onClick={onClear}
+          className="inline-flex h-8 items-center rounded-full border border-[#EAE3D6] px-3 text-xs font-bold text-[#1F4D33] dark:border-border dark:text-primary"
+        >
           مسح السجل
-        </Button>
+        </button>
       </div>
       <ul className="space-y-2">
         {items.map((e) => (
@@ -306,11 +309,11 @@ function StatusHero({
   return (
     <div
       className={cn(
-        'mb-4 rounded-2xl border p-4 shadow-xs',
+        'rounded-2xl border p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
         !isOnline && 'border-warning/35 bg-warning/[0.06]',
         isOnline && failedQueue > 0 && 'border-destructive/30 bg-destructive/[0.04]',
-        isOnline && failedQueue === 0 && pendingQueue > 0 && 'border-primary/25 bg-primary/[0.05]',
-        isOnline && failedQueue === 0 && pendingQueue === 0 && 'border-border/70 bg-card',
+        isOnline && failedQueue === 0 && pendingQueue > 0 && 'border-[#CFE0D5] bg-[#E8F1EC] dark:border-primary/25 dark:bg-primary/10',
+        isOnline && failedQueue === 0 && pendingQueue === 0 && 'border-[#EAE3D6] bg-white dark:border-border dark:bg-card',
       )}
       role="status"
       aria-live="polite"
@@ -359,7 +362,7 @@ function StatusHero({
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[10rem]">
           {isOnline && pendingQueue > 0 && (
             <Button
-              className="min-h-11 w-full"
+              className="min-h-11 w-full rounded-full bg-[#397F56] font-bold text-white hover:bg-[#397F56]/90"
               onClick={onRetryAll}
               loading={retrying}
               loadingText="جاري الإرسال…"
@@ -367,9 +370,13 @@ function StatusHero({
               إرسال المعلّق الآن
             </Button>
           )}
-          {isOnline && failedQueue === 0 && pendingQueue === 0 && draftsCount > 0 && (
-            <Button className="min-h-11 w-full" onClick={onGoDrafts}>
-              فتح المسودات
+          {isOnline && (pendingQueue > 0 || draftsCount > 0) && (
+            <Button
+              variant="outline"
+              className="min-h-11 w-full rounded-full border-[#CFE0D5] bg-white font-bold text-[#1F4D33] dark:border-border"
+              onClick={onGoDrafts}
+            >
+              عرض المسودات
             </Button>
           )}
         </div>
@@ -433,11 +440,11 @@ function TabBadge({ count, tone = 'default', label }: { count: number; tone?: 'd
   return (
     <span
       className={cn(
-        'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-2xs font-bold tabular-nums',
+        'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold tabular-nums',
         tone === 'danger'
           ? 'bg-destructive text-destructive-foreground'
-          : 'bg-primary-foreground/20 text-primary-foreground',
-        tone === 'default' && 'group-data-[selected=false]:bg-primary/15 group-data-[selected=false]:text-primary',
+          : 'bg-[#397F56] text-white',
+        tone === 'default' && 'group-data-[selected=false]:bg-[#E8F1EC] group-data-[selected=false]:text-[#1F4D33]',
       )}
     >
       <span aria-hidden="true">{count > 99 ? '99+' : count}</span>
@@ -579,24 +586,46 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
     }
   }
 
+  // ترتيب التبويبات كما في التصميم المرجعي
+  const orderedTabs = (['saved', 'drafts', 'sync', 'storage', 'payments', 'warming'] as const).filter(
+    (tab) => tabs.includes(tab),
+  );
+
   return (
-    <section aria-label="مركز الأوفلاين" className="mx-auto w-full max-w-6xl text-start" dir="rtl">
-      <header className="mb-3">
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">مركز الأوفلاين</h1>
-        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-          محفوظاتك، مسوداتك، المزامنة، التخزين، والدفع والبطاقات المحلية — في مركز واحد واضح.
-        </p>
+    <section
+      aria-label="مركز الأوفلاين"
+      className="mx-auto w-full max-w-6xl bg-[#FBF9F4] text-start dark:bg-background"
+      dir="rtl"
+    >
+      <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">مركز الأوفلاين</h1>
+          <p className="mt-0.5 max-w-3xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            كل ما يعمل على جهازك بدون إنترنت في مكان واحد.
+          </p>
+        </div>
+        {isOnline ? (
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#E8F1EC] px-3 text-xs font-bold text-[#1F4D33]">
+            <Wifi className="h-3.5 w-3.5" aria-hidden />
+            متصل
+          </span>
+        ) : (
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+            <WifiOff className="h-3.5 w-3.5" aria-hidden />
+            بدون نت
+          </span>
+        )}
       </header>
 
       <div
         role="tablist"
         aria-label="أقسام مركز الأوفلاين"
         className={cn(
-          'sticky top-2 z-20 -mx-1 mb-5 flex snap-x snap-mandatory gap-1.5 overflow-x-auto overscroll-x-contain rounded-2xl border border-border/60 bg-background/95 px-2 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85',
-          '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:overflow-visible',
+          'sticky top-2 z-20 -mx-1 mb-5 flex snap-x snap-mandatory gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[#EAE3D6] bg-[#FBF9F4]/95 dark:border-border dark:bg-background/95',
+          '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         )}
       >
-        {tabs.map((tab) => {
+        {orderedTabs.map((tab) => {
           const { label, shortLabel, Icon } = TAB_META[tab];
           const selected = tab === active;
           const badge =
@@ -634,10 +663,10 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
                 }
               }}
               className={cn(
-                'group flex min-h-11 snap-start shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:min-w-0 lg:flex-1',
+                'group flex min-h-10 snap-start shrink-0 items-center justify-center gap-1.5 border-b-2 px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 selected
-                  ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                  : 'border-border/80 bg-card text-muted-foreground hover:border-primary/35 hover:text-foreground',
+                  ? 'border-[#397F56] font-extrabold text-[#1F4D33] dark:border-primary dark:text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />

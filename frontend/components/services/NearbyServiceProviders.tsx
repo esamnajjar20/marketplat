@@ -1,5 +1,7 @@
 'use client';
 
+import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
+
 import { MapPinOff } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -47,16 +49,11 @@ export function NearbyServiceProviders() {
           onRequestLocation={requestLocation}
           showLocateCta={showLocateCta}
         />
-        <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <p className="text-destructive">حدث خطأ أثناء تحميل مقدمي الخدمة</p>
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-primary hover:bg-primary/10 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            إعادة المحاولة
-          </button>
-        </div>
+        <QueryRetryCard
+          tone="error"
+          title="حدث خطأ أثناء تحميل مقدمي الخدمة"
+          onRetry={() => void refetch()}
+        />
       </div>
     );
   }
@@ -72,6 +69,11 @@ export function NearbyServiceProviders() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[13px] font-extrabold text-foreground">
+          {(data?.meta?.total ?? items.length) > 0
+            ? `${data?.meta?.total ?? items.length} مقدّم خدمة`
+            : 'لا يوجد مقدمو خدمة'}
+        </p>
         <LocationSourceBadge source={source} city={city} />
       </div>
 

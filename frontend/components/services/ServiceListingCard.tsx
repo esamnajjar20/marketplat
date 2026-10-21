@@ -3,92 +3,245 @@
 import { memo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Star, Clock3, MapPin, Store } from 'lucide-react';
-import { CardKindBadge, CardOfflineBadge, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
-import { CARD_BODY_COMPACT, CARD_BODY_DEFAULT, CARD_FOCUS, CARD_HOVER, CARD_IMAGE_HOVER, CARD_HEART_POSITION, CARD_IMAGE_43, CARD_IMAGE_SHADE, CARD_META_ITEM, CARD_PRICE_ROW, CARD_PRESS, CARD_SHELL, HIT_AREA, TIME_PLACEHOLDER, freshnessClass } from '@/components/shared/cards/cardTokens';
+import { Star, MapPin, Wrench } from 'lucide-react';
+import { CardKindBadge, CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
+import {
+  CARD_FOCUS,
+  CARD_HOVER,
+  CARD_IMAGE_HOVER,
+  CARD_HEART_POSITION,
+  CARD_IMAGE_43,
+  CARD_IMAGE_SHADE,
+  CARD_PRESS,
+  CARD_SHELL,
+  HIT_AREA,
+} from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { ROUTES } from '@/lib/constants';
-import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
+import { formatServicePrice } from '@/lib/formatters';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import type { ServiceListingWithProvider, ServiceAvailability, ServiceTypeField } from '@/types/service.types';
+import type { ServiceListingWithProvider, ServiceAvailability } from '@/types/service.types';
 
-interface Props { listing: ServiceListingWithProvider; context?: CardContext; className?: string; priority?: boolean; density?: 'default' | 'compact'; layout?: 'grid' | 'list'; showKind?: boolean; }
-const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = { AVAILABLE: 'متاح الآن', BUSY: 'مشغول', UNAVAILABLE: 'غير متاح' };
-const AVAILABILITY_VARIANT: Record<ServiceAvailability, 'overlay-success' | 'warning' | 'secondary'> = { AVAILABLE: 'overlay-success', BUSY: 'warning', UNAVAILABLE: 'secondary' };
-const SERVICE_LOCATION_HINT: Record<string, string> = { AT_CUSTOMER: 'عند العميل', AT_PROVIDER: 'عند مقدم الخدمة', REMOTE: 'عن بُعد' };
-
-function fieldValue(field: ServiceTypeField, value: unknown): string {
-  if (field.type === 'BOOLEAN') return value === true ? 'نعم' : 'لا';
-  if (field.type === 'MULTI_SELECT' && Array.isArray(value)) {
-    const labels = new Map((field.options ?? []).map((option) => [option.value, option.labelAr]));
-    return value.map((item) => labels.get(String(item)) ?? String(item)).join('، ');
-  }
-  if (field.type === 'SELECT') return field.options?.find((option) => option.value === value)?.labelAr ?? String(value);
-  return String(value);
+interface Props {
+  listing: ServiceListingWithProvider;
+  context?: CardContext;
+  className?: string;
+  priority?: boolean;
+  density?: 'default' | 'compact';
+  layout?: 'grid' | 'list';
+  showKind?: boolean;
+  /** بطاقة التصميم الأفقية (صفحة /services). */
+  designLayout?: boolean;
 }
 
-export const ServiceListingCard = memo(function ServiceListingCard({ listing, context = 'public', className, priority = false, density = 'default', layout = 'grid', showKind = false }: Props) {
-  const compact = density === 'compact' || layout === 'list';
+const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
+  AVAILABLE: 'متاح الآن',
+  BUSY: 'مشغول',
+  UNAVAILABLE: 'غير متاح',
+};
+
+const SERVICE_LOCATION_HINT: Record<string, string> = {
+  AT_CUSTOMER: 'عند العميل',
+  AT_PROVIDER: 'عند مقدم الخدمة',
+  REMOTE: 'عن بُعد',
+};
+
+const PASTEL = ['bg-[#E8F1EC]', 'bg-[#F6E7DB]', 'bg-[#E3EEF5]', 'bg-[#EFEADF]', 'bg-[#FBF0D9]'] as const;
+
+function pastel(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 1)) % PASTEL.length;
+  return PASTEL[h];
+}
+
+export const ServiceListingCard = memo(function ServiceListingCard({
+  listing,
+  context = 'public',
+  className,
+  priority = false,
+  
+  layout = 'grid',
+  showKind = false,
+  designLayout = true,
+}: Props) {
   const detailHref = ROUTES.serviceDetail(listing.id);
   const rawImage = listing.images?.[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 240) : PLACEHOLDER_SVG;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
-  const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
-  const now = useNowAfterMount(showTime, listing.createdAt);
-  const timeColorClass = freshnessClass(now, listing.createdAt);
-  const showLocation = context !== 'store' && context !== 'owner';
-  const showProvider = context === 'favorites' || context === 'catalog';
   const showHeart = context !== 'owner';
-  const cardFields = (listing.serviceType?.fields ?? []).filter((field) => field.scope === 'LISTING' && field.isActive && field.showOnCard && listing.attributes?.[field.key] !== undefined && listing.attributes?.[field.key] !== null && listing.attributes?.[field.key] !== '').slice(0, compact ? 1 : 2);
+  const avail = listing.provider.availabilityStatus;
+  const rating = listing.provider.sellerProfile?.averageRating;
+  const verified = listing.provider.sellerProfile?.verified;
+  const locationHint = SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0];
 
+  // ── Design: horizontal list card (mockup) ──
+  if (designLayout && layout !== 'grid') {
+    return (
+      <article className={cn('group relative min-w-0', className)}>
+        <div className="overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white p-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+          <div className="flex gap-3">
+            <div
+              className={cn(
+                'relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-xl',
+                !rawImage && pastel(listing.id),
+                rawImage && 'bg-muted',
+              )}
+            >
+              {rawImage ? (
+                <SafeImage
+                  src={thumb}
+                  alt={listing.title}
+                  fill
+                  className="object-cover"
+                  sizes="72px"
+                  priority={priority}
+                />
+              ) : (
+                <Wrench className="h-7 w-7 text-primary/45" aria-hidden />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 title={listing.title} className="line-clamp-2 text-sm font-bold leading-5 text-foreground">
+                {listing.title}
+              </h3>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="truncate text-xs text-muted-foreground">{listing.provider.businessName}</span>
+                {verified ? (
+                  <span className="inline-flex h-5 items-center gap-0.5 rounded-full bg-[#E8F1EC] px-1.5 text-[10px] font-bold text-[#1F4D33]">
+                    ✓ موثّق
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 font-semibold',
+                    avail === 'AVAILABLE' && 'text-[#1F4D33]',
+                    avail === 'BUSY' && 'text-[#8F3F14]',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      avail === 'AVAILABLE' && 'bg-[#397F56]',
+                      avail === 'BUSY' && 'bg-amber-500',
+                      avail === 'UNAVAILABLE' && 'bg-muted-foreground',
+                    )}
+                  />
+                  {AVAILABILITY_LABEL[avail]}
+                </span>
+                {locationHint ? (
+                  <span className="inline-flex items-center gap-0.5">
+                    <MapPin className="h-3 w-3" aria-hidden />
+                    {locationHint}
+                  </span>
+                ) : null}
+                {rating != null ? (
+                  <span className="inline-flex items-center gap-0.5 font-medium text-foreground">
+                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
+                    {Number(rating).toFixed(1)}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <span dir="ltr" className="text-sm font-extrabold tabular-nums text-[#1F4D33] dark:text-primary">
+                {priceLabel}
+              </span>
+              {listing.pricingType === 'NEGOTIABLE' || listing.pricingType === 'STARTING_FROM' ? (
+                <span className="inline-flex h-5 items-center rounded-full bg-[#F6F1E7] px-2 text-[10px] font-bold text-[#4A433A]">
+                  قابل للتفاوض
+                </span>
+              ) : null}
+            </div>
+            <Link
+              href={detailHref}
+              prefetch={false}
+              className={cn(
+                'inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[#EAE3D6] bg-white px-4 text-xs font-bold text-[#1F4D33] transition-colors hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary',
+                CARD_FOCUS,
+              )}
+            >
+              التفاصيل
+            </Link>
+          </div>
+        </div>
+        {showHeart && (
+          <FavoriteButton
+            entityType="SERVICE_LISTING"
+            entityId={listing.id}
+            returnTo={detailHref}
+            variant="card"
+            className={`absolute end-2 top-2 z-20 ${HIT_AREA}`}
+          />
+        )}
+      </article>
+    );
+  }
+
+  // ── Fallback grid card ──
   return (
-    <article className={cn('group relative h-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_320px]', className)}>
-      <Link href={detailHref} prefetch={false} className={cn(CARD_SHELL, 'group/card flex', layout === 'list' ? 'flex-row' : 'flex-col', CARD_HOVER, CARD_FOCUS, CARD_PRESS)}>
-        <div className={cn(CARD_IMAGE_43, layout === 'list' && 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40')}>
-          <SafeImage src={thumb} alt={listing.title} fill className={cn('object-cover', CARD_IMAGE_HOVER)} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={priority} loading={priority ? undefined : 'lazy'} {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })} />
+    <article
+      className={cn(
+        'group relative h-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_280px]',
+        className,
+      )}
+    >
+      <Link
+        href={detailHref}
+        prefetch={false}
+        className={cn(
+          CARD_SHELL,
+          'group/card flex flex-col',
+          CARD_HOVER,
+          CARD_FOCUS,
+          CARD_PRESS,
+        )}
+      >
+        <div className={CARD_IMAGE_43}>
+          <SafeImage
+            src={thumb}
+            alt={listing.title}
+            fill
+            className={cn('object-cover', CARD_IMAGE_HOVER)}
+            sizes="(max-width: 640px) 50vw, 33vw"
+            priority={priority}
+            loading={priority ? undefined : 'lazy'}
+            {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
+          />
           <div className={CARD_IMAGE_SHADE} aria-hidden />
           <CardOfflineBadge />
-          <div className="absolute start-2 top-2 z-10 flex max-w-[calc(100%-3.75rem)] flex-col items-start gap-1">
+          <div className="absolute start-2 top-2 z-10 flex flex-col items-start gap-1">
             {showKind && <CardKindBadge kind="service" />}
-            <Badge size="xs" variant={AVAILABILITY_VARIANT[listing.provider.availabilityStatus]}>{AVAILABILITY_LABEL[listing.provider.availabilityStatus]}</Badge>
-            {listing.provider.sellerProfile?.verified && (
-              <Badge size="xs" variant="outline" aria-label="مقدم خدمة موثّق">موثّق</Badge>
-            )}
+            <Badge size="xs" variant="overlay">
+              {AVAILABILITY_LABEL[avail]}
+            </Badge>
           </div>
         </div>
-        <div className={cn('min-w-0', compact ? CARD_BODY_COMPACT : CARD_BODY_DEFAULT)}>
-          <div className={CARD_PRICE_ROW}>
-            <span dir="ltr" className={cn('font-mono font-bold tabular-nums tracking-tight text-primary', compact ? 'text-base' : 'text-lg')}>{priceLabel}</span>
-            {listing.pricingType === 'NEGOTIABLE' && <Badge size="xs" variant="soft">قابل للتفاوض</Badge>}
-            {listing.serviceType?.nameAr && <Badge size="xs" variant="outline">{listing.serviceType.nameAr}</Badge>}
-          </div>
-          <h3 title={listing.title} className="line-clamp-2 min-h-[2.6em] text-sm font-bold leading-6 text-foreground">{listing.title}</h3>
-          {listing.provider.sellerProfile.averageRating != null ? (
-            <div className="flex min-h-4 items-center gap-1 text-xs text-muted-foreground" aria-label={`التقييم ${Number(listing.provider.sellerProfile.averageRating).toFixed(1)} من 5`}>
-              <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-hidden />
-              <span className="font-medium text-foreground">{Number(listing.provider.sellerProfile.averageRating).toFixed(1)}</span>
-              <span>تقييم مقدم الخدمة</span>
-            </div>
-          ) : null}
-          {cardFields.length > 0 && (
-            <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              {cardFields.map((field) => (
-                <span key={field.id} className="min-w-0 truncate">{field.cardLabelAr || field.labelAr}: {fieldValue(field, listing.attributes?.[field.key])}</span>
-              ))}
-            </div>
-          )}
-          <div className="mt-auto flex min-h-6 flex-wrap items-center gap-1.5 border-t border-border/50 pt-2 text-xs text-muted-foreground">
-            {showLocation && (SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]) && <span className={CARD_META_ITEM}><MapPin className="h-3 w-3 shrink-0" aria-hidden /><span className="min-w-0 truncate">{SERVICE_LOCATION_HINT[listing.serviceLocation] || listing.provider.serviceAreaCities?.[0]}</span></span>}
-            {showProvider && <span className={CARD_META_ITEM}><Store className="h-3 w-3 shrink-0" aria-hidden /><span className="min-w-0 truncate">{listing.provider.businessName}</span></span>}
-            {showTime && now !== null && <span className={cn(CARD_META_ITEM, 'ms-auto shrink-0 whitespace-nowrap tabular-nums', timeColorClass)}><Clock3 className="h-3 w-3" aria-hidden />{formatRelativeTime(listing.createdAt, now)}</span>}
-            {showTime && now === null && <span className={cn(CARD_META_ITEM, 'ms-auto shrink-0')}><Clock3 className="h-3 w-3" aria-hidden />{TIME_PLACEHOLDER}</span>}
-          </div>
+        <div className="flex flex-1 flex-col gap-1 p-2.5">
+          <h3 title={listing.title} className="line-clamp-2 text-[13px] font-bold leading-[1.4]">
+            {listing.title}
+          </h3>
+          <span dir="ltr" className="text-sm font-extrabold text-[#1F4D33] dark:text-primary">
+            {priceLabel}
+          </span>
+          <span className="truncate text-[11px] text-muted-foreground">{listing.provider.businessName}</span>
         </div>
       </Link>
-      {showHeart && <FavoriteButton entityType="SERVICE_LISTING" entityId={listing.id} returnTo={detailHref} variant="card" className={`${CARD_HEART_POSITION} ${HIT_AREA}`} />}
+      {showHeart && (
+        <FavoriteButton
+          entityType="SERVICE_LISTING"
+          entityId={listing.id}
+          returnTo={detailHref}
+          variant="card"
+          className={`${CARD_HEART_POSITION} ${HIT_AREA}`}
+        />
+      )}
     </article>
   );
 });

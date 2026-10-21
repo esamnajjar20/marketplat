@@ -107,7 +107,7 @@ export function DownloadsPageClient() {
         {filteredItems.map((item) => (
           <li
             key={item.id}
-            className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0 space-y-1">
               <p className="flex items-center gap-2 font-semibold">

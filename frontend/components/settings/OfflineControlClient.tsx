@@ -385,7 +385,7 @@ export function OfflineControlClient() {
         <span>{online ? 'متصل' : 'غير متصل — التسخين لن يبدأ الآن'}</span>
       </div>
 
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card">
         <div className="border-b px-4 py-2.5">
           <h2 className="text-sm font-semibold">وضع التسخين</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -405,8 +405,8 @@ export function OfflineControlClient() {
               className={cn(
                 'flex w-full items-start gap-3 rounded-2xl border px-4 py-4 text-start transition-colors',
                 mode === m
-                  ? 'border-primary/40 bg-primary/5 shadow-xs'
-                  : 'border-transparent hover:bg-muted/50',
+                  ? 'border-[#397F56] bg-[#E8F1EC] shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-primary dark:bg-primary/10'
+                  : 'border-[#EAE3D6] bg-white hover:bg-muted/40 dark:border-border dark:bg-card',
                 warmingActive && 'opacity-60',
               )}
             >
@@ -429,14 +429,14 @@ export function OfflineControlClient() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card">
         <div className="border-b px-4 py-2.5">
           <h2 className="text-sm font-semibold">تحكم</h2>
         </div>
         <div className="grid gap-2 p-4 sm:grid-cols-2">
           <Button
             type="button"
-            className="w-full justify-start gap-2 sm:col-span-2"
+            className="h-11 w-full justify-center gap-2 rounded-full bg-[#397F56] font-bold text-white hover:bg-[#397F56]/90 sm:col-span-2"
             onClick={handleStartNow}
             disabled={anyBusy || !online || mode === 'off' || warmingActive}
           >

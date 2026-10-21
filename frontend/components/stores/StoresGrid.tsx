@@ -1,8 +1,9 @@
 'use client';
 
+import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
+
 import { cn } from '@/lib/utils';
 import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
-import { Button } from '@/components/shared/ui/Button';
 import { LIST_STORE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 
 import { useSearchParams } from 'next/navigation';
@@ -95,12 +96,11 @@ export function StoresGrid() {
       );
     }
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <p className="text-destructive">حدث خطأ أثناء تحميل المتاجر</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
-          إعادة المحاولة
-        </Button>
-      </div>
+      <QueryRetryCard
+        tone="error"
+        title="حدث خطأ أثناء تحميل المتاجر"
+        onRetry={() => void refetch()}
+      />
     );
   }
 

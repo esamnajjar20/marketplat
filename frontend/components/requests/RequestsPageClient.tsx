@@ -5,10 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import {
   ClipboardList,
   Plus,
-  ArrowRight,
   Wrench,
   ShoppingBag,
   Home,
+  List,
 } from 'lucide-react';
 import { useOpenRequests } from '@/hooks/queries/useRequests';
 import { ROUTES } from '@/lib/constants';
@@ -33,7 +33,7 @@ const TYPE_CHIPS: Array<{
   label: string;
   icon: typeof ClipboardList;
 }> = [
-  { value: undefined, label: 'الكل', icon: ClipboardList },
+  { value: undefined, label: 'الكل', icon: List },
   { value: 'SERVICE', label: 'خدمات', icon: Wrench },
   { value: 'PRODUCT', label: 'منتجات', icon: ShoppingBag },
   { value: 'RENTAL', label: 'إيجار', icon: Home },
@@ -73,7 +73,6 @@ function emptyDescription(opts: {
   return `لا نتائج لـ ${parts.join(' · ')}. جرّب مسح الفلاتر أو نشر طلب جديد.`;
 }
 
-
 export function RequestsPageClient() {
   const searchParams = useSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
@@ -97,7 +96,6 @@ export function RequestsPageClient() {
     sort,
   });
 
-  // Server applies sort across the full result set; items are already ordered.
   const items = Array.isArray(data?.data) ? data.data : [];
 
   const meta = (
@@ -124,87 +122,89 @@ export function RequestsPageClient() {
 
   const hasActiveFilters = Boolean(type || city || serviceTypeId || q || sort !== 'newest');
 
+  const totalLabel =
+    !isLoading && typeof total === 'number' && total > 0
+      ? `${total.toLocaleString('ar')} طلب مفتوح`
+      : undefined;
+
   return (
-    <div className="min-h-[50vh] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-10">
-      <div className="border-b border-primary/10 bg-gradient-to-b from-primary/[0.09] via-primary/[0.04] to-transparent">
-        <div className="container mx-auto max-w-7xl space-y-5 px-3 py-6 sm:px-4 sm:py-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 flex-1 space-y-2">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                <ClipboardList className="h-3.5 w-3.5" aria-hidden />
-                سوق الطلبات
-              </p>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                اطلب ما تحتاجه — وقدّم عرضك
-              </h1>
-              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-                تصفّح الطلبات المفتوحة للخدمات والمنتجات والإيجار، وقدّم عرضك مباشرة
-                لصاحب الطلب.
-              </p>
-              {!isLoading && typeof total === 'number' && total > 0 ? (
-                <p className="text-xs font-medium text-foreground/80">
-                  <span className="tabular-nums text-primary">
-                    {total.toLocaleString('ar')}
-                  </span>{' '}
-                  طلب مفتوح الآن
-                </p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" className="min-h-10 gap-1.5 shadow-sm" asChild>
-                <Link href={ROUTES.requestNew}>
-                  <Plus className="h-4 w-4" aria-hidden />
-                  أضف طلبًا
-                </Link>
-              </Button>
-              <Button variant="outline" size="sm" className="min-h-10" asChild>
-                <Link href={ROUTES.myOpenRequests}>طلباتي</Link>
-              </Button>
-              <Button variant="outline" size="sm" className="min-h-10" asChild>
-                <Link href={ROUTES.myOpenRequestOffers}>عروضي</Link>
-              </Button>
-            </div>
-          </div>
-
-          <div
-            className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            role="group"
-            aria-label="تصفية حسب النوع"
-          >
-            {TYPE_CHIPS.map(({ value, label, icon: Icon }) => {
-              const active = value === type || (value === undefined && !type);
-              return (
-                <Link
-                  key={label}
-                  href={buildTypeHref(value, city, value === 'SERVICE' ? serviceTypeId : undefined, q, sort)}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
-                    active
-                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                      : 'border-border/80 bg-card/90 text-foreground hover:border-primary/40 hover:bg-muted/40',
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden />
-                  {label}
-                </Link>
-              );
-            })}
+    <div className="min-h-[50vh] bg-[#FBF9F4] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] dark:bg-background sm:pb-10">
+      <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-5 sm:px-4 sm:pt-7">
+        {/* Hero — design mockup */}
+        <div className="rounded-2xl border border-[#CFE0D5] bg-[#E8F1EC] p-4 dark:border-primary/20 dark:bg-primary/10 sm:p-5">
+          <p className="text-[11px] font-bold text-[#397F56] dark:text-primary">سوق الطلبات</p>
+          <h1 className="mt-0.5 text-xl font-extrabold leading-snug tracking-tight text-foreground sm:text-2xl">
+            اطلب ما تحتاجه — وقدّم عرضك
+          </h1>
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-[#4A433A] dark:text-muted-foreground sm:text-sm">
+            تصفّح الطلبات المفتوحة للخدمات والمنتجات والإيجار، وقدّم عرضك مباشرة لصاحب الطلب.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={ROUTES.requestNew}
+              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[#397F56] px-4 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-95 sm:flex-none"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              أضف طلبًا
+            </Link>
+            <Link
+              href={ROUTES.myOpenRequests}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[#CFE0D5] bg-white px-4 text-sm font-bold text-[#1F4D33] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
+            >
+              طلباتي
+            </Link>
+            <Link
+              href={ROUTES.myOpenRequestOffers}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[#CFE0D5] bg-white px-4 text-sm font-bold text-[#1F4D33] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
+            >
+              عروضي
+            </Link>
           </div>
         </div>
-      </div>
 
-      <div className="container mx-auto max-w-7xl space-y-4 px-3 py-5 sm:px-4 sm:py-6">
-        <RequestFilters type={type} city={city} serviceTypeId={serviceTypeId} q={q} sort={sort} hideTypeChips />
+        {/* Type tabs */}
+        <div
+          className="flex gap-1 overflow-x-auto border-b border-[#EAE3D6] dark:border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="tablist"
+          aria-label="تصفية حسب النوع"
+        >
+          {TYPE_CHIPS.map(({ value, label, icon: Icon }) => {
+            const active = value === type || (value === undefined && !type);
+            return (
+              <Link
+                key={label}
+                href={buildTypeHref(value, city, value === 'SERVICE' ? serviceTypeId : undefined, q, sort)}
+                role="tab"
+                aria-selected={active}
+                className={cn(
+                  'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-[13px] font-semibold transition-colors',
+                  active
+                    ? 'border-[#397F56] font-extrabold text-[#1F4D33] dark:border-primary dark:text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                {label}
+              </Link>
+            );
+          })}
+        </div>
 
+        <RequestFilters
+          type={type}
+          city={city}
+          serviceTypeId={serviceTypeId}
+          q={q}
+          sort={sort}
+          totalLabel={totalLabel}
+        />
 
         <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} />
 
         {isLoading && !data ? (
           <OfflineQueryFallback
             title="لا توجد نسخة محفوظة من الطلبات"
-        loading={isLoading}
+            loading={isLoading}
             description="لا تتوفر الطلبات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
             fallback={<RequestListSkeleton />}
           />
@@ -214,15 +214,17 @@ export function RequestsPageClient() {
           <OfflineQueryFallback
             title="تعذّر تحميل الطلبات دون اتصال"
             description="لا توجد نسخة محفوظة من هذه الطلبات على الجهاز. اتصل بالإنترنت ثم أعد المحاولة."
-            fallback={<EmptyState
-            title="تعذّر تحميل الطلبات"
-            description="تحقق من الاتصال ثم أعد المحاولة."
-            action={
-              <Button variant="outline" onClick={() => void refetch()}>
-                إعادة المحاولة
-              </Button>
+            fallback={
+              <EmptyState
+                title="تعذّر تحميل الطلبات"
+                description="تحقق من الاتصال ثم أعد المحاولة."
+                action={
+                  <Button variant="outline" onClick={() => void refetch()}>
+                    إعادة المحاولة
+                  </Button>
+                }
+              />
             }
-          />}
           />
         ) : null}
 
@@ -251,12 +253,14 @@ export function RequestsPageClient() {
           ) : (
             <ul
               className={cn(
-                'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5',
+                'grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3',
                 isFetching && !isLoading && 'opacity-80 transition-opacity',
               )}
             >
               {items.map((r) => (
-                <RequestCard key={r.id} request={r} className="min-w-0 h-full" />
+                <li key={r.id}>
+                  <RequestCard request={r} className="min-w-0" />
+                </li>
               ))}
             </ul>
           )
@@ -268,13 +272,6 @@ export function RequestsPageClient() {
           baseUrl={ROUTES.requests}
           searchParams={spRecord}
         />
-
-        <div className="flex items-center justify-center gap-3 pt-2 text-sm text-muted-foreground sm:hidden">
-          <Link href={ROUTES.home} className="inline-flex items-center gap-1 hover:text-foreground">
-            الرئيسية
-            <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
-          </Link>
-        </div>
       </div>
     </div>
   );
