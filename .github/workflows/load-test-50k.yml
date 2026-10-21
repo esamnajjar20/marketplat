@@ -1,0 +1,161 @@
+name: Load Test 50K (2 minutes)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'API base URL'
+        required: true
+        default: 'https://marketplat-api.esamnajjar6.workers.dev'
+      warmup:
+        description: 'Warm up edge cache first (highly recommended)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  k6-50k:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+          k6 version
+
+      - name: Warmup edge cache
+        if: inputs.warmup
+        run: |
+          echo "🔥 Warming edge cache..."
+          for path in \
+            /api/v1/categories \
+            /api/v1/ads?limit=10 \
+            /api/v1/products?limit=10 \
+            /api/v1/stores?limit=10 \
+            /api/v1/services?limit=10 ; do
+            curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" \
+              "${{ inputs.target }}$path" || true
+            sleep 0.3
+          done
+          echo "🔥 Warmup done — waiting 2s..."
+          sleep 2
+
+      - name: Write k6 script
+        run: |
+          cat > /tmp/load50k.js <<'K6'
+          import http from 'k6/http';
+          import { check } from 'k6';
+
+          const TARGET = __ENV.TARGET;
+
+          // 50,000 requests in exactly 120s = 417 req/s sustained
+          export const options = {
+            scenarios: {
+              sustained_load: {
+                executor: 'constant-arrival-rate',
+                rate: 417,
+                timeUnit: '1s',
+                duration: '2m',
+                preAllocatedVUs: 100,
+                maxVUs: 500,
+                gracefulStop: '10s',
+              },
+            },
+            thresholds: {
+              'http_req_duration': ['p(95)<3000', 'p(99)<10000'],
+              'http_req_failed': ['rate<0.05'],
+            },
+            summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
+          };
+
+          const paths = [
+            '/api/v1/categories',
+            '/api/v1/ads?limit=10',
+            '/api/v1/products?limit=10',
+            '/api/v1/stores?limit=10',
+            '/api/v1/services?limit=10',
+          ];
+
+          export default function () {
+            const path = paths[Math.floor(Math.random() * paths.length)];
+            const res = http.get(TARGET + path, {
+              headers: { Accept: 'application/json' },
+              tags: { path },
+            });
+            check(res, {
+              'status ok': (r) => r.status === 200 || r.status === 304,
+              'not 5xx': (r) => r.status < 500,
+            });
+          }
+
+          export function handleSummary(data) {
+            const md = [];
+            md.push('# 🚀 50K Load Test Report\n');
+            md.push(`**Target:** \`${TARGET}\``);
+            md.push(`**Total Requests:** ${data.metrics.http_reqs?.values?.count || 0}`);
+            md.push(`**Duration:** ${(data.state?.testRunDurationMs / 1000).toFixed(0)}s\n`);
+
+            const t = data.metrics.http_req_duration?.values || {};
+            md.push('## Latency\n');
+            md.push('| Metric | Value |');
+            md.push('|--------|-------|');
+            md.push(`| avg    | ${(t.avg || 0).toFixed(0)}ms |`);
+            md.push(`| p50    | ${(t['med'] || 0).toFixed(0)}ms |`);
+            md.push(`| p90    | ${(t['p(90)'] || 0).toFixed(0)}ms |`);
+            md.push(`| p95    | ${(t['p(95)'] || 0).toFixed(0)}ms |`);
+            md.push(`| p99    | ${(t['p(99)'] || 0).toFixed(0)}ms |`);
+            md.push(`| max    | ${(t.max || 0).toFixed(0)}ms |\n`);
+
+            const failed = data.metrics.http_req_failed?.values?.rate || 0;
+            const reqs = data.metrics.http_reqs?.values?.count || 0;
+            const duration = (data.state?.testRunDurationMs || 120000) / 1000;
+            md.push('## Results\n');
+            md.push(`- Total: **${reqs}**`);
+            md.push(`- Rate: **${(reqs / duration).toFixed(0)} req/s**`);
+            md.push(`- Error rate: **${(failed * 100).toFixed(2)}%**\n`);
+
+            return {
+              stdout: JSON.stringify(data.metrics, null, 2).slice(0, 3000),
+              '/tmp/k6-50k-summary.md': md.join('\n'),
+              '/tmp/k6-50k.json': JSON.stringify(data, null, 2),
+            };
+          }
+          K6
+
+      - name: Run k6 (50,000 requests)
+        run: |
+          k6 run \
+            -e TARGET="${{ inputs.target }}" \
+            /tmp/load50k.js
+        continue-on-error: true
+
+      - name: Publish to job summary
+        if: always()
+        run: |
+          if [ -f /tmp/k6-50k-summary.md ]; then
+            cat /tmp/k6-50k-summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-50k-report
+          path: |
+            /tmp/k6-50k-summary.md
+            /tmp/k6-50k.json
+          retention-days: 7
