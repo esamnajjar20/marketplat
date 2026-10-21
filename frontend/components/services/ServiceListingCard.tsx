@@ -14,6 +14,10 @@ import {
   CARD_IMAGE_SHADE,
   CARD_PRESS,
   CARD_SHELL,
+  CARD_SHELL_SOFT,
+  CARD_TITLE,
+  CARD_BADGE_SUCCESS,
+  CARD_BADGE_MUTED,
   HIT_AREA,
 } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
@@ -81,11 +85,11 @@ export const ServiceListingCard = memo(function ServiceListingCard({
   if (designLayout && layout !== 'grid') {
     return (
       <article className={cn('group relative min-w-0', className)}>
-        <div className="overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white p-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+        <div className={cn(CARD_SHELL_SOFT, "p-2.5 sm:p-3")}>
           <div className="flex gap-3">
             <div
               className={cn(
-                'relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-xl',
+                'relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl sm:h-[72px] sm:w-[72px]',
                 !rawImage && pastel(listing.id),
                 rawImage && 'bg-muted',
               )}
@@ -104,29 +108,29 @@ export const ServiceListingCard = memo(function ServiceListingCard({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <h3 title={listing.title} className="line-clamp-2 text-sm font-bold leading-5 text-foreground">
+              <h3 title={listing.title} className={cn(CARD_TITLE, "line-clamp-2")}>
                 {listing.title}
               </h3>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 <span className="truncate text-xs text-muted-foreground">{listing.provider.businessName}</span>
                 {verified ? (
-                  <span className="inline-flex h-5 items-center gap-0.5 rounded-full bg-[#E8F1EC] px-1.5 text-[10px] font-bold text-[#1F4D33]">
+                  <span className={CARD_BADGE_SUCCESS}>
                     ✓ موثّق
                   </span>
                 ) : null}
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                 <span
                   className={cn(
                     'inline-flex items-center gap-1 font-semibold',
-                    avail === 'AVAILABLE' && 'text-[#1F4D33]',
-                    avail === 'BUSY' && 'text-[#8F3F14]',
+                    avail === 'AVAILABLE' && 'text-success',
+                    avail === 'BUSY' && 'text-warning',
                   )}
                 >
                   <span
                     className={cn(
                       'h-1.5 w-1.5 rounded-full',
-                      avail === 'AVAILABLE' && 'bg-[#397F56]',
+                      avail === 'AVAILABLE' && 'bg-success',
                       avail === 'BUSY' && 'bg-amber-500',
                       avail === 'UNAVAILABLE' && 'bg-muted-foreground',
                     )}
@@ -134,9 +138,11 @@ export const ServiceListingCard = memo(function ServiceListingCard({
                   {AVAILABILITY_LABEL[avail]}
                 </span>
                 {locationHint ? (
-                  <span className="inline-flex items-center gap-0.5">
-                    <MapPin className="h-3 w-3" aria-hidden />
-                    {locationHint}
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-0.5">
+                    <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+                    <span className="min-w-0 truncate" title={locationHint}>
+                      {locationHint}
+                    </span>
                   </span>
                 ) : null}
                 {rating != null ? (
@@ -150,11 +156,11 @@ export const ServiceListingCard = memo(function ServiceListingCard({
           </div>
           <div className="mt-3 flex items-center justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <span dir="ltr" className="text-sm font-extrabold tabular-nums text-[#1F4D33] dark:text-primary">
+              <span dir="ltr" className="text-sm font-extrabold tabular-nums text-primary">
                 {priceLabel}
               </span>
               {listing.pricingType === 'NEGOTIABLE' || listing.pricingType === 'STARTING_FROM' ? (
-                <span className="inline-flex h-5 items-center rounded-full bg-[#F6F1E7] px-2 text-[10px] font-bold text-[#4A433A]">
+                <span className={CARD_BADGE_MUTED}>
                   قابل للتفاوض
                 </span>
               ) : null}
@@ -163,7 +169,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
               href={detailHref}
               prefetch={false}
               className={cn(
-                'inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[#EAE3D6] bg-white px-4 text-xs font-bold text-[#1F4D33] transition-colors hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary',
+                'inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[#EAE3D6] bg-white px-4 text-xs font-bold text-primary transition-colors hover:border-primary/40 dark:border-border dark:bg-card',
                 CARD_FOCUS,
               )}
             >
@@ -223,11 +229,11 @@ export const ServiceListingCard = memo(function ServiceListingCard({
             </Badge>
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-1 p-2.5">
-          <h3 title={listing.title} className="line-clamp-2 text-[13px] font-bold leading-[1.4]">
+        <div className={CARD_BODY_COMPACT}>
+          <h3 title={listing.title} className={cn(CARD_TITLE, "line-clamp-2")}>
             {listing.title}
           </h3>
-          <span dir="ltr" className="text-sm font-extrabold text-[#1F4D33] dark:text-primary">
+          <span dir="ltr" className="text-sm font-extrabold tabular-nums text-primary">
             {priceLabel}
           </span>
           <span className="truncate text-[11px] text-muted-foreground">{listing.provider.businessName}</span>

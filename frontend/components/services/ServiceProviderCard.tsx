@@ -7,6 +7,7 @@ import { MapPin, MessageCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { CARD_SHELL_SOFT, CARD_AVATAR_FALLBACK, CARD_BADGE_SUCCESS } from '@/components/shared/cards/cardTokens';
 import { formatDistanceKm } from '@/lib/distance';
 import { useAuthStore } from '@/store/auth.store';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
@@ -63,12 +64,12 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
   return (
     <article
       className={cn(
-        'rounded-2xl border border-[#EAE3D6] bg-white p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card',
+        cn(CARD_SHELL_SOFT, 'p-3 sm:p-3.5'),
         className,
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#E8F1EC] text-[#1F4D33] ring-1 ring-[#EAE3D6]">
+        <div className={cn("relative h-11 w-11 shrink-0 overflow-hidden rounded-full sm:h-12 sm:w-12", CARD_AVATAR_FALLBACK)}>
           {hasLogo ? (
             <SafeImage variant="avatar" src={avatar} alt={provider.businessName} fill className="object-cover" sizes="48px" />
           ) : (
@@ -95,7 +96,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
                   </span>
                 ) : null}
                 {verified ? (
-                  <span className="inline-flex h-5 items-center gap-0.5 rounded-full bg-[#E8F1EC] px-1.5 text-[10px] font-bold text-[#1F4D33]">
+                  <span className={CARD_BADGE_SUCCESS}>
                     ✓ موثّق
                   </span>
                 ) : null}

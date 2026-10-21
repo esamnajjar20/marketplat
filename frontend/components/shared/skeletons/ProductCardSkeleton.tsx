@@ -1,15 +1,16 @@
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
+import { CARD_SKELETON_SHELL, CARD_SKELETON_MEDIA_FIXED, CARD_SKELETON_BODY, CARD_SKELETON_BODY_COMPACT } from '@/components/shared/cards/cardTokens';
 
 export function ProductCardSkeleton({ density = 'default' }: { density?: 'default' | 'compact'; mixedList?: boolean }) {
   const compact = density === 'compact';
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card">
+    <div aria-hidden="true" className={CARD_SKELETON_SHELL}>
       <div className="relative">
-        <Skeleton className={'w-full rounded-none aspect-[4/3]'} />
+        <Skeleton className={CARD_SKELETON_MEDIA_FIXED} />
         <Skeleton className="absolute end-2 top-2 h-9 w-9 rounded-full" />
       </div>
-      <div className={cn('flex flex-1 flex-col', compact ? 'gap-1 p-2.5' : 'gap-1.5 p-3 sm:p-3.5')}>
+      <div className={compact ? CARD_SKELETON_BODY_COMPACT : CARD_SKELETON_BODY}>
         <Skeleton className={cn('w-2/5', compact ? 'h-5' : 'h-6')} />
         <Skeleton className="h-4 w-4/5" />
         <Skeleton className="h-3.5 w-1/2" />

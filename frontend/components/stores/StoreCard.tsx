@@ -8,7 +8,7 @@ import { BadgeCheck, Star, MapPin, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
-import { CARD_HEART_POSITION, CARD_PRESS, CARD_FOCUS, CARD_HOVER, HIT_AREA } from '@/components/shared/cards/cardTokens';
+import { CARD_SHELL_SOFT, CARD_HEART_POSITION, CARD_PRESS, CARD_FOCUS, CARD_HOVER, HIT_AREA } from '@/components/shared/cards/cardTokens';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { getStoreTypePresentation, type StoreWithSeller } from '@/types/store.types';
 import { CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
@@ -39,7 +39,8 @@ export const StoreCard = memo(function StoreCard({ store, className, density = '
         href={ROUTES.storeDetail(store.id)}
         prefetch={false}
         className={cn(
-          'flex h-full min-w-0 overflow-hidden rounded-card border border-border/70 bg-card shadow-card',
+          CARD_SHELL_SOFT,
+          'flex',
           layout === 'list' ? 'flex-row' : 'flex-col',
           CARD_HOVER,
           CARD_FOCUS,
@@ -91,9 +92,9 @@ export const StoreCard = memo(function StoreCard({ store, className, density = '
 
           <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-3 text-xs text-muted-foreground">
             {store.city ? (
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                {store.city}
+                <span className="min-w-0 truncate" title={store.city}>{store.city}</span>
               </span>
             ) : null}
             {store.sellerProfile.totalRatings > 0 ? <span>{store.sellerProfile.totalRatings} تقييم</span> : null}

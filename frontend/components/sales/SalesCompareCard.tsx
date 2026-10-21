@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useSalesCompare } from '@/hooks/queries/useSales';
+import { CARD_SHELL } from '@/components/shared/cards/cardTokens';
 
 function Row({
   label,
@@ -15,7 +16,7 @@ function Row({
 }) {
   const up = (pct ?? 0) >= 0;
   return (
-    <div className="rounded-xl border p-3">
+    <div className="rounded-xl border border-border/70 bg-card p-2.5 sm:p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium">{label}</span>
         <span className={`text-xs font-semibold ${up ? 'text-emerald-600' : 'text-destructive'}`}>
@@ -40,7 +41,7 @@ export function SalesCompareCard() {
   const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
   const { data, isLoading, isError } = useSalesCompare(period);
 
-  if (isLoading) return <div className="h-64 animate-pulse rounded-xl border bg-muted/40" />;
+  if (isLoading) return <div role="status" aria-label="جارٍ تحميل مقارنة الأداء" className="h-64 animate-pulse rounded-2xl border border-border/70 bg-muted/40" />;
 
   // Defensive: any of current/previous/samePeriodLastYear may be missing
   // for a new user or when the backend returns partial data.
@@ -52,14 +53,14 @@ export function SalesCompareCard() {
 
   if (isError || !data) {
     return (
-      <section className="rounded-xl border p-6 text-sm text-muted-foreground">
+      <section className={`${CARD_SHELL} p-4 text-sm text-muted-foreground sm:p-6`}>
         تعذر تحميل المقارنة.
       </section>
     );
   }
 
   return (
-    <section className="rounded-xl border bg-card p-4" dir="rtl">
+    <section className={`${CARD_SHELL} p-3 sm:p-4`} dir="rtl">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold">مقارنة الأداء</h2>
@@ -75,7 +76,7 @@ export function SalesCompareCard() {
           <option value="year">السنة</option>
         </select>
       </div>
-      <div className="mt-4 space-y-2">
+      <div className="mt-3 space-y-2 sm:mt-4">
         <Row
           label="مقابل الفترة السابقة"
           current={currentRevenue}

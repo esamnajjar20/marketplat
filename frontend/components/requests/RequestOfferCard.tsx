@@ -25,7 +25,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
 
   return (
     <article className={cn('h-full w-full min-w-0', className)}>
-      <div className={cn(CARD_SHELL, 'relative flex h-full flex-col gap-1.5 p-3.5')}>
+      <div className={cn(CARD_SHELL, 'relative flex h-full flex-col gap-1.5 p-2.5 sm:p-3.5')}>
         <CardOfflineBadge />
         <div className="flex min-h-6 flex-wrap items-center gap-1.5">
           <Badge size="xs" variant={REQUEST_OFFER_STATUS_VARIANT[offer.status]}>{REQUEST_OFFER_STATUS_LABEL[offer.status]}</Badge>

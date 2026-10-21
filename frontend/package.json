@@ -126,7 +126,8 @@
     "blank-screen:audit": "node scripts/blank-screen-navigation-audit.mjs",
     "sw:api-freshness-audit": "node scripts/sw-api-freshness-audit.mjs",
     "sw:lifecycle-resilience-audit": "node scripts/sw-lifecycle-resilience-audit.mjs && node --check public/sw.js",
-    "ux:loading-unification-audit": "node scripts/loading-unification-audit.mjs && npm run ux:loading-system-audit && npm run ux:route-navigation-loading-audit"
+    "ux:loading-unification-audit": "node scripts/loading-unification-audit.mjs && npm run ux:loading-system-audit && npm run ux:route-navigation-loading-audit",
+    "cards:unification-phase4-audit": "node scripts/card-unification-phase4-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

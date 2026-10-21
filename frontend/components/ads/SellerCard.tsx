@@ -17,6 +17,7 @@ import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
 import type { AdAuthor } from '@/types/ad.types';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
+import { CARD_SHELL_SOFT, CARD_AVATAR_FALLBACK, CARD_COMPACT_ACTIONS } from '@/components/shared/cards/cardTokens';
 
 interface StoreBrief {
   id: string;
@@ -81,12 +82,12 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
   }
 
   return (
-    <div className="rounded-2xl bg-card shadow-md p-6 space-y-5">
+    <section className={`${CARD_SHELL_SOFT} p-3.5 sm:p-4 space-y-4`} aria-label={isStoreAd ? 'معلومات المتجر' : 'معلومات البائع'}>
       <h3 className="font-semibold">{isStoreAd ? 'معلومات المتجر' : 'معلومات البائع'}</h3>
 
       <Link href={profileHref} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
         <div className="relative shrink-0">
-          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-muted">
+          <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted sm:h-14 sm:w-14 ${CARD_AVATAR_FALLBACK}`} >
             <SafeImage variant="avatar" src={avatar} alt={displayName} fill className="object-cover" sizes="64px" />
           </div>
           {!isStoreAd && sellerProfile?.verified && (
@@ -115,7 +116,7 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
         <Button
           variant="default"
           size="lg"
-          className="w-full gap-2 rounded-xl"
+          className={`w-full gap-2 rounded-xl ${CARD_COMPACT_ACTIONS}`}
           disabled={startConversation.isPending}
           onClick={handleMessage}
         >
@@ -131,6 +132,6 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
         className="mt-2"
       />
 
-    </div>
+    </section>
   );
 }

@@ -13,6 +13,7 @@ import {
   PLACEHOLDER_SVG,
 } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
+import { CARD_FOCUS, CARD_HOVER, CARD_PRESS, CARD_SHELL, CARD_IMAGE_43, CARD_BODY_DEFAULT } from '@/components/shared/cards/cardTokens';
 import { formatDistanceKm } from '@/lib/distance';
 import type { SearchResult, SearchResultType } from '@/types/search.types';
 
@@ -50,25 +51,23 @@ export function UnifiedResultCard({ result, className, layout = 'grid' }: Props)
   return (
     <div
       className={cn(
-        'group/card relative isolate z-0 h-full min-w-0',
-        'transition-transform duration-200 ease-out',
-        'hover:z-10 hover:-translate-y-0.5',
+        'group/card relative isolate z-0 h-full min-w-0 hover:z-10',
       )}
     >
       <Link
         href={result.url}
         prefetch={false}
         className={cn(
-          'flex h-full min-w-0 overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white dark:border-border dark:bg-card',
+          CARD_SHELL,
+          'flex',
           isList ? 'flex-row items-stretch' : 'flex-col',
-          'shadow-sm transition-[box-shadow,border-color] duration-200',
-          'active:scale-[0.995]',
-          'group-hover/card:border-primary/30 group-hover/card:shadow-md',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          CARD_HOVER,
+          CARD_PRESS,
+          CARD_FOCUS,
           className,
         )}
       >
-        <div className={cn('relative overflow-hidden bg-muted', isList ? 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40' : 'aspect-[4/3]')}>
+        <div className={cn('relative overflow-hidden bg-muted', isList ? 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40' : CARD_IMAGE_43)}>
           <SafeImage
             src={thumb}
             alt={result.title}
@@ -93,7 +92,7 @@ export function UnifiedResultCard({ result, className, layout = 'grid' }: Props)
           </Badge>
         </div>
 
-        <div className={cn('flex min-w-0 flex-1 flex-col gap-1.5 p-2.5 sm:p-3.5', isList && 'sm:gap-2')}>
+        <div className={cn(CARD_BODY_DEFAULT, 'min-w-0', isList && 'sm:gap-2')}>
           {result.price !== null && (
             <p className="font-mono text-base font-bold leading-none tracking-tight text-primary tabular-nums sm:text-xl">
               {formatPrice(result.price)}

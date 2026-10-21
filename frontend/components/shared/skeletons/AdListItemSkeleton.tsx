@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
  */
 export function AdListItemSkeleton() {
   return (
-    <div className="flex min-w-0 gap-3 rounded-2xl border border-border/70 bg-card p-2.5 sm:gap-4 sm:p-3">
+    <div aria-hidden="true" className="flex min-w-0 gap-3 rounded-2xl border border-border/70 bg-card p-2.5 sm:gap-4 sm:p-3">
       <Skeleton className="h-24 w-24 shrink-0 rounded-xl sm:h-28 sm:w-36" />
       <div className="min-w-0 flex-1 space-y-2 py-0.5">
         <Skeleton className="h-4 w-3/4" />

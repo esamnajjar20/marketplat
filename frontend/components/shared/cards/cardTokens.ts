@@ -1,11 +1,11 @@
 export const CARD_SHELL =
   'h-full w-full min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card transition-[transform,box-shadow,border-color] duration-normal ease-standard';
-export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-2 p-3 sm:p-3.5';
-export const CARD_BODY_COMPACT = 'flex flex-1 flex-col gap-1.5 p-2.5 sm:p-3';
-export const CARD_IMAGE_43 = 'relative aspect-[4/3] overflow-hidden bg-muted';
+export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3.5';
+export const CARD_BODY_COMPACT = 'flex flex-1 flex-col gap-1 p-1.5 sm:gap-1.5 sm:p-3';
+export const CARD_IMAGE_43 = 'relative aspect-[3/2] overflow-hidden bg-muted sm:aspect-[4/3]';
 export const CARD_IMAGE_SHADE = 'pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/[0.03]';
 export const CARD_META_ITEM = 'inline-flex min-w-0 items-center gap-1.5 rounded-full bg-muted/65 px-2 py-1';
-export const CARD_PRICE_ROW = 'flex min-h-7 flex-wrap items-center gap-1.5';
+export const CARD_PRICE_ROW = 'flex min-h-6 flex-wrap items-center gap-1 sm:min-h-7 sm:gap-1.5';
 export const CARD_IMAGE_SQUARE = 'relative aspect-square overflow-hidden bg-muted';
 export const CARD_IMAGE_LIST = 'relative aspect-auto h-28 w-28 shrink-0 overflow-hidden bg-muted sm:h-36 sm:w-44';
 
@@ -31,3 +31,32 @@ export const CARD_HEART_BUTTON_BASE = 'flex items-center justify-center rounded-
 export const CARD_HEART_BUTTON_BG = 'bg-background/95 shadow-card';
 export const CARD_HEART_ICON_FILLED = 'fill-rating text-rating';
 export const CARD_HEART_ICON_OUTLINE = 'text-foreground/80';
+
+
+/** Semantic primitives shared by every marketplace content-card family. */
+export const CARD_TITLE = 'line-clamp-2 min-w-0 text-[13px] font-bold leading-5 text-foreground sm:text-sm sm:leading-6';
+export const CARD_SELLER_INITIAL = 'flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[9px] font-extrabold text-primary';
+export const CARD_BADGE_FEATURED = 'inline-flex h-6 items-center rounded-full bg-accent/15 px-2.5 text-[11px] font-bold text-accent-foreground';
+export const CARD_BADGE_CONDITION_NEW = 'bg-success/15 text-success';
+export const CARD_BADGE_CONDITION_USED = 'bg-muted text-muted-foreground';
+export const CARD_MUTED_FOOTER = 'mt-auto flex min-h-5 min-w-0 flex-wrap items-center gap-1 border-t border-border/50 pt-1.5 text-[11px] text-muted-foreground sm:min-h-6 sm:gap-1.5 sm:pt-2 sm:text-xs';
+
+/** Shared profile/service card primitives. Keep layout-specific geometry in each component. */
+export const CARD_SHELL_SOFT = 'h-full min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card transition-[box-shadow,border-color] duration-normal ease-standard';
+export const CARD_AVATAR_FALLBACK = 'bg-primary/10 text-primary ring-1 ring-border/70';
+export const CARD_BADGE_SUCCESS = 'inline-flex h-5 items-center gap-0.5 rounded-full bg-success/10 px-1.5 text-[10px] font-bold text-success';
+export const CARD_BADGE_MUTED = 'inline-flex h-5 items-center rounded-full bg-muted px-2 text-[10px] font-bold text-muted-foreground';
+export const CARD_COMPACT_ACTIONS = 'min-h-9 rounded-lg px-2.5 text-xs sm:min-h-10 sm:rounded-xl sm:px-3 sm:text-sm';
+
+
+/** Shared geometry for loading placeholders so skeletons match real cards. */
+export const CARD_SKELETON_SHELL = 'flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card';
+export const CARD_SKELETON_MEDIA = 'relative aspect-[3/2] w-full overflow-hidden bg-muted sm:aspect-[4/3]';
+export const CARD_SKELETON_BODY = 'flex flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3.5';
+export const CARD_SKELETON_BODY_COMPACT = 'flex flex-1 flex-col gap-1 p-1.5 sm:gap-1.5 sm:p-3';
+
+/** Fixed-height skeletons for cards whose real image is a fixed height (not an aspect ratio). */
+export const CARD_SKELETON_MEDIA_FIXED = 'relative h-[92px] w-full overflow-hidden bg-muted sm:h-[116px]';
+
+/** Warning-toned badge (e.g. "expiring soon"). */
+export const CARD_BADGE_WARNING = 'inline-flex h-5 items-center gap-0.5 rounded-full bg-warning/15 px-1.5 text-[10px] font-bold text-warning';

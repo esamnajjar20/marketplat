@@ -183,14 +183,16 @@ export const ProductCard = memo(function ProductCard({
           href={detailHref}
           prefetch={false}
           className={cn(
-            'group/card flex h-full flex-col overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white shadow-[0_1px_3px_rgba(42,36,29,0.06)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-border dark:bg-card',
+            CARD_SHELL,
+            'group/card flex flex-col',
+            CARD_HOVER,
             CARD_FOCUS,
             CARD_PRESS,
           )}
         >
           <div
             className={cn(
-              'relative flex h-[104px] items-center justify-center overflow-hidden',
+              'relative flex h-[92px] items-center justify-center overflow-hidden sm:h-[116px]',
               !rawImage && pastelForId(product.id),
               rawImage && 'bg-muted',
             )}
@@ -232,7 +234,7 @@ export const ProductCard = memo(function ProductCard({
               <span
                 dir="ltr"
                 className={cn(
-                  'text-sm font-extrabold tabular-nums tracking-tight text-[#1F4D33] dark:text-primary',
+                  'text-sm font-extrabold tabular-nums tracking-tight text-primary',
                   outOfStock && 'text-muted-foreground line-through',
                 )}
               >

@@ -16,7 +16,7 @@ import type { RequestListItem } from '@/types/request.types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useNowAfterMount, type CardContext } from '@/components/shared/cards/cardParts';
-import { CARD_PRESS, CARD_FOCUS } from '@/components/shared/cards/cardTokens';
+import { CARD_PRESS, CARD_FOCUS, CARD_SHELL_SOFT, CARD_BADGE_SUCCESS, CARD_BADGE_WARNING } from '@/components/shared/cards/cardTokens';
 
 type Props = {
   request: RequestListItem;
@@ -42,7 +42,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
     <article className={cn('w-full min-w-0', className)}>
       <div
         className={cn(
-          'rounded-2xl border border-[#EAE3D6] bg-white p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card',
+          cn(CARD_SHELL_SOFT, 'p-2.5 sm:p-3.5'),
           expiringSoon && 'border-warning/40',
         )}
       >
@@ -53,11 +53,11 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
                 {REQUEST_STATUS_LABEL[r.status]}
               </Badge>
             ) : null}
-            <span className="inline-flex h-6 items-center rounded-full bg-[#E8F1EC] px-2.5 text-[11px] font-bold text-[#1F4D33]">
+            <span className={cn(CARD_BADGE_SUCCESS, 'h-6 px-2.5 text-[11px]')}>
               {REQUEST_TYPE_LABEL[r.type]}
             </span>
             {expiringSoon ? (
-              <span className="inline-flex h-6 items-center gap-1 rounded-full bg-[#FBF0D9] px-2.5 text-[11px] font-bold text-[#7A4B07]">
+              <span className={cn(CARD_BADGE_WARNING, 'h-6 gap-1 px-2.5 text-[11px]')}>
                 <Clock className="h-3 w-3" aria-hidden />
                 ينتهي قريبًا
               </span>
@@ -84,8 +84,8 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
         </Link>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1 font-extrabold tabular-nums text-[#2A241D] dark:text-foreground">
-            <Wallet className="h-3.5 w-3.5 text-[#397F56]" aria-hidden />
+          <span className="inline-flex items-center gap-1 font-extrabold tabular-nums text-foreground">
+            <Wallet className="h-3.5 w-3.5 text-success" aria-hidden />
             {budget ?? 'ميزانية مفتوحة'}
           </span>
           {showCity && r.city ? (
