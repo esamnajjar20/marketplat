@@ -278,7 +278,7 @@ async function storedToDesc(stored, cacheStatus, ms) {
   };
 }
 
-function descToResponse(desc, clientINM) {
+function descToResponse(desc, clientINM, origin) {
   if (desc.cacheable && desc.status === 200 && inmMatches(clientINM, desc.etag)) {
     const h = new Headers();
     for (const k of ['etag', 'cache-control', 'vary', 'cache-tag']) {
@@ -287,10 +287,14 @@ function descToResponse(desc, clientINM) {
     }
     h.set('x-proxy-cache', `${desc.headers.get('x-proxy-cache')}-304`);
     h.set('x-upstream-ms', '0');
-    h.set('access-control-allow-origin', '*');
+    h.set('access-control-allow-origin', origin || '*');
+    h.set('access-control-allow-credentials', 'true');
     return new Response(null, { status: 304, headers: h });
   }
-  return new Response(desc.body, { status: desc.status, headers: new Headers(desc.headers) });
+  const fh = new Headers(desc.headers);
+  fh.set('access-control-allow-origin', origin || '*');
+  fh.set('access-control-allow-credentials', 'true');
+  return new Response(desc.body, { status: desc.status, headers: fh });
 }
 
 /* ───────────────────────── origin ───────────────────────── */
@@ -545,6 +549,7 @@ async function handleCacheable(request, canon, ctx, env) {
   const cache = caches.default;
   const cacheKey = makeCacheKey(canon);
   const clientINM = request.headers.get('if-none-match');
+  const origin = request.headers.get('origin') || '*';
   const flightKey = canon.key;
   const loadArgs = { canon, request, cache, cacheKey, ctx, env };
 
@@ -553,7 +558,7 @@ async function handleCacheable(request, canon, ctx, env) {
   if (cached) {
     const info = storedInfo(cached);
     if (info.age <= info.ttl) {
-      return descToResponse(await storedToDesc(cached, info.neg ? 'HIT-NEGATIVE' : 'HIT', 0), clientINM);
+      return descToResponse(await storedToDesc(cached, info.neg ? 'HIT-NEGATIVE' : 'HIT', 0), clientINM, origin);
     }
     // 1b. #12 stale-while-revalidate: answer now, refresh in the background.
     if (!info.neg && info.age <= info.ttl + info.swr) {
@@ -561,7 +566,7 @@ async function handleCacheable(request, canon, ctx, env) {
       ctx.waitUntil(
         startLoad(`rv:${flightKey}`, () => revalidateLoad({ ...loadArgs, stale: cached })).catch(() => {}),
       );
-      return descToResponse(desc, clientINM);
+      return descToResponse(desc, clientINM, origin);
     }
   }
 
@@ -606,7 +611,7 @@ async function handleCacheable(request, canon, ctx, env) {
       if (kv.age > KV_FRESH_SEC) {
         ctx.waitUntil(startLoad(`rv:${flightKey}`, () => originLoad(loadArgs)).catch(() => {}));
       }
-      return descToResponse(kvDesc, clientINM);
+      return descToResponse(kvDesc, clientINM, origin);
     }
   }
 
@@ -617,11 +622,17 @@ async function handleCacheable(request, canon, ctx, env) {
     if (shared && desc.headers.get('x-proxy-cache') === 'MISS') {
       const h = new Headers(desc.headers);
       h.set('x-proxy-cache', 'SHARED');
-      return descToResponse({ ...desc, headers: h }, clientINM);
+      return descToResponse({ ...desc, headers: h }, clientINM, origin);
     }
-    return descToResponse(desc, clientINM);
+    return descToResponse(desc, clientINM, origin);
   } catch (e) {
-    return new Response(`Proxy error: ${e.message}`, { status: 502 });
+    const eh = new Headers();
+    eh.set('content-type', 'application/json');
+    eh.set('access-control-allow-origin', origin);
+    eh.set('access-control-allow-credentials', 'true');
+    return new Response(JSON.stringify({ success: false, message: `Proxy error: ${e.message}` }), {
+      status: 502, headers: eh,
+    });
   }
 }
 
