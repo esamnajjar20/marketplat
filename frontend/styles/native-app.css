@@ -86,14 +86,17 @@ html[data-app-mode='native'] .create-form-layout-root {
   display: block !important;
 }
 
+/* Fill the immersive parent — do not force 100dvh (parent is already
+   sized under the viewport; 100dvh caused overflow / empty bands). */
 html[data-app-mode='native'] .native-chat-thread {
-  min-height: 100dvh;
-  max-height: 100dvh;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
   background: hsl(var(--background));
 }
 
+/* Safe-area is applied once on MessageInput's form — avoid doubling it here */
 html[data-app-mode='native'] .native-chat-composer {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   background: hsl(var(--card) / 0.96);
   border-top: 1px solid hsl(var(--border) / 0.8);
   backdrop-filter: blur(8px);

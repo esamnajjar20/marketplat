@@ -154,7 +154,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       {/* Phase 5: hide site chrome inside an open conversation (WhatsApp-style). */}
       {!isImmersiveTask && <ProtectedHeader />}
       {!isImmersiveTask && <EmailVerificationBanner />}
-      <div className="flex min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1">
         <ProtectedSidebar />
         {/* FIX P1-3: pb-20 reserves space for BottomNav on mobile, same
             as the (public) layout's identical change (BottomNav is
@@ -168,7 +168,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         <main
           id="main-content"
           className={isImmersiveTask
-            ? 'min-w-0 min-h-0 flex-1 p-0 md:p-6 lg:p-8'
+            ? 'flex min-h-0 min-w-0 flex-1 flex-col p-0 md:p-6 lg:p-8'
             : 'min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8'}
         >
           <PageTransition>{children}</PageTransition>
