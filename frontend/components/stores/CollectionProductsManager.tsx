@@ -63,7 +63,7 @@ export function CollectionProductsManager({ collectionId }: Props) {
             <ArrowRight className="h-4 w-4" />المجموعات
           </Button>
         </Link>
-        <h1 className="text-xl font-bold">
+        <h1 className="text-xl font-extrabold">
           منتجات: {collection?.name ?? '…'}
         </h1>
       </div>
@@ -108,7 +108,7 @@ export function CollectionProductsManager({ collectionId }: Props) {
                 type="button"
                 onClick={() => toggle(product.id)}
                 disabled={isPending}
-                className="flex w-full items-center gap-3 rounded-lg border bg-card p-2.5 text-start transition-colors hover:bg-muted/50 disabled:opacity-60"
+                className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card shadow-sm p-2.5 text-start transition-colors hover:bg-muted/50 disabled:opacity-60"
               >
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-muted">
                   <SafeImage src={thumb} alt="" fill className="object-cover" sizes="48px" />

@@ -45,8 +45,8 @@ const ServiceCategoryChips = dynamic(
 export function ServicesPageClient() {
   return (
     <ListPageShell
-      title="الخدمات والأعمال الصغيرة"
-      description="تصفح خدمات مقدّمي الخدمة في سوق غزة"
+      title="الخدمات"
+      description="تصفح الخدمات المحلية في سوق غزة"
       className="bg-[#FBF9F4] dark:bg-background"
       headerEnd={
         <Link

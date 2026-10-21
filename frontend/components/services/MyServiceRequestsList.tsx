@@ -94,7 +94,7 @@ export function MyServiceRequestsList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2" role="group" aria-label="تصفية الطلبات حسب الحالة" style={{ scrollbarWidth: 'thin' }}>
         {FILTER_TABS.map((val) => (
           <button
@@ -117,7 +117,7 @@ export function MyServiceRequestsList() {
           action={<Link href={ROUTES.services}><Button>تصفّح الخدمات</Button></Link>}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((request) => {
             const thumb = request.listing.images[0]
               ? getThumbnailUrl(request.listing.images[0], 120, 90)
@@ -126,7 +126,7 @@ export function MyServiceRequestsList() {
             const canReview = request.status === 'COMPLETED' && request.review === null;
 
             return (
-              <div key={request.id} className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
+              <div key={request.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border/70 bg-card shadow-sm p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
                 <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-24">
                   <SafeImage src={thumb} alt={request.listing.title} fill className="object-cover" sizes="96px" />
                 </div>

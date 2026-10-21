@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Package, AlertTriangle, Pencil, History, Boxes, TrendingDown, CircleAlert } from 'lucide-react';
+import { Package, AlertTriangle, History, Boxes, TrendingDown, CircleAlert } from 'lucide-react';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useAdjustProductStock } from '@/hooks/mutations/useAdjustProductStock';
 import { useStockHistory, useStockSummary } from '@/hooks/queries/useStockInventory';
@@ -42,13 +42,11 @@ function StockRow({
   name,
   stockQuantity,
   availability,
-  status,
 }: {
   id: string;
   name: string;
   stockQuantity: number | null;
   availability: ProductAvailability;
-  status: string;
 }) {
   const adjust = useAdjustProductStock();
   const [value, setValue] = useState(
@@ -75,89 +73,92 @@ function StockRow({
     adjust.mutate({ id, stockQuantity: next, reason: delta > 0 ? 'RESTOCK' : 'SALE_OR_CORRECTION' });
   }
 
+  const qtyLabel = stockQuantity != null ? stockQuantity : 0;
+
   return (
-    <tr className="border-b last:border-0">
-      <td className="px-3 py-3">
-        <div className="min-w-0">
-          <Link
-            href={ROUTES.myStoreProductEdit(id)}
-            className="font-medium hover:underline line-clamp-1"
-          >
-            {name}
-          </Link>
-          <p className="text-xs text-muted-foreground">{status}</p>
+    <div className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Package className="h-5 w-5" />
         </div>
-      </td>
-      <td className="px-3 py-3">
-        <Badge variant={stockBadgeVariant(availability)}>
-          {AVAIL_LABELS[availability]}
-        </Badge>
-      </td>
-      <td className="px-3 py-3">
-        {editing ? (
-          <div className="flex items-center gap-1">
-            <Input
-              type="number"
-              min={0}
-              className="h-9 w-24"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') save();
-                if (e.key === 'Escape') {
-                  setValue(stockQuantity != null ? String(stockQuantity) : '');
-                  setEditing(false);
-                }
-              }}
-            />
-            <Button size="sm" onClick={save} disabled={adjust.isPending}>
-              حفظ
-            </Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Link
+              href={ROUTES.myStoreProductEdit(id)}
+              className="line-clamp-1 text-[13px] font-bold hover:underline sm:text-sm"
+            >
+              {name}
+            </Link>
+            <Badge variant={stockBadgeVariant(availability)} className="shrink-0">
+              {AVAIL_LABELS[availability]}
+            </Badge>
           </div>
-        ) : (
-          <span className="tabular-nums text-sm">
-            {stockQuantity != null ? stockQuantity : '—'}
-          </span>
-        )}
-      </td>
-      <td className="px-3 py-3">
-        <div className="flex flex-wrap items-center gap-1">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-[var(--touch-target)] w-[var(--touch-target)] p-0"
-            disabled={adjust.isPending}
-            onClick={() => bump(-1)}
-            aria-label="إنقاص"
-          >
-            −
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-[var(--touch-target)] w-[var(--touch-target)] p-0"
-            disabled={adjust.isPending}
-            onClick={() => bump(1)}
-            aria-label="زيادة"
-          >
-            +
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8 gap-1 px-2"
-            onClick={() => setEditing(true)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            تعديل
-          </Button>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex items-center overflow-hidden rounded-[10px] border border-border/80 bg-background">
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center text-base font-bold text-muted-foreground hover:bg-muted disabled:opacity-50"
+                disabled={adjust.isPending}
+                onClick={() => bump(-1)}
+                aria-label="إنقاص"
+              >
+                −
+              </button>
+              {editing ? (
+                <Input
+                  type="number"
+                  min={0}
+                  className="h-8 w-14 rounded-none border-0 border-x border-border/80 text-center text-sm font-extrabold tabular-nums shadow-none focus-visible:ring-0"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') save();
+                    if (e.key === 'Escape') {
+                      setValue(stockQuantity != null ? String(stockQuantity) : '');
+                      setEditing(false);
+                    }
+                  }}
+                />
+              ) : (
+                <span className="inline-flex h-8 min-w-9 items-center justify-center border-x border-border/80 px-2 text-sm font-extrabold tabular-nums">
+                  {qtyLabel}
+                </span>
+              )}
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center text-base font-bold text-muted-foreground hover:bg-muted disabled:opacity-50"
+                disabled={adjust.isPending}
+                onClick={() => bump(1)}
+                aria-label="زيادة"
+              >
+                +
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-xl px-3 font-bold"
+                onClick={() => setEditing(true)}
+              >
+                تعديل
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 rounded-xl px-3 font-bold"
+                onClick={save}
+                disabled={adjust.isPending || !editing}
+              >
+                حفظ
+              </Button>
+            </div>
+          </div>
         </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
@@ -258,11 +259,11 @@ export function MyStoreInventory() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">إدارة المخزون</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-extrabold">إدارة المخزون</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             عدّل الكميات بسرعة دون فتح صفحة المنتج كاملة
           </p>
         </div>
@@ -280,7 +281,7 @@ export function MyStoreInventory() {
             ['منخفض', summary.limited, TrendingDown],
             ['نافد', summary.outOfStock, CircleAlert],
           ] as const).map(([label, value, Icon]) => (
-            <div key={String(label)} className="rounded-xl border bg-card p-3">
+            <div key={String(label)} className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">{String(label)}</span>
                 <Icon className="h-4 w-4 text-muted-foreground" />
@@ -338,29 +339,16 @@ export function MyStoreInventory() {
           }
         />
       ) : (
-        <div className="overflow-x-auto overscroll-x-contain rounded-xl border">
-          <table className="w-full min-w-[32rem] text-sm">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-start font-medium">المنتج</th>
-                <th className="px-3 py-2 text-start font-medium">الحالة</th>
-                <th className="px-3 py-2 text-start font-medium">الكمية</th>
-                <th className="px-3 py-2 text-start font-medium">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => (
-                <StockRow
-                  key={p.id}
-                  id={p.id}
-                  name={p.name}
-                  stockQuantity={p.stockQuantity ?? null}
-                  availability={p.availability}
-                  status={p.status}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2.5">
+          {rows.map((p) => (
+            <StockRow
+              key={p.id}
+              id={p.id}
+              name={p.name}
+              stockQuantity={p.stockQuantity ?? null}
+              availability={p.availability}
+            />
+          ))}
         </div>
       )}
 

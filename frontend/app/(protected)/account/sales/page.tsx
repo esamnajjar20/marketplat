@@ -7,11 +7,13 @@ export const metadata: Metadata = buildMetadata({ title: 'مبيعاتي', noInd
 
 export default function SalesPage() {
   return (
-    <div className="space-y-5">
+    <div className="desktop-readable desktop-section space-y-4 sm:space-y-5 lg:space-y-6">
       <header className="desktop-page-header">
         <div className="min-w-0 space-y-1">
-          <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">لوحة المبيعات</h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">أدر المبيعات والعملاء والديون والأقساط والإحصائيات من مكان واحد.</p>
+          <h1 className="text-balance text-xl font-extrabold tracking-tight sm:text-2xl">لوحة المبيعات</h1>
+          <p className="max-w-2xl text-xs leading-6 text-muted-foreground sm:text-sm">
+            تابع مبيعاتك ودفعاتك وأرباحك.
+          </p>
         </div>
       </header>
       <Suspense>

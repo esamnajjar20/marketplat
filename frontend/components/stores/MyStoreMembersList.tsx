@@ -88,7 +88,7 @@ function InviteForm({ storeId }: { storeId: string }) {
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-xl border bg-card p-4 space-y-3"
+      className="rounded-2xl border border-border/70 bg-card shadow-sm p-4 space-y-3"
     >
       <div className="flex items-center gap-2 text-sm font-medium">
         <UserPlus className="h-4 w-4" />
@@ -162,7 +162,7 @@ function MemberRow({
         role={selectionMode && selectable ? 'checkbox' : undefined}
         aria-checked={selectionMode && selectable ? selected : undefined}
         tabIndex={selectionMode && selectable ? 0 : undefined}
-        className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${selectionMode && selectable ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' : ''} ${selected ? 'border-primary/40 bg-primary/10' : ''}`}
+        className={`flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 p-3 shadow-sm ${selectionMode && selectable ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' : ''} ${selected ? 'border-primary/40 bg-primary/10' : ''}`}
       >
         {selectionMode && selectable && (
           <button
@@ -363,7 +363,7 @@ export function MyStoreMembersList() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <h2 className="font-semibold">أعضاء الفريق</h2>
+            <h2 className="text-sm font-extrabold">أعضاء الفريق</h2>
             <Badge variant="secondary">{items.length}</Badge>
           </div>
           {items.length > 0 && (
@@ -425,7 +425,7 @@ export function MyStoreMembersList() {
       </div>
 
       {selectionMode && (
-        <div className="sticky bottom-2 z-10 flex items-center justify-between gap-2 rounded-lg border bg-card p-2 shadow-lg">
+        <div className="sticky bottom-2 z-10 flex items-center justify-between gap-2 rounded-2xl border border-border/70 bg-card shadow-sm p-2 shadow-lg">
           <span className="text-sm font-medium">{selected.size} محدد</span>
           <div className="flex gap-1">
             <Button

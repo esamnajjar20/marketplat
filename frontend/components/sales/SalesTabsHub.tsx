@@ -59,7 +59,7 @@ function TabBody({ tab }: { tab: SalesHubTab }) {
       return (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div><h2 className="text-xl font-bold">إحصائيات المبيعات</h2><p className="text-sm text-muted-foreground">تابع الأداء والمقارنة بين الفترات.</p></div>
+            <div><h2 className="text-xl font-extrabold">إحصائيات المبيعات</h2><p className="text-sm text-muted-foreground">تابع الأداء والمقارنة بين الفترات.</p></div>
             <Button size="sm" asChild><Link href={`${SALES_HUB_PATH}?tab=sales`}>سجل المبيعات</Link></Button>
           </div>
           <div className="grid gap-4 lg:grid-cols-[1.7fr_1fr]"><SalesChart /><SalesCompareCard /></div>

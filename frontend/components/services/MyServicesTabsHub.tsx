@@ -51,7 +51,7 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
       return (
         <div className="space-y-4">
           <div>
-            <h1 className="text-xl font-bold">الطلبات الواردة</h1>
+            <h1 className="text-xl font-extrabold">الطلبات الواردة</h1>
             <p className="mt-1 text-sm text-muted-foreground">راجع الطلبات الجديدة واتخذ الإجراء المناسب لكل طلب.</p>
           </div>
           <Suspense>
@@ -63,7 +63,7 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
       return (
         <div className="space-y-4">
           <div>
-            <h1 className="text-xl font-bold">مواعيدي</h1>
+            <h1 className="text-xl font-extrabold">مواعيدي</h1>
             <p className="mt-1 text-sm text-muted-foreground">تابع جدولك ومواعيد الخدمات المرتبطة بطلباتك.</p>
           </div>
           <Suspense>
@@ -76,7 +76,7 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <h1 className="text-xl font-bold">إحصائيات مقدم الخدمة</h1>
+              <h1 className="text-xl font-extrabold">إحصائيات مقدم الخدمة</h1>
               <p className="mt-1 text-sm text-muted-foreground">مؤشرات تساعدك على فهم أداء خدماتك واتخاذ قرارات أفضل.</p>
             </div>
             <Button size="sm" asChild className="gap-1.5 font-semibold">

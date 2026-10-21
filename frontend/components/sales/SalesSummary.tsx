@@ -9,5 +9,5 @@ export function SalesSummary({ summary }: { summary?: Summary }) {
     ['الديون', `${(summary?.totalDue ?? 0).toFixed(2)} ₪`],
     ...(costSettings?.enabled !== false ? [['الربح الصافي', `${(summary?.netProfit ?? 0).toFixed(2)} ₪`]] : []),
   ];
-  return <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{cards.map(([label, value]) => <div key={label} className="rounded-xl border bg-card p-4"><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 text-xl font-bold tracking-tight">{value}</div></div>)}</div>;
+  return <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{cards.map(([label, value]) => <div key={label} className="rounded-2xl border border-border/70 bg-card shadow-sm p-4"><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 text-xl font-extrabold tracking-tight">{value}</div></div>)}</div>;
 }

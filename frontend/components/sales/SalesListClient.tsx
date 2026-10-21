@@ -26,25 +26,25 @@ export function SalesListClient() {
     : items;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 lg:space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:gap-4">
         <div>
-          <h2 className="text-xl font-bold">سجل المبيعات</h2>
+          <h2 className="text-xl font-extrabold">سجل المبيعات</h2>
           <p className="text-sm text-muted-foreground">راجع عمليات البيع والدفعات والإيصالات.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={() => setOpen(true)}>
+          <Button className="rounded-xl font-bold" onClick={() => setOpen(true)}>
             <Plus className="ms-2 h-4 w-4" />
             تسجيل بيع
           </Button>
-          <Button variant="outline" onClick={() => setPosOpen(true)}>
+          <Button variant="outline" className="rounded-xl font-bold" onClick={() => setPosOpen(true)}>
             <ShoppingCart className="ms-2 h-4 w-4" />
             نقطة بيع متعددة المنتجات
           </Button>
         </div>
       </div>
 
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border border-border/70 bg-card shadow-sm p-4">
         <div className="flex flex-col gap-3 sm:flex-row">
           <Input
             value={search}
@@ -63,28 +63,28 @@ export function SalesListClient() {
       </section>
 
       {isLoading ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-36 animate-pulse rounded-xl border bg-muted/40" />
+            <div key={index} className="h-36 animate-pulse rounded-2xl border bg-muted/40" />
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl border p-8 text-center">
+        <div className="rounded-2xl border border-border/70 p-8 text-center">
           <p className="text-destructive">تعذر تحميل المبيعات.</p>
           <Button className="mt-3" variant="outline" onClick={() => void refetch()}>
             إعادة المحاولة
           </Button>
         </div>
       ) : filtered.length ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">
           {filtered.map((sale) => <SaleCard key={sale.id} sale={sale} />)}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed p-12 text-center">
+        <div className="rounded-2xl border border-dashed p-12 text-center">
           <WalletCards className="mx-auto h-10 w-10 text-muted-foreground" />
           <h3 className="mt-3 font-semibold">لا توجد مبيعات مطابقة</h3>
           <p className="mt-1 text-sm text-muted-foreground">سجّل عملية بيع جديدة أو غيّر عبارة البحث.</p>
-          <Button className="mt-4" onClick={() => setOpen(true)}>
+          <Button className="mt-4 rounded-xl font-bold" onClick={() => setOpen(true)}>
             <Plus className="ms-2 h-4 w-4" />
             تسجيل بيع
           </Button>

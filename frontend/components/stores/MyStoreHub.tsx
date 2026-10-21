@@ -1,13 +1,14 @@
 'use client';
 
+
+import type { ComponentType } from 'react';
 /**
  * Store operating hub — status, attention, quick actions.
- * Full metrics live only on /my-store/analytics (MyStoreAnalytics).
+ * Layout aligned with design mockup «لوحة متجري — نظرة عامة».
  */
 
 import Link from 'next/link';
 import {
-  Store,
   ExternalLink,
   PackagePlus,
   Package,
@@ -20,6 +21,7 @@ import {
   Ban,
   Sparkles,
   Users,
+  ImageIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -33,17 +35,20 @@ import { BecomeStoreOwnerCard } from './BecomeStoreOwnerCard';
 import { useRequestStoreFeature } from '@/hooks/mutations/useStoreMutations';
 import type { ParsedError } from '@/lib/errorParser';
 import { getStoreTypeLabels, type StoreDetails } from '@/types/store.types';
+import { cn } from '@/lib/utils';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 
 function StatusBanner({ store }: { store: StoreDetails }) {
   if (store.status === 'ACTIVE') return null;
 
   if (store.status === 'PENDING') {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
-        <Clock className="h-5 w-5 shrink-0 text-warning dark:text-warning mt-0.5" />
-        <div className="space-y-1">
-          <p className="font-semibold">متجرك قيد المراجعة</p>
-          <p className="text-muted-foreground">
+      <div className="flex items-start gap-3 rounded-2xl border border-[#F1D3A8] bg-[#FBF0D9] p-3.5 text-sm text-[#7A4B07]">
+        <Clock className="mt-0.5 h-5 w-5 shrink-0" />
+        <div className="space-y-0.5">
+          <p className="font-bold">متجرك قيد المراجعة</p>
+          <p className="text-[13px] leading-relaxed opacity-90">
             لن يظهر للزوار في دليل المتاجر حتى توافق الإدارة. يمكنك تجهيز المنتجات والعروض الآن.
           </p>
         </div>
@@ -53,10 +58,10 @@ function StatusBanner({ store }: { store: StoreDetails }) {
 
   if (store.status === 'BLOCKED') {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-        <Ban className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
-        <div className="space-y-1">
-          <p className="font-semibold text-destructive">تم حظر متجرك</p>
+      <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-3.5 text-sm">
+        <Ban className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+        <div className="space-y-0.5">
+          <p className="font-bold text-destructive">تم حظر متجرك</p>
           <p className="text-muted-foreground">تواصل مع الدعم لمزيد من التفاصيل.</p>
         </div>
       </div>
@@ -66,124 +71,171 @@ function StatusBanner({ store }: { store: StoreDetails }) {
   return null;
 }
 
+function QuickAction({
+  href,
+  icon: Icon,
+  label,
+}: {
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <Link
+      prefetch={false}
+      href={href}
+      className="flex h-11 items-center gap-2 rounded-xl border border-border/80 bg-card px-3 text-[13px] font-bold text-foreground shadow-sm transition-colors hover:bg-muted/40"
+    >
+      <Icon className="h-4 w-4 shrink-0 text-primary" />
+      {label}
+    </Link>
+  );
+}
+
 function HubBody({ store }: { store: StoreDetails }) {
   const storeLabels = getStoreTypeLabels(store.storeType);
   const { data: attention } = useMyAttention();
   const requestFeature = useRequestStoreFeature();
   const featurePending = Boolean(store.featureRequestedAt);
+  const storeTypeLabel = store.storeType?.nameAr || 'متجر';
+  const initial = (store.name?.trim()?.[0] || 'م').toUpperCase();
+  const avatar = getAvatarUrl(store.logoUrl ?? '', 96);
+  const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 720) : null;
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:p-5">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Store className="h-5 w-5 text-muted-foreground shrink-0" />
-            <h1 className="min-w-0 break-words text-lg font-bold sm:text-xl">{store.name}</h1>
-            <Badge variant={STORE_STATUS_VARIANT[store.status]}>{STORE_STATUS_LABELS[store.status]}</Badge>
-          </div>
-          {store.city && <p className="text-sm text-muted-foreground">{store.city}</p>}
+    <div className="space-y-4 sm:space-y-5 lg:space-y-6">
+      <StatusBanner store={store} />
+
+      {/* Store identity card — matches mockup cover + logo */}
+      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm sm:p-3">
+        <div className="relative h-16 overflow-hidden rounded-xl bg-gradient-to-br from-[#1F4D33] via-[#397F56] to-[#5E9C73]">
+          {cover ? (
+            <SafeImage src={cover} alt="" fill className="object-cover" sizes="400px" />
+          ) : null}
         </div>
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-          {store.status === 'ACTIVE' && (
-            <Button variant="outline" size="sm" asChild className="gap-1.5">
-              <Link href={ROUTES.storeDetail(store.id)}>
-                عرض الصفحة العامة <ExternalLink className="h-3.5 w-3.5" />
+
+        <div className="-mt-5 flex items-end justify-between px-1">
+          <div className="relative flex h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full border-[3px] border-card bg-primary/10 text-lg font-extrabold text-primary">
+            {store.logoUrl ? (
+              <SafeImage variant="avatar" src={avatar} alt={store.name} fill className="object-cover" sizes="52px" />
+            ) : (
+              <span aria-hidden>{initial}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-2 space-y-2 px-1 pb-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="min-w-0 flex-1 truncate text-[15px] font-bold">{store.name}</h2>
+            <Badge
+              variant={STORE_STATUS_VARIANT[store.status]}
+              className={cn(
+                store.status === 'PENDING' && 'border-0 bg-[#FBEEE6] text-[#8F3F14]',
+              )}
+            >
+              {STORE_STATUS_LABELS[store.status]}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {[storeTypeLabel, store.city].filter(Boolean).join(' · ')}
+          </p>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {store.status === 'ACTIVE' && (
+              <Button variant="outline" size="sm" asChild className="h-9 gap-1.5 rounded-xl font-bold">
+                <Link href={ROUTES.storeDetail(store.id)}>
+                  عرض الصفحة العامة <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            )}
+            <Button variant="outline" size="sm" asChild className="h-9 gap-1.5 rounded-xl font-bold">
+              <Link prefetch={false} href={ROUTES.myStoreAnalytics}>
+                <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
               </Link>
             </Button>
-          )}
-          <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link prefetch={false} href={ROUTES.myStoreSettings}>
-              <Settings2 className="h-3.5 w-3.5" /> الإعدادات
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link prefetch={false} href={ROUTES.myStoreAnalytics}>
-              <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
-            </Link>
-          </Button>
+            <Button variant="outline" size="icon" asChild className="h-9 w-9 rounded-xl">
+              <Link prefetch={false} href={ROUTES.myStoreSettings} aria-label="الإعدادات">
+                <Settings2 className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
-      <StatusBanner store={store} />
-
+      {/* Needs attention */}
       {(attention?.productsOutOfStock || attention?.productsMissingImages) ? (
-        <div className="rounded-lg border border-warning/25 bg-warning/5 p-3 text-sm flex flex-wrap gap-3 items-center">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+        <section className="space-y-2.5">
+          <h2 className="text-sm font-extrabold">يحتاج انتباهك</h2>
           {attention.productsOutOfStock > 0 && (
-            <Link
-              prefetch={false}
-              href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}
-              className="text-primary hover:underline"
-            >
-              {attention.productsOutOfStock} {storeLabels.product} غير متوفر
-            </Link>
+            <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FBE9E7] text-[#9B2118]">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
+              <p className="min-w-0 flex-1 text-[13px] font-bold">
+                {attention.productsOutOfStock} {storeLabels.product} غير متوفر
+              </p>
+              <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
+                <Link
+                  prefetch={false}
+                  href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}
+                >
+                  مراجعة
+                </Link>
+              </Button>
+            </div>
           )}
           {attention.productsMissingImages > 0 && (
-            <Link prefetch={false} href={ROUTES.myStoreProducts} className="text-primary hover:underline">
-              {attention.productsMissingImages} {storeLabels.product} بدون صور
-            </Link>
+            <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FBF0D9] text-[#7A4B07]">
+                <ImageIcon className="h-4 w-4" />
+              </span>
+              <p className="min-w-0 flex-1 text-[13px] font-bold">
+                {attention.productsMissingImages} {storeLabels.product} بدون صور
+              </p>
+              <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
+                <Link prefetch={false} href={ROUTES.myStoreProducts}>
+                  إضافة صور
+                </Link>
+              </Button>
+            </div>
           )}
-        </div>
+        </section>
       ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">إجراءات سريعة</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-          <Button asChild className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center font-semibold sm:min-h-24">
-            <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
-              <PackagePlus className="h-4 w-4" />
-              {storeLabels.addProduct}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
-            <Link prefetch={false} href={ROUTES.myStoreProducts}>
-              <Package className="h-4 w-4" />
-              {storeLabels.products}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
-            <Link prefetch={false} href={ROUTES.myStoreInventory}>
-              <Package className="h-4 w-4" />
-              المخزون
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
-            <Link prefetch={false} href={ROUTES.myStoreMembers}>
-              <Users className="h-4 w-4" />
-              الأعضاء
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
-            <Link prefetch={false} href={ROUTES.myStorePromotions}>
-              <Tag className="h-4 w-4" />
-              العروض
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto min-h-20 flex-col gap-1 whitespace-normal px-2 py-3 text-center sm:min-h-24">
-            <Link prefetch={false} href={ROUTES.myStoreCollections}>
-              <Layers className="h-4 w-4" />
-              المجموعات
-            </Link>
-          </Button>
+      {/* Quick actions */}
+      <section className="space-y-2.5">
+        <h2 className="text-sm font-extrabold">إجراءات سريعة</h2>
+        <Button asChild className="h-11 w-full rounded-xl text-sm font-bold shadow-md shadow-primary/25">
+          <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
+            <PackagePlus className="h-4 w-4" />
+            {storeLabels.addProduct}
+          </Link>
+        </Button>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+          <QuickAction href={ROUTES.myStoreInventory} icon={Package} label="المخزون" />
+          <QuickAction href={ROUTES.myStoreMembers} icon={Users} label="الأعضاء" />
+          <QuickAction href={ROUTES.myStorePromotions} icon={Tag} label="العروض" />
+          <QuickAction href={ROUTES.myStoreCollections} icon={Layers} label="المجموعات" />
         </div>
       </section>
 
+      {/* Feature CTA */}
       {store.status === 'ACTIVE' && (
-        <div className="rounded-lg border p-3 text-sm flex flex-wrap items-center justify-between gap-2">
-          <span className="text-muted-foreground">
-            {featurePending
-              ? 'طلب التمييز قيد المراجعة'
-              : 'ميّز متجرك في الدليل لزيادة الظهور'}
-          </span>
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#F1D3C0] bg-[#FBEEE6] p-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold text-[#8F3F14]">ميّز متجرك في الدليل</p>
+            <p className="text-xs text-[#7A4B2A]">
+              {featurePending ? 'طلب التمييز قيد المراجعة.' : 'لزيادة الظهور أمام الزوار.'}
+            </p>
+          </div>
           <Button
             size="sm"
-            variant="outline"
-            className="gap-1.5"
+            className="h-9 shrink-0 rounded-xl bg-[#AD531F] font-bold text-white hover:bg-[#8F3F14]"
             disabled={featurePending || requestFeature.isPending}
             onClick={() => requestFeature.mutate()}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {featurePending ? 'تم الطلب' : 'طلب تمييز'}
+            {featurePending ? 'تم الطلب' : 'اطلب التمييز'}
           </Button>
         </div>
       )}

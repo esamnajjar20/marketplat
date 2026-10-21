@@ -268,7 +268,7 @@ export function PromotionForm({ open, onOpenChange, initialProductId }: Props) {
           </FormField>
 
           {selectedProduct && previewPrice !== null && (
-            <div className="rounded-lg border bg-muted/40 p-3 space-y-1">
+            <div className="rounded-2xl border border-primary/15 bg-primary/5 p-3 space-y-1">
               <p className="text-sm font-medium">{selectedProduct.name}</p>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-muted-foreground line-through">

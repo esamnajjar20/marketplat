@@ -52,11 +52,19 @@ function AppointmentActions({ id, status }: { id: string; status: string }) {
 
   return (
     <>
-      <div className="flex gap-1.5 shrink-0">
+      <div className="flex flex-wrap gap-1.5 shrink-0">
+        <Button
+          size="sm"
+          className="h-10 gap-1.5 rounded-xl font-bold"
+          disabled={updateStatus.isPending}
+          onClick={() => updateStatus.mutate({ id, payload: { status: 'COMPLETED' } })}
+        >
+          <CheckCheck className="h-3.5 w-3.5" />إنهاء
+        </Button>
         <Button
           size="sm"
           variant="outline"
-          className="gap-1"
+          className="h-10 gap-1.5 rounded-xl font-bold"
           disabled={updateStatus.isPending}
           onClick={() => updateStatus.mutate({ id, payload: { status: 'NO_SHOW' } })}
         >
@@ -65,19 +73,11 @@ function AppointmentActions({ id, status }: { id: string; status: string }) {
         <Button
           size="sm"
           variant="outline"
-          className="gap-1 text-destructive hover:text-destructive"
+          className="h-10 gap-1.5 rounded-xl font-bold text-destructive hover:text-destructive"
           disabled={updateStatus.isPending}
           onClick={() => setConfirmCancel(true)}
         >
           <X className="h-3.5 w-3.5" />إلغاء
-        </Button>
-        <Button
-          size="sm"
-          className="gap-1"
-          disabled={updateStatus.isPending}
-          onClick={() => updateStatus.mutate({ id, payload: { status: 'COMPLETED' } })}
-        >
-          <CheckCheck className="h-3.5 w-3.5" />إنهاء
         </Button>
       </div>
       <ConfirmDialog
@@ -155,7 +155,7 @@ export function AppointmentsList({ providerId }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       <div className="flex justify-end">
         <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
           <CalendarPlus className="h-4 w-4" />
@@ -170,7 +170,7 @@ export function AppointmentsList({ providerId }: Props) {
           description="لم تحجز أي مواعيد بعد"
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((appointment) => (
             <div
               key={appointment.id}

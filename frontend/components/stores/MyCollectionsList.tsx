@@ -111,9 +111,9 @@ export function MyCollectionsList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="font-semibold">مجموعات المتجر</h2>
+        <h2 className="text-sm font-extrabold">المجموعات</h2>
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
@@ -124,7 +124,7 @@ export function MyCollectionsList() {
             {selectionMode ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             {selectionMode ? 'إلغاء التحديد' : 'تحديد'}
           </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => { setEditTarget(null); setFormOpen(true); }}>
+          <Button size="sm" className="gap-1.5 rounded-xl font-bold" onClick={() => { setEditTarget(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4" />مجموعة جديدة
           </Button>
         </div>
@@ -138,14 +138,14 @@ export function MyCollectionsList() {
           action={<Button onClick={() => setFormOpen(true)}>مجموعة جديدة</Button>}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((collection, index) => {
             const cover = collection.imageUrl ? getThumbnailUrl(collection.imageUrl, 96, 96) : PLACEHOLDER_SVG;
             return (
               <div
                 key={collection.id}
                 onClick={selectionMode ? () => toggleSelect(collection.id) : undefined}
-                className={`flex flex-col gap-3 p-3 rounded-lg border bg-card sm:flex-row sm:items-center sm:justify-between ${selectionMode ? 'cursor-pointer' : ''} ${selected.has(collection.id) ? 'border-primary/40 bg-primary/10' : ''}`}
+                className={`flex flex-col gap-3 p-3 rounded-2xl border border-border/70 bg-card shadow-sm sm:flex-row sm:items-center sm:justify-between ${selectionMode ? 'cursor-pointer' : ''} ${selected.has(collection.id) ? 'border-primary/40 bg-primary/10' : ''}`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {selectionMode && (
@@ -158,12 +158,12 @@ export function MyCollectionsList() {
                       {selected.has(collection.id) && <Check className="h-4 w-4" />}
                     </button>
                   )}
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-primary/10">
                     <SafeImage src={cover} alt="" fill className="object-cover" sizes="56px" />
                   </div>
                   <div className="min-w-0 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{collection.name}</span>
+                      <span className="text-sm font-bold">{collection.name}</span>
                       {!collection.isActive && (
                         <Badge variant="secondary" className="gap-1 text-xs">
                           <EyeOff className="h-3 w-3" />مخفية
@@ -229,7 +229,7 @@ export function MyCollectionsList() {
       )}
 
       {selectionMode && (
-        <div className="sticky bottom-2 z-10 flex items-center justify-between gap-2 rounded-lg border bg-card p-2 shadow-lg">
+        <div className="sticky bottom-2 z-10 flex items-center justify-between gap-2 rounded-2xl border border-border/70 bg-card shadow-sm p-2 shadow-lg">
           <span className="text-sm font-medium">{selected.size} محدد</span>
           <div className="flex gap-1">
             <Button

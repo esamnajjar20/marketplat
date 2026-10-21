@@ -72,7 +72,7 @@ const TAB_META: Record<MyStoreTab, { label: string; Icon: typeof Package }> = {
 function PageTitle({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <h1 className="text-xl font-bold">{title}</h1>
+      <h1 className="text-xl font-extrabold">{title}</h1>
       {children ? <p className="text-sm text-muted-foreground">{children}</p> : null}
     </div>
   );
@@ -84,7 +84,7 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
       return (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-xl font-bold">{storeLabels.products}</h1>
+            <h1 className="text-xl font-extrabold">{storeLabels.products}</h1>
             <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
               <Button size="sm" className="gap-1.5">
                 <PackagePlus className="h-4 w-4" />
@@ -100,7 +100,7 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
     case 'collections':
       return (
         <div className="space-y-4">
-          <h1 className="text-xl font-bold">مجموعات المتجر</h1>
+          <h1 className="text-xl font-extrabold">مجموعات المتجر</h1>
           <Suspense>
             <MyCollectionsList />
           </Suspense>
@@ -109,7 +109,7 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
     case 'promotions':
       return (
         <div className="space-y-4">
-          <h1 className="text-xl font-bold">العروض</h1>
+          <h1 className="text-xl font-extrabold">العروض</h1>
           <Suspense>
             <MyPromotionsList />
           </Suspense>
@@ -139,7 +139,7 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
       return (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-xl font-bold">إحصائيات المتجر</h1>
+            <h1 className="text-xl font-extrabold">إحصائيات المتجر</h1>
             <Button size="sm" asChild className="gap-1.5 font-semibold">
               <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
                 <PackagePlus className="h-4 w-4" />

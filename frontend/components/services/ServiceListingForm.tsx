@@ -595,7 +595,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
         </div>
       )}
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 1 ? "hidden" : ""}`}>
-        <h2 className="font-semibold">معلومات الخدمة</h2>
+        <h2 className="text-sm font-extrabold">معلومات الخدمة</h2>
 
         {/* FIX BUG-XX: same gap as ProductForm/AdForm — required Select
             hand-rolled outside FormField, error <p> missing role="alert"/
@@ -659,7 +659,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
       )}
 
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
-        <h2 className="font-semibold">التسعير والموقع</h2>
+        <h2 className="text-sm font-extrabold">التسعير والموقع</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -731,7 +731,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
           dedicated add/remove endpoints — same ImageUpload usage as AdForm. */}
       <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
         <div>
-          <h2 className="font-semibold">الصور</h2>
+          <h2 className="text-sm font-extrabold">الصور</h2>
           <p className="mt-1 text-xs text-muted-foreground">أضف صورة واحدة على الأقل. الصورة الأولى ستكون الصورة الرئيسية للخدمة.</p>
         </div>
         {fieldError('images') && <p className="text-sm text-destructive" role="alert">{fieldError('images')}</p>}

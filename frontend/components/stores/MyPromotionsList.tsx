@@ -141,9 +141,9 @@ export function MyPromotionsList() {
   const items = promotions ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="font-semibold">العروض</h2>
+        <h2 className="text-sm font-extrabold">العروض</h2>
         <Button size="sm" className="gap-1.5" onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4" />إنشاء عرض
         </Button>
@@ -152,7 +152,7 @@ export function MyPromotionsList() {
       {/* BULK-PROMOTIONS-CANCEL-01: selection bar. Only shows when at
           least one cancellable promotion is selected. */}
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-primary/5 border-primary/15 p-2.5 text-sm">
           <span className="font-medium">{selected.size} محدد</span>
           <Button
             type="button"
@@ -196,7 +196,7 @@ export function MyPromotionsList() {
           action={<Button onClick={() => setFormOpen(true)}>إنشاء عرض</Button>}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((promotion) => {
             const product = products.find((p) => p.id === promotion.productId);
             const cancellable =
@@ -206,7 +206,7 @@ export function MyPromotionsList() {
               <div
                 key={promotion.id}
                 className={cn(
-                  'flex flex-col gap-2 p-3 rounded-lg border bg-card sm:flex-row sm:items-center sm:justify-between',
+                  'flex flex-col gap-2 p-3.5 rounded-2xl border border-border/70 bg-card shadow-sm sm:flex-row sm:items-center sm:justify-between',
                   isSelected && 'border-primary/40 bg-primary/5',
                 )}
               >
@@ -229,7 +229,7 @@ export function MyPromotionsList() {
                 )}
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm">{promotion.title}</span>
+                    <span className="text-sm font-bold">{promotion.title}</span>
                     <Badge variant={STATUS_VARIANTS[promotion.status]} className="text-xs">
                       {STATUS_LABELS[promotion.status]}
                     </Badge>

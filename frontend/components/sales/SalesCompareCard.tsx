@@ -63,7 +63,7 @@ export function SalesCompareCard() {
     <section className={`${CARD_SHELL} p-3 sm:p-4`} dir="rtl">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold">مقارنة الأداء</h2>
+          <h2 className="font-extrabold">مقارنة الأداء</h2>
           <p className="text-xs text-muted-foreground">هل تتحسن مبيعاتك مع الوقت؟</p>
         </div>
         <select

@@ -26,7 +26,7 @@ function InviteCard({ invite }: { invite: StoreMember }) {
   const logo = invite.store?.logoUrl;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 p-3 shadow-sm">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden">
         {logo ? (
           <SafeImg src={logo} alt="" className="h-10 w-10 object-cover" />

@@ -250,7 +250,7 @@ export function MyStoreCard({ store }: Props) {
         </p>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 lg:space-y-5">
         <FormField label="اسم المتجر" htmlFor="my-store-name" required error={fieldError('name')}>
           <Input id="my-store-name" value={name} onChange={(e) => setName(e.target.value)} />
         </FormField>

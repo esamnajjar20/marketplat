@@ -11,11 +11,13 @@ export const metadata: Metadata = buildMetadata({ title: 'لوحة المتجر'
 // HTML shell is identical for every tab.
 export default function MyStorePage() {
   return (
-    <div className="space-y-5">
+    <div className="desktop-readable desktop-section space-y-4 sm:space-y-5 lg:space-y-6">
       <header className="desktop-page-header">
         <div className="min-w-0 space-y-1">
-          <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">لوحة المتجر</h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">أدر المنتجات والعروض والمخزون والفريق والإحصائيات من مساحة واحدة.</p>
+          <h1 className="text-balance text-xl font-extrabold tracking-tight sm:text-2xl">لوحة المتجر</h1>
+          <p className="max-w-2xl text-xs leading-6 text-muted-foreground sm:text-sm">
+            أدر منتجاتك وعروضك ومخزونك من مكان واحد.
+          </p>
         </div>
       </header>
       <Suspense>

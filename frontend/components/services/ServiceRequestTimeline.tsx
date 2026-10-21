@@ -68,9 +68,9 @@ export function ServiceRequestTimeline({ request }: Props) {
   ];
 
   return (
-    <section aria-labelledby="request-progress-title" className="rounded-xl border bg-card p-4 sm:p-5">
+    <section aria-labelledby="request-progress-title" className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
       <div className="mb-4">
-        <h2 id="request-progress-title" className="text-base font-semibold">تقدم الطلب</h2>
+        <h2 id="request-progress-title" className="text-base font-extrabold">تقدم الطلب</h2>
         <p className="mt-1 text-xs text-muted-foreground">تابع حالة طلبك والخطوة التالية بوضوح.</p>
       </div>
       <ol className="space-y-0">
@@ -81,7 +81,7 @@ export function ServiceRequestTimeline({ request }: Props) {
               {index < steps.length - 1 && (
                 <span className={cn('absolute start-[13px] top-7 h-[calc(100%-8px)] w-px', step.completed ? 'bg-primary/50' : 'bg-border')} aria-hidden />
               )}
-              <span className={cn('relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border', step.completed ? 'border-primary bg-primary text-primary-foreground' : step.active ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-muted text-muted-foreground')}>
+              <span className={cn('relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border', step.completed ? 'border-primary bg-primary text-primary-foreground' : step.active ? 'border-primary bg-primary/10 text-primary ring-4 ring-primary/10' : 'border-border/80 bg-muted/60 text-muted-foreground')}>
                 <Icon className="h-3.5 w-3.5" aria-hidden />
               </span>
               <div className="min-w-0 pt-0.5">

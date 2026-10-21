@@ -217,11 +217,11 @@ export function MyServiceProviderCard({ provider }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-md border p-3">
+        <div className="rounded-2xl border border-border/70 p-3 shadow-sm">
           <p className="font-medium">{provider.completedRequestsCount}</p>
           <p className="text-xs text-muted-foreground">طلب مكتمل</p>
         </div>
-        <div className="rounded-md border p-3">
+        <div className="rounded-2xl border border-border/70 p-3 shadow-sm">
           <p className="font-medium">
             {provider.fulfillmentRate ? `${parseFloat(provider.fulfillmentRate).toFixed(0)}%` : '—'}
           </p>

@@ -77,7 +77,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 lg:space-y-6">
       <div
         className="sticky top-[var(--protected-header-offset,4rem)] z-20 -mx-2 flex gap-1.5 overflow-x-auto overscroll-x-contain border-b border-border bg-background/95 px-4 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/85"
         role="tablist"
@@ -151,12 +151,16 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
             </h2>
             <StoreReviewButton storeId={storeId} storeName={storeName} ownerUserId={ownerUserId} />
           </div>
-          <StoreReviewsList storeId={storeId} />
+          <StoreReviewsList
+          storeId={storeId}
+          averageRating={store?.sellerProfile?.averageRating}
+          totalRatings={store?.sellerProfile?.totalRatings}
+        />
         </section>
       )}
 
       {active === 'about' && store && (
-        <section className="space-y-5" role="tabpanel"
+        <section className="space-y-5 lg:space-y-6" role="tabpanel"
           id="store-panel-about"
           aria-labelledby="store-tab-about">
           <StoreAboutPanel store={store} />
@@ -177,12 +181,12 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
 function StoreAboutPanel({ store }: { store: StoreWithSellerAndCounts }) {
   const presentation = getStoreTypePresentation(store.storeType);
   return (
-    <div className="mx-auto grid max-w-4xl gap-4 lg:grid-cols-2">
+    <div className="mx-auto flex max-w-4xl flex-col gap-3">
       {store.description && (
         <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
           <div className="mb-2 flex items-center gap-2">
             <Info className="h-4 w-4 text-primary" aria-hidden />
-            <h3 className="text-sm font-bold">{presentation.page.about}</h3>
+            <h3 className="text-sm font-extrabold">نبذة عن المتجر</h3>
           </div>
           <p className="text-sm leading-7 text-muted-foreground whitespace-pre-wrap">{store.description}</p>
         </section>
@@ -191,7 +195,7 @@ function StoreAboutPanel({ store }: { store: StoreWithSellerAndCounts }) {
       <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <MapPin className="h-4 w-4 text-primary" aria-hidden />
-          <h3 className="text-sm font-bold">{presentation.page.contact}</h3>
+          <h3 className="text-sm font-extrabold">الموقع والتواصل</h3>
         </div>
         <ul className="space-y-3 text-sm text-muted-foreground">
           <li className="flex items-center gap-2">

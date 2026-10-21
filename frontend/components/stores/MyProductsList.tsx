@@ -1,6 +1,4 @@
 'use client';
-import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
-
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -8,7 +6,6 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import {
   Pencil,
   Trash2,
-  Eye,
   Package,
   AlertTriangle,
   Pause,
@@ -20,7 +17,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
-import { Badge } from '@/components/shared/ui/Badge';
 import { Input } from '@/components/shared/ui/Input';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -184,7 +180,7 @@ export function MyProductsList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       {showPendingOffline && <PendingOfflinePublishCard kind="product" />}
       <form onSubmit={submitSearch} className="flex flex-col gap-2 sm:flex-row">
         <div className="relative min-w-0 flex-1">
@@ -224,10 +220,10 @@ export function MyProductsList() {
                 type="button"
                 onClick={() => setStatus(val)}
                 aria-pressed={(status ?? '') === val}
-                className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   (status ?? '') === val
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'}`}
               >
                 {label}
               </button>
@@ -320,66 +316,70 @@ export function MyProductsList() {
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((product) => {
             const thumb = product.images[0]
               ? getThumbnailUrl(product.images[0], 120, 90)
               : PLACEHOLDER_SVG;
             return (
-              <div key={product.id} className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-start">
+              <div key={product.id} className="flex items-start gap-2.5 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm transition-shadow hover:shadow-md sm:gap-3 sm:p-3">
                 {product.status !== 'DELETED' && (
                   <input
                     type="checkbox"
-                    className="mt-1 shrink-0"
+                    className="mt-3 h-5 w-5 shrink-0 rounded-md border-border"
                     checked={selected.has(product.id)}
                     onChange={() => toggleSelect(product.id)}
                     aria-label={`تحديد ${product.name}`}
                   />
                 )}
-                <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-24">
-                  <SafeImage src={thumb} alt={product.name} fill className="object-cover" sizes="96px" />
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-primary/10 sm:h-16 sm:w-16">
+                  <SafeImage src={thumb} alt={product.name} fill className="object-cover" sizes="64px" />
                 </div>
-                <div className="flex-1 min-w-0 space-y-1">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-medium text-sm line-clamp-1">{product.name}</span>
-                    <Badge
-                      variant={
+                    <span className="line-clamp-2 text-[13px] font-bold leading-snug sm:text-sm">{product.name}</span>
+                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
+                      <span className="text-sm font-extrabold tabular-nums text-primary">
+                        {formatPrice(product.discountPrice ?? product.price)}
+                      </span>
+                      {product.discountPrice && (
+                        <span className="text-[11px] text-muted-foreground line-through">
+                          {formatPrice(product.price)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={
                         product.status === 'ACTIVE'
-                          ? 'default'
+                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary'
                           : product.status === 'PAUSED'
-                            ? 'secondary'
-                            : 'destructive'
+                            ? 'inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-[11px] font-bold text-muted-foreground'
+                            : 'inline-flex h-6 items-center rounded-full bg-destructive/10 px-2.5 text-[11px] font-bold text-destructive'
                       }
-                      className="shrink-0 text-xs"
                     >
                       {STATUS_LABELS[product.status]}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-primary font-bold text-sm">
-                      {formatPrice(product.discountPrice ?? product.price)}
-                    </p>
-                    {product.stockQuantity != null && product.stockQuantity <= 5 && product.stockQuantity >= 0 && <Badge variant="destructive" className="text-2xs">متبقي {product.stockQuantity}</Badge>}
-                    {product.discountPrice && (
-                      <p className="text-xs text-muted-foreground line-through">
-                        {formatPrice(product.price)}
-                      </p>
-                    )}
-                    <Badge variant="outline" className="text-2xs">
-                      {AVAIL_LABELS[product.availability]}
-                      {product.stockQuantity != null ? ` · ${product.stockQuantity}` : ''}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {product.views}
                     </span>
-                    <span>{<HydrationSafeRelativeTime date={product.createdAt} />}</span>
-                    {!product.images?.length && <span className="text-warning">بدون صور</span>}
+                    <span
+                      className={
+                        product.availability === 'IN_STOCK'
+                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary'
+                          : product.availability === 'LIMITED'
+                            ? 'inline-flex h-6 items-center rounded-full bg-[#FBF0D9] px-2.5 text-[11px] font-bold text-[#7A4B07]'
+                            : 'inline-flex h-6 items-center rounded-full bg-[#FBE9E7] px-2.5 text-[11px] font-bold text-[#9B2118]'
+                      }
+                    >
+                      {AVAIL_LABELS[product.availability]}
+                    </span>
+                    {!product.images?.length && (
+                      <span className="inline-flex h-6 items-center rounded-full bg-warning/15 px-2.5 text-[11px] font-bold text-warning">
+                        بدون صور
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-1 border-t pt-2 sm:flex-col sm:border-t-0 sm:pt-0">
+                <div className="flex shrink-0 flex-col gap-1">
                   {product.status === 'ACTIVE' && (
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-success" aria-label={`بيع ${product.name}`} title="بعت" onClick={() => setSalePrefill({ entityType: 'PRODUCT', entityId: product.id, entityTitle: product.name, entityImageUrl: product.images?.[0] ?? null, unitPrice: Number(product.discountPrice ?? product.price), storeId: product.storeId })}>
                       <Package className="h-3.5 w-3.5" />

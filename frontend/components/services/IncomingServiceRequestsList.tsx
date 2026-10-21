@@ -67,7 +67,7 @@ function RequestActions({
           <Button
             size="sm"
             variant="outline"
-            className="gap-1 text-destructive hover:text-destructive"
+            className="h-10 gap-1.5 rounded-xl font-bold text-destructive hover:text-destructive"
             disabled={respond.isPending}
             onClick={() => setConfirmReject(true)}
           >
@@ -75,7 +75,7 @@ function RequestActions({
           </Button>
           <Button
             size="sm"
-            className="gap-1"
+            className="h-10 gap-1.5 rounded-xl font-bold"
             disabled={respond.isPending}
             onClick={() => respond.mutate({ action: 'ACCEPTED' })}
           >
@@ -101,13 +101,13 @@ function RequestActions({
   if (status === 'ACCEPTED') {
     return (
       <div className="flex gap-1.5 shrink-0">
-        <Button size="sm" variant="outline" className="gap-1" onClick={onBookAppointment}>
+        <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-xl font-bold" onClick={onBookAppointment}>
           <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
         </Button>
         {requiresCustomerApproval ? (
           <span className="max-w-44 text-xs text-muted-foreground">بانتظار موافقة العميل على السعر</span>
         ) : (
-          <Button size="sm" className="gap-1" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'IN_PROGRESS' })}>
+          <Button size="sm" className="h-10 gap-1.5 rounded-xl font-bold" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'IN_PROGRESS' })}>
             <Play className="h-3.5 w-3.5" />بدء التنفيذ
           </Button>
         )}
@@ -118,10 +118,10 @@ function RequestActions({
   if (status === 'IN_PROGRESS') {
     return (
       <div className="flex gap-1.5 shrink-0">
-        <Button size="sm" variant="outline" className="gap-1" onClick={onBookAppointment}>
+        <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-xl font-bold" onClick={onBookAppointment}>
           <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
         </Button>
-        <Button size="sm" className="gap-1" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'COMPLETED' })}>
+        <Button size="sm" className="h-10 gap-1.5 rounded-xl font-bold" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'COMPLETED' })}>
           <CheckCheck className="h-3.5 w-3.5" />إنهاء
         </Button>
       </div>
@@ -206,7 +206,7 @@ export function IncomingServiceRequestsList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الطلبات الواردة حسب الحالة">
         {FILTER_TABS.map((val) => (
           <button
@@ -228,7 +228,7 @@ export function IncomingServiceRequestsList() {
           description="لم يصلك أي طلب خدمة بعد"
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((request) => {
             const thumb = request.listing.images[0]
               ? getThumbnailUrl(request.listing.images[0], 120, 90)
@@ -276,7 +276,7 @@ export function IncomingServiceRequestsList() {
                       }
                     />
                     {(['ACCEPTED','IN_PROGRESS','COMPLETED'] as const).includes(request.status as any) && (request.agreedPrice ?? request.quotedPrice) != null ? (
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setSalePrefill({ entityType:'SERVICE', entityId:request.listing.id, entityTitle:request.listing.title, entityImageUrl:request.listing.images?.[0] ?? null, unitPrice:Number(request.agreedPrice ?? request.quotedPrice), serviceRequestId:request.id, buyerName:request.customer.name })}>
+                      <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-xl font-bold" onClick={() => setSalePrefill({ entityType:'SERVICE', entityId:request.listing.id, entityTitle:request.listing.title, entityImageUrl:request.listing.images?.[0] ?? null, unitPrice:Number(request.agreedPrice ?? request.quotedPrice), serviceRequestId:request.id, buyerName:request.customer.name })}>
                         <WalletCards className="h-3.5 w-3.5" />تسجيل البيع
                       </Button>
                     ) : null}

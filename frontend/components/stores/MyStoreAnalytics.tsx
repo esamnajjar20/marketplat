@@ -56,8 +56,8 @@ export function MyStoreAnalytics() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="space-y-5 lg:space-y-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 sm:gap-3 lg:gap-4">
         <StatCard icon={Eye} label="مشاهدات المتجر" value={analytics.views} />
         <StatCard icon={Users} label="المتابعون" value={analytics.followers} />
         <StatCard icon={UserPlus} label="متابعون جدد (٧ أيام)" value={analytics.newFollowers7d} />

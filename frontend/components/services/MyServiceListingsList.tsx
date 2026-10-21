@@ -18,7 +18,9 @@ import {
   X,
   Inbox,
   CalendarClock,
+  Plus,
 } from 'lucide-react';
+// Plus used in header
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Input } from '@/components/shared/ui/Input';
@@ -194,7 +196,7 @@ export function MyServiceListingsList() {
 
   if (isLoading || isOutOfRange) {
     return (
-      <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <AdListItemSkeleton key={i} />
         ))}
@@ -215,12 +217,12 @@ export function MyServiceListingsList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:space-y-5">
       {showPendingOffline && <PendingOfflinePublishCard kind="service" />}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-sm font-semibold text-muted-foreground">قائمة الخدمات</h2>
         <Link href={ROUTES.myServiceCreate}>
-          <Button size="sm">خدمة جديدة</Button>
+          <Button size="sm" className="rounded-xl font-bold gap-1"><Plus className="h-3.5 w-3.5" />خدمة جديدة</Button>
         </Link>
       </div>
 
@@ -265,10 +267,10 @@ export function MyServiceListingsList() {
               type="button"
               onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}
-              className={`shrink-0 rounded-full px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 (status ?? '') === val
                   ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted text-muted-foreground'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
               }`}
             >
               {label}
@@ -278,7 +280,7 @@ export function MyServiceListingsList() {
       </div>
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/15 bg-primary/5 p-2.5 text-sm">
           <span className="font-medium">{selected.size} محدد</span>
           <Button
             size="sm"
@@ -344,13 +346,13 @@ export function MyServiceListingsList() {
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((listing) => {
             const thumb = listing.images[0]
               ? getThumbnailUrl(listing.images[0], 120, 90)
               : PLACEHOLDER_SVG;
             return (
-              <div key={listing.id} className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
+              <div key={listing.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
                 {listing.status !== 'DELETED' && (
                   <input
                     type="checkbox"

@@ -20,15 +20,15 @@ export function SalesPageClient() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:gap-4">
         <div>
           <div className="flex items-center gap-2">
             <WalletCards className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold sm:text-xl">نظرة عامة</h2>
+            <h2 className="text-lg font-extrabold sm:text-xl">نظرة عامة</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">ملخص سريع للمبيعات والدفعات والمبالغ المستحقة.</p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button onClick={() => setOpen(true)}>
             <Plus className="ms-2 h-4 w-4" />
             تسجيل بيع
@@ -44,17 +44,17 @@ export function SalesPageClient() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <div><h3 className="font-semibold">أحدث المبيعات</h3><p className="text-sm text-muted-foreground">آخر العمليات المسجلة.</p></div>
+          <div><h3 className="font-extrabold">أحدث المبيعات</h3><p className="text-sm text-muted-foreground">آخر العمليات المسجلة.</p></div>
           <Button variant="ghost" size="sm" asChild>
             <Link href={salesHubTabHref('sales')}>عرض الكل</Link>
           </Button>
         </div>
         {isLoading ? (
-          <div className="grid gap-3 md:grid-cols-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-xl border bg-muted/40" />)}</div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-2xl border bg-muted/40" />)}</div>
         ) : isError ? (
           <div className="rounded-[var(--radius-card)] border p-6 text-center shadow-xs"><p className="text-sm text-destructive">تعذر تحميل أحدث المبيعات.</p><Button className="mt-3" variant="outline" onClick={() => void refetch()}>إعادة المحاولة</Button></div>
         ) : items.length ? (
-          <div className="grid gap-3 md:grid-cols-2">{items.map((sale) => <SaleCard key={sale.id} sale={sale} />)}</div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">{items.map((sale) => <SaleCard key={sale.id} sale={sale} />)}</div>
         ) : (
           <div className="rounded-[var(--radius-card)] border border-dashed bg-surface-1 p-8 text-center sm:p-10"><ReceiptText className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 font-medium">لا توجد مبيعات بعد</p><div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row"><Button onClick={() => setOpen(true)}>تسجيل أول بيع</Button><Button variant="outline" onClick={() => setPosOpen(true)}>بيع عدة منتجات</Button></div></div>
         )}

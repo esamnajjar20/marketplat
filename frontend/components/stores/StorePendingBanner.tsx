@@ -14,7 +14,7 @@ export function StorePendingBanner() {
 
   if (store.status === 'BLOCKED') {
     return (
-      <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm">
+      <div className="mb-4 flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm">
         <Ban className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
         <p>
           <span className="font-semibold text-destructive">متجرك محظور</span>
@@ -25,10 +25,10 @@ export function StorePendingBanner() {
   }
 
   return (
-    <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm">
+    <div className="mb-4 flex items-start gap-2 rounded-2xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm">
       <Clock className="h-4 w-4 shrink-0 text-warning dark:text-warning mt-0.5" />
       <p>
-        <span className="font-semibold">متجرك غير ظاهر للزوار بعد</span>
+        <span className="text-sm font-extrabold">متجرك غير ظاهر للزوار بعد</span>
         {' — '}قيد مراجعة الإدارة. يمكنك تجهيز{' '}
         <Link href={ROUTES.myStoreProducts} className="text-primary hover:underline">
           المنتجات
