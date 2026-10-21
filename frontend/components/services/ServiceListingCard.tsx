@@ -224,21 +224,23 @@ export const ServiceListingCard = memo(function ServiceListingCard({
           />
           <div className={CARD_IMAGE_SHADE} aria-hidden />
           <CardOfflineBadge />
-          <div className="absolute start-2 top-2 z-10 flex flex-col items-start gap-1">
+          <div className="absolute start-2 top-2 z-10 flex max-w-[calc(100%-3.5rem)] flex-col items-start gap-1 overflow-hidden">
             {showKind && <CardKindBadge kind="service" />}
-            <Badge size="xs" variant="overlay">
+            <Badge size="xs" variant="overlay" className="max-w-full whitespace-normal break-words">
               {AVAILABILITY_LABEL[avail]}
             </Badge>
           </div>
         </div>
-        <div className={CARD_BODY_COMPACT}>
-          <h3 title={listing.title} className={cn(CARD_TITLE_GRID, "line-clamp-2")}>
+        <div className={cn(CARD_BODY_COMPACT, 'h-full')}>
+          <h3 title={listing.title} className={cn(CARD_TITLE_GRID, "line-clamp-2 break-words")}>
             {listing.title}
           </h3>
-          <span dir="ltr" className="text-sm font-extrabold tabular-nums text-primary">
-            {priceLabel}
-          </span>
-          <span className="truncate text-[11px] text-muted-foreground">{listing.provider.businessName}</span>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span dir="ltr" className="text-sm font-extrabold tabular-nums text-primary">
+              {priceLabel}
+            </span>
+          </div>
+          <span title={listing.provider.businessName} className="min-w-0 truncate text-[11px] text-muted-foreground">{listing.provider.businessName}</span>
         </div>
       </Link>
       {showHeart && (

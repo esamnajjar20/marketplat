@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ListPageShell } from '@/components/shared/list/ListPageShell';
+import { ListPageShell, LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
+import { AdCardSkeleton } from '@/components/shared/skeletons';
 
 const SearchFilters = dynamic(
   () => import('@/components/ads/SearchFilters').then((module) => module.SearchFilters),
@@ -26,9 +27,9 @@ const SearchResults = dynamic(
     loading: () => (
       <div className="space-y-3 py-4" role="status" aria-live="polite">
         <p className="text-sm text-muted-foreground">جارٍ تحميل الإعلانات…</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <div className={LIST_CARD_GRID_CLASS}>
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl bg-muted" />
+            <AdCardSkeleton key={i} />
           ))}
         </div>
       </div>

@@ -4,7 +4,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { getDetailImageUrl } from '@/lib/cloudinary';
 import { StoreDynamicFieldChips } from '@/components/stores/StoreDynamicFields';
 import { Badge } from '@/components/ui/badge';
-import { BadgeCheck, Star, MapPin, Sparkles } from 'lucide-react';
+import { BadgeCheck, Star, MapPin, Sparkles, Store as StoreIcon } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
@@ -51,7 +51,9 @@ export const StoreCard = memo(function StoreCard({ store, className, density = '
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover transition-transform duration-normal ease-standard group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, 360px" />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-muted to-accent/10" aria-hidden />
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 via-muted to-accent/10" aria-hidden>
+              <StoreIcon className="h-9 w-9 text-muted-foreground/45 sm:h-10 sm:w-10" strokeWidth={1.4} />
+            </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" aria-hidden />
           <CardOfflineBadge />
@@ -81,9 +83,9 @@ export const StoreCard = memo(function StoreCard({ store, className, density = '
 
           <div className="min-w-0">
             <p className="text-xs font-semibold text-primary">{storeTypeLabel}</p>
-            <h3 className="mt-0.5 truncate text-base font-bold text-foreground">{store.name}</h3>
-            {presentation.card.subtitle ? <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{presentation.card.subtitle}</p> : null}
-            {store.description?.trim() ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{store.description}</p> : null}
+            <h3 title={store.name} className="mt-0.5 min-h-12 min-w-0 line-clamp-2 break-words text-base font-bold leading-6 text-foreground">{store.name}</h3>
+            {presentation.card.subtitle ? <p title={presentation.card.subtitle} className="mt-0.5 min-w-0 line-clamp-1 break-words text-xs text-muted-foreground">{presentation.card.subtitle}</p> : null}
+            {store.description?.trim() ? <p title={store.description} className="mt-1 min-w-0 line-clamp-2 break-words text-xs leading-5 text-muted-foreground">{store.description}</p> : null}
           </div>
 
           <div className="mt-3">

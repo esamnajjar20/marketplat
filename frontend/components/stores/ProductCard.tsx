@@ -229,7 +229,7 @@ export const ProductCard = memo(function ProductCard({
             </div>
           </div>
           <div className={cn(CARD_BODY_DEFAULT, 'gap-1')}>
-            <h3 title={product.name} className={CARD_TITLE_GRID}>
+            <h3 title={product.name} className={cn(CARD_TITLE_GRID, 'break-words')}>
               {product.name}
             </h3>
             <div className="flex items-baseline gap-1.5">

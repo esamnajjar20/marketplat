@@ -200,7 +200,7 @@ export const AdCard = memo(function AdCard({
             </div>
           </div>
           <div className={cn(CARD_BODY_DEFAULT, 'gap-1')}>
-            <h3 title={ad.title} className={CARD_TITLE_GRID}>
+            <h3 title={ad.title} className={cn(CARD_TITLE_GRID, 'break-words')}>
               {ad.title}
             </h3>
             <div className="flex flex-wrap items-center gap-1.5">
