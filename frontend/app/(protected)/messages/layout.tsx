@@ -62,9 +62,6 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
         )}
       >
         <div className="space-y-3 p-3 sm:p-4 md:p-0 md:space-y-0 md:flex md:flex-col md:h-full md:min-h-0">
-          <div className="md:hidden flex items-center justify-between gap-2 px-1">
-            <h1 className="text-xl font-bold tracking-tight">الرسائل</h1>
-          </div>
           <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
             <ConversationList selectedId={selectedId} />
           </Suspense>

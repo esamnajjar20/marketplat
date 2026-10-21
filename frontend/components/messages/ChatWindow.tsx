@@ -435,7 +435,10 @@ export function ChatWindow({ conversationId }: Props) {
 
 
   return (
-    <div className="native-chat-thread flex h-full min-h-0 flex-col overflow-hidden bg-background">
+    <div
+      data-chat-thread
+      className="native-chat-thread relative -mb-20 flex h-full min-h-0 flex-col overflow-hidden bg-background md:mb-0"
+    >
       <Sheet open={showMedia} onOpenChange={setShowMedia}>
         <SheetContent>
           <SheetHeader>
