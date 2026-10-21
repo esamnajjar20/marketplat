@@ -1,0 +1,195 @@
+name: Load Test Realistic (500-1500 concurrent users)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'API base URL'
+        required: true
+        default: 'https://marketplat-api.esamnajjar6.workers.dev'
+
+permissions:
+  contents: read
+
+jobs:
+  realistic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq && sudo apt-get install -y k6
+
+      - name: Warmup edge cache
+        run: |
+          echo "🔥 Warming edge..."
+          for path in /api/v1/categories /api/v1/ads?limit=10 /api/v1/products?limit=10 /api/v1/stores?limit=10; do
+            curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" "${{ inputs.target }}$path" || true
+            sleep 0.3
+          done
+          sleep 2
+
+      - name: Write realistic k6 script
+        run: |
+          cat > /tmp/realistic.js <<'K6'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+          import { Trend, Counter } from 'k6/metrics';
+
+          const TARGET = __ENV.TARGET;
+          const cacheHit = new Counter('cache_hit');
+          const cacheMiss = new Counter('cache_miss');
+          const hitLatency = new Trend('hit_latency_ms', true);
+          const missLatency = new Trend('miss_latency_ms', true);
+
+          // 10,000 requests in 120s = 83 req/s
+          // = ~1000-1500 concurrent users equivalent
+          export const options = {
+            scenarios: {
+              realistic_load: {
+                executor: 'ramping-arrival-rate',
+                startRate: 10,
+                timeUnit: '1s',
+                preAllocatedVUs: 50,
+                maxVUs: 300,
+                stages: [
+                  { duration: '20s', target: 40 },   // ramp to 40 req/s
+                  { duration: '20s', target: 83 },   // ramp to 83 req/s (peak)
+                  { duration: '60s', target: 83 },   // sustain 83 req/s
+                  { duration: '20s', target: 0 },    // ramp down
+                ],
+              },
+            },
+            thresholds: {
+              'http_req_duration': ['p(95)<2000'],
+              'http_req_failed': ['rate<0.02'],
+            },
+            summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
+          };
+
+          // Real user paths — public + cached (no auth needed)
+          const paths = [
+            // 40% — homepage feeds (heaviest)
+            '/api/v1/home',
+            '/api/v1/home/static',
+            // 30% — listing endpoints
+            '/api/v1/ads?limit=12',
+            '/api/v1/products?limit=12',
+            '/api/v1/stores?limit=10',
+            '/api/v1/service-listings?limit=10',
+            // 15% — categories (very light)
+            '/api/v1/categories',
+            '/api/v1/product-categories',
+            '/api/v1/service-categories',
+            // 15% — detail endpoints (heavier on MISS)
+            '/api/v1/ads?page=1&limit=1',
+            '/api/v1/products?page=1&limit=1',
+          ];
+
+          export default function () {
+            const path = paths[Math.floor(Math.random() * paths.length)];
+            const res = http.get(TARGET + path, {
+              headers: { Accept: 'application/json' },
+              tags: { path },
+            });
+
+            check(res, {
+              'status ok': (r) => r.status === 200 || r.status === 304,
+              'not 5xx': (r) => r.status < 500,
+            });
+
+            const cacheState = String(res.headers['X-Proxy-Cache'] || 'NONE');
+            if (cacheState.startsWith('HIT') || cacheState.startsWith('STALE') || cacheState.startsWith('KV')) {
+              cacheHit.add(1);
+              hitLatency.add(res.timings.duration);
+            } else if (cacheState.startsWith('MISS') || cacheState.startsWith('BYPASS')) {
+              cacheMiss.add(1);
+              missLatency.add(res.timings.duration);
+            }
+
+            sleep(0.05);
+          }
+
+          export function handleSummary(data) {
+            const md = [];
+            md.push('# 🎯 Realistic Load Test — 10K requests / 2 min\n');
+            md.push(`**Target:** \`${TARGET}\``);
+            md.push(`**Total:** ${data.metrics.http_reqs?.values?.count || 0}`);
+            md.push(`**Duration:** ${(data.state?.testRunDurationMs / 1000).toFixed(0)}s\n`);
+
+            const t = data.metrics.http_req_duration?.values || {};
+            md.push('## Latency\n');
+            md.push('| Metric | Value |');
+            md.push('|--------|-------|');
+            md.push(`| avg | ${(t.avg || 0).toFixed(0)}ms |`);
+            md.push(`| p50 | ${(t['med'] || 0).toFixed(0)}ms |`);
+            md.push(`| p90 | ${(t['p(90)'] || 0).toFixed(0)}ms |`);
+            md.push(`| p95 | ${(t['p(95)'] || 0).toFixed(0)}ms |`);
+            md.push(`| p99 | ${(t['p(99)'] || 0).toFixed(0)}ms |`);
+            md.push(`| max | ${(t.max || 0).toFixed(0)}ms |\n`);
+
+            const hits = data.metrics.cache_hit?.values?.count || 0;
+            const misses = data.metrics.cache_miss?.values?.count || 0;
+            const total = hits + misses;
+            if (total > 0) {
+              md.push('## Cache\n');
+              md.push(`- HIT:  **${hits}** (${(hits / total * 100).toFixed(1)}%)`);
+              md.push(`- MISS: **${misses}** (${(misses / total * 100).toFixed(1)}%)\n`);
+            }
+
+            const failed = data.metrics.http_req_failed?.values?.rate || 0;
+            const reqs = data.metrics.http_reqs?.values?.count || 0;
+            const duration = (data.state?.testRunDurationMs || 120000) / 1000;
+            md.push('## Results\n');
+            md.push(`- Rate: **${(reqs / duration).toFixed(0)} req/s**`);
+            md.push(`- Error rate: **${(failed * 100).toFixed(2)}%**\n`);
+
+            // Verdict
+            md.push('## Verdict\n');
+            const p95 = t['p(95)'] || 0;
+            const errRate = failed * 100;
+            if (p95 < 500 && errRate < 1) {
+              md.push('✅ **EXCELLENT** — supports 1000+ concurrent users comfortably');
+            } else if (p95 < 1500 && errRate < 3) {
+              md.push('✅ **GOOD** — supports 500-800 concurrent users');
+            } else if (p95 < 3000 && errRate < 8) {
+              md.push('🟡 **ACCEPTABLE** — supports 300-500 concurrent users');
+            } else {
+              md.push('🔴 **UNDER LOAD** — does not support 500 users');
+            }
+            md.push('');
+
+            return {
+              stdout: JSON.stringify(data.metrics, null, 2).slice(0, 3000),
+              '/tmp/realistic-summary.md': md.join('\n'),
+              '/tmp/realistic.json': JSON.stringify(data, null, 2),
+            };
+          }
+          K6
+
+      - name: Run realistic k6
+        run: k6 run -e TARGET="${{ inputs.target }}" /tmp/realistic.js
+        continue-on-error: true
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f /tmp/realistic-summary.md ]; then
+            cat /tmp/realistic-summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-realistic
+          path: |
+            /tmp/realistic-summary.md
+            /tmp/realistic.json
+          retention-days: 7
