@@ -80,28 +80,17 @@ import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { subscribeToSessionEnded } from '@/lib/authSessionBroadcast';
 import { buildSessionExpiredLoginUrl } from '@/lib/sessionRedirect';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { isDefiniteSessionRejection } from '@/lib/authRestoreError';
 
 /**
- * FIX AUTH-OFFLINE-01: true only when the rejection actually carries an
- * HTTP response — i.e. the backend genuinely answered (401, 500,
- * whatever). false for a pure network failure (device offline, DNS/
- * timeout, or this component's own AbortController firing) — axios
- * always produces a `.response` of `undefined` in that case, never a
- * thrown value with no `.response` property at all.
- *
- * Deliberately NOT using lib/errorParser.ts's parseApiError here: it
- * gates its "real HTTP status" branch on axios.isAxiosError(), which
- * checks the internal `isAxiosError: true` marker axios stamps onto
- * its own error instances — a marker that (correctly) isn't present on
- * a hand-built `{ response: { status: 401 } }` test double, so
- * parseApiError would misclassify every such mock as "network failure"
- * too. This check only cares whether *some* `.response` is present,
- * which matches both a real AxiosError's shape and how this file's own
- * tests already model a genuine server rejection.
+ * FIX AUTH-RESTORE-ERRSHAPE-01: replaces hasServerResponse(). apiClient rejects
+ * with a ParsedError ({ statusCode, code, message }) — never an AxiosError — so
+ * the old `err.response` test was always false at runtime: a genuinely expired
+ * session (401) was never logged out here and the layout parked the user on the
+ * "server is slow" screen. Only 401/403 are a definitive session rejection;
+ * 5xx/429/timeouts are transient and must not sign the user out
+ * (see lib/authRestoreError.ts).
  */
-function hasServerResponse(err: unknown): boolean {
-  return !!(err && typeof err === 'object' && 'response' in err && (err as { response?: unknown }).response != null);
-}
 
 // FIX BUG-06: was a fixed re-export of AUTH_COOKIE_MAX_AGE — the
 // refresh response's own tokens.expiresIn (captured below, right
@@ -144,6 +133,26 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
   const queryClient = useQueryClient();
 
   const hasRunRef = useRef(false);
+
+  // FIX HYDRATE-FAILSAFE-01: zustand's persist only calls onRehydrateStorage with
+  // a state object when storage was read successfully. If localStorage is blocked
+  // (Safari private mode, some in-app WebViews, storage disabled) or holds corrupt
+  // JSON, the callback gets `undefined` (or never fires) so setHydrated(true) never
+  // runs: every protected/admin layout then shows the session spinner forever and
+  // the restore effect below never starts. Force the flag after a short grace period
+  // so the normal refresh flow can still decide (cookie session -> restored,
+  // otherwise -> /login).
+  useEffect(() => {
+    if (isHydrated) return;
+    const t = setTimeout(() => {
+      const s = useAuthStore.getState();
+      if (s.isHydrated) return;
+      console.warn('[auth] persist did not hydrate — forcing hydrated state');
+      s.setHydrated(true);
+      s._setAuthResolving(true);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [isHydrated]);
 
   useEffect(() => {
     // Only run once after Zustand has rehydrated from localStorage.
@@ -397,7 +406,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // on ANY failure here — including a bare network error (device
         // offline, DNS down, server unreachable), which is NOT the same
         // thing as the backend confirming "this session is invalid."
-        // hasServerResponse() (defined above) is true only when the
+        // isDefiniteSessionRejection() (imported above) is true only when the
         // backend actually answered (401, 500, whatever); a pure network
         // failure never carries a `.response`.
         //
@@ -501,7 +510,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           }
         }
 
-        if (hasServerResponse(err)) {
+        if (isDefiniteSessionRejection(err)) {
           logout();
           deleteCookie('app_access_token');
           deleteCookie('app_user_role');
@@ -536,7 +545,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     // hasRunRef.current was already set to true, the effect does not
     // re-run on the simulated remount. The in-flight IIFE was aborted
     // mid-flight, its catch treated AbortError as a pure network
-    // failure (no `.response` — see hasServerResponse), the `finally`
+    // failure (no 401/403 status — see isDefiniteSessionRejection), the `finally`
     // ran setAuthResolved() with isAuthenticated still false, and every
     // protected page then bounced the user to /login even though their
     // session was perfectly valid. StrictMode double-invokes ONLY in

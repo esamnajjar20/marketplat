@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 const sw = readFileSync(resolve('public/sw.js'), 'utf8');
 const version = readFileSync(resolve('lib/cacheVersion.ts'), 'utf8');
 const checks = [
-  ['cache version bumped and synchronized', /const CACHE_VERSION = 'v83';/.test(sw) && /SW_CACHE_VERSION = 'v83'/.test(version)],
+  ['cache version synchronized between sw.js and cacheVersion.ts', (sw.match(/const CACHE_VERSION = '(v\d+)';/) || [])[1] !== undefined && (sw.match(/const CACHE_VERSION = '(v\d+)';/) || [])[1] === (version.match(/SW_CACHE_VERSION = '(v\d+)'/) || [])[1]],
   ['reference endpoints use reference hard TTL', /policy\.reference\?\.offline\?\.hardAfterMs/.test(sw)],
   ['recommendations use recommendations hard TTL', /policy\.recommendations\?\.offline\?\.hardAfterMs/.test(sw)],
   ['home endpoints use publicHome hard TTL', /policy\.publicHome\?\.offline\?\.hardAfterMs/.test(sw)],

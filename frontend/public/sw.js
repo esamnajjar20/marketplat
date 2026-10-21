@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v84';
+const CACHE_VERSION = 'v86';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -485,7 +485,10 @@ function isProtectedPage(url) {
 }
 
 function isNeverCache(url) {
-  return url.pathname.includes('/auth/') || url.pathname.includes('/csrf');
+  // FIX BUILD-ID-NOCACHE-01: /build-id.json?t=<now> is a version probe; it must
+  // always hit the network and must never create a new STATIC_CACHE entry per load.
+  return url.pathname.includes('/auth/') || url.pathname.includes('/csrf') ||
+    url.pathname === '/build-id.json';
 }
 
 function isAuthPage(url) {
@@ -948,6 +951,11 @@ async function networkFirstPage(event, request, cacheKey) {
       return cachedResponse;
     }
 
+    // FIX SW-SLOW-NAV-01: timeout with nothing cached -> keep waiting for the real response.
+    if (err && err.name === 'SwTimeoutError') {
+      try { return await fetchPromise; } catch { /* real network failure: fall through */ }
+    }
+
     if (isRscShellRequest(request)) {
       return Response.error();
     }
@@ -968,9 +976,13 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
   const cache = await caches.open(STATIC_CACHE);
   const cached = await lookupShellWithFallback(cache, request, new URL(request.url));
 
+  // FIX SW-SLOW-NAV-01: one network request shared by the background
+  // revalidation AND the no-cache path below, so a slow (but alive) server is
+  // awaited instead of being abandoned after NETWORK_TIMEOUT_MS.
+  const networkPromise = fetch(request);
   const revalidatePromise = (async () => {
     try {
-      const response = await withNetworkTimeout(fetch(request), NETWORK_TIMEOUT_MS);
+      const response = await withNetworkTimeout(networkPromise, NETWORK_TIMEOUT_MS);
       if (!response || !response.ok || response.status === 206 || !isSameOriginResponse(response)) {
         return;
       }
@@ -1043,14 +1055,16 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
   }
 
   try {
-    await revalidatePromise;
-    const fresh = await lookupShellWithFallback(cache, request, new URL(request.url));
-    if (fresh && (isRscShellRequest(request) ? fresh.ok : await verifyCachedChunks(fresh, cache))) return fresh;
-    if (request.mode === 'navigate') {
-      const offlineFallback = await cache.match(OFFLINE_URL);
-      if (offlineFallback && await verifyCachedChunks(offlineFallback, cache)) return offlineFallback;
-    }
-    return await fetch(request);
+    // FIX SW-SWR-NOBLOCK-01: with no usable cached shell, do NOT hold the page back
+    // until revalidatePromise finishes — it also downloads every missing JS/CSS chunk
+    // and writes the cache, which on a first visit / right after a deploy (caches
+    // purged) delays the first paint by the full chunk download time. The browser
+    // needs only the real response; caching + chunk prefetch continue in the
+    // background (they work on clones, so the returned body is untouched).
+    // FIX SW-SLOW-NAV-01 still applies: a 404/503/slow-200 is passed through as-is;
+    // /offline is only for a real network failure (the fetch rejecting), below.
+    event.waitUntil(revalidatePromise);
+    return await networkPromise;
   } catch {
     if (request.mode === 'navigate') {
       const offlineFallback = await cache.match(OFFLINE_URL);
@@ -1158,6 +1172,12 @@ async function handleProtectedPage(event, request, url) {
         }
         return cachedShell;
       }
+    }
+
+    // FIX SW-SLOW-NAV-01: a timeout is not an outage. With no cached shell to show,
+    // keep waiting for the real response; /offline only on a real fetch failure.
+    if (err && err.name === 'SwTimeoutError') {
+      try { return await fetchPromise; } catch { /* real network failure: fall through */ }
     }
 
     if (isRscShellRequest(request)) {

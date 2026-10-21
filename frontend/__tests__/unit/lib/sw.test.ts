@@ -413,6 +413,8 @@ describe('sw.js — service worker logic', () => {
       expect(isNeverCache(new URL('https://example.com/api/auth/login'))).toBe(true);
       expect(isNeverCache(new URL('https://example.com/api/csrf'))).toBe(true);
       expect(isNeverCache(new URL('https://example.com/api/sellers/me/profile'))).toBe(false);
+      // REGRESSION (FIX BUILD-ID-NOCACHE-01): version probe must never be cached.
+      expect(isNeverCache(new URL('https://example.com/build-id.json?t=123'))).toBe(true);
     });
   });
 

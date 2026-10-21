@@ -32,6 +32,9 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader }  from '@/components/admin/AdminHeader';
 import { PageTransition } from '@/components/shared/PageTransition';
 import { SessionRestorationStatus } from '@/components/shared/SessionRestorationStatus';
+import { SessionRestoreStalled } from '@/components/shared/SessionRestoreStalled';
+import { useAuthRestoreRetry } from '@/hooks/useAuthRestoreRetry';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 // Gap #20 (admin permission tiers) / ADMIN-HUB-01: every admin section is a tab
@@ -59,6 +62,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname        = usePathname();
 
   const isResolved  = isHydrated && !isAuthResolving;
+  const isOnline    = useOnlineStatus();
+  // FIX AUTH-SLOW-RESTORE-01: see (protected)/layout.tsx. Persisted user kept +
+  // online + unauthenticated == refresh got no server answer, not a logout.
+  const restoreStalled = isResolved && !isAuthenticated && isOnline && user != null;
+  const { retry: retryRestore, retrying: isRetryingRestore } = useAuthRestoreRetry(restoreStalled);
   const isModerator = user?.role === 'MODERATOR';
   // A MODERATOR on a page outside their allowed sections (typed URL,
   // stale link, a page that existed before this feature) — same
@@ -69,6 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!isResolved) return;
+    if (restoreStalled) return;
     if (!isAuthenticated) {
       // keep the current admin tab (?tab=…) across login.
       const search = typeof window !== 'undefined' ? window.location.search : '';
@@ -94,10 +103,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       signalNavigationStart(ROUTES.admin.ads);
       router.replace(ROUTES.admin.ads);
     }
-  }, [isAuthenticated, isAdminTier, isOutOfScopeForModerator, isResolved, router]);
+  }, [isAuthenticated, isAdminTier, isOutOfScopeForModerator, isResolved, restoreStalled, router]);
 
   if (!isResolved) {
     return <SessionRestorationStatus />;
+  }
+
+  if (restoreStalled) {
+    return (
+      <SessionRestoreStalled
+        retrying={isRetryingRestore}
+        onRetry={() => { void retryRestore(); }}
+        onLogin={() => {
+          useAuthStore.getState().logout();
+          router.replace(`${ROUTES.login}?from=${encodeURIComponent(ROUTES.admin.root)}`);
+        }}
+      />
+    );
   }
 
   if (!isAuthenticated || !isAdminTier || isOutOfScopeForModerator) {

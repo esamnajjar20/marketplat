@@ -50,11 +50,24 @@ export function NavigationProgress() {
     };
 
     const onClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      // FIX NAV-FALSE-STALL-01: this listener is registered in the BUBBLE phase (see
+      // addEventListener below) and no longer checks event.defaultPrevented.
+      //  - Capture phase ran before any app handler, so a button nested in a link card
+      //    (AdCard heart, NotificationRow mark-read / delete) that calls
+      //    preventDefault + stopPropagation still started a phantom navigation: progress
+      //    bar after 120ms and the "navigation stalled" banner after 12s. React's
+      //    stopPropagation also stops the native event, so a bubble listener never sees it.
+      //  - defaultPrevented can't be used as a signal: next/link always calls
+      //    preventDefault for client-side navigation (see NavigationProgress.test).
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const node = event.target;
       if (!(node instanceof Element)) return;
       const anchor = node.closest('a[href]');
       if (!(anchor instanceof HTMLAnchorElement)) return;
+      // A click on an interactive control nested inside the link is that control's
+      // action, not link navigation (covers handlers that don't stopPropagation).
+      const control = node.closest('button, [role="button"], input, select, textarea, label');
+      if (control && control !== anchor && anchor.contains(control)) return;
       if ((anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download') || anchor.getAttribute('aria-disabled') === 'true') return;
       start(anchor.href);
     };
@@ -68,11 +81,11 @@ export function NavigationProgress() {
       if (detail?.href) start(detail.href);
     };
 
-    document.addEventListener('click', onClick, true);
+    document.addEventListener('click', onClick);
     window.addEventListener(START_EVENT, onProgrammaticStart);
     window.addEventListener('popstate', onPopState);
     return () => {
-      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('click', onClick);
       window.removeEventListener(START_EVENT, onProgrammaticStart);
       window.removeEventListener('popstate', onPopState);
       clearTimers();

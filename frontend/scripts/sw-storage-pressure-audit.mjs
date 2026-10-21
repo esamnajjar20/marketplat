@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 const sw = readFileSync(resolve('public/sw.js'), 'utf8');
 const version = readFileSync(resolve('lib/cacheVersion.ts'), 'utf8');
 const checks = [
-  ['service worker and TypeScript use v83', /const CACHE_VERSION = 'v83';/.test(sw) && /SW_CACHE_VERSION = 'v83'/.test(version)],
+  ['service worker and TypeScript cache versions are synchronized', (sw.match(/const CACHE_VERSION = '(v\d+)';/) || [])[1] !== undefined && (sw.match(/const CACHE_VERSION = '(v\d+)';/) || [])[1] === (version.match(/SW_CACHE_VERSION = '(v\d+)'/) || [])[1]],
   ['quota pressure adapts limits for per-user data', /cacheName\.startsWith\(USER_DATA_CACHE_PREFIX\)/.test(sw) && /factor = 0\.50/.test(sw) && /factor = 0\.60/.test(sw) && /factor = 0\.75/.test(sw)],
   ['quota pressure trims static shell within a bounded ratio', /cacheName === STATIC_CACHE/.test(sw) && /factor = 0\.70/.test(sw) && /factor = 0\.80/.test(sw)],
   ['personal shell has a separate pressure tier', /cacheName === PERSONAL_SHELL_CACHE/.test(sw) && /factor = 0\.75/.test(sw) && /factor = 0\.85/.test(sw)],

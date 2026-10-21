@@ -136,6 +136,40 @@ describe('NavigationProgress', () => {
     anchor.remove();
   });
 
+  it('REGRESSION NAV-FALSE-STALL-01: a nested button that stops propagation does not start a navigation', async () => {
+    vi.useFakeTimers();
+    window.history.replaceState({}, '', '/');
+    const { container } = render(<NavigationProgress />);
+    const anchor = document.createElement('a');
+    anchor.href = '/ads/1';
+    const heart = document.createElement('button');
+    heart.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); });
+    anchor.appendChild(heart);
+    document.body.appendChild(anchor);
+
+    heart.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    await vi.advanceTimersByTimeAsync(12_500);
+    expect(container.querySelector('[role="progressbar"]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    anchor.remove();
+  });
+
+  it('REGRESSION NAV-FALSE-STALL-01: a nested button without stopPropagation is also ignored', async () => {
+    vi.useFakeTimers();
+    window.history.replaceState({}, '', '/');
+    const { container } = render(<NavigationProgress />);
+    const anchor = document.createElement('a');
+    anchor.href = '/ads/1';
+    const btn = document.createElement('button');
+    anchor.appendChild(btn);
+    document.body.appendChild(anchor);
+
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    await vi.advanceTimersByTimeAsync(12_500);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    anchor.remove();
+  });
+
   it('ignores clicks on disabled links and links that open another browsing context', async () => {
     vi.useFakeTimers();
     window.history.replaceState({}, '', '/');

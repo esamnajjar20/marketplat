@@ -42,6 +42,8 @@ import { BottomNav }        from '@/components/layout/BottomNav';
 import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { PageTransition }   from '@/components/shared/PageTransition';
 import { SessionRestorationStatus } from '@/components/shared/SessionRestorationStatus';
+import { SessionRestoreStalled } from '@/components/shared/SessionRestoreStalled';
+import { useAuthRestoreRetry } from '@/hooks/useAuthRestoreRetry';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { ROUTES }           from '@/lib/constants';
 
@@ -86,9 +88,16 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   // same effect below redirects then — for real this time).
   const canRenderOffline = !isOnline && user != null;
 
+  // FIX AUTH-SLOW-RESTORE-01: online + persisted user + not authenticated after
+  // the restore flow settled == the refresh got no server answer (timeout / cold
+  // backend). A real rejection clears `user` (logout()), so this is NOT a logout:
+  // do not bounce to /login; retry instead.
+  const restoreStalled = isResolved && !isAuthenticated && isOnline && user != null;
+  const { retry: retryRestore, retrying: isRetryingRestore } = useAuthRestoreRetry(restoreStalled);
+
   useEffect(() => {
     if (!isResolved) return;
-    if (isAuthenticated || canRenderOffline) return;
+    if (isAuthenticated || canRenderOffline || restoreStalled) return;
 
     // FIX AUTH-COLDOPEN-GRACE: isResolved becomes true the moment the
     // Zustand rehydrate callback fires, which on a fresh tab (e.g. one
@@ -125,11 +134,24 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     }, 900);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, canRenderOffline, isResolved, router, pathname]);
+  }, [isAuthenticated, canRenderOffline, restoreStalled, isResolved, router, pathname]);
 
   // Show skeleton while waiting for hydration or session restoration.
   if (!isResolved) {
     return <SessionRestorationStatus />;
+  }
+
+  if (restoreStalled) {
+    return (
+      <SessionRestoreStalled
+        retrying={isRetryingRestore}
+        onRetry={() => { void retryRestore(); }}
+        onLogin={() => {
+          useAuthStore.getState().logout();
+          router.replace(`${ROUTES.login}?from=${encodeURIComponent(pathname)}`);
+        }}
+      />
+    );
   }
 
   // لا تُرجع null (شاشة بيضاء) — اعرض رسالة قصيرة أثناء التحويل لتسجيل الدخول.
