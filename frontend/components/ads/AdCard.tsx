@@ -36,6 +36,7 @@ import {
   CARD_PRESS,
   CARD_PRICE_UNSET,
   CARD_SHELL,
+  CARD_TITLE_GRID,
   HIT_AREA,
   TIME_PLACEHOLDER,
   freshnessClass,
@@ -169,7 +170,7 @@ export const AdCard = memo(function AdCard({
         >
           <div
             className={cn(
-              'relative flex h-[92px] items-center justify-center overflow-hidden sm:h-[116px]',
+              cn(CARD_IMAGE_43, 'flex items-center justify-center'),
               !rawImage && pastelForId(ad.id),
               rawImage && 'bg-muted',
             )}
@@ -198,8 +199,8 @@ export const AdCard = memo(function AdCard({
               {visibleBadges}
             </div>
           </div>
-          <div className="flex flex-1 flex-col gap-0.5 px-2.5 pb-2.5 pt-2">
-            <h3 title={ad.title} className="line-clamp-2 text-[13px] font-bold leading-[1.4] text-foreground">
+          <div className={cn(CARD_BODY_DEFAULT, 'gap-1')}>
+            <h3 title={ad.title} className={CARD_TITLE_GRID}>
               {ad.title}
             </h3>
             <div className="flex flex-wrap items-center gap-1.5">

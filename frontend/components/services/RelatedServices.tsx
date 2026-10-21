@@ -40,7 +40,15 @@ export function RelatedServices({
           <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
           {title}
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+        {/* Keep loading geometry aligned with the real horizontal phone carousel. */}
+        <div className="-mx-4 flex gap-3 overflow-hidden px-4 pb-2 sm:hidden" aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="w-[48%] min-w-[160px] max-w-[220px] shrink-0">
+              <ServiceListingCardSkeleton />
+            </div>
+          ))}
+        </div>
+        <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4" aria-hidden="true">
           {Array.from({ length: 4 }).map((_, i) => (
             <ServiceListingCardSkeleton key={i} />
           ))}
@@ -64,7 +72,7 @@ export function RelatedServices({
           </div>
         ))}
       </div>
-      <div className="hidden grid-cols-2 gap-3 sm:grid sm:gap-4 stagger-fade-in">
+      <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 stagger-fade-in">
         {items.map((s) => (
           <ServiceListingCard key={s.id} listing={s} context="related" />
         ))}

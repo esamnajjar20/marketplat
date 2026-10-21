@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Package, Search, X } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
@@ -126,8 +127,10 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
-        <LoadingSpinner />
+      <div className={cn(LIST_CARD_GRID_CLASS, 'py-2')} aria-label="جارٍ تحميل منتجات المتجر" aria-busy="true">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <ProductCardSkeleton key={index} />
+        ))}
       </div>
     );
   }
@@ -229,7 +232,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
           }
         />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in">
+        <div className={cn(LIST_CARD_GRID_CLASS, 'stagger-fade-in')}>
           {items.map((product) => (
             <div
               key={product.id}

@@ -76,7 +76,7 @@ export function ServiceListingsGrid() {
         fallback={
       <div className="space-y-4">
         <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        <div className={cn(LIST_SERVICE_GRID_CLASS)}>
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3 sm:gap-4' : LIST_SERVICE_GRID_CLASS)}>
           {Array.from({ length: 9 }).map((_, i) => <ServiceListingCardSkeleton key={i} />)}
         </div>
       </div>
@@ -136,7 +136,12 @@ export function ServiceListingsGrid() {
           }
         />
       ) : (
-        <div className={cn('grid grid-cols-1 gap-2.5', 'stagger-fade-in')}>
+        <div className={cn(
+          view === 'list'
+            ? 'grid grid-cols-1 gap-3 sm:gap-4'
+            : LIST_SERVICE_GRID_CLASS,
+          'stagger-fade-in',
+        )}>
           {items.map((listing) => (
             <ServiceListingCard
               key={listing.id}

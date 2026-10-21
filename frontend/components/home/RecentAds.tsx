@@ -22,7 +22,7 @@ export function RecentAds() {
     return (
       <HomeScrollRail>
         {Array.from({ length: 6 }).map((_, i) => (
-          <HomeScrollRailItem key={i} size="wide"><AdCardSkeleton /></HomeScrollRailItem>
+          <HomeScrollRailItem key={i} size="wide"><AdCardSkeleton density="compact" /></HomeScrollRailItem>
         ))}
       </HomeScrollRail>
     );

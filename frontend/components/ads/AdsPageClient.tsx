@@ -26,7 +26,7 @@ const SearchResults = dynamic(
     loading: () => (
       <div className="space-y-3 py-4" role="status" aria-live="polite">
         <p className="text-sm text-muted-foreground">جارٍ تحميل الإعلانات…</p>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="h-44 animate-pulse rounded-2xl bg-muted" />
           ))}

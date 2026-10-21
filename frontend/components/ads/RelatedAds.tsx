@@ -22,8 +22,15 @@ export function RelatedAds({ adId }: Props) {
           <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
           إعلانات مشابهة
         </h2>
-        {/* FIX RELATEDADS-GRID: matches CARD_GRID_CLASS (Rule 11). */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+        {/* Match the real section: horizontal cards on phones, responsive grid on larger screens. */}
+        <div className="-mx-4 flex gap-3 overflow-hidden px-4 pb-2 sm:hidden" aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="w-[48%] min-w-[160px] max-w-[220px] shrink-0">
+              <AdCardSkeleton density="compact" />
+            </div>
+          ))}
+        </div>
+        <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4" aria-hidden="true">
           {Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       </section>
@@ -46,8 +53,8 @@ export function RelatedAds({ adId }: Props) {
           </div>
         ))}
       </div>
-      {/* Tablet/desktop grid */}
-      <div className="hidden grid-cols-2 gap-3 sm:grid sm:gap-4 stagger-fade-in">
+      {/* Tablet/desktop grid: progressively use available width without shrinking cards excessively. */}
+      <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 stagger-fade-in">
         {data.map((ad) => <AdCard key={ad.id} ad={ad} context="related" />)}
       </div>
     </section>

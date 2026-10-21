@@ -22,10 +22,10 @@ export function RecommendedAds() {
   }
 
   if (isLoading) {
-    return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={i} />)}</div>;
+    return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-4">{Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={i} />)}</div>;
   }
 
   if (items.length === 0) return null;
 
-  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{items.map((ad) => <AdCard key={ad.id} ad={ad} />)}</div>;
+  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-4">{items.map((ad) => <AdCard key={ad.id} ad={ad} />)}</div>;
 }

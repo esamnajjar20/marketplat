@@ -6,6 +6,7 @@ import { serviceListingsApi } from '@/api/service-listings.api';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
 import { queryKeys } from '@/lib/queryKeys';
+import { LIST_SERVICE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 
 export function ServiceListingMatches({ listingId }: { listingId: string }) {
   const { data, isLoading, isError, refetch } = useQuery({
@@ -14,7 +15,7 @@ export function ServiceListingMatches({ listingId }: { listingId: string }) {
     staleTime: 5 * 60_000,
   });
 
-  if (isLoading && !data) return <section className="space-y-3 border-t pt-6"><h2 className="flex items-center gap-2 font-semibold"><Layers3 className="h-4 w-4" />مقدمون مناسبون أيضًا</h2><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <ServiceListingCardSkeleton key={i} />)}</div></section>;
+  if (isLoading && !data) return <section className="space-y-3 border-t pt-6"><h2 className="flex items-center gap-2 font-semibold"><Layers3 className="h-4 w-4" />مقدمون مناسبون أيضًا</h2><div className={LIST_SERVICE_GRID_CLASS}>{Array.from({ length: 4 }).map((_, i) => <ServiceListingCardSkeleton key={i} />)}</div></section>;
   if (!data?.length) return null;
 
   return (
@@ -26,7 +27,7 @@ export function ServiceListingMatches({ listingId }: { listingId: string }) {
         </div>
       )}
       <h2 className="flex items-center gap-2 font-semibold"><Layers3 className="h-4 w-4" />مقدمون مناسبون أيضًا</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className={LIST_SERVICE_GRID_CLASS}>
         {data.map((listing) => <ServiceListingCard key={listing.id} listing={listing} context="related" />)}
       </div>
     </section>

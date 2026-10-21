@@ -17,6 +17,7 @@ import {
   CARD_SHELL_SOFT,
   CARD_BODY_COMPACT,
   CARD_TITLE,
+  CARD_TITLE_GRID,
   CARD_BADGE_SUCCESS,
   CARD_BADGE_MUTED,
   HIT_AREA,
@@ -231,7 +232,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
           </div>
         </div>
         <div className={CARD_BODY_COMPACT}>
-          <h3 title={listing.title} className={cn(CARD_TITLE, "line-clamp-2")}>
+          <h3 title={listing.title} className={cn(CARD_TITLE_GRID, "line-clamp-2")}>
             {listing.title}
           </h3>
           <span dir="ltr" className="text-sm font-extrabold tabular-nums text-primary">

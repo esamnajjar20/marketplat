@@ -85,7 +85,7 @@ export function PromotedPageClient() {
 
       <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 sm:px-4 sm:py-8">
         {isLoading && !data ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <ProductCardSkeleton key={i} />
             ))}
@@ -119,7 +119,7 @@ export function PromotedPageClient() {
           <>
             <div
               className={cn(
-                'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4',
+                'grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4',
                 isFetching && !isLoading && 'opacity-80',
               )}
             >

@@ -105,7 +105,7 @@ export function FavoritesList() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
         {Array.from({ length: 6 }).map((_, i) => <AdCardSkeleton key={i} />)}
       </div>
     );
@@ -222,7 +222,7 @@ export function FavoritesList() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 stagger-fade-in">
         {items.map((fav) => {
           const key = fav.ad.id;
           const isSelected = selected.has(key);

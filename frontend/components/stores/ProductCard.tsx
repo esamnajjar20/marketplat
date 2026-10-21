@@ -20,6 +20,8 @@ import {
   CARD_PRESS,
   CARD_PRICE_UNSET,
   CARD_SHELL,
+  CARD_TITLE,
+  CARD_TITLE_GRID,
   HIT_AREA,
   TIME_PLACEHOLDER,
   freshnessClass,
@@ -192,7 +194,7 @@ export const ProductCard = memo(function ProductCard({
         >
           <div
             className={cn(
-              'relative flex h-[92px] items-center justify-center overflow-hidden sm:h-[116px]',
+              cn(CARD_IMAGE_43, 'flex items-center justify-center'),
               !rawImage && pastelForId(product.id),
               rawImage && 'bg-muted',
             )}
@@ -226,8 +228,8 @@ export const ProductCard = memo(function ProductCard({
               {visibleBadges}
             </div>
           </div>
-          <div className="flex flex-1 flex-col gap-0.5 px-2.5 pb-2.5 pt-2">
-            <h3 title={product.name} className="line-clamp-2 text-[13px] font-bold leading-[1.4] text-foreground">
+          <div className={cn(CARD_BODY_DEFAULT, 'gap-1')}>
+            <h3 title={product.name} className={CARD_TITLE_GRID}>
               {product.name}
             </h3>
             <div className="flex items-baseline gap-1.5">
@@ -337,7 +339,7 @@ export const ProductCard = memo(function ProductCard({
               </span>
             )}
           </div>
-          <h3 title={product.name} className="line-clamp-2 min-h-[2.6em] text-sm font-bold leading-6 text-foreground">
+          <h3 title={product.name} className={cn(layout === 'grid' ? CARD_TITLE_GRID : CARD_TITLE, layout === 'grid' ? 'leading-6' : '')}>
             {product.name}
           </h3>
           {product.wholesalePrice && product.wholesaleMinQty && (

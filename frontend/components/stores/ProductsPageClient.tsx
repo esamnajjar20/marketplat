@@ -1,7 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ListPageShell } from '@/components/shared/list/ListPageShell';
+import { ListPageShell, LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
+import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { cn } from '@/lib/utils';
 
 const ProductsGrid = dynamic(
   () => import('@/components/stores/ProductsGrid').then((module) => module.ProductsGrid),
@@ -28,10 +30,8 @@ function BrowseGridLoading({ label }: { label: string }) {
   return (
     <div className="space-y-3 py-4" role="status" aria-live="polite">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
-        {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="h-44 animate-pulse rounded-2xl bg-muted" />
-        ))}
+      <div className={cn(LIST_CARD_GRID_CLASS)}>
+        {Array.from({ length: 6 }, (_, index) => <ProductCardSkeleton key={index} />)}
       </div>
     </div>
   );
