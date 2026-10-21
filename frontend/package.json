@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/generate-warming-manifest.mjs",
-    "build:cf": "next build && node scripts/generate-warming-manifest.mjs && opennextjs-cloudflare build",
+    "build:cf": "next build && node scripts/generate-warming-manifest.mjs && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
