@@ -21,3 +21,5 @@ public/tessdata/
 
 # W5: generated at build time by scripts/generate-warming-manifest.mjs
 public/warming-manifest.json
+
+public/build-id.json

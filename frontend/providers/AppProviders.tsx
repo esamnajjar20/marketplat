@@ -56,6 +56,7 @@ import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { AnalyticsConsentBanner } from '@/components/shared/AnalyticsConsentBanner';
 import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
 import { restoreOfflineQueryCache, subscribeOfflineQueryCache, persistOfflineQueryCache } from '@/lib/offlineQueryCache';
+import { checkBuildVersion } from '@/lib/buildVersionCheck';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -133,6 +134,10 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
   // reportClientError() pipeline the error.tsx boundaries already use.
   // The installer is idempotent, so React StrictMode's double-mount in
   // dev is a no-op on the second pass.
+  useEffect(() => {
+    void checkBuildVersion();
+  }, []);
+
   useEffect(() => {
     installGlobalErrorHandlers();
   }, []);
