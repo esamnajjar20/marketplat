@@ -441,3 +441,12 @@ offers list, and the protected service-request detail route defers its
 timeline. Type-check passed; no focused route/timeline tests exist. Registered
 the chunks for offline warming. Bundle measurement is deferred to final
 verification.
+
+## Increment 29: defer below-the-fold homepage sections
+
+Changed the homepage's lazy-mounted feed, catalog, services, store, provider,
+and app-promo sections to dynamic imports. The `LazySection` boundaries now
+defer both mounting and JavaScript chunk loading until the section is near
+the viewport/idle window. Added their chunks to the homepage offline warming
+map. Type-check passed and homepage tests passed (11/11). Bundle measurement
+is deferred to final verification.

@@ -1,21 +1,45 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { EagerHomeSections } from '@/components/home/EagerHomeSections';
-import { HomeAppPromo } from '@/components/home/HomeAppPromo';
-import { ForYouMixedSection } from '@/components/home/ForYouMixedSection';
-import { FollowingFeedSection } from '@/components/home/FollowingFeedSection';
-import { HomeAboveFold } from '@/components/home/HomeAboveFold';
-import { RecentProductsSection } from '@/components/home/RecentProductsSection';
-import { HomeServicesSection } from '@/components/home/HomeServicesSection';
-import { FeaturedStoresSection } from '@/components/home/FeaturedStoresSection';
-import { NearbyProvidersSection } from '@/components/home/NearbyProvidersSection';
 import { HomeBusyBoundary } from '@/components/home/HomeBusyBoundary';
 import { StoriesRail } from '@/components/stories/StoriesRail';
 import { LazySection } from '@/components/shared/LazySection';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
+
+const HomeAppPromo = dynamic(() =>
+  import('@/components/home/HomeAppPromo').then((module) => module.HomeAppPromo),
+);
+const ForYouMixedSection = dynamic(() =>
+  import('@/components/home/ForYouMixedSection').then((module) => module.ForYouMixedSection),
+);
+const FollowingFeedSection = dynamic(() =>
+  import('@/components/home/FollowingFeedSection').then((module) => module.FollowingFeedSection),
+);
+const HomeAboveFold = dynamic(() =>
+  import('@/components/home/HomeAboveFold').then((module) => module.HomeAboveFold),
+);
+const RecentProductsSection = dynamic(() =>
+  import('@/components/home/RecentProductsSection').then(
+    (module) => module.RecentProductsSection,
+  ),
+);
+const HomeServicesSection = dynamic(() =>
+  import('@/components/home/HomeServicesSection').then((module) => module.HomeServicesSection),
+);
+const FeaturedStoresSection = dynamic(() =>
+  import('@/components/home/FeaturedStoresSection').then(
+    (module) => module.FeaturedStoresSection,
+  ),
+);
+const NearbyProvidersSection = dynamic(() =>
+  import('@/components/home/NearbyProvidersSection').then(
+    (module) => module.NearbyProvidersSection,
+  ),
+);
 
 /**
  * Homepage — Phase 2 native chrome + Phase 3 pull-to-refresh.

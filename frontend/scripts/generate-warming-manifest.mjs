@@ -180,6 +180,7 @@ function chunksFromReactLoadable(sourcePath) {
 const routesData = {};
 const diagnostics = {};
 const routeLoadableSources = {
+  '/': ['components/home/HomePageContent.tsx'],
   '/activity': ['components/profile/ActivityTabsHub.tsx'],
   '/account/customers': ['app/(protected)/account/customers/page.tsx'],
   '/account/sales/debts': ['app/(protected)/account/sales/debts/page.tsx'],

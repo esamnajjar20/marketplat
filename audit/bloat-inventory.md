@@ -18,6 +18,7 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 | Following list statically loaded by route and story overlays loaded eagerly | Route chunks | `app/(protected)/following/page.tsx`; `app/(protected)/stories/page.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Heavy edit forms statically loaded with protected edit routes | Route chunks | `my-ads/[id]/edit`, `my-services/[id]/edit`, `my-store/products/[id]/edit` route pages | Not measured under no-build directive | Improved; pending measurement |
 | Request detail actions/timeline loaded with route modules | Route chunks | `app/(public)/requests/[id]/page.tsx`; `app/(protected)/service-requests/[id]/page.tsx` | Not measured under no-build directive | Improved; pending measurement |
+| Below-the-fold homepage sections statically imported into route | Homepage chunks | `components/home/HomePageContent.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Client-only Axios transport used by interactive features | Shared/client graph | `api/client.ts`, `api/*.api.ts`, query/mutation hooks; notably `components/messages/MessageInput.tsx` | Not separately attributable; `/messages/[id]` remains 278 kB | Accepted debt for offline-critical composer |
 | Heavy general-purpose libraries (Moment, Lodash, Recharts, Chart.js, Tiptap, Quill) | Dependency/source scan | `frontend/package.json`, application imports | 0 direct application imports found | None |
 | Heavy optional modules | Deferred client modules | `components/map/SearchResultsMap.tsx` / `SearchResultsMapInner.tsx` (`leaflet`, `react-leaflet`); `components/debug/ErudaDebug.tsx` (`eruda`); `components/admin/AdminAnalyticsDashboard.tsx` (already dynamically loaded) | Route-specific; map/debug/dashboard already isolated or conditionally loaded | Low / monitor |
@@ -68,6 +69,8 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 - Public request offer actions and protected service-request timelines are
   deferred into dynamic chunks; measurements are deferred to final
   verification.
+- Below-the-fold homepage sections are dynamically loaded when their
+  `LazySection` mounts them; measurements are deferred to final verification.
 
 ## Remaining / blocked
 

@@ -31,23 +31,31 @@ vi.mock('@/components/shared/LazySection', () => ({
 vi.mock('@/lib/prefetch', () => ({ prefetchHomeFeed: vi.fn().mockResolvedValue(undefined) }));
 
 describe('HomePageContent', () => {
-  it('renders the above-the-fold block, every rail, and the footer helpers', () => {
-    render(<HomePageContent />);
+  function renderHomePageContent() {
+    return render(
+      <QueryClientProvider client={new QueryClient()}>
+        <HomePageContent />
+      </QueryClientProvider>,
+    );
+  }
+
+  it('renders the above-the-fold block, every rail, and the footer helpers', async () => {
+    renderHomePageContent();
     for (const id of [
       'eager', 'stories', 'for-you', 'following', 'above-fold', 'products',
       'services', 'stores', 'nearby', 'app-promo',
     ]) {
-      expect(screen.getByTestId(id)).toBeInTheDocument();
+      expect(await screen.findByTestId(id)).toBeInTheDocument();
     }
   });
 
-  it('keeps the documented section order', () => {
-    render(<HomePageContent />);
+  it('keeps the documented section order', async () => {
+    renderHomePageContent();
     const order = [
       'eager', 'stories', 'for-you', 'following', 'above-fold',
       'products', 'services', 'stores', 'nearby', 'app-promo',
     ];
-    const nodes = order.map((id) => screen.getByTestId(id));
+    const nodes = await Promise.all(order.map((id) => screen.findByTestId(id)));
     for (let i = 1; i < nodes.length; i += 1) {
       expect(
         nodes[i - 1]!.compareDocumentPosition(nodes[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
