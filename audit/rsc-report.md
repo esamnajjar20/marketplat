@@ -483,6 +483,14 @@ modules only after the required seller/store/provider gate succeeds. Registered
 the chunks for offline warming. Type-check passed and focused gate tests
 passed (14/14). Bundle measurement is deferred to final verification.
 
+## Increment 35: defer related ads below detail content
+
+The related-ad rail is now a dynamic chunk mounted only near the viewport
+and during idle time, rather than loading with the ad detail body. Registered
+its chunk for `/ads/[id]` offline warming. Type-check passed and
+AdDetailSection tests passed (5/5). Bundle measurement is deferred to final
+verification.
+
 ## Increment 34: split conversations sidebar chunk
 
 The messages layout now loads `ConversationList` as a separate dynamic

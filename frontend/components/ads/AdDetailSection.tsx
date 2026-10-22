@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 /**
  * AdDetail.tsx accepts an `isFavorited` prop (defaulting
  * to false) and useIsFavorited() was fully implemented and covered by
@@ -22,7 +23,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { AdDetail }       from '@/components/ads/AdDetail';
 import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
-import { RelatedAds }     from '@/components/ads/RelatedAds';
+import { LazySection } from '@/components/shared/LazySection';
 import { AdDetailsSkeleton } from '@/components/shared/skeletons';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
@@ -33,6 +34,10 @@ import { parseApiError }  from '@/lib/errorParser';
 import { ROUTES }         from '@/lib/constants';
 import { track }          from '@/lib/analytics';
 import { SearchX, AlertTriangle } from 'lucide-react';
+
+const RelatedAds = dynamic(
+  () => import('@/components/ads/RelatedAds').then((module) => module.RelatedAds),
+);
 
 export function AdDetailSection({ id }: { id: string }) {
   const { data: ad, isLoading, isFetching, isError, error, refetch } = useAd(id);
@@ -138,7 +143,9 @@ export function AdDetailSection({ id }: { id: string }) {
       {isError && <OfflineStaleDataNotice onRetry={() => { if (!isFetching) void refetch(); }} isFetching={isFetching} />}
       <AdBreadcrumb ad={ad} />
       <AdDetail ad={ad} isFavorited={isFavorited} />
-      <RelatedAds adId={id} />
+      <LazySection minHeight={240} rootMargin="64px 0px" whenIdle>
+        <RelatedAds adId={id} />
+      </LazySection>
     </div>
   );
 }
