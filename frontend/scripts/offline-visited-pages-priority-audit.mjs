@@ -12,7 +12,7 @@ const failures = []; let passed = 0;
 const check = (name, ok) => { if (ok) { passed++; console.log(`[visited-pages] PASS ${name}`); } else { failures.push(name); console.error(`[visited-pages] FAIL ${name}`); } };
 check('protected real visits use a personal shell cache', /function isPersonalShellRoute\(url\)[\s\S]*?return isProtectedPage\(url\);/.test(sw));
 check('admin and ad-edit routes remain excluded', /if \(PROTECTED_AD_EDIT_RE\.test\(path\)\) return false;[\s\S]{0,150}if \(path === '\/admin' \|\| path\.startsWith\('\/admin\/'\)\) return false;/.test(sw));
-check('visited HTML is marked with visit source metadata', /putTimestamped\(htmlCache, cacheKey, await stripVaryAndClone\(response\), 'visit'\)/.test(sw));
+check('visited HTML is marked with visit source metadata', /putTimestamped\(cache, cacheKey, toStore, 'visit'\)/.test(sw) && /recovering \? 'visit-recovery' : 'visit'/.test(sw));
 check('warm-up keeps newer real visits', /isFreshVisitCopy\(existingVisitAt, priorWarmedAt\)/.test(routeShells) && /keepLatestVisit = keepVisitedCopy \|\| isFreshVisitCopy/.test(routeShells));
 check('personal cache is removed during logout cleanup', /n\.startsWith\('market-personal-shell-'\)/.test(authCleanup));
 check('public visits still use network-first page handling', /return networkFirstPage\(event, request, cacheKey\)/.test(sw));

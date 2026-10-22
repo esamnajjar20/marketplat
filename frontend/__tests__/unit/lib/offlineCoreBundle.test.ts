@@ -9,6 +9,7 @@ import {
   CORE_TTL_BY_TIER_MS,
   collectThumbnailUrls,
   buildCoreUrls,
+  cachePut,
   getWarmupProgress,
   onWarmupProgress,
 } from '@/lib/offlineCoreBundle';
@@ -107,6 +108,43 @@ describe('offlineCoreBundle', () => {
   });
 
   // FIX WARM-CORE-TTL-01
+  // FIX CORE-CACHE-STAMP-01: the SW deletes CORE_CACHE entries that lack
+  // X-SW-Cached-At (age unknown => not fresh, not stale-grace).
+  describe('cachePut', () => {
+    const fakeCache = () => {
+      const store = new Map<string, Response>();
+      return { store, cache: { put: async (k: string, r: Response) => { store.set(k, r); } } as unknown as Cache };
+    };
+
+    it('stamps X-SW-Cached-At and preserves status, content-type and body', async () => {
+      const { cache, store } = fakeCache();
+      const before = Date.now();
+      const ok = await cachePut(
+        cache,
+        'https://api.example.com/categories',
+        new Response('{"data":[1]}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+      expect(ok).toBe(true);
+      const saved = store.get('https://api.example.com/categories')!;
+      const stamp = Number(saved.headers.get('X-SW-Cached-At'));
+      expect(stamp).toBeGreaterThanOrEqual(before);
+      expect(stamp).toBeLessThanOrEqual(Date.now());
+      expect(saved.headers.get('content-type')).toBe('application/json');
+      expect(await saved.json()).toEqual({ data: [1] });
+    });
+
+    it('does not store non-ok responses', async () => {
+      const { cache, store } = fakeCache();
+      expect(await cachePut(cache, 'https://api.example.com/x', new Response('no', { status: 500 }))).toBe(false);
+      expect(store.size).toBe(0);
+    });
+
+    it('returns false (does not throw) when the cache write fails', async () => {
+      const cache = { put: async () => { throw new Error('QuotaExceededError'); } } as unknown as Cache;
+      expect(await cachePut(cache, 'https://api.example.com/y', new Response('{}'))).toBe(false);
+    });
+  });
+
   it('core freshness window shrinks on better networks', () => {
     expect(CORE_TTL_BY_TIER_MS.full).toBeLessThan(CORE_TTL_BY_TIER_MS.core);
     expect(CORE_TTL_BY_TIER_MS.core).toBeLessThan(CORE_TTL_BY_TIER_MS.critical);

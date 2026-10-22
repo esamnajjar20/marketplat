@@ -278,13 +278,26 @@ async function runPool<T>(
   );
 }
 
-async function cachePut(cache: Cache, url: string, response: Response): Promise<boolean> {
+// FIX CORE-CACHE-STAMP-01: the SW reads CORE_CACHE as an API fallback and treats
+// any entry without `X-SW-Cached-At` as "age unknown" → not fresh, not stale-grace
+// → it DELETES the entry (networkFirstApi: isFreshCachedApiSnapshot). Entries
+// written raw here were therefore discarded on first use. Stamp them exactly like
+// the SW's putTimestamped / offlineSavedEntities do.
+export async function cachePut(cache: Cache, url: string, response: Response): Promise<boolean> {
   try {
-    if (response.ok) {
-      await cache.put(url, response.clone());
-      return true;
-    }
-    return false;
+    if (!response.ok) return false;
+    const headers = new Headers(response.headers);
+    headers.set('X-SW-Cached-At', String(Date.now()));
+    const body = await response.clone().blob();
+    await cache.put(
+      url,
+      new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      }),
+    );
+    return true;
   } catch {
     // تخزين فاشل لعنصر واحد (مساحة ممتلئة، مثلًا) لا يجب يوقف بقية الحزمة.
     return false;

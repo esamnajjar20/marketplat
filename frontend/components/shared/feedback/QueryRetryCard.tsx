@@ -56,8 +56,11 @@ export function QueryRetryCard({
 }: QueryRetryCardProps) {
   return (
     <section
-      role="alert"
-      aria-live="assertive"
+      // FIX OFFLINE-A11Y-01: "offline" is a state notice, not an error. role=alert /
+      // assertive interrupts screen readers on every offline list (several can
+      // mount at once); keep alert semantics for real errors/warnings only.
+      role={tone === 'offline' ? 'status' : 'alert'}
+      aria-live={tone === 'offline' ? 'polite' : 'assertive'}
       className={cn(
         'mx-auto w-full rounded-2xl border border-[#EAE3D6] bg-white text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card',
         size === 'full' ? 'max-w-md p-5' : 'max-w-sm p-4',

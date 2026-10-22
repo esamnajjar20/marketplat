@@ -9,8 +9,13 @@ const checks = [];
 const check = (name, ok) => checks.push({ name, ok });
 
 const fallback = read('components/shared/feedback/OfflineQueryFallback.tsx');
+// The fallback renders through QueryRetryCard; the live-region semantics live there
+// (offline tone => status/polite, FIX OFFLINE-A11Y-01).
+const retryCard = read('components/shared/feedback/QueryRetryCard.tsx');
 check('shared offline fallback exposes accessible status and a clear no-cache explanation',
-  fallback.includes('role="status"') && fallback.includes('aria-live="polite"') && fallback.includes('لا توجد نسخة محفوظة'));
+  fallback.includes('tone="offline"') && fallback.includes('لا توجد نسخة محفوظة') &&
+  /role=\{tone === 'offline' \? 'status' : 'alert'\}/.test(retryCard) &&
+  /aria-live=\{tone === 'offline' \? 'polite' : 'assertive'\}/.test(retryCard));
 
 for (const [file, name] of [
   ['components/stores/ProductsGrid.tsx', 'products'],
