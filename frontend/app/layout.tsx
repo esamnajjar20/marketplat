@@ -196,11 +196,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // warning on every load even though nothing is actually broken.
     <html lang="ar" dir="rtl" translate="no" suppressHydrationWarning>
       <head>
-        {/* HYDRATION-TRACE-01: installed before any React code so the
-            full mutation timeline is captured. Required to pinpoint the
-            exact DOM insert that precedes each #418 without binary
-            search. Auto-stops 15s after load. */}
-        <script src="/hydration-trace.js" />
+        {process.env.NODE_ENV !== 'production' && (
+          <script src="/hydration-trace.js" />
+        )}
       </head>
       <body className="notranslate" translate="no" suppressHydrationWarning>
         {/* DESKTOP-AUDIT-02: first tab stop on every page, before any
