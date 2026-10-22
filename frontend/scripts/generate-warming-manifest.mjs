@@ -184,6 +184,7 @@ const routeLoadableSources = {
   '/account/customers': ['app/(protected)/account/customers/page.tsx'],
   '/account/sales/debts': ['app/(protected)/account/sales/debts/page.tsx'],
   '/account/sales/installments': ['app/(protected)/account/sales/installments/page.tsx'],
+  '/following': ['app/(protected)/following/page.tsx'],
   '/favorites': ['components/profile/FavoritesTabs.tsx'],
   '/messages': ['components/messages/ChatWindow.tsx'],
   '/notifications': ['components/notifications/NotificationsPage.tsx'],
@@ -195,6 +196,7 @@ const routeLoadableSources = {
   '/requests/new': ['app/(protected)/requests/new/page.tsx'],
   '/requests/me': ['app/(protected)/requests/me/page.tsx'],
   '/requests/offers': ['app/(protected)/requests/offers/page.tsx'],
+  '/stories': ['app/(protected)/stories/page.tsx'],
   '/stores': ['components/stores/StoreStorefront.tsx'],
 };
 for (const route of routes) {

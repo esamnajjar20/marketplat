@@ -1,14 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Plus, RotateCw, Sparkles } from 'lucide-react';
 import { useStoryFeed } from '@/hooks/queries/useStories';
-import { StoryComposer } from '@/components/stories/StoryComposer';
-import { StoryViewer } from '@/components/stories/StoryViewer';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import type { StoryGroup } from '@/api/stories.api';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+
+const StoryComposer = dynamic(
+  () => import('@/components/stories/StoryComposer').then((module) => module.StoryComposer),
+  { ssr: false },
+);
+const StoryViewer = dynamic(
+  () => import('@/components/stories/StoryViewer').then((module) => module.StoryViewer),
+  { ssr: false },
+);
 
 export default function StoriesPage() {
   const { data: groups = [], isLoading, isError, refetch, isFetching } = useStoryFeed();

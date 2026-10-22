@@ -418,3 +418,11 @@ Experimentally lazy-loaded the dashboard's recent activity feed. Type-check,
 targeted ESLint, and the focused RecentActivityFeed tests (7/7) passed, but
 the build measured `/dashboard` at 226 kB against its 222 kB baseline
 (+1.80%). Reverted the change as required.
+
+## Increment 26: isolate following list and story overlays
+
+Converted `/following` into a Server Component route wrapper that dynamically
+loads its interactive list. The stories page now loads the composer and viewer
+only when opened. Registered all route chunks for offline warming.
+Type-check passed; no focused following/story route tests exist. Bundle
+measurement is deferred to final verification.
