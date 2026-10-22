@@ -159,3 +159,28 @@ rule, including the receipt page's native-fetch experiment (212 to 136 kB).
 The installment route remained at 204 kB. This indicates the remaining
 customer/debt interactive pages need a smaller client boundary before
 revisiting; no account source changes were retained.
+
+## Increment 6: account receipt client boundary
+
+The receipt route now resolves its dynamic ID in a Server Component and
+passes it to a focused client leaf. The leaf uses native `fetch` against the
+same-origin API proxy instead of importing the Axios-based sales API wrapper.
+Print, WhatsApp sharing, QR generation, and payment history remain interactive.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/account/sales/[id]/receipt` | 212 kB | 136 kB | 35.85% |
+
+Type-check and production build passed. No receipt-specific unit test exists;
+no E2E tests were run.
+
+### Converted from Client to Server
+
+- `frontend/app/(protected)/account/sales/[id]/receipt/page.tsx` — resolves
+  route params and renders the client receipt leaf.
+
+### Extracted Client Components
+
+- `frontend/components/sales/ReceiptPageClient.tsx` — preserves print/share,
+  QR generation, and data loading through native fetch without the Axios
+  client dependency.
