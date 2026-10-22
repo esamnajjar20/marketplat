@@ -181,6 +181,7 @@ const routesData = {};
 const diagnostics = {};
 const routeLoadableSources = {
   '/ads/[id]': ['components/ads/AdDetailSection.tsx'],
+  '/categories': ['app/(public)/categories/page.tsx'],
   '/login': ['app/(auth)/login/page.tsx'],
   '/register': ['app/(auth)/register/page.tsx'],
   '/forgot-password': ['app/(auth)/forgot-password/page.tsx'],

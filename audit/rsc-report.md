@@ -506,3 +506,11 @@ Client Component chunk while preserving its existing server-rendered layout
 and loading fallback. Registered the layout chunk for inbox and thread
 offline warming. Type-check passed; no layout-specific test exists. Bundle
 measurement is deferred to final verification.
+
+## Increment 37: defer category index client module
+
+The categories route now dynamically imports its interactive index while
+retaining server prefetch/dehydration and server rendering of the index.
+Registered the route source for offline warming. Type-check passed; no
+focused category-index test exists. Bundle measurement is deferred to final
+verification.

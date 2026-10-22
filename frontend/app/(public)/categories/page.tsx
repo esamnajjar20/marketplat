@@ -1,11 +1,27 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
-import { CategoriesIndex } from '@/components/categories/CategoriesIndex';
 import { getQueryClient } from '@/lib/queryClient';
 import { prefetchHomepage } from '@/lib/prefetch';
 import { buildMetadata } from '@/lib/seo';
 import { PageHeader } from '@/components/shared/layout/PageHeader';
 import { Layers3 } from 'lucide-react';
+
+const CategoriesIndex = dynamic(
+  () =>
+    import('@/components/categories/CategoriesIndex').then(
+      (module) => module.CategoriesIndex,
+    ),
+  {
+    loading: () => (
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6" aria-hidden="true">
+        {Array.from({ length: 12 }, (_, index) => (
+          <div key={index} className="h-24 animate-pulse rounded-2xl bg-muted" />
+        ))}
+      </div>
+    ),
+  },
+);
 
 export const metadata: Metadata = buildMetadata({
   title: 'كل الفئات',
