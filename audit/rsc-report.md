@@ -360,6 +360,14 @@ The new bundle matches the original 278 kB baseline. Type-check, ESLint,
 ChatWindow tests (29/29), production build, and dynamic-chunk manifest
 verification passed. No E2E tests were run.
 
+## Increment 19: split saved-search route client module
+
+The `/saved-searches` Server Component page now dynamically imports the
+interactive saved-search list, while keeping its server-rendered route shell
+and default SSR behavior. The dynamic module is added to the route's offline
+warming source map. Type-check and focused SavedSearchesList tests passed
+(13/13). Bundle measurement is deferred to the final verification build.
+
 ## Increment 18: dashboard activity feed split (DEFERRED)
 
 Experimentally lazy-loaded the dashboard's recent activity feed. Type-check,

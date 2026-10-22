@@ -187,6 +187,7 @@ const routeLoadableSources = {
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
   '/my-services': ['components/services/MyServicesTabsHub.tsx'],
+  '/saved-searches': ['app/(protected)/saved-searches/page.tsx'],
   '/stores': ['components/stores/StoreStorefront.tsx'],
 };
 for (const route of routes) {

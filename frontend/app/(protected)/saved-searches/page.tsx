@@ -1,10 +1,18 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
-import { SavedSearchesList } from '@/components/profile/SavedSearchesList';
 import { buildMetadata } from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'عمليات البحث المحفوظة', noIndex: true });
+
+const SavedSearchesList = dynamic(
+  () =>
+    import('@/components/profile/SavedSearchesList').then(
+      (module) => module.SavedSearchesList,
+    ),
+  { loading: () => <SuspenseFallback /> },
+);
 
 export default function SavedSearchesPage() {
   return (
