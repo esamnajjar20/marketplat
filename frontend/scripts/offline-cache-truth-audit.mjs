@@ -26,14 +26,16 @@ check('network-first handler derives the request URL locally (no free url variab
 check('hard document visits trigger HTML plus initial asset capture', /if \(isHtmlVisit\)[\s\S]{0,300}cacheVisitedDocumentShell\(url, cache, response\.clone\(\), STATIC_CACHE\)/.test(sw));
 check('real RSC navigation captures a separate HTML shell', /if \(isRealRscNavigation\(request\)\)\s*\{\s*event\.waitUntil\(cacheVisitedDocumentShell\(url, cache, undefined, STATIC_CACHE\)\);/.test(sw));
 check('late responses after weak-network timeout also capture the visited document', /if \(isRealRscNavigation\(request\)\) await cacheVisitedDocumentShell\(url, cache, undefined, STATIC_CACHE\);/.test(sw));
-check('HTML cache writes remove Vary and mark actual visits', /putTimestamped\(htmlCache, cacheKey, await stripVaryAndClone\(response\), 'visit'\)/.test(sw));
+check('HTML cache writes remove Vary and distinguish new visits from recovery',
+  /await stripVaryAndClone\(response\),\s*recovering \? 'visit-recovery' : 'visit'/.test(sw));
 check('activation migrates legacy cached HTML with Vary without deleting user caches', /async function normalizeExistingHtmlCache\(cacheName\)/.test(sw) && /normalizeExistingHtmlCache\(STATIC_CACHE\)/.test(sw) && /normalizeExistingHtmlCache\(PERSONAL_SHELL_CACHE\)/.test(sw));
 check('initial assets are marked and prioritized with their visited page', /putTimestamped\(staticCache, item\.assetUrl, item\.asset, 'visit-asset'\)/.test(sw) && /source === 'visit-asset' \? 160000/.test(sw));
 check('HTML is committed only after all initial assets pass MIME/status verification', /isUsableStaticAssetResponse\(assetUrl, asset\)/.test(sw) && /await htmlCache\.delete\(cacheKey\)/.test(sw) && /isUsableStaticAssetResponse\(url, res\)/.test(routes));
 check('route completeness validates JavaScript/CSS MIME types, not only cache-key presence', /contentType === 'text\/css'/.test(routes) && /contentType\.includes\('javascript'\)/.test(routes) && /isUsableStaticAssetResponse\(url, await staticCache\.match\(url\)\)/.test(routes));
 check('single-route deletion scans actual HTML in both caches before deleting shared chunks', /const targetAssets = new Set<string>/.test(routes) && /new Set\(\[STATIC_CACHE, PERSONAL_SHELL_CACHE\]\)/.test(routes) && /sharedChunks\.has\(asset\)/.test(routes));
 check('RSC payloads do not consume the priority reserved for HTML route shells', sw.includes("if (parsedRequestUrl.searchParams.has('__offline_rsc_shell')) return 8;"));
-check('trim prioritizes visited HTML above warm-only shells', /contentType\.includes\('text\/html'\) && source === 'visit'[\s\S]{0,120}\? 100000/.test(sw));
+check('trim prioritizes visited and recovered HTML above warm-only shells',
+  /contentType\.includes\('text\/html'\) && \(source === 'visit' \|\| source === 'visit-recovery'\)[\s\S]{0,120}\? 100000/.test(sw));
 check('asset verifier accepts single/double quotes and requires every asset response to be usable', sw.includes("html.matchAll(/(?:src|href)=[\"']") && /if \(!isUsableStaticAssetResponse\(url, hit\)\) return false;/.test(sw));
 check('asset verifier accepts contentful static HTML but rejects empty shells', sw.includes('if (chunkUrls.length === 0) return /<body') && sw.includes('test(html);'));
 check('public and protected hub navigations normalize tab query to one shell', (sw.match(/hubDocumentKey\(request, url\)/g) || []).length >= 2);
@@ -54,9 +56,9 @@ check('SW and TypeScript cache versions are synchronized', (() => {
 check('failed shell saves are queued for retry (pending store + sync/online/activate triggers)',
   /const SHELL_PENDING_KEY/.test(sw) && /async function retryPendingShells\(\)/.test(sw) &&
   /event\.tag === SHELL_RETRY_SYNC_TAG/.test(sw) && /type === 'RETRY_PENDING_SHELLS'/.test(sw) &&
-  /retryPendingShells\(\)\.catch\(\(\) => \{\}\);\s*await self\.clients\.claim\(\)/.test(sw));
+  /await self\.clients\.claim\(\);\s*retryPendingShells\(\)\.catch\(\(\) => \{\}\);/.test(sw));
 check('retry does not burn attempts while offline and gives up after a bounded number of attempts',
-  /self\.navigator\.onLine === false\) return;/.test(sw) && /SHELL_PENDING_MAX_ATTEMPTS = 5/.test(sw));
+  /self\.navigator\?\.onLine === false\) return;/.test(sw) && /SHELL_PENDING_MAX_ATTEMPTS = 5/.test(sw));
 check('redirected documents are cached under the final URL only when same-origin and not auth/admin/protected-bucket mismatch',
   /if \(response\.redirected\)/.test(sw) && /isAuthPage\(finalUrl\)/.test(sw) && /isPersonalShellRoute\(finalUrl\)/.test(sw) && /targetUrl = finalUrl;/.test(sw));
 check('personal shells are no longer rejected by the isProtectedPage short-circuit during migration',

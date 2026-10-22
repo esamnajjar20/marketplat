@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v89';
+const CACHE_VERSION = 'v90';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -729,9 +729,191 @@ function isUsableStaticAssetResponse(assetUrl, response) {
   return false;
 }
 
-// يحفظ HTML الصفحة وملفاتها الأولية معًا أو لا يحفظ شيئًا.
+// Failed shell writes remain retryable across worker restarts.
+const SHELL_PENDING_KEY = '/__sw-pending-shells';
+const SHELL_PENDING_MAX_ENTRIES = 30;
+const SHELL_PENDING_MAX_ATTEMPTS = 5;
+const SHELL_PENDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const SHELL_RETRY_BATCH = 5;
+const SHELL_RETRY_SYNC_TAG = 'retry-shell-cache';
+const SHELL_ASSET_FETCH_TRIES = 2;
+const SHELL_ASSET_RETRY_DELAY_MS = 400;
+
 const failedShellCacheKeys = new Set();
 const SHELL_FAILURE_MARKER_PATH = '/__sw-shell-save-failure';
+let shellPendingChain = Promise.resolve();
+let shellRetryRunning = false;
+
+function shellPendingKeyUrl() {
+  return new URL(SHELL_PENDING_KEY, self.location.origin).href;
+}
+
+function shellKindFor(cacheName) {
+  return cacheName === PERSONAL_SHELL_CACHE ? 'personal' : 'static';
+}
+
+async function readShellPending() {
+  try {
+    const cache = await caches.open(SW_META_CACHE);
+    const response = await cache.match(shellPendingKeyUrl());
+    if (!response) return [];
+    const parsed = JSON.parse(await response.clone().text());
+    return Array.isArray(parsed)
+      ? parsed.filter((entry) =>
+          entry &&
+          typeof entry.href === 'string' &&
+          (entry.kind === 'static' || entry.kind === 'personal') &&
+          Number.isFinite(entry.attempts) &&
+          Number.isFinite(entry.firstAt),
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeShellPending(entries) {
+  try {
+    const cache = await caches.open(SW_META_CACHE);
+    if (!entries.length) {
+      await cache.delete(shellPendingKeyUrl());
+      return;
+    }
+    await cache.put(
+      shellPendingKeyUrl(),
+      new Response(JSON.stringify(entries.slice(-SHELL_PENDING_MAX_ENTRIES)), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  } catch {
+    // A pending marker is best-effort; it must never block the current response.
+  }
+}
+
+function updateShellPending(mutate) {
+  const run = shellPendingChain
+    .then(async () => {
+      const now = Date.now();
+      const current = (await readShellPending()).filter(
+        (entry) => now - entry.firstAt <= SHELL_PENDING_MAX_AGE_MS,
+      );
+      const next = mutate(current, now);
+      if (next) await writeShellPending(next);
+      return next || current;
+    })
+    .catch(() => []);
+  shellPendingChain = run;
+  return run;
+}
+
+function markShellPending(href, kind) {
+  return updateShellPending((entries, now) => {
+    if (entries.some((entry) => entry.href === href && entry.kind === kind)) return null;
+    return entries.concat({ href, kind, attempts: 0, firstAt: now, lastAt: now });
+  });
+}
+
+async function clearShellPending(href, kind) {
+  let existed = false;
+  await updateShellPending((entries) => {
+    const next = entries.filter((entry) => !(entry.href === href && entry.kind === kind));
+    if (next.length === entries.length) return null;
+    existed = true;
+    return next;
+  });
+  return existed;
+}
+
+async function recordShellFailure(href, kind) {
+  let outcome = { attempts: 1, gaveUp: false };
+  await updateShellPending((entries, now) => {
+    const index = entries.findIndex((entry) => entry.href === href && entry.kind === kind);
+    const entry = index >= 0
+      ? { ...entries[index] }
+      : { href, kind, attempts: 0, firstAt: now, lastAt: now };
+    entry.attempts += 1;
+    entry.lastAt = now;
+    outcome = { attempts: entry.attempts, gaveUp: entry.attempts >= SHELL_PENDING_MAX_ATTEMPTS };
+    const rest = entries.filter((_, candidateIndex) => candidateIndex !== index);
+    return outcome.gaveUp ? rest : rest.concat(entry);
+  });
+  return outcome;
+}
+
+async function scheduleShellRetrySync() {
+  try {
+    if (self.registration?.sync) await self.registration.sync.register(SHELL_RETRY_SYNC_TAG);
+  } catch {
+    // The online event and next activation remain retry opportunities.
+  }
+}
+
+async function notifyShellResult(docUrl, status) {
+  try {
+    await notifyClients({ type: 'SHELL_CACHE_RESULT', pathname: docUrl.pathname, status });
+  } catch {
+    // Client notification is best-effort.
+  }
+}
+
+async function fetchShellAsset(assetUrl) {
+  let lastError;
+  for (let attempt = 1; attempt <= SHELL_ASSET_FETCH_TRIES; attempt += 1) {
+    try {
+      const asset = await withNetworkTimeout(
+        fetch(assetUrl, { credentials: 'same-origin' }),
+        NETWORK_TIMEOUT_MS,
+      );
+      if (!isUsableStaticAssetResponse(assetUrl, asset)) {
+        const invalid = new Error(`asset-invalid-${asset.status}`);
+        invalid.permanent = asset.status === 404 || asset.status === 410;
+        throw invalid;
+      }
+      return asset;
+    } catch (error) {
+      lastError = error;
+      if (error?.permanent) break;
+      if (attempt < SHELL_ASSET_FETCH_TRIES) {
+        await new Promise((resolve) => setTimeout(resolve, SHELL_ASSET_RETRY_DELAY_MS));
+      }
+    }
+  }
+  throw lastError;
+}
+
+async function retryPendingShells() {
+  if (shellRetryRunning || self.navigator?.onLine === false) return;
+  shellRetryRunning = true;
+  try {
+    const now = Date.now();
+    const pending = (await readShellPending())
+      .filter((entry) =>
+        now - entry.firstAt <= SHELL_PENDING_MAX_AGE_MS &&
+        entry.attempts < SHELL_PENDING_MAX_ATTEMPTS,
+      )
+      .slice(0, SHELL_RETRY_BATCH);
+    for (const entry of pending) {
+      let target;
+      try {
+        target = new URL(entry.href);
+      } catch {
+        await clearShellPending(entry.href, entry.kind);
+        continue;
+      }
+      if (target.origin !== self.location.origin) {
+        await clearShellPending(entry.href, entry.kind);
+        continue;
+      }
+      const cacheName = entry.kind === 'personal' ? PERSONAL_SHELL_CACHE : STATIC_CACHE;
+      const cache = await caches.open(cacheName);
+      await cacheVisitedDocumentShell(target, cache, undefined, cacheName);
+    }
+  } catch {
+    // Retrying is opportunistic; a later sync/online/activation can retry again.
+  } finally {
+    shellRetryRunning = false;
+  }
+}
 
 function shellFailureMarkerUrl(statusKey) {
   const marker = new URL(SHELL_FAILURE_MARKER_PATH, self.location.origin);
@@ -785,20 +967,30 @@ async function clearShellSaveFailure(statusKey) {
 }
 
 async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
+  const kind = shellKindFor(htmlCacheName);
+  let docUrl = null;
+  let targetUrl = null;
   let statusKey = '';
-  const fail = async () => {
-    if (statusKey) {
-      await storeShellSaveFailure(statusKey);
+  let pendingBeforeSave = false;
+  const fail = async (error) => {
+    if (!docUrl) return 'failed';
+    if (error?.permanent) {
+      await clearShellPending(docUrl.href, kind);
+      if (statusKey) await clearShellSaveFailure(statusKey);
+      await notifyShellResult(docUrl, 'failed');
+      return 'failed';
     }
+    if (statusKey) await storeShellSaveFailure(statusKey);
+    const outcome = await recordShellFailure(docUrl.href, kind);
+    if (!outcome.gaveUp) await scheduleShellRetrySync();
+    await notifyShellResult(docUrl, outcome.gaveUp ? 'failed' : 'pending');
     return 'failed';
   };
 
   try {
-    const docUrl = canonicalDocumentUrl(url);
-    const cacheKey = HUB_PATHS.has(docUrl.pathname) && docUrl.search
-      ? docUrl.pathname
-      : docUrl.href;
-    statusKey = `${htmlCacheName}\n${cacheKey}`;
+    docUrl = canonicalDocumentUrl(url);
+    targetUrl = docUrl;
+    statusKey = `${htmlCacheName}\n${docUrl.href}`;
 
     const response = documentResponse
       ? documentResponse.clone()
@@ -811,10 +1003,36 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
         );
     if (
       !response.ok ||
-      response.redirected ||
       !isSameOriginResponse(response) ||
       !response.headers.get('content-type')?.toLowerCase().includes('text/html')
-    ) return fail();
+    ) {
+      if (response.status === 404 || response.status === 410) {
+        await clearShellPending(docUrl.href, kind);
+        if (statusKey) await clearShellSaveFailure(statusKey);
+        return 'failed';
+      }
+      return fail();
+    }
+
+    if (response.redirected) {
+      let finalUrl = null;
+      try {
+        finalUrl = canonicalDocumentUrl(response.url);
+      } catch {
+        finalUrl = null;
+      }
+      const rejected = !finalUrl ||
+        finalUrl.origin !== self.location.origin ||
+        isAuthPage(finalUrl) ||
+        finalUrl.pathname.startsWith('/admin') ||
+        (kind === 'personal' ? !isPersonalShellRoute(finalUrl) : isProtectedPage(finalUrl));
+      if (rejected) {
+        await clearShellPending(docUrl.href, kind);
+        if (statusKey) await clearShellSaveFailure(statusKey);
+        return 'failed';
+      }
+      targetUrl = finalUrl;
+    }
 
     const html = await response.clone().text();
     const assetUrls = [...new Set(Array.from(
@@ -822,6 +1040,13 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
     )
       .map((match) => match[1])
       .filter((value) => typeof value === 'string' && value.length > 0))];
+    const cacheKey = HUB_PATHS.has(targetUrl.pathname) && targetUrl.search
+      ? targetUrl.pathname
+      : targetUrl.href;
+    statusKey = `${htmlCacheName}\n${cacheKey}`;
+    pendingBeforeSave = (await readShellPending()).some(
+      (entry) => entry.href === docUrl.href && entry.kind === kind,
+    );
     // بعض صفحات المحتوى العام قد تكون HTML بسيطة بلا chunks محلية.
     // لا تُسقط نسخة الصفحة لمجرد أن قائمة الأصول فارغة؛ احفظ HTML وتحقق
     // من كل أصل تم اكتشافه فقط.
@@ -836,15 +1061,12 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
         missing.push(assetUrl);
       }
     }
+    if (missing.length > 0) await markShellPending(docUrl.href, kind);
 
     const downloaded = [];
     for (let i = 0; i < missing.length; i += 4) {
       const batch = await Promise.all(missing.slice(i, i + 4).map(async (assetUrl) => {
-        const asset = await withNetworkTimeout(
-          fetch(assetUrl, { credentials: 'same-origin' }),
-          NETWORK_TIMEOUT_MS,
-        );
-        if (!isUsableStaticAssetResponse(assetUrl, asset)) throw new Error(`asset-invalid-${asset.status}`);
+        const asset = await fetchShellAsset(assetUrl);
         return { assetUrl, asset };
       }));
       downloaded.push(...batch);
@@ -853,7 +1075,7 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
     for (const item of [...alreadyCached, ...downloaded]) {
       await putTimestamped(staticCache, item.assetUrl, item.asset, 'visit-asset');
     }
-    const recovering = await hasShellSaveFailure(statusKey);
+    const recovering = pendingBeforeSave || await hasShellSaveFailure(statusKey);
     await putTimestamped(
       htmlCache,
       cacheKey,
@@ -873,13 +1095,17 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
       }
     }
     if (recovering) await clearShellSaveFailure(statusKey);
+    await clearShellPending(docUrl.href, kind);
+    if (recovering) {
+      await notifyShellResult(docUrl, 'saved');
+    }
     await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
     if (htmlCacheName === PERSONAL_SHELL_CACHE) {
       await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
     }
     return recovering ? 'recovered' : 'saved';
-  } catch {
-    return fail();
+  } catch (error) {
+    return fail(error);
   }
 }
 
@@ -2970,6 +3196,7 @@ self.addEventListener('activate', (event) => {
         normalizeExistingHtmlCache(PERSONAL_SHELL_CACHE),
       ]);
       await self.clients.claim();
+      retryPendingShells().catch(() => {});
     })(),
   );
 });
@@ -2977,6 +3204,11 @@ self.addEventListener('activate', (event) => {
 // أوامر من الصفحة: تحديث، مسح كاش، طابور.
 self.addEventListener('message', (event) => {
   const type = event.data && event.data.type;
+
+  if (type === 'RETRY_PENDING_SHELLS') {
+    event.waitUntil(retryPendingShells());
+    return;
+  }
 
   if (type === 'GET_SW_STATUS') {
     const status = {
@@ -3276,6 +3508,9 @@ self.addEventListener('message', (event) => {
 self.addEventListener('sync', (event) => {
   if (event.tag === SYNC_TAG) {
     event.waitUntil(replayQueue());
+  }
+  if (event.tag === SHELL_RETRY_SYNC_TAG) {
+    event.waitUntil(retryPendingShells());
   }
 });
 
