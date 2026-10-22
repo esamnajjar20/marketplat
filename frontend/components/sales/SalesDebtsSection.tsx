@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { AlertTriangle, FileText } from 'lucide-react';
 import { useDebts } from '@/hooks/queries/useDebts';
 import { useDebtSummary } from '@/hooks/queries/useSales';
@@ -9,6 +11,7 @@ import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function SalesDebtsSection() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const query = useDebts({ page, limit: 20 });
   const summary = useDebtSummary();
@@ -101,7 +104,11 @@ export function SalesDebtsSection() {
                     size="sm"
                     variant="outline"
                     className="h-10 flex-1 rounded-xl font-bold"
-                    onClick={() => window.location.assign(`/account/sales/${sale.id}/receipt`)}
+                    onClick={() => {
+                      const destination = `/account/sales/${sale.id}/receipt`;
+                      signalNavigationStart(destination);
+                      router.push(destination);
+                    }}
                   >
                     الإيصال
                   </Button>

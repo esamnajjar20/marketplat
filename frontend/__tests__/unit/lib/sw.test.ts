@@ -428,6 +428,7 @@ describe('sw.js — service worker logic', () => {
         '/my-store/inventory', '/my-services', '/my-services/appointments',
         '/requests/new', '/requests/me', '/requests/offers',
         '/service-requests', '/my-reports', '/complete-profile',
+        '/following', '/stories',
       ];
       for (const pathname of paths) {
         expect(isPersonalShellRoute(new URL(`https://example.com${pathname}`)), pathname).toBe(true);

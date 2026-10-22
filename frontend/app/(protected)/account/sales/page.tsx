@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { SalesTabsHub } from '@/components/sales/SalesTabsHub';
 import { buildMetadata } from '@/lib/seo';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'مبيعاتي', noIndex: true });
 
@@ -16,7 +17,7 @@ export default function SalesPage() {
           </p>
         </div>
       </header>
-      <Suspense>
+      <Suspense fallback={<SuspenseFallback />}>
         <SalesTabsHub />
       </Suspense>
     </div>

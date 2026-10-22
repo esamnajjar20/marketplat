@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { FollowedStoresList } from '@/components/stores/FollowedStoresList';
 import { buildMetadata } from '@/lib/seo';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'المتاجر المتابَعة', noIndex: true });
 
@@ -14,7 +15,7 @@ export default function MyFollowedStoresPage() {
           <p className="mt-1 text-sm text-muted-foreground">تابع متاجرك المفضلة للوصول إلى منتجاتها وتحديثاتها بسرعة.</p>
         </div>
       </header>
-      <Suspense><FollowedStoresList /></Suspense>
+      <Suspense fallback={<SuspenseFallback />}><FollowedStoresList /></Suspense>
     </div>
   );
 }

@@ -123,6 +123,10 @@ const PROTECTED_PREFIXES = [
   // every other (protected) route above — belt-and-suspenders with
   // that layout's own client-side guard.
   '/complete-profile',
+  // FIX PROTECTED-PARITY-01: app/(protected)/following and /stories exist but
+  // were missing here and in public/sw.js isProtectedPage (treated as public).
+  '/following',
+  '/stories',
 ] as const;
 
 const PROTECTED_AD_EDIT_RE = /^\/ads\/[^/]+\/edit(\/.*)?$/;

@@ -32,6 +32,7 @@ import {
   searchForTabSwitch,
   type ActivityTab,
 } from '@/lib/activityHubTabs';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 const TAB_META: Record<ActivityTab, { label: string; Icon: typeof History }> = {
   timeline: { label: 'سجل النشاط', Icon: History },
@@ -59,7 +60,7 @@ function TabBody({ tab }: { tab: ActivityTab }) {
               </Link>
             </Button>
           </div>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyAdsList />
           </Suspense>
         </div>
@@ -71,7 +72,7 @@ function TabBody({ tab }: { tab: ActivityTab }) {
           <p className="text-sm text-muted-foreground">
             الطلبات التي أرسلتها لمقدّمي الخدمة.
           </p>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyServiceRequestsList />
           </Suspense>
         </div>
@@ -80,7 +81,7 @@ function TabBody({ tab }: { tab: ActivityTab }) {
       return (
         <div className="mx-auto max-w-2xl space-y-4">
           <h1 className="text-xl font-bold">بلاغاتي</h1>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyReportsList />
           </Suspense>
         </div>
@@ -90,7 +91,7 @@ function TabBody({ tab }: { tab: ActivityTab }) {
       return (
         <div className="mx-auto max-w-2xl space-y-4">
           <h1 className="text-xl font-bold">نشاطي</h1>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <Timeline />
           </Suspense>
         </div>

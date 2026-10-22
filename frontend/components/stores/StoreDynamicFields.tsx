@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/shared/ui/Checkbox';
 import { useStoreTypeFields } from '@/hooks/queries/useStoreTypes';
 import type { StoreAttributes, StoreTypeField } from '@/types/store.types';
+import { Button } from '@/components/shared/ui/Button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 export function formatStoreFieldValue(field: StoreTypeField, value: StoreAttributes[string] | undefined): string {
@@ -36,7 +38,7 @@ export function StoreDynamicFields({
   onChange: (value: StoreAttributes) => void;
   errors?: Record<string, string[]>;
 }) {
-  const { data: allFields = [], isLoading } = useStoreTypeFields(storeTypeId);
+  const { data: allFields = [], isLoading, isError, refetch } = useStoreTypeFields(storeTypeId);
   const fields = allFields.filter((field) => (field.scope ?? 'STORE') !== 'PRODUCT');
 
   // Reset values when the store type changes so a different type's keys
@@ -48,7 +50,26 @@ export function StoreDynamicFields({
     onChange({});
   }, [storeTypeId, onChange]);
 
-  if (isLoading || fields.length === 0) return null;
+  // FIX SILENT-NULL-02: loading/failed fields used to render nothing, so required store
+  // fields silently popped in late or never appeared (server then rejects the form).
+  if (isLoading) {
+    return (
+      <div className="space-y-3 rounded-xl border bg-card p-4" aria-busy="true" aria-label="جارٍ تحميل الحقول الإضافية">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    );
+  }
+  if (isError && allFields.length === 0) {
+    return (
+      <div dir="rtl" role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/40 p-4 text-right">
+        <p className="text-sm text-destructive">تعذّر تحميل الحقول الإضافية لنوع المتجر.</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => { void refetch(); }}>إعادة المحاولة</Button>
+      </div>
+    );
+  }
+  if (fields.length === 0) return null;
 
   function setValue(key: string, next: string | number | boolean | undefined) {
     const nextValue = { ...value };

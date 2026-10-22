@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v86';
+const CACHE_VERSION = 'v88';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -478,6 +478,9 @@ function isProtectedPage(url) {
     '/requests/offers',
     '/activity',
     '/saved-searches',
+    // FIX PROTECTED-PARITY-01: sync with middleware.ts
+    '/following',
+    '/stories',
   ];
   return protectedPrefixes.some(
     (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
@@ -859,7 +862,12 @@ async function verifyCachedChunks(cachedResponse, cache) {
   }
 }
 
-async function lookupShellWithFallback(cache, request, url) {
+// FIX SW-BARE-FALLBACK-ONLINE-01: `allowBare:false` skips the query-stripped
+// (bare pathname) fallback. That fallback is right when offline / after a network
+// failure, but serving /search without ?q= while the network is reachable can show
+// wrong content or a hydration mismatch.
+async function lookupShellWithFallback(cache, request, url, opts) {
+  const allowBare = !opts || opts.allowBare !== false;
   const isRsc = isRscShellRequest(request);
   const exact = await cache.match(request);
   if (exact) return exact;
@@ -871,9 +879,11 @@ async function lookupShellWithFallback(cache, request, url) {
       const canonicalHit = await cache.match(canonicalKey);
       if (canonicalHit) return canonicalHit;
     }
-    const bareKey = isRsc ? rscShellKey(url.origin + url.pathname) : url.origin + url.pathname;
-    const bare = await cache.match(bareKey);
-    if (bare) return bare;
+    if (allowBare) {
+      const bareKey = isRsc ? rscShellKey(url.origin + url.pathname) : url.origin + url.pathname;
+      const bare = await cache.match(bareKey);
+      if (bare) return bare;
+    }
   }
   const altPath = url.pathname.endsWith('/')
     ? url.pathname.slice(0, -1) || '/'
@@ -944,7 +954,12 @@ async function networkFirstPage(event, request, cacheKey) {
       if (!isRscShellRequest(request)) {
         const safe = await verifyCachedChunks(cachedResponse, cache);
         if (!safe) {
-
+          // FIX SW-OFFLINE-FALSE-01: a timeout is not an outage. The cached shell is
+          // unusable (missing chunks), so keep waiting for the real response and
+          // show /offline only on a real network failure.
+          if (err && err.name === 'SwTimeoutError') {
+            try { return await fetchPromise; } catch { /* real network failure: fall through */ }
+          }
           return buildOfflineErrorPage();
         }
       }
@@ -974,7 +989,9 @@ const protectedNavGeneration = new Map();
 // SWR: عرض الكاش فورًا + تحديث في الخلفية مع التحقق من chunks
 async function staleWhileRevalidatePage(event, request, cacheKey) {
   const cache = await caches.open(STATIC_CACHE);
-  const cached = await lookupShellWithFallback(cache, request, new URL(request.url));
+  // Online path: never serve the query-stripped shell (SW-BARE-FALLBACK-ONLINE-01);
+  // it is still used below if the network genuinely fails.
+  const cached = await lookupShellWithFallback(cache, request, new URL(request.url), { allowBare: false });
 
   // FIX SW-SLOW-NAV-01: one network request shared by the background
   // revalidation AND the no-cache path below, so a slow (but alive) server is
@@ -1066,6 +1083,14 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
     event.waitUntil(revalidatePromise);
     return await networkPromise;
   } catch {
+    // Real network failure: now the bare-path shell (if any) beats /offline.
+    try {
+      const fallbackShell = await lookupShellWithFallback(cache, request, new URL(request.url));
+      if (fallbackShell) {
+        const ok = isRscShellRequest(request) ? fallbackShell.ok : await verifyCachedChunks(fallbackShell, cache);
+        if (ok) return fallbackShell;
+      }
+    } catch { /* fall through to /offline */ }
     if (request.mode === 'navigate') {
       const offlineFallback = await cache.match(OFFLINE_URL);
       return offlineFallback || Response.error();
@@ -1163,6 +1188,10 @@ async function handleProtectedPage(event, request, url) {
           const staticCache = await caches.open(STATIC_CACHE);
           const safe = await verifyCachedChunks(cachedShell, staticCache);
           if (!safe) {
+            // FIX SW-OFFLINE-FALSE-01: timeout != outage; wait for the real response.
+            if (err && err.name === 'SwTimeoutError') {
+              try { return await fetchPromise; } catch { /* real network failure: fall through */ }
+            }
             if (request.mode === 'navigate') {
               const offlineFallback = await staticCache.match(OFFLINE_URL);
               return offlineFallback || Response.error();
@@ -3316,6 +3345,15 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isNeverCache(url)) {
+    return;
+  }
+
+  // FIX SW-AUTH-OFFLINE-01: auth pages are never cached (security), but returning
+  // without respondWith made an offline navigation to /login (logged-out user, or
+  // the protected layout's redirect) show the browser's native error page. Keep the
+  // network passthrough, and fall back to the in-app retry page on a real failure.
+  if (request.mode === 'navigate' && isAuthPage(url)) {
+    event.respondWith(fetch(request).catch(() => buildOfflineErrorPage()));
     return;
   }
 

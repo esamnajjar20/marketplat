@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { Heart } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
@@ -59,6 +61,7 @@ export function getFavoriteReturnTo(returnTo: string | undefined, currentPath: s
 
 export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false, showLabel = false, variant = 'default', returnTo }: Props) {
   const isAuth = useAuthStore(selectIsAuthenticated);
+  const router = useRouter();
   // Rules-of-hooks: always called, `warm` just gates the network
   // request internally (see useFavoriteEntityCheck's own doc comment).
   useFavoriteEntityCheck(entityType, entityId, warm);
@@ -81,7 +84,11 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname + window.location.search;
         const safeReturnTo = getFavoriteReturnTo(returnTo, currentPath);
-        window.location.href = `/login?from=${encodeURIComponent(safeReturnTo)}`;
+        // FIX FAV-HARD-NAV-01: client-side navigation keeps the toast, avoids a full reload and
+        // keeps the NavigationProgress feedback (a hard reload dropped both).
+        const destination = `/login?from=${encodeURIComponent(safeReturnTo)}`;
+        signalNavigationStart(destination);
+        router.push(destination);
       }
       return;
     }

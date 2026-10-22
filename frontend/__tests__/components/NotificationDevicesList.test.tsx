@@ -38,10 +38,20 @@ describe('NotificationDevicesList', () => {
     (getThisDeviceFingerprint as ReturnType<typeof vi.fn>).mockResolvedValue('aaaaaaaaaaaaaaaa');
   });
 
-  it('renders nothing while loading, on error, or with no devices', () => {
+  it('shows a retry notice when loading failed and nothing is cached', async () => {
+    const refetch = vi.fn();
+    (useNotificationDevices as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: undefined, isLoading: false, isError: true, refetch,
+    });
+    const user = setupUser();
+    render(<NotificationDevicesList />);
+    await user.click(screen.getByRole('button', { name: 'إعادة المحاولة' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders nothing while loading or with no devices', () => {
     for (const state of [
       { data: undefined, isLoading: true, isError: false },
-      { data: undefined, isLoading: false, isError: true },
       { data: [], isLoading: false, isError: false },
     ]) {
       (useNotificationDevices as ReturnType<typeof vi.fn>).mockReturnValue(state);

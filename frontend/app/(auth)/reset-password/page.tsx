@@ -2,6 +2,7 @@ import type { Metadata }   from 'next';
 import { Suspense }        from 'react';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { buildMetadata }   from '@/lib/seo';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'تعيين كلمة مرور جديدة', noIndex: true });
 
@@ -16,7 +17,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
         <h1 className="text-2xl font-bold text-primary sm:text-3xl">تعيين كلمة مرور جديدة</h1>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 shadow-md">
-        <Suspense><ResetPasswordForm token={token} /></Suspense>
+        <Suspense fallback={<SuspenseFallback />}><ResetPasswordForm token={token} /></Suspense>
       </div>
     </div>
   );

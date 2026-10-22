@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { MyStoreTabsHub } from '@/components/stores/MyStoreTabsHub';
 import { buildMetadata } from '@/lib/seo';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'لوحة المتجر', noIndex: true });
 
@@ -20,7 +21,7 @@ export default function MyStorePage() {
           </p>
         </div>
       </header>
-      <Suspense>
+      <Suspense fallback={<SuspenseFallback />}>
         <MyStoreTabsHub />
       </Suspense>
     </div>

@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { SettingsTabsHub } from '@/components/settings/SettingsTabsHub';
 import { buildMetadata } from '@/lib/seo';
 import { AccountPageShell } from '@/components/shared/account/AccountPageShell';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'الإعدادات', noIndex: true });
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = buildMetadata({ title: 'الإعدادات', n
 export default function SettingsPage() {
   return (
     <AccountPageShell title="الإعدادات" description="الملف، الأمان، الجلسات، الإشعارات والمحظورون — من مكان واحد.">
-      <Suspense>
+      <Suspense fallback={<SuspenseFallback />}>
         <SettingsTabsHub />
       </Suspense>
     </AccountPageShell>

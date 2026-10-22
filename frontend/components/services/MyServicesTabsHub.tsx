@@ -37,6 +37,7 @@ import {
   searchForTabSwitch,
   type MyServicesTab,
 } from '@/lib/myServicesHubTabs';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 const TAB_META: Record<MyServicesTab, { label: string; description: string; Icon: typeof Inbox }> = {
   overview: { label: 'نظرة عامة', description: 'حالة العمل والإجراءات اليومية', Icon: LayoutDashboard },
@@ -54,7 +55,7 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
             <h1 className="text-xl font-extrabold">الطلبات الواردة</h1>
             <p className="mt-1 text-sm text-muted-foreground">راجع الطلبات الجديدة واتخذ الإجراء المناسب لكل طلب.</p>
           </div>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <IncomingServiceRequestsList />
           </Suspense>
         </div>
@@ -66,7 +67,7 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
             <h1 className="text-xl font-extrabold">مواعيدي</h1>
             <p className="mt-1 text-sm text-muted-foreground">تابع جدولك ومواعيد الخدمات المرتبطة بطلباتك.</p>
           </div>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyAppointmentsSection />
           </Suspense>
         </div>
@@ -93,10 +94,10 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
     default:
       return (
         <div className="space-y-8">
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyServicesHub />
           </Suspense>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyServiceListingsList />
           </Suspense>
         </div>

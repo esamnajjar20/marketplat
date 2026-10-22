@@ -18,6 +18,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/shared/ui/Sheet';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 function ListChipsBar({ onOpenLists }: { onOpenLists: () => void }) {
   const router = useRouter();
@@ -167,24 +168,24 @@ export function FavoritesPageLayout() {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <Suspense>
+      <Suspense fallback={<SuspenseFallback />}>
         <ListChipsBar onOpenLists={() => setListsOpen(true)} />
       </Suspense>
 
-      <Suspense>
+      <Suspense fallback={<SuspenseFallback />}>
         <ActiveListBanner />
       </Suspense>
 
       {/* Desktop: sidebar + content | Mobile: content only (lists via sheet) */}
       <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]">
         <aside className="hidden lg:block">
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <FavoriteListsSidebar />
           </Suspense>
         </aside>
 
         <section className="min-w-0" aria-label="محتوى المفضلة">
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <FavoritesTabs />
           </Suspense>
         </section>
@@ -198,7 +199,7 @@ export function FavoritesPageLayout() {
             <SheetDescription>نظّم العناصر المحفوظة ضمن قوائمك الخاصة.</SheetDescription>
           </SheetHeader>
           <div className="mt-3 max-h-[65vh] overflow-y-auto px-4">
-            <Suspense>
+            <Suspense fallback={<SuspenseFallback />}>
               <FavoriteListsSidebar embedded />
             </Suspense>
           </div>

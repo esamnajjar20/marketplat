@@ -32,7 +32,7 @@ function fallbackLabel(d: NotificationDevice): string {
 }
 
 export function NotificationDevicesList() {
-  const { data: devices, isLoading, isError } = useNotificationDevices();
+  const { data: devices, isLoading, isError, refetch } = useNotificationDevices();
   const rename = useRenameNotificationDevice();
   const remove = useRemoveNotificationDevice();
 
@@ -52,8 +52,20 @@ export function NotificationDevicesList() {
     };
   }, [devices]);
 
-  // الاشتراك الفارغ/الخطأ لا يستحقان واجهة: التبديل أعلاه يكفي.
-  if (isLoading || isError || !devices || devices.length === 0) return null;
+  // FIX SILENT-NULL-01: a failed load used to vanish silently; show a short retry notice
+  // (only when there is no cached list to show). Empty/loading still render nothing:
+  // the toggle above is enough.
+  if (isError && !devices) {
+    return (
+      <section aria-live="polite" className="flex items-center justify-between gap-3 rounded-xl border border-border/80 p-3">
+        <p className="text-sm text-muted-foreground">تعذّر تحميل أجهزتك المسجّلة.</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => { void refetch(); }}>
+          إعادة المحاولة
+        </Button>
+      </section>
+    );
+  }
+  if (isLoading || !devices || devices.length === 0) return null;
 
   const startEdit = (d: NotificationDevice) => {
     setConfirmId(null);

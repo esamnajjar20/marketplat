@@ -26,6 +26,7 @@ import {
   searchForSalesHubTabSwitch,
   type SalesHubTab,
 } from '@/lib/salesHubTabs';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 const TAB_META: Record<SalesHubTab, { label: string; Icon: typeof WalletCards }> = {
   overview: { label: 'نظرة عامة', Icon: LayoutDashboard },
@@ -42,17 +43,17 @@ const TAB_META: Record<SalesHubTab, { label: string; Icon: typeof WalletCards }>
 function TabBody({ tab }: { tab: SalesHubTab }) {
   switch (tab) {
     case 'sales':
-      return <Suspense><SalesListClient /></Suspense>;
+      return <Suspense fallback={<SuspenseFallback />}><SalesListClient /></Suspense>;
     case 'customers':
-      return <Suspense><SalesCustomersSection /></Suspense>;
+      return <Suspense fallback={<SuspenseFallback />}><SalesCustomersSection /></Suspense>;
     case 'debts':
-      return <Suspense><SalesDebtsSection /></Suspense>;
+      return <Suspense fallback={<SuspenseFallback />}><SalesDebtsSection /></Suspense>;
     case 'installments':
-      return <Suspense><SalesInstallmentsSection /></Suspense>;
+      return <Suspense fallback={<SuspenseFallback />}><SalesInstallmentsSection /></Suspense>;
     case 'reports':
-      return <Suspense><SalesReports /></Suspense>;
+      return <Suspense fallback={<SuspenseFallback />}><SalesReports /></Suspense>;
     case 'costs':
-      return <Suspense><SalesCostSection /></Suspense>;
+      return <Suspense fallback={<SuspenseFallback />}><SalesCostSection /></Suspense>;
     case 'smart':
       return <div className="space-y-4"><SalesAutomationPanel /><SalesSmartInsights /></div>;
     case 'analytics':
@@ -67,7 +68,7 @@ function TabBody({ tab }: { tab: SalesHubTab }) {
       );
     case 'overview':
     default:
-      return <Suspense><SalesPageClient /><SalesDashboard /></Suspense>;
+      return <Suspense fallback={<SuspenseFallback />}><SalesPageClient /><SalesDashboard /></Suspense>;
   }
 }
 

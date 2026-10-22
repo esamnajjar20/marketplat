@@ -47,7 +47,6 @@ const ReactQueryDevtools =
       )
     : null;
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
-import { NavigationProgress } from '@/components/shared/NavigationProgress';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
@@ -204,7 +203,7 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         </AuthHydrationProvider>
 
         <ThemedToaster />
-        <NavigationProgress />
+        {/* FIX NAV-DUP-01: NavigationProgress now mounts once in app/layout.tsx. */}
 
         <PwaBootstrap />
         {/* PLAN-runtime-separation (مرحلة 2/6): استُخرج من PwaBootstrap —

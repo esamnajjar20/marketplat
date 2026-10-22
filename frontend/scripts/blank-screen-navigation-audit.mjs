@@ -5,7 +5,7 @@ const root = process.cwd();
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const checks = [
   ['global navigation progress is mounted in the root layout', read('app/layout.tsx').includes('<NavigationProgress />')],
-  ['stalled navigation has a visible recovery prompt', read('components/shared/NavigationProgress.tsx').includes('تأخر فتح الصفحة') && read('components/shared/NavigationProgress.tsx').includes('window.location.assign(stalledHref)')],
+  ['stalled navigation has a visible recovery prompt', read('components/shared/NavigationProgress.tsx').includes('LOADING_COPY.navigationStalled') && read('lib/loadingCopy.ts').includes('تأخر فتح الصفحة') && read('components/shared/NavigationProgress.tsx').includes('window.location.assign(stalledHref)')],
   ['navigation fail-safe is bounded', read('components/shared/NavigationProgress.tsx').includes('FAILSAFE_MS = 12_000')],
   ['public routes have a non-empty loading boundary', fs.existsSync(path.join(root, 'app/(public)/loading.tsx'))],
   ['protected routes have a non-empty loading boundary', fs.existsSync(path.join(root, 'app/(protected)/loading.tsx'))],

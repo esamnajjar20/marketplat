@@ -5,6 +5,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { usePublicCollections, useCollectionProducts } from '@/hooks/queries/useCollections';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { formatPrice } from '@/lib/formatters';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { StoreCollectionWithCount } from '@/types/collection.types';
 
@@ -12,7 +13,9 @@ interface Props { storeId: string; }
 
 export function StoreCollections({ storeId }: Props) {
   const { data: collections, isLoading } = usePublicCollections(storeId);
-  if (isLoading || !collections || collections.length === 0) return null;
+  // FIX SILENT-NULL-03: reserve the space while loading instead of popping the section in.
+  if (isLoading) return <Skeleton className="h-40 w-full rounded-2xl" aria-hidden="true" />;
+  if (!collections || collections.length === 0) return null;
   return <div className="space-y-4">{collections.map((collection) => <StoreCollectionCard key={collection.id} storeId={storeId} collection={collection} />)}</div>;
 }
 

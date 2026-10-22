@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { SavedSearchesList } from '@/components/profile/SavedSearchesList';
 import { buildMetadata } from '@/lib/seo';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'عمليات البحث المحفوظة', noIndex: true });
 
@@ -14,7 +15,7 @@ export default function SavedSearchesPage() {
           <p className="mt-1 text-sm text-muted-foreground">عمليات البحث التي حفظتها للوصول إليها بسرعة.</p>
         </div>
       </header>
-      <Suspense><SavedSearchesList /></Suspense>
+      <Suspense fallback={<SuspenseFallback />}><SavedSearchesList /></Suspense>
     </div>
   );
 }

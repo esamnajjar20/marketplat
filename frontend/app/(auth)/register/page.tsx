@@ -2,6 +2,7 @@ import type { Metadata }  from 'next';
 import { Suspense }       from 'react';
 import { RegisterForm }   from '@/components/auth/RegisterForm';
 import { buildMetadata }  from '@/lib/seo';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'إنشاء حساب', noIndex: true });
 
@@ -22,7 +23,7 @@ export default function RegisterPage() {
         </p>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 shadow-md sm:p-8">
-        <Suspense><RegisterForm /></Suspense>
+        <Suspense fallback={<SuspenseFallback />}><RegisterForm /></Suspense>
       </div>
     </div>
   );

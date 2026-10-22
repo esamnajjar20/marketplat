@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense }      from 'react';
 import { LoginForm }     from '@/components/auth/LoginForm';
 import { buildMetadata } from '@/lib/seo';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'تسجيل الدخول', noIndex: true });
 
@@ -24,7 +25,7 @@ export default function LoginPage() {
         <p className="mt-3 text-muted-foreground">مرحباً بك مجدداً في سوق غزة</p>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 shadow-md sm:p-8">
-        <Suspense><LoginForm /></Suspense>
+        <Suspense fallback={<SuspenseFallback />}><LoginForm /></Suspense>
       </div>
     </div>
   );

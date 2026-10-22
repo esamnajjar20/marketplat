@@ -29,14 +29,19 @@ function storageKey(path: string, search = ''): string {
  *
  * Use once in public/protected layouts or on main browse pages.
  */
-export function useScrollRestore(enabled = true) {
+export function useScrollRestore(enabled = true, searchParam?: string) {
   const pathname = usePathname();
+  // FIX SCROLL-KEY-STALE-01: the key used to be derived only when `pathname`
+  // changed, so /ads?page=2 -> ?page=3 kept writing the position under the old
+  // key. Callers that can observe search-param changes (see ScrollRestore) pass
+  // them here so both effects re-run and the key follows the full URL.
+  const search = searchParam ?? '';
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
-    const search = window.location.search || '';
-    const key = storageKey(pathname, search);
+    const currentSearch = searchParam !== undefined ? search : (window.location.search || '');
+    const key = storageKey(pathname, currentSearch);
     let cleanupTimeout: (() => void) | undefined;
     let cleanupObserver: (() => void) | undefined;
 
@@ -88,13 +93,13 @@ export function useScrollRestore(enabled = true) {
       cleanupTimeout?.();
       cleanupObserver?.();
     };
-  }, [pathname, enabled]);
+  }, [pathname, search, enabled, searchParam]);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
-    const search = window.location.search || '';
-    const key = storageKey(pathname, search);
+    const currentSearch = searchParam !== undefined ? search : (window.location.search || '');
+    const key = storageKey(pathname, currentSearch);
 
     let ticking = false;
     function persist() {
@@ -119,5 +124,5 @@ export function useScrollRestore(enabled = true) {
         /* ignore */
       }
     };
-  }, [pathname, enabled]);
+  }, [pathname, search, enabled, searchParam]);
 }

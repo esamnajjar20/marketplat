@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const START_EVENT = 'marketplace:nav-start';
@@ -10,7 +10,21 @@ const FAILSAFE_MS = 12_000;
 
 /** Global route feedback plus a visible recovery action for stalled App Router transitions. */
 export function NavigationProgress() {
+  // FIX NAV-QUERY-ONLY-01: useSearchParams needs a Suspense boundary; fallback={null}
+  // keeps the rest of the root layout unaffected.
+  return (
+    <Suspense fallback={null}>
+      <NavigationProgressInner />
+    </Suspense>
+  );
+}
+
+function NavigationProgressInner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams?.toString() ?? '';
+  // Location identity = pathname + query (hash never counts).
+  const locationKey = search ? `${pathname}?${search}` : pathname;
   const [visible, setVisible] = useState(false);
   const [stalledHref, setStalledHref] = useState<string | null>(null);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -18,6 +32,9 @@ export function NavigationProgress() {
   const startedPath = useRef<string | null>(null);
   const startedHref = useRef<string | null>(null);
   const lastPathname = useRef(pathname);
+  const lastLocationKey = useRef(locationKey);
+  // 'path' navigations get the stall-recovery banner; query-only ones only the bar.
+  const startedKind = useRef<'path' | 'query'>('path');
 
   useEffect(() => {
     const clearTimers = () => {
@@ -31,20 +48,35 @@ export function NavigationProgress() {
       if (!href || href.startsWith('#')) return;
       let target: URL;
       try { target = new URL(href, window.location.href); } catch { return; }
-      if (target.origin !== window.location.origin || target.pathname === window.location.pathname) return;
+      if (target.origin !== window.location.origin) return;
+      // FIX NAV-SLASH-STALL-01: '/ads/' vs '/ads' is the same destination; treating it as a
+      // path change never "lands" (pathname is identical) and raised a false stall alert at 12s.
+      const normalizePath = (p: string) => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p);
+      const samePath = normalizePath(target.pathname) === normalizePath(window.location.pathname);
+      // Hash-only or identical URL: nothing to load.
+      if (samePath && target.search === window.location.search) return;
       if (startedHref.current === target.href) return;
 
       clearTimers();
       setStalledHref(null);
-      startedPath.current = sourcePath;
+      const kind: 'path' | 'query' = samePath ? 'query' : 'path';
+      startedKind.current = kind;
+      startedPath.current = samePath ? lastLocationKey.current : sourcePath;
       startedHref.current = target.href;
       showTimer.current = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
       hideTimer.current = setTimeout(() => {
-        // Keep a recovery surface instead of silently dropping progress on a stalled route.
         if (showTimer.current) clearTimeout(showTimer.current);
         showTimer.current = null;
         hideTimer.current = null;
         setVisible(false);
+        if (kind === 'query') {
+          // Query-only: the URL may legitimately never change (handler-driven tabs/filters);
+          // drop the bar silently instead of showing a false "navigation stalled" alert.
+          startedPath.current = null;
+          startedHref.current = null;
+          return;
+        }
+        // Keep a recovery surface instead of silently dropping progress on a stalled route.
         setStalledHref(target.href);
       }, FAILSAFE_MS);
     };
@@ -76,6 +108,7 @@ export function NavigationProgress() {
       const previousPath = lastPathname.current;
       if (previousPath !== window.location.pathname) start(previousPath, previousPath);
     };
+    // (query-only back/forward is not signalled: the history entry is already cached by Next.)
     const onProgrammaticStart = (event: Event) => {
       const detail = (event as CustomEvent<{ href?: string }>).detail;
       if (detail?.href) start(detail.href);
@@ -94,7 +127,13 @@ export function NavigationProgress() {
 
   useEffect(() => {
     lastPathname.current = pathname;
-    if (startedPath.current !== null && pathname !== startedPath.current) {
+    lastLocationKey.current = locationKey;
+    // startedPath holds the SOURCE location (path, or path+query for query-only starts);
+    // any change of the committed location means the navigation landed.
+    const landed = startedKind.current === 'query'
+      ? locationKey !== startedPath.current
+      : pathname !== startedPath.current;
+    if (startedPath.current !== null && landed) {
       if (showTimer.current) clearTimeout(showTimer.current);
       if (hideTimer.current) clearTimeout(hideTimer.current);
       showTimer.current = null;
@@ -104,7 +143,7 @@ export function NavigationProgress() {
       setVisible(false);
       setStalledHref(null);
     }
-  }, [pathname]);
+  }, [pathname, locationKey]);
 
   if (stalledHref) {
     return (

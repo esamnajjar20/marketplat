@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { ActivityTabsHub } from '@/components/profile/ActivityTabsHub';
 import { buildMetadata } from '@/lib/seo';
 import { AccountPageShell } from '@/components/shared/account/AccountPageShell';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 export const metadata: Metadata = buildMetadata({ title: 'نشاطي', noIndex: true });
 
@@ -12,7 +13,7 @@ export const metadata: Metadata = buildMetadata({ title: 'نشاطي', noIndex: 
 export default function ActivityPage() {
   return (
     <AccountPageShell title="نشاطي" description="تابع نشاط حسابك وإعلاناتك وطلباتك وبلاغاتك من مكان واحد.">
-      <Suspense>
+      <Suspense fallback={<SuspenseFallback />}>
         <ActivityTabsHub />
       </Suspense>
     </AccountPageShell>

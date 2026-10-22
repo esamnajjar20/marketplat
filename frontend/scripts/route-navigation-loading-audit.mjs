@@ -23,7 +23,10 @@ check('navigation progress component watches same-origin internal link clicks', 
 check('modified clicks and non-primary clicks do not start page navigation feedback', /event\.button !== 0/.test(navigationProgress) && /event\.metaKey/.test(navigationProgress) && /event\.ctrlKey/.test(navigationProgress));
 check('external, download, disabled, and new-context links are excluded', /target\.origin !== window\.location\.origin/.test(navigationProgress) && /anchor\.hasAttribute\('download'\)/.test(navigationProgress) && /anchor\.target && anchor\.target !== '_self'/.test(navigationProgress) && /aria-disabled/.test(navigationProgress));
 check('programmatic navigation signal rejects cross-origin destinations', /target\.origin !== window\.location\.origin/.test(navigationProgress) && /function signalNavigationStart\(href: string\)/.test(navigationProgress));
-check('navigation progress is mounted globally in AppProviders', /<NavigationProgress \/>/.test(appProviders) && /NavigationProgress/.test(appProviders));
+// FIX NAV-DUP-01: single mount, in app/layout.tsx (a second one in AppProviders duplicated
+// the bar, the stalled alert and every listener).
+const rootLayoutSource = fs.readFileSync(path.join(frontendRoot, 'app/layout.tsx'), 'utf8');
+check('navigation progress is mounted exactly once (root layout, not AppProviders)', (rootLayoutSource.match(/<NavigationProgress \/>/g) || []).length === 1 && !/<NavigationProgress \/>/.test(appProviders));
 check('navigation progress stylesheet is imported by root layout', /navigation-progress\.css/.test(rootLayout));
 const navigationProgressCss = read('app/navigation-progress.css');
 check('navigation progress stays fixed and does not block page interactions', /position: fixed/.test(navigationProgressCss) && /pointer-events: none/.test(navigationProgressCss));
@@ -38,7 +41,7 @@ check('Back/Forward navigation uses the last committed pathname', /const previou
 check('last committed pathname is refreshed after route changes', /lastPathname\.current = pathname/.test(navigationProgress));
 check('repeated clicks on the same destination do not reset the failsafe', /startedHref = useRef<string \| null>\(null\)/.test(navigationProgress) && /if \(startedHref\.current === target\.href\) return/.test(navigationProgress));
 check('a new destination replaces old timers instead of inheriting the old failsafe', /if \(startedHref\.current === target\.href\) return;[\s\S]*?clearTimers\(\);[\s\S]*?startedPath\.current = sourcePath;[\s\S]*?startedHref\.current = target\.href;/.test(navigationProgress));
-check('navigation listeners and timers are cleaned up on unmount', /return \(\) => \{[\s\S]*?document\.removeEventListener\('click', onClick, true\);[\s\S]*?clearTimers\(\);[\s\S]*?\};/.test(navigationProgress));
+check('navigation listeners and timers are cleaned up on unmount', /return \(\) => \{[\s\S]*?document\.removeEventListener\('click', onClick\);[\s\S]*?clearTimers\(\);[\s\S]*?\};/.test(navigationProgress));
 check('navigation destination state is cleared when navigation finishes', /startedHref\.current = null/.test(navigationProgress));
 check('pathname changes cancel both pending show and failsafe timers', /if \(showTimer\.current\) clearTimeout\(showTimer\.current\);[\s\S]*?if \(hideTimer\.current\) clearTimeout\(hideTimer\.current\);[\s\S]*?startedPath\.current = null/.test(navigationProgress));
 check('pathname change resets visible progress state', /pathname !== startedPath\.current[\s\S]*?setVisible\(false\)/.test(navigationProgress));

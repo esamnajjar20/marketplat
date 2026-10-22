@@ -57,6 +57,7 @@ import {
   searchForTabSwitch,
   type MyStoreTab,
 } from '@/lib/myStoreHubTabs';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 const TAB_META: Record<MyStoreTab, { label: string; Icon: typeof Package }> = {
   overview: { label: 'نظرة عامة', Icon: LayoutDashboard },
@@ -92,7 +93,7 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
               </Button>
             </Link>
           </div>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyProductsList />
           </Suspense>
         </div>
@@ -101,7 +102,7 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
       return (
         <div className="space-y-4">
           <h1 className="text-xl font-extrabold">مجموعات المتجر</h1>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyCollectionsList />
           </Suspense>
         </div>
@@ -110,14 +111,14 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
       return (
         <div className="space-y-4">
           <h1 className="text-xl font-extrabold">العروض</h1>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyPromotionsList />
           </Suspense>
         </div>
       );
     case 'inventory':
       return (
-        <Suspense>
+        <Suspense fallback={<SuspenseFallback />}>
           <MyStoreInventory />
         </Suspense>
       );
@@ -127,10 +128,10 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
           <PageTitle title="فريق المتجر">
             أضف مديرين أو محرري منتجات وحدد صلاحيات كل شخص
           </PageTitle>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyMemberInvites />
           </Suspense>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <MyStoreMembersList />
           </Suspense>
         </div>
@@ -156,7 +157,7 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
           <PageTitle title="إعدادات المتجر">
             الاسم، الوصف، الشعار، الغلاف، ساعات العمل، والموقع
           </PageTitle>
-          <Suspense>
+          <Suspense fallback={<SuspenseFallback />}>
             <StoreSettingsSection />
           </Suspense>
         </div>

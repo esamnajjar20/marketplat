@@ -187,6 +187,10 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     // which a user would consider the page hung.
     const timeout    = setTimeout(() => controller.abort(), 15_000);
 
+    // FIX AUTH-BOOTSTRAP-403-01: set once /auth/refresh succeeds, so a later 403 from
+    // /users/me/bootstrap can be told apart from a rejected session.
+    let refreshSucceeded = false;
+
     (async () => {
       try {
         // 1. Get a fresh access token. PROD-FIX-15: no refreshToken
@@ -194,6 +198,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // automatically via apiClient's withCredentials:true.
         const refreshRes = await refreshSessionShared();
         const { expiresIn } = refreshRes.data.data!.tokens;
+        refreshSucceeded = true;
 
         // T735 — the user could have logged out between this request
         // being sent and its response arriving. clearSensitiveLocalData()
@@ -510,7 +515,14 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           }
         }
 
-        if (isDefiniteSessionRejection(err)) {
+        // FIX AUTH-BOOTSTRAP-403-01: the refresh already proved the session is valid.
+        // A 403 on /users/me/bootstrap WITHOUT a backend error code comes from an
+        // intermediary (WAF / Cloudflare challenge), not from the app — signing the
+        // user out for it is wrong. A 403 carrying a code is a real app answer
+        // (e.g. deactivated account) and still ends the session.
+        const isIntermediary403 =
+          refreshSucceeded && initialParsed.statusCode === 403 && !initialParsed.code;
+        if (isDefiniteSessionRejection(err) && !isIntermediary403) {
           logout();
           deleteCookie('app_access_token');
           deleteCookie('app_user_role');

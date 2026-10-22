@@ -35,6 +35,9 @@ export function DownloadsPageClient() {
   const [query, setQuery] = useState('');
   // replace window.confirm with shared ConfirmDialog.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  // FIX DOUBLE-TAP-01: one in-flight action per row (open / remove) and for clear-all.
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const refresh = useCallback(() => {
     setItems(listCatalogDownloads());
@@ -130,9 +133,17 @@ export function DownloadsPageClient() {
                   variant="default"
                   size="sm"
                   className="gap-1.5"
+                  loading={busyKey === `open:${item.id}`}
+                  disabled={busyKey !== null}
                   onClick={async () => {
-                    const ok = await openCatalogOffline(item.id);
-                    if (!ok) toast.error('تعذّر فتح النسخة المحلية');
+                    if (busyKey) return;
+                    setBusyKey(`open:${item.id}`);
+                    try {
+                      const ok = await openCatalogOffline(item.id);
+                      if (!ok) toast.error('تعذّر فتح النسخة المحلية');
+                    } finally {
+                      setBusyKey(null);
+                    }
                   }}
                 >
                   <Eye className="h-3.5 w-3.5" />
@@ -152,9 +163,17 @@ export function DownloadsPageClient() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5 text-destructive"
+                loading={busyKey === `remove:${item.id}`}
+                disabled={busyKey !== null}
                 onClick={async () => {
-                  await removeCatalogDownload(item.id);
-                  refresh();
+                  if (busyKey) return;
+                  setBusyKey(`remove:${item.id}`);
+                  try {
+                    await removeCatalogDownload(item.id);
+                    refresh();
+                  } finally {
+                    setBusyKey(null);
+                  }
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -172,10 +191,17 @@ export function DownloadsPageClient() {
         description="سيتم حذف كل الكتالوجات المحفوظة على هذا الجهاز. لا يمكن التراجع."
         confirmLabel="مسح الكل"
         destructive
+        isPending={clearing}
         onConfirm={async () => {
-          await clearCatalogDownloads();
-          refresh();
-          setConfirmClearOpen(false);
+          if (clearing) return;
+          setClearing(true);
+          try {
+            await clearCatalogDownloads();
+            refresh();
+            setConfirmClearOpen(false);
+          } finally {
+            setClearing(false);
+          }
         }}
       />
     </div>

@@ -127,8 +127,9 @@ export const AdminOpenRequestsTable = memo(function AdminOpenRequestsTable() {
         title="إلغاء الطلب؟"
         description="سيتم إلغاء الطلب المفتوح ولن يستقبل عروضًا جديدة."
         confirmLabel="إلغاء الطلب"
+        isPending={cancelMut.isPending}
         onConfirm={() => {
-          if (!cancelId) return;
+          if (!cancelId || cancelMut.isPending) return;
           cancelMut.mutate(
             { id: cancelId },
             {
