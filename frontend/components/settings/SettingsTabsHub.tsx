@@ -19,6 +19,7 @@
  */
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   Bell,
   FileEdit,
@@ -29,13 +30,7 @@ import {
 } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { ROUTES } from '@/lib/constants';
-import { UnifiedProfileSettings } from '@/components/settings/UnifiedProfileSettings';
-import { SecuritySettingsForm } from '@/components/profile/SecuritySettingsForm';
-import { DeleteAccountSection } from '@/components/profile/DeleteAccountSection';
-import { ActiveSessionsList } from '@/components/profile/ActiveSessionsList';
-import { NotificationSettingsForm } from '@/components/profile/NotificationSettingsForm';
-import { BlockedUsersList } from '@/components/profile/BlockedUsersList';
-import { ViewMyProfileLink } from '@/components/profile/ViewMyProfileLink';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 import {
   DEFAULT_SETTINGS_TAB,
   SETTINGS_HUB_PATH,
@@ -44,6 +39,35 @@ import {
   searchForTabSwitch,
   type SettingsTab,
 } from '@/lib/settingsHubTabs';
+
+const SettingsPanel = dynamic(
+  () => import('@/components/settings/UnifiedProfileSettings').then((m) => m.UnifiedProfileSettings),
+  { loading: () => <SuspenseFallback /> },
+);
+const SecuritySettingsForm = dynamic(
+  () => import('@/components/profile/SecuritySettingsForm').then((m) => m.SecuritySettingsForm),
+  { loading: () => <SuspenseFallback /> },
+);
+const DeleteAccountSection = dynamic(
+  () => import('@/components/profile/DeleteAccountSection').then((m) => m.DeleteAccountSection),
+  { loading: () => <SuspenseFallback /> },
+);
+const ActiveSessionsList = dynamic(
+  () => import('@/components/profile/ActiveSessionsList').then((m) => m.ActiveSessionsList),
+  { loading: () => <SuspenseFallback /> },
+);
+const NotificationSettingsForm = dynamic(
+  () => import('@/components/profile/NotificationSettingsForm').then((m) => m.NotificationSettingsForm),
+  { loading: () => <SuspenseFallback /> },
+);
+const BlockedUsersList = dynamic(
+  () => import('@/components/profile/BlockedUsersList').then((m) => m.BlockedUsersList),
+  { loading: () => <SuspenseFallback /> },
+);
+const ViewMyProfileLink = dynamic(
+  () => import('@/components/profile/ViewMyProfileLink').then((m) => m.ViewMyProfileLink),
+  { loading: () => <span className="h-8 w-24 animate-pulse rounded bg-muted" /> },
+);
 
 const TAB_META: Record<SettingsTab, { label: string; Icon: typeof User }> = {
   profile: { label: 'الملف الشخصي', Icon: User },
@@ -108,7 +132,7 @@ function TabBody({ tab }: { tab: SettingsTab }) {
               <ViewMyProfileLink />
             </div>
           </div>
-          <UnifiedProfileSettings />
+          <SettingsPanel />
         </div>
       );
   }

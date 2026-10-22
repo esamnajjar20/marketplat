@@ -222,8 +222,27 @@ The `/messages/[id]` bundle measured 280 kB in this build (278 kB in the
 original baseline). `MessageInput` was not dynamically rewritten: its send
 hook and chat data layer share the Axios client and its interceptors, and a
 component-only deferred import would not remove that dependency from the
-route without also changing message mutation semantics. This remains
-deferred rather than risking offline queue/idempotency behavior.
+route without also changing message mutation semantics. This is **ACCEPTED
+TECH DEBT** rather than risking offline queue/idempotency behavior.
 
 Type-check, targeted ESLint, and production build passed. The build confirmed
 the `/admin` bundle reduction; no E2E tests were run.
+
+## Increment 9: split settings tab panels
+
+The settings hub now dynamically loads the selected settings form/list panel
+instead of statically importing every tab's component into the route entry.
+This preserves the existing server-rendered active panel and uses the shared
+loading fallback while its chunk loads. The offline warming manifest now
+includes the dynamic panel chunks for `/settings`, preserving the tabs'
+offline availability after the route is warmed.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/settings` | 295 kB | 127 kB | 56.95% |
+
+Type-check, targeted ESLint, the focused warming-manifest test, and
+production build passed. The full Vitest run reported 10 failures across
+service-worker, API-client, offline-queue, offline-query-cache,
+MyProductsList, and ConversationList tests; none involve the settings
+components. No E2E tests were run.

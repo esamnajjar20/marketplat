@@ -179,11 +179,17 @@ function chunksFromReactLoadable(sourcePath) {
 // ─── 7) Build per-route manifest ────────────────────────────────
 const routesData = {};
 const diagnostics = {};
+const routeLoadableSources = {
+  '/settings': ['components/settings/SettingsTabsHub.tsx'],
+};
 for (const route of routes) {
   const sourcePath = urlToSource.get(route) || null;
   const fromAppBuild = chunksFromAppBuild(route);
   const fromStatic = chunksFromStaticScan(sourcePath);
-  const fromLoadable = chunksFromReactLoadable(sourcePath);
+  const fromLoadable = [
+    ...chunksFromReactLoadable(sourcePath),
+    ...(routeLoadableSources[route] ?? []).flatMap(chunksFromReactLoadable),
+  ];
   const set = new Set([...fromAppBuild, ...fromStatic, ...fromLoadable]);
   routesData[route] = { assets: [...set].sort(), auth: personalRoutes.includes(route) };
   diagnostics[route] = {
