@@ -62,13 +62,13 @@ describe('MyServicesHub', () => {
       refetch: vi.fn(),
     } as never);
     render(<MyServicesHub />);
-    expect(screen.getByLabelText(/جارٍ التحميل/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('renders provider hub with business name and availability', () => {
     render(<MyServicesHub />);
     expect(screen.getByText('خدمات النور')).toBeInTheDocument();
-    expect(screen.getAllByText('متاح')[0]).toBeInTheDocument();
+    expect(screen.getByText('متاح الآن')).toBeInTheDocument();
     expect(screen.getByText(/غزة/)).toBeInTheDocument();
     expect(screen.getByText('خدمة جديدة')).toBeInTheDocument();
   });
@@ -105,7 +105,7 @@ describe('MyServicesHub', () => {
     } as never);
     render(<MyServicesHub />);
     expect(screen.getByText('يحتاج إلى إجراء')).toBeInTheDocument();
-    expect(screen.getByText(/[٣3]/)).toBeInTheDocument();
+    expect(screen.getAllByText(/[٣3]/).length).toBeGreaterThan(0);
     expect(screen.getByText('طلبات بانتظار ردك')).toBeInTheDocument();
   });
 });

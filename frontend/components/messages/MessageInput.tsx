@@ -3,14 +3,13 @@ import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'r
 import { Send, Ban, ImagePlus, X, Mic, Square, Paperclip, WifiOff } from 'lucide-react';
 import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
-import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
+import { newOfflineOperationId } from '@/lib/offlineOperationId';
+import { sendConversationMessage } from '@/lib/sendConversationMessage';
 import {
   saveMessageDraft,
   clearMessageDraft,
 } from '@/lib/messageUtils';
-import { conversationsApi } from '@/api/conversations.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { apiClient } from '@/api/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -155,9 +154,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
         setUploadKind('audio');
         try {
           const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
-          const response = await conversationsApi.sendAudio(conversationId, file, bodyEditorRef.current?.getValue().trim() ?? '');
-          const sentMessage = response.data.data;
-          if (!sentMessage) throw new Error('Empty audio send response');
+          const sentMessage = await sendConversationMessage(conversationId, {
+            kind: 'audio',
+            file,
+            body: bodyEditorRef.current?.getValue().trim() ?? '',
+          });
           // Audio is not covered by useSendMessage's optimistic mutation.
           // Insert the real server message immediately so the recorder does
           // not appear to have produced an empty bubble while the polling
@@ -226,7 +227,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
     if (attachmentFile) {
       setUploading(true); setUploadKind('file');
-      try { const response=await conversationsApi.sendFile(conversationId,attachmentFile,trimmed); const sentMessage=response.data.data; if(!sentMessage) throw new Error('Empty file send response'); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void hapticMessageSent(); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
+      try { const sentMessage=await sendConversationMessage(conversationId,{kind:'file',file:attachmentFile,body:trimmed}); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void hapticMessageSent(); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
       catch(err){const parsed=parseApiError(err); if(parsed.queued){bodyEditorRef.current?.clear(); setHasBody(false);clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);void hapticMessageSent();}else{setLastSendError(parsed.message);void hapticMessageError();toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
     }
 
@@ -234,16 +235,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
       setUploading(true);
       setUploadKind('image');
       try {
-        const form = new FormData();
-        form.append('image', imageFile);
-        if (trimmed) form.append('body', trimmed);
-        // SW-FIX-MSGINPUT-CT-REDUNDANT: apiClient's request interceptor
-        // deletes Content-Type whenever the body is FormData (see
-        // api/client.ts's FIX BUG-IMG-CONTENTTYPE-01) — setting it here
-        // was dead weight that axios then had to strip.
-        await apiClient.post(`/conversations/${conversationId}/messages/image`, form, {
-          headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() },
-        });
+        await sendConversationMessage(
+          conversationId,
+          { kind: 'image', file: imageFile, body: trimmed },
+          newOfflineOperationId(),
+        );
         bodyEditorRef.current?.clear(); setHasBody(false);
         setLastSendError(null);
         clearMessageDraft(conversationId);
@@ -284,7 +280,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
     bodyEditorRef.current?.clear(); setHasBody(false);
     clearMessageDraft(conversationId);
     sendMessage.mutate(
-      { body: trimmed },
+      { body: trimmed, operationId: newOfflineOperationId() },
       {
         onError: (err) => {
           const parsed = parseApiError(err);
@@ -437,7 +433,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             disabled={composerBusy}
             onChange={onPickImage}
           />
-          <button type="button" aria-label="إرفاق ملف" onClick={() => attachmentRef.current?.click()} disabled={uploading || disabled} className="mb-0.5 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50" title="إرفاق ملف"><Paperclip className="h-5 w-5" /></button>
+          <button type="button" aria-label="إرفاق ملف" onClick={() => attachmentRef.current?.click()} disabled={composerBusy || disabled} className="mb-0.5 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50" title="إرفاق ملف"><Paperclip className="h-5 w-5" /></button>
           <button
             type="button"
             aria-label="إرفاق صورة"

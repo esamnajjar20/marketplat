@@ -6,8 +6,11 @@ import { queryKeys } from '@/lib/queryKeys';
 import { parseApiError } from '@/lib/errorParser';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { toast } from 'sonner';
+import { sendConversationMessage } from '@/lib/sendConversationMessage';
 import type { StartConversationPayload, SendMessagePayload, Message, ConversationListItem } from '@/types/conversation.types';
 import type { PaginatedResponse } from '@/types/api.types';
+
+export type SendMessageVariables = SendMessagePayload & { operationId?: string };
 
 /**
  * POST /conversations — SellerCard's "مراسلة البائع" (adId) and
@@ -77,8 +80,13 @@ export function useSendMessage(conversationId: string) {
   const currentUser = useAuthStore(selectUser);
 
   return useMutation({
-    mutationFn: (payload: SendMessagePayload) =>
-      conversationsApi.sendMessage(conversationId, payload).then((r) => r.data.data),
+    networkMode: 'offlineFirst',
+    mutationFn: ({ operationId, ...payload }: SendMessageVariables) =>
+      sendConversationMessage(
+        conversationId,
+        { kind: 'text', payload },
+        operationId,
+      ),
 
     onMutate: async (payload) => {
       if (!currentUser) return;

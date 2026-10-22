@@ -136,7 +136,7 @@ describe('MessageInput', () => {
     await user.click(screen.getByLabelText('إرسال'));
 
     expect(mockMutate).toHaveBeenCalledWith(
-      { body: 'مرحباً' },
+      { body: 'مرحباً', operationId: expect.any(String) },
       expect.objectContaining({ onError: expect.any(Function) }),
     );
   });
@@ -148,7 +148,7 @@ describe('MessageInput', () => {
     await user.type(getTextarea(), 'رسالة سريعة{Enter}');
 
     expect(mockMutate).toHaveBeenCalledWith(
-      { body: 'رسالة سريعة' },
+      { body: 'رسالة سريعة', operationId: expect.any(String) },
       expect.objectContaining({ onError: expect.any(Function) }),
     );
   });

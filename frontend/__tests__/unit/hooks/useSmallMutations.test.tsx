@@ -5,7 +5,7 @@
  * useNotificationMutations.ts, useConversationMutations.ts,
  * useServiceProviderMutations.ts.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -27,6 +27,14 @@ import { serviceProvidersApi } from '@/api/service-providers.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
+
+function jsonResponse(data: unknown): Response {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ data }),
+  } as Response;
+}
 
 vi.mock('@/api/blocked-users.api', () => ({
   blockedUsersApi: { toggleBlock: vi.fn() },
@@ -56,6 +64,7 @@ function createWrapper() {
 }
 
 beforeEach(() => vi.clearAllMocks());
+afterEach(() => vi.unstubAllGlobals());
 
 describe('useToggleUserBlock', () => {
   it('calls blockedUsersApi.toggleBlock with the userId', async () => {
@@ -223,24 +232,32 @@ describe('useStartConversation', () => {
 });
 
 describe('useSendMessage', () => {
-  it('calls conversationsApi.sendMessage with the conversationId and payload', async () => {
-    (conversationsApi.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { id: 'm1' } },
-    });
-    const { wrapper } = createWrapper();
-    const payload = { content: 'hello' } as unknown as Parameters<typeof conversationsApi.sendMessage>[1];
+  it('uses native fetch with a stable offline operation id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: 'm1' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { wrapper, queryClient } = createWrapper();
+    const payload = { body: 'hello', operationId: 'operation-1' };
 
     const { result } = renderHook(() => useSendMessage('c1'), { wrapper });
     act(() => { result.current.mutate(payload); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(conversationsApi.sendMessage).toHaveBeenCalledWith('c1', payload);
+    expect(queryClient.getMutationCache().getAll()[0]?.options.networkMode).toBe('offlineFirst');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/conversations\/c1\/messages$/);
+    expect(init).toMatchObject({
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({ body: 'hello' }),
+    });
+    expect(new Headers(init.headers).get('X-Offline-Op-Id')).toBe('operation-1');
   });
 
   it('updates the cached conversation preview optimistically while sending', async () => {
-    let resolveSend!: (value: unknown) => void;
-    (conversationsApi.sendMessage as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise((resolve) => { resolveSend = resolve; }),
+    let resolveSend!: (value: Response) => void;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>((resolve) => { resolveSend = resolve; })),
     );
     const { wrapper, queryClient } = createWrapper();
     const oldConversation = {
@@ -270,21 +287,19 @@ describe('useSendMessage', () => {
       expect(cached?.items[0].updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
     });
 
-    resolveSend({ data: { data: { id: 'm2', conversationId: 'c1', senderId: 'u1', body: 'hello now',
-      imageUrl: null, readAt: null, deletedAt: null, createdAt: '2026-10-11T18:00:00.000Z' } } });
+    resolveSend(jsonResponse({ id: 'm2', conversationId: 'c1', senderId: 'u1', body: 'hello now',
+      imageUrl: null, readAt: null, deletedAt: null, createdAt: '2026-10-11T18:00:00.000Z' }));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const cached = queryClient.getQueryData<{ items: Array<{ lastMessage: { id: string } }> }>(queryKeys.conversations.mine());
     expect(cached?.items[0].lastMessage.id).toBe('m2');
   });
 
   it('invalidates this thread\'s messages and the conversations list on success', async () => {
-    (conversationsApi.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { id: 'm1' } },
-    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 'm1' })));
     const { wrapper, invalidateSpy } = createWrapper();
 
     const { result } = renderHook(() => useSendMessage('c1'), { wrapper });
-    act(() => { result.current.mutate({} as Parameters<typeof conversationsApi.sendMessage>[1]); });
+    act(() => { result.current.mutate({ body: 'hello' }); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
@@ -293,14 +308,28 @@ describe('useSendMessage', () => {
   });
 
   it('shows an error toast on failure', async () => {
-    (conversationsApi.sendMessage as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Server error'));
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Server error')));
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useSendMessage('c1'), { wrapper });
-    act(() => { result.current.mutate({} as Parameters<typeof conversationsApi.sendMessage>[1]); });
+    act(() => { result.current.mutate({ body: 'hello' }); });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('treats the service worker queued response as an accepted offline send', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 202,
+      json: async () => ({ queued: true, message: 'queued' }),
+    }));
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useSendMessage('c1'), { wrapper });
+
+    act(() => { result.current.mutate({ body: 'hello', operationId: 'queued-operation' }); });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });
 
