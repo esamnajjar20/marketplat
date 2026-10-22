@@ -35,7 +35,6 @@ import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
-import { ensurePersistentStorage, isStandaloneDisplayMode } from '@/lib/offlineStoragePersist';
 import { requestPendingShellRetry } from '@/lib/offlineShellStatus';
 import { initSwTokenSync } from '@/lib/swTokenSync';
 import { initStaleWaitingServiceWorkerHandler } from '@/lib/swStaleActivation';
@@ -236,16 +235,6 @@ export function OfflineBootstrap() {
     });
     return unsubscribeNetwork;
   }, []);
-
-  // FIX STORAGE-PERSIST-01: اطلب تخزينًا دائمًا فقط عند تفاعل حقيقي (مستخدم مسجّل أو
-  // تطبيق مثبّت)، بعد استقرار التحميل. التفاصيل في lib/offlineStoragePersist.ts.
-  useEffect(() => {
-    if (!isAuthenticated && !isStandaloneDisplayMode()) return;
-    const id = window.setTimeout(() => {
-      void ensurePersistentStorage().catch(() => undefined);
-    }, 4000);
-    return () => window.clearTimeout(id);
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

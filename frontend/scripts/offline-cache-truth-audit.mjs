@@ -67,8 +67,10 @@ check('stale API grace is limited to shared public snapshots and can be disabled
   /const STALE_API_GRACE_MS = /.test(sw) && /!\(STALE_API_GRACE_MS > 0\)/.test(sw) &&
   (sw.match(/asStaleApiSnapshotIfInGrace\(url, cached(?:Api|Core)\)/g) || []).length === 4 &&
   !/asStaleApiSnapshotIfInGrace\(url, cached(?:UserData|ForUser)\)/.test(sw));
-check('persistent storage is requested from the client bootstrap',
-  read('components/pwa/OfflineBootstrap.tsx').includes('ensurePersistentStorage') && /navigator\.storage\.persist\(\)/.test(read('lib/offlineStoragePersist.ts')));
+check('persistent storage is requested only from an explicit offline-settings action',
+  !read('components/pwa/OfflineBootstrap.tsx').includes('ensurePersistentStorage') &&
+  read('components/settings/OfflineControlClient.tsx').includes('requestPersistentStorageFromUserGesture') &&
+  /navigator\.storage\.persist\(\)/.test(read('lib/offlineStoragePressure.ts')));
 
 if (failures.length) {
   console.error(`[offline-cache-truth] ${failures.length} failure(s), ${passed} passed`);
