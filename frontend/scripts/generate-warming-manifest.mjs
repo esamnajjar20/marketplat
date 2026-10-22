@@ -190,6 +190,7 @@ const routeLoadableSources = {
   '/account/customers': ['app/(protected)/account/customers/page.tsx'],
   '/account/sales/debts': ['app/(protected)/account/sales/debts/page.tsx'],
   '/account/sales/installments': ['app/(protected)/account/sales/installments/page.tsx'],
+  '/account/sales': ['components/sales/SalesTabsHub.tsx'],
   '/following': ['app/(protected)/following/page.tsx'],
   '/my-ads/[id]/edit': ['app/(protected)/my-ads/[id]/edit/page.tsx'],
   '/my-services/[id]/edit': ['app/(protected)/my-services/[id]/edit/page.tsx'],

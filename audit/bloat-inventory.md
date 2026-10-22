@@ -20,6 +20,7 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 | Request detail actions/timeline loaded with route modules | Route chunks | `app/(public)/requests/[id]/page.tsx`; `app/(protected)/service-requests/[id]/page.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Below-the-fold homepage sections statically imported into route | Homepage chunks | `components/home/HomePageContent.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Auth forms and verify-email workflow loaded with route wrappers | Route chunks | auth route pages and `components/auth/VerifyEmailClient.tsx` | Not measured under no-build directive | Improved; pending measurement |
+| Sales hub statically bundled all tab panels | Route chunks | `components/sales/SalesTabsHub.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Client-only Axios transport used by interactive features | Shared/client graph | `api/client.ts`, `api/*.api.ts`, query/mutation hooks; notably `components/messages/MessageInput.tsx` | Not separately attributable; `/messages/[id]` remains 278 kB | Accepted debt for offline-critical composer |
 | Heavy general-purpose libraries (Moment, Lodash, Recharts, Chart.js, Tiptap, Quill) | Dependency/source scan | `frontend/package.json`, application imports | 0 direct application imports found | None |
 | Heavy optional modules | Deferred client modules | `components/map/SearchResultsMap.tsx` / `SearchResultsMapInner.tsx` (`leaflet`, `react-leaflet`); `components/debug/ErudaDebug.tsx` (`eruda`); `components/admin/AdminAnalyticsDashboard.tsx` (already dynamically loaded) | Route-specific; map/debug/dashboard already isolated or conditionally loaded | Low / monitor |
@@ -75,6 +76,8 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 - Auth forms load as route-level dynamic client chunks; verify-email now uses
   a Server Component route wrapper. Measurements are deferred to final
   verification.
+- Sales dashboard sections load only for the active tab; measurements are
+  deferred to final verification.
 
 ## Remaining / blocked
 

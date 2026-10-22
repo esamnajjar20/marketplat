@@ -1,22 +1,11 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { BarChart3, Brain, ClipboardList, LayoutDashboard, ReceiptText, Users, WalletCards, FileSpreadsheet } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { Button } from '@/components/shared/ui/Button';
-import { SalesPageClient } from './SalesPageClient';
-import { SalesListClient } from './SalesListClient';
-import { SalesCustomersSection } from './SalesCustomersSection';
-import { SalesDebtsSection } from './SalesDebtsSection';
-import { SalesInstallmentsSection } from './SalesInstallmentsSection';
-import { SalesChart } from './SalesChart';
-import { SalesDashboard } from './SalesDashboard';
-import { SalesReports } from './SalesReports';
-import { SalesCompareCard } from './SalesCompareCard';
-import { SalesCostSection } from './SalesCostSection';
-import { SalesSmartInsights } from './SalesSmartInsights';
-import { SalesAutomationPanel } from './SalesAutomationPanel';
 import { useSalesCostSettings } from '@/hooks/queries/useSales';
 import {
   DEFAULT_SALES_HUB_TAB,
@@ -27,6 +16,43 @@ import {
   type SalesHubTab,
 } from '@/lib/salesHubTabs';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const SalesPageClient = dynamic(() =>
+  import('./SalesPageClient').then((module) => module.SalesPageClient),
+);
+const SalesListClient = dynamic(() =>
+  import('./SalesListClient').then((module) => module.SalesListClient),
+);
+const SalesCustomersSection = dynamic(() =>
+  import('./SalesCustomersSection').then((module) => module.SalesCustomersSection),
+);
+const SalesDebtsSection = dynamic(() =>
+  import('./SalesDebtsSection').then((module) => module.SalesDebtsSection),
+);
+const SalesInstallmentsSection = dynamic(() =>
+  import('./SalesInstallmentsSection').then((module) => module.SalesInstallmentsSection),
+);
+const SalesChart = dynamic(() =>
+  import('./SalesChart').then((module) => module.SalesChart),
+);
+const SalesDashboard = dynamic(() =>
+  import('./SalesDashboard').then((module) => module.SalesDashboard),
+);
+const SalesReports = dynamic(() =>
+  import('./SalesReports').then((module) => module.SalesReports),
+);
+const SalesCompareCard = dynamic(() =>
+  import('./SalesCompareCard').then((module) => module.SalesCompareCard),
+);
+const SalesCostSection = dynamic(() =>
+  import('./SalesCostSection').then((module) => module.SalesCostSection),
+);
+const SalesSmartInsights = dynamic(() =>
+  import('./SalesSmartInsights').then((module) => module.SalesSmartInsights),
+);
+const SalesAutomationPanel = dynamic(() =>
+  import('./SalesAutomationPanel').then((module) => module.SalesAutomationPanel),
+);
 
 const TAB_META: Record<SalesHubTab, { label: string; Icon: typeof WalletCards }> = {
   overview: { label: 'نظرة عامة', Icon: LayoutDashboard },

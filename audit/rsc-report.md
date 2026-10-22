@@ -459,3 +459,11 @@ Server Component wrapper around its extracted client workflow. Added the
 auth route chunks to offline warming. Type-check passed; focused auth form
 tests passed (41/41). No verify-email page test exists. Bundle measurement is
 deferred to final verification.
+
+## Increment 31: split sales dashboard panels
+
+Converted the sales hub's overview, list, customer, debt, installment, report,
+cost, smart-insight, and analytics panels to dynamic imports, so only the
+active tab loads its panel code. Registered the dynamic source for offline
+warming. Type-check passed; no dedicated SalesTabsHub test exists. Bundle
+measurement is deferred to final verification.
