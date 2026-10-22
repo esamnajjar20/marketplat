@@ -260,3 +260,18 @@ chunks so warmed tabs remain available offline.
 
 Type-check, targeted ESLint, the MyStoreHub component tests (5/5), production
 build, and dynamic-chunk manifest verification passed. No E2E tests were run.
+
+## Increment 11: lazy-load conversation media gallery
+
+`ChatWindow` now loads the media gallery only when the gallery sheet opens;
+the message composer and its offline queue/interceptor path remain untouched.
+The `/messages` warming entry includes the gallery's dynamic chunk so the
+optional gallery remains available when the route's offline assets are warm.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/messages/[id]` | 281 kB | 278 kB | 1.07% |
+
+The new bundle matches the original 278 kB baseline. Type-check, ESLint,
+ChatWindow tests (29/29), production build, and dynamic-chunk manifest
+verification passed. No E2E tests were run.

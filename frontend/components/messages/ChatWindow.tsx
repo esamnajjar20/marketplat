@@ -19,7 +19,6 @@ import { Button } from '@/components/shared/ui/Button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/shared/ui/DropdownMenu';
 import { MessageInput } from './MessageInput';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
-import { MessageMediaGallery } from './MessageMediaGallery';
 import { useConversation, useMessages, useConversationMedia } from '@/hooks/queries/useConversations';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { retryQueuedMessage, cancelQueuedMessage, discardQueuedMessage } from '@/lib/offlineMessagesQueue';
@@ -28,6 +27,7 @@ import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
 import { useUserPresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
+import dynamic from 'next/dynamic';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { ChatMessageRow, type DisplayMessage } from './ChatMessageRow';
@@ -36,6 +36,14 @@ import type { Conversation, Message } from '@/types/conversation.types';
 
 import { Spinner } from '@/components/ui/spinner';
 const MESSAGES_PAGE_SIZE = 50;
+const MessageMediaGallery = dynamic(
+  () => import('./MessageMediaGallery').then((module) => module.MessageMediaGallery),
+  {
+    loading: () => (
+      <div className="flex justify-center py-8 text-sm text-muted-foreground">جارٍ تحميل الوسائط…</div>
+    ),
+  },
+);
 
 interface Props {
   conversationId: string;
@@ -446,8 +454,15 @@ export function ChatWindow({ conversationId }: Props) {
             <SheetDescription>الصور والتسجيلات الصوتية والملفات المرسلة في هذه المحادثة.</SheetDescription>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
-            <MessageMediaGallery items={mediaItems} queuedItems={pendingQueued} loading={mediaLoading} />
-          </div>
+              {showMedia ? (
+                <MessageMediaGallery
+                  items={mediaItems}
+                  queuedItems={pendingQueued}
+                  conversationId={conversationId}
+                  loading={mediaLoading}
+                />
+              ) : null}
+            </div>
         </SheetContent>
       </Sheet>
       {contextCard && (
