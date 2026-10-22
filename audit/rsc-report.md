@@ -391,6 +391,13 @@ chunks for offline warming. Type-check passed and focused profile tests passed
 (16/16); the focused run exposed a stale featured-badge expectation, updated
 to match the rendered “متجر مميز” label. Bundle measurement is deferred to
 final verification.
+
+## Increment 24: isolate account customer management
+
+Moved the interactive customer-management screen behind a Server Component
+route wrapper and registered its dynamic chunk for offline warming.
+Type-check passed; no focused customer-management test exists. Bundle
+measurement is deferred to final verification.
 ## Increment 21: isolate request offers route
 
 Moved the interactive offers manager behind a Server Component route wrapper

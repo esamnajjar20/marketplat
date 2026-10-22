@@ -13,6 +13,7 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 | Interactive request-offers manager loaded with route wrapper | Route chunk | `app/(protected)/requests/offers/page.tsx` → `components/requests/MyRequestOffersPageClient.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Interactive my-requests list loaded with route wrapper | Route chunk | `app/(protected)/requests/me/page.tsx` → `components/requests/MyRequestsPageClient.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Public profile tab panels bundled with profile section | Route chunk | `components/profile/ProfileTabsSection.tsx` | Not measured under no-build directive | Improved; pending measurement |
+| Customer management UI loaded with account route wrapper | Route chunk | `app/(protected)/account/customers/page.tsx` → `components/sales/CustomersPageClient.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Client-only Axios transport used by interactive features | Shared/client graph | `api/client.ts`, `api/*.api.ts`, query/mutation hooks; notably `components/messages/MessageInput.tsx` | Not separately attributable; `/messages/[id]` remains 278 kB | Accepted debt for offline-critical composer |
 | Heavy general-purpose libraries (Moment, Lodash, Recharts, Chart.js, Tiptap, Quill) | Dependency/source scan | `frontend/package.json`, application imports | 0 direct application imports found | None |
 | Heavy optional modules | Deferred client modules | `components/map/SearchResultsMap.tsx` / `SearchResultsMapInner.tsx` (`leaflet`, `react-leaflet`); `components/debug/ErudaDebug.tsx` (`eruda`); `components/admin/AdminAnalyticsDashboard.tsx` (already dynamically loaded) | Route-specific; map/debug/dashboard already isolated or conditionally loaded | Low / monitor |
@@ -49,6 +50,8 @@ source scan alone cannot reliably attribute shared/chunked bytes.
   chunk; First Load JS measurement is deferred to final verification.
 - `/profile/[id]`: profile ads, store, services, and rating panels load as
   dynamic chunks; First Load JS measurement is deferred to final verification.
+- `/account/customers`: customer-management UI is isolated behind a dynamic
+  client chunk; First Load JS measurement is deferred to final verification.
 
 ## Remaining / blocked
 

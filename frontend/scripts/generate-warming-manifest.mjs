@@ -181,6 +181,7 @@ const routesData = {};
 const diagnostics = {};
 const routeLoadableSources = {
   '/activity': ['components/profile/ActivityTabsHub.tsx'],
+  '/account/customers': ['app/(protected)/account/customers/page.tsx'],
   '/favorites': ['components/profile/FavoritesTabs.tsx'],
   '/messages': ['components/messages/ChatWindow.tsx'],
   '/notifications': ['components/notifications/NotificationsPage.tsx'],
