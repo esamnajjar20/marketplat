@@ -191,9 +191,8 @@ function makeEvent() {
   };
 }
 
-function loadServiceWorker() {
+function loadServiceWorker(storesByName = new Map<string, Map<string, any>>()) {
   const listeners: Record<string, Array<(event: any) => void>> = {};
-  const storesByName = new Map<string, Map<string, any>>();
 
   const fakeCaches = {
     open: async (name: string) => {
@@ -573,6 +572,25 @@ describe('sw.js — service worker logic', () => {
     it('propagates a real fetch rejection (offline) rather than a timeout', async () => {
       const failing = Promise.reject(new Error('network down'));
       await expect(ctx.sandbox.__withNetworkTimeout(failing, 50)).rejects.toThrow('network down');
+    });
+  });
+
+  describe('withNavigationDeadline (bounded navigation retry)', () => {
+    it('allows one bounded recovery window after the initial navigation timeout', async () => {
+      const startedAt = Date.now();
+      const hanging = new Promise<Response>((resolve) => {
+        setTimeout(() => resolve(new Response('recovered')), 15);
+      });
+      const response = await ctx.sandbox.withNavigationDeadline(hanging, 10, 40);
+      expect(await response.text()).toBe('recovered');
+      expect(Date.now() - startedAt).toBeLessThan(40);
+    });
+
+    it('rejects when the total navigation deadline expires', async () => {
+      const hanging = new Promise<Response>(() => undefined);
+      await expect(ctx.sandbox.withNavigationDeadline(hanging, 10, 20)).rejects.toMatchObject({
+        name: 'SwTimeoutError',
+      });
     });
   });
 
@@ -1093,6 +1111,24 @@ describe('sw.js — service worker logic', () => {
       expect(cached).toBeTruthy();
       expect(await cached.text()).toContain('public info');
       expect(await ctx.sandbox.verifyCachedChunks(cached, cache)).toBe(true);
+    });
+
+    it('marks a shell as recovered only after a prior failed save', async () => {
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      const url = new URL('https://example.com/recovered-page');
+      const invalidDocument = new Response('not HTML', {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+      const persistedCaches = ctx.storesByName;
+      expect(await ctx.sandbox.cacheVisitedDocumentShell(url, cache, invalidDocument)).toBe('failed');
+
+      ctx = loadServiceWorker(persistedCaches);
+      const restartedCache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      const html = new Response('<!doctype html><html><body>recovered</body></html>', {
+        status: 200, headers: { 'content-type': 'text/html' },
+      });
+      expect(await ctx.sandbox.cacheVisitedDocumentShell(url, restartedCache, html.clone())).toBe('recovered');
+      expect((await restartedCache.match(url.href)).headers.get('X-SW-Cache-Source')).toBe('visit-recovery');
     });
 
     it('does not cache a hard-navigation document if its initial asset fails MIME validation', async () => {

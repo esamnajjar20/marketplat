@@ -41,6 +41,7 @@ import {
   type WarmingMode,
 } from '@/lib/warmingPreferences';
 import { readSnapshot, clearSnapshot } from '@/lib/offlineWarmingState';
+import { requestPersistentStorageFromUserGesture } from '@/lib/offlineStoragePressure';
 import {
   requestWarmingCancel, resetWarmingCancel, isWarmingCancelled,
   getKnownRoutes, getCachedRouteEntries, clearSingleRouteCache, inspectRouteCaches,
@@ -81,6 +82,13 @@ export function OfflineControlClient() {
   // status. The React snapshot can lag briefly behind a just-fired offline event.
   const isOnlineAtActionBoundary = () =>
     typeof navigator === 'undefined' ? online : navigator.onLine;
+  function requestStoragePersistence() {
+    void requestPersistentStorageFromUserGesture().then((result) => {
+      if (result === 'denied') {
+        toast.info('قد يزيل المتصفح بعض الصفحات دون اتصال عند امتلاء مساحة التخزين');
+      }
+    });
+  }
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [progress, setProgress] = useState<AggregatedProgress | null>(null);
@@ -198,6 +206,7 @@ export function OfflineControlClient() {
       toast.info('التسخين يعمل بالفعل في الخلفية');
       return;
     }
+    requestStoragePersistence();
     setBusy('start');
     try {
       const ran = await runWarmingPipelineLocal();
@@ -233,6 +242,7 @@ export function OfflineControlClient() {
       toast.error('اتصل بالإنترنت قبل استكمال الصفحات الناقصة');
       return;
     }
+    requestStoragePersistence();
     setBusy('resume');
     try {
       const snap = await readSnapshot();
@@ -278,6 +288,7 @@ export function OfflineControlClient() {
       toast.error('اتصل بالإنترنت قبل إعادة تجهيز الصفحات من الصفر');
       return;
     }
+    requestStoragePersistence();
     setBusy('reset');
     try {
       const routes = getKnownRoutes();

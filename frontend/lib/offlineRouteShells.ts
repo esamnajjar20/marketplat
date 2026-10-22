@@ -59,6 +59,7 @@ import {
   recordSweepTime,
   shouldSweep,
   isBuildChanged,
+  type RouteWarmingMeta,
 } from './offlineWarmingState';
 import {
   getWarmingPlan,
@@ -732,6 +733,16 @@ function routeFreshAt(warmedAt: number | undefined, cachedAt: number): number {
   return Math.max(warmedAt ?? 0, cachedAt);
 }
 
+async function markRoutePending(route: string, prior?: RouteWarmingMeta): Promise<void> {
+  await patchRouteStatus(route, {
+    status: 'pending',
+    chunks: prior?.chunks ?? [],
+    attempts: prior?.attempts ?? 0,
+    lastAttempt: Date.now(),
+    warmedAt: prior?.warmedAt,
+  });
+}
+
 // PROXY-WARMING — atomic per-route warming engine.
 //
 // The legacy warmRouteShells used Promise.allSettled over CORE_ROUTES
@@ -1148,6 +1159,7 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
         continue;
       }
 
+      await markRoutePending(route, prior);
       // force (manual button) always replaces; otherwise visit copies win.
       const result = await warmRouteAtomic(
         route,
@@ -1522,6 +1534,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
         continue;
       }
 
+      await markRoutePending(key, prior);
       const result = await warmPersonalRouteAtomic(
         route,
         staticCache,
@@ -1775,6 +1788,7 @@ export async function retrySinglePublicRoute(route: string): Promise<boolean> {
   const prior = snap?.routes[route];
   const staticCache = await caches.open(STATIC_CACHE);
   const stagingCache = await caches.open(STAGING_CACHE);
+  await markRoutePending(route, prior);
   // Manual retry is an explicit user request → always replace (VISIT-WINS-01 bypass).
   const result = await warmRouteAtomic(route, staticCache, stagingCache, Number.MAX_SAFE_INTEGER);
   const previousHtmlStillCached = !result.ok && Boolean(await staticCache.match(route));
@@ -1808,6 +1822,7 @@ export async function retrySinglePersonalRoute(route: string): Promise<boolean> 
   const staticCache = await caches.open(STATIC_CACHE);
   const personalCache = await caches.open(PERSONAL_SHELL_CACHE);
   const stagingCache = await caches.open(STAGING_CACHE);
+  await markRoutePending(key, prior);
   // Manual retry is an explicit user request → always replace (VISIT-WINS-01 bypass).
   const result = await warmPersonalRouteAtomic(
     route,

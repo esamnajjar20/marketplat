@@ -88,4 +88,27 @@ describe('sw.js hand-copied constants stay in sync with their sources', () => {
     expect(cachePolicy).toMatch(/CACHE_POLICY\.storage\.serviceWorker\.apiEntries/);
     expect(cachePolicy).toMatch(/CACHE_POLICY\.storage\.serviceWorker\.imageEntries/);
   });
+
+  it('keeps service-worker fallback limits aligned with the shared storage policy', () => {
+    const serviceWorkerPolicy = JSON.parse(readFile('../../../lib/cache-policy.json')).storage.serviceWorker;
+    const limits = [
+      ['MAX_API_ENTRIES', 'apiEntries'],
+      ['MAX_IMAGE_ENTRIES', 'imageEntries'],
+      ['MAX_SAVED_ADS_ENTRIES', 'savedAdsEntries'],
+      ['MAX_STATIC_ENTRIES', 'staticEntries'],
+      ['MAX_STATIC_BYTES', 'staticBytes'],
+      ['MAX_PERSONAL_SHELL_ENTRIES', 'personalShellEntries'],
+      ['MAX_USER_DATA_ENTRIES', 'userDataEntries'],
+      ['MAX_USER_DATA_BYTES', 'userDataBytes'],
+    ] as const;
+
+    for (const [constant, policyKey] of limits) {
+      const fallback = extractOne(
+        sw,
+        new RegExp(`const ${constant} = MARKET_STORAGE_POLICY\\.${policyKey} \\?\\? (\\d+);`),
+        `sw.js ${constant} fallback`,
+      );
+      expect(Number(fallback)).toBe(serviceWorkerPolicy[policyKey]);
+    }
+  });
 });

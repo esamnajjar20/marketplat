@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source = fs.readFileSync(new URL('./worker.js', import.meta.url), 'utf8')
   .replace('export default {', 'globalThis.__worker = {');
 
-const ORIGIN = 'https://ueue39sehkj8-production-q72vlbju.europe-west1.suga.run';
+const ORIGIN = 'https://marketplat-nz19.onrender.com';
 const EDGE = 'https://marketplat-api.esamnajjar6.workers.dev';
 
 /** Fresh isolate per scenario: fake Cache API, fake KV, scripted origin. */
@@ -35,7 +35,7 @@ function harness({ upstream, kv } = {}) {
       return upstream(String(url), headers, upstreamLog.length);
     },
   };
-  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize };`, context);
+  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, isValidIpAddress };`, context);
   const pending = [];
   const ctx = { waitUntil: (p) => pending.push(Promise.resolve(p).catch(() => {})) };
   const settle = async () => { while (pending.length) await Promise.all(pending.splice(0)); };
@@ -60,6 +60,37 @@ const PUBLIC_LIVE = {
   vary: 'Authorization',
   etag: '"v1"',
 };
+
+/* ───────────── client IP validation and spoofed-header stripping ───────────── */
+{
+  const { internals, call, upstreamLog } = harness({ upstream: async () => json({ ok: true }) });
+  for (const valid of ['203.0.113.7', '2001:db8::1', '::ffff:192.0.2.1']) {
+    assert.equal(internals.isValidIpAddress(valid), true, `${valid} should be a valid IP`);
+  }
+  for (const invalid of ['999.1.1.1', '1.2.3', '1::2::3', 'gggg::1', ' 203.0.113.7']) {
+    assert.equal(internals.isValidIpAddress(invalid), false, `${invalid} should be rejected`);
+  }
+
+  await call('/api/v1/home/feed', {
+    headers: {
+      'cf-connecting-ip': '203.0.113.7',
+      'x-forwarded-for': '198.51.100.42',
+      'x-real-ip': '198.51.100.42',
+    },
+  });
+  assert.equal(upstreamLog[0].headers.get('x-forwarded-for'), '203.0.113.7');
+  assert.equal(upstreamLog[0].headers.get('x-real-ip'), '203.0.113.7');
+
+  await call('/api/v1/home/feed', {
+    headers: {
+      'cf-connecting-ip': '999.1.1.1',
+      'x-forwarded-for': '198.51.100.42',
+      'x-real-ip': '198.51.100.42',
+    },
+  });
+  assert.equal(upstreamLog[1].headers.get('x-forwarded-for'), null);
+  assert.equal(upstreamLog[1].headers.get('x-real-ip'), null);
+}
 
 /* ───────────── policy invariants (unchanged from v3) ───────────── */
 {

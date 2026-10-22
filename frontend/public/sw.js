@@ -22,8 +22,8 @@ const API_CACHE = `market-api-${CACHE_VERSION}`;
 // كاش بيانات المستخدم مقسَّم حسب هويته (يُمسح عند الخروج).
 const USER_DATA_CACHE_PREFIX = `market-user-data-${CACHE_VERSION}-`;
 
-const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 600;
-const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 83886080;
+const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 400;
+const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 52428800;
 
 // الباك-إند يوقّع userId، و sub مدعوم أيضًا.
 function jwtSubject(payload) {
@@ -140,17 +140,6 @@ async function migrateDataCaches(cacheNames) {
 }
 
 const SHELL_CACHE_MIGRATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-// FIX SHELL-MIGRATION-KEEP-RECENT-01: بعد انتهاء نافذة الـ 7 أيام، نبقي آخر N صفحة
-// زارها المستخدم فعليًا (حتى هذا العمر) بدل رميها عند كل نشر.
-const SHELL_MIGRATION_RECENT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const SHELL_MIGRATION_KEEP_PUBLIC = 40;
-const SHELL_MIGRATION_KEEP_PERSONAL = 20;
-
-function extractStaticAssetUrls(html) {
-  return [...new Set(Array.from(
-    String(html || '').matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
-  ).map((match) => match[1]).filter((value) => typeof value === 'string' && value.length > 0))];
-}
 
 function isSafeShellMigrationEntry(request, response, sourceCacheName) {
   if (!request || !response || !response.ok || response.status === 206) return false;
@@ -158,7 +147,7 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
   try { url = new URL(request.url); } catch { return false; }
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.startsWith('/api/') || url.pathname === '/api') return false;
-  if (url.pathname.startsWith('/admin') || isAuthPage(url)) return false;
+  if (url.pathname.startsWith('/admin') || isAuthPage(url) || isProtectedPage(url)) return false;
   if (url.pathname.startsWith('/_next/image')) return false;
 
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
@@ -168,18 +157,9 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
      contentType.includes('application/font') || contentType.includes('woff'));
   const isHtml = contentType.includes('text/html');
   const isRsc = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
-  // صفحة HTML تحت /_next/ هي صفحة خطأ من الحافة، لا شكل صفحة.
-  if (url.pathname.startsWith('/_next/') && !isStaticAsset) return false;
-
   if (sourceCacheName.startsWith('market-personal-shell-')) {
-    // FIX SHELL-MIGRATION-PERSONAL-01: كاش الصفحات الشخصية يحوي صفحات محمية بطبيعته.
-    // الفحص القديم `isProtectedPage(url) → false` كان يسبق هذا الفرع فلا يمرّ أي
-    // مدخل شخصي أبدًا (حتى المثبّتة). الآن نشترط العكس: لازم تكون صفحة محمية.
-    if (PROTECTED_AD_EDIT_RE.test(url.pathname)) return false;
-    if (!isProtectedPage(url)) return false;
-    return isHtml || isRsc;
+    return PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname) && (isHtml || isRsc);
   }
-  if (isProtectedPage(url)) return false;
   if (isStaticAsset) return true;
   if (isHtml || isRsc) {
     // Don't migrate arbitrary query-specific pages; RSC keys are explicitly supported.
@@ -187,23 +167,6 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
     return true;
   }
   return false;
-}
-
-// يختار الصفحات التي تُرحَّل: المثبّتة دائمًا + (اختياريًا) كل ما هو أحدث من keepAllWithinMs
-// + آخر keepRecentCount صفحة زارها المستخدم (source === 'visit') ضمن RECENT_MAX_AGE.
-function selectShellsToMigrate(shells, now, keepAllWithinMs, keepRecentCount) {
-  const keep = [];
-  const recent = [];
-  for (const shell of shells) {
-    if (shell.permanent) { keep.push(shell); continue; }
-    if (!shell.cachedAt) continue;
-    const age = now - shell.cachedAt;
-    if (age < 0) continue; // طابع زمني من المستقبل: غير موثوق
-    if (keepAllWithinMs > 0 && age <= keepAllWithinMs) { keep.push(shell); continue; }
-    if (age <= SHELL_MIGRATION_RECENT_MAX_AGE_MS && shell.source === 'visit' && shell.isHtml) recent.push(shell);
-  }
-  recent.sort((a, b) => b.cachedAt - a.cachedAt);
-  return keep.concat(recent.slice(0, keepRecentCount));
 }
 
 async function migrateShellCaches(cacheNames) {
@@ -221,96 +184,55 @@ async function migrateShellCaches(cacheNames) {
   }
   migrations.sort((a, b) => b.version - a.version);
 
-  const now = Date.now();
-  const assetCandidates = [];
-  const shellCandidates = { static: [], personal: [] };
-  const seen = new Set();
-
-  // Pass 0: اجمع مرشّحين (بيانات وصفية فقط) من كل الإصدارات القديمة، الأحدث أولًا.
+  // Pass 1: migrate eligible hashed assets first. HTML must not be copied
+  // before its referenced chunks have a chance to reach the new static cache.
+  const pendingShells = [];
   for (const migration of migrations) {
-    let from;
-    let keys;
-    try { from = await caches.open(migration.from); keys = await from.keys(); } catch { continue; }
-    const kind = migration.to === PERSONAL_SHELL_CACHE ? 'personal' : 'static';
-    for (const request of keys) {
-      try {
-        const dedupeKey = `${kind}|${request.url}`;
-        if (seen.has(dedupeKey)) continue;
-        const response = await from.match(request, { ignoreVary: true });
-        if (!isSafeShellMigrationEntry(request, response, migration.from)) continue;
-        const url = new URL(request.url);
-        const cachedAt = Number(response.headers.get('X-SW-Cached-At')) || 0;
-        const source = response.headers.get('X-SW-Cache-Source') || '';
-        const contentType = (response.headers.get('content-type') || '').toLowerCase();
-        seen.add(dedupeKey);
-        if (url.pathname.startsWith('/_next/static/')) {
-          assetCandidates.push({ from, request, cachedAt });
-        } else {
-          shellCandidates[kind].push({
-            from, request, cachedAt, source,
-            isHtml: contentType.includes('text/html'),
-            permanent: kind === 'personal'
-              ? PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname)
-              : PERMANENT_PUBLIC_SHELL_PATHS.has(url.pathname),
-          });
-        }
-      } catch { /* One stale or unsupported entry must not block the rest. */ }
-    }
-  }
-
-  const keepShells = [
-    ...selectShellsToMigrate(shellCandidates.static, now, SHELL_CACHE_MIGRATION_MAX_AGE_MS, SHELL_MIGRATION_KEEP_PUBLIC)
-      .map((shell) => ({ ...shell, kind: 'static' })),
-    ...selectShellsToMigrate(shellCandidates.personal, now, 0, SHELL_MIGRATION_KEEP_PERSONAL)
-      .map((shell) => ({ ...shell, kind: 'personal' })),
-  ];
-
-  // ملفات JS/CSS التي تشير إليها الصفحات المحتفَظ بها تُرحَّل مهما كان عمرها،
-  // وإلا تنجو الصفحة من الترحيل لكن تفتح مكسورة (ChunkLoadError).
-  const neededAssetPaths = new Set();
-  for (const shell of keepShells) {
-    if (!shell.isHtml) continue;
     try {
-      const res = await shell.from.match(shell.request, { ignoreVary: true });
-      if (!res) continue;
-      for (const assetUrl of extractStaticAssetUrls(await res.clone().text())) neededAssetPaths.add(assetUrl);
-    } catch { /* ignore */ }
+      const from = await caches.open(migration.from);
+      const to = await caches.open(migration.to);
+      for (const request of await from.keys()) {
+        try {
+          if (await to.match(request, { ignoreVary: true })) continue;
+          const response = await from.match(request, { ignoreVary: true });
+          if (!isSafeShellMigrationEntry(request, response, migration.from)) continue;
+          const cachedAt = Number(response.headers.get('X-SW-Cached-At')) || 0;
+          const url = new URL(request.url);
+          const permanent = migration.to === STATIC_CACHE
+            ? PERMANENT_PUBLIC_SHELL_PATHS.has(url.pathname)
+            : PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname);
+          if (!permanent && (!cachedAt || Date.now() - cachedAt > SHELL_CACHE_MIGRATION_MAX_AGE_MS)) continue;
+
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const isStaticAsset = url.pathname.startsWith('/_next/static/') &&
+            (contentType.includes('javascript') || contentType.includes('ecmascript') ||
+             contentType.includes('text/css') || contentType.startsWith('font/') ||
+             contentType.includes('application/font') || contentType.includes('woff'));
+          const isHtml = contentType.includes('text/html');
+          const isRsc = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
+          if (isStaticAsset) {
+            await to.put(request, response.clone());
+          } else if (isHtml || isRsc) {
+            pendingShells.push({ migration, request, response, cachedAt, permanent, isHtml, isRsc });
+          }
+        } catch { /* One stale or unsupported entry must not block the rest. */ }
+      }
+    } catch { /* A missing/corrupt legacy cache must not block activation. */ }
   }
 
+  // Pass 2: migrate shells only after the asset pass. A page whose JS/CSS
+  // chunks are missing would otherwise survive migration but be unusable offline.
   let staticCache;
   try { staticCache = await caches.open(STATIC_CACHE); } catch { return; }
-
-  // Pass 1: الأصول أولًا — HTML لا يُنسخ قبل وصول chunks الخاصة به.
-  for (const asset of assetCandidates) {
+  for (const item of pendingShells) {
     try {
-      let pathname = '';
-      try { pathname = new URL(asset.request.url).pathname; } catch { /* ignore */ }
-      const referenced = neededAssetPaths.has(pathname);
-      const age = asset.cachedAt ? now - asset.cachedAt : Infinity;
-      const recent = age >= 0 && age <= SHELL_CACHE_MIGRATION_MAX_AGE_MS;
-      if (!referenced && !recent) continue;
-      if (await staticCache.match(asset.request, { ignoreVary: true })) continue;
-      const response = await asset.from.match(asset.request, { ignoreVary: true });
-      if (response) await staticCache.put(asset.request, response.clone());
-    } catch { /* ignore */ }
-  }
-
-  // Pass 2: الصفحات بعد الأصول، مع التحقق من اكتمال chunks.
-  for (const shell of keepShells) {
-    try {
-      const to = shell.kind === 'personal' ? await caches.open(PERSONAL_SHELL_CACHE) : staticCache;
-      if (await to.match(shell.request, { ignoreVary: true })) continue;
-      const response = await shell.from.match(shell.request, { ignoreVary: true });
-      if (!response) continue;
-      if (shell.isHtml && !(await verifyCachedChunks(response, staticCache))) continue;
-      await to.put(shell.request, response.clone());
+      const { migration, request, response, isHtml } = item;
+      const to = await caches.open(migration.to);
+      if (await to.match(request, { ignoreVary: true })) continue;
+      if (isHtml && !(await verifyCachedChunks(response, staticCache))) continue;
+      await to.put(request, response.clone());
     } catch { /* Keep activation resilient to a single broken entry. */ }
   }
-
-  try {
-    await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
-    await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
-  } catch { /* trimming is best-effort */ }
 }
 
 // شكل الصفحات الشخصية — منفصل ويُمسح عند الخروج.
@@ -322,17 +244,17 @@ const CORE_CACHE = `market-core-${CACHE_VERSION}`;
 // إعلانات محفوظة يدويًا — بلا رقم إصدار عمدًا.
 const SAVED_ADS_CACHE = 'market-saved-ads';
 
-const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 200;
+const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 120;
 
-const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 300;
+const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 160;
 
-const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 1200;
+const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 800;
 
-const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 104857600;
+const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 62914560;
 
-const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1500;
+const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1000;
 
-const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 750;
+const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 500;
 
 // ⚠️ Must match PERMANENT_*_SHELL_ROUTES in lib/offlineRouteShells.ts
 // (enforced by __tests__/unit/lib/permanentShellParity.test.ts).
@@ -428,6 +350,8 @@ const NAVIGATE_TIMEOUT_MS = 15000
 
 const NAVIGATE_TIMEOUT_CACHED_MS = 8000
 
+const NAVIGATE_MAX_WAIT_MS = 30000
+
 const MAX_QUEUE_RETRIES = 5
 
 const MAX_QUEUE_SERVER_RETRIES = 3
@@ -522,6 +446,18 @@ function withNetworkTimeout(fetchPromise, ms) {
       },
     );
   });
+}
+
+async function withNavigationDeadline(fetchPromise, initialTimeoutMs, maxWaitMs = NAVIGATE_MAX_WAIT_MS) {
+  try {
+    return await withNetworkTimeout(fetchPromise, initialTimeoutMs);
+  } catch (err) {
+    if (!err || err.name !== 'SwTimeoutError') throw err;
+    return withNetworkTimeout(
+      fetchPromise,
+      Math.max(0, maxWaitMs - initialTimeoutMs),
+    );
+  }
 }
 
 const API_PATH_PREFIX = '/api/v1';
@@ -793,200 +729,99 @@ function isUsableStaticAssetResponse(assetUrl, response) {
   return false;
 }
 
-// ── طابور إعادة محاولة حفظ الصفحات (FIX SHELL-RETRY-01) ─────────────────────
-// الحفظ "كله أو لا شيء": إن فشل تنزيل ملف واحد (شبكة ضعيفة) أو قطع المتصفح الـ SW
-// أثناء waitUntil، كانت الصفحة تضيع بصمت. الآن نسجّل المحاولة في SW_META_CACHE قبل
-// تنزيل الملفات، ونعيد المحاولة عند: sync / online / تفعيل SW / فتح التطبيق.
-// SW_META_CACHE يُمسح عند الخروج (forgetLastUserId) فلا تبقى روابط شخصية بعد logout.
-const SHELL_PENDING_KEY = '/__sw-pending-shells';
-const SHELL_PENDING_MAX_ENTRIES = 30;
-const SHELL_PENDING_MAX_ATTEMPTS = 5;
-const SHELL_PENDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const SHELL_RETRY_BATCH = 5;
-const SHELL_RETRY_SYNC_TAG = 'retry-shell-cache';
-const SHELL_ASSET_FETCH_TRIES = 2;
-const SHELL_ASSET_RETRY_DELAY_MS = 400;
+// يحفظ HTML الصفحة وملفاتها الأولية معًا أو لا يحفظ شيئًا.
+const failedShellCacheKeys = new Set();
+const SHELL_FAILURE_MARKER_PATH = '/__sw-shell-save-failure';
 
-let shellPendingChain = Promise.resolve();
-let shellRetryRunning = false;
-
-function shellPendingKeyUrl() {
-  return new URL(SHELL_PENDING_KEY, self.location.origin).href;
+function shellFailureMarkerUrl(statusKey) {
+  const marker = new URL(SHELL_FAILURE_MARKER_PATH, self.location.origin);
+  marker.searchParams.set('key', statusKey);
+  return marker.href;
 }
 
-function shellKindFor(cacheName) {
-  return cacheName === PERSONAL_SHELL_CACHE ? 'personal' : 'static';
-}
-
-async function readShellPending() {
+async function hasShellSaveFailure(statusKey) {
+  if (failedShellCacheKeys.has(statusKey)) return true;
   try {
     const cache = await caches.open(SW_META_CACHE);
-    const res = await cache.match(shellPendingKeyUrl());
-    if (!res) return [];
-    const parsed = JSON.parse(await res.clone().text());
-    return Array.isArray(parsed)
-      ? parsed.filter((e) => e && typeof e.href === 'string' && (e.kind === 'static' || e.kind === 'personal'))
-      : [];
+    return Boolean(await cache.match(shellFailureMarkerUrl(statusKey)));
   } catch {
-    return [];
+    return false;
   }
 }
 
-async function writeShellPending(list) {
+async function storeShellSaveFailure(statusKey) {
+  failedShellCacheKeys.delete(statusKey);
+  failedShellCacheKeys.add(statusKey);
+  if (failedShellCacheKeys.size > 200) {
+    failedShellCacheKeys.delete(failedShellCacheKeys.values().next().value);
+  }
   try {
     const cache = await caches.open(SW_META_CACHE);
-    if (!list.length) { await cache.delete(shellPendingKeyUrl()); return; }
-    await cache.put(
-      shellPendingKeyUrl(),
-      new Response(JSON.stringify(list.slice(-SHELL_PENDING_MAX_ENTRIES)), { headers: { 'Content-Type': 'application/json' } }),
-    );
-  } catch {   }
-}
-
-// mutate(list, now) يرجع قائمة جديدة، أو null = لا تغيير. التسلسل يمنع تداخل read-modify-write.
-function updateShellPending(mutate) {
-  const run = shellPendingChain.then(async () => {
-    const now = Date.now();
-    const current = (await readShellPending()).filter((e) => now - (Number(e.firstAt) || 0) <= SHELL_PENDING_MAX_AGE_MS);
-    const next = mutate(current, now);
-    if (next) await writeShellPending(next);
-    return next || current;
-  }).catch(() => []);
-  shellPendingChain = run;
-  return run;
-}
-
-function markShellPending(href, kind) {
-  return updateShellPending((list, now) => {
-    if (list.some((e) => e.href === href && e.kind === kind)) return null;
-    return list.concat({ href, kind, attempts: 0, firstAt: now, lastAt: now });
-  });
-}
-
-async function clearShellPending(href, kind) {
-  let existed = false;
-  await updateShellPending((list) => {
-    const next = list.filter((e) => !(e.href === href && e.kind === kind));
-    if (next.length === list.length) return null;
-    existed = true;
-    return next;
-  });
-  return existed;
-}
-
-async function recordShellFailure(href, kind) {
-  let outcome = { attempts: 1, gaveUp: false };
-  await updateShellPending((list, now) => {
-    const idx = list.findIndex((e) => e.href === href && e.kind === kind);
-    const entry = idx >= 0 ? { ...list[idx] } : { href, kind, attempts: 0, firstAt: now, lastAt: now };
-    entry.attempts = (Number(entry.attempts) || 0) + 1;
-    entry.lastAt = now;
-    outcome = { attempts: entry.attempts, gaveUp: entry.attempts >= SHELL_PENDING_MAX_ATTEMPTS };
-    const rest = list.filter((_, i) => i !== idx);
-    return outcome.gaveUp ? rest : rest.concat(entry);
-  });
-  return outcome;
-}
-
-async function scheduleShellRetrySync() {
-  try {
-    if (self.registration && self.registration.sync) await self.registration.sync.register(SHELL_RETRY_SYNC_TAG);
-  } catch {   }
-}
-
-async function notifyShellResult(docUrl, status) {
-  try { await notifyClients({ type: 'SHELL_CACHE_RESULT', pathname: docUrl.pathname, status }); } catch {   }
-}
-
-// تنزيل ملف مع محاولة ثانية سريعة؛ 404/410 غير قابلة لإعادة المحاولة.
-async function fetchShellAsset(assetUrl) {
-  let lastError;
-  for (let attempt = 1; attempt <= SHELL_ASSET_FETCH_TRIES; attempt += 1) {
-    try {
-      const asset = await fetch(assetUrl, { credentials: 'same-origin' });
-      if (!isUsableStaticAssetResponse(assetUrl, asset)) {
-        const invalid = new Error(`asset-invalid-${asset.status}`);
-        invalid.permanent = asset.status === 404 || asset.status === 410;
-        throw invalid;
+    const markerUrl = shellFailureMarkerUrl(statusKey);
+    await cache.put(markerUrl, new Response('failed', { headers: { 'Content-Type': 'text/plain' } }));
+    const markers = (await cache.keys()).filter((request) => {
+      try {
+        return new URL(request.url).pathname === SHELL_FAILURE_MARKER_PATH;
+      } catch {
+        return false;
       }
-      return asset;
-    } catch (error) {
-      lastError = error;
-      if (error && error.permanent) break;
-      if (attempt < SHELL_ASSET_FETCH_TRIES) await new Promise((resolve) => setTimeout(resolve, SHELL_ASSET_RETRY_DELAY_MS));
-    }
-  }
-  throw lastError;
-}
-
-async function retryPendingShells() {
-  if (shellRetryRunning) return;
-  // لا نحرق المحاولات أثناء انقطاع الاتصال.
-  if (self.navigator && self.navigator.onLine === false) return;
-  shellRetryRunning = true;
-  try {
-    const now = Date.now();
-    const pending = (await readShellPending())
-      .filter((e) => now - (Number(e.firstAt) || 0) <= SHELL_PENDING_MAX_AGE_MS && (Number(e.attempts) || 0) < SHELL_PENDING_MAX_ATTEMPTS)
-      .slice(0, SHELL_RETRY_BATCH);
-    for (const entry of pending) {
-      let target;
-      try { target = new URL(entry.href); } catch { await clearShellPending(entry.href, entry.kind); continue; }
-      if (target.origin !== self.location.origin) { await clearShellPending(entry.href, entry.kind); continue; }
-      const cacheName = entry.kind === 'personal' ? PERSONAL_SHELL_CACHE : STATIC_CACHE;
-      const cache = await caches.open(cacheName);
-      await cacheVisitedDocumentShell(target, cache, undefined, cacheName);
+    });
+    while (markers.length > 200) {
+      await cache.delete(markers.shift());
     }
   } catch {
-    /* retry is best-effort */
-  } finally {
-    shellRetryRunning = false;
+    // Failure history is diagnostic; never block an otherwise usable shell.
   }
 }
 
-// يحفظ HTML الصفحة وملفاتها الأولية معًا أو لا يحفظ شيئًا — وعند الفشل المؤقت يُعاد لاحقًا.
-async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
-  const kind = shellKindFor(htmlCacheName);
-  let docUrl = null;
+async function clearShellSaveFailure(statusKey) {
+  failedShellCacheKeys.delete(statusKey);
   try {
-    docUrl = canonicalDocumentUrl(url);
+    const cache = await caches.open(SW_META_CACHE);
+    await cache.delete(shellFailureMarkerUrl(statusKey));
+  } catch {
+    // The shell itself is already committed; metadata cleanup is best-effort.
+  }
+}
+
+async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
+  let statusKey = '';
+  const fail = async () => {
+    if (statusKey) {
+      await storeShellSaveFailure(statusKey);
+    }
+    return 'failed';
+  };
+
+  try {
+    const docUrl = canonicalDocumentUrl(url);
+    const cacheKey = HUB_PATHS.has(docUrl.pathname) && docUrl.search
+      ? docUrl.pathname
+      : docUrl.href;
+    statusKey = `${htmlCacheName}\n${cacheKey}`;
 
     const response = documentResponse
       ? documentResponse.clone()
-      : await fetch(docUrl.href, {
-          credentials: 'same-origin',
-          headers: { Accept: 'text/html' },
-        });
+      : await withNetworkTimeout(
+          fetch(docUrl.href, {
+            credentials: 'same-origin',
+            headers: { Accept: 'text/html' },
+          }),
+          NETWORK_TIMEOUT_MS,
+        );
     if (
       !response.ok ||
+      response.redirected ||
       !isSameOriginResponse(response) ||
       !response.headers.get('content-type')?.toLowerCase().includes('text/html')
-    ) {
-      await clearShellPending(docUrl.href, kind);
-      return;
-    }
-
-    // FIX SHELL-REDIRECT-01: كانت أي استجابة redirected تُرفض. الآن نحفظ تحت الرابط
-    // النهائي إن كان نفس الأصل وفي نفس "سلة" الكاش، ونرفض التحويل إلى صفحات الدخول/الإدارة
-    // أو إلى صفحة محمية داخل كاش عام (وعكسه).
-    let targetUrl = docUrl;
-    if (response.redirected) {
-      let finalUrl = null;
-      try { finalUrl = canonicalDocumentUrl(response.url); } catch { finalUrl = null; }
-      const rejected = !finalUrl ||
-        finalUrl.origin !== self.location.origin ||
-        isAuthPage(finalUrl) ||
-        finalUrl.pathname.startsWith('/admin') ||
-        (kind === 'personal' ? !isPersonalShellRoute(finalUrl) : isProtectedPage(finalUrl));
-      if (rejected) {
-        await clearShellPending(docUrl.href, kind);
-        return;
-      }
-      targetUrl = finalUrl;
-    }
+    ) return fail();
 
     const html = await response.clone().text();
-    const assetUrls = extractStaticAssetUrls(html);
+    const assetUrls = [...new Set(Array.from(
+      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+    )
+      .map((match) => match[1])
+      .filter((value) => typeof value === 'string' && value.length > 0))];
     // بعض صفحات المحتوى العام قد تكون HTML بسيطة بلا chunks محلية.
     // لا تُسقط نسخة الصفحة لمجرد أن قائمة الأصول فارغة؛ احفظ HTML وتحقق
     // من كل أصل تم اكتشافه فقط.
@@ -1002,13 +837,14 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
       }
     }
 
-    // الجزء الطويل هو التنزيل: نسجّل المحاولة قبله كي تنجو من قطع المتصفح للـ SW.
-    if (missing.length > 0) await markShellPending(docUrl.href, kind);
-
     const downloaded = [];
     for (let i = 0; i < missing.length; i += 4) {
       const batch = await Promise.all(missing.slice(i, i + 4).map(async (assetUrl) => {
-        const asset = await fetchShellAsset(assetUrl);
+        const asset = await withNetworkTimeout(
+          fetch(assetUrl, { credentials: 'same-origin' }),
+          NETWORK_TIMEOUT_MS,
+        );
+        if (!isUsableStaticAssetResponse(assetUrl, asset)) throw new Error(`asset-invalid-${asset.status}`);
         return { assetUrl, asset };
       }));
       downloaded.push(...batch);
@@ -1017,39 +853,33 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
     for (const item of [...alreadyCached, ...downloaded]) {
       await putTimestamped(staticCache, item.assetUrl, item.asset, 'visit-asset');
     }
-    const cacheKey = HUB_PATHS.has(targetUrl.pathname) && targetUrl.search
-      ? targetUrl.pathname
-      : targetUrl.href;
-    await putTimestamped(htmlCache, cacheKey, await stripVaryAndClone(response), 'visit');
+    const recovering = await hasShellSaveFailure(statusKey);
+    await putTimestamped(
+      htmlCache,
+      cacheKey,
+      await stripVaryAndClone(response),
+      recovering ? 'visit-recovery' : 'visit',
+    );
 
     const committedHtml = await htmlCache.match(cacheKey);
     if (!committedHtml || !committedHtml.headers.get('content-type')?.toLowerCase().includes('text/html')) {
-      throw new Error('shell-commit-missing');
+      return fail();
     }
     for (const assetUrl of assetUrls) {
       const committedAsset = await staticCache.match(assetUrl);
       if (!isUsableStaticAssetResponse(assetUrl, committedAsset)) {
         await htmlCache.delete(cacheKey);
-        throw new Error('shell-asset-missing-after-commit');
+        return fail();
       }
     }
+    if (recovering) await clearShellSaveFailure(statusKey);
     await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
     if (htmlCacheName === PERSONAL_SHELL_CACHE) {
       await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
     }
-    const recovered = await clearShellPending(docUrl.href, kind);
-    if (recovered) await notifyShellResult(docUrl, 'saved');
-  } catch (error) {
-    if (!docUrl) return;
-    try {
-      if (error && error.permanent) {
-        await clearShellPending(docUrl.href, kind);
-        return;
-      }
-      const outcome = await recordShellFailure(docUrl.href, kind);
-      if (!outcome.gaveUp) await scheduleShellRetrySync();
-      await notifyShellResult(docUrl, outcome.gaveUp ? 'failed' : 'pending');
-    } catch {   }
+    return recovering ? 'recovered' : 'saved';
+  } catch {
+    return fail();
   }
 }
 
@@ -1164,7 +994,7 @@ async function networkFirstPage(event, request, cacheKey) {
   const navigateTimeout = hasCachedShell ? NAVIGATE_TIMEOUT_CACHED_MS : NAVIGATE_TIMEOUT_MS;
   const fetchPromise = fetch(request);
   try {
-    const response = await withNetworkTimeout(fetchPromise, navigateTimeout);
+    const response = await withNavigationDeadline(fetchPromise, navigateTimeout);
     if (response && response.ok && isSameOriginResponse(response)) {
       const isHtmlVisit = request.mode === 'navigate' &&
         (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
@@ -1192,7 +1022,7 @@ async function networkFirstPage(event, request, cacheKey) {
 
     if (err && err.name === 'SwTimeoutError') {
       event.waitUntil(
-        fetchPromise
+        withNavigationDeadline(fetchPromise, navigateTimeout)
           .then(async (response) => {
             if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
               const isHtmlVisit = request.mode === 'navigate' &&
@@ -1220,18 +1050,10 @@ async function networkFirstPage(event, request, cacheKey) {
           // FIX SW-OFFLINE-FALSE-01: a timeout is not an outage. The cached shell is
           // unusable (missing chunks), so keep waiting for the real response and
           // show /offline only on a real network failure.
-          if (err && err.name === 'SwTimeoutError') {
-            try { return await fetchPromise; } catch { /* real network failure: fall through */ }
-          }
           return buildOfflineErrorPage();
         }
       }
       return cachedResponse;
-    }
-
-    // FIX SW-SLOW-NAV-01: timeout with nothing cached -> keep waiting for the real response.
-    if (err && err.name === 'SwTimeoutError') {
-      try { return await fetchPromise; } catch { /* real network failure: fall through */ }
     }
 
     if (isRscShellRequest(request)) {
@@ -1252,6 +1074,7 @@ const protectedNavGeneration = new Map();
 // SWR: عرض الكاش فورًا + تحديث في الخلفية مع التحقق من chunks
 async function staleWhileRevalidatePage(event, request, cacheKey) {
   const cache = await caches.open(STATIC_CACHE);
+  const isNavigationRequest = request.mode === 'navigate' || isRscShellRequest(request);
   // Online path: never serve the query-stripped shell (SW-BARE-FALLBACK-ONLINE-01);
   // it is still used below if the network genuinely fails.
   const cached = await lookupShellWithFallback(cache, request, new URL(request.url), { allowBare: false });
@@ -1262,7 +1085,9 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
   const networkPromise = fetch(request);
   const revalidatePromise = (async () => {
     try {
-      const response = await withNetworkTimeout(networkPromise, NETWORK_TIMEOUT_MS);
+      const response = isNavigationRequest
+        ? await withNavigationDeadline(networkPromise, NAVIGATE_TIMEOUT_MS)
+        : await withNetworkTimeout(networkPromise, NETWORK_TIMEOUT_MS);
       if (!response || !response.ok || response.status === 206 || !isSameOriginResponse(response)) {
         return;
       }
@@ -1295,7 +1120,10 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
         if (missing.length > 0) {
           const results = await Promise.allSettled(
             missing.map(async (assetUrl) => {
-              const response = await fetch(assetUrl, { credentials: 'same-origin' });
+              const response = await withNetworkTimeout(
+                fetch(assetUrl, { credentials: 'same-origin' }),
+                NETWORK_TIMEOUT_MS,
+              );
               if (!isUsableStaticAssetResponse(assetUrl, response)) {
                 throw new Error(`chunk fetch invalid: ${assetUrl}`);
               }
@@ -1344,7 +1172,10 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
     // FIX SW-SLOW-NAV-01 still applies: a 404/503/slow-200 is passed through as-is;
     // /offline is only for a real network failure (the fetch rejecting), below.
     event.waitUntil(revalidatePromise);
-    return await networkPromise;
+    return await withNetworkTimeout(
+      networkPromise,
+      isNavigationRequest ? NAVIGATE_MAX_WAIT_MS : NETWORK_TIMEOUT_MS,
+    );
   } catch {
     // Real network failure: now the bare-path shell (if any) beats /offline.
     try {
@@ -1384,7 +1215,7 @@ async function handleProtectedPage(event, request, url) {
   }
   const fetchPromise = fetch(request);
   try {
-    const response = await withNetworkTimeout(fetchPromise, navigateTimeout);
+    const response = await withNavigationDeadline(fetchPromise, navigateTimeout);
 
     if (useShellCache && response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
       const cache = await caches.open(PERSONAL_SHELL_CACHE);
@@ -1415,7 +1246,7 @@ async function handleProtectedPage(event, request, url) {
     if (err && err.name === 'SwTimeoutError') {
       if (useShellCache) {
         event.waitUntil(
-          fetchPromise
+          withNavigationDeadline(fetchPromise, navigateTimeout)
             .then(async (response) => {
               if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
                 const cache = await caches.open(PERSONAL_SHELL_CACHE);
@@ -1451,10 +1282,6 @@ async function handleProtectedPage(event, request, url) {
           const staticCache = await caches.open(STATIC_CACHE);
           const safe = await verifyCachedChunks(cachedShell, staticCache);
           if (!safe) {
-            // FIX SW-OFFLINE-FALSE-01: timeout != outage; wait for the real response.
-            if (err && err.name === 'SwTimeoutError') {
-              try { return await fetchPromise; } catch { /* real network failure: fall through */ }
-            }
             if (request.mode === 'navigate') {
               const offlineFallback = await staticCache.match(OFFLINE_URL);
               return offlineFallback || Response.error();
@@ -1464,12 +1291,6 @@ async function handleProtectedPage(event, request, url) {
         }
         return cachedShell;
       }
-    }
-
-    // FIX SW-SLOW-NAV-01: a timeout is not an outage. With no cached shell to show,
-    // keep waiting for the real response; /offline only on a real fetch failure.
-    if (err && err.name === 'SwTimeoutError') {
-      try { return await fetchPromise; } catch { /* real network failure: fall through */ }
     }
 
     if (isRscShellRequest(request)) {
@@ -1491,7 +1312,7 @@ async function handlePageRequest(event, request, url) {
   }
 
   if (isAuthPage(url)) {
-    return fetch(request);
+    return withNavigationDeadline(fetch(request), NAVIGATE_TIMEOUT_MS);
   }
 
   const cacheKey = isRscShellRequest(request) ? rscShellKey(url) : hubDocumentKey(request, url);
@@ -1783,7 +1604,7 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
       const permanentShell = isPermanentShellKey(key, cacheName);
       const permanentAsset = cacheName === STATIC_CACHE && permanentAssets.has(new URL(key.url).href);
       const permanentBonus = permanentShell ? 1_000_000_000 : permanentAsset ? 900_000_000 : 0;
-      const visitBonus = contentType.includes('text/html') && source === 'visit'
+      const visitBonus = contentType.includes('text/html') && (source === 'visit' || source === 'visit-recovery')
         ? 100000
         : source === 'visit-asset' ? 160000 : 0;
       const ageHours = ts > 0 ? (now - ts) / 3_600_000 : 9999;
@@ -1883,37 +1704,6 @@ function apiSnapshotMaxAgeMs(url) {
   return Number(policy.publicLive?.offline?.hardAfterMs) || 24 * 60 * 60 * 1000;
 }
 
-// FIX API-STALE-GRACE-01: بعد انتهاء الصلاحية الصلبة كانت اللقطة تُحذف وتفتح الصفحة فاضية.
-// الآن، فقط للقطات العامة المشتركة (لا بيانات المستخدم)، وفقط عند فشل الشبكة، تُعرض
-// حتى STALE_API_GRACE_MS مع ترويسة X-SW-Stale ورسالة للواجهة لتعرض تنبيه "بيانات قديمة".
-// اجعل STALE_API_GRACE_MS = 0 لتعطيل السلوك والعودة إلى الحذف الصارم.
-const STALE_API_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
-const STALE_NOTICE_MIN_GAP_MS = 30_000;
-let lastStaleNoticeAt = 0;
-
-async function asStaleApiSnapshotIfInGrace(url, response) {
-  try {
-    if (!(STALE_API_GRACE_MS > 0) || !response || !isSafeSharedApiSnapshot(response)) return null;
-    const raw = response.headers.get('X-SW-Cached-At');
-    const cachedAt = raw ? Number(raw) : NaN;
-    const now = Date.now();
-    if (!Number.isFinite(cachedAt) || cachedAt <= 0 || cachedAt > now + 60_000) return null;
-    const age = now - cachedAt;
-    if (!(age > apiSnapshotMaxAgeMs(url)) || age > STALE_API_GRACE_MS) return null;
-    if (!(await isValidJsonApiSnapshot(response))) return null;
-    const headers = new Headers(response.headers);
-    headers.set('X-SW-Stale', '1');
-    const body = await response.clone().blob();
-    if (now - lastStaleNoticeAt > STALE_NOTICE_MIN_GAP_MS) {
-      lastStaleNoticeAt = now;
-      notifyClients({ type: 'STALE_API_SERVED', cachedAt }).catch(() => {});
-    }
-    return new Response(body, { status: response.status, statusText: response.statusText, headers });
-  } catch {
-    return null;
-  }
-}
-
 function isFreshCachedApiSnapshot(url, response, now = Date.now()) {
   if (!response) return false;
   const raw = response.headers?.get('X-SW-Cached-At');
@@ -1991,12 +1781,10 @@ async function networkFirstApi(event, request, url) {
       if ((publicListOk || publicEntityDetail) && !isSensitiveApi) {
         const cachedApi = await cache.match(request, { ignoreVary: true });
         if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && isFreshCachedApiSnapshot(url, cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
-        if (cachedApi) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedApi); if (staleSnapshot) return staleSnapshot; }
         if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
         const coreCache = await caches.open(CORE_CACHE);
         const cachedCore = await coreCache.match(request.url);
         if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
-        if (cachedCore) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedCore); if (staleSnapshot) return staleSnapshot; }
         if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
       }
     } else {
@@ -2012,12 +1800,10 @@ async function networkFirstApi(event, request, url) {
       }
       const cachedApi = await cache.match(request, { ignoreVary: true });
       if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && isFreshCachedApiSnapshot(url, cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
-      if (cachedApi) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedApi); if (staleSnapshot) return staleSnapshot; }
       if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
       const coreCache = await caches.open(CORE_CACHE);
       const cachedCore = await coreCache.match(request.url);
       if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
-      if (cachedCore) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedCore); if (staleSnapshot) return staleSnapshot; }
       if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
     }
 
@@ -3089,7 +2875,10 @@ self.addEventListener('install', (event) => {
     (async () => {
       try {
         const cache = await caches.open(STATIC_CACHE);
-        const response = await fetch(OFFLINE_URL, { credentials: 'same-origin' });
+        const response = await withNetworkTimeout(
+          fetch(OFFLINE_URL, { credentials: 'same-origin' }),
+          NETWORK_TIMEOUT_MS,
+        );
 
         if (!response.ok || !isSameOriginResponse(response)) return;
         await cache.put(OFFLINE_URL, response.clone());
@@ -3104,7 +2893,10 @@ self.addEventListener('install', (event) => {
         await Promise.allSettled(
           assetUrls.map(async (assetUrl) => {
             try {
-              const assetResponse = await fetch(assetUrl, { credentials: 'same-origin' });
+              const assetResponse = await withNetworkTimeout(
+                fetch(assetUrl, { credentials: 'same-origin' }),
+                NETWORK_TIMEOUT_MS,
+              );
               const assetType = (assetResponse.headers.get('content-type') || '').toLowerCase();
 
               if (assetResponse.ok && isSameOriginResponse(assetResponse) && !assetType.includes('text/html')) {
@@ -3177,8 +2969,6 @@ self.addEventListener('activate', (event) => {
         normalizeExistingHtmlCache(STATIC_CACHE),
         normalizeExistingHtmlCache(PERSONAL_SHELL_CACHE),
       ]);
-      // لا ننتظر الشبكة أثناء التفعيل؛ نكمل أي حفظ صفحات معلّق بالخلفية.
-      retryPendingShells().catch(() => {});
       await self.clients.claim();
     })(),
   );
@@ -3303,11 +3093,6 @@ self.addEventListener('message', (event) => {
 
   if (type === 'REPLAY_QUEUE_NOW') {
     event.waitUntil(replayQueue());
-  }
-
-  if (type === 'RETRY_PENDING_SHELLS') {
-    event.waitUntil(retryPendingShells());
-    return;
   }
 
   if (type === 'CLEAR_QUEUE') {
@@ -3492,9 +3277,6 @@ self.addEventListener('sync', (event) => {
   if (event.tag === SYNC_TAG) {
     event.waitUntil(replayQueue());
   }
-  if (event.tag === SHELL_RETRY_SYNC_TAG) {
-    event.waitUntil(retryPendingShells());
-  }
 });
 
 function pushActionsFor(data) {
@@ -3661,7 +3443,10 @@ self.addEventListener('fetch', (event) => {
   // the protected layout's redirect) show the browser's native error page. Keep the
   // network passthrough, and fall back to the in-app retry page on a real failure.
   if (request.mode === 'navigate' && isAuthPage(url)) {
-    event.respondWith(fetch(request).catch(() => buildOfflineErrorPage()));
+    event.respondWith(
+      withNavigationDeadline(fetch(request), NAVIGATE_TIMEOUT_MS)
+        .catch(() => buildOfflineErrorPage()),
+    );
     return;
   }
 

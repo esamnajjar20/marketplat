@@ -81,6 +81,25 @@ describe('SW navigation does not mask real responses with /offline', () => {
     expect(r.text).toContain('REAL-DASH');
   }, 15_000);
 
+  it('waits for a slow soft-navigation RSC response instead of timing it out like a background fetch', async () => {
+    const ctx = load();
+    const cache = await ctx.sb.caches.open(ctx.sb.self.__STATIC);
+    await cache.put('/offline', res('OFFLINE-PAGE'));
+    ctx.setFetch(() => new Promise((ok) => setTimeout(() => ok(new Response('REAL-RSC')), 5600)));
+    const url = new URL('https://example.com/products');
+    const request = {
+      url: url.href,
+      method: 'GET',
+      mode: 'cors',
+      cache: 'default',
+      headers: new Headers({ RSC: '1' }),
+      clone() { return this; },
+    };
+
+    const response: Response = await ctx.sb.handlePageRequest({ waitUntil() {} }, request, url);
+    expect(await response.text()).toContain('REAL-RSC');
+  }, 15_000);
+
   it('still serves /offline when the network really fails', async () => {
     const pub = await navigate('/products', async () => { throw new TypeError('Failed to fetch'); });
     const prot = await navigate('/dashboard', async () => { throw new TypeError('Failed to fetch'); });

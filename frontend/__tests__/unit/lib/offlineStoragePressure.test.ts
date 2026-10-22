@@ -4,22 +4,26 @@ import {
   STORAGE_WARNING_RATIO,
   STORAGE_CRITICAL_RATIO,
   getStorageEstimate,
+  requestPersistentStorageFromUserGesture,
   shouldPauseBackgroundWarming,
 } from '@/lib/offlineStoragePressure';
 
 let usage = 0;
 let quota = 1000;
+let persist: ReturnType<typeof vi.fn>;
 const cacheNames = new Set<string>();
 
 beforeEach(() => {
   usage = 100;
   quota = 1000;
+  persist = vi.fn(async () => false);
   cacheNames.clear();
   Object.defineProperty(globalThis, 'navigator', {
     configurable: true,
     value: {
       storage: {
         estimate: vi.fn(async () => ({ usage, quota })),
+        persist,
       },
     },
   });
@@ -62,5 +66,11 @@ describe('offline storage pressure', () => {
     // Cache names are untouched client-side (SW owns eviction).
     expect(cacheNames.has('market-saved-ads')).toBe(true);
     expect(cacheNames.has('market-user-data-v44')).toBe(true);
+  });
+
+  it('requests persistent storage once and remembers a user denial for the session', async () => {
+    expect(await requestPersistentStorageFromUserGesture()).toBe('denied');
+    expect(await requestPersistentStorageFromUserGesture()).toBe('already-denied');
+    expect(persist).toHaveBeenCalledTimes(1);
   });
 });
