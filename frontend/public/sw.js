@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v90';
+const CACHE_VERSION = 'v91';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -140,6 +140,15 @@ async function migrateDataCaches(cacheNames) {
 }
 
 const SHELL_CACHE_MIGRATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const SHELL_MIGRATION_RECENT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const SHELL_MIGRATION_KEEP_PUBLIC = 40;
+const SHELL_MIGRATION_KEEP_PERSONAL = 20;
+
+function extractStaticAssetUrls(html) {
+  return [...new Set(Array.from(
+    String(html || '').matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+  ).map((match) => match[1]).filter((value) => typeof value === 'string' && value.length > 0))];
+}
 
 function isSafeShellMigrationEntry(request, response, sourceCacheName) {
   if (!request || !response || !response.ok || response.status === 206) return false;
@@ -147,7 +156,7 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
   try { url = new URL(request.url); } catch { return false; }
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.startsWith('/api/') || url.pathname === '/api') return false;
-  if (url.pathname.startsWith('/admin') || isAuthPage(url) || isProtectedPage(url)) return false;
+  if (url.pathname.startsWith('/admin') || isAuthPage(url)) return false;
   if (url.pathname.startsWith('/_next/image')) return false;
 
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
@@ -157,9 +166,13 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
      contentType.includes('application/font') || contentType.includes('woff'));
   const isHtml = contentType.includes('text/html');
   const isRsc = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
+  if (url.pathname.startsWith('/_next/') && !isStaticAsset) return false;
+
   if (sourceCacheName.startsWith('market-personal-shell-')) {
-    return PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname) && (isHtml || isRsc);
+    if (PROTECTED_AD_EDIT_RE.test(url.pathname) || !isProtectedPage(url)) return false;
+    return isHtml || isRsc;
   }
+  if (isProtectedPage(url)) return false;
   if (isStaticAsset) return true;
   if (isHtml || isRsc) {
     // Don't migrate arbitrary query-specific pages; RSC keys are explicitly supported.
@@ -167,6 +180,31 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
     return true;
   }
   return false;
+}
+
+function selectShellsToMigrate(shells, now, keepAllWithinMs, keepRecentCount) {
+  const keep = [];
+  const recent = [];
+  for (const shell of shells) {
+    if (shell.permanent) {
+      keep.push(shell);
+      continue;
+    }
+    if (!shell.cachedAt) continue;
+    const age = now - shell.cachedAt;
+    if (age < 0) continue;
+    if (keepAllWithinMs > 0 && age <= keepAllWithinMs) {
+      keep.push(shell);
+      continue;
+    }
+    if (
+      age <= SHELL_MIGRATION_RECENT_MAX_AGE_MS &&
+      (shell.source === 'visit' || shell.source === 'visit-recovery') &&
+      shell.isHtml
+    ) recent.push(shell);
+  }
+  recent.sort((a, b) => b.cachedAt - a.cachedAt);
+  return keep.concat(recent.slice(0, keepRecentCount));
 }
 
 async function migrateShellCaches(cacheNames) {
@@ -184,55 +222,113 @@ async function migrateShellCaches(cacheNames) {
   }
   migrations.sort((a, b) => b.version - a.version);
 
-  // Pass 1: migrate eligible hashed assets first. HTML must not be copied
-  // before its referenced chunks have a chance to reach the new static cache.
-  const pendingShells = [];
-  for (const migration of migrations) {
-    try {
-      const from = await caches.open(migration.from);
-      const to = await caches.open(migration.to);
-      for (const request of await from.keys()) {
-        try {
-          if (await to.match(request, { ignoreVary: true })) continue;
-          const response = await from.match(request, { ignoreVary: true });
-          if (!isSafeShellMigrationEntry(request, response, migration.from)) continue;
-          const cachedAt = Number(response.headers.get('X-SW-Cached-At')) || 0;
-          const url = new URL(request.url);
-          const permanent = migration.to === STATIC_CACHE
-            ? PERMANENT_PUBLIC_SHELL_PATHS.has(url.pathname)
-            : PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname);
-          if (!permanent && (!cachedAt || Date.now() - cachedAt > SHELL_CACHE_MIGRATION_MAX_AGE_MS)) continue;
+  const now = Date.now();
+  const assetCandidates = [];
+  const shellCandidates = { static: [], personal: [] };
+  const seen = new Set();
 
-          const contentType = (response.headers.get('content-type') || '').toLowerCase();
-          const isStaticAsset = url.pathname.startsWith('/_next/static/') &&
-            (contentType.includes('javascript') || contentType.includes('ecmascript') ||
-             contentType.includes('text/css') || contentType.startsWith('font/') ||
-             contentType.includes('application/font') || contentType.includes('woff'));
-          const isHtml = contentType.includes('text/html');
-          const isRsc = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
-          if (isStaticAsset) {
-            await to.put(request, response.clone());
-          } else if (isHtml || isRsc) {
-            pendingShells.push({ migration, request, response, cachedAt, permanent, isHtml, isRsc });
-          }
-        } catch { /* One stale or unsupported entry must not block the rest. */ }
-      }
-    } catch { /* A missing/corrupt legacy cache must not block activation. */ }
+  for (const migration of migrations) {
+    let from;
+    let keys;
+    try {
+      from = await caches.open(migration.from);
+      keys = await from.keys();
+    } catch {
+      continue;
+    }
+    const kind = migration.to === PERSONAL_SHELL_CACHE ? 'personal' : 'static';
+    for (const request of keys) {
+      try {
+        const dedupeKey = `${kind}|${request.url}`;
+        if (seen.has(dedupeKey)) continue;
+        const response = await from.match(request, { ignoreVary: true });
+        if (!isSafeShellMigrationEntry(request, response, migration.from)) continue;
+        const url = new URL(request.url);
+        const cachedAt = Number(response.headers.get('X-SW-Cached-At')) || 0;
+        const source = response.headers.get('X-SW-Cache-Source') || '';
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        seen.add(dedupeKey);
+        if (url.pathname.startsWith('/_next/static/')) {
+          assetCandidates.push({ from, request, cachedAt });
+        } else {
+          shellCandidates[kind].push({
+            from,
+            request,
+            cachedAt,
+            source,
+            isHtml: contentType.includes('text/html'),
+            permanent: kind === 'personal'
+              ? PERMANENT_PERSONAL_SHELL_PATHS.has(url.pathname)
+              : PERMANENT_PUBLIC_SHELL_PATHS.has(url.pathname),
+          });
+        }
+      } catch { /* One stale or unsupported entry must not block the rest. */ }
+    }
   }
 
-  // Pass 2: migrate shells only after the asset pass. A page whose JS/CSS
-  // chunks are missing would otherwise survive migration but be unusable offline.
-  let staticCache;
-  try { staticCache = await caches.open(STATIC_CACHE); } catch { return; }
-  for (const item of pendingShells) {
+  const keepShells = [
+    ...selectShellsToMigrate(
+      shellCandidates.static,
+      now,
+      SHELL_CACHE_MIGRATION_MAX_AGE_MS,
+      SHELL_MIGRATION_KEEP_PUBLIC,
+    ).map((shell) => ({ ...shell, kind: 'static' })),
+    ...selectShellsToMigrate(
+      shellCandidates.personal,
+      now,
+      0,
+      SHELL_MIGRATION_KEEP_PERSONAL,
+    ).map((shell) => ({ ...shell, kind: 'personal' })),
+  ];
+
+  const neededAssetPaths = new Set();
+  for (const shell of keepShells) {
+    if (!shell.isHtml) continue;
     try {
-      const { migration, request, response, isHtml } = item;
-      const to = await caches.open(migration.to);
-      if (await to.match(request, { ignoreVary: true })) continue;
-      if (isHtml && !(await verifyCachedChunks(response, staticCache))) continue;
-      await to.put(request, response.clone());
+      const response = await shell.from.match(shell.request, { ignoreVary: true });
+      if (!response) continue;
+      for (const assetUrl of extractStaticAssetUrls(await response.clone().text())) {
+        neededAssetPaths.add(assetUrl);
+      }
+    } catch { /* A malformed shell does not block other migrations. */ }
+  }
+
+  let staticCache;
+  try {
+    staticCache = await caches.open(STATIC_CACHE);
+  } catch {
+    return;
+  }
+
+  for (const asset of assetCandidates) {
+    try {
+      const pathname = new URL(asset.request.url).pathname;
+      const age = asset.cachedAt ? now - asset.cachedAt : Infinity;
+      const recent = age >= 0 && age <= SHELL_CACHE_MIGRATION_MAX_AGE_MS;
+      if (!neededAssetPaths.has(pathname) && !recent) continue;
+      if (await staticCache.match(asset.request, { ignoreVary: true })) continue;
+      const response = await asset.from.match(asset.request, { ignoreVary: true });
+      if (response) await staticCache.put(asset.request, response.clone());
+    } catch { /* A single bad asset does not block other migrations. */ }
+  }
+
+  for (const shell of keepShells) {
+    try {
+      const targetCache = shell.kind === 'personal'
+        ? await caches.open(PERSONAL_SHELL_CACHE)
+        : staticCache;
+      if (await targetCache.match(shell.request, { ignoreVary: true })) continue;
+      const response = await shell.from.match(shell.request, { ignoreVary: true });
+      if (!response) continue;
+      if (shell.isHtml && !(await verifyCachedChunks(response, staticCache))) continue;
+      await targetCache.put(shell.request, response.clone());
     } catch { /* Keep activation resilient to a single broken entry. */ }
   }
+
+  // Pass 1: migrate eligible hashed assets first. HTML must not be copied
+  // before its referenced assets reach the new static cache. Trim afterward.
+  await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
+  await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
 }
 
 // شكل الصفحات الشخصية — منفصل ويُمسح عند الخروج.

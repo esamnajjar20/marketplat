@@ -62,7 +62,7 @@ check('retry does not burn attempts while offline and gives up after a bounded n
 check('redirected documents are cached under the final URL only when same-origin and not auth/admin/protected-bucket mismatch',
   /if \(response\.redirected\)/.test(sw) && /isAuthPage\(finalUrl\)/.test(sw) && /isPersonalShellRoute\(finalUrl\)/.test(sw) && /targetUrl = finalUrl;/.test(sw));
 check('personal shells are no longer rejected by the isProtectedPage short-circuit during migration',
-  /if \(!isProtectedPage\(url\)\) return false;\s*return isHtml \|\| isRsc;/.test(sw));
+  /if \(PROTECTED_AD_EDIT_RE\.test\(url\.pathname\) \|\| !isProtectedPage\(url\)\) return false;\s*return isHtml \|\| isRsc;/.test(sw));
 check('migration keeps the most recent visited shells and the chunks they reference',
   /SHELL_MIGRATION_KEEP_PUBLIC/.test(sw) && /SHELL_MIGRATION_KEEP_PERSONAL/.test(sw) && /neededAssetPaths/.test(sw));
 check('stale API grace is limited to shared public snapshots and can be disabled with STALE_API_GRACE_MS = 0',
