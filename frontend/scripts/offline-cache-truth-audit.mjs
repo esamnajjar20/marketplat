@@ -50,6 +50,26 @@ check('SW and TypeScript cache versions are synchronized', (() => {
   return Boolean(swVersion && tsVersion && swVersion[1] === tsVersion[1]);
 })());
 
+// ── Durability guardrails (shell retry / redirects / migration / persist / stale grace) ──
+check('failed shell saves are queued for retry (pending store + sync/online/activate triggers)',
+  /const SHELL_PENDING_KEY/.test(sw) && /async function retryPendingShells\(\)/.test(sw) &&
+  /event\.tag === SHELL_RETRY_SYNC_TAG/.test(sw) && /type === 'RETRY_PENDING_SHELLS'/.test(sw) &&
+  /retryPendingShells\(\)\.catch\(\(\) => \{\}\);\s*await self\.clients\.claim\(\)/.test(sw));
+check('retry does not burn attempts while offline and gives up after a bounded number of attempts',
+  /self\.navigator\.onLine === false\) return;/.test(sw) && /SHELL_PENDING_MAX_ATTEMPTS = 5/.test(sw));
+check('redirected documents are cached under the final URL only when same-origin and not auth/admin/protected-bucket mismatch',
+  /if \(response\.redirected\)/.test(sw) && /isAuthPage\(finalUrl\)/.test(sw) && /isPersonalShellRoute\(finalUrl\)/.test(sw) && /targetUrl = finalUrl;/.test(sw));
+check('personal shells are no longer rejected by the isProtectedPage short-circuit during migration',
+  /if \(!isProtectedPage\(url\)\) return false;\s*return isHtml \|\| isRsc;/.test(sw));
+check('migration keeps the most recent visited shells and the chunks they reference',
+  /SHELL_MIGRATION_KEEP_PUBLIC/.test(sw) && /SHELL_MIGRATION_KEEP_PERSONAL/.test(sw) && /neededAssetPaths/.test(sw));
+check('stale API grace is limited to shared public snapshots and can be disabled with STALE_API_GRACE_MS = 0',
+  /const STALE_API_GRACE_MS = /.test(sw) && /!\(STALE_API_GRACE_MS > 0\)/.test(sw) &&
+  (sw.match(/asStaleApiSnapshotIfInGrace\(url, cached(?:Api|Core)\)/g) || []).length === 4 &&
+  !/asStaleApiSnapshotIfInGrace\(url, cached(?:UserData|ForUser)\)/.test(sw));
+check('persistent storage is requested from the client bootstrap',
+  read('components/pwa/OfflineBootstrap.tsx').includes('ensurePersistentStorage') && /navigator\.storage\.persist\(\)/.test(read('lib/offlineStoragePersist.ts')));
+
 if (failures.length) {
   console.error(`[offline-cache-truth] ${failures.length} failure(s), ${passed} passed`);
   process.exitCode = 1;

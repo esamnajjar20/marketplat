@@ -35,6 +35,8 @@ import { ensureNativePushSynced } from '@/lib/capacitor/nativePush';
 import { supportsNativePush, supportsWebPush } from '@/lib/runtime/capabilities';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
+import { ensurePersistentStorage, isStandaloneDisplayMode } from '@/lib/offlineStoragePersist';
+import { requestPendingShellRetry } from '@/lib/offlineShellStatus';
 import { initSwTokenSync } from '@/lib/swTokenSync';
 import { initStaleWaitingServiceWorkerHandler } from '@/lib/swStaleActivation';
 import { initSalesOfflineSync, syncPendingSales } from '@/lib/sales-offline/salesSync';
@@ -154,6 +156,8 @@ export function OfflineBootstrap() {
 
     replayThenPublishDrafts();
     scheduleWarming('mount', { authenticated: isAuthenticated });
+    // FIX SHELL-RETRY-01: أكمل حفظ الصفحات التي تعثّرت في جلسة سابقة.
+    requestPendingShellRetry();
 
     const PERIODIC_QUEUE_MS = 5 * 60 * 1000;
     const periodicId = window.setInterval(() => {
@@ -222,6 +226,7 @@ export function OfflineBootstrap() {
     const onOnline = () => {
       // Replay first; pipeline waits for setQueueReplayInFlight(false).
       replayThenPublishDrafts();
+      requestPendingShellRetry();
       scheduleWarming('online', {
         authenticated: useAuthStore.getState().isAuthenticated,
       });
@@ -231,6 +236,16 @@ export function OfflineBootstrap() {
     });
     return unsubscribeNetwork;
   }, []);
+
+  // FIX STORAGE-PERSIST-01: اطلب تخزينًا دائمًا فقط عند تفاعل حقيقي (مستخدم مسجّل أو
+  // تطبيق مثبّت)، بعد استقرار التحميل. التفاصيل في lib/offlineStoragePersist.ts.
+  useEffect(() => {
+    if (!isAuthenticated && !isStandaloneDisplayMode()) return;
+    const id = window.setTimeout(() => {
+      void ensurePersistentStorage().catch(() => undefined);
+    }, 4000);
+    return () => window.clearTimeout(id);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

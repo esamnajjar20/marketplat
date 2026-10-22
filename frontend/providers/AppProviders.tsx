@@ -50,6 +50,7 @@ import { PageViewTracker }     from '@/components/shared/PageViewTracker';
 import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
+import { OfflineStatusNotices } from '@/components/offline/OfflineStatusNotices';
 import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { AnalyticsConsentBanner } from '@/components/shared/AnalyticsConsentBanner';
@@ -229,6 +230,7 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         <ProfileCompletionGate />
 
         <NetworkStatusBanner />
+        <OfflineStatusNotices />
 
         {/* Critical notification toasts — still poll-based, no WS. */}
         <NotificationToasts />
