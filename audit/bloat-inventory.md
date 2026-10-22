@@ -29,6 +29,7 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 | Category index client module statically imported by server page | Route chunk | `app/(public)/categories/page.tsx` → `components/categories/CategoriesIndex.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Followed-stores list statically imported by route | Route chunk | `app/(protected)/my-store/followed/page.tsx` → `components/stores/FollowedStoresList.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Collection product manager statically imported by route | Route chunk | `app/(protected)/my-store/collections/[id]/page.tsx` → `components/stores/CollectionProductsManager.tsx` | Not measured under no-build directive | Improved; pending measurement |
+| Personalized suggestions client module statically imported by route | Route chunk | `app/(public)/for-you/page.tsx` → `components/suggestions/SuggestionsPageClient.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Client-only Axios transport used by interactive features | Shared/client graph | `api/client.ts`, `api/*.api.ts`, query/mutation hooks; notably `components/messages/MessageInput.tsx` | Not separately attributable; `/messages/[id]` remains 278 kB | Accepted debt for offline-critical composer |
 | Heavy general-purpose libraries (Moment, Lodash, Recharts, Chart.js, Tiptap, Quill) | Dependency/source scan | `frontend/package.json`, application imports | 0 direct application imports found | None |
 | Heavy optional modules | Deferred client modules | `components/map/SearchResultsMap.tsx` / `SearchResultsMapInner.tsx` (`leaflet`, `react-leaflet`); `components/debug/ErudaDebug.tsx` (`eruda`); `components/admin/AdminAnalyticsDashboard.tsx` (already dynamically loaded) | Route-specific; map/debug/dashboard already isolated or conditionally loaded | Low / monitor |
@@ -101,6 +102,8 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 - The followed-stores list is loaded as a dynamic chunk; measurement is
   deferred to final verification.
 - Collection membership management is a dynamic client chunk; measurement
+  is deferred to final verification.
+- The personalized suggestions route is a dynamic client chunk; measurement
   is deferred to final verification.
 
 ## Remaining / blocked

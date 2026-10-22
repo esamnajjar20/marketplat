@@ -528,3 +528,11 @@ The collection-management route now dynamically loads its interactive product
 membership manager after resolving route params. Registered the route source
 for offline warming. Type-check passed and CollectionProductsManager tests
 passed (5/5). Bundle measurement is deferred to final verification.
+
+## Increment 40: defer personalized suggestions route
+
+The `/for-you` route now dynamically imports its interactive suggestions
+client module while retaining a server route wrapper and loading skeleton.
+Registered the chunk for offline warming. Type-check passed; no focused
+SuggestionsPageClient test exists. Bundle measurement is deferred to final
+verification.
