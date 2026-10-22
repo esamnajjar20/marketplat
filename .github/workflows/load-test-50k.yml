@@ -46,7 +46,7 @@ jobs:
             /api/v1/ads?limit=10 \
             /api/v1/products?limit=10 \
             /api/v1/stores?limit=10 \
-            /api/v1/services?limit=10 ; do
+            /api/v1/service-categories ; do
             curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" \
               "${{ inputs.target }}$path" || true
             sleep 0.3
@@ -87,7 +87,7 @@ jobs:
             '/api/v1/ads?limit=10',
             '/api/v1/products?limit=10',
             '/api/v1/stores?limit=10',
-            '/api/v1/services?limit=10',
+            '/api/v1/service-categories',
           ];
 
           export default function () {
