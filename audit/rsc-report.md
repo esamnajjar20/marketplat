@@ -426,3 +426,10 @@ loads its interactive list. The stories page now loads the composer and viewer
 only when opened. Registered all route chunks for offline warming.
 Type-check passed; no focused following/story route tests exist. Bundle
 measurement is deferred to final verification.
+
+## Increment 27: defer protected edit forms
+
+The ad, service-listing, and product edit routes now load their heavy forms
+through dynamic chunks after route data and ownership checks resolve. Added
+the chunks to offline warming. Type-check passed; focused form tests passed
+(41 passed, 10 skipped). Bundle measurement is deferred to final verification.

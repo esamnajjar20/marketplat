@@ -14,14 +14,19 @@
  * three edit pages instead of hand-rolling the same redirect effect.
  */
 import { use } from 'react';
+import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 import { Spinner } from '@/components/ui/spinner';
-import { ProductForm } from '@/components/stores/ProductForm';
 import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useProduct, useMyProducts } from '@/hooks/queries/useProducts';
 import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
 import { ROUTES } from '@/lib/constants';
+
+const ProductForm = dynamic(
+  () => import('@/components/stores/ProductForm').then((module) => module.ProductForm),
+  { loading: () => <div className="flex justify-center py-12"><LoadingSpinner /></div> },
+);
 
 interface Props {
   params: Promise<{ id: string }>;

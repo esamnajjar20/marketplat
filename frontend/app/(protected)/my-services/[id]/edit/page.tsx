@@ -13,14 +13,22 @@
  * three edit pages instead of hand-rolling the same redirect effect.
  */
 import { use } from 'react';
+import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 import { Spinner } from '@/components/ui/spinner';
-import { ServiceListingForm } from '@/components/services/ServiceListingForm';
 import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useServiceListing, useMyServiceListings } from '@/hooks/queries/useServiceListings';
 import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
 import { ROUTES } from '@/lib/constants';
+
+const ServiceListingForm = dynamic(
+  () =>
+    import('@/components/services/ServiceListingForm').then(
+      (module) => module.ServiceListingForm,
+    ),
+  { loading: () => <div className="flex justify-center py-12"><LoadingSpinner /></div> },
+);
 
 interface Props {
   params: Promise<{ id: string }>;

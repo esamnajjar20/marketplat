@@ -34,9 +34,9 @@
  * ROUTES.adEdit(id) rather than a hardcoded path.
  */
 import { use }      from 'react';
+import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 import { Spinner } from '@/components/ui/spinner';
-import { EditAdForm }     from '@/components/ads/EditAdForm';
 import { EditPageHeader } from '@/components/shared/EditPageHeader';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useAd }          from '@/hooks/queries/useAds';
@@ -45,6 +45,11 @@ import { useStoreMembers }   from '@/hooks/queries/useStoreMembers';
 import { useAuthStore, selectUser, selectIsAdmin } from '@/store/auth.store';
 import { useOwnershipGuard } from '@/hooks/useOwnershipGuard';
 import { ROUTES } from '@/lib/constants';
+
+const EditAdForm = dynamic(
+  () => import('@/components/ads/EditAdForm').then((module) => module.EditAdForm),
+  { loading: () => <div className="flex justify-center py-12"><LoadingSpinner /></div> },
+);
 
 interface EditAdPageProps {
   params: Promise<{ id: string }>;
