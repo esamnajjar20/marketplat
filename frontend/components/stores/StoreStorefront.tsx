@@ -1,18 +1,30 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRef, type KeyboardEvent } from 'react';
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Star, Info, MapPin, Phone, Clock } from 'lucide-react';
-import { StoreAds } from '@/components/stores/StoreAds';
 import { StoreProducts } from '@/components/stores/StoreProducts';
-import { StoreCollections } from '@/components/stores/StoreCollections';
-import { StoreReviewsList } from '@/components/stores/StoreReviewsList';
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
 import { formatPhone } from '@/lib/formatters';
 import { getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
+import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const StoreAds = dynamic(
+  () => import('@/components/stores/StoreAds').then((m) => m.StoreAds),
+  { loading: () => <SuspenseFallback /> },
+);
+const StoreCollections = dynamic(
+  () => import('@/components/stores/StoreCollections').then((m) => m.StoreCollections),
+  { loading: () => <SuspenseFallback /> },
+);
+const StoreReviewsList = dynamic(
+  () => import('@/components/stores/StoreReviewsList').then((m) => m.StoreReviewsList),
+  { loading: () => <SuspenseFallback /> },
+);
 
 type Tab = 'products' | 'offers' | 'collections' | 'ads' | 'reviews' | 'about';
 

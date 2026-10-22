@@ -185,6 +185,7 @@ const routeLoadableSources = {
   '/messages': ['components/messages/ChatWindow.tsx'],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
+  '/stores': ['components/stores/StoreStorefront.tsx'],
 };
 for (const route of routes) {
   const sourcePath = urlToSource.get(route) || null;

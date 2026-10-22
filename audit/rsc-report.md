@@ -287,6 +287,20 @@ offline warming manifest includes the dynamic entity-list assets.
 Type-check, targeted ESLint, favorites tests (18/18), production build, and
 dynamic-chunk manifest verification passed. No E2E tests were run.
 
+## Increment 14: lazy-load secondary public store tabs
+
+The public store detail route now defers the ads, collections, and reviews
+panels until their tabs are selected. The dynamic panel assets are added to
+the `/stores` offline warming entry.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/stores/[id]` | 323 kB | 320 kB | 0.93% |
+
+Type-check, targeted ESLint, StoreStorefront/StoreReviewsList tests (10/10),
+production build, and dynamic-chunk manifest verification passed. No E2E
+tests were run.
+
 ## Increment 11: lazy-load conversation media gallery
 
 `ChatWindow` now loads the media gallery only when the gallery sheet opens;

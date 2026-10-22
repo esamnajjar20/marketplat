@@ -80,7 +80,7 @@ describe('StoreStorefront', () => {
     first.unmount();
     mockSearchParams = new URLSearchParams('tab=reviews');
     renderWithQueryClient(<StoreStorefront {...base} />);
-    expect(screen.getByTestId('reviews')).toBeInTheDocument();
+    expect(await screen.findByTestId('reviews')).toBeInTheDocument();
     expect(screen.queryByTestId('products-grid')).not.toBeInTheDocument();
   });
 
