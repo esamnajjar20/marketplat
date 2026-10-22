@@ -1,8 +1,15 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
-import { FollowedStoresList } from '@/components/stores/FollowedStoresList';
 import { buildMetadata } from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const FollowedStoresList = dynamic(
+  () =>
+    import('@/components/stores/FollowedStoresList').then(
+      (module) => module.FollowedStoresList,
+    ),
+);
 
 export const metadata: Metadata = buildMetadata({ title: 'المتاجر المتابَعة', noIndex: true });
 

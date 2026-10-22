@@ -514,3 +514,10 @@ retaining server prefetch/dehydration and server rendering of the index.
 Registered the route source for offline warming. Type-check passed; no
 focused category-index test exists. Bundle measurement is deferred to final
 verification.
+
+## Increment 38: defer followed-stores list
+
+The protected followed-stores page now dynamically loads its interactive
+list while preserving the route's server-rendered heading. Registered the
+chunk for offline warming. Type-check passed and FollowedStoresList tests
+passed (6/6). Bundle measurement is deferred to final verification.
