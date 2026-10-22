@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v91';
+const CACHE_VERSION = 'v92';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -2035,6 +2035,36 @@ function isFreshCachedApiSnapshot(url, response, now = Date.now()) {
   return Number.isFinite(maxAge) && maxAge > 0 && now - cachedAt <= maxAge;
 }
 
+const STALE_API_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+const STALE_NOTICE_MIN_GAP_MS = 30_000;
+let lastStaleNoticeAt = 0;
+
+async function asStaleApiSnapshotIfInGrace(url, response) {
+  try {
+    if (!(STALE_API_GRACE_MS > 0) || !response || !isSafeSharedApiSnapshot(response)) return null;
+    const raw = response.headers.get('X-SW-Cached-At');
+    const cachedAt = raw ? Number(raw) : NaN;
+    const now = Date.now();
+    if (!Number.isFinite(cachedAt) || cachedAt <= 0 || cachedAt > now + 60_000) return null;
+    const age = now - cachedAt;
+    if (!(age > apiSnapshotMaxAgeMs(url)) || age > STALE_API_GRACE_MS) return null;
+    if (!(await isValidJsonApiSnapshot(response))) return null;
+    const headers = new Headers(response.headers);
+    headers.set('X-SW-Stale', '1');
+    if (now - lastStaleNoticeAt > STALE_NOTICE_MIN_GAP_MS) {
+      lastStaleNoticeAt = now;
+      notifyClients({ type: 'STALE_API_SERVED', cachedAt }).catch(() => {});
+    }
+    return new Response(await response.clone().blob(), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  } catch {
+    return null;
+  }
+}
+
 // لا نثق بوجود المفتاح وحده: بعض الخوادم قد تعيد JSON مشوّهًا أو استجابة قديمة غير JSON.
 async function isValidJsonApiSnapshot(response) {
   if (!response || !response.ok || response.status === 206) return false;
@@ -2103,10 +2133,12 @@ async function networkFirstApi(event, request, url) {
       if ((publicListOk || publicEntityDetail) && !isSensitiveApi) {
         const cachedApi = await cache.match(request, { ignoreVary: true });
         if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && isFreshCachedApiSnapshot(url, cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
+        if (cachedApi) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedApi); if (staleSnapshot) return staleSnapshot; }
         if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
         const coreCache = await caches.open(CORE_CACHE);
         const cachedCore = await coreCache.match(request.url);
         if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
+        if (cachedCore) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedCore); if (staleSnapshot) return staleSnapshot; }
         if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
       }
     } else {
@@ -2122,10 +2154,12 @@ async function networkFirstApi(event, request, url) {
       }
       const cachedApi = await cache.match(request, { ignoreVary: true });
       if (cachedApi && isSafeSharedApiSnapshot(cachedApi) && isFreshCachedApiSnapshot(url, cachedApi) && await isValidJsonApiSnapshot(cachedApi)) return cachedApi;
+      if (cachedApi) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedApi); if (staleSnapshot) return staleSnapshot; }
       if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
       const coreCache = await caches.open(CORE_CACHE);
       const cachedCore = await coreCache.match(request.url);
       if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
+      if (cachedCore) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedCore); if (staleSnapshot) return staleSnapshot; }
       if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
     }
 
