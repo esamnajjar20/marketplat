@@ -475,3 +475,10 @@ playback/download controls are dynamically loaded only for media messages.
 Registered the message media chunks for offline warming. Type-check passed;
 FavoritesTabs tests passed (7/7). No MessageMedia-focused test exists. Bundle
 measurement is deferred to final verification.
+
+## Increment 33: defer create forms behind profile gates
+
+The ad, product, and service creation gates now load their substantial form
+modules only after the required seller/store/provider gate succeeds. Registered
+the chunks for offline warming. Type-check passed and focused gate tests
+passed (14/14). Bundle measurement is deferred to final verification.

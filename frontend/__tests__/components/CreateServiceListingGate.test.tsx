@@ -73,11 +73,11 @@ describe('CreateServiceListingGate', () => {
     );
   });
 
-  it('renders ServiceListingForm in create mode once a provider profile exists', () => {
+  it('renders ServiceListingForm in create mode once a provider profile exists', async () => {
     mockProvider({ data: { id: 'sp-1' } });
     render(<CreateServiceListingGate />);
 
-    expect(screen.getByText('ServiceListingForm:create')).toBeInTheDocument();
+    expect(await screen.findByText('ServiceListingForm:create')).toBeInTheDocument();
     expect(screen.queryByText('فعّل ملف مقدم الخدمة أولاً')).not.toBeInTheDocument();
   });
 });

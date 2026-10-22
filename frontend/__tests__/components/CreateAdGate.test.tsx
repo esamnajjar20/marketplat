@@ -115,11 +115,11 @@ describe('CreateAdGate', () => {
     expect(href).toMatch(/from=/);
   });
 
-  it('renders CreateAdForm (not the CTA) once a seller profile exists', () => {
+  it('renders CreateAdForm (not the CTA) once a seller profile exists', async () => {
     mockProfile({ data: { id: 'sp-1' } });
     render(<CreateAdGate />);
 
-    expect(screen.getByText('CreateAdForm')).toBeInTheDocument();
+    expect(await screen.findByText('CreateAdForm')).toBeInTheDocument();
     expect(screen.queryByText('أنشئ ملف البائع أولاً')).not.toBeInTheDocument();
   });
 });

@@ -1,8 +1,8 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { AlertTriangle, Store } from 'lucide-react';
-import { CreateAdForm } from '@/components/ads/CreateAdForm';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
@@ -10,6 +10,11 @@ import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ROUTES } from '@/lib/constants';
 import type { ParsedError } from '@/lib/errorParser';
+
+const CreateAdForm = dynamic(
+  () => import('@/components/ads/CreateAdForm').then((module) => module.CreateAdForm),
+  { loading: () => <div className="flex justify-center py-12"><LoadingSpinner /></div> },
+);
 
 /**
  * Gates ad creation behind having a SellerProfile — checked client-side

@@ -76,11 +76,11 @@ describe('CreateProductGate', () => {
     );
   });
 
-  it('renders ProductForm in create mode once a store exists', () => {
+  it('renders ProductForm in create mode once a store exists', async () => {
     mockStore({ data: { id: 'store-1' } });
     render(<CreateProductGate />);
 
-    expect(screen.getByText('ProductForm:create')).toBeInTheDocument();
+    expect(await screen.findByText('ProductForm:create')).toBeInTheDocument();
     expect(screen.queryByText('افتح متجرك أولاً')).not.toBeInTheDocument();
   });
 });

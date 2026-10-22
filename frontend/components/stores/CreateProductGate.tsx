@@ -1,13 +1,19 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { AlertCircle, Clock } from 'lucide-react';
-import { ProductForm } from '@/components/stores/ProductForm';
 import { RequireProfileGate } from '@/components/shared/gates/RequireProfileGate';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
+
+const ProductForm = dynamic(
+  () => import('@/components/stores/ProductForm').then((module) => module.ProductForm),
+  { loading: () => <div className="flex justify-center py-12"><LoadingSpinner /></div> },
+);
 
 /**
  * Gates product creation behind store ownership — mirrors CreateAdGate's

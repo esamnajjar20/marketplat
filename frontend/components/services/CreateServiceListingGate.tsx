@@ -1,9 +1,18 @@
 'use client';
 
-import { ServiceListingForm } from '@/components/services/ServiceListingForm';
+import dynamic from 'next/dynamic';
 import { RequireProfileGate } from '@/components/shared/gates/RequireProfileGate';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+
+const ServiceListingForm = dynamic(
+  () =>
+    import('@/components/services/ServiceListingForm').then(
+      (module) => module.ServiceListingForm,
+    ),
+  { loading: () => <div className="flex justify-center py-12"><LoadingSpinner /></div> },
+);
 
 /**
  * Gates service-listing creation behind having a ServiceProvider
