@@ -1,8 +1,15 @@
 import type { Metadata }      from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense }           from 'react';
-import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 import { buildMetadata }      from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const ForgotPasswordForm = dynamic(
+  () =>
+    import('@/components/auth/ForgotPasswordForm').then(
+      (module) => module.ForgotPasswordForm,
+    ),
+);
 
 export const metadata: Metadata = buildMetadata({ title: 'استرداد كلمة المرور', noIndex: true });
 

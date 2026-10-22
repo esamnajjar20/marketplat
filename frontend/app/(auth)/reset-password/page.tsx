@@ -1,8 +1,15 @@
 import type { Metadata }   from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense }        from 'react';
-import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { buildMetadata }   from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const ResetPasswordForm = dynamic(
+  () =>
+    import('@/components/auth/ResetPasswordForm').then(
+      (module) => module.ResetPasswordForm,
+    ),
+);
 
 export const metadata: Metadata = buildMetadata({ title: 'تعيين كلمة مرور جديدة', noIndex: true });
 

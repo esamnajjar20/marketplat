@@ -1,8 +1,12 @@
 import type { Metadata }  from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense }       from 'react';
-import { RegisterForm }   from '@/components/auth/RegisterForm';
 import { buildMetadata }  from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const RegisterForm = dynamic(
+  () => import('@/components/auth/RegisterForm').then((module) => module.RegisterForm),
+);
 
 export const metadata: Metadata = buildMetadata({ title: 'إنشاء حساب', noIndex: true });
 

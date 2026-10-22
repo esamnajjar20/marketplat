@@ -180,6 +180,11 @@ function chunksFromReactLoadable(sourcePath) {
 const routesData = {};
 const diagnostics = {};
 const routeLoadableSources = {
+  '/login': ['app/(auth)/login/page.tsx'],
+  '/register': ['app/(auth)/register/page.tsx'],
+  '/forgot-password': ['app/(auth)/forgot-password/page.tsx'],
+  '/reset-password': ['app/(auth)/reset-password/page.tsx'],
+  '/verify-email': ['app/(auth)/verify-email/page.tsx'],
   '/': ['components/home/HomePageContent.tsx'],
   '/activity': ['components/profile/ActivityTabsHub.tsx'],
   '/account/customers': ['app/(protected)/account/customers/page.tsx'],

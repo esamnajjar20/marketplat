@@ -1,8 +1,12 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense }      from 'react';
-import { LoginForm }     from '@/components/auth/LoginForm';
 import { buildMetadata } from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const LoginForm = dynamic(
+  () => import('@/components/auth/LoginForm').then((module) => module.LoginForm),
+);
 
 export const metadata: Metadata = buildMetadata({ title: 'تسجيل الدخول', noIndex: true });
 

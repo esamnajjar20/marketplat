@@ -450,3 +450,12 @@ defer both mounting and JavaScript chunk loading until the section is near
 the viewport/idle window. Added their chunks to the homepage offline warming
 map. Type-check passed and homepage tests passed (11/11). Bundle measurement
 is deferred to final verification.
+
+## Increment 30: isolate auth forms and verification client
+
+The login, registration, password-recovery, and password-reset forms are now
+loaded as route-level dynamic client chunks. The verify-email route is a
+Server Component wrapper around its extracted client workflow. Added the
+auth route chunks to offline warming. Type-check passed; focused auth form
+tests passed (41/41). No verify-email page test exists. Bundle measurement is
+deferred to final verification.
