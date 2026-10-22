@@ -317,6 +317,16 @@ ESLint reported only four existing exhaustive-deps warnings in that page.
 Production build and warming-manifest verification passed; no E2E tests were
 run.
 
+## Increment 16: services detail split (DEFERRED)
+
+Experimentally split the optional related-service matches module from the
+service detail component. Type-check and the focused ServiceListingDetail
+tests passed (17/17), but the single batch build measured `/services/[id]` at
+296 kB versus its 294 kB baseline (+0.68%). The change was reverted. The
+route's dynamic identifier also is not currently a concrete route in the
+offline warming route list, so a follow-up must account for that before
+adding a dynamic chunk to the offline manifest.
+
 ## Increment 11: lazy-load conversation media gallery
 
 `ChatWindow` now loads the media gallery only when the gallery sheet opens;
