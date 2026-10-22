@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
-import { SuggestionsPageClient } from '@/components/suggestions/SuggestionsPageClient';
+import dynamic from 'next/dynamic';
 import { buildMetadata } from '@/lib/seo';
+
+const SuggestionsPageClient = dynamic(
+  () =>
+    import('@/components/suggestions/SuggestionsPageClient').then(
+      (module) => module.SuggestionsPageClient,
+    ),
+  { loading: () => <div className="mx-auto max-w-7xl space-y-4 p-4"><div className="h-12 animate-pulse rounded-2xl bg-muted" /><div className="h-48 animate-pulse rounded-2xl bg-muted" /></div> },
+);
 
 export const metadata: Metadata = buildMetadata({
   title: 'اقتراحات لك — سوق غزة',

@@ -182,6 +182,7 @@ const diagnostics = {};
 const routeLoadableSources = {
   '/ads/[id]': ['components/ads/AdDetailSection.tsx'],
   '/categories': ['app/(public)/categories/page.tsx'],
+  '/categories/[slug]': ['app/(public)/categories/[slug]/page.tsx'],
   '/login': ['app/(auth)/login/page.tsx'],
   '/register': ['app/(auth)/register/page.tsx'],
   '/forgot-password': ['app/(auth)/forgot-password/page.tsx'],
@@ -216,6 +217,7 @@ const routeLoadableSources = {
     'components/profile/ProfileTabsSection.tsx',
   ],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
+  '/suggestions': ['app/(public)/suggestions/page.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
   '/my-services': ['components/services/MyServicesTabsHub.tsx'],
   '/saved-searches': ['app/(protected)/saved-searches/page.tsx'],
@@ -226,6 +228,7 @@ const routeLoadableSources = {
   '/service-requests/[id]': ['app/(protected)/service-requests/[id]/page.tsx'],
   '/stories': ['app/(protected)/stories/page.tsx'],
   '/stores': ['components/stores/StoreStorefront.tsx'],
+  '/trending': ['app/(public)/trending/page.tsx'],
 };
 for (const route of routes) {
   const sourcePath = urlToSource.get(route) || null;

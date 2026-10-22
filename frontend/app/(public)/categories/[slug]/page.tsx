@@ -1,11 +1,7 @@
 import type { Metadata }    from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense }         from 'react';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
-import { CategoryHero }     from '@/components/home/CategoryHero';
-import { SearchFilters }    from '@/components/ads/SearchFilters';
-import { SearchFiltersSheet } from '@/components/ads/SearchFiltersSheet';
-import { SearchSortBarWrapper } from '@/components/ads/SearchSortBarWrapper';
-import { SearchResults }    from '@/components/ads/SearchResults';
 import { getQueryClient }   from '@/lib/queryClient';
 import { prefetchCategories } from '@/lib/prefetch';
 import { buildCategoryMetadata } from '@/lib/seo';
@@ -13,6 +9,38 @@ import { LoadingSpinner }   from '@/components/shared/feedback/LoadingSpinner';
 import { categoriesApi }    from '@/api/categories.api';
 
 interface Props { params: Promise<{ slug: string }> }
+
+const CategoryHero = dynamic(
+  () => import('@/components/home/CategoryHero').then((module) => module.CategoryHero),
+);
+const SearchFilters = dynamic(
+  () => import('@/components/ads/SearchFilters').then((module) => module.SearchFilters),
+  { loading: () => <div className="min-h-20" aria-hidden="true" /> },
+);
+const SearchFiltersSheet = dynamic(
+  () =>
+    import('@/components/ads/SearchFiltersSheet').then(
+      (module) => module.SearchFiltersSheet,
+    ),
+  { loading: () => <div className="min-h-10" aria-hidden="true" /> },
+);
+const SearchSortBarWrapper = dynamic(
+  () =>
+    import('@/components/ads/SearchSortBarWrapper').then(
+      (module) => module.SearchSortBarWrapper,
+    ),
+  { loading: () => <div className="min-h-10" aria-hidden="true" /> },
+);
+const SearchResults = dynamic(
+  () => import('@/components/ads/SearchResults').then((module) => module.SearchResults),
+  {
+    loading: () => (
+      <div className="flex justify-center py-12" role="status">
+        <LoadingSpinner />
+      </div>
+    ),
+  },
+);
 
 // UX-FIX (audit P2-04): previously called buildCategoryMetadata({ slug,
 // name: slug }) — the raw URL slug stood in for the display name, so

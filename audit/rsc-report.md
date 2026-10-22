@@ -536,3 +536,12 @@ client module while retaining a server route wrapper and loading skeleton.
 Registered the chunk for offline warming. Type-check passed; no focused
 SuggestionsPageClient test exists. Bundle measurement is deferred to final
 verification.
+
+## Increment 41: defer public discovery modules
+
+The trending and suggestions routes now dynamically load their shared client
+page module. The category detail route dynamically loads its hero, filters,
+sort controls, and results while retaining server category prefetch and
+hydration. Registered route sources for offline warming. Type-check passed
+and focused category/search tests passed (8/8). Bundle measurement is
+deferred to final verification.
