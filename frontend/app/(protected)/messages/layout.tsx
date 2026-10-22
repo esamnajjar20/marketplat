@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * (protected)/messages/layout.tsx — DESKTOP-SPLIT-01.
  *
@@ -39,18 +37,18 @@
  */
 
 import { Suspense } from 'react';
-import { usePathname } from 'next/navigation';
 import { ConversationList } from '@/components/messages/ConversationList';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
-export default function MessagesLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isInboxRoute = pathname === ROUTES.messages;
-  // /messages/:id → that id; /messages itself → undefined (nothing to
-  // highlight, matches ConversationList's own selectedId contract).
-  const selectedId = isInboxRoute ? undefined : pathname.split('/').pop();
+interface Props {
+  children: React.ReactNode;
+  params: Promise<{ id?: string }>;
+}
+
+export default async function MessagesLayout({ children, params }: Props) {
+  const { id: selectedId } = await params;
+  const isInboxRoute = !selectedId;
 
   return (
     <div className="-mb-20 flex h-[calc(100dvh-4rem)] flex-col overflow-hidden md:mb-0 md:h-[calc(100dvh-6.5rem)] md:flex-row md:gap-0 md:rounded-xl md:border md:border-border md:bg-card md:shadow-sm lg:h-[calc(100dvh-7rem)]">
