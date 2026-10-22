@@ -184,3 +184,24 @@ no E2E tests were run.
 - `frontend/components/sales/ReceiptPageClient.tsx` — preserves print/share,
   QR generation, and data loading through native fetch without the Axios
   client dependency.
+
+## Increment 7: native fetch in ranking, store stats, and pin controls
+
+Replaced direct Axios-client usage in three Client Components with native
+same-origin `fetch`: seller rankings, public store statistics, and ad pinning.
+The pin mutation retains cookie credentials and echoes the current CSRF token.
+The message composer remains unchanged: its conversation API calls rely on
+the shared Axios request/response interceptors for upload, idempotency, and
+offline-queue behavior, so removing that dependency needs a separate
+interceptor-compatible migration.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/ads/[id]` | 299 kB | 298 kB | 0.33% |
+| `/sellers/ranking` | 106 kB | 106 kB | 0.00% |
+| `/store/[slug]/stats` | 209 kB | 209 kB | 0.00% |
+
+The route bundles did not regress; two remained unchanged and one decreased
+by 1 kB. Type-check and lint passed (lint reported existing warnings), and
+the focused PinAdButton and SellersRankingList tests passed. No E2E tests
+were run.

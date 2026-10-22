@@ -3,7 +3,6 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { BadgeCheck, BarChart3, MessageCircle, Star } from 'lucide-react';
-import { apiClient } from '@/api/client';
 import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
 import { useRouter } from 'next/navigation';
 import type { ApiResponse } from '@/types/api.types';
@@ -29,7 +28,16 @@ export function PublicSalesStats({ slug }: { slug: string }) {
   const startConversation = useStartConversation();
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: queryKeys.publicStoreSalesStats(slug),
-    queryFn: () => apiClient.get<ApiResponse<Stats>>(`/public/stores/${encodeURIComponent(slug)}/stats`).then((response) => response.data.data),
+    queryFn: async () => {
+      const response = await fetch(`/api/v1/public/stores/${encodeURIComponent(slug)}/stats`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error(`Store statistics request failed (${response.status})`);
+      const payload = await response.json() as ApiResponse<Stats>;
+      if (!payload.data) throw new Error(payload.message || 'Store statistics response is empty');
+      return payload.data;
+    },
   });
 
   // A failed background refetch must not hide a valid persisted snapshot.

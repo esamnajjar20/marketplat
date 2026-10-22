@@ -6,11 +6,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement, type ReactNode } from 'react';
 import { SellersRankingList } from '@/components/sellers/SellersRankingList';
-import { apiClient } from '@/api/client';
-
-vi.mock('@/api/client', () => ({
-  apiClient: { get: vi.fn() },
-}));
 
 function wrapper({ children }: { children: ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -20,17 +15,17 @@ function wrapper({ children }: { children: ReactNode }) {
 // TODO(2026-10-16): un-skip after updating loading-state assertions to match unified loading system (1f2c898a)
 describe('SellersRankingList', () => {
   beforeEach(() => {
-    vi.mocked(apiClient.get).mockReset();
+    vi.stubGlobal('fetch', vi.fn());
   });
 
   it('shows loading spinner', () => {
-    vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {}) as never);
+    vi.mocked(fetch).mockReturnValue(new Promise(() => {}) as never);
     render(<SellersRankingList />, { wrapper });
-    expect(screen.getByLabelText(/جارٍ التحميل/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/جارٍ التحميل/);
   });
 
   it('shows empty message', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({ data: { data: [] } } as never);
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: [] }), { status: 200 }));
     render(<SellersRankingList />, { wrapper });
     await waitFor(() => {
       expect(screen.getByText(/لا يوجد بائعون/)).toBeInTheDocument();
@@ -38,9 +33,8 @@ describe('SellersRankingList', () => {
   });
 
   it('renders ranked sellers', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({
-      data: {
-        data: [
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      data: [
           {
             rank: 1,
             medal: 'gold',
@@ -56,8 +50,7 @@ describe('SellersRankingList', () => {
             score: 100,
           },
         ],
-      },
-    } as never);
+    }), { status: 200 }));
     render(<SellersRankingList limit={10} />, { wrapper });
     await waitFor(() => {
       expect(screen.getByText('أحمد')).toBeInTheDocument();

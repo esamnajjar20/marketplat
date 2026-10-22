@@ -5,12 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { PinAdButton } from '@/components/ads/PinAdButton';
-import { apiClient } from '@/api/client';
 import { toast } from 'sonner';
-
-vi.mock('@/api/client', () => ({
-  apiClient: { patch: vi.fn() },
-}));
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -43,7 +38,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 
 describe('PinAdButton', () => {
   beforeEach(() => {
-    vi.mocked(apiClient.patch).mockReset();
+    vi.stubGlobal('fetch', vi.fn());
     vi.mocked(toast.success).mockReset();
   });
 
@@ -58,11 +53,14 @@ describe('PinAdButton', () => {
   });
 
   it('toggles pin on click', async () => {
-    vi.mocked(apiClient.patch).mockResolvedValue({ data: { data: {} } });
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: {} }), { status: 200 }));
     const user = setupUser();
     render(<PinAdButton adId="ad-1" isPinned={false} />);
 
     await user.click(screen.getByRole('button', { name: /تثبيت/ }));
-    expect(apiClient.patch).toHaveBeenCalledWith('/ads/ad-1/pin', { isPinned: true });
+    expect(fetch).toHaveBeenCalledWith('/api/v1/ads/ad-1/pin', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify({ isPinned: true }),
+    }));
   });
 });

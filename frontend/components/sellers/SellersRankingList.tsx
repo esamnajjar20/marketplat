@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
-import { apiClient } from '@/api/client';
 import type { ApiResponse } from '@/types/api.types';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -45,10 +44,13 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
     queryKey,
     queryFn: async () => {
       try {
-        const rows =
-          (await apiClient
-            .get<ApiResponse<RankRow[]>>('/sellers/ranking', { params: { limit } })
-            .then((r) => r.data.data ?? [])) ?? [];
+        const response = await fetch(`/api/v1/sellers/ranking?limit=${limit}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error(`Seller ranking request failed (${response.status})`);
+        const payload = await response.json() as ApiResponse<RankRow[]>;
+        const rows = payload.data ?? [];
         saveOfflineList(
           OFFLINE_LIST_KEYS.sellersRanking,
           rows,

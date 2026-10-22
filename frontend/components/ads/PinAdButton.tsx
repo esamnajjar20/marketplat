@@ -4,7 +4,7 @@ import { Pin, PinOff } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { invalidateAdEntityCaches } from '@/lib/queryInvalidation';
-import { apiClient } from '@/api/client';
+import { getCsrfToken } from '@/lib/csrf';
 import { toast } from 'sonner';
 import { toastMutationError } from '@/lib/mutationFeedback';
 import type { ApiResponse } from '@/types/api.types';
@@ -18,10 +18,24 @@ interface Props {
 export function PinAdButton({ adId, isPinned, className }: Props) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (next: boolean) =>
-      apiClient
-        .patch<ApiResponse<unknown>>(`/ads/${adId}/pin`, { isPinned: next })
-        .then((r) => r.data.data),
+    mutationFn: async (next: boolean) => {
+      const csrfToken = getCsrfToken();
+      const response = await fetch(`/api/v1/ads/${encodeURIComponent(adId)}/pin`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
+        body: JSON.stringify({ isPinned: next }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as ApiResponse<unknown> | null;
+        throw new Error(payload?.message || `Pin request failed (${response.status})`);
+      }
+      const payload = await response.json() as ApiResponse<unknown>;
+      return payload.data;
+    },
     onSuccess: (_data, next) => {
       void invalidateAdEntityCaches(queryClient, adId);
       toast.success(next ? 'تم تثبيت الإعلان' : 'تم إلغاء التثبيت');
