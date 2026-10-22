@@ -246,3 +246,17 @@ production build passed. The full Vitest run reported 10 failures across
 service-worker, API-client, offline-queue, offline-query-cache,
 MyProductsList, and ConversationList tests; none involve the settings
 components. No E2E tests were run.
+
+## Increment 10: split my-store management tabs
+
+The `/my-store` hub now dynamically loads the selected overview, list,
+inventory, team, analytics, or settings panel instead of statically importing
+all tab content. The offline warming manifest includes all dynamic panel
+chunks so warmed tabs remain available offline.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/my-store` | 309 kB | 215 kB | 30.42% |
+
+Type-check, targeted ESLint, the MyStoreHub component tests (5/5), production
+build, and dynamic-chunk manifest verification passed. No E2E tests were run.

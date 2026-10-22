@@ -7,8 +7,8 @@
  * now only supply their tab model (lib/*HubTabs.ts), tab metadata and bodies.
  *
  * Deliberate choices (unchanged from the per-hub versions):
- *  - Tab bodies are STATICALLY imported by the caller, never next/dynamic: the
- *    warming engine caches only the chunks referenced by the route's HTML.
+ *  - Tab bodies may be loaded with next/dynamic; route-specific dynamic
+ *    chunks must be included in the offline warming manifest.
  *  - Tab switching uses history.replaceState, NOT router.push: no RSC request,
  *    so it works with no network.
  *  - Next.js does not reliably re-render on history.replaceState, so a local

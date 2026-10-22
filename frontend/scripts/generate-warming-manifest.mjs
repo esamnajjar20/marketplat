@@ -181,6 +181,7 @@ const routesData = {};
 const diagnostics = {};
 const routeLoadableSources = {
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
+  '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
 };
 for (const route of routes) {
   const sourcePath = urlToSource.get(route) || null;

@@ -7,8 +7,8 @@
  * (See lib/settingsHubTabs.ts for what is NOT a tab.)
  *
  * Same deliberate choices as components/stores/MyStoreTabsHub.tsx:
- *  - Tab bodies are STATICALLY imported, never next/dynamic (the warming
- *    engine caches only the chunks referenced by the route's HTML).
+ *  - Tab bodies are loaded with next/dynamic, and their chunks are included
+ *    in the route's offline warming manifest.
  *  - Tab switching uses history.replaceState, NOT router.push: no RSC
  *    request, so it works with no network. A local `active` state is kept in
  *    sync with useSearchParams() (URL stays the source of truth for deep

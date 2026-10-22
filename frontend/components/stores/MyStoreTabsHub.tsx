@@ -8,9 +8,8 @@
  *
  * Shell (tab bar, replaceState switching, in-place links) lives in
  * components/shared/hub/TabsHub.tsx. Deliberate choices, as in OfflineHub:
- *  - Tab bodies are STATICALLY imported, never next/dynamic. The warming
- *    engine caches only the chunks referenced by the route's HTML; a lazy
- *    tab would be blank the first time it is opened offline.
+ *  - Tab bodies are loaded with next/dynamic, and their chunks are included
+ *    in the route's offline warming manifest.
  *  - Tab switching uses history.replaceState, NOT router.push: no RSC request,
  *    so switching works with no network at all. Next.js syncs replaceState
  *    into useSearchParams(), which is our single source of truth for the
@@ -23,6 +22,7 @@
  */
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   BarChart3,
@@ -40,15 +40,6 @@ import { ROUTES } from '@/lib/constants';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { getStoreTypeLabels } from '@/types/store.types';
 import { Button } from '@/components/shared/ui/Button';
-import { MyStoreHub } from '@/components/stores/MyStoreHub';
-import { MyProductsList } from '@/components/stores/MyProductsList';
-import { MyCollectionsList } from '@/components/stores/MyCollectionsList';
-import { MyPromotionsList } from '@/components/stores/MyPromotionsList';
-import { MyStoreInventory } from '@/components/stores/MyStoreInventory';
-import { MyStoreMembersList } from '@/components/stores/MyStoreMembersList';
-import { MyMemberInvites } from '@/components/stores/MyMemberInvites';
-import { MyStoreAnalytics } from '@/components/stores/MyStoreAnalytics';
-import { StoreSettingsSection } from '@/components/stores/StoreSettingsSection';
 import {
   DEFAULT_MY_STORE_TAB,
   MY_STORE_HUB_PATH,
@@ -58,6 +49,43 @@ import {
   type MyStoreTab,
 } from '@/lib/myStoreHubTabs';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const MyStoreHub = dynamic(
+  () => import('@/components/stores/MyStoreHub').then((m) => m.MyStoreHub),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyProductsList = dynamic(
+  () => import('@/components/stores/MyProductsList').then((m) => m.MyProductsList),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyCollectionsList = dynamic(
+  () => import('@/components/stores/MyCollectionsList').then((m) => m.MyCollectionsList),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyPromotionsList = dynamic(
+  () => import('@/components/stores/MyPromotionsList').then((m) => m.MyPromotionsList),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyStoreInventory = dynamic(
+  () => import('@/components/stores/MyStoreInventory').then((m) => m.MyStoreInventory),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyStoreMembersList = dynamic(
+  () => import('@/components/stores/MyStoreMembersList').then((m) => m.MyStoreMembersList),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyMemberInvites = dynamic(
+  () => import('@/components/stores/MyMemberInvites').then((m) => m.MyMemberInvites),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyStoreAnalytics = dynamic(
+  () => import('@/components/stores/MyStoreAnalytics').then((m) => m.MyStoreAnalytics),
+  { loading: () => <SuspenseFallback /> },
+);
+const StoreSettingsSection = dynamic(
+  () => import('@/components/stores/StoreSettingsSection').then((m) => m.StoreSettingsSection),
+  { loading: () => <SuspenseFallback /> },
+);
 
 const TAB_META: Record<MyStoreTab, { label: string; Icon: typeof Package }> = {
   overview: { label: 'نظرة عامة', Icon: LayoutDashboard },
