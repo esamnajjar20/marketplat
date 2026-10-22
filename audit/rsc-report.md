@@ -545,3 +545,15 @@ sort controls, and results while retaining server category prefetch and
 hydration. Registered route sources for offline warming. Type-check passed
 and focused category/search tests passed (8/8). Bundle measurement is
 deferred to final verification.
+
+## Inventory reconciliation checkpoint
+
+Regenerated `audit/use-client-files.txt` from current frontend source so
+renamed route wrappers and extracted Client Components are reflected. The
+current snapshot contains 590 client-boundary files; the prior 584-entry
+snapshot had 30 stale paths and omitted 36 extracted components/hooks. Many
+remaining entries are interactive leaves, query/mutation hooks, browser/PWA
+integrations, or required Next.js error boundaries and must not have their
+client boundary removed indiscriminately. The full per-file triage is not
+complete, so the mandated final build and regression/revert phase have not
+started.
