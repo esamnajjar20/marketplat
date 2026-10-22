@@ -148,3 +148,14 @@ Native fetch alone did not avoid the dependency/client-graph bloat.
 - `/services` and `/search` are deferred after native-fetch experiments still
   increased First Load JS; a smaller client-card/result boundary is needed.
 - Ads/category results and message-history pagination remain pending.
+
+## Increment 5: account route-shell experiment (DEFERRED)
+
+Extracting the customer, debt, installment, and receipt pages into Client
+Component leaves behind Server Component route entries was measured in one
+account batch. The customer route rose from 207 to 208 kB and the debts route
+from 205 to 206 kB, so the entire batch was reverted per the no-regression
+rule, including the receipt page's native-fetch experiment (212 to 136 kB).
+The installment route remained at 204 kB. This indicates the remaining
+customer/debt interactive pages need a smaller client boundary before
+revisiting; no account source changes were retained.
