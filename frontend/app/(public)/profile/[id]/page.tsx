@@ -1,15 +1,22 @@
 import type { Metadata }       from 'next';
+import dynamic                 from 'next/dynamic';
 import { cache }               from 'react';
 import Link                    from 'next/link';
 import { UserX }  from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
-import { PublicProfileClient } from '@/components/profile/PublicProfileClient';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
 import { EmptyState }          from '@/components/shared/feedback/EmptyState';
 import { buildMetadata }       from '@/lib/seo';
 import { usersApi }            from '@/api/users.api';
 import { ROUTES }              from '@/lib/constants';
 import type { PublicUser }     from '@/types/user.types';
+
+const PublicProfileClient = dynamic(
+  () =>
+    import('@/components/profile/PublicProfileClient').then(
+      (module) => module.PublicProfileClient,
+    ),
+);
 
 interface Props { params: Promise<{ id: string }> }
 

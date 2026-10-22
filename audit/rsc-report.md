@@ -491,6 +491,14 @@ its chunk for `/ads/[id]` offline warming. Type-check passed and
 AdDetailSection tests passed (5/5). Bundle measurement is deferred to final
 verification.
 
+## Increment 36: defer public profile client fallback
+
+The public profile route now dynamically loads its client-side data fallback
+only when the server profile fetch fails, instead of including that fallback
+in every successful profile render. Added the route page to offline warming
+sources. Type-check passed; no focused route fallback test exists. Bundle
+measurement is deferred to final verification.
+
 ## Increment 34: split conversations sidebar chunk
 
 The messages layout now loads `ConversationList` as a separate dynamic

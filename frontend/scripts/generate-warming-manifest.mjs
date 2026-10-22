@@ -207,7 +207,10 @@ const routeLoadableSources = {
     'components/messages/MessageMedia.tsx',
   ],
   '/notifications': ['components/notifications/NotificationsPage.tsx'],
-  '/profile/[id]': ['components/profile/ProfileTabsSection.tsx'],
+  '/profile/[id]': [
+    'app/(public)/profile/[id]/page.tsx',
+    'components/profile/ProfileTabsSection.tsx',
+  ],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
   '/my-services': ['components/services/MyServicesTabsHub.tsx'],

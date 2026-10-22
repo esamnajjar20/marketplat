@@ -25,6 +25,7 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 | Creation form modules loaded before profile gates resolve | Route chunks | `components/ads/CreateAdGate.tsx`; `components/stores/CreateProductGate.tsx`; `components/services/CreateServiceListingGate.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Conversation sidebar statically loaded by messages layout | Route chunks | `app/(protected)/messages/layout.tsx` → `components/messages/ConversationList.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Related ads rail loaded with primary detail content | Route chunk | `components/ads/AdDetailSection.tsx` → `components/ads/RelatedAds.tsx` | Not measured under no-build directive | Improved; pending measurement |
+| Public profile client fallback loaded on successful server render | Route chunk | `app/(public)/profile/[id]/page.tsx` → `components/profile/PublicProfileClient.tsx` | Not measured under no-build directive | Improved; pending measurement |
 | Client-only Axios transport used by interactive features | Shared/client graph | `api/client.ts`, `api/*.api.ts`, query/mutation hooks; notably `components/messages/MessageInput.tsx` | Not separately attributable; `/messages/[id]` remains 278 kB | Accepted debt for offline-critical composer |
 | Heavy general-purpose libraries (Moment, Lodash, Recharts, Chart.js, Tiptap, Quill) | Dependency/source scan | `frontend/package.json`, application imports | 0 direct application imports found | None |
 | Heavy optional modules | Deferred client modules | `components/map/SearchResultsMap.tsx` / `SearchResultsMapInner.tsx` (`leaflet`, `react-leaflet`); `components/debug/ErudaDebug.tsx` (`eruda`); `components/admin/AdminAnalyticsDashboard.tsx` (already dynamically loaded) | Route-specific; map/debug/dashboard already isolated or conditionally loaded | Low / monitor |
@@ -90,6 +91,8 @@ source scan alone cannot reliably attribute shared/chunked bytes.
   thread routes; measurements are deferred to final verification.
 - Related ads load near the viewport after the main ad detail; measurement is
   deferred to final verification.
+- The public profile query fallback is loaded only after a server fetch
+  failure; measurement is deferred to final verification.
 
 ## Remaining / blocked
 
