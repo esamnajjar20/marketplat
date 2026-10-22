@@ -274,6 +274,19 @@ assets so tab navigation remains available offline after warming.
 Type-check, targeted ESLint, activity list tests (51/51), production build,
 and dynamic-chunk manifest verification passed. No E2E tests were run.
 
+## Increment 13: lazy-load non-ad favorites lists
+
+`FavoritesTabs` now loads product/store/service favorites only when that tab
+is selected; the default ads list remains in the initial route bundle. The
+offline warming manifest includes the dynamic entity-list assets.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/favorites` | 278 kB | 272 kB | 2.16% |
+
+Type-check, targeted ESLint, favorites tests (18/18), production build, and
+dynamic-chunk manifest verification passed. No E2E tests were run.
+
 ## Increment 11: lazy-load conversation media gallery
 
 `ChatWindow` now loads the media gallery only when the gallery sheet opens;

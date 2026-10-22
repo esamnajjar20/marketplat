@@ -181,6 +181,7 @@ const routesData = {};
 const diagnostics = {};
 const routeLoadableSources = {
   '/activity': ['components/profile/ActivityTabsHub.tsx'],
+  '/favorites': ['components/profile/FavoritesTabs.tsx'],
   '/messages': ['components/messages/ChatWindow.tsx'],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],

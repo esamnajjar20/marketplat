@@ -48,23 +48,23 @@ describe('FavoritesTabs', () => {
     expect(screen.getByTestId('favorites-list-ad')).toBeInTheDocument();
   });
 
-  it('renders EntityFavoritesList type="PRODUCT" for ?type=product', () => {
+  it('renders EntityFavoritesList type="PRODUCT" for ?type=product', async () => {
     mockSearchParams = new URLSearchParams('type=product');
     render(<FavoritesTabs />);
     expect(screen.getByRole('tab', { name: 'المنتجات' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('entity-favorites-PRODUCT')).toBeInTheDocument();
+    expect(await screen.findByTestId('entity-favorites-PRODUCT')).toBeInTheDocument();
   });
 
-  it('renders EntityFavoritesList type="STORE" for ?type=store', () => {
+  it('renders EntityFavoritesList type="STORE" for ?type=store', async () => {
     mockSearchParams = new URLSearchParams('type=store');
     render(<FavoritesTabs />);
-    expect(screen.getByTestId('entity-favorites-STORE')).toBeInTheDocument();
+    expect(await screen.findByTestId('entity-favorites-STORE')).toBeInTheDocument();
   });
 
-  it('renders EntityFavoritesList type="SERVICE_LISTING" for ?type=service', () => {
+  it('renders EntityFavoritesList type="SERVICE_LISTING" for ?type=service', async () => {
     mockSearchParams = new URLSearchParams('type=service');
     render(<FavoritesTabs />);
-    expect(screen.getByTestId('entity-favorites-SERVICE_LISTING')).toBeInTheDocument();
+    expect(await screen.findByTestId('entity-favorites-SERVICE_LISTING')).toBeInTheDocument();
   });
 
   it('replaces the favorites page with no ?type= when switching back to "ad"', async () => {
