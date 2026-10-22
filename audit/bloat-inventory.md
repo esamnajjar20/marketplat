@@ -7,7 +7,7 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 
 | Cause | Type | Files Affected | Est. Impact (kB) | Priority |
 |---|---|---|---:|---|
-| Client dependency graph and tab panels statically imported together | Route chunks | `components/admin/AdminTabsHub.tsx`; `components/settings/SettingsTabsHub.tsx`; `components/stores/MyStoreTabsHub.tsx`; `components/profile/ActivityTabsHub.tsx` | Measured reductions: `/admin` -206, `/settings` -168, `/my-store` -94, `/activity` -139 | Resolved |
+| Client dependency graph and tab panels statically imported together | Route chunks | `components/admin/AdminTabsHub.tsx`; `components/settings/SettingsTabsHub.tsx`; `components/stores/MyStoreTabsHub.tsx`; `components/services/MyServicesTabsHub.tsx`; `components/profile/ActivityTabsHub.tsx` | Measured reductions: `/admin` -206, `/settings` -168, `/my-store` -94, `/my-services` -167, `/activity` -139 | Resolved |
 | Client-only Axios transport used by interactive features | Shared/client graph | `api/client.ts`, `api/*.api.ts`, query/mutation hooks; notably `components/messages/MessageInput.tsx` | Not separately attributable; `/messages/[id]` remains 278 kB | Accepted debt for offline-critical composer |
 | Heavy general-purpose libraries (Moment, Lodash, Recharts, Chart.js, Tiptap, Quill) | Dependency/source scan | `frontend/package.json`, application imports | 0 direct application imports found | None |
 | Heavy optional modules | Deferred client modules | `components/map/SearchResultsMap.tsx` / `SearchResultsMapInner.tsx` (`leaflet`, `react-leaflet`); `components/debug/ErudaDebug.tsx` (`eruda`); `components/admin/AdminAnalyticsDashboard.tsx` (already dynamically loaded) | Route-specific; map/debug/dashboard already isolated or conditionally loaded | Low / monitor |
@@ -33,6 +33,7 @@ source scan alone cannot reliably attribute shared/chunked bytes.
 - `/stores/[id]`: 323 → 320 kB.
 - `/messages/[id]`: media gallery is lazy-loaded; route remains 278 kB.
 - `/notifications`: repeated notification rows are lazy-loaded; 238 → 236 kB.
+- `/my-services`: provider-workspace tabs are lazy-loaded; 297 → 130 kB.
 
 ## Remaining / blocked
 

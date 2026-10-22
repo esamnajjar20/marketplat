@@ -186,6 +186,7 @@ const routeLoadableSources = {
   '/notifications': ['components/notifications/NotificationsPage.tsx'],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
+  '/my-services': ['components/services/MyServicesTabsHub.tsx'],
   '/stores': ['components/stores/StoreStorefront.tsx'],
 };
 for (const route of routes) {

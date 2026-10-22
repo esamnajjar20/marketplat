@@ -7,8 +7,8 @@
  * (See lib/myServicesHubTabs.ts for what is NOT a tab.)
  *
  * Same deliberate choices as components/stores/MyStoreTabsHub.tsx:
- *  - Tab bodies are STATICALLY imported, never next/dynamic (the warming
- *    engine caches only the chunks referenced by the route's HTML).
+ *  - Tab bodies are loaded with next/dynamic, and their chunks are included
+ *    in the route's offline warming manifest.
  *  - Tab switching uses history.replaceState, NOT router.push: no RSC
  *    request, so it works with no network. A local `active` state is kept in
  *    sync with useSearchParams() (URL stays the source of truth for deep
@@ -19,16 +19,12 @@
  */
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { BarChart3, CalendarClock, Inbox, LayoutDashboard, Plus } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { ROUTES } from '@/lib/constants';
 import { Button } from '@/components/shared/ui/Button';
-import { MyServicesHub } from '@/components/services/MyServicesHub';
-import { MyServiceListingsList } from '@/components/services/MyServiceListingsList';
-import { IncomingServiceRequestsList } from '@/components/services/IncomingServiceRequestsList';
-import { MyAppointmentsSection } from '@/components/services/MyAppointmentsSection';
-import { MyServiceProviderAnalytics } from '@/components/services/MyServiceProviderAnalytics';
 import {
   DEFAULT_MY_SERVICES_TAB,
   MY_SERVICES_HUB_PATH,
@@ -38,6 +34,39 @@ import {
   type MyServicesTab,
 } from '@/lib/myServicesHubTabs';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const MyServicesHub = dynamic(
+  () => import('@/components/services/MyServicesHub').then((m) => m.MyServicesHub),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyServiceListingsList = dynamic(
+  () =>
+    import('@/components/services/MyServiceListingsList').then(
+      (m) => m.MyServiceListingsList,
+    ),
+  { loading: () => <SuspenseFallback /> },
+);
+const IncomingServiceRequestsList = dynamic(
+  () =>
+    import('@/components/services/IncomingServiceRequestsList').then(
+      (m) => m.IncomingServiceRequestsList,
+    ),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyAppointmentsSection = dynamic(
+  () =>
+    import('@/components/services/MyAppointmentsSection').then(
+      (m) => m.MyAppointmentsSection,
+    ),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyServiceProviderAnalytics = dynamic(
+  () =>
+    import('@/components/services/MyServiceProviderAnalytics').then(
+      (m) => m.MyServiceProviderAnalytics,
+    ),
+  { loading: () => <SuspenseFallback /> },
+);
 
 const TAB_META: Record<MyServicesTab, { label: string; description: string; Icon: typeof Inbox }> = {
   overview: { label: 'نظرة عامة', description: 'حالة العمل والإجراءات اليومية', Icon: LayoutDashboard },

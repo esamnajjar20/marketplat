@@ -327,6 +327,24 @@ route's dynamic identifier also is not currently a concrete route in the
 offline warming route list, so a follow-up must account for that before
 adding a dynamic chunk to the offline manifest.
 
+## Increment 17: split my-services provider workspace tabs
+
+The provider workspace now loads its overview, listings, incoming requests,
+appointments, and analytics panels through `next/dynamic`. The tab shell and
+URL-based navigation remain unchanged. Added all generated panel chunks to
+the `/my-services` offline warming entry and verified every React Loadable
+asset is present there.
+
+| Route | Before | After | Improvement % |
+|---|---:|---:|---:|
+| `/my-services` | 297 kB | 130 kB | 56.23% |
+
+Type-check, targeted ESLint, production build, and warming-manifest
+verification passed. The available `MyServicesHub` component suite reported
+3 existing expectation failures (loading label, availability text, and
+duplicate count match); this suite directly tests the unchanged panel rather
+than the tab loader. No E2E tests were run.
+
 ## Increment 11: lazy-load conversation media gallery
 
 `ChatWindow` now loads the media gallery only when the gallery sheet opens;
