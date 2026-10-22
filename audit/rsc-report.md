@@ -119,6 +119,24 @@ existing ConversationList test failure: it queries the “الأرشيف” tab 
 button although the rendered control has `role="tab"`; no ConversationList
 code was changed.
 
+## Increment 4: deferred services and unified search pagination
+
+Both routes were experimentally changed to fetch their first page with native
+server `fetch` and request later pages with explicit client Load More controls.
+The experiment was reverted after the production build showed large First
+Load JS regressions, despite not importing the Axios API client. The measured
+client-rendered card/result graph remains too costly to attach to these
+routes; a smaller client boundary is needed before retrying.
+
+| Route | Old Bundle Size | Experimental Bundle Size | Change |
+|---|---:|---:|---:|
+| `/services` | 107 kB | 245 kB | +129.0% |
+| `/search` | 107 kB | 269 kB | +151.4% |
+
+The experiment was reverted as required. Both routes remain on their
+previous client-side infinite-query implementations; no E2E tests were run.
+Native fetch alone did not avoid the dependency/client-graph bloat.
+
 ## Global infinite-scroll inventory
 
 - `audit/infinite-scroll-inventory.md` records all six infinite-query routes,
@@ -127,6 +145,6 @@ code was changed.
 - `/promoted` is converted to explicit Load More.
 - `/products` and `/stores` were deferred after dependency/client-graph
   regressions; native `fetch` is required for the next attempt.
-- `/services`, `/search`, ads/category results, and message-history
-  pagination remain pending; catalog migrations should use native `fetch`
-  for server first pages and Load More.
+- `/services` and `/search` are deferred after native-fetch experiments still
+  increased First Load JS; a smaller client-card/result boundary is needed.
+- Ads/category results and message-history pagination remain pending.

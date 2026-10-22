@@ -23,11 +23,11 @@ was found.
 | Route | Status | First Load JS | Notes |
 |---|---|---:|---|
 | `/promoted` | Converted | 230 → 229 kB | Server-rendered initial results with explicit Load More. |
-| `/products` | Deferred | 119 → 248 kB (experiment reverted) | The server-rendered card graph increased route JS; see `audit/rsc-report.md`. |
-| `/stores` | Deferred | 116 → 231 kB (experiment reverted) | The server-rendered card graph increased route JS; see `audit/rsc-report.md`. |
-| `/services` | Pending | — | Not yet migrated. |
-| `/search` | Pending | — | Not yet migrated. |
-| `/ads`, `/categories/[slug]` | Pending | — | Not yet migrated. |
+| `/products` | Deferred | 119 → 248 kB (experiment reverted) | Dependency/client-graph bloat; the server experiment imported the heavy product-card client graph. Keep existing pagination until server and Load More requests use lightweight native fetch rather than `apiClient`. |
+| `/stores` | Deferred | 116 → 231 kB (experiment reverted) | Dependency/client-graph bloat; the server experiment imported the store-card client graph. Keep existing pagination until server and Load More requests use lightweight native fetch rather than `apiClient`. |
+| `/services` | Deferred | 107 → 245 kB (experiment reverted) | Native-fetch server first page and explicit Load More compiled, but rendering the service-card client graph raised First Load JS by 129.0%. See `audit/rsc-report.md`. |
+| `/search` | Deferred | 107 → 269 kB (experiment reverted) | Native-fetch server first page and explicit Load More compiled, but rendering the unified-search client graph raised First Load JS by 151.4%. See `audit/rsc-report.md`. |
+| `/ads`, `/categories/[slug]` | Pending | — | Refactor server first-page and client Load More requests to native `fetch`; preserve category-slug resolution. |
 
 ## Other intersection observers
 
