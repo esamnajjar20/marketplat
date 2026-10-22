@@ -398,6 +398,13 @@ Moved the interactive customer-management screen behind a Server Component
 route wrapper and registered its dynamic chunk for offline warming.
 Type-check passed; no focused customer-management test exists. Bundle
 measurement is deferred to final verification.
+
+## Increment 25: isolate account debt and installment screens
+
+Moved both interactive sales screens behind Server Component route wrappers
+and registered their chunks for offline warming. Type-check passed; no
+focused debt/installment route tests exist. Bundle measurements are deferred
+to final verification.
 ## Increment 21: isolate request offers route
 
 Moved the interactive offers manager behind a Server Component route wrapper
