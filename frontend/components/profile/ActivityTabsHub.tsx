@@ -7,7 +7,8 @@
  * (See lib/activityHubTabs.ts for what is NOT a tab.)
  *
  * Same deliberate choices as components/stores/MyStoreTabsHub.tsx:
- *  - Tab bodies are STATICALLY imported, never next/dynamic.
+ *  - Tab bodies are loaded with next/dynamic, and their chunks are included
+ *    in the route's offline warming manifest.
  *  - Tab switching uses history.replaceState, NOT router.push.
  *  - Local `active` state kept in sync with useSearchParams().
  *  - Links inside the panel that point at /activity are handled in place.
@@ -15,15 +16,12 @@
  */
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ClipboardList, Flag, History, ListOrdered, Plus } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { ROUTES } from '@/lib/constants';
 import { Button } from '@/components/shared/ui/Button';
-import { Timeline } from '@/components/profile/Timeline';
-import { MyAdsList } from '@/components/profile/MyAdsList';
-import { MyReportsList } from '@/components/profile/MyReportsList';
-import { MyServiceRequestsList } from '@/components/services/MyServiceRequestsList';
 import {
   ACTIVITY_HUB_PATH,
   ACTIVITY_TABS,
@@ -33,6 +31,23 @@ import {
   type ActivityTab,
 } from '@/lib/activityHubTabs';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+
+const Timeline = dynamic(
+  () => import('@/components/profile/Timeline').then((m) => m.Timeline),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyAdsList = dynamic(
+  () => import('@/components/profile/MyAdsList').then((m) => m.MyAdsList),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyReportsList = dynamic(
+  () => import('@/components/profile/MyReportsList').then((m) => m.MyReportsList),
+  { loading: () => <SuspenseFallback /> },
+);
+const MyServiceRequestsList = dynamic(
+  () => import('@/components/services/MyServiceRequestsList').then((m) => m.MyServiceRequestsList),
+  { loading: () => <SuspenseFallback /> },
+);
 
 const TAB_META: Record<ActivityTab, { label: string; Icon: typeof History }> = {
   timeline: { label: 'سجل النشاط', Icon: History },

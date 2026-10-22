@@ -261,6 +261,19 @@ chunks so warmed tabs remain available offline.
 Type-check, targeted ESLint, the MyStoreHub component tests (5/5), production
 build, and dynamic-chunk manifest verification passed. No E2E tests were run.
 
+## Increment 12: split activity hub tabs
+
+The activity hub now dynamically loads its timeline, ads, requests, and
+reports tabs. All tab chunks are included in the `/activity` offline warming
+assets so tab navigation remains available offline after warming.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/activity` | 269 kB | 130 kB | 51.67% |
+
+Type-check, targeted ESLint, activity list tests (51/51), production build,
+and dynamic-chunk manifest verification passed. No E2E tests were run.
+
 ## Increment 11: lazy-load conversation media gallery
 
 `ChatWindow` now loads the media gallery only when the gallery sheet opens;
