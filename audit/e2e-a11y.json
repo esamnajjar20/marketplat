@@ -1,0 +1,7 @@
+{
+  "status": "not_run",
+  "reason": "The full E2E quality gate is blocked by unresolved unit-suite failures. @axe-core/playwright is not installed and no automated axe scans were executed.",
+  "severityThreshold": ["serious", "critical"],
+  "violations": null,
+  "pagesScanned": []
+}

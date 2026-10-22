@@ -105,7 +105,7 @@ The original browser-launch failure is classified as ENV/INFRA and required host
 - Baseline lint errors were fixed; final lint exits 0 with 54 warnings. Type-check and build pass.
 - Business-flow specs need an isolated auth/backend seed or complete route-level API mocks before those tests can be called deterministic.
 - If user-facing locale switching is not a product requirement, locale-switching coverage remains N-A; no new behavior is assumed.
-- `audit/e2e-a11y.json` was not generated: axe is not installed and the all-pages scan has not been implemented. Visual baselines and HTML full-suite reporting are likewise not claimed.
+- `audit/e2e-a11y.json` records `not_run`; axe is not installed and no all-pages scan was executed. Visual baselines and HTML full-suite reporting are likewise not claimed.
 
 ## 7. Running Locally
 
