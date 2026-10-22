@@ -31,7 +31,7 @@ describe('ProfileStoreSummary', () => {
     expect(screen.getByText('متجري')).toBeInTheDocument();
     expect(screen.getByText(/5 منتج/)).toBeInTheDocument();
     expect(screen.getByText(/12 متابع/)).toBeInTheDocument();
-    expect(screen.getByText('مميز')).toBeInTheDocument();
+    expect(screen.getByText('متجر مميز')).toBeInTheDocument();
   });
 
   it('links to the store detail page', () => {
@@ -44,6 +44,6 @@ describe('ProfileStoreSummary', () => {
     render(
       <ProfileStoreSummary store={{ ...store, plan: 'FREE' } as any} />,
     );
-    expect(screen.queryByText('مميز')).not.toBeInTheDocument();
+    expect(screen.queryByText('متجر مميز')).not.toBeInTheDocument();
   });
 });

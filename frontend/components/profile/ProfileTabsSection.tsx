@@ -1,15 +1,29 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProfileTabs, type ProfileTabValue } from '@/components/profile/ProfileTabs';
-import { PublicProfileAds } from '@/components/profile/PublicProfileAds';
-import { ProfileStoreSummary } from '@/components/profile/ProfileStoreSummary';
-import { ProfileServiceProviderSummary } from '@/components/profile/ProfileServiceProviderSummary';
-import { SellerRatingsList } from '@/components/sellers/SellerRatingsList';
-import { ServiceReviewsList } from '@/components/services/ServiceReviewsList';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { PublicUser } from '@/types/user.types';
+
+const PublicProfileAds = dynamic(() =>
+  import('@/components/profile/PublicProfileAds').then((module) => module.PublicProfileAds),
+);
+const ProfileStoreSummary = dynamic(() =>
+  import('@/components/profile/ProfileStoreSummary').then((module) => module.ProfileStoreSummary),
+);
+const ProfileServiceProviderSummary = dynamic(() =>
+  import('@/components/profile/ProfileServiceProviderSummary').then(
+    (module) => module.ProfileServiceProviderSummary,
+  ),
+);
+const SellerRatingsList = dynamic(() =>
+  import('@/components/sellers/SellerRatingsList').then((module) => module.SellerRatingsList),
+);
+const ServiceReviewsList = dynamic(() =>
+  import('@/components/services/ServiceReviewsList').then((module) => module.ServiceReviewsList),
+);
 
 interface Props { user: PublicUser; }
 

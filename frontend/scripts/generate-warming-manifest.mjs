@@ -184,6 +184,7 @@ const routeLoadableSources = {
   '/favorites': ['components/profile/FavoritesTabs.tsx'],
   '/messages': ['components/messages/ChatWindow.tsx'],
   '/notifications': ['components/notifications/NotificationsPage.tsx'],
+  '/profile/[id]': ['components/profile/ProfileTabsSection.tsx'],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
   '/my-services': ['components/services/MyServicesTabsHub.tsx'],

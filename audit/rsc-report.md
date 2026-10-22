@@ -382,6 +382,15 @@ Moved the interactive my-requests page behind a Server Component route wrapper
 and registered its dynamic chunk for offline warming. Type-check passed; no
 focused route test exists. Bundle measurement is deferred to final
 verification.
+
+## Increment 23: split public profile tab panels
+
+Changed the public profile tab panels to dynamic imports so ads, store,
+services, and ratings panels are only fetched when selected. Registered their
+chunks for offline warming. Type-check passed and focused profile tests passed
+(16/16); the focused run exposed a stale featured-badge expectation, updated
+to match the rendered “متجر مميز” label. Bundle measurement is deferred to
+final verification.
 ## Increment 21: isolate request offers route
 
 Moved the interactive offers manager behind a Server Component route wrapper
