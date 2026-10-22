@@ -359,3 +359,10 @@ optional gallery remains available when the route's offline assets are warm.
 The new bundle matches the original 278 kB baseline. Type-check, ESLint,
 ChatWindow tests (29/29), production build, and dynamic-chunk manifest
 verification passed. No E2E tests were run.
+
+## Increment 18: dashboard activity feed split (DEFERRED)
+
+Experimentally lazy-loaded the dashboard's recent activity feed. Type-check,
+targeted ESLint, and the focused RecentActivityFeed tests (7/7) passed, but
+the build measured `/dashboard` at 226 kB against its 222 kB baseline
+(+1.80%). Reverted the change as required.
