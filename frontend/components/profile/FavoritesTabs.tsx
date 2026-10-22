@@ -4,10 +4,13 @@ import dynamic from 'next/dynamic';
 import { useRef, type KeyboardEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { FavoritesList } from '@/components/profile/FavoritesList';
 import { ROUTES } from '@/lib/constants';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
+const FavoritesList = dynamic(
+  () => import('@/components/profile/FavoritesList').then((module) => module.FavoritesList),
+  { loading: () => <SuspenseFallback /> },
+);
 const EntityFavoritesList = dynamic(
   () => import('@/components/profile/EntityFavoritesList').then((m) => m.EntityFavoritesList),
   { loading: () => <SuspenseFallback /> },

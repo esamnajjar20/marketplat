@@ -197,6 +197,7 @@ const routeLoadableSources = {
   '/my-store/products/[id]/edit': ['app/(protected)/my-store/products/[id]/edit/page.tsx'],
   '/favorites': ['components/profile/FavoritesTabs.tsx'],
   '/messages': ['components/messages/ChatWindow.tsx'],
+  '/messages/[id]': ['components/messages/ChatWindow.tsx', 'components/messages/MessageMedia.tsx'],
   '/notifications': ['components/notifications/NotificationsPage.tsx'],
   '/profile/[id]': ['components/profile/ProfileTabsSection.tsx'],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],

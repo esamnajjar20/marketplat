@@ -1,13 +1,19 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { memo } from 'react';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
-import { VoiceMessagePlayer } from './VoiceMessagePlayer';
-import { MediaDownloadButton } from './MediaDownloadButton';
 import { cn } from '@/lib/utils';
 import { getThumbnailUrl } from '@/lib/cloudinary';
 import { splitMessageBody } from '@/lib/messageUtils';
 import type { DisplayMessage } from './messageTypes';
+
+const VoiceMessagePlayer = dynamic(
+  () => import('./VoiceMessagePlayer').then((module) => module.VoiceMessagePlayer),
+);
+const MediaDownloadButton = dynamic(
+  () => import('./MediaDownloadButton').then((module) => module.MediaDownloadButton),
+);
 
 type Props = { message: DisplayMessage; conversationId: string; isMine: boolean };
 

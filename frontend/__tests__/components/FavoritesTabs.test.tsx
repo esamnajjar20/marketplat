@@ -42,10 +42,10 @@ describe('FavoritesTabs', () => {
     mockSearchParams = new URLSearchParams();
   });
 
-  it('defaults to the "ad" tab (FavoritesList) with no ?type= param — preserves the pre-PR3 page exactly', () => {
+  it('defaults to the "ad" tab (FavoritesList) with no ?type= param — preserves the pre-PR3 page exactly', async () => {
     render(<FavoritesTabs />);
     expect(screen.getByRole('tab', { name: 'الإعلانات' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('favorites-list-ad')).toBeInTheDocument();
+    expect(await screen.findByTestId('favorites-list-ad')).toBeInTheDocument();
   });
 
   it('renders EntityFavoritesList type="PRODUCT" for ?type=product', async () => {

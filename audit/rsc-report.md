@@ -467,3 +467,11 @@ cost, smart-insight, and analytics panels to dynamic imports, so only the
 active tab loads its panel code. Registered the dynamic source for offline
 warming. Type-check passed; no dedicated SalesTabsHub test exists. Bundle
 measurement is deferred to final verification.
+
+## Increment 32: defer favorites and chat media modules
+
+The default ad-favorites list now loads as a dynamic panel, and chat voice
+playback/download controls are dynamically loaded only for media messages.
+Registered the message media chunks for offline warming. Type-check passed;
+FavoritesTabs tests passed (7/7). No MessageMedia-focused test exists. Bundle
+measurement is deferred to final verification.
