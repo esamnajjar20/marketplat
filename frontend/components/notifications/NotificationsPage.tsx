@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import Link from 'next/link';
 import {
@@ -29,7 +30,6 @@ import {
   type NotificationCategoryId,
 } from '@/lib/notificationMeta';
 import { ROUTES } from '@/lib/constants';
-import { NotificationRow } from '@/components/notifications/NotificationRow';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import type { Notification } from '@/types/notification.types';
@@ -41,6 +41,12 @@ import {
 
 import { Spinner } from '@/components/ui/spinner';
 const PAGE_SIZE = 20;
+const NotificationRow = dynamic(
+  () => import('@/components/notifications/NotificationRow').then((m) => m.NotificationRow),
+  {
+    loading: () => <li className="h-28 animate-pulse bg-muted/30" aria-hidden />,
+  },
+);
 
 type ReadTab = 'all' | 'unread';
 

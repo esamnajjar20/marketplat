@@ -301,6 +301,22 @@ Type-check, targeted ESLint, StoreStorefront/StoreReviewsList tests (10/10),
 production build, and dynamic-chunk manifest verification passed. No E2E
 tests were run.
 
+## Increment 15: lazy-load notification rows
+
+`NotificationsPage` now dynamically loads repeated `NotificationRow` client
+components rather than including the row module in its initial route chunk.
+The `/notifications` warming entry includes the emitted dynamic chunk, so
+the rows remain available after offline route warming.
+
+| Route | Before | After | Improvement % |
+|---|---:|---:|---:|
+| `/notifications` | 238 kB | 236 kB | 0.84% |
+
+Type-check and the focused NotificationsPage tests passed (12/12). Targeted
+ESLint reported only four existing exhaustive-deps warnings in that page.
+Production build and warming-manifest verification passed; no E2E tests were
+run.
+
 ## Increment 11: lazy-load conversation media gallery
 
 `ChatWindow` now loads the media gallery only when the gallery sheet opens;

@@ -183,6 +183,7 @@ const routeLoadableSources = {
   '/activity': ['components/profile/ActivityTabsHub.tsx'],
   '/favorites': ['components/profile/FavoritesTabs.tsx'],
   '/messages': ['components/messages/ChatWindow.tsx'],
+  '/notifications': ['components/notifications/NotificationsPage.tsx'],
   '/settings': ['components/settings/SettingsTabsHub.tsx'],
   '/my-store': ['components/stores/MyStoreTabsHub.tsx'],
   '/stores': ['components/stores/StoreStorefront.tsx'],

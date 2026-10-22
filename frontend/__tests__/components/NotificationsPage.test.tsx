@@ -124,12 +124,12 @@ describe('NotificationsPage', () => {
     mockPage();
   });
 
-  it('renders page title and notification items', () => {
+  it('renders page title and notification items', async () => {
     render(<NotificationsPage />);
 
     expect(screen.getByRole('heading', { name: 'الإشعارات' })).toBeInTheDocument();
-    expect(screen.getByText('رسالة جديدة')).toBeInTheDocument();
-    expect(screen.getByText('لديك رسالة من أحمد')).toBeInTheDocument();
+    expect(await screen.findByText('رسالة جديدة')).toBeInTheDocument();
+    expect(await screen.findByText('لديك رسالة من أحمد')).toBeInTheDocument();
   });
 
   it('shows mark-all-read when there are unread notifications', () => {
@@ -167,8 +167,8 @@ describe('NotificationsPage', () => {
     });
     render(<NotificationsPage />);
 
-    expect(screen.getByText('غير مقروء')).toBeInTheDocument();
-    expect(screen.getByText('مقروء')).toBeInTheDocument();
+    expect(await screen.findByText('غير مقروء')).toBeInTheDocument();
+    expect(await screen.findByText('مقروء')).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /غير مقروء/ })[0]);
 
