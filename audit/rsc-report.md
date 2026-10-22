@@ -42,6 +42,16 @@ respectively. The shared First Load JS remains 105 kB.
   increased First Load JS from the 119 kB baseline to 154 kB (+29.4%). The
   experiment was reverted rather than retaining a bundle regression; the
   existing route remains unchanged pending a smaller client-boundary split.
+- `/products` pagination experiment: server-rendering the initial product
+  grid with an extracted client toolbar/Load More control produced 248 kB
+  First Load JS against the same 119 kB baseline (+108.4%). The changes were
+  reverted; infinite-scroll removal for this route is deferred until an
+  implementation can avoid adding the product-card client graph to the route.
+- `/stores` pagination experiment: server-rendering the initial directory and
+  replacing infinite scrolling with an explicit Load More control produced
+  231 kB First Load JS against the 116 kB baseline (+99.1%). The experiment
+  was reverted to avoid the regression; this route is deferred pending a
+  smaller client boundary for the store-card graph.
 - `/requests/[id]` remains a Client Component for a later increment because
   its route entry currently owns request queries, authentication-dependent
   rendering, cancellation state/mutations, offer submission, and a dialog.

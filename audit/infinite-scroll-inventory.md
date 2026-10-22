@@ -18,6 +18,17 @@ was found.
 | `frontend/components/ads/SearchResults.tsx` | `/ads`, `/categories/[slug]` | Infinite ads query; `InfiniteScrollTrigger` |
 | `frontend/components/shared/list/InfiniteScrollTrigger.tsx` | All six routes above | Shared `IntersectionObserver` trigger for fetching the next page |
 
+## Migration status
+
+| Route | Status | First Load JS | Notes |
+|---|---|---:|---|
+| `/promoted` | Converted | 230 → 229 kB | Server-rendered initial results with explicit Load More. |
+| `/products` | Deferred | 119 → 248 kB (experiment reverted) | The server-rendered card graph increased route JS; see `audit/rsc-report.md`. |
+| `/stores` | Deferred | 116 → 231 kB (experiment reverted) | The server-rendered card graph increased route JS; see `audit/rsc-report.md`. |
+| `/services` | Pending | — | Not yet migrated. |
+| `/search` | Pending | — | Not yet migrated. |
+| `/ads`, `/categories/[slug]` | Pending | — | Not yet migrated. |
+
 ## Other intersection observers
 
 | Source file | Route(s) | Behavior |
