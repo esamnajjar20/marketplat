@@ -1,11 +1,17 @@
-'use client';
-
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { CreateRequestForm } from '@/components/requests/CreateRequestForm';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ROUTES } from '@/lib/constants';
+
+const CreateRequestForm = dynamic(
+  () =>
+    import('@/components/requests/CreateRequestForm').then(
+      (module) => module.CreateRequestForm,
+    ),
+  { loading: () => <LoadingSpinner /> },
+);
 
 /**
  * Next.js 15 requires any client

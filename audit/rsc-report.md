@@ -368,6 +368,14 @@ and default SSR behavior. The dynamic module is added to the route's offline
 warming source map. Type-check and focused SavedSearchesList tests passed
 (13/13). Bundle measurement is deferred to the final verification build.
 
+## Increment 20: isolate request creation form
+
+Converted `/requests/new`'s route wrapper to a Server Component and dynamically
+loaded the interactive `CreateRequestForm` Client Component with SSR enabled.
+Added the generated form chunk to the route's offline warming source map.
+Type-check and focused stepper tests passed (6/6). Bundle measurement is
+deferred to the final verification build.
+
 ## Increment 18: dashboard activity feed split (DEFERRED)
 
 Experimentally lazy-loaded the dashboard's recent activity feed. Type-check,
