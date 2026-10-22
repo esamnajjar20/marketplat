@@ -199,6 +199,8 @@ const routeLoadableSources = {
   '/requests/new': ['app/(protected)/requests/new/page.tsx'],
   '/requests/me': ['app/(protected)/requests/me/page.tsx'],
   '/requests/offers': ['app/(protected)/requests/offers/page.tsx'],
+  '/requests/[id]': ['app/(public)/requests/[id]/page.tsx'],
+  '/service-requests/[id]': ['app/(protected)/service-requests/[id]/page.tsx'],
   '/stories': ['app/(protected)/stories/page.tsx'],
   '/stores': ['components/stores/StoreStorefront.tsx'],
 };

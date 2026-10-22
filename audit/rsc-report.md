@@ -433,3 +433,11 @@ The ad, service-listing, and product edit routes now load their heavy forms
 through dynamic chunks after route data and ownership checks resolve. Added
 the chunks to offline warming. Type-check passed; focused form tests passed
 (41 passed, 10 skipped). Bundle measurement is deferred to final verification.
+
+## Increment 28: defer request detail actions
+
+The public request detail route now dynamically loads the offer form and
+offers list, and the protected service-request detail route defers its
+timeline. Type-check passed; no focused route/timeline tests exist. Registered
+the chunks for offline warming. Bundle measurement is deferred to final
+verification.

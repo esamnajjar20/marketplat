@@ -18,6 +18,7 @@
  * error — same pattern as my-services/[id]/edit's isError → notFound().
  */
 import { use } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { notFound } from 'next/navigation';
@@ -36,7 +37,13 @@ import {
   SERVICE_REQUEST_STATUS_LABELS,
   SERVICE_REQUEST_STATUS_VARIANT,
 } from '@/lib/serviceRequestStatus';
-import { ServiceRequestTimeline } from '@/components/services/ServiceRequestTimeline';
+
+const ServiceRequestTimeline = dynamic(
+  () =>
+    import('@/components/services/ServiceRequestTimeline').then(
+      (module) => module.ServiceRequestTimeline,
+    ),
+);
 
 interface Props {
   params: Promise<{ id: string }>;

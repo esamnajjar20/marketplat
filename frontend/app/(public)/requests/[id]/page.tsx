@@ -1,4 +1,6 @@
 'use client';
+
+import dynamic from 'next/dynamic';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
@@ -21,11 +23,22 @@ import {
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
-import { RequestOfferForm } from '@/components/requests/RequestOfferForm';
-import { RequestOffersList } from '@/components/requests/RequestOffersList';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { parseApiError } from '@/lib/errorParser';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+
+const RequestOfferForm = dynamic(
+  () =>
+    import('@/components/requests/RequestOfferForm').then(
+      (module) => module.RequestOfferForm,
+    ),
+);
+const RequestOffersList = dynamic(
+  () =>
+    import('@/components/requests/RequestOffersList').then(
+      (module) => module.RequestOffersList,
+    ),
+);
 
 export default function RequestDetailPage() {
   const params = useParams();
