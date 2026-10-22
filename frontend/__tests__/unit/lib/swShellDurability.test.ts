@@ -107,6 +107,22 @@ describe('sw.js — redirected documents (FIX SHELL-REDIRECT-01)', () => {
 describe('sw.js — failed shell saves are retried (FIX SHELL-RETRY-01)', () => {
   const PENDING = `${ORIGIN}/__sw-pending-shells`;
 
+  it('does not announce a successful save on the first visit', async () => {
+    const ctx = loadSw();
+    ctx.setFetch(async (i) => pathOf(i) === '/first-visit'
+      ? htmlRes('first visit')
+      : Promise.reject(new TypeError('unexpected')));
+    const cache = await ctx.fakeCaches.open(ctx.sb.self.__STATIC);
+
+    await ctx.sb.cacheVisitedDocumentShell(new URL(`${ORIGIN}/first-visit`), cache);
+
+    expect(await ctx.has(ctx.sb.self.__STATIC, `${ORIGIN}/first-visit`)).toBe(true);
+    expect(ctx.messages.some((message) =>
+      message.type === 'SHELL_CACHE_RESULT' && message.status === 'saved',
+    )).toBe(false);
+    expect(await (await ctx.fakeCaches.open(ctx.sb.self.__META)).match(PENDING)).toBeUndefined();
+  });
+
   it('records a pending entry, tells the client, and saves on retry', async () => {
     const ctx = loadSw();
     let assetOk = false;
