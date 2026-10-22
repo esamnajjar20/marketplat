@@ -1,0 +1,24 @@
+
+Running 20 tests using 1 worker
+
+[1/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › / responds and renders a document
+[2/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /search responds and renders a document
+[3/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /ads responds and renders a document
+[4/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /products responds and renders a document
+[5/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /services responds and renders a document
+[6/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /categories responds and renders a document
+[7/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /stores responds and renders a document
+[8/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /requests responds and renders a document
+[9/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /about responds and renders a document
+[10/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /contact responds and renders a document
+[11/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /privacy responds and renders a document
+[12/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /terms responds and renders a document
+[13/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:21:9 › public marketplace routes › /offline responds and renders a document
+[14/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:31:5 › homepage has a main landmark and a non-empty document title
+[15/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:37:5 › authentication pages render usable forms
+[16/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:45:5 › unauthenticated user is redirected away from protected account pages
+[17/20] [chromium] › e2e/tests/marketplace-smoke.spec.ts:53:5 › mobile viewport does not overflow horizontally on key public routes
+[18/20] [chromium] › e2e/tests/route-query-and-not-found.spec.ts:13:7 › route query resilience and not-found recovery › common query strings do not produce server errors
+[19/20] [chromium] › e2e/tests/route-query-and-not-found.spec.ts:22:7 › route query resilience and not-found recovery › an unknown public route offers working home and search destinations
+[20/20] [chromium] › e2e/tests/route-query-and-not-found.spec.ts:29:7 › route query resilience and not-found recovery › query parameter values do not become executable markup
+  20 passed (57.6s)
