@@ -376,6 +376,13 @@ Added the generated form chunk to the route's offline warming source map.
 Type-check and focused stepper tests passed (6/6). Bundle measurement is
 deferred to the final verification build.
 
+## Increment 21: isolate request offers route
+
+Moved the interactive offers manager behind a Server Component route wrapper
+and added its dynamic chunk to the offline warming source map. Type-check
+passed; no focused route test exists. Bundle measurement is deferred to the
+final verification build.
+
 ## Increment 18: dashboard activity feed split (DEFERRED)
 
 Experimentally lazy-loaded the dashboard's recent activity feed. Type-check,
