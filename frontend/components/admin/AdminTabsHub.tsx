@@ -36,35 +36,39 @@ import {
   type AdminTab,
 } from '@/lib/adminHubTabs';
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
-import { AdminExportButton } from '@/components/admin/AdminExportButton';
-import { AdminStatsGrid } from '@/components/admin/AdminStatsGrid';
-import { AdminRecentActivity } from '@/components/admin/AdminRecentActivity';
-import { BroadcastNotificationButton } from '@/components/admin/BroadcastNotificationButton';
-import { AdminOpsQueue } from '@/components/admin/AdminOpsQueue';
-import { AdminPlatformTrends } from '@/components/admin/AdminPlatformTrends';
-import { AdminAdsTable } from '@/components/admin/AdminAdsTable';
-import { AdminUsersTable } from '@/components/admin/AdminUsersTable';
-import { AdminSellersTable } from '@/components/admin/AdminSellersTable';
-import { AdminStoresTable } from '@/components/admin/AdminStoresTable';
-import { StoreTypesAdmin } from '@/components/admin/StoreTypesAdmin';
-import { ServiceTypesAdmin } from '@/components/admin/ServiceTypesAdmin';
-import { AdminReportsTable } from '@/components/admin/AdminReportsTable';
-import { AdminFraudTable } from '@/components/admin/AdminFraudTable';
-import { AdminProductsTable } from '@/components/admin/AdminProductsTable';
-import { AdminServiceListingsTable } from '@/components/admin/AdminServiceListingsTable';
-import { AdminOpenRequestsTable } from '@/components/admin/AdminOpenRequestsTable';
-import { AdminServiceRequestDisputesTable } from '@/components/admin/AdminServiceRequestDisputesTable';
-import { AdminCategoryTypeTabs } from '@/components/admin/AdminCategoryTypeTabs';
-import { AdminCategoriesTree } from '@/components/admin/AdminCategoriesTree';
-import { AdminProductCategoriesTree } from '@/components/admin/AdminProductCategoriesTree';
-import { AdminServiceCategoriesTree } from '@/components/admin/AdminServiceCategoriesTree';
-import { CreateCategoryButton } from '@/components/admin/CreateCategoryButton';
-import { CreateProductCategoryButton } from '@/components/admin/CreateProductCategoryButton';
-import { CreateServiceCategoryButton } from '@/components/admin/CreateServiceCategoryButton';
-import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
-import { AdminMonitoringCenter } from '@/components/admin/AdminMonitoringCenter';
-import { AdminDeveloperToolsControl } from '@/components/admin/AdminDeveloperToolsControl';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
+
+const adminTabLoading = () => (
+  <PageLoadingState variant="cards" title="جارٍ التحميل" description="نجهّز القسم…" />
+);
+const AdminExportButton = dynamic(() => import('@/components/admin/AdminExportButton').then((m) => m.AdminExportButton), { loading: adminTabLoading });
+const AdminStatsGrid = dynamic(() => import('@/components/admin/AdminStatsGrid').then((m) => m.AdminStatsGrid), { loading: adminTabLoading });
+const AdminRecentActivity = dynamic(() => import('@/components/admin/AdminRecentActivity').then((m) => m.AdminRecentActivity), { loading: adminTabLoading });
+const BroadcastNotificationButton = dynamic(() => import('@/components/admin/BroadcastNotificationButton').then((m) => m.BroadcastNotificationButton), { loading: adminTabLoading });
+const AdminOpsQueue = dynamic(() => import('@/components/admin/AdminOpsQueue').then((m) => m.AdminOpsQueue), { loading: adminTabLoading });
+const AdminPlatformTrends = dynamic(() => import('@/components/admin/AdminPlatformTrends').then((m) => m.AdminPlatformTrends), { loading: adminTabLoading });
+const AdminAdsTable = dynamic(() => import('@/components/admin/AdminAdsTable').then((m) => m.AdminAdsTable), { loading: adminTabLoading });
+const AdminUsersTable = dynamic(() => import('@/components/admin/AdminUsersTable').then((m) => m.AdminUsersTable), { loading: adminTabLoading });
+const AdminSellersTable = dynamic(() => import('@/components/admin/AdminSellersTable').then((m) => m.AdminSellersTable), { loading: adminTabLoading });
+const AdminStoresTable = dynamic(() => import('@/components/admin/AdminStoresTable').then((m) => m.AdminStoresTable), { loading: adminTabLoading });
+const StoreTypesAdmin = dynamic(() => import('@/components/admin/StoreTypesAdmin').then((m) => m.StoreTypesAdmin), { loading: adminTabLoading });
+const ServiceTypesAdmin = dynamic(() => import('@/components/admin/ServiceTypesAdmin').then((m) => m.ServiceTypesAdmin), { loading: adminTabLoading });
+const AdminReportsTable = dynamic(() => import('@/components/admin/AdminReportsTable').then((m) => m.AdminReportsTable), { loading: adminTabLoading });
+const AdminFraudTable = dynamic(() => import('@/components/admin/AdminFraudTable').then((m) => m.AdminFraudTable), { loading: adminTabLoading });
+const AdminProductsTable = dynamic(() => import('@/components/admin/AdminProductsTable').then((m) => m.AdminProductsTable), { loading: adminTabLoading });
+const AdminServiceListingsTable = dynamic(() => import('@/components/admin/AdminServiceListingsTable').then((m) => m.AdminServiceListingsTable), { loading: adminTabLoading });
+const AdminOpenRequestsTable = dynamic(() => import('@/components/admin/AdminOpenRequestsTable').then((m) => m.AdminOpenRequestsTable), { loading: adminTabLoading });
+const AdminServiceRequestDisputesTable = dynamic(() => import('@/components/admin/AdminServiceRequestDisputesTable').then((m) => m.AdminServiceRequestDisputesTable), { loading: adminTabLoading });
+const AdminCategoryTypeTabs = dynamic(() => import('@/components/admin/AdminCategoryTypeTabs').then((m) => m.AdminCategoryTypeTabs), { loading: adminTabLoading });
+const AdminCategoriesTree = dynamic(() => import('@/components/admin/AdminCategoriesTree').then((m) => m.AdminCategoriesTree), { loading: adminTabLoading });
+const AdminProductCategoriesTree = dynamic(() => import('@/components/admin/AdminProductCategoriesTree').then((m) => m.AdminProductCategoriesTree), { loading: adminTabLoading });
+const AdminServiceCategoriesTree = dynamic(() => import('@/components/admin/AdminServiceCategoriesTree').then((m) => m.AdminServiceCategoriesTree), { loading: adminTabLoading });
+const CreateCategoryButton = dynamic(() => import('@/components/admin/CreateCategoryButton').then((m) => m.CreateCategoryButton), { loading: adminTabLoading });
+const CreateProductCategoryButton = dynamic(() => import('@/components/admin/CreateProductCategoryButton').then((m) => m.CreateProductCategoryButton), { loading: adminTabLoading });
+const CreateServiceCategoryButton = dynamic(() => import('@/components/admin/CreateServiceCategoryButton').then((m) => m.CreateServiceCategoryButton), { loading: adminTabLoading });
+const AdminAuditLogsTable = dynamic(() => import('@/components/admin/AdminAuditLogsTable').then((m) => m.AdminAuditLogsTable), { loading: adminTabLoading });
+const AdminMonitoringCenter = dynamic(() => import('@/components/admin/AdminMonitoringCenter').then((m) => m.AdminMonitoringCenter), { loading: adminTabLoading });
+const AdminDeveloperToolsControl = dynamic(() => import('@/components/admin/AdminDeveloperToolsControl').then((m) => m.AdminDeveloperToolsControl), { loading: adminTabLoading });
 
 const AdminAnalyticsDashboard = dynamic(
   () =>

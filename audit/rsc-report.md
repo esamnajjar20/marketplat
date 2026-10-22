@@ -205,3 +205,25 @@ The route bundles did not regress; two remained unchanged and one decreased
 by 1 kB. Type-check and lint passed (lint reported existing warnings), and
 the focused PinAdButton and SellersRankingList tests passed. No E2E tests
 were run.
+
+## Increment 8: split admin sections by active tab
+
+`AdminTabsHub` previously statically imported every admin table, category
+tree, dashboard panel, and control, so the `/admin` entry bundle contained
+code for all sections even though the route renders only the selected tab.
+The section components are now loaded through `next/dynamic` when their tab
+is rendered; interactive tables remain Client Components.
+
+| Route | Old Bundle Size | New Bundle Size | Improvement % |
+|---|---:|---:|---:|
+| `/admin` | 340 kB | 134 kB | 60.59% |
+
+The `/messages/[id]` bundle measured 280 kB in this build (278 kB in the
+original baseline). `MessageInput` was not dynamically rewritten: its send
+hook and chat data layer share the Axios client and its interceptors, and a
+component-only deferred import would not remove that dependency from the
+route without also changing message mutation semantics. This remains
+deferred rather than risking offline queue/idempotency behavior.
+
+Type-check, targeted ESLint, and production build passed. The build confirmed
+the `/admin` bundle reduction; no E2E tests were run.
