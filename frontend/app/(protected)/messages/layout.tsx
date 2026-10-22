@@ -36,10 +36,18 @@
  * nav element for the same space.
  */
 
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
-import { ConversationList } from '@/components/messages/ConversationList';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { cn } from '@/lib/utils';
+
+const ConversationList = dynamic(
+  () =>
+    import('@/components/messages/ConversationList').then(
+      (module) => module.ConversationList,
+    ),
+  { loading: () => <div className="flex justify-center py-12"><LoadingSpinner /></div> },
+);
 
 interface Props {
   children: React.ReactNode;

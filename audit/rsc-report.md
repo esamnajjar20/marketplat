@@ -482,3 +482,11 @@ The ad, product, and service creation gates now load their substantial form
 modules only after the required seller/store/provider gate succeeds. Registered
 the chunks for offline warming. Type-check passed and focused gate tests
 passed (14/14). Bundle measurement is deferred to final verification.
+
+## Increment 34: split conversations sidebar chunk
+
+The messages layout now loads `ConversationList` as a separate dynamic
+Client Component chunk while preserving its existing server-rendered layout
+and loading fallback. Registered the layout chunk for inbox and thread
+offline warming. Type-check passed; no layout-specific test exists. Bundle
+measurement is deferred to final verification.
