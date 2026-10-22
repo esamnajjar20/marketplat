@@ -201,6 +201,7 @@ const routeLoadableSources = {
   '/my-store/products/[id]/edit': ['app/(protected)/my-store/products/[id]/edit/page.tsx'],
   '/my-store/products/new': ['components/stores/CreateProductGate.tsx'],
   '/my-store/followed': ['app/(protected)/my-store/followed/page.tsx'],
+  '/my-store/collections/[id]': ['app/(protected)/my-store/collections/[id]/page.tsx'],
   '/favorites': ['components/profile/FavoritesTabs.tsx'],
   '/messages': ['app/(protected)/messages/layout.tsx', 'components/messages/ChatWindow.tsx'],
   '/messages/[id]': [

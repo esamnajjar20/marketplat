@@ -1,8 +1,15 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
-import { CollectionProductsManager } from '@/components/stores/CollectionProductsManager';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { buildMetadata } from '@/lib/seo';
+
+const CollectionProductsManager = dynamic(
+  () =>
+    import('@/components/stores/CollectionProductsManager').then(
+      (module) => module.CollectionProductsManager,
+    ),
+);
 
 export const metadata: Metadata = buildMetadata({ title: 'منتجات المجموعة', noIndex: true });
 

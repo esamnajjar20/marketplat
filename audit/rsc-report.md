@@ -521,3 +521,10 @@ The protected followed-stores page now dynamically loads its interactive
 list while preserving the route's server-rendered heading. Registered the
 chunk for offline warming. Type-check passed and FollowedStoresList tests
 passed (6/6). Bundle measurement is deferred to final verification.
+
+## Increment 39: defer collection membership manager
+
+The collection-management route now dynamically loads its interactive product
+membership manager after resolving route params. Registered the route source
+for offline warming. Type-check passed and CollectionProductsManager tests
+passed (5/5). Bundle measurement is deferred to final verification.
