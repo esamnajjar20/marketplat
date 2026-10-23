@@ -143,6 +143,15 @@ export async function computePriceRangeFacets(
           ...(b.max != null ? { lte: b.max } : {}),
         },
       };
+      if (query.q?.trim()) {
+        // Price-range counts must respect the same WHERE q filter as the
+        // main search (search.facets.repository facetsFromAds) so a price
+        // bucket reflects only ads matching the current search query.
+        where.OR = [
+          { title: { contains: query.q, mode: 'insensitive' } },
+          { description: { contains: query.q, mode: 'insensitive' } },
+        ];
+      }
       if (query.city) where.city = query.city;
       if (query.categoryId) where.categoryId = query.categoryId;
       if (query.condition) where.condition = query.condition;
