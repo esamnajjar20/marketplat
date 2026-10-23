@@ -1,4 +1,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+let sessionRevoked = false;
+let sharedRefreshPromise: unknown | null = null;
+
 function getCsrfToken(): string | null {
 	if (typeof document === 'undefined') return null;
 	const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
@@ -83,4 +86,29 @@ export const fetchClient = {
     });
   },
 };
+/** Resets the sessionRevoked flag so subsequent 401s resume the normal /auth/refresh path. */
+export function resumeSession(): void {
+  sessionRevoked = false;
+}
+
+/** T735 — read accessor for the session-revoked flag. */
+export function isSessionRevoked(): boolean {
+  return sessionRevoked;
+}
+
+/** Refreshes the session using fetchClient, with deduplication via sharedRefreshPromise. */
+export async function refreshSessionShared(): Promise<unknown> {
+  if (sharedRefreshPromise) {
+    return sharedRefreshPromise;
+  }
+
+  sharedRefreshPromise = (async () => {
+    const res = await fetchClient.post('/api/auth/refresh');
+    return res;
+  })().finally(() => {
+    sharedRefreshPromise = null;
+  });
+
+  return sharedRefreshPromise;
+}
 export default fetchClient;
