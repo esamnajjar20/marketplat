@@ -18,6 +18,7 @@ import { formatPrice } from '@/lib/formatters';
 import { CONDITION_LABELS } from '@/lib/constants';
 import { PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { LivePreviewCard } from '@/components/shared/forms/LivePreviewCard';
+import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 import type { AdFormValues } from '@/types/ad.types';
 
 interface Props {
@@ -62,8 +63,7 @@ export function AdFormPreview({ values, className }: Props) {
       caption="هكذا سيظهر إعلانك تقريباً في القوائم والبحث."
       media={
         <div className="relative aspect-[4/3] bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageSrc} alt="" className="h-full w-full object-cover" />
+          <CloudinaryImage src={imageSrc} alt="" width={400} height={300} className="h-full w-full object-cover" />
           {conditionLabel && (
             <span className="absolute top-2 start-2 rounded-full bg-background/90 px-2 py-0.5 text-2xs font-semibold">
               {conditionLabel}
