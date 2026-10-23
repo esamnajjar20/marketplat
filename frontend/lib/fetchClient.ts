@@ -17,7 +17,10 @@ async function _doRefresh(): Promise<void> {
 		credentials: 'include',
 		headers: { 'Content-Type': 'application/json' },
 	});
-	if (!res.ok) throw new Error('Refresh failed');
+	if (!res.ok) {
+			sessionRevoked = true;
+			throw new Error('Session revoked or refresh failed');
+		}
 }
 function refreshOnce(): Promise<void> {
 	if (!refreshPromise) {
