@@ -18,14 +18,12 @@
  * that's an internal schema-wrapping detail the UI never needs), and
  * getFieldError() gives forms a one-line way to consume it.
  */
-import axios from 'axios';
+/** Type guard to check if error is an AxiosError-like object. */
+function isAxiosErrorValue(error: unknown): error is { isAxiosError: boolean; response?: { status: number; data?: unknown; headers: Record<string, string> } } {
+  return typeof error === 'object' && error !== null && 'isAxiosError' in error && (error as { isAxiosError?: boolean }).isAxiosError === true;
+}
+import { translateFieldIssue, translateLiteralFallback, type FieldIssueMeta } from './i18n/ar/fieldErrors';
 import { getErrorMessage, type ErrorMeta } from './i18n/ar/errors';
-import {
-  translateFieldIssue,
-  translateLiteralFallback,
-  type FieldIssueMeta,
-} from './i18n/ar/fieldErrors';
-
 export interface ParsedError {
   message:      string;
   statusCode:   number;
@@ -206,7 +204,7 @@ export function parseApiError(error: unknown): ParsedError {
     return error as ParsedError;
   }
 
-  if (axios.isAxiosError(error)) {
+  if (isAxiosErrorValue(error)) {
     const status  = error.response?.status  ?? 0;
     const data    = error.response?.data    as Record<string, unknown>;
     const headers = error.response?.headers ?? {};
