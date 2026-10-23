@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { takeOrPickNativePhoto } from '@/lib/capacitor/nativeCamera';
 import { compressImageForPublish } from '@/lib/imageOffline';
+import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 
 interface ImageUploadProps {
   value: File[];
@@ -424,8 +425,7 @@ export function ImageUpload({
                     : ''
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt={`صورة الإعلان ${i + 1}`} className="h-full w-full object-cover" />
+                <CloudinaryImage src={url} alt={`صورة الإعلان ${i + 1}`} width={80} height={80} className="h-full w-full object-cover" />
 
                 {/* Gap #11: first image is always the "primary" one —
                     every other place in the app (ProductCard, AdDetail,
@@ -497,10 +497,11 @@ export function ImageUpload({
               picks from the camera or gallery in a single batch. */}
           {value.map((file, i) => (
             <div key={`${file.name}-${file.size}-${file.lastModified}`} className="group relative h-20 w-20 overflow-hidden rounded-md bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <CloudinaryImage
                 src={getObjectUrl(file)}
                 alt={`Preview ${i + 1}`}
+                width={80}
+                height={80}
                 className="h-full w-full object-cover"
               />
               <button
