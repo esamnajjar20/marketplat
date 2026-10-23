@@ -2409,7 +2409,8 @@ async function refreshAccessToken(sampleUrl) {
 
   let body;
   try {
-    body = await response.json();
+    const clonedResponse = response.clone();
+    body = await clonedResponse.json();
   } catch {
     return { ok: false, reason: 'network' };
   }
