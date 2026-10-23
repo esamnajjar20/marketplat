@@ -41,7 +41,7 @@
  * through the other.
  */
 import { useAuthStore } from '@/store/auth.store';
-import { refreshSessionShared } from '@/api/client';
+import { refreshSessionShared } from '@/lib/fetchClient';
 import { requestQueueReplay } from '@/lib/offlineQueue';
 
 interface SwTokenMessage {
