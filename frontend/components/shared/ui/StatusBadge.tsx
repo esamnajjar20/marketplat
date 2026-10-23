@@ -1,4 +1,3 @@
-'use client';
 import { Badge, type BadgeProps } from '@/components/shared/ui/Badge';
 
 export type StatusBadgeTone = NonNullable<BadgeProps['variant']>;
