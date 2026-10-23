@@ -74,6 +74,13 @@ export const fetchClient = {
 	post: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'POST', body: body ? JSON.stringify(body) : undefined }),
 	put: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
 	patch: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
-	delete: (url: string, options?: RequestInit) => request(url, { ...options, method: 'DELETE' }),
+	delete: (url: string, options?: RequestInit & { data?: unknown }) => {
+    const { data, ...rest } = options ?? {};
+    return request(url, {
+      ...rest,
+      method: 'DELETE',
+      body: data !== undefined ? JSON.stringify(data) : rest.body,
+    });
+  },
 };
 export default fetchClient;
