@@ -4,7 +4,10 @@ function getCsrfToken(): string | null {
 	const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
 	return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
-async function request(url: string, options: RequestInit = {}): Promise<unknown> {
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+async function _requestInner(url: string, options: RequestInit = {}): Promise<unknown> {
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json',
 		...(options.headers as Record<string, string> | undefined),
@@ -28,6 +31,22 @@ async function request(url: string, options: RequestInit = {}): Promise<unknown>
 	}
 	if (response.status === 204) return undefined;
 	try { return await response.json(); } catch { return undefined; }
+}
+async function request(url: string, options: RequestInit = {}): Promise<unknown> {
+	const maxAttempts = 3;
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		try {
+			return await _requestInner(url, options);
+		} catch (error) {
+			lastError = error;
+			const status = (error as { status?: number }).status;
+			const isRetryable = !status || (status >= 500 && status < 600);
+			if (!isRetryable || attempt === maxAttempts) throw error;
+			await sleep(1000 * Math.pow(2, attempt - 1));
+		}
+	}
+	throw lastError;
 }
 export const fetchClient = {
 	get: (url: string, options?: RequestInit) => request(url, { ...options, method: 'GET' }),
