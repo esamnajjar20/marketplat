@@ -1,3 +1,4 @@
+import bundleAnalyzer from '@next/bundle-analyzer';
 /**
  * Next.js configuration.
  *
@@ -335,4 +336,5 @@ const nextConfig: NextConfig = {
   logging: isDev ? { fetches: { fullUrl: true } } : undefined,
 };
 
-export default nextConfig;
+const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "true" });
+export default withBundleAnalyzer(nextConfig);
