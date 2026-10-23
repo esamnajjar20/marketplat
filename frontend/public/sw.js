@@ -146,7 +146,7 @@ const SHELL_MIGRATION_KEEP_PERSONAL = 20;
 
 function extractStaticAssetUrls(html) {
   return [...new Set(Array.from(
-    String(html || '').matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+    String(html || '').matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:\?[^"']*)?["']/g),
   ).map((match) => match[1]).filter((value) => typeof value === 'string' && value.length > 0))];
 }
 
@@ -389,7 +389,7 @@ async function collectPermanentShellAssets() {
         const response = await cache.match(key);
         if (!response || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) return;
         const html = await response.clone().text();
-        for (const match of html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:[?][^"']*)?["']/g)) {
+        for (const match of html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:[?][^"']*)?["']/g)) {
           if (match[1]) assets.add(new URL(match[1], self.location.origin).href);
         }
       }));
@@ -1132,7 +1132,7 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
 
     const html = await response.clone().text();
     const assetUrls = [...new Set(Array.from(
-      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:\?[^"']*)?["']/g),
     )
       .map((match) => match[1])
       .filter((value) => typeof value === 'string' && value.length > 0))];
@@ -1260,7 +1260,7 @@ async function verifyCachedChunks(cachedResponse, cache) {
     if (!cachedResponse.headers.get('content-type')?.toLowerCase().includes('text/html')) return false;
     const html = await cachedResponse.clone().text();
     const chunkUrls = Array.from(
-      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+      html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:\?[^"']*)?["']/g),
     )
       .map((match) => match[1])
       .filter((value) => typeof value === 'string' && value.length > 0);
@@ -3241,7 +3241,7 @@ self.addEventListener('install', (event) => {
 
         const html = await response.clone().text();
         const assetUrls = Array.from(
-          html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g),
+          html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:\?[^"']*)?["']/g),
         )
           .map((match) => match[1])
           .filter((url) => Boolean(url));
