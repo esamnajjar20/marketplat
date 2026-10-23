@@ -8,7 +8,7 @@ import { reportBackgroundFailure } from './backgroundTask';
  * محليًا إلا الحالة البسيطة (isSubscribed: boolean) للتحكم في واجهة الزر.
  */
 
-import { apiClient } from '@/api/client';
+import { fetchClient as apiClient } from '@/lib/fetchClient';
 import { getRawVapidPublicKey } from '@/lib/env';
 import { isPushOptedOut } from '@/lib/runtime/pushPreference';
 import { isUserBusyForServiceWorkerUpdate } from '@/lib/swUpdateSafety';
