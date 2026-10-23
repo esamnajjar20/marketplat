@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 import { PaymentHistoryList } from '@/components/sales/payments/PaymentHistoryList';
 import { useEffect, useState } from 'react';
 
@@ -68,7 +69,11 @@ export default function ReceiptPage({ id }: { id: string }) {
           <h1 className="text-xl font-extrabold">إيصال بيع</h1>
           <p className="mt-1 text-sm text-muted-foreground">{sale.invoiceNumber ?? 'بدون رقم فاتورة'}</p>
         </header>
-        {qr && <div className="my-4 flex justify-center"><img src={qr} alt="QR للفاتورة" width={120} height={120} /></div>}
+        {qr && (
+          <div className="my-4 flex justify-center">
+            <CloudinaryImage src={qr} alt="QR للفاتورة" width={120} height={120} />
+          </div>
+        )}
         <div className="space-y-3 py-5 text-sm">
           <div>
             <span className="text-muted-foreground">الأصناف</span>
