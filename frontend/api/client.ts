@@ -28,6 +28,8 @@
  * X-CSRF-Token header — see getCsrfToken()'s own comment for why that
  * is the necessary other half of moving to a cookie-based refresh flow.
  */
+// DEPRECATED: This file re-exports fetchClient for backward compatibility.
+// Migrate all imports to: import { ... } from '@/lib/fetchClient'
 import { recordRequestFailure, recordRequestTiming, recordRequestSuccess } from '@/lib/connectionQuality';
 import { getNetworkPolicy } from '@/lib/networkPolicy';
 import axios, {
