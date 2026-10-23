@@ -29,7 +29,6 @@ import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
 import type { SearchSort, SearchType } from '@/types/search.types';
 import { SearchViewToggle, type SearchViewMode } from '@/components/search/SearchViewToggle';
-import { SearchResultsMap } from '@/components/map/SearchResultsMap';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getAdaptivePageSize } from '@/lib/networkPolicy';
@@ -142,26 +141,8 @@ export function SearchResults() {
   const items = useMemo(() => data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [], [data?.pages]);
 
   const [viewMode, setViewMode] = useState<SearchViewMode>('list');
-  const userLocation =
-    lat !== undefined && lng !== undefined
-      ? { lat: Number(lat), lng: Number(lng) }
-      : null;
-  const mapPoints = useMemo(
-    () =>
-      items
-        .filter((r) => r.latitude != null && r.longitude != null)
-        .map((r) => ({
-          id: `${r.type}-${r.id}`,
-          title: r.title,
-          lat: Number(r.latitude),
-          lng: Number(r.longitude),
-          href: r.url,
-          subtitle: r.city ?? undefined,
-        })),
-    [items]
-  );
-  const total = data?.pages[0]?.meta?.total ?? items.length;
 
+  const total = data?.pages[0]?.meta?.total ?? items.length;
   // Gap #7 (product analytics): fires once per resolved query — depends
   // on the actual query params (not `data`) so it doesn't re-fire on
   // background refetches of the same search, only when the visitor
@@ -365,19 +346,13 @@ export function SearchResults() {
         </>
       ) : (
         <div className={cn(viewMode === 'list' ? 'grid grid-cols-1 gap-3 sm:gap-4' : LIST_CARD_GRID_CLASS, 'stagger-fade-in')}>
-          {viewMode === 'map' ? (
-            <div className="col-span-full">
-              <SearchResultsMap points={mapPoints} userLocation={userLocation} />
-            </div>
-          ) : (
-            items.map((result) => (
-              <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} layout={viewMode === 'list' ? 'list' : 'grid'} />
-            ))
-          )}
+          {items.map((result) => (
+            <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} layout={viewMode === 'list' ? 'list' : 'grid'} />
+          ))}
         </div>
       )}
 
-      {items.length > 0 && viewMode !== 'map' && (
+      {items.length > 0 && (
         <InfiniteScrollTrigger
           hasNextPage={Boolean(hasNextPage)}
           isFetchingNextPage={isFetchingNextPage}
