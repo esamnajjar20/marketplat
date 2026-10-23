@@ -150,6 +150,8 @@ export function MyServiceProviderAnalytics() {
                       <Image
                         src={getThumbnailUrl(listing.image, 40, 40)}
                         alt={listing.title}
+                        width={40}
+                        height={40}
                         fill
                         className="object-cover"
                         sizes="36px"

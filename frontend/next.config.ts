@@ -1,4 +1,3 @@
-import bundleAnalyzer from '@next/bundle-analyzer';
 /**
  * Next.js configuration.
  *
@@ -83,7 +82,10 @@ const nextConfig: NextConfig = {
   compress: true,
 
   images: {
-    unoptimized: true, // FIX: Bypass Next.js image proxy to save bandwidth
+    // FIX: Enable Next.js image optimization (removed unoptimized: true)
+    // This allows Next.js to optimize images via Cloudinary CDN and generate
+    // responsive srcset/sizes. Cloudinary remotePatterns is still configured
+    // for delivery URL validation.
     remotePatterns: [
       {
         protocol: 'https',
@@ -336,5 +338,4 @@ const nextConfig: NextConfig = {
   logging: isDev ? { fetches: { fullUrl: true } } : undefined,
 };
 
-const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "true" });
-export default withBundleAnalyzer(nextConfig);
+export default nextConfig;

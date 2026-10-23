@@ -88,6 +88,8 @@ export function MyStoreAnalytics() {
                       <Image
                         src={getThumbnailUrl(product.image, 40, 40)}
                         alt={product.name}
+                        width={40}
+                        height={40}
                         fill
                         className="object-cover"
                         sizes="40px"

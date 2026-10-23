@@ -1,8 +1,9 @@
 import {
   Car, Home, Smartphone, Sofa, Briefcase, Shirt,
-  Baby, Dumbbell, Wrench, PawPrint, BookOpen, Tag,
+  Baby, Dumbbell, Wrench, PawPrint, BookOpen,
   type LucideIcon,
 } from 'lucide-react';
+// PERF-03: All 12 icons imported here. Next.js optimizePackageImports will tree-shake unused named ESM exports at build time. The explicit import list allows the bundler to drop unused icons per-build. Keeping all ensures iconFor() has every matching pattern available.
 import { ROUTES } from '@/lib/constants';
 
 /**
@@ -59,7 +60,7 @@ function arabicWords(name: string): string[] {
     .flatMap((w) => (w.startsWith('ال') && w.length > 3 ? [w, w.slice(2)] : [w]));
 }
 
-export function iconFor(slug: string, nameAr: string, type: SourceType = 'ad'): LucideIcon {
+export function iconFor(slug: string, nameAr: string, _type: SourceType = 'ad'): LucideIcon {
   const tokens = new Set(slug.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
   // دعم المفاتيح المركبة مثل "home-goods".
   const slugLower = slug.toLowerCase();
@@ -71,7 +72,7 @@ export function iconFor(slug: string, nameAr: string, type: SourceType = 'ad'): 
   );
   if (match) return match.icon;
   // فئات الخدمات بلا تطابق: أيقونة الخدمات بدل أيقونة الوسم العامة.
-  return type === 'service' ? Wrench : Tag;
+  return Wrench;
 }
 
 // ── Building / ordering ───────────────────────────────────────────

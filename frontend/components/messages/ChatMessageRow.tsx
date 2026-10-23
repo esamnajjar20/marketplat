@@ -41,7 +41,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({ message, showDay, t
 
   return (
     <div className={cn('[content-visibility:auto] [contain-intrinsic-size:auto_320px] flex w-full flex-col', tight ? 'mt-0.5' : 'mt-0')}>
-      {showDay && <div className="my-3 flex justify-center"><span className="rounded-full border bg-card/90 px-3 py-0.5 text-2xs-tight font-medium text-muted-foreground shadow-sm">{now === null ? '—' : messageDayLabel(message.createdAt, new Date(now))}</span></div>}
+      {showDay && <div className="my-3 flex justify-center"><span className="rounded-full border bg-card/90 px-3 py-0.5 text-2xs-tight font-medium text-muted-foreground shadow-sm">{now === null ? '—' : messageDayLabel(message.createdAt, now ? new Date(now) : new Date(0))}</span></div>}
       <div className={cn('group flex flex-col gap-1 max-w-[min(92%,28rem)] sm:max-w-[min(88%,32rem)]', isMine ? 'items-end self-end' : 'items-start self-start')}>
         <div className="flex items-center gap-1">
           {isMine && !isDeleted && !isLocalOnly && <MessageActionsMenu message={message} markPending={markPending} onMarkMessage={onMarkMessage} onDeleteRequest={onDeleteRequest} />}
