@@ -11,7 +11,7 @@ import { reportBackgroundFailure } from '../backgroundTask';
  *
  * Backend: POST/DELETE /notifications/fcm-tokens
  */
-import { apiClient } from '@/api/client';
+import { fetchClient as apiClient } from '@/lib/fetchClient';
 import { getNativePlatformName, isNativePlatform } from './platform';
 import { secureGet, secureSet } from '@/lib/runtime/secureStorage';
 import { isPushOptedOut } from '@/lib/runtime/pushPreference';
