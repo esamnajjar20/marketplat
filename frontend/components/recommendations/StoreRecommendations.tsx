@@ -2,7 +2,7 @@
 
 import { Sparkle } from 'lucide-react';
 import { StoreCard } from '@/components/stores/StoreCard';
-import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
 import { RecommendationRail } from './RecommendationRail';
 import { useStoreRecommendations } from '@/hooks/queries/useRecommendations';
 import { useSilentCoordinates } from '@/hooks/useSilentCoordinates';

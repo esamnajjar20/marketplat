@@ -5,7 +5,7 @@ import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
 import { MapPinOff } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
 import { ServiceProvidersFilters } from '@/components/services/ServiceProvidersFilters';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';

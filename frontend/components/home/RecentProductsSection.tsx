@@ -7,7 +7,7 @@ import { ProductCard } from '@/components/stores/ProductCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { HomeScrollRail, HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
-import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ApiError } from '@/components/shared/ApiError';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';

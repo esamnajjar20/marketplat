@@ -13,7 +13,7 @@ import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { ServiceListingCard } from './ServiceListingCard';
 import { ROUTES } from '@/lib/constants';
-import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
+import { ServiceListingCardSkeleton } from '@/components/shared/skeletons/ServiceListingCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';

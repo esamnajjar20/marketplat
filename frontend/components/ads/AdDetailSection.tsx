@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { AdDetail }       from '@/components/ads/AdDetail';
 import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
 import { LazySection } from '@/components/shared/LazySection';
-import { AdDetailsSkeleton } from '@/components/shared/skeletons';
+import { AdDetailsSkeleton } from '@/components/shared/skeletons/AdDetailsSkeleton';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { OfflineStaleDataNotice } from '@/components/shared/feedback/OfflineStaleDataNotice';

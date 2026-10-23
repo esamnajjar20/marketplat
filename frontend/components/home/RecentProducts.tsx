@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { PackageSearch } from 'lucide-react';
 import { ProductCard } from '@/components/stores/ProductCard';
-import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { useProducts } from '@/hooks/queries/useProducts';

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Package, Search, X } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
-import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';

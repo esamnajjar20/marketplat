@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Sparkle } from 'lucide-react';
 import { ProductCard } from '@/components/stores/ProductCard';
-import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
 import { RecommendationRail } from './RecommendationRail';
 import { useProductRecommendations } from '@/hooks/queries/useRecommendations';
 

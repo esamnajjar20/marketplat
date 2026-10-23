@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { ListPageShell, LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
-import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
 import { cn } from '@/lib/utils';
 
 const ProductsGrid = dynamic(

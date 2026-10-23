@@ -10,7 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { StoreCard } from './StoreCard';
-import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';

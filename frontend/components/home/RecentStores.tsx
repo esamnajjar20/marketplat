@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Store as StoreIcon } from 'lucide-react';
 import { StoreCard } from '@/components/stores/StoreCard';
-import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { useStores } from '@/hooks/queries/useStores';

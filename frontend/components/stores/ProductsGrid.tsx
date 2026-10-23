@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { ProductCard } from './ProductCard';
-import { ProductCardSkeleton } from '@/components/shared/skeletons';
+import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';

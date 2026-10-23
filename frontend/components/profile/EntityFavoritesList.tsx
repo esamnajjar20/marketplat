@@ -3,7 +3,9 @@
 import { ProductCard } from '@/components/stores/ProductCard';
 import { StoreCard } from '@/components/stores/StoreCard';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
-import { ProductCardSkeleton, StoreCardSkeleton, ServiceListingCardSkeleton } from '@/components/shared/skeletons';
+import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
+import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
+import { ServiceListingCardSkeleton } from '@/components/shared/skeletons/ServiceListingCardSkeleton';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { Button } from '@/components/shared/ui/Button';
 import { useFavoritesByType } from '@/hooks/queries/useFavorites';

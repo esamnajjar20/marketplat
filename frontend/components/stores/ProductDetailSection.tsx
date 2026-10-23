@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { SearchX, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { ProductDetail } from '@/components/stores/ProductDetail';
-import { AdDetailsSkeleton } from '@/components/shared/skeletons';
+import { AdDetailsSkeleton } from '@/components/shared/skeletons/AdDetailsSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { OfflineStaleDataNotice } from '@/components/shared/feedback/OfflineStaleDataNotice';

@@ -6,7 +6,7 @@ import { SectionHeader } from '@/components/home/SectionHeader';
 import { HomeScrollRailItem } from '@/components/home/HomeScrollRail';
 import { HomeRailShell } from '@/components/home/HomeRailShell';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
-import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { homeSectionLimit } from '@/lib/listLimits';
 import { collectIds, dedupeKeepingMin } from '@/lib/homeDedupe';

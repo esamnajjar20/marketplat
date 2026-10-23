@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { ListPageShell, LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
-import { AdCardSkeleton } from '@/components/shared/skeletons';
+import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 
 const SearchFilters = dynamic(
   () => import('@/components/ads/SearchFilters').then((module) => module.SearchFilters),

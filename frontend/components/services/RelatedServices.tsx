@@ -3,7 +3,7 @@
 import { Layers } from 'lucide-react';
 import { useServiceRecommendations } from '@/hooks/queries/useRecommendations';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
-import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
+import { ServiceListingCardSkeleton } from '@/components/shared/skeletons/ServiceListingCardSkeleton';
 
 interface Props {
   serviceListingId: string;

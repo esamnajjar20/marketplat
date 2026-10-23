@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Layers3 } from 'lucide-react';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
-import { ServiceListingCardSkeleton } from '@/components/shared/skeletons';
+import { ServiceListingCardSkeleton } from '@/components/shared/skeletons/ServiceListingCardSkeleton';
 import { queryKeys } from '@/lib/queryKeys';
 import { LIST_SERVICE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 

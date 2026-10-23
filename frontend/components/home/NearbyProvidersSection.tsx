@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
-import { StoreCardSkeleton } from '@/components/shared/skeletons';
+import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { ROUTES } from '@/lib/constants';
