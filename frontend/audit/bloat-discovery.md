@@ -126,15 +126,18 @@ Imports observed from barrel paths (pull entire folder):
 
 ## Summary of Actionable Items (Phase 2 input)
 
-1. Uninstall `tesseract.js` (high saving, low risk)
-2. Uninstall `react-hook-form` (med, low)
-3. Uninstall `@hookform/resolvers` (small, low)
-4. Uninstall `@tanstack/react-table` (med, low)
-5. Uninstall `@radix-ui/react-label` (tiny, low)
-6. Convert dev-only / non-nonce `<script>` → `next/script lazyOnload` (small, low-med)
-7. Barrel imports → direct imports (small, low-med)
-8. `"use client"` → Server Component (verified hook-free files only) (med, med)
-9. Split presentational large components (med, med-high)
+### ACCEPTED & COMMITTED (Phase 3)
+1. `tesseract.js` uninstalled — type-check passed — commit `d8229bf5`
+2. `react-hook-form` uninstalled — type-check passed — commit `eb4f6205`
+3. `@hookform/resolvers` uninstalled — type-check passed — commit `4d6de369`
+4. `@tanstack/react-table` uninstalled — type-check passed — commit `0cdf9c72`
+5. `@radix-ui/react-label` uninstalled — type-check passed — commit `86918ecb`
+6. `hydration-trace.js` → `next/script` `strategy="lazyOnload"` — type-check passed — commit `38878c09`
+7. `@/components/shared/skeletons` barrel → direct file imports (21 files) — type-check passed — commit `397ad684`
+
+### DEFERRED — no safe candidates (Phase 3)
+8. `"use client"` → Server Component: all page-level `"use client"` files verified to use hooks (`useState`/`useEffect`) and/or browser APIs (`window`, `location`). No hook-free candidates. **Skipped** (hard rule: never break offline/auth).
+9. Split presentational large components (>300 lines): all large files manage offline queue, auth, or form state. **Skipped** (risk of breaking offline queuing).
 
 | A12 | `components/settings/SyncCenterClient.tsx` | 725 | `u` | No | No | 0 | Low |
 
