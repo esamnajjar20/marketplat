@@ -9,6 +9,7 @@ import { STORY_BACKGROUNDS } from '@/lib/storyBackgrounds';
 
 
 import { Spinner } from '@/components/ui/spinner';
+import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 export function StoryComposer({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | undefined>();
@@ -57,7 +58,7 @@ export function StoryComposer({ onClose }: { onClose: () => void }) {
 
         <div className="min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-4">
           <div className={`relative mx-auto flex aspect-[9/14] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br ${STORY_BACKGROUNDS.find((b) => b.key === background)?.gradient ?? STORY_BACKGROUNDS[0].gradient}`}>
-            {preview && <img src={preview} alt="معاينة الستوري" className="absolute inset-0 h-full w-full object-cover" />}
+            {preview && <CloudinaryImage src={preview} alt="معاينة الستوري" width={270} height={420} className="absolute inset-0 h-full w-full object-cover" />}
             {!preview && <div className="px-7 text-center text-2xl font-bold leading-relaxed text-white drop-shadow-lg">{text || 'اكتب شيئًا رائعًا...'}</div>}
             {preview && text && <div className="absolute inset-x-4 bottom-5 rounded-2xl bg-black/45 px-4 py-3 text-center text-lg font-semibold text-white backdrop-blur-sm">{text}</div>}
           </div>
