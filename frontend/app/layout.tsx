@@ -215,7 +215,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SkipLink />
         <AppProviders nonce={nonce}>
           <WebVitals />
-          <ErudaDebug />
+          {process.env.NODE_ENV === 'development' && <ErudaDebug />}
           <DeviceErrorCapture />
           <AdminScriptConsole />
           {/* FIX NAV-DUP-01: the ONLY NavigationProgress mount (was also in AppProviders). */}
