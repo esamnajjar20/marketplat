@@ -23,7 +23,8 @@ import { bumpGeneration } from '../utils/swrCache';
 const BATCH_SIZE = 1;
 const LEASE_SECONDS = 120;
 const LEASE_HEARTBEAT_INTERVAL_MS = 30_000;
-const POLL_INTERVAL_MS = 1_000;
+// Idle polling backoff: 1s → 2s → 5s → 10s (max). Resets to 1s on any job.
+const IDLE_BACKOFF_MS = [1_000, 2_000, 5_000, 10_000];
 const HEALTH_REPORT_INTERVAL_MS = 60_000;
 const OUTBOX_RETENTION_INTERVAL_MS = 10 * 60_000;
 const OUTBOX_PROCESSED_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -1365,6 +1366,7 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
   logger.info('Transactional outbox worker started');
   let lastHealthReportAt = 0;
   let lastRetentionRunAt = 0;
+  let idleStreak = 0;
   while (!shouldStop()) {
     const count = await processOutboxBatch().catch(error => {
       logger.error('Outbox batch claim failed', { error });
@@ -1413,7 +1415,14 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
           logger.error('Completed push dispatch retention cleanup failed', { error });
         });
     }
-    if (count === 0 && pushDispatchCount === 0)
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+    if (count === 0 && pushDispatchCount === 0) {
+      // Idle: back off 1s → 2s → 5s → 10s (max).
+      idleStreak += 1;
+      const delay = IDLE_BACKOFF_MS[Math.min(idleStreak - 1, IDLE_BACKOFF_MS.length - 1)];
+      await new Promise(resolve => setTimeout(resolve, delay));
+    } else {
+      // A job appeared: reset to 1s immediately on the next poll.
+      idleStreak = 0;
+    }
   }
 }
