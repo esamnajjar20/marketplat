@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * ⚡ سرعة الرد — يعرض responseTimeMinutes من SellerProfile.
  * لا يحسب شيئًا على العميل؛ القيمة تأتي من الـ API.
