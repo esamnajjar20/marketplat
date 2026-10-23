@@ -7,6 +7,21 @@ function getCsrfToken(): string | null {
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
+let refreshPromise: Promise<void> | null = null;
+async function _doRefresh(): Promise<void> {
+	const res = await fetch(API_BASE + '/api/auth/refresh', {
+		method: 'POST',
+		credentials: 'include',
+		headers: { 'Content-Type': 'application/json' },
+	});
+	if (!res.ok) throw new Error('Refresh failed');
+}
+function refreshOnce(): Promise<void> {
+	if (!refreshPromise) {
+		refreshPromise = _doRefresh().finally(() => { refreshPromise = null; });
+	}
+	return refreshPromise;
+}
 async function _requestInner(url: string, options: RequestInit = {}): Promise<unknown> {
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json',
@@ -35,12 +50,18 @@ async function _requestInner(url: string, options: RequestInit = {}): Promise<un
 async function request(url: string, options: RequestInit = {}): Promise<unknown> {
 	const maxAttempts = 3;
 	let lastError: unknown;
+	let refreshed = false;
 	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 		try {
 			return await _requestInner(url, options);
 		} catch (error) {
 			lastError = error;
 			const status = (error as { status?: number }).status;
+			if (status === 401 && !refreshed) {
+				refreshed = true;
+				await refreshOnce();
+				continue;
+			}
 			const isRetryable = !status || (status >= 500 && status < 600);
 			if (!isRetryable || attempt === maxAttempts) throw error;
 			await sleep(1000 * Math.pow(2, attempt - 1));
