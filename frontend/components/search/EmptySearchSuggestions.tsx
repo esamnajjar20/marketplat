@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { ROUTES } from '@/lib/constants';
+import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { getRecentSearches } from '@/lib/recentSearches';
@@ -143,8 +144,13 @@ export function EmptySearchSuggestions() {
               >
                 <div className="relative flex h-[88px] items-center justify-center bg-[#F6E7DB]">
                   {ad.thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={ad.thumbnail} alt="" className="h-full w-full object-cover" />
+                    <CloudinaryImage
+                      src={ad.thumbnail}
+                      alt=""
+                      width={200}
+                      height={88}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <Package className="h-7 w-7 text-primary/40" aria-hidden />
                   )}
