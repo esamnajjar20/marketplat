@@ -48,11 +48,11 @@ function retryDelay(failureCount: number, error: unknown): number {
 }
 
 export function makeQueryClient() {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: {
         networkMode:          'offlineFirst',  // OFFLINE-FIRST-01 — no queryFn while offline
-        staleTime:            CLIENT_CACHE_DEFAULTS.staleTime,  // SLOW-NET phase1 — keep cached UI stable on slow links
+        staleTime:            CLIENT_CACHE_DEFAULTS.staleTime,  // SLOW-NET phase1 — keep cached UI stable on slow links (90s fallback)
         // LOAD-SPEED-01: avoid refetch storms on remount while data is fresh
         gcTime:               CLIENT_CACHE_DEFAULTS.gcTime,
         retry:                shouldRetry,
@@ -75,6 +75,27 @@ export function makeQueryClient() {
       },
     },
   });
+
+  // ── Per-query staleTime overrides by data volatility ─────────────────────
+  // Default staleTime (90s) remains the fallback for anything not listed below.
+  // networkMode: 'offlineFirst' and gcTime are intentionally unchanged.
+
+  // Static reference data — 15 min
+  client.setQueryDefaults(['categories'], { staleTime: 15 * 60 * 1000 });
+
+  // Semi-static — 5 min
+  client.setQueryDefaults(['stores'], { staleTime: 5 * 60 * 1000 });
+  client.setQueryDefaults(['service-listings'], { staleTime: 5 * 60 * 1000 });
+  client.setQueryDefaults(['products'], { staleTime: 5 * 60 * 1000 });
+
+  // Dynamic — 30 sec
+  client.setQueryDefaults(['notifications'], { staleTime: 30 * 1000 });
+  client.setQueryDefaults(['activity'], { staleTime: 30 * 1000 });
+
+  // Real-time — 0 (always refetch): chat messages + unread counts
+  client.setQueryDefaults(['conversations'], { staleTime: 0 });
+
+  return client;
 }
 
 // Singleton for the browser — new instance per request on the server.
