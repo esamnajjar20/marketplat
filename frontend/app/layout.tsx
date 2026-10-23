@@ -1,4 +1,6 @@
 import { NavigationProgress } from '@/components/shared/NavigationProgress';
+import '@/app/icon.svg';
+
 /**
  * Root layout — applies to every route.
  *
