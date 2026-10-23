@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Pagination — URL-based pagination component.
  * Reads current page from searchParams and renders page controls.
