@@ -32,23 +32,21 @@ export const WARMING_MODE_DESCRIPTIONS: Record<WarmingMode, string> = {
   full: 'كل الصفحات المعروفة للتطبيق — يستهلك بيانات وتخزينًا أكثر. على الشبكات البطيئة نُبطّئ التنفيذ بدل تقليص النطاق.',
 };
 
-let current: WarmingMode = 'fast';
+let current: WarmingMode = 'off';
 const listeners = new Set<(m: WarmingMode) => void>();
 
-function parseMode(raw: string | null): WarmingMode | null {
-  if (raw === 'off' || raw === 'fast' || raw === 'full') return raw;
-  // Migration from the old five-mode scheme.
-  if (raw === 'auto' || raw === 'balanced' || raw === 'drip') return 'fast';
-  if (raw === 'saver') return 'off';
-  return null;
-}
+// GLOBAL-OPTIMIZATION-1A: warming is locked to disabled ('off') everywhere.
+// The default state is 'off' and any persisted localStorage value is
+// overridden back to 'off' on read so a previously saved 'fast'/'full'
+// preference can never take effect again.
 
 export function getWarmingMode(): WarmingMode {
-  if (typeof window === 'undefined') return 'fast';
+  if (typeof window === 'undefined') return 'off';
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = parseMode(raw);
-    if (parsed) { current = parsed; return parsed; }
+    // Override any stored preference so warming stays disabled.
+    localStorage.setItem(STORAGE_KEY, 'off');
+    current = 'off';
+    return 'off';
   } catch { /* private mode */ }
   return current;
 }

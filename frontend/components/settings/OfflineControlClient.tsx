@@ -74,7 +74,7 @@ function formatAge(ts: number): string {
 
 export function OfflineControlClient() {
   const user = useAuthStore(selectUser);
-  const [mode, setMode] = useState<WarmingMode>('fast');
+  const [mode, setMode] = useState<WarmingMode>('off');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const online = useOnlineStatus();
@@ -404,21 +404,27 @@ export function OfflineControlClient() {
           </p>
         </div>
         <div role="radiogroup" aria-label="مستوى تجهيز الأوفلاين" className="grid gap-3 p-3 sm:grid-cols-3">
-          {MODES.map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="radio"
-              aria-checked={mode === m}
-              onClick={() => handleModeChange(m)}
-              disabled={warmingActive}
-              aria-disabled={warmingActive}
+          {MODES.map((m) => {
+            // GLOBAL-OPTIMIZATION-1A: warming is locked to disabled. Only
+            // "إيقاف التسخين" (off) stays active; "تسخين سريع" (fast) and
+            // "تسخين كامل" (full) are greyed out and cannot be selected.
+            const locked = m !== 'off';
+            return (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={mode === m}
+                onClick={() => handleModeChange(m)}
+                disabled={locked || warmingActive}
+                aria-disabled={locked || warmingActive}
               className={cn(
                 'flex w-full items-start gap-3 rounded-2xl border px-4 py-4 text-start transition-colors',
                 mode === m
                   ? 'border-[#397F56] bg-[#E8F1EC] shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-primary dark:bg-primary/10'
                   : 'border-[#EAE3D6] bg-white hover:bg-muted/40 dark:border-border dark:bg-card',
                 warmingActive && 'opacity-60',
+                locked && 'opacity-50 grayscale',
               )}
             >
               <span className={cn(
@@ -436,7 +442,7 @@ export function OfflineControlClient() {
                 </span>
               </span>
             </button>
-          ))}
+          )})}
         </div>
       </div>
 
