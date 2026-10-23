@@ -1,5 +1,3 @@
-'use client';
-
 /** Tiny count badge next to a filter option label. */
 export function FacetCountBadge({ count }: { count?: number }) {
   if (count == null || count < 0) return null;
