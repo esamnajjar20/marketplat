@@ -3,8 +3,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { PaymentHistoryList } from '@/components/sales/payments/PaymentHistoryList';
-import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
+
+// PERF-BUNDLE-01: `qrcode` (~20 kB) is only needed for the optional receipt
+// QR and was previously a top-level import that pulled the whole library into
+// every page transitively importing this component. It is now loaded on
+// demand inside the effect below, keeping the sales-receipt route chunk lean.
+// ShareAdQrDialog already lazy-loads qrcode; this makes it fully deferred
+// across the app so it never enters the shared client graph.
 import type { ApiResponse } from '@/types/api.types';
 import type { SaleRecord } from '@/types/sale.types';
 
@@ -30,10 +36,14 @@ export default function ReceiptPage({ id }: { id: string }) {
   const [qr, setQr] = useState('');
   useEffect(() => {
     if (!q.data) return;
-    void QRCode.toDataURL(
-      `Invoice ${q.data.sale.invoiceNumber ?? id} | Total ${Number(q.data.sale.totalPrice).toFixed(2)} ${q.data.sale.currency} | ${new Date(q.data.sale.soldAt).toISOString()}`,
-      { width: 180, margin: 1 },
-    ).then(setQr).catch(() => setQr(''));
+    // qrcode loaded lazily so it stays out of the route's eager client chunk.
+    void import('qrcode')
+      .then((mod) => mod.default.toDataURL(
+        `Invoice ${q.data.sale.invoiceNumber ?? id} | Total ${Number(q.data.sale.totalPrice).toFixed(2)} ${q.data.sale.currency} | ${new Date(q.data.sale.soldAt).toISOString()}`,
+        { width: 180, margin: 1 },
+      ))
+      .then(setQr)
+      .catch(() => setQr(''));
   }, [q.data, id]);
 
   if (q.isLoading) return <main className="p-6" dir="rtl">جارٍ تحميل الإيصال…</main>;

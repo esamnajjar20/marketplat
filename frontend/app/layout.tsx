@@ -74,7 +74,7 @@ const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
   variable: '--font-ibm-plex-sans-arabic',
   display: 'swap',
 });
-const ibmPlexMono = IBM_Plex_Mono({
+const ibmPlexMono = IBM_Plex_Mono({ subsets: ['latin'],
   weight: ['400'],
   variable: '--font-ibm-plex-mono',
   display: 'swap',
