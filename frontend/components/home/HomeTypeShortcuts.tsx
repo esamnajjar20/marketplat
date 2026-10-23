@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import { Megaphone, Package, Wrench, Store } from 'lucide-react';
 
