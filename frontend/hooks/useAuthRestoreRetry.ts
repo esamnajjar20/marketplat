@@ -20,7 +20,7 @@
  * session left the user parked on the "server is slow" screen forever.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { refreshSessionShared } from '@/api/client';
+import { refreshSessionShared } from '@/lib/fetchClient';
 import { useAuthStore } from '@/store/auth.store';
 import { isDefiniteSessionRejection } from '@/lib/authRestoreError';
 
