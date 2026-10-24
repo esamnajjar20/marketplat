@@ -40,6 +40,7 @@ import type { favoritesApi } from '@/api/favorites.api';
 import type { activityApi } from '@/api/activity.api';
 import type { reportsApi } from '@/api/reports.api';
 import type { searchApi } from '@/api/search.api';
+import type { SearchFacetsParams } from '@/api/search.facets.api';
 import type { adminApi } from '@/api/admin.api';
 import type {
   GetRecommendationsParams,
@@ -495,6 +496,8 @@ export const queryKeys = {
 
   // ── Unified search ────────────────────────────────────────────
   search: {
+    root: () => ['search'] as const,
+    facets: (params?: SearchFacetsParams) => ['search', 'facets', params ?? {}] as const,
     unified:     (params?: Parameters<typeof searchApi.search>[0]) => ['search', 'unified', params ?? {}] as const,
     infinite: (params?: Omit<SearchQuery, 'page' | 'limit'> & { pageSize?: number }) => ['search', 'infinite', params ?? {}] as const,
     suggestions: (q: string)       => ['search', 'suggestions', q]        as const,

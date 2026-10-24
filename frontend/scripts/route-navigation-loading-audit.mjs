@@ -34,13 +34,13 @@ check('reduced-motion preference disables continuous navigation-bar animation', 
 check('reduced-motion navigation cue remains visible without transform motion', /prefers-reduced-motion:[\s\S]*?width:\s*100%[\s\S]*?transform:\s*none/.test(navigationProgressCss));
 check('navigation progress has an accessible progressbar label', /role="progressbar"/.test(navigationProgress) && /aria-label=\{LOADING_COPY\.navigating\}/.test(navigationProgress) && /LOADING_COPY\.page/.test(navigationProgress));
 check('navigation progress has a failsafe to avoid remaining stuck', /FAILSAFE_MS/.test(navigationProgress) && /12_000/.test(navigationProgress));
-check('query-only and hash-only changes do not start a page navigation indicator', /target\.pathname === window\.location\.pathname\) return/.test(navigationProgress));
+check('query-only and hash-only changes do not start a page navigation indicator', /const samePath = normalizePath\(target\.pathname\) === normalizePath\(window\.location\.pathname\)/.test(navigationProgress) && /samePath && target\.search === window\.location\.search/.test(navigationProgress));
 check('programmatic navigation start event is supported', /window\.addEventListener\(START_EVENT, onProgrammaticStart\)/.test(navigationProgress) && /function signalNavigationStart\(href: string\)/.test(navigationProgress));
 check('browser Back/Forward navigation is observed through popstate', /window\.addEventListener\('popstate', onPopState\)/.test(navigationProgress) && /window\.removeEventListener\('popstate', onPopState\)/.test(navigationProgress));
 check('Back/Forward navigation uses the last committed pathname', /const previousPath = lastPathname\.current/.test(navigationProgress) && /start\(previousPath, previousPath\)/.test(navigationProgress));
 check('last committed pathname is refreshed after route changes', /lastPathname\.current = pathname/.test(navigationProgress));
 check('repeated clicks on the same destination do not reset the failsafe', /startedHref = useRef<string \| null>\(null\)/.test(navigationProgress) && /if \(startedHref\.current === target\.href\) return/.test(navigationProgress));
-check('a new destination replaces old timers instead of inheriting the old failsafe', /if \(startedHref\.current === target\.href\) return;[\s\S]*?clearTimers\(\);[\s\S]*?startedPath\.current = sourcePath;[\s\S]*?startedHref\.current = target\.href;/.test(navigationProgress));
+check('a new destination replaces old timers instead of inheriting the old failsafe', /if \(startedHref\.current === target\.href\) return;[\s\S]*?clearTimers\(\);[\s\S]*?startedPath\.current = samePath \? lastLocationKey\.current : sourcePath;[\s\S]*?startedHref\.current = target\.href;/.test(navigationProgress));
 check('navigation listeners and timers are cleaned up on unmount', /return \(\) => \{[\s\S]*?document\.removeEventListener\('click', onClick\);[\s\S]*?clearTimers\(\);[\s\S]*?\};/.test(navigationProgress));
 check('navigation destination state is cleared when navigation finishes', /startedHref\.current = null/.test(navigationProgress));
 check('pathname changes cancel both pending show and failsafe timers', /if \(showTimer\.current\) clearTimeout\(showTimer\.current\);[\s\S]*?if \(hideTimer\.current\) clearTimeout\(hideTimer\.current\);[\s\S]*?startedPath\.current = null/.test(navigationProgress));
@@ -123,7 +123,13 @@ const phase24GuardFiles = [
   ['components/ads/SaveSearchButton.tsx', 'save-search unauthenticated login redirect signals navigation'],
 ];
 for (const [relative, label] of phase24GuardFiles) {
-  const file = path.join(frontendRoot, relative);
+  // Admin redirects are implemented in AdminLayoutClient, not the server layout
+  // wrapper. Resolve that client component explicitly so this audit follows the
+  // real redirect owner rather than reporting a false regression.
+  const resolved = relative === 'app/(admin)/layout.tsx'
+    ? 'components/admin/AdminLayoutClient.tsx'
+    : relative;
+  const file = path.join(frontendRoot, resolved);
   const source = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   check(label, /signalNavigationStart/.test(source) && /router\.(push|replace)\(/.test(source));
 }

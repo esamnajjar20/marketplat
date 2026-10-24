@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 import { PaymentHistoryList } from '@/components/sales/payments/PaymentHistoryList';
 import { useEffect, useState } from 'react';
+import { queryKeys } from '@/lib/queryKeys';
 
 // PERF-BUNDLE-01: `qrcode` (~20 kB) is only needed for the optional receipt
 // QR and was previously a top-level import that pulled the whole library into
@@ -22,7 +23,7 @@ interface ReceiptData {
 
 export default function ReceiptPage({ id }: { id: string }) {
   const q = useQuery({
-    queryKey: ['sales', 'receipt', id],
+    queryKey: queryKeys.sales.receipt(id),
     queryFn: async () => {
       const response = await fetch(`/api/v1/sales/${encodeURIComponent(id)}/receipt`, {
         credentials: 'include',

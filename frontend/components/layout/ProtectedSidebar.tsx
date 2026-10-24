@@ -121,7 +121,7 @@ function NavLink({
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex min-h-10 items-center gap-2.5 rounded-[9px] py-2 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'flex min-h-11 items-center gap-2.5 rounded-[9px] py-2 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         indent ? 'px-3 ms-7' : 'px-3',
         isActive
           ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold'

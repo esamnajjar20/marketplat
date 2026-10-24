@@ -43,7 +43,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-[14px] border border-[#EAE3D6] bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
+        'section-enter motion-reduce:animate-none flex flex-col items-center justify-center rounded-[14px] border border-[#EAE3D6] bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
         compact ? 'gap-2.5 py-8' : 'gap-3 py-10 sm:py-12',
         className,
       )}

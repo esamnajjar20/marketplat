@@ -64,7 +64,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
   return (
     <article
       className={cn(
-        cn(CARD_SHELL_SOFT, 'p-3 sm:p-3.5'),
+        cn(CARD_SHELL_SOFT, 'p-3 sm:p-3.5 [content-visibility:auto] [contain-intrinsic-size:auto_280px]'),
         className,
       )}
     >

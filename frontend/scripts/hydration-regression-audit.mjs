@@ -33,9 +33,9 @@ const renderAudit = read('scripts/render-regression-audit.mjs');
 
 check(/google:\s*'notranslate'/.test(layout), 'Root metadata opts out of Google auto-translation');
 check(/<html[^>]*translate="no"/.test(layout), 'Root HTML explicitly disables translation mutation');
-check(/<body[^>]*className="notranslate"[^>]*translate="no"/.test(layout), 'Body is protected from translation wrappers/rewrites');
+check(/<body[\s\S]*?className=\{`notranslate[\s\S]*?translate="no"/.test(layout), 'Body is protected from translation wrappers/rewrites');
 check(/suppressHydrationWarning/.test(layout), 'Root accounts for next-themes HTML attributes changing before hydration');
-check(/process\.env\.NODE_ENV !== 'production'[\s\S]*?<script src="\/hydration-trace\.js" \/>/.test(layout), 'Hydration DOM tracing is excluded from production pages');
+check(/process\.env\.NODE_ENV !== 'production'[\s\S]*?<Script src="\/hydration-trace\.js" strategy="lazyOnload" \/>/.test(layout), 'Hydration DOM tracing is excluded from production pages');
 check(/const \[guestPreference, setGuestPreference\] = useState<[^>]+>\(undefined\)/.test(browseCity) && /const \[guestReady, setGuestReady\] = useState\(false\)/.test(browseCity), 'Browse-city localStorage preference does not change the initial SSR/hydration render');
 check(/useEffect\(\(\) => \{\s*setSuggestions\(suggestRecentSearches\(query\.trim\(\), 5\)\);/.test(headerSearchBar) && !/useMemo\([\s\S]*suggestRecentSearches/.test(headerSearchBar), 'Header search history is read after mount, not during the render used for hydration');
 check(/const INITIAL_NETWORK_POLICY: NetworkPolicy =/.test(networkPolicyHook) && /useState<NetworkPolicy>\(INITIAL_NETWORK_POLICY\)/.test(networkPolicyHook) && /useEffect\(\(\) => \{\s*const refresh = \(\) => setPolicy\(getNetworkPolicy\(\)\)/.test(networkPolicyHook), 'Network policy uses a deterministic first render and reads device-specific connection state after mount');

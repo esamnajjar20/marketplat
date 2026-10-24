@@ -20,7 +20,7 @@ const checks = [
   ['mobile navigation marks current page', /aria-current=\{isActive \? 'page' : undefined\}/.test(bottomNav)],
   ['mobile navigation respects reduced motion', /motion-reduce:transition-none/.test(bottomNav)],
   ['protected shell reserves mobile bottom-nav space', /pb-20 md:p-6 md:pb-6/.test(protectedLayout)],
-  ['conversation thread avoids bottom-nav overlap', /\{!isConversationThread && <BottomNav \/>\}/.test(protectedLayout)],
+  ['conversation thread avoids bottom-nav overlap', /isConversationThread\s*\|\|/.test(protectedLayout) && /\{!isImmersiveTask && <BottomNav \/>\}/.test(protectedLayout)],
   ['protected shell includes skip-link target', /id="main-content"/.test(protectedLayout)],
   ['public shell includes main-content skip-link target', /id="main-content"/.test(publicLayout)],
   ['audit command is registered in package scripts', packageJson.scripts?.['app-shell:navigation-audit'] === 'node scripts/app-shell-navigation-audit.mjs'],
