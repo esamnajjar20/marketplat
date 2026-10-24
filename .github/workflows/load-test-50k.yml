@@ -1,4 +1,4 @@
-name: Load Test 80K (2 minutes)
+name: Load Test 20K (20 seconds)
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  k6-50k:
+  k6-20k:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -62,16 +62,16 @@ jobs:
 
           const TARGET = __ENV.TARGET;
 
-          // 80,000 requests in exactly 120s = 417 req/s sustained
+          // 20,000 requests in exactly 120s = 417 req/s sustained
           export const options = {
             scenarios: {
               sustained_load: {
                 executor: 'constant-arrival-rate',
-                rate: 667,
+                rate: 1000,
                 timeUnit: '1s',
-                duration: '2m',
-                preAllocatedVUs: 100,
-                maxVUs: 500,
+                duration: '20s',
+                preAllocatedVUs: 500,
+                maxVUs: 1000,
                 gracefulStop: '10s',
               },
             },
@@ -130,13 +130,13 @@ jobs:
 
             return {
               stdout: JSON.stringify(data.metrics, null, 2).slice(0, 3000),
-              '/tmp/k6-50k-summary.md': md.join('\n'),
-              '/tmp/k6-50k.json': JSON.stringify(data, null, 2),
+              '/tmp/k6-20k-summary.md': md.join('\n'),
+              '/tmp/k6-20k.json': JSON.stringify(data, null, 2),
             };
           }
           K6
 
-      - name: Run k6 (80,000 requests)
+      - name: Run k6 (20,000 requests)
         run: |
           k6 run \
             -e TARGET="${{ inputs.target }}" \
@@ -146,16 +146,16 @@ jobs:
       - name: Publish to job summary
         if: always()
         run: |
-          if [ -f /tmp/k6-50k-summary.md ]; then
-            cat /tmp/k6-50k-summary.md >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/k6-20k-summary.md ]; then
+            cat /tmp/k6-20k-summary.md >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: k6-50k-report
+          name: k6-20k-report
           path: |
-            /tmp/k6-50k-summary.md
-            /tmp/k6-50k.json
+            /tmp/k6-20k-summary.md
+            /tmp/k6-20k.json
           retention-days: 7
