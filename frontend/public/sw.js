@@ -769,7 +769,12 @@ function isSameOriginResponse(response) {
 async function stripVaryAndClone(response) {
   const headers = new Headers(response.headers);
   headers.delete('Vary');
-  const body = await response.blob();
+  // Use arrayBuffer() rather than blob(): passing a Blob to new Response()
+  // stringifies it as '[object Blob]' in Node.js's undici implementation,
+  // while arrayBuffer() is handled correctly both in browsers and Node.
+  // The Content-Type is preserved explicitly via the headers argument, so
+  // no type information is lost.
+  const body = await response.arrayBuffer();
   return new Response(body, {
     status: response.status,
     statusText: response.statusText,
@@ -806,7 +811,10 @@ async function putTimestamped(cache, request, response, cacheSource) {
   const headers = new Headers(response.headers);
   headers.set('X-SW-Cached-At', String(Date.now()));
   if (cacheSource) headers.set('X-SW-Cache-Source', cacheSource);
-  const body = await response.blob();
+  // Use arrayBuffer() rather than blob(): passing a Blob to new Response()
+  // stringifies it as '[object Blob]' in Node.js's undici implementation,
+  // while arrayBuffer() is handled correctly both in browsers and Node.
+  const body = await response.arrayBuffer();
   const stamped = new Response(body, {
     status: response.status,
     statusText: response.statusText,

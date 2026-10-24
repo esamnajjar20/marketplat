@@ -677,9 +677,16 @@ describe('sw.js — service worker logic', () => {
         headers: { authorization: 'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLWEifQ.signature' },
       });
       const userCache = await ctx.fakeCaches.open(ctx.sandbox.self.__USER_DATA_CACHE_NAME('user-a'));
+      // The production code path always writes via putTimestamped(), which
+      // adds X-SW-Cached-At. Writing directly via cache.put() bypasses that,
+      // so the freshness check would treat this entry as stale and delete it
+      // before returning. Emit the header the same way putTimestamped does.
       await userCache.put(request, new Response(JSON.stringify({ id: 'ad-42', title: 'Cached ad' }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-SW-Cached-At': String(Date.now()),
+        },
       }));
       ctx.setFetch(async () => { throw new Error('offline'); });
 
@@ -973,7 +980,9 @@ describe('sw.js — service worker logic', () => {
       ));
       const request = makeFakeRequest({ url: 'https://example.com/products?page=2&utm_source=share', mode: 'navigate' });
       const result = await ctx.sandbox.lookupShellWithFallback(cache, request, new URL(request.url));
-      expect(result).toBeUndefined();
+      // The current lookupShellWithFallback returns null (not undefined)
+      // when no cached shell matches. Both are falsy, but the code is explicit.
+      expect(result).toBeNull();
     });
   });
 
@@ -1109,8 +1118,11 @@ describe('sw.js — service worker logic', () => {
       await ctx.sandbox.cacheVisitedDocumentShell(new URL('https://example.com/public-info'), cache);
       const cached = await cache.match('https://example.com/public-info');
       expect(cached).toBeTruthy();
+      // verifyCachedChunks() reads the body internally via .clone().
+      // Clone BEFORE the .text() assertion, otherwise .clone() fails with
+      // "Body is already used" and the test masks a working SW as broken.
+      expect(await ctx.sandbox.verifyCachedChunks(cached.clone(), cache)).toBe(true);
       expect(await cached.text()).toContain('public info');
-      expect(await ctx.sandbox.verifyCachedChunks(cached, cache)).toBe(true);
     });
 
     it('marks a shell as recovered only after a prior failed save', async () => {
@@ -1247,7 +1259,11 @@ describe('sw.js — service worker logic', () => {
       expect(entries).toHaveLength(1);
       expect(entries[0].status).toBe('pending');
       expect(entries[0].method).toBe('POST');
-      expect(entries[0].headers.authorization).toBe('Bearer tok123');
+      // sw.js intentionally strips Authorization from queued mutations
+      // (security: never persist tokens in IndexedDB). The queue stores
+      // needsAuth: true instead, and the SW replays with a fresh token.
+      expect(entries[0].headers.authorization).toBeUndefined();
+      expect(entries[0].needsAuth).toBe(true);
       expect(entries[0].body).toBeInstanceOf(Blob);
     });
 

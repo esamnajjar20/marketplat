@@ -161,11 +161,11 @@ describe('offline query cache safety and limits', () => {
     expect(isOfflinePersistableQueryKey(['products', 'list', { page: 1, search: undefined }])).toBe(true);
   });
 
-  it('keeps ordinary queries capped at 512 KiB and allows the unified home feed up to 2 MiB', () => {
+  it('keeps ordinary queries capped at 768 KiB and allows the unified home feed up to 3 MiB', () => {
     const now = 1_800_000_000_000;
     expect(OFFLINE_QUERY_MAX_ENTRY_BYTES).toBe(768 * 1024);
     expect(OFFLINE_HOME_FEED_MAX_ENTRY_BYTES).toBe(3 * 1024 * 1024);
-    const payload = 'x'.repeat(700 * 1024);
+    const payload = 'x'.repeat(800 * 1024);
     const rows = selectPersistableQueries([
       { queryKey: ['home', 'feed', null, 'guest'], state: { data: payload, dataUpdatedAt: now } },
       { queryKey: ['products', 'list', { page: 1 }], state: { data: payload, dataUpdatedAt: now } },
@@ -175,7 +175,7 @@ describe('offline query cache safety and limits', () => {
     expect(isValidOfflineQueryCacheEntry(rows[0], now)).toBe(true);
   });
 
-  it('enforces the ordinary 512 KiB entry cap and seven-day maximum age', () => {
+  it('enforces the ordinary 768 KiB entry cap and seven-day maximum age', () => {
     const now = 1_800_000_000_000;
     expect(OFFLINE_QUERY_MAX_ENTRY_BYTES).toBe(768 * 1024);
     const rows = selectPersistableQueries([

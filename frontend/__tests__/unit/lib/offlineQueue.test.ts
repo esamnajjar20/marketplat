@@ -157,7 +157,18 @@ describe('offlineQueue', () => {
     it('persists an owned mutation without persisting live auth or CSRF tokens', async () => {
       const stored: Array<Record<string, unknown>> = [];
       const tx: Record<string, unknown> = {
-        objectStore: () => ({ add: (entry: Record<string, unknown>) => { stored.push(entry); return {}; } }),
+        objectStore: () => ({
+          add: (entry: Record<string, unknown>) => { stored.push(entry); return {}; },
+          // The durable-queue now runs a dedup guard (`store.getAll()`) before
+          // inserting. Return an empty result set so the insert path runs, and
+          // schedule its onsuccess on the microtask queue (it runs before the
+          // tx.oncomplete macrotask scheduled in db.transaction below).
+          getAll: () => {
+            const req = { result: [] as unknown[], onsuccess: null as (() => void) | null, onerror: null };
+            queueMicrotask(() => req.onsuccess?.());
+            return req;
+          },
+        }),
         oncomplete: null,
         onerror: null,
         onabort: null,
@@ -165,7 +176,10 @@ describe('offlineQueue', () => {
       const db = {
         objectStoreNames: { contains: () => true },
         transaction: () => {
-          queueMicrotask(() => (tx.oncomplete as (() => void) | null)?.());
+          // Defer tx.oncomplete to a macrotask so getAll().onsuccess (queued
+          // as a microtask) has already inserted the row before the promise
+          // resolves — matching real IndexedDB ordering.
+          setTimeout(() => (tx.oncomplete as (() => void) | null)?.(), 0);
           return tx;
         },
         close: vi.fn(),

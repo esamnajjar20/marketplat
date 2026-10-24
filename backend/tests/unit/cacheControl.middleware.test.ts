@@ -36,7 +36,7 @@ describe('cacheControl middleware', () => {
 
     expect(res.setHeader).toHaveBeenCalledWith(
       'Cache-Control',
-      'public, max-age=300, stale-while-revalidate=600'
+      'public, max-age=300, s-maxage=900, stale-while-revalidate=600'
     );
   });
 
