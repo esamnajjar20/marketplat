@@ -1,4 +1,4 @@
-name: Load Test 50K (2 minutes)
+name: Load Test 80K (2 minutes)
 
 on:
   workflow_dispatch:
@@ -62,12 +62,12 @@ jobs:
 
           const TARGET = __ENV.TARGET;
 
-          // 50,000 requests in exactly 120s = 417 req/s sustained
+          // 80,000 requests in exactly 120s = 417 req/s sustained
           export const options = {
             scenarios: {
               sustained_load: {
                 executor: 'constant-arrival-rate',
-                rate: 417,
+                rate: 667,
                 timeUnit: '1s',
                 duration: '2m',
                 preAllocatedVUs: 100,
@@ -136,7 +136,7 @@ jobs:
           }
           K6
 
-      - name: Run k6 (50,000 requests)
+      - name: Run k6 (80,000 requests)
         run: |
           k6 run \
             -e TARGET="${{ inputs.target }}" \
