@@ -101,3 +101,4 @@ workers/cf-api-proxy/.wrangler/
 frontend/.env
 frontend/.env.local
 frontend/.env.production
+Modelfile.fast
