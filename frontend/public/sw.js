@@ -1459,8 +1459,12 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
         }
       }
 
-      const toStore = await stripVaryAndClone(response.clone());
-      await putTimestamped(cache, cacheKey, toStore, 'visit');
+      try {
+        const toStore = await stripVaryAndClone(response.clone());
+        await putTimestamped(cache, cacheKey, toStore, 'visit');
+      } catch (cacheErr) {
+        console.warn('[SWR] Skipping HTML cache due to clone error:', cacheErr);
+      }
       await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
     } catch (err) {
       console.warn('[SWR] revalidation failed:', err && err.message);
