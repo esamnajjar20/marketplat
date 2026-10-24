@@ -24,7 +24,7 @@ type Props = {
 export const AdminAdRow = memo(function AdminAdRow({ ad, selected, pendingToggle, onToggle, onToggleFeatured, onTogglePinned, onDelete }: Props) {
   const thumb = ad.images[0] ? getThumbnailUrl(ad.images[0], 80, 60) : PLACEHOLDER_SVG;
   return (
-<tr key={ad.id} className="hover:bg-muted/30 transition-colors">
+<tr key={ad.id} className="hover:bg-[#F4F9F6] transition-colors">
                     <td className="p-3">
                       <Checkbox
                         checked={selected}

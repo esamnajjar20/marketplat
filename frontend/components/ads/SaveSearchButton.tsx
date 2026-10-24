@@ -38,7 +38,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { BellPlus, Megaphone, Package, Wrench } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/shared/ui/Dialog';
 import { useCreateSavedSearch } from '@/hooks/mutations/useSavedSearchMutations';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
@@ -192,65 +192,74 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
 
   return (
     <>
-      <Button variant="outline" size="sm" className="gap-1.5" onClick={handleOpen}>
+      <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full border-[#D9D1C3] bg-card px-3 text-[13px] font-bold text-[#1F4D33]" onClick={handleOpen}>
         <BellPlus className="h-4 w-4" />
         حفظ البحث
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="gap-0 overflow-hidden rounded-[20px] border-[#EAE3D6] p-0 sm:max-w-md">
           {step === 'type' || !effectiveType ? (
-            <>
-              <DialogHeader><DialogTitle>حفظ البحث كـ...</DialogTitle></DialogHeader>
-              <div className="space-y-4 py-2">
-                <p className="text-sm text-muted-foreground">
+            <div className="p-4 sm:p-5">
+              <DialogHeader className="space-y-1 text-start">
+                <DialogTitle className="text-[17px] font-extrabold">حفظ البحث كـ...</DialogTitle>
+                <DialogDescription className="text-[13px] text-[#6B6459]">
                   اختر نوع النتائج التي تريد حفظ هذا البحث لها.
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {TYPE_CHOICES.map(({ type: t, label: l, icon: Icon }) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => handleChooseType(t)}
-                      className="flex flex-col items-center gap-1.5 rounded-lg border p-3 text-sm font-medium transition-colors hover:border-primary hover:bg-primary/5"
-                    >
-                      <Icon className="h-5 w-5 text-primary" />
-                      {l}
-                    </button>
-                  ))}
-                </div>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {TYPE_CHOICES.map(({ type: t, label: l, icon: Icon }) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => handleChooseType(t)}
+                    className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-[#EAE3D6] bg-card p-3 text-[13px] font-bold text-foreground transition-colors hover:border-primary hover:bg-primary-soft"
+                  >
+                    <Icon className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                    {l}
+                  </button>
+                ))}
               </div>
-            </>
+            </div>
           ) : (
-            <>
-              <DialogHeader><DialogTitle>حفظ البحث</DialogTitle></DialogHeader>
-              <div className="space-y-4 py-2">
-                <p className="text-sm text-muted-foreground">
-                  {NOTICE_TEXT[effectiveType]}
-                </p>
+            <div className="p-4 sm:p-5">
+              <DialogHeader className="space-y-1 text-start">
+                <DialogTitle className="text-[17px] font-extrabold">حفظ البحث</DialogTitle>
+              </DialogHeader>
+              <div className="mt-4 space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="saved-search-label" className="text-sm font-medium">اسم البحث</label>
+                  <label htmlFor="saved-search-label" className="text-[13px] font-bold text-foreground">اسم البحث</label>
                   <Input
                     id="saved-search-label"
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
                     maxLength={100}
                     placeholder="مثال: آيفون في النصيرات"
+                    className="h-11 rounded-[10px] border-[#D9D1C3] text-[13px]"
                   />
+                  <p className="text-[12px] leading-5 text-[#6B6459]">
+                    {NOTICE_TEXT[effectiveType]}
+                  </p>
                 </div>
-                <div className="flex justify-end gap-2">
-                  {/* Only the type-picker flow (type prop omitted) can
-                      go back — the fixed-type flow never had a
-                      previous step to return to. */}
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   {!type && (
-                    <Button variant="ghost" onClick={() => setStep('type')}>رجوع</Button>
+                    <Button variant="ghost" className="h-10 text-[13px] font-bold text-[#6B6459]" onClick={() => setStep('type')}>
+                      رجوع
+                    </Button>
                   )}
-                  <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-                  <Button onClick={handleSubmit} loading={createSavedSearch.isPending} loadingText="جارٍ الحفظ…">
+                  <Button variant="outline" className="h-10 rounded-[10px] border-[#D9D1C3] text-[13px] font-bold" onClick={() => setOpen(false)}>
+                    إلغاء
+                  </Button>
+                  <Button
+                    className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold"
+                    onClick={handleSubmit}
+                    loading={createSavedSearch.isPending}
+                    loadingText="جارٍ الحفظ…"
+                  >
                     حفظ
                   </Button>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>

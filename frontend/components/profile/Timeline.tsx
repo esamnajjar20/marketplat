@@ -13,7 +13,6 @@ import {
   CalendarCheck,
   User,
   History,
-  AlertTriangle,
   Search,
 } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
@@ -124,13 +123,13 @@ function ActivityRow({ activity }: { activity: GroupedActivity }) {
     activity.type === 'SERVICE_REQUEST_STATUS_CHANGED' && activity.metadata?.toStatus;
 
   const content = (
-    <div className="flex items-start gap-3 rounded-lg border bg-card p-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Icon className="h-4 w-4" />
+    <div className="flex items-start gap-3 rounded-[14px] border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#E8F1EC] text-primary">
+        <Icon className="h-4 w-4" strokeWidth={1.8} />
       </div>
-      <div className="min-w-0 flex-1 space-y-1">
+      <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="font-medium text-sm">{activity.title}</p>
+          <p className="text-[14px] font-extrabold text-foreground">{activity.title}</p>
           {activity.count > 1 ? (
             <Badge variant="secondary" className="shrink-0 font-normal">
               ×{activity.count}
@@ -186,7 +185,7 @@ export function Timeline() {
       <div
         role="tablist"
         aria-label="تصفية النشاط"
-        className="flex gap-1 overflow-x-auto overscroll-x-contain border-b"
+        className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
       >
         {GROUP_TABS.map((tab) => (
           <button
@@ -196,10 +195,10 @@ export function Timeline() {
             aria-selected={group === tab.value}
             onClick={() => handleGroupChange(tab.value)}
             className={cn(
-              'shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+              'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-bold transition-colors',
               group === tab.value
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-[#EAE3D6] bg-card text-[#4A433A] hover:bg-muted/50'
             )}
           >
             {tab.label}
@@ -215,7 +214,7 @@ export function Timeline() {
           value={q}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="ابحث في نشاطك..."
-          className="ps-9"
+          className="h-10 rounded-[10px] border-[#D9D1C3] ps-9 text-[13px]"
           aria-label="بحث في النشاط"
         />
       </div>
@@ -225,9 +224,8 @@ export function Timeline() {
           <LoadingSpinner />
         </div>
       ) : isError ? (
-        <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-          <p className="text-destructive">حدث خطأ أثناء تحميل نشاطك</p>
+        <div className="rounded-[14px] border border-[#F1C9C4] bg-card px-4 py-4 text-center">
+          <p className="text-[14px] font-bold text-[#9B2118]">حدث خطأ أثناء تحميل نشاطك</p>
           <button
             type="button"
             onClick={() => refetch()}

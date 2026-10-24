@@ -121,17 +121,17 @@ function NavLink({
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex min-h-11 items-center gap-3 rounded-lg py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'flex min-h-10 items-center gap-2.5 rounded-[9px] py-2 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         indent ? 'px-3 ms-7' : 'px-3',
         isActive
-          ? 'bg-primary-soft text-primary shadow-xs ring-1 ring-primary/10'
+          ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold'
           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />}
       <span className="flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-2xs-tight font-semibold text-primary-foreground">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#397F56] px-1 text-[11px] font-extrabold text-white">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
@@ -243,7 +243,7 @@ export function ProtectedSidebar() {
   return (
     <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 lg:block lg:w-60">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1.5 p-3 lg:p-4">
-        <p className="px-3 pb-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">الوصول السريع</p>
+        <p className="px-2.5 pb-1 text-[12px] font-bold text-[#6B6459]">الوصول السريع</p>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.href}
@@ -257,7 +257,7 @@ export function ProtectedSidebar() {
         ))}
 
         <div className="my-1.5 border-t border-border/70" aria-hidden="true" />
-        <p className="px-3 pt-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">مساحتي</p>
+        <p className="px-2.5 pt-1 text-[12px] font-bold text-[#6B6459]">مساحتي</p>
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {

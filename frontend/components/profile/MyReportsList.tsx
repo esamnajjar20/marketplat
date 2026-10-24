@@ -3,14 +3,13 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Flag, ExternalLink } from 'lucide-react';
-import { Badge } from '@/components/shared/ui/Badge';
+import { Flag } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyReports } from '@/hooks/queries/useMyReports';
-import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/constants';
-import type { Report, ReportTargetType, ReportStatus } from '@/types/admin.types';
+import { REPORT_STATUS_LABELS, ROUTES } from '@/lib/constants';
+import type { Report, ReportTargetType } from '@/types/admin.types';
 
 // FEAT-REPORT-USER-STORE: same three target kinds AdminReportsTable
 // renders, but from the reporter's own point of view — what did I
@@ -31,60 +30,40 @@ function targetHref(targetType: ReportTargetType, targetId: string): string {
   return ROUTES.adDetail(targetId);
 }
 
-// FEAT-REPORT-USER-STORE: color-codes the outcome so a reporter can
-// scan the list without reading every status label — green once
-// resolved, muted once dismissed, default (neutral) while still open.
-// Badge only ships default | secondary | destructive | outline
-// (components/ui/badge.tsx), so RESOLVED uses outline + the existing
-// text-success token (same one AdminStoresTable/AdminUsersTable already
-// use for a positive state) rather than inventing a variant that isn't there.
-const STATUS_BADGE: Record<ReportStatus, { variant: 'default' | 'secondary' | 'outline'; className?: string }> = {
-  PENDING: { variant: 'default' },
-  RESOLVED: { variant: 'outline', className: 'text-success border-success' },
-  DISMISSED: { variant: 'secondary' },
-};
 
 function MyReportRow({ report }: { report: Report }) {
+  const statusLabel = REPORT_STATUS_LABELS[report.status] ?? report.status;
+  const isPending = report.status === 'PENDING';
+  const title =
+    report.ad?.title ||
+    (report.targetType === 'USER' ? 'مستخدم' : TARGET_TYPE_LABELS[report.targetType]);
+
   return (
-    <div className="flex items-start gap-3 rounded-lg border bg-card p-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Flag className="h-4 w-4" />
+    <article className="rounded-[14px] border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="inline-flex h-[22px] items-center rounded-full bg-[#F0EADF] px-2 text-[11px] font-bold text-[#4A433A]">
+          {TARGET_TYPE_LABELS[report.targetType]}
+        </span>
+        <span
+          className={
+            isPending
+              ? 'inline-flex h-[22px] items-center rounded-full bg-[#FBF0D9] px-2 text-[11px] font-bold text-[#7A4B07]'
+              : 'inline-flex h-[22px] items-center rounded-full bg-[#E8F1EC] px-2 text-[11px] font-bold text-[#1F4D33]'
+          }
+        >
+          {statusLabel}
+        </span>
       </div>
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Badge variant="outline" className="shrink-0 text-xs">
-              {REPORT_REASON_LABELS[report.reason] ?? report.reason}
-            </Badge>
-            <span className="text-xs text-muted-foreground shrink-0">
-              [{TARGET_TYPE_LABELS[report.targetType]}]
-            </span>
-          </div>
-          <Badge
-            variant={STATUS_BADGE[report.status].variant}
-            className={`shrink-0 font-normal ${STATUS_BADGE[report.status].className ?? ''}`}
-          >
-            {REPORT_STATUS_LABELS[report.status] ?? report.status}
-          </Badge>
-        </div>
-
-        {report.notes && (
-          <p className="text-sm text-muted-foreground line-clamp-2">{report.notes}</p>
-        )}
-
-        <div className="flex items-center justify-between gap-2 pt-1">
-          <Link
-            href={targetHref(report.targetType, report.targetId)}
-            target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" />
-            {report.ad?.title ? report.ad.title.slice(0, 40) : 'عرض التفاصيل'}
-          </Link>
-          <p className="text-xs text-muted-foreground">{<HydrationSafeRelativeTime date={report.createdAt} />}</p>
-        </div>
-      </div>
-    </div>
+      <Link
+        href={targetHref(report.targetType, report.targetId)}
+        className="mt-2 block text-[15px] font-extrabold text-foreground hover:underline"
+      >
+        {title}
+      </Link>
+      <p className="mt-1 text-[12px] text-[#6B6459]">
+        <HydrationSafeRelativeTime date={report.createdAt} />
+      </p>
+    </article>
   );
 }
 
@@ -102,10 +81,13 @@ export function MyReportsList() {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل بلاغاتك</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+      <div className="rounded-[14px] border border-[#F1C9C4] bg-card px-4 py-4 text-center">
+        <p className="text-[14px] font-bold text-[#9B2118]">حدث خطأ أثناء تحميل بلاغاتك</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-[#CFE0D5] bg-white px-3 text-[13px] font-bold text-[#1F4D33]"
+        >
           إعادة المحاولة
         </button>
       </div>
@@ -142,7 +124,7 @@ export function MyReportsList() {
             </Button>
           )}
           <span className="text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
-            {page} / {data!.meta.totalPages}
+            صفحة {page} من {data!.meta.totalPages}
           </span>
           {page >= data!.meta.totalPages ? (
             <Button variant="outline" size="sm" disabled aria-disabled="true" className="pointer-events-none opacity-50">

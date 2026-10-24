@@ -15,7 +15,7 @@ type Props = { store: AdminStore; selected: boolean; pendingId?: string; pending
 export const AdminStoreRow = memo(function AdminStoreRow({ store, selected, pendingId, pendingTypeId, storeTypes, onToggle, onUpdateStatus, onUpdatePlan, onUpdateType, onBlock }: Props) {
   const badge = { label: STORE_STATUS_LABELS[store.status], variant: STORE_STATUS_VARIANT[store.status] };
   return (
-<tr key={store.id} className="hover:bg-muted/30 transition-colors">
+<tr key={store.id} className="border-b border-[#F0EADF] transition-colors hover:bg-[#F4F9F6]">
                     <td className="p-3">
                       <Checkbox
                         checked={selected}
@@ -60,7 +60,7 @@ export const AdminStoreRow = memo(function AdminStoreRow({ store, selected, pend
                       <div className="flex items-center gap-1">
                         {store.status !== 'ACTIVE' && (
                           <Tooltip content="الموافقة على المتجر">
-                            <Button variant="ghost" size="icon" className="h-9 w-9"
+                            <Button variant="ghost" size="icon" className="h-[30px] min-w-[30px] rounded-lg"
                               aria-label={`الموافقة على متجر ${store.name}`}
                               disabled={pendingId === store.id}
                               onClick={() => onUpdateStatus(store.id, 'ACTIVE')}>
@@ -70,7 +70,7 @@ export const AdminStoreRow = memo(function AdminStoreRow({ store, selected, pend
                         )}
                         {store.status === 'BLOCKED' ? (
                           <Tooltip content="رفع الحظر">
-                            <Button variant="ghost" size="icon" className="h-9 w-9"
+                            <Button variant="ghost" size="icon" className="h-[30px] min-w-[30px] rounded-lg"
                               aria-label={`رفع الحظر عن متجر ${store.name}`}
                               disabled={pendingId === store.id}
                               onClick={() => onUpdateStatus(store.id, 'PENDING')}>
@@ -79,7 +79,7 @@ export const AdminStoreRow = memo(function AdminStoreRow({ store, selected, pend
                           </Tooltip>
                         ) : (
                           <Tooltip content="حظر المتجر">
-                            <Button variant="ghost" size="icon" className="h-9 w-9"
+                            <Button variant="ghost" size="icon" className="h-[30px] min-w-[30px] rounded-lg"
                               aria-label={`حظر متجر ${store.name}`}
                               disabled={pendingId === store.id}
                               onClick={() => onBlock(store.id, store.name)}>
@@ -90,7 +90,7 @@ export const AdminStoreRow = memo(function AdminStoreRow({ store, selected, pend
                         {/* FIX BUG-02: StorePlan.FEATURED was unreachable
                             — no admin control existed to ever set it. */}
                         <Tooltip content={store.plan === 'FEATURED' ? 'إلغاء تمييز المتجر' : 'تمييز المتجر'}>
-                          <Button variant="ghost" size="icon" className="h-9 w-9"
+                          <Button variant="ghost" size="icon" className="h-[30px] min-w-[30px] rounded-lg"
                             aria-label={store.plan === 'FEATURED' ? `إلغاء تمييز متجر ${store.name}` : `تمييز متجر ${store.name}`}
                             disabled={pendingId === store.id}
                             onClick={() => onUpdatePlan(store.id, store.plan === 'FEATURED' ? 'FREE' : 'FEATURED')}>

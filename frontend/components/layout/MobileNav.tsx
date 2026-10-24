@@ -226,7 +226,7 @@ function DisclosureGroup({
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'block rounded-md px-3 py-2 ms-7 text-base font-medium transition-colors',
-                    isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                    isActive ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
                   )}
                 >
                   {child.label}
@@ -546,7 +546,7 @@ export function MobileNav() {
                             aria-current={isActive ? 'page' : undefined}
                             className={cn(
                               'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors',
-                              isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                              isActive ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
                             )}
                           >
                             <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />

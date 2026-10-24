@@ -21,8 +21,7 @@ interface Props {
 }
 
 /**
- * حالة فارغة موحّدة — هادئة، مفهومة، مع مساحة تنفّس.
- * tone variants + consistent icon well.
+ * حالة فارغة موحّدة — بطاقة بيضاء بأيقونة دائرية ناعمة (مطابقة للتصميم).
  */
 export function EmptyState({
   icon,
@@ -36,16 +35,16 @@ export function EmptyState({
 }: Props) {
   const iconWell =
     tone === 'warning'
-      ? 'bg-warning-soft text-warning-foreground'
+      ? 'bg-[#FBEEE6] text-[#8F3F14]'
       : tone === 'muted'
-        ? 'bg-muted text-muted-foreground'
-        : 'bg-primary/10 text-primary';
+        ? 'bg-[#F0EADF] text-[#6B6459]'
+        : 'bg-[#F0EADF] text-[#6B6459]';
 
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center text-center section-enter motion-reduce:animate-none',
-        compact ? 'gap-3 py-8 sm:py-10' : 'gap-4 py-12 sm:py-16',
+        'flex flex-col items-center justify-center rounded-[14px] border border-[#EAE3D6] bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
+        compact ? 'gap-2.5 py-8' : 'gap-3 py-10 sm:py-12',
         className,
       )}
       role={role}
@@ -54,21 +53,21 @@ export function EmptyState({
       {icon && (
         <div
           className={cn(
-            'flex items-center justify-center rounded-2xl shadow-xs',
-            '[&_svg]:h-7 [&_svg]:w-7 sm:[&_svg]:h-8 sm:[&_svg]:w-8',
-            compact ? 'h-12 w-12' : 'h-14 w-14 sm:h-16 sm:w-16',
+            'flex items-center justify-center rounded-full',
+            '[&_svg]:h-5 [&_svg]:w-5',
+            compact ? 'h-11 w-11' : 'h-12 w-12',
             iconWell,
           )}
         >
           {icon}
         </div>
       )}
-      <div className={cn('space-y-1.5', compact ? 'max-w-xs' : 'max-w-sm')}>
-        <p className="text-base font-semibold tracking-tight text-foreground sm:text-[1.05rem]">
+      <div className={cn('space-y-1', compact ? 'max-w-xs' : 'max-w-sm')}>
+        <p className="text-[15px] font-extrabold tracking-tight text-foreground">
           {title}
         </p>
         {description && (
-          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <p className="text-[13px] leading-5 text-[#6B6459]">{description}</p>
         )}
       </div>
       {action && (

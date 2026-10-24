@@ -30,7 +30,7 @@ export const AdminUserRow = memo(function AdminUserRow({ user, selected, actorRo
   const canManageStatus = !isTargetSuperAdmin && canManageRole(actorRole, userRole, userRole);
   const canManageAnyRole = !isTargetSuperAdmin && ASSIGNABLE_ROLES.some((r) => r !== userRole && canManageRole(actorRole, userRole, r));
   return (
-<tr key={user.id} className="hover:bg-muted/30 transition-colors">
+<tr key={user.id} className="hover:bg-[#F4F9F6] transition-colors">
                     <td className="p-3">
                       {canManageStatus && (
                         <Checkbox

@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/shared/ui/Dialog';
 
 interface ConfirmDialogProps {
@@ -123,42 +122,58 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
-        </DialogHeader>
-        {requireReason && (
-          <div className="space-y-1.5 px-1">
-            <label className="text-sm font-medium" htmlFor="confirm-reason">
-              {reasonLabel}
-            </label>
-            <textarea
-              id="confirm-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder={reasonPlaceholder}
-              rows={3}
-              disabled={isPending}
-              className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            {reason.trim().length > 0 && reason.trim().length < 3 && (
-              <p className="text-xs text-destructive">السبب قصير جداً</p>
+      <DialogContent className="gap-0 overflow-hidden rounded-[20px] border-[#EAE3D6] p-0 sm:max-w-md">
+        <div className="space-y-3 p-4 sm:p-5">
+          <DialogHeader className="space-y-1.5 text-start">
+            <DialogTitle className="text-[17px] font-extrabold text-foreground">{title}</DialogTitle>
+            {description && (
+              <DialogDescription className="text-[13px] leading-5 text-[#6B6459]">
+                {description}
+              </DialogDescription>
             )}
+          </DialogHeader>
+          {requireReason && (
+            <div className="space-y-1.5">
+              <label className="sr-only" htmlFor="confirm-reason">
+                {reasonLabel}
+              </label>
+              <textarea
+                id="confirm-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder={reasonPlaceholder || 'صف المشكلة...'}
+                rows={3}
+                disabled={isPending}
+                className="w-full resize-y rounded-[12px] border border-[#D9D1C3] bg-card px-3 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              />
+              {reason.trim().length > 0 && reason.trim().length < 3 && (
+                <p className="text-[12px] text-[#9B2118]">السبب قصير جداً</p>
+              )}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={isPending}
+              className="h-10 min-w-[88px] rounded-full border-[#D9D1C3] bg-card px-4 text-[13px] font-bold text-[#1F4D33]"
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              variant={destructive ? 'destructive' : 'default'}
+              onClick={handleConfirm}
+              disabled={isPending || !reasonOk}
+              className={
+                destructive
+                  ? 'h-10 min-w-[120px] rounded-full bg-[#B3261E] px-4 text-[13px] font-bold text-white hover:bg-[#9B2118]'
+                  : 'h-10 min-w-[120px] rounded-full bg-[#397F56] px-4 text-[13px] font-bold text-white hover:bg-[#1F4D33]'
+              }
+            >
+              {isPending ? confirmingLabel : confirmLabel}
+            </Button>
           </div>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={destructive ? 'destructive' : 'default'}
-            onClick={handleConfirm}
-            disabled={isPending || !reasonOk}
-          >
-            {isPending ? confirmingLabel : confirmLabel}
-          </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

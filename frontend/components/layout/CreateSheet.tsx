@@ -9,60 +9,38 @@ import {
   ChevronLeft,
   FileEdit,
 } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/shared/ui/Sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
-import { useAuthStore, selectLastKnownRoles, type LastKnownRoles } from '@/store/auth.store';
-import { cn } from '@/lib/utils';
+import { useAuthStore, selectLastKnownRoles, selectHydratedUser, type LastKnownRoles } from '@/store/auth.store';
+import { usePendingDraftsCount } from '@/hooks/usePendingDraftsCount';
 
-/**
- * CREATE-SHEET — single publish entry from BottomNav "+" (UI-).
- * Policy: one primary create surface; guest floating bar only reinforces
- * the same CreateSheet — no third competing destination.
- */
 const CREATE_LINKS = [
   {
     label: 'إعلان جديد',
     description: 'بيع شيء بسرعة — مجاني',
     href: ROUTES.adCreate,
     icon: Megaphone,
-    primary: true,
-    iconClass: 'bg-primary/12 text-primary',
   },
   {
     label: 'منتج جديد',
     description: 'أضف لمنتجات متجرك',
     href: ROUTES.myStoreProductCreate,
     icon: Package,
-    primary: false,
-    iconClass: 'bg-accent/12 text-accent',
   },
   {
     label: 'خدمة جديدة',
     description: 'اعرض خدمة تقدّمها',
     href: ROUTES.myServiceCreate,
     icon: Wrench,
-    primary: false,
-    iconClass: 'bg-success/12 text-success',
   },
   {
     label: 'طلب / احتياج',
     description: 'انشر طلبك واستقبل العروض',
     href: ROUTES.requestNew,
     icon: ClipboardList,
-    primary: false,
-    iconClass: 'bg-warning/15 text-warning-foreground',
   },
 ] as const;
 
-/**
- * Role-aware create capabilities.
- *
- * IMPORTANT: this is intentionally a pure filter over the already-persisted
- * role/store hint. It does not call a query hook and therefore does not add
- * any network request when the "+" sheet opens.
- *
- * The actual destination pages remain server/client gated as defense in depth.
- */
 export function getVisibleCreateLinks(roles: LastKnownRoles | null) {
   return CREATE_LINKS.filter((link) => {
     if (link.href === ROUTES.adCreate) return Boolean(roles?.isSeller);
@@ -80,79 +58,58 @@ export function CreateSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const roles = useAuthStore(selectLastKnownRoles);
+  const user = useAuthStore(selectHydratedUser);
+  const draftsCount = usePendingDraftsCount(user?.id);
+  const links = getVisibleCreateLinks(roles);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="p-0">
-        <SheetHeader className="border-b border-border/60 px-4 pb-3 pt-1">
-          <SheetTitle className="text-base font-bold">ماذا تريد أن تضيف؟</SheetTitle>
-          <p className="text-2xs text-muted-foreground">
-            اختر النوع — المسودات تُحفظ تلقائياً ويمكن إكمالها لاحقاً
-          </p>
+      <SheetContent className="gap-0 rounded-t-[20px] border-[#EAE3D6] p-0">
+        <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
+          <SheetTitle className="text-[17px] font-extrabold">ماذا تريد أن تضيف؟</SheetTitle>
+          <SheetDescription className="text-[13px] text-[#6B6459]">
+            اختر النوع — المسودات تُحفظ تلقائيًا ويمكن إكمالها لاحقًا
+          </SheetDescription>
         </SheetHeader>
 
-        <nav
-          aria-label="إضافة عنصر جديد"
-          className="flex flex-col gap-2 px-4 pt-3"
-        >
-          {getVisibleCreateLinks(roles).map(({ label, description, href, icon: Icon, primary, iconClass }) => (
+        <nav aria-label="إضافة محتوى" className="flex flex-col gap-2 px-3 pb-3">
+          {links.map(({ label, description, href, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className={cn(
-                'group flex min-h-14 items-center gap-3 rounded-xl border px-3 py-3 transition-colors active:scale-[0.99]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                primary
-                  ? 'border-primary/35 bg-primary/5 shadow-sm hover:bg-primary/10'
-                  : 'border-border/70 bg-card hover:border-border hover:bg-muted/60',
-              )}
+              className="flex items-center gap-3 rounded-[14px] border border-[#EAE3D6] bg-card px-3 py-3 transition-colors hover:bg-[#FBF9F4]"
             >
-              <span
-                className={cn(
-                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-                  iconClass,
-                )}
-              >
-                <Icon className="h-5 w-5" aria-hidden />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#E8F1EC] text-primary">
+                <Icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
               <span className="min-w-0 flex-1">
-                <span
-                  className={cn(
-                    'block text-sm font-semibold text-foreground',
-                    primary && 'text-primary',
-                  )}
-                >
-                  {label}
-                </span>
-                <span className="mt-0.5 block text-2xs text-muted-foreground sm:text-xs">
-                  {description}
-                </span>
+                <span className="block text-[15px] font-extrabold text-foreground">{label}</span>
+                <span className="block text-[12px] text-[#6B6459]">{description}</span>
               </span>
-              <ChevronLeft
-                className="h-4 w-4 shrink-0 text-muted-foreground opacity-60 transition-transform group-hover:-translate-x-0.5 group-hover:opacity-100"
-                aria-hidden
-              />
+              <ChevronLeft className="h-4 w-4 shrink-0 text-[#6B6459]" aria-hidden />
             </Link>
           ))}
         </nav>
 
-        <div className="mt-2 border-t border-border/60 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
-          <Link
-            href={ROUTES.offline.drafts}
-            prefetch={false}
-            onClick={() => onOpenChange(false)}
-            className="flex min-h-11 items-center gap-2 rounded-xl px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-          >
-            <FileEdit className="h-4 w-4 shrink-0" aria-hidden />
-            <span className="min-w-0 flex-1">متابعة المسودات غير المكتملة</span>
-            <ChevronLeft className="h-4 w-4 opacity-50" aria-hidden />
-          </Link>
-        </div>
+        {draftsCount > 0 && (
+          <div className="border-t border-[#EAE3D6] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <Link
+              href={ROUTES.offline.drafts}
+              prefetch={false}
+              onClick={() => onOpenChange(false)}
+              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-[#F1C9C4] bg-[#FBEEE6] text-[13px] font-bold text-[#8F3F14]"
+            >
+              <FileEdit className="h-4 w-4" />
+              متابعة المسودات غير المكتملة
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C47A0A] px-1.5 text-[11px] font-extrabold text-white">
+                {draftsCount > 9 ? '9+' : draftsCount}
+              </span>
+            </Link>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
 }
-
-export { CREATE_LINKS };

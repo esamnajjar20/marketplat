@@ -59,7 +59,7 @@ export function UserMenu() {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent className="min-w-[260px] rounded-[16px] border-[#EAE3D6] p-2 shadow-lg" align="end">
         <DropdownMenuLabel className="font-normal">
           <div className="flex items-center gap-3">
             <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={40} />
@@ -73,12 +73,12 @@ export function UserMenu() {
           {(isSeller || isProvider) && (
             <div className="mt-2 flex gap-1.5">
               {isSeller && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-medium text-primary">
+                <span className="rounded-full bg-[#E8F1EC] px-2 py-0.5 text-[11px] font-bold text-[#1F4D33]">
                   بائع
                 </span>
               )}
               {isProvider && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs-tight font-medium text-primary">
+                <span className="rounded-full bg-[#FBEEE6] px-2 py-0.5 text-[11px] font-bold text-[#8F3F14]">
                   مقدّم خدمة
                 </span>
               )}

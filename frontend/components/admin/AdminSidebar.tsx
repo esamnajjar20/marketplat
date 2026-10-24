@@ -74,19 +74,19 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     .filter((link) => !filter.trim() || link.label.includes(filter.trim()));
 
   return (
-    <nav aria-label="قائمة الإدارة" className="space-y-1 p-3">
-      <p className="text-xs font-semibold text-muted-foreground px-2 mb-2">
+    <nav aria-label="قائمة الإدارة" className="flex flex-col gap-0.5 p-3">
+      <p className="px-2.5 pb-1.5 text-[13px] font-extrabold text-foreground">
         لوحة الإدارة
       </p>
       {/* بحث سريع في القائمة — مفيد خاصة على الموبايل مع كثرة الروابط */}
-      <div className="relative mb-3 px-1">
-        <Search className="pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+      <div className="relative mb-1.5">
+        <Search className="pointer-events-none absolute start-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
         <input
           type="search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="بحث في القائمة…"
-          className="h-9 w-full rounded-md border border-input bg-background pe-3 ps-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-[34px] w-full rounded-[9px] border border-[#D9D1C3] bg-card pe-3 ps-8 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="بحث في قائمة الإدارة"
         />
       </div>
@@ -107,23 +107,18 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              // min-h for comfortable touch targets on mobile
-              'flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-10',
+              // Design match: ~34px height, rounded-[9px], active = soft green + extrabold
+              'flex min-h-11 items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-[34px]',
               isActive
-                ? 'bg-primary-soft text-primary shadow-xs ring-1 ring-primary/10'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                ? 'bg-primary-soft text-[#1F4D33] font-extrabold'
+                : 'text-foreground hover:bg-muted/80',
             )}
           >
-            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} aria-hidden="true" />
             <span className="flex-1">{label}</span>
             {badge > 0 && (
               <span
-                className={cn(
-                  'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-2xs font-bold tabular-nums',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-destructive text-destructive-foreground',
-                )}
+                className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold tabular-nums bg-[#B3261E] text-white"
               >
                 {badge > 99 ? '99+' : badge}
               </span>
@@ -135,10 +130,10 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-/** Desktop sidebar — fixed, always visible on lg+ screens. */
+/** Desktop sidebar — fixed, always visible on lg+ screens. Design: 260px. */
 function DesktopSidebar() {
   return (
-    <aside className="sticky top-0 z-20 hidden h-screen w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 lg:block lg:w-60">
+    <aside className="sticky top-0 z-20 hidden h-screen w-[260px] shrink-0 overflow-y-auto border-e border-border/80 bg-card lg:block">
       <NavLinks />
     </aside>
   );
@@ -192,7 +187,7 @@ function MobileDrawer() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="lg:hidden fixed top-3 start-3 z-[70] p-2 rounded-md bg-card border shadow-sm min-h-11 min-w-11"
+        className="lg:hidden fixed top-3 end-3 z-[70] flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#EAE3D6] bg-card text-[#4A433A] shadow-sm"
         aria-label="فتح القائمة"
       >
         <Menu className="h-5 w-5" />
@@ -211,7 +206,7 @@ function MobileDrawer() {
               className="absolute inset-0 bg-foreground/50 backdrop-blur-[2px]"
               onClick={() => setOpen(false)}
             />
-            <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-64 max-w-[85vw] overflow-y-auto border-e border-border bg-card shadow-xl">
+            <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-[min(300px,88vw)] overflow-y-auto border-e border-[#EAE3D6] bg-card shadow-xl">
               <button
                 onClick={() => setOpen(false)}
                 className="absolute top-3 end-3 z-[102] min-h-10 min-w-10 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

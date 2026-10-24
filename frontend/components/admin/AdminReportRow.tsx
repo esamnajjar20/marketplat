@@ -43,7 +43,7 @@ export const AdminReportRow = memo(function AdminReportRow({
   onRequestStatus,
 }: Props) {
   return (
-    <tr className="hover:bg-muted/30 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
+    <tr className="hover:bg-[#F4F9F6] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
       <td className="p-3">
         {report.status === 'PENDING' && (
           <Checkbox
@@ -82,7 +82,7 @@ export const AdminReportRow = memo(function AdminReportRow({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-success"
+              className="h-[30px] rounded-lg text-success"
               disabled={isPending}
               onClick={() => onRequestStatus(report.id, 'RESOLVED')}
             >
@@ -91,7 +91,7 @@ export const AdminReportRow = memo(function AdminReportRow({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-muted-foreground"
+              className="h-[30px] rounded-lg text-muted-foreground"
               disabled={isPending}
               onClick={() => onRequestStatus(report.id, 'DISMISSED')}
             >

@@ -85,7 +85,7 @@ export function MyServiceRequestsList() {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل طلباتك</p>
+        <p className="text-[14px] font-bold text-[#9B2118]">حدث خطأ أثناء تحميل طلباتك</p>
         <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
           إعادة المحاولة
         </button>
@@ -101,8 +101,8 @@ export function MyServiceRequestsList() {
             key={val}
             onClick={() => setStatus(val)}
             aria-pressed={(status ?? '') === val}
-            className={`inline-flex min-h-10 shrink-0 items-center justify-center rounded-full px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-              ${(status ?? '') === val ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+            className={`inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3 text-[12px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+              ${(status ?? '') === val ? 'border-primary bg-primary text-primary-foreground' : 'border-[#EAE3D6] bg-card text-[#4A433A] hover:bg-muted/50'}`}
           >
             {val ? SERVICE_REQUEST_STATUS_LABELS[val] : 'الكل'}
           </button>
@@ -126,7 +126,7 @@ export function MyServiceRequestsList() {
             const canReview = request.status === 'COMPLETED' && request.review === null;
 
             return (
-              <div key={request.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border/70 bg-card shadow-sm p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
+              <div key={request.id} className="flex min-w-0 flex-col gap-3 rounded-[14px] border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] sm:flex-row">
                 <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-24">
                   <SafeImage src={thumb} alt={request.listing.title} fill className="object-cover" sizes="96px" />
                 </div>

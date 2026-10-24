@@ -90,7 +90,7 @@ function MyAdsDrawerLink({ active, onNavigate }: { active: boolean; onNavigate: 
       aria-current={active ? 'page' : undefined}
       className={cn(
         'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-        active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+        active ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
       )}
     >
       إعلاناتي
@@ -117,7 +117,7 @@ function DrawerDisclosureGroup({
         aria-expanded={isOpen}
         className={cn(
           'flex w-full items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
-          isAnyChildActive && !isOpen ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+          isAnyChildActive && !isOpen ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
         )}
       >
         <span className="flex-1 text-start">{group.label}</span>
@@ -139,7 +139,7 @@ function DrawerDisclosureGroup({
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'block rounded-md px-3 py-2 ms-4 text-base font-medium transition-colors',
-                    isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                    isActive ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
                   )}
                 >
                   {child.label}
@@ -379,7 +379,7 @@ export function ProtectedMobileNav() {
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-                    isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                    isActive ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
                   )}
                 >
                   {link.label}

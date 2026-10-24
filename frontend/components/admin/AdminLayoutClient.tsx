@@ -127,16 +127,14 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen min-h-dvh bg-surface-1">
+    <div className="flex min-h-screen min-h-dvh bg-background">
       {/* useSearchParams() inside needs a Suspense boundary. */}
       <Suspense fallback={<div className="w-12 shrink-0" aria-hidden="true" />}><AdminSidebar /></Suspense>
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
-        <main id="main-content" className="flex-1 overflow-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6 lg:p-8">
-          <div className="mx-auto w-full max-w-[1600px]">
-            <PageTransition>{children}</PageTransition>
-          </div>
+        <main id="main-content" className="flex-1 overflow-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 md:p-6">
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     </div>

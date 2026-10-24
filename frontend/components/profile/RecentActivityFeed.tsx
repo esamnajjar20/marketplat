@@ -75,9 +75,10 @@ export function RecentActivityFeed() {
 
   if (items.length === 0) {
     return (
-      <div className="text-center py-6 text-sm text-muted-foreground">
-        لا يوجد نشاط بعد.{' '}
-        <Link href={ROUTES.adCreate} className="text-primary hover:underline">
+      <div className="rounded-[14px] border border-[#EAE3D6] bg-card px-4 py-8 text-center">
+        <p className="text-[15px] font-extrabold">لا يوجد نشاط بعد</p>
+        <p className="mt-1 text-[13px] text-[#6B6459]">ستظهر هنا كل الأنشطة المرتبطة بحسابك</p>
+        <Link href={ROUTES.adCreate} className="mt-3 inline-flex h-9 items-center rounded-full bg-[#397F56] px-4 text-[13px] font-bold text-white">
           انشر أول إعلان
         </Link>
       </div>
@@ -91,12 +92,12 @@ export function RecentActivityFeed() {
         const href = linkFor(activity);
         const body = (
           <>
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <Icon className="h-4 w-4 text-primary" aria-hidden />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#E8F1EC]">
+              <Icon className="h-4 w-4 text-primary" strokeWidth={1.8} aria-hidden />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{activity.title}</p>
-              <p className="text-xs text-muted-foreground truncate">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-extrabold text-foreground">{activity.title}</p>
+              <p className="truncate text-[12px] text-[#6B6459]">
                 {activity.description ? `${activity.description} · ` : ''}
                 {<HydrationSafeRelativeTime date={activity.createdAt} />}
               </p>
@@ -108,12 +109,12 @@ export function RecentActivityFeed() {
           <Link
             key={activity.id}
             href={href}
-            className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+            className="flex items-center gap-3 rounded-[14px] border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-[#FBF9F4]"
           >
             {body}
           </Link>
         ) : (
-          <div key={activity.id} className="flex items-center gap-3 p-3 rounded-lg border">
+          <div key={activity.id} className="flex items-center gap-3 rounded-[14px] border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
             {body}
           </div>
         );

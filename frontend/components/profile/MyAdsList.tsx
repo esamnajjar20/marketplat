@@ -25,7 +25,7 @@ import { useLongPress } from '@/hooks/ui/useLongPress';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
-import { ShoppingBag, AlertTriangle } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import type { AdStatus } from '@/types/ad.types';
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
@@ -231,9 +231,8 @@ export function MyAdsList() {
   // needs `data` to have resolved successfully first.
   if (isError) {
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل إعلاناتك</p>
+      <div className="rounded-[14px] border border-[#F1C9C4] bg-card px-4 py-4 text-center">
+        <p className="text-[14px] font-bold text-[#9B2118]">حدث خطأ أثناء تحميل إعلاناتك</p>
         <button
           type="button"
           onClick={() => refetch()}
@@ -255,10 +254,10 @@ export function MyAdsList() {
           {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['EXPIRED', 'منتهية'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
             <button key={val} onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}
-              className={`min-h-10 shrink-0 rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
+              className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-bold transition-colors ${
                 (status ?? '') === val
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'border border-border/80 text-muted-foreground hover:bg-muted'
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-[#EAE3D6] bg-card text-[#4A433A] hover:bg-muted/50'
               }`}>
               {label}
             </button>
@@ -313,24 +312,24 @@ export function MyAdsList() {
                   }
                 }}
                 className={cn(
-                  'flex gap-3 rounded-xl border border-border bg-card p-3 shadow-xs transition-colors',
-                  selected.has(ad.id) ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/20',
+                  'flex gap-3 rounded-[14px] border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors',
+                  selected.has(ad.id) ? 'border-primary bg-[#E8F1EC]/40' : 'border-[#EAE3D6] hover:border-primary/30',
                   selectionMode && 'cursor-pointer',
                 )}
               >
                 {(selectionMode || selected.has(ad.id)) && (
                   <span
                     className={cn(
-                      'flex h-6 w-6 shrink-0 items-center justify-center self-center rounded border-2',
+                      'flex h-6 w-6 shrink-0 items-center justify-center self-start rounded-full border-2',
                       selected.has(ad.id)
                         ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-muted-foreground/40',
+                        : 'border-[#D9D1C3] bg-card',
                     )}
                   >
                     {selected.has(ad.id) && <Check className="h-3.5 w-3.5" />}
                   </span>
                 )}
-                <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
+                <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[12px] bg-[#F0EADF]">
                   <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="96px" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
@@ -377,11 +376,11 @@ export function MyAdsList() {
                   )}
                   <RepublishAdButton adId={ad.id} status={ad.status} />
                   <Link href={ROUTES.adEdit(ad.id)} prefetch={false}>
-                    <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${ad.title}`}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[#EAE3D6]" aria-label={`تعديل ${ad.title}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:text-destructive"
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[#EAE3D6] text-[#9B2118] hover:text-[#9B2118]"
                     aria-label={`حذف ${ad.title}`}
                     onClick={() => scheduleDelete(ad.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
@@ -401,8 +400,8 @@ export function MyAdsList() {
       {/* BULK-ADS-01-JSX: sticky action bar appears in selection mode.
           Positioned above the mobile bottom nav with safe-area. */}
       {selectionMode && (
-        <div className="fixed inset-x-3 bottom-[var(--bottom-nav-offset)] z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-2xl border bg-background/95 px-3 py-3 shadow-2xl backdrop-blur">
-          <span className="text-sm font-medium">{selected.size} محدد</span>
+        <div className="fixed inset-x-3 bottom-[var(--bottom-nav-offset)] z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-[16px] border border-[#EAE3D6] bg-card/95 px-3 py-2.5 shadow-[0_8px_28px_-12px_rgba(42,36,29,0.25)] backdrop-blur">
+          <span className="text-[13px] font-extrabold text-foreground">{selected.size} محدد</span>
           <div className="ms-auto flex gap-2">
             <Button
               type="button"

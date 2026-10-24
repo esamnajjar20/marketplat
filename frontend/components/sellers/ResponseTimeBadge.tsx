@@ -51,9 +51,9 @@ export function ResponseTimeBadge({
           : `متوسط زمن الرد ≈ ${responseTimeMinutes} دقيقة`
       }
     >
-      <Zap className={cn('shrink-0 text-warning', size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
-      <span>
-        ⚡ يرد عادة {label}
+      <Zap className={cn('shrink-0 text-primary', size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4')} strokeWidth={1.8} />
+      <span className="text-[12px] font-medium text-[#1F4D33]">
+        يرد عادة {label}
         {rateHint}
       </span>
     </span>

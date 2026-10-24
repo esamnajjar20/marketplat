@@ -81,19 +81,18 @@ export function AdminFilterBar({
   const hasFilters = Boolean(urlSearch) || urlTab !== defaultTab;
 
   return (
-    <div className={cn('flex flex-col gap-3 rounded-xl border bg-card p-3 sm:p-4', className)}>
-      <div className="relative w-full sm:max-w-xs">
-        <Search className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <div className={cn('flex flex-wrap items-center gap-2', className)}>
+      <div className="relative w-full sm:w-auto sm:min-w-[220px] sm:max-w-xs">
+        <Search className="pointer-events-none absolute start-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6B6459]" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={searchPlaceholder}
-          className="ps-9"
+          className="h-9 rounded-[10px] border-[#D9D1C3] bg-card ps-8 text-[13px]"
           aria-label={searchPlaceholder}
         />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
+      <div className="flex flex-wrap items-center gap-1.5">
         {tabs.map((tab) => {
           const active = urlTab === tab.value;
           return (
@@ -101,36 +100,27 @@ export function AdminFilterBar({
               key={tab.value}
               type="button"
               onClick={() => replaceParams({
-                // FIX FILTER-BAR-DEFAULT-TAB-01: both ternary branches
-                // returned tab.value, so clicking the tab that happens
-                // to be the default still wrote the param into the URL
-                // (e.g. /admin/reports?status=PENDING when PENDING is
-                // already the default). Returning null here lets
-                // replaceParams delete the key instead, keeping the
-                // URL minimal and letting shared deep links reload
-                // with the same view.
                 [tabParam]: tab.value === defaultTab ? null : tab.value,
               })}
               className={cn(
-                'min-h-9 rounded-md px-3 py-2 text-xs font-medium transition-colors sm:text-sm',
+                'inline-flex h-8 items-center rounded-full border px-3 text-[12px] font-bold transition-colors',
                 active
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-[#EAE3D6] bg-card text-[#4A433A] hover:bg-muted/50',
               )}
             >
               {tab.label}
             </button>
           );
         })}
-        </div>
         {hasFilters ? (
           <button
             type="button"
             onClick={() => replaceParams({ [searchParam]: null, [tabParam]: null })}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex h-8 items-center gap-1 rounded-full border border-[#EAE3D6] bg-card px-3 text-[12px] font-bold text-[#6B6459] hover:bg-muted/50"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
-            مسح الفلاتر
+            مسح الفلتر
           </button>
         ) : null}
       </div>
@@ -141,7 +131,7 @@ export function AdminFilterBar({
 /** Horizontal scroll wrapper for wide admin tables on small screens. */
 export function AdminTableScroll({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('w-full overflow-x-auto overscroll-x-contain rounded-lg border', className)}>
+    <div className={cn('w-full overflow-x-auto overscroll-x-contain rounded-[14px] border border-[#EAE3D6]', className)}>
       <div className="min-w-[640px]">{children}</div>
     </div>
   );

@@ -241,7 +241,7 @@ export const AdminSellersTable = memo(function AdminSellersTable() {
 
         <div className="hidden w-full overflow-x-auto overscroll-x-contain rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
-            <thead className="bg-muted/50">
+            <thead className="bg-[#F6F1E7] text-[12px] font-bold text-[#4A433A]">
               <tr>
                 <th className="w-10 p-3">
                   {items.length > 0 && (

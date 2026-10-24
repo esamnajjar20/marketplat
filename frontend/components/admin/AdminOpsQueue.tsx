@@ -1,10 +1,10 @@
 'use client';
 
-// FIX OPS-QUEUE-FIX-01: shared ApiError + deduplicated icon className
-// (was "h-4.5 w-4.5 h-4 w-4" -- Tailwind kept only the last pair).
+// Design-aligned: matches the "طابور العمل" cards from the admin design HTML.
+// Number + icon on top row, label, hint, and outlined "عرض" button.
 
 import Link from 'next/link';
-import { Flag, Store, UserCheck, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Flag, Store, UserCheck, ShieldAlert } from 'lucide-react';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { adminTabHref } from '@/lib/adminHubTabs';
@@ -21,7 +21,6 @@ const ITEMS: {
   hint: string;
   href: string;
   icon: typeof Flag;
-  accent: string;
 }[] = [
   {
     key: 'openReports',
@@ -29,7 +28,6 @@ const ITEMS: {
     hint: 'بانتظار المراجعة',
     href: adminTabHref('reports', { status: 'PENDING' }),
     icon: Flag,
-    accent: 'text-destructive bg-destructive/10',
   },
   {
     key: 'pendingStores',
@@ -37,7 +35,6 @@ const ITEMS: {
     hint: 'بانتظار الموافقة',
     href: adminTabHref('stores', { status: 'PENDING' }),
     icon: Store,
-    accent: 'text-warning bg-warning/10 dark:text-warning',
   },
   {
     key: 'pendingSellers',
@@ -45,7 +42,6 @@ const ITEMS: {
     hint: 'طلب توثيق معلّق',
     href: adminTabHref('sellers', { verification: 'PENDING' }),
     icon: UserCheck,
-    accent: 'text-primary bg-primary/10',
   },
   {
     key: 'unreviewedFraud',
@@ -53,7 +49,6 @@ const ITEMS: {
     hint: 'لم تُراجع بعد',
     href: adminTabHref('fraud', { reviewed: 'false' }),
     icon: ShieldAlert,
-    accent: 'text-warning-strong bg-warning/10',
   },
 ];
 
@@ -62,14 +57,12 @@ export function AdminOpsQueue() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center rounded-xl border py-10">
+      <div className="flex justify-center rounded-[14px] border border-[#EAE3D6] bg-card py-10">
         <LoadingSpinner />
       </div>
     );
   }
 
-  // FIX OPS-QUEUE-FIX-01: shared ApiError instead of a hand-rolled
-  // AlertTriangle + bare <button>.
   if (isError || !data) {
     return <ApiError error={parseApiError(error)} onRetry={() => refetch()} variant="inline" />;
   }
@@ -78,53 +71,43 @@ export function AdminOpsQueue() {
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="font-semibold tracking-tight">طابور العمل</h2>
-          <p className="text-xs text-muted-foreground">
-            {total === 0
-              ? 'لا عناصر تحتاج إجراء الآن'
-              : `${formatNumber(total)} عنصر يحتاج مراجعة`}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-[15px] font-extrabold tracking-tight">طابور العمل</h2>
+        {total > 0 && (
+          <span className="inline-flex h-[22px] items-center rounded-full bg-[#FBF0D9] px-2 text-[11px] font-bold text-[#7A4B07]">
+            {formatNumber(total)} عنصر يحتاج مراجعة
+          </span>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {ITEMS.map(({ key, label, hint, href, icon: Icon, accent }) => {
+        {ITEMS.map(({ key, label, hint, href, icon: Icon }) => {
           const count = data[key] ?? 0;
-          const hasWork = count > 0;
           return (
-            <Link
+            <div
               key={key}
-              href={href}
-              className={cn(
-                'group flex items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors',
-                'hover:border-primary/40 hover:bg-muted/30',
-                hasWork && 'border-primary/20',
-              )}
+              className="flex flex-col rounded-[14px] border border-[#EAE3D6] bg-[#FBF9F4] p-3 shadow-[0_1px_3px_rgba(42,36,29,0.05)]"
             >
-              <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', accent)}>
-                <Icon className="h-4 w-4" />
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-primary">
+                  <Icon className="h-4 w-4" strokeWidth={1.8} />
+                </span>
+                <span className="text-[22px] font-extrabold tabular-nums leading-none">
+                  {formatNumber(count)}
+                </span>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium">{label}</p>
-                  <span
-                    className={cn(
-                      'tabular-nums text-lg font-bold',
-                      hasWork ? 'text-foreground' : 'text-muted-foreground',
-                    )}
-                  >
-                    {formatNumber(count)}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-2xs-tight text-muted-foreground">{hint}</p>
-                <p className="mt-2 flex items-center gap-1 text-2xs-tight font-medium text-primary opacity-80 group-hover:opacity-100">
-                  عرض
-                  <ArrowLeft className="h-3 w-3" />
-                </p>
-              </div>
-            </Link>
+              <p className="mt-2 text-[13px] font-bold">{label}</p>
+              <p className="mt-0.5 text-[12px] text-[#6B6459]">{hint}</p>
+              <Link
+                href={href}
+                className={cn(
+                  'mt-2 inline-flex h-[30px] w-fit items-center justify-center rounded-lg border border-[#CFE0D5] bg-white px-2.5 text-[12px] font-bold text-[#1F4D33]',
+                  'hover:bg-primary-soft transition-colors',
+                )}
+              >
+                عرض
+              </Link>
+            </div>
           );
         })}
       </div>

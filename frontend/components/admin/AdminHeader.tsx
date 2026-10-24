@@ -60,13 +60,25 @@ export function AdminHeader() {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/80 ps-12 bg-background/90 px-3 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/80 sm:px-4 md:ps-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <Link prefetch={false} href={ROUTES.admin.dashboard} className="shrink-0 font-bold text-sm text-primary">
-          سوق غزة — إدارة
+    <header className="sticky top-0 z-30 flex min-h-[60px] shrink-0 items-center justify-between gap-3 border-b border-[#EAE3D6] bg-card px-4 shadow-xs sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <Link
+          prefetch={false}
+          href={ROUTES.admin.dashboard}
+          className="flex shrink-0 items-center gap-2.5"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">
+            س
+          </span>
+          <div className="min-w-0 leading-tight">
+            <span className="block truncate text-[15px] font-extrabold text-foreground">
+              سوق غزة — إدارة
+            </span>
+            <span className="block truncate text-[12px] text-muted-foreground">
+              مركز المراجعة والتشغيل
+            </span>
+          </div>
         </Link>
-        <span className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
-        <span className="hidden truncate text-xs text-muted-foreground sm:block">مركز المراجعة والتشغيل</span>
       </div>
       <div className="flex items-center gap-2">
         {/*

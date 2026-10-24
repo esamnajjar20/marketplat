@@ -205,7 +205,7 @@ export function BottomNav() {
             aria-label={draftsCount > 0 ? `أضف — ${draftsCount} مسودة معلّقة` : 'أضف'}
             className={cn(
               'flex h-[52px] w-[52px] min-h-[52px] min-w-[52px] items-center justify-center rounded-full',
-              'border-[3px] border-background bg-primary text-primary-foreground',
+              'border-[3px] border-background bg-[#397F56] text-white',
               'shadow-lg shadow-primary/20 transition-transform',
               'transition-[transform,box-shadow] duration-150 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
@@ -216,7 +216,7 @@ export function BottomNav() {
           {isAuthenticated && draftsCount > 0 && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -top-0.5 -end-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-warning px-1 text-2xs font-semibold leading-none text-warning-foreground shadow-sm"
+              className="pointer-events-none absolute -top-0.5 -end-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#C47A0A] px-1 text-[11px] font-extrabold leading-none text-white shadow-sm"
             >
               {draftsCount > 9 ? '9+' : draftsCount}
             </span>

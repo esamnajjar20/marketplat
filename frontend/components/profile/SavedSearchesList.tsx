@@ -1,28 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Trash2, AlertTriangle, BellPlus } from 'lucide-react';
-import { Button } from '@/components/shared/ui/Button';
-import { Badge } from '@/components/shared/ui/Badge';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { Trash2, AlertTriangle, Bookmark, RefreshCw } from 'lucide-react';
 import { useSavedSearches } from '@/hooks/queries/useSavedSearches';
 import { useDeleteSavedSearch } from '@/hooks/mutations/useSavedSearchMutations';
 import { CONDITION_LABELS, ROUTES } from '@/lib/constants';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import type { SavedSearch, SavedSearchFilters } from '@/types/savedSearch.types';
+import { cn } from '@/lib/utils';
 
-/** Builds the URL that reproduces this saved search's filters on the
- * right page, so "عرض النتائج" shows exactly what the saved search
- * would match. PLATFORM-WIDE-01: branches on filters.type (defaulting
- * to 'ads' for rows saved before that field existed, same default the
- * backend applies) since each type's results live on a different page
- * with a different free-text param name — /search + `q` for ads
- * (SearchResults.tsx/SearchFilters.tsx), /products + `search` for
- * products (ProductsGrid.tsx), /services + `search` for services
- * (ServiceListingsGrid.tsx). city/condition are only ever meaningful
- * for ads (see SaveSearchButton's own doc comment), so they're only
- * appended in that branch. */
 function searchUrlFor(filters: SavedSearchFilters): string {
   const type = filters.type ?? 'ads';
 
@@ -60,60 +46,101 @@ const TYPE_LABELS: Record<'ads' | 'products' | 'services', string> = {
   services: 'خدمات',
 };
 
-function FilterChips({ filters }: { filters: SavedSearchFilters }) {
+const TYPE_CHIP: Record<'ads' | 'products' | 'services', string> = {
+  ads: 'bg-[#E8F1EC] text-[#1F4D33]',
+  products: 'bg-[#FBEEE6] text-[#8F3F14]',
+  services: 'bg-[#F0EADF] text-[#4A433A]',
+};
+
+function filterChips(filters: SavedSearchFilters): string[] {
   const chips: string[] = [];
-  if (filters.q) chips.push(`"${filters.q}"`);
+  if (filters.q) chips.push(filters.q);
   if (filters.city) chips.push(filters.city);
   if (filters.condition) chips.push(CONDITION_LABELS[filters.condition] ?? filters.condition);
   if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-    const min = filters.minPrice !== undefined ? formatPrice(filters.minPrice) : '0';
-    const max = filters.maxPrice !== undefined ? formatPrice(filters.maxPrice) : '∞';
-    chips.push(`${min} – ${max}`);
+    if (filters.maxPrice !== undefined && filters.minPrice === undefined) {
+      chips.push(`حتّى ${formatPrice(filters.maxPrice)}`);
+    } else if (filters.minPrice !== undefined && filters.maxPrice === undefined) {
+      chips.push(`من ${formatPrice(filters.minPrice)}`);
+    } else {
+      chips.push(`${formatPrice(filters.minPrice!)} – ${formatPrice(filters.maxPrice!)}`);
+    }
   }
-
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {/* PLATFORM-WIDE-01: type chip first so a mixed list (ads +
-          products + services saved searches, all sharing this same
-          row layout) reads unambiguously at a glance — defaults to
-          'ads' for rows saved before this field existed, same default
-          the backend/searchUrlFor apply. */}
-      <Badge variant="outline" className="font-normal">{TYPE_LABELS[filters.type ?? 'ads']}</Badge>
-      {chips.map((chip, i) => (
-        <Badge key={i} variant="secondary" className="font-normal">{chip}</Badge>
-      ))}
-    </div>
-  );
+  return chips;
 }
 
 function SavedSearchRow({ search }: { search: SavedSearch }) {
   const deleteSavedSearch = useDeleteSavedSearch();
+  const type = search.filters.type ?? 'ads';
+  const chips = filterChips(search.filters);
 
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border bg-card p-4">
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex items-center gap-2">
-          <BellPlus className="h-4 w-4 shrink-0 text-primary" />
-          <h3 className="font-medium truncate">{search.label}</h3>
+    <article className="rounded-[14px] border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          aria-label={`حذف البحث المحفوظ ${search.label}`}
+          disabled={deleteSavedSearch.isPending}
+          onClick={() => deleteSavedSearch.mutate(search.id)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[#EAE3D6] bg-card text-[#6B6459] hover:bg-[#FBE9E7] hover:text-[#9B2118] disabled:opacity-50"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <span className={cn('inline-flex h-[22px] items-center rounded-full px-2 text-[11px] font-bold', TYPE_CHIP[type])}>
+              {TYPE_LABELS[type]}
+            </span>
+          </div>
+          <h3 className="mt-1 text-[15px] font-extrabold text-foreground">{search.label}</h3>
+          {chips.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {chips.map((chip) => (
+                <span
+                  key={chip}
+                  className="inline-flex h-[24px] items-center rounded-full bg-[#F0EADF] px-2.5 text-[12px] font-bold text-[#4A433A]"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-[12px] text-[#6B6459]">
+            أُنشئ في {formatDate(search.createdAt)}
+            {search.lastNotifiedAt ? ` · آخر تنبيه ${formatDate(search.lastNotifiedAt)}` : ''}
+          </p>
         </div>
-        <FilterChips filters={search.filters} />
-        <p className="text-xs text-muted-foreground">
-          أُنشئ في {formatDate(search.createdAt)}
-          {search.lastNotifiedAt && <> · آخر تنبيه {formatDate(search.lastNotifiedAt)}</>}
-        </p>
-        <Link href={searchUrlFor(search.filters)} className="inline-block text-sm text-primary hover:underline">
-          عرض النتائج المطابقة
-        </Link>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={`حذف البحث المحفوظ ${search.label}`}
-        disabled={deleteSavedSearch.isPending}
-        onClick={() => deleteSavedSearch.mutate(search.id)}
+      <Link
+        href={searchUrlFor(search.filters)}
+        className="mt-3 flex h-10 w-full items-center justify-center rounded-[10px] border border-[#CFE0D5] bg-white text-[13px] font-bold text-[#1F4D33] transition-colors hover:bg-primary-soft"
       >
-        <Trash2 className="h-4 w-4 text-muted-foreground" />
-      </Button>
+        عرض النتائج المطابقة
+      </Link>
+    </article>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="جارٍ التحميل">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="rounded-[14px] border border-[#EAE3D6] bg-card p-3.5">
+          <div className="flex gap-3">
+            <div className="h-9 w-9 animate-pulse rounded-[10px] bg-[#EAE3D6]" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="ms-auto h-5 w-16 animate-pulse rounded-full bg-[#F0EADF]" />
+              <div className="h-4 w-2/5 animate-pulse rounded bg-[#EAE3D6]" />
+              <div className="flex gap-1.5">
+                <div className="h-6 w-16 animate-pulse rounded-full bg-[#F0EADF]" />
+                <div className="h-6 w-20 animate-pulse rounded-full bg-[#F0EADF]" />
+              </div>
+              <div className="h-3 w-1/3 animate-pulse rounded bg-[#F0EADF]" />
+            </div>
+          </div>
+          <div className="mt-3 h-10 w-full animate-pulse rounded-[10px] bg-[#F0EADF]" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -121,52 +148,72 @@ function SavedSearchRow({ search }: { search: SavedSearch }) {
 export function SavedSearchesList() {
   const { data: searches, isLoading, isError, refetch } = useSavedSearches();
 
-  if (isLoading) {
-    return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
-  }
-
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center">
-        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-        <p className="text-destructive">حدث خطأ أثناء تحميل عمليات البحث المحفوظة</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-          إعادة المحاولة
-        </button>
-      </div>
-    );
-  }
-
-  const items = searches ?? [];
-
-  if (items.length === 0) {
-    return (
-      <EmptyState icon={<Search className="h-10 w-10" />}
-        title="لا توجد عمليات بحث محفوظة"
-        description="احفظ بحثاً من صفحة النتائج وسنُعلمك عند نشر إعلان أو منتج أو خدمة مطابقة"
-        // FIX: was a single "تصفح الإعلانات" button pointing only at
-        // /search — "حفظ البحث" only renders on ad/product/service
-        // results (see SaveSearchButton.tsx), so a visitor landing here
-        // first with nothing saved yet had no obvious path to the other
-        // two entity types' results pages. Three links, one per type
-        // SaveSearchButton actually supports (stores excluded — same
-        // reason SearchResults.tsx's toolbar excludes it: no
-        // saved-search matcher exists for stores).
-        action={
-          <div className="flex flex-wrap justify-center gap-2">
-            {/* SW-FIX-SSL-PREFETCH-MALFORM: same malformed pattern — fix
-                moves prefetch onto the Link itself. */}
-            <Link prefetch={false} href={ROUTES.search}><Button variant="outline">تصفح الإعلانات</Button></Link>
-            <Link href={ROUTES.products}><Button variant="outline">تصفح المنتجات</Button></Link>
-            <Link href={ROUTES.services}><Button variant="outline">تصفح الخدمات</Button></Link>
-          </div>
-        } />
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {items.map((search) => <SavedSearchRow key={search.id} search={search} />)}
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-[22px] font-extrabold tracking-tight text-foreground">عمليات البحث المحفوظة</h1>
+        <p className="mt-0.5 text-[13px] text-[#6B6459]">عمليات البحث التي حفظتها للوصول إليها بسرعة.</p>
+      </div>
+
+      {isLoading && <ListSkeleton />}
+
+      {isError && (
+        <div className="rounded-[14px] border border-[#F1C9C4] bg-card px-4 py-4 text-center">
+          <p className="flex items-center justify-center gap-2 text-[14px] font-bold text-[#9B2118]">
+            <AlertTriangle className="h-4 w-4" />
+            حدث خطأ أثناء تحميل عمليات البحث المحفوظة
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-[#CFE0D5] bg-white px-3 text-[13px] font-bold text-[#1F4D33]"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !isError && (searches ?? []).length === 0 && (
+        <div className="rounded-[14px] border border-[#EAE3D6] bg-card px-4 py-8 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#F0EADF] text-[#6B6459]">
+            <Bookmark className="h-5 w-5" />
+          </span>
+          <h2 className="mt-3 text-[16px] font-extrabold text-foreground">لا توجد عمليات بحث محفوظة</h2>
+          <p className="mx-auto mt-1 max-w-sm text-[13px] leading-5 text-[#6B6459]">
+            احفظ بحثًا من صفحة النتائج وسنُعلمك عند نشر إعلان أو منتج أو خدمة مطابقة
+          </p>
+          <div className="mt-4 flex flex-col gap-2">
+            <Link
+              prefetch={false}
+              href={ROUTES.search}
+              className="flex h-11 items-center justify-center rounded-[10px] border border-[#CFE0D5] bg-white text-[13px] font-bold text-[#1F4D33]"
+            >
+              تصفح الإعلانات
+            </Link>
+            <Link
+              href={ROUTES.products}
+              className="flex h-11 items-center justify-center rounded-[10px] border border-[#CFE0D5] bg-white text-[13px] font-bold text-[#1F4D33]"
+            >
+              تصفح المنتجات
+            </Link>
+            <Link
+              href={ROUTES.services}
+              className="flex h-11 items-center justify-center rounded-[10px] border border-[#CFE0D5] bg-white text-[13px] font-bold text-[#1F4D33]"
+            >
+              تصفح الخدمات
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && !isError && (searches ?? []).length > 0 && (
+        <div className="space-y-3">
+          {(searches ?? []).map((search) => (
+            <SavedSearchRow key={search.id} search={search} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

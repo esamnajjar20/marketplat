@@ -44,6 +44,7 @@ const adminTabLoading = () => (
 const AdminExportButton = dynamic(() => import('@/components/admin/AdminExportButton').then((m) => m.AdminExportButton), { loading: adminTabLoading });
 const AdminStatsGrid = dynamic(() => import('@/components/admin/AdminStatsGrid').then((m) => m.AdminStatsGrid), { loading: adminTabLoading });
 const AdminRecentActivity = dynamic(() => import('@/components/admin/AdminRecentActivity').then((m) => m.AdminRecentActivity), { loading: adminTabLoading });
+const AdminLatestActivity = dynamic(() => import('@/components/admin/AdminLatestActivity').then((m) => m.AdminLatestActivity), { loading: adminTabLoading });
 const BroadcastNotificationButton = dynamic(() => import('@/components/admin/BroadcastNotificationButton').then((m) => m.BroadcastNotificationButton), { loading: adminTabLoading });
 const AdminOpsQueue = dynamic(() => import('@/components/admin/AdminOpsQueue').then((m) => m.AdminOpsQueue), { loading: adminTabLoading });
 const AdminPlatformTrends = dynamic(() => import('@/components/admin/AdminPlatformTrends').then((m) => m.AdminPlatformTrends), { loading: adminTabLoading });
@@ -256,10 +257,10 @@ function TabBody({ tab }: { tab: AdminTab }) {
           <AdminOpsQueue />
           <AdminPlatformTrends />
           <AdminStatsGrid />
-          <section className="space-y-3">
-            <h2 className="text-base font-semibold">أحدث الإعلانات</h2>
+          <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
             <AdminRecentActivity />
-          </section>
+            <AdminLatestActivity />
+          </div>
         </AdminPageShell>
       );
   }

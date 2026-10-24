@@ -12,11 +12,11 @@ function StatusPill({ ok }: { ok: boolean }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-        ok ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive',
+        'inline-flex h-[22px] items-center gap-1 rounded-full px-2 text-[11px] font-bold',
+        ok ? 'bg-[#E8F1EC] text-[#1F4D33]' : 'bg-[#FBE9E7] text-[#9B2118]',
       )}
     >
-      {ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+      {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
       {ok ? 'سليم' : 'خلل'}
     </span>
   );
@@ -110,7 +110,7 @@ export function AdminSystemHealth() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {/* DB */}
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-[14px] border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)] shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
@@ -136,7 +136,7 @@ export function AdminSystemHealth() {
         </div>
 
         {/* Redis */}
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-[14px] border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)] shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
@@ -177,12 +177,12 @@ export function AdminSystemHealth() {
 
       {data.runtime && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-[14px] border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Gauge className="h-4 w-4" /> مدة تشغيل الخادم</div>
             <p className="mt-2 text-lg font-semibold">{formatUptime(data.runtime.uptimeSeconds)}</p>
             <p className="mt-1 text-xs text-muted-foreground">منذ آخر إعادة تشغيل لعملية Node.js</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-[14px] border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Cpu className="h-4 w-4" /> ذاكرة Heap المستخدمة</div>
             <p className="mt-2 text-lg font-semibold">{formatBytes(data.runtime.memoryHeapUsedBytes)}</p>
             <p className="mt-1 text-xs text-muted-foreground">من أصل {formatBytes(data.runtime.memoryHeapTotalBytes)} مخصصة للـ Heap</p>
@@ -195,12 +195,12 @@ export function AdminSystemHealth() {
               </p>
             </>}
           </div>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-[14px] border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Server className="h-4 w-4" /> ذاكرة العملية (RSS)</div>
             <p className="mt-2 text-lg font-semibold">{formatBytes(data.runtime.memoryRssBytes)}</p>
             <p className="mt-1 text-xs text-muted-foreground">تشمل الذاكرة المقيمة للعملية، وليست حد ذاكرة الحاوية</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-[14px] border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Info className="h-4 w-4" /> بيئة التشغيل</div>
             <p className="mt-2 text-lg font-semibold">{data.runtime.environment === 'production' ? 'إنتاج' : data.runtime.environment === 'test' ? 'اختبار' : data.runtime.environment === 'development' ? 'تطوير' : data.runtime.environment}</p>
             <p className="mt-1 text-xs text-muted-foreground">Node.js {data.runtime.nodeVersion}</p>

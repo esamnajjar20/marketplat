@@ -12,7 +12,7 @@ type Props = { seller: AdminSeller; selected: boolean; pendingVerifyId?: string;
 
 export const AdminSellerRow = memo(function AdminSellerRow({ seller, selected, pendingVerifyId, pendingSuspendId, onToggle, onSetVerified, onSetSuspended, onSuspendRequest }: Props) {
   return (
-<tr key={seller.id} className="hover:bg-muted/30 transition-colors">
+<tr key={seller.id} className="hover:bg-[#F4F9F6] transition-colors">
                   <td className="p-3">
                     <Checkbox
                       checked={selected}

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Shared chrome for admin table/dashboard pages (UI-).
+ * Shared chrome for admin table/dashboard pages.
+ * Matches the provided design: plain title + subtitle, actions on the side.
  * Dense desktop-first layout — not for the consumer mobile app.
  */
 export function AdminPageShell({
@@ -21,17 +21,13 @@ export function AdminPageShell({
 }) {
   return (
     <div className={cn('mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-5 lg:space-y-6', className)}>
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border/70 bg-card px-4 py-4 shadow-xs sm:px-5 sm:py-5 lg:rounded-2xl lg:px-7 lg:py-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            <span>مساحة الإدارة</span>
-          </div>
-          <h1 className="text-balance text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-balance text-[22px] font-extrabold tracking-tight text-foreground">
             {title}
           </h1>
           {description ? (
-            <p className="mt-1 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
+            <p className="mt-0.5 max-w-2xl text-pretty text-[13px] leading-5 text-muted-foreground">
               {description}
             </p>
           ) : null}
