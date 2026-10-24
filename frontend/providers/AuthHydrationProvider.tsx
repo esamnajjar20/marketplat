@@ -59,7 +59,7 @@
  */
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
@@ -103,6 +103,11 @@ interface AuthHydrationProviderProps {
 
 export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const sessionEventHandlingRef = useRef(false);
 
   useEffect(() => {
@@ -582,7 +587,11 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     setUser,
   ]);
 
-  // FIX PERF-01: No blocking spinner here — render children immediately.
-  // Protected/admin layouts show their own skeleton while auth resolves.
+  // HYDRATION-FIX: تأجيل عرض الواجهة حتى يكتمل تحميل بيانات المتصفح.
+  // هذا يمنع خطأ React #418 الناتج عن اختلاف الجلسة بين السيرفر والمتصفح.
+  if (!mounted || !isHydrated) {
+    return <div className="min-h-screen bg-background" suppressHydrationWarning />;
+  }
+
   return <>{children}</>;
 }
