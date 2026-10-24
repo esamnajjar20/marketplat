@@ -388,34 +388,13 @@ export function middleware(request: NextRequest) {
   const hasSessionHint = request.cookies.get('app_has_session')?.value === '1';
   const isLoggedIn     = hasValidAccessToken || hasSessionHint;
 
-  const roleCookie  = request.cookies.get('app_user_role')?.value ?? null;
-  // SEC-05 FIX: Only accept known role values. Any forged or unexpected value
-  // is treated as non-admin. Prevents cookie pollution from unexpected strings.
-  // Gap #20 (admin permission tiers): MODERATOR/SUPER_ADMIN added.
-  const VALID_ROLES = ['USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN'] as const;
-  const safeRole    = VALID_ROLES.includes(roleCookie as typeof VALID_ROLES[number])
-    ? roleCookie
-    : null;
-  // SEC-05 hardening: app_user_role is a plain, JS-writable cookie — an
-  // attacker can set it to "ADMIN" from the console regardless of who
-  // they actually are. When the access token itself carries a role
-  // claim, it must agree with the cookie before an admin-tier role is
-  // trusted; a valid-but-non-admin token paired with a forged
-  // admin-tier cookie no longer passes. Tokens with no role claim
-  // (older tokens issued before the backend added it) keep the prior
-  // cookie-only behavior.
-  const tokenRole    = decoded?.role ?? null;
-  // Gap #20: this gate now means "any admin-tier role" (MODERATOR and
-  // above) — it only decides whether /admin/* pages are allowed to
-  // load at all. Which specific pages/actions a MODERATOR can reach
-  // within /admin/* is narrowed client-side (AdminSidebar) and
-  // enforced for real by the backend (requireMinRole) — this
-  // middleware remains routing convenience only, not the security
-  // boundary (see the file-level note above).
-  const ADMIN_TIER_ROLES = ['MODERATOR', 'ADMIN', 'SUPER_ADMIN'] as const;
-  const isAdminTierRole  = (role: string | null): boolean =>
-    role !== null && (ADMIN_TIER_ROLES as readonly string[]).includes(role);
-  const isAdmin = isAdminTierRole(safeRole) && (tokenRole === null || isAdminTierRole(tokenRole));
+  // NOTE (MRT-03): app_user_role is NOT read here for routing decisions.
+  // It is a non-HttpOnly, JS-writable cookie and must never grant admin
+  // access by itself. Admin route protection is handled by:
+  //   1. AdminLayoutClient (Zustand store, synced from backend) — client gate
+  //   2. backend admin.middleware.ts (requireAdmin/requireMinRole) — real security boundary
+  // Middleware only requires isLoggedIn (valid access token or session hint)
+  // to allow reaching /admin/* pages; the actual role check happens downstream.
 
   // 1. Redirect away from auth pages only when we have a *valid access
   // token* — not merely app_has_session. Session-hint alone means
@@ -438,16 +417,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 3. Protect admin routes.
+  // 3. Protect admin routes — routing convenience only, NOT a security boundary.
+  // app_user_role is a non-HttpOnly, JS-writable cookie (see file header).
+  // It must NEVER grant admin access by itself. We only require the user to be
+  // logged in (valid access token or session hint) to even reach /admin/*;
+  // the real role enforcement happens in AdminLayoutClient (Zustand store,
+  // synced from the backend) and for real in backend admin.middleware.ts
+  // (requireAdmin / requireMinRole on every /api/v1/admin/* route).
   if (isAdminRoute(pathname)) {
     if (!isLoggedIn) {
       const url = new URL('/login', request.url);
       url.searchParams.set('from', pathname + search);
       return NextResponse.redirect(url);
     }
-    if (!isAdmin) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
+    // Do NOT redirect here based on app_user_role. A forged role cookie must
+    // not be able to bypass the login screen, and a real admin's page load is
+    // gated server-side by AdminLayoutClient + backend API authorization.
   }
 
   // FIX SEC-06: per-request nonce for CSP script-src, replacing the

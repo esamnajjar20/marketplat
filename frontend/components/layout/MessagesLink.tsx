@@ -3,7 +3,11 @@
 /**
  * رابط الرسائل بجانب جرس الإشعارات على الدسكتوب.
  * BottomNav يغطي الموبايل — هنا يظهر من md فما فوق.
+ *
+ * HYDRATION-SAFE: uses mounted gate to avoid SSR/client mismatch on
+ * selectHydratedIsAuthenticated. See PublicHeader.tsx for the same pattern.
  */
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -12,7 +16,12 @@ import { useAuthStore, selectHydratedIsAuthenticated } from '@/store/auth.store'
 import { cn } from '@/lib/utils';
 
 export function MessagesLink({ className }: { className?: string }) {
-  const isAuthenticated = useAuthStore(selectHydratedIsAuthenticated);
+  // HYDRATION-SAFE: mounted gate prevents SSR/client mismatch on selectHydratedIsAuthenticated
+  const isAuthenticatedRaw = useAuthStore(selectHydratedIsAuthenticated);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isAuthenticated = mounted && isAuthenticatedRaw;
+
   const { data: unread = 0 } = useUnreadConversationCount();
 
   if (!isAuthenticated) return null;

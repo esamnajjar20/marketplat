@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Megaphone,
@@ -14,7 +15,7 @@ import { ROUTES } from '@/lib/constants';
 import { useAuthStore, selectLastKnownRoles, selectHydratedUser, type LastKnownRoles } from '@/store/auth.store';
 import { usePendingDraftsCount } from '@/hooks/usePendingDraftsCount';
 
-const CREATE_LINKS = [
+export const CREATE_LINKS = [
   {
     label: 'إعلان جديد',
     description: 'بيع شيء بسرعة — مجاني',
@@ -58,7 +59,11 @@ export function CreateSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const roles = useAuthStore(selectLastKnownRoles);
-  const user = useAuthStore(selectHydratedUser);
+  // HYDRATION-SAFE: mounted gate prevents SSR/client mismatch on selectHydratedUser
+  const userRaw = useAuthStore(selectHydratedUser);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const user = mounted ? userRaw : null;
   const draftsCount = usePendingDraftsCount(user?.id);
   const links = getVisibleCreateLinks(roles);
 

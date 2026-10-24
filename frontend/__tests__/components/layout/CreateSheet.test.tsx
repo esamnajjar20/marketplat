@@ -28,6 +28,11 @@ vi.mock('@/components/shared/ui/Sheet', () => ({
   SheetContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  SheetDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+}));
+
+vi.mock('@/hooks/usePendingDraftsCount', () => ({
+  usePendingDraftsCount: () => 5,
 }));
 
 describe('CreateSheet (UI-PHASE-D)', () => {
@@ -62,8 +67,8 @@ describe('CreateSheet (UI-PHASE-D)', () => {
     expect(screen.getByText('طلب / احتياج')).toBeInTheDocument();
   });
 
-  it('exports create links with ad as primary', () => {
-    expect(CREATE_LINKS[0]?.primary).toBe(true);
+  it('exports create links with ad as first item', () => {
+    expect(CREATE_LINKS[0]?.label).toBe('إعلان جديد');
     expect(CREATE_LINKS).toHaveLength(4);
   });
 });

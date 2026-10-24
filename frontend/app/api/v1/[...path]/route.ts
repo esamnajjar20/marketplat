@@ -19,7 +19,8 @@ import type { NextRequest } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { isViewerIndependentPath, stripIdentityHeaders } from '@/lib/edgeProxy';
 
-const DEFAULT_API_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
+const PRODUCTION_API_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
+const DEV_API_ORIGIN = 'http://localhost:5000';
 
 /**
  * Keep the server-side proxy pointed at the same backend as the app.
@@ -37,16 +38,22 @@ function getApiOrigin(): string {
   // toasts for authenticated users.
   const configured = process.env.API_BASE_URL;
   const candidate = configured?.trim();
-  if (!candidate) return DEFAULT_API_ORIGIN;
-
-  const url = new URL(candidate);
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('API_BASE_URL must use http or https');
+  if (candidate) {
+    const url = new URL(candidate);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('API_BASE_URL must use http or https');
+    }
+    const basePath = url.pathname
+      .replace(/\/api\/v1\/?\$/, '')
+      .replace(/\/+\$/, '');
+    return `${url.origin}${basePath}`;
   }
-  const basePath = url.pathname
-    .replace(/\/api\/v1\/?$/, '')
-    .replace(/\/+$/, '');
-  return `${url.origin}${basePath}`;
+
+  // No explicit API_BASE_URL: never default to production in dev/test.
+  if (process.env.NODE_ENV === 'production') {
+    return PRODUCTION_API_ORIGIN;
+  }
+  return DEV_API_ORIGIN;
 }
 
 const CACHEABLE_GET = new Set([

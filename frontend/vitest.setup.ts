@@ -87,7 +87,10 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
-  server?.resetHandlers();
+  if (server) {
+    console.log('[vitest.setup] afterEach: resetting MSW handlers');
+    server.resetHandlers();
+  }
 });
 
 afterAll(() => {

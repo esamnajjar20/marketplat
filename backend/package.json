@@ -19,7 +19,7 @@
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
     "test:coverage": "NODE_ENV=test jest --coverage",
-    "test:unit": "NODE_ENV=test jest tests/unit",
+    "test:unit": "SKIP_DB=1 NODE_ENV=test jest tests/unit",
     "test:integration": "NODE_ENV=test jest tests/integration",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

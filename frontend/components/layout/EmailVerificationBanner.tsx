@@ -11,16 +11,23 @@
  * Deliberately does NOT block any navigation or feature here — the
  * user can still browse while unverified. The backend gating commit
  * (if/when added) is what actually refuses specific actions.
+ *
+ * HYDRATION-SAFE: uses mounted gate to avoid SSR/client mismatch on
+ * selectHydratedUser. See PublicHeader.tsx for the same pattern.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MailWarning, X } from 'lucide-react';
 import { useAuthStore, selectHydratedUser } from '@/store/auth.store';
 import { useResendVerification } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/shared/ui/Button';
 
 export function EmailVerificationBanner() {
-  const user = useAuthStore(selectHydratedUser);
+  // HYDRATION-SAFE: mounted gate prevents SSR/client mismatch on selectHydratedUser
+  const userRaw = useAuthStore(selectHydratedUser);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const user = mounted ? userRaw : null;
   const [dismissed, setDismissed] = useState(false);
   const resend = useResendVerification();
 

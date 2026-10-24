@@ -222,11 +222,10 @@ describe('middleware — admin routes', () => {
     expect(res.headers.get('Location')).toContain('/login');
   });
 
-  it('blocks /admin/users with USER role → redirects /dashboard', () => {
+  it('allows /admin/users with USER role → 200 (AdminLayoutClient + backend enforce role)', () => {
     const req = makeRequest('/admin/users', { token: VALID_TOKEN, role: 'USER' });
     const res = middleware(req);
-    expect(res.status).toBe(307);
-    expect(res.headers.get('Location')).toContain('/dashboard');
+    expect(res.status).toBe(200);
   });
 
   it('allows /admin/dashboard with ADMIN role + valid token', () => {
@@ -241,72 +240,60 @@ describe('middleware — admin routes', () => {
     expect(res.status).toBe(200);
   });
 
-  it('blocks /admin with valid token but no role cookie → redirects /dashboard', () => {
+  it('allows /admin with valid token and no role cookie → 200 (role enforced client-side + backend)', () => {
     const req = makeRequest('/admin', { token: ADMIN_TOKEN });
     const res = middleware(req);
-    expect(res.status).toBe(307);
-    expect(res.headers.get('Location')).toContain('/dashboard');
+    expect(res.status).toBe(200);
   });
 
-  // Gap #20 (admin permission tiers)
-  it('allows /admin with MODERATOR role — admin-tier gate now accepts MODERATOR', () => {
+  // Gap #20 (admin permission tiers): middleware no longer gates on role cookie.
+  // Any authenticated user can reach /admin/*; AdminLayoutClient + backend enforce the role.
+  it('allows /admin with MODERATOR role — 200, client-side gate decides', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'MODERATOR' });
     const res = middleware(req);
     expect(res.status).toBe(200);
   });
 
-  it('allows /admin with SUPER_ADMIN role', () => {
+  it('allows /admin with SUPER_ADMIN role — 200', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'SUPER_ADMIN' });
     const res = middleware(req);
     expect(res.status).toBe(200);
   });
+
 });
 
-// ── Gap #20: token role vs cookie role agreement (admin-tier) ─────
+// ── MRT-03: Role cookie is NOT a security boundary in middleware ─────
 
-describe('middleware — Gap #20 admin-tier token/cookie agreement', () => {
-  it('rejects a MODERATOR cookie paired with a token carrying role USER', () => {
-    const token = makeJwt({ sub: 'u1', exp: futureExp(), role: 'USER' });
-    const req = makeRequest('/admin', { token, role: 'MODERATOR' });
+describe('middleware — MRT-03 role cookie is not a security boundary', () => {
+  it('allows any authenticated user to reach /admin (role enforced client-side + backend)', () => {
+    const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'USER' });
     const res = middleware(req);
-    expect(res.status).toBe(307);
-    expect(res.headers.get('Location')).toContain('/dashboard');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Location')).toBeNull();
   });
 
-  it('allows a SUPER_ADMIN cookie paired with a token carrying role SUPER_ADMIN', () => {
-    const token = makeJwt({ sub: 'u1', exp: futureExp(), role: 'SUPER_ADMIN' });
-    const req = makeRequest('/admin', { token, role: 'SUPER_ADMIN' });
+  it('ignores forged admin-tier role cookie for routing decisions', () => {
+    const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'ADMIN' });
     const res = middleware(req);
     expect(res.status).toBe(200);
   });
-});
 
-// ── SEC-05: Role cookie validation ────────────────────────────────
-
-describe('middleware — SEC-05 role cookie validation', () => {
-  it('treats unknown role "SUPERADMIN" as non-admin', () => {
+  it('ignores unknown/injected role cookie values', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'SUPERADMIN' });
     const res = middleware(req);
-    expect(res.status).toBe(307);
-    expect(res.headers.get('Location')).toContain('/dashboard');
+    expect(res.status).toBe(200);
   });
 
-  it('treats empty role "" as non-admin', () => {
+  it('allows /admin with empty role cookie', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN, role: '' });
     const res = middleware(req);
-    expect(res.status).toBe(307);
+    expect(res.status).toBe(200);
   });
 
-  it('treats injected role "admin" (lowercase) as non-admin (case-sensitive)', () => {
-    const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'admin' });
+  it('allows /admin with no role cookie at all', () => {
+    const req = makeRequest('/admin', { token: VALID_TOKEN });
     const res = middleware(req);
-    expect(res.status).toBe(307);
-  });
-
-  it('treats role "ADMIN " (trailing space) as non-admin', () => {
-    const req = makeRequest('/admin', { token: VALID_TOKEN, role: 'ADMIN ' });
-    const res = middleware(req);
-    expect(res.status).toBe(307);
+    expect(res.status).toBe(200);
   });
 });
 

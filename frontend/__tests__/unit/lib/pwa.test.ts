@@ -45,11 +45,11 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('@/api/client', () => ({
-  apiClient: { post: vi.fn(), delete: vi.fn() },
+vi.mock('@/lib/fetchClient', () => ({
+  fetchClient: { post: vi.fn(), delete: vi.fn() },
 }));
 
-import { apiClient } from '@/api/client';
+import { fetchClient as apiClient } from '@/lib/fetchClient';
 import {
   isPushSupported,
   getPushSubscriptionState,
@@ -256,7 +256,7 @@ describe('subscribeToPush', () => {
     expect((callArgs.applicationServerKey as Uint8Array).length).toBeGreaterThan(0);
 
     expect(apiClient.post).toHaveBeenCalledWith(
-      '/notifications/push-subscriptions',
+      '/api/v1/notifications/push-subscriptions',
       subscriptionObj.toJSON(),
     );
     expect(subscriptionObj.unsubscribe).not.toHaveBeenCalled();
@@ -375,7 +375,7 @@ describe('unsubscribeFromPush', () => {
     await unsubscribeFromPush();
 
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
-    expect(apiClient.delete).toHaveBeenCalledWith('/notifications/push-subscriptions', {
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/notifications/push-subscriptions', {
       data: { endpoint: 'https://push.example.com/abc' },
     });
   });

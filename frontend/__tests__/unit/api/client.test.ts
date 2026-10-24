@@ -41,7 +41,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { getMswServer } from '../../../vitest.setup';
-import { apiClient } from '@/api/client';
+import { apiClient, resumeSession } from '@/api/client';
 import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/store/auth.store';
 import { API_BASE_URL } from '@/lib/constants';
@@ -70,6 +70,16 @@ describe('api/client.ts — request interceptor', () => {
   beforeEach(() => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     useAuthStore.getState().logout();
+    console.log('[client.test.ts] beforeEach: calling resumeSession()');
+    resumeSession(); // Reset sessionRevoked flag from client.ts module state
+    console.log('[client.test.ts] beforeEach: resumeSession() done');
+    const server = getMswServer();
+    if (server) {
+      console.log('[client.test.ts] beforeEach: resetting MSW handlers');
+      server.resetHandlers();
+    } else {
+      console.warn('[client.test.ts] MSW server not available in beforeEach');
+    }
   });
 
   it('attaches the Authorization header when an access token is present', async () => {
@@ -200,6 +210,15 @@ describe('api/client.ts — silent refresh on 401', () => {
   beforeEach(() => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     useAuthStore.getState().logout();
+    resumeSession(); // Reset sessionRevoked flag set by logout()->clearSensitiveLocalData()
+    // Reset MSW handlers to prevent leakage from previous tests
+    const server = getMswServer();
+    if (server) {
+      console.log('[client.test.ts:silent-refresh] beforeEach: resetting MSW handlers');
+      server.resetHandlers();
+    } else {
+      console.warn('[client.test.ts:silent-refresh] MSW server not available in beforeEach');
+    }
     // BUGFIX (found during a post-implementation code audit): without
     // this, a cookie set by the 'REGRESSION (cookie desync)' test
     // below could leak into a later test run and mask a real failure
@@ -502,23 +521,31 @@ describe('api/client.ts — silent refresh on 401', () => {
   it('does not retry a request that already failed once (the _retry guard)', async () => {
     setAuthenticatedState('expired-access-token');
     let protectedCallCount = 0;
+    let refreshCallCount = 0;
+    // Use a unique test-only endpoint to avoid MSW handler leakage from other tests
+    const TEST_PROTECTED_URL = `${API_BASE_URL}/test/retry-guard`;
 
     getMswServer()?.use(
-      http.post(REFRESH_URL, () =>
-        HttpResponse.json({
+      http.post(REFRESH_URL, () => {
+        refreshCallCount += 1;
+        console.log(`[TEST] Refresh URL called #${refreshCallCount}`);
+        return HttpResponse.json({
           success: true,
           data: { tokens: { accessToken: 'new-access-token' }, csrfToken: 'csrf-abc' },
-        }),
-      ),
-      http.get(PROTECTED_URL, () => {
+        });
+      }),
+      http.get(TEST_PROTECTED_URL, () => {
         protectedCallCount += 1;
+        console.log(`[TEST] Protected URL called #${protectedCallCount}`);
         return HttpResponse.json({ success: false }, { status: 401 });
       }),
     );
 
-    await expect(apiClient.get('/users/me')).rejects.toBeDefined();
+    await expect(apiClient.get('/test/retry-guard')).rejects.toBeDefined();
 
+    console.log(`[TEST] Final protectedCallCount: ${protectedCallCount}, refreshCallCount: ${refreshCallCount}`);
     expect(protectedCallCount).toBe(2);
+    expect(refreshCallCount).toBe(1);
   });
 
   // FIX AUTH-OFFLINE-01: the refresh call failing because the device is

@@ -20,8 +20,12 @@
  * no badge while loading and no badge on a genuine fetch error, not
  * because either is treated as "confirmed not a seller" but because
  * both are simply absence of the one positive signal.
+ *
+ * HYDRATION-SAFE: uses mounted gate to avoid SSR/client mismatch on
+ * selectHydratedUser. See PublicHeader.tsx for the same pattern.
  */
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, Store, User } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/UserAvatar';
@@ -40,7 +44,12 @@ import {
 } from '@/components/shared/ui/DropdownMenu';
 
 export function UserMenu() {
-  const user      = useAuthStore(selectHydratedUser);
+  // HYDRATION-SAFE: mounted gate prevents SSR/client mismatch on selectHydratedUser
+  const userRaw = useAuthStore(selectHydratedUser);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const user = mounted ? userRaw : null;
+
   const isAdmin   = useAuthStore(selectIsAdmin);
   const { mutate: logout, isPending } = useLogout();
   const { isSeller, isLoaded: sellerLoaded } = useIsSeller();

@@ -6,6 +6,9 @@ const config: Config = {
   rootDir: '.',
   testMatch: ['<rootDir>/tests/**/*.test.ts'],
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+  // setupFiles runs BEFORE the test framework is installed, ensuring NODE_ENV=test
+  // and .env.test are loaded before any application code imports env.ts
+  setupFiles: ['<rootDir>/tests/setupEnv.ts'],
   // T-01 fix: "setupFilesAfterFramework" was a typo — correct key is "setupFilesAfterEnv"
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   collectCoverageFrom: [

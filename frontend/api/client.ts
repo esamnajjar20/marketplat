@@ -879,11 +879,13 @@ apiClient.interceptors.response.use(
       // أوفلاين صراحةً ≠ جلسة منتهية. لا نسجّل خروجًا ولا نحوّل لـ/login.
       // فقط رفض حقيقي من الباك-إند (HTTP status) ينهي الجلسة.
       const parsedRefreshError = parseApiError(refreshError);
+      // statusCode === 0 means network error (no HTTP response from server).
+      // navigator.onLine === false means explicitly offline.
+      // Any other statusCode (including 401, 403, 500) means the backend
+      // responded — that is a real session rejection, not an offline event.
       const offlineOrNoResponse =
         parsedRefreshError.statusCode === 0 ||
-        (typeof navigator !== 'undefined' && navigator.onLine === false) ||
-        !(refreshError && typeof refreshError === 'object' && 'response' in refreshError &&
-          (refreshError as { response?: unknown }).response != null);
+        (typeof navigator !== 'undefined' && navigator.onLine === false);
 
       if (offlineOrNoResponse) {
         return Promise.reject(parseForRequest(error, original));
