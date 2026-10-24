@@ -89,6 +89,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
         hostname: 'res.cloudinary.com',
         // FIX NEXT-04: scope to your cloud to prevent hotlinking from other accounts.
         pathname: cloudinaryCloudName
