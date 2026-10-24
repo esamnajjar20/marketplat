@@ -287,7 +287,9 @@ async function migrateShellCaches(cacheNames) {
     try {
       const response = await shell.from.match(shell.request, { ignoreVary: true });
       if (!response) continue;
-      for (const assetUrl of extractStaticAssetUrls(await response.clone().text())) {
+      try {
+        for (const assetUrl of extractStaticAssetUrls(await response.clone().text())) {
+      } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         neededAssetPaths.add(assetUrl);
       }
     } catch { /* A malformed shell does not block other migrations. */ }
@@ -308,7 +310,9 @@ async function migrateShellCaches(cacheNames) {
       if (!neededAssetPaths.has(pathname) && !recent) continue;
       if (await staticCache.match(asset.request, { ignoreVary: true })) continue;
       const response = await asset.from.match(asset.request, { ignoreVary: true });
-      if (response) await staticCache.put(asset.request, response.clone());
+      try {
+        if (response) await staticCache.put(asset.request, response.clone());
+      } catch (e) { console.warn('[SWR] clone failed:', e); return; }
     } catch { /* A single bad asset does not block other migrations. */ }
   }
 
@@ -321,7 +325,9 @@ async function migrateShellCaches(cacheNames) {
       const response = await shell.from.match(shell.request, { ignoreVary: true });
       if (!response) continue;
       if (shell.isHtml && !(await verifyCachedChunks(response, staticCache))) continue;
-      await targetCache.put(shell.request, response.clone());
+      try {
+        await targetCache.put(shell.request, response.clone());
+      } catch (e) { console.warn('[SWR] clone failed:', e); return; }
     } catch { /* Keep activation resilient to a single broken entry. */ }
   }
 
@@ -388,7 +394,9 @@ async function collectPermanentShellAssets() {
         if (!paths.has(pathnameOfCacheKey(key))) return;
         const response = await cache.match(key);
         if (!response || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) return;
-        const html = await response.clone().text();
+        try {
+          const html = await response.clone().text();
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         for (const match of html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:[?][^"']*)?["']/g)) {
           if (match[1]) assets.add(new URL(match[1], self.location.origin).href);
         }
@@ -853,7 +861,9 @@ async function readShellPending() {
     const cache = await caches.open(SW_META_CACHE);
     const response = await cache.match(shellPendingKeyUrl());
     if (!response) return [];
-    const parsed = JSON.parse(await response.clone().text());
+    try {
+      const parsed = JSON.parse(await response.clone().text());
+    } catch (e) { console.warn('[SWR] clone failed:', e); return; }
     return Array.isArray(parsed)
       ? parsed.filter((entry) =>
           entry &&
@@ -1130,7 +1140,9 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
       targetUrl = finalUrl;
     }
 
-    const html = await response.clone().text();
+    try {
+      const html = await response.clone().text();
+    } catch (e) { console.warn('[SWR] clone failed:', e); return; }
     const assetUrls = [...new Set(Array.from(
       html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:\?[^"']*)?["']/g),
     )
@@ -1221,7 +1233,9 @@ async function staleWhileRevalidate(event, request, cacheKey) {
     .then((response) => {
       if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
 
-        const snapshot = response.clone();
+        try {
+          const snapshot = response.clone();
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         const isRsc = isRscShellRequest(request);
         event.waitUntil((async () => {
           try {
@@ -1322,10 +1336,14 @@ async function networkFirstPage(event, request, cacheKey) {
         (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
       if (isHtmlVisit) {
 
-        event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE));
+        try {
+          event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE));
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
       } else {
 
-        const snapshot = response.clone();
+        try {
+          const snapshot = response.clone();
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         const shellSource = isRscShellRequest(request) ? 'rsc' : undefined;
         event.waitUntil((async () => {
           try {
@@ -1350,9 +1368,21 @@ async function networkFirstPage(event, request, cacheKey) {
               const isHtmlVisit = request.mode === 'navigate' &&
                 (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
               if (isHtmlVisit) {
-                await cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE);
+                try {
+                  await cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE);
+                } catch (e) { console.warn('[SWR] clone failed:', e); return; }
               } else {
-                const toStore = await stripVaryAndClone(response.clone());
+                
+      let toStore;
+      try {
+        try {
+          toStore = await stripVaryAndClone(response.clone());
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
+      } catch (cloneErr) {
+        console.warn('[SWR] Clone failed, response already used. Skipping HTML cache update.');
+        return;
+      }
+    
                 await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
                 if (isRealRscNavigation(request)) await cacheVisitedDocumentShell(url, cache, undefined, STATIC_CACHE);
                 await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
@@ -1418,13 +1448,25 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
         (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
 
       if (!isHtml) {
-        const toStore = await stripVaryAndClone(response.clone());
+        
+      let toStore;
+      try {
+        try {
+          toStore = await stripVaryAndClone(response.clone());
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
+      } catch (cloneErr) {
+        console.warn('[SWR] Clone failed, response already used. Skipping HTML cache update.');
+        return;
+      }
+    
         await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
         await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
         return;
       }
 
-      const html = await response.clone().text();
+      try {
+        const html = await response.clone().text();
+      } catch (e) { console.warn('[SWR] clone failed:', e); return; }
       const chunkUrls = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+)/g)]
         .map((m) => m[1])
         .filter((v) => typeof v === 'string' && v.startsWith('/_next/static/')) )];
@@ -1459,7 +1501,17 @@ async function staleWhileRevalidatePage(event, request, cacheKey) {
         }
       }
 
-      const toStore = await stripVaryAndClone(response.clone());
+      
+      let toStore;
+      try {
+        try {
+          toStore = await stripVaryAndClone(response.clone());
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
+      } catch (cloneErr) {
+        console.warn('[SWR] Clone failed, response already used. Skipping HTML cache update.');
+        return;
+      }
+    
       await putTimestamped(cache, cacheKey, toStore, 'visit');
       await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
     } catch (err) {
@@ -1545,10 +1597,14 @@ async function handleProtectedPage(event, request, url) {
         (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
       if (isHtmlVisit) {
 
-        event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE));
+        try {
+          event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE));
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
       } else {
 
-        const snapshot = response.clone();
+        try {
+          const snapshot = response.clone();
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         const shellSource = isRscShellRequest(request) ? 'rsc' : undefined;
         event.waitUntil((async () => {
           try {
@@ -1575,9 +1631,21 @@ async function handleProtectedPage(event, request, url) {
                 const isHtmlVisit = request.mode === 'navigate' &&
                   (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
                 if (isHtmlVisit) {
-                  await cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE);
+                  try {
+                    await cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE);
+                  } catch (e) { console.warn('[SWR] clone failed:', e); return; }
                 } else {
-                  const toStore = await stripVaryAndClone(response.clone());
+                  
+      let toStore;
+      try {
+        try {
+          toStore = await stripVaryAndClone(response.clone());
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
+      } catch (cloneErr) {
+        console.warn('[SWR] Clone failed, response already used. Skipping HTML cache update.');
+        return;
+      }
+    
                   await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
                   if (isRealRscNavigation(request)) await cacheVisitedDocumentShell(url, cache, undefined, PERSONAL_SHELL_CACHE);
                   await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
@@ -1734,7 +1802,9 @@ async function cacheFirstImage(event, request, url) {
       // Opaque cross-origin images cannot expose MIME, length, or body bytes;
       // retain them under the existing strict entry-count cap.
       if (response.type === 'opaque') {
-        const opaqueCopy = response.clone();
+        try {
+          const opaqueCopy = response.clone();
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         event.waitUntil((async () => {
           try {
             if (await shouldSkipDisposableCacheWrite(IMAGE_CACHE)) return;
@@ -1747,7 +1817,9 @@ async function cacheFirstImage(event, request, url) {
       const len = response.headers.get('content-length');
       const declaredLength = len ? Number(len) : NaN;
       // Enforce a real byte limit even when servers omit Content-Length.
-      const toCache = response.clone();
+      try {
+        const toCache = response.clone();
+      } catch (e) { console.warn('[SWR] clone failed:', e); return; }
       event.waitUntil((async () => {
         try {
           if (Number.isFinite(declaredLength) && declaredLength > 2.5 * 1024 * 1024) return;
@@ -2055,7 +2127,9 @@ async function asStaleApiSnapshotIfInGrace(url, response) {
       lastStaleNoticeAt = now;
       notifyClients({ type: 'STALE_API_SERVED', cachedAt }).catch(() => {});
     }
-    return new Response(await response.clone().blob(), {
+    try {
+      return new Response(await response.clone().blob(), {
+    } catch (e) { console.warn('[SWR] clone failed:', e); return; }
       status: response.status,
       statusText: response.statusText,
       headers,
@@ -2071,7 +2145,9 @@ async function isValidJsonApiSnapshot(response) {
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
   if (!contentType.includes('application/json')) return false;
   try {
-    JSON.parse(await response.clone().text());
+    try {
+      JSON.parse(await response.clone().text());
+    } catch (e) { console.warn('[SWR] clone failed:', e); return; }
     return true;
   } catch (_) {
     return false;
@@ -2101,14 +2177,18 @@ async function networkFirstApi(event, request, url) {
     if (!hadAuth) {
       if (!isSafeSharedApiSnapshot(response)) return;
       if (await shouldSkipDisposableCacheWrite(API_CACHE)) return;
-      await putTimestamped(cache, request, response.clone());
+      try {
+        await putTimestamped(cache, request, response.clone());
+      } catch (e) { console.warn('[SWR] clone failed:', e); return; }
       await trimCache(API_CACHE, MAX_API_ENTRIES);
       return;
     }
 
     if (!userCacheName || (!publicListOk && !publicEntityDetail) || responseVariesBy(response, 'cookie') || responseVariesBy(response, 'authorization')) return;
     const userDataCache = await caches.open(userCacheName);
-    await putTimestamped(userDataCache, request, response.clone());
+    try {
+      await putTimestamped(userDataCache, request, response.clone());
+    } catch (e) { console.warn('[SWR] clone failed:', e); return; }
     await trimCache(userCacheName, MAX_USER_DATA_ENTRIES, MAX_USER_DATA_BYTES);
     if (publicListOk) await rememberLastUserId(userIdFromAuthorization(request));
   };
@@ -2409,7 +2489,9 @@ async function refreshAccessToken(sampleUrl) {
 
   let body;
   try {
-    const clonedResponse = response.clone();
+    try {
+      const clonedResponse = response.clone();
+    } catch (e) { console.warn('[SWR] clone failed:', e); return; }
     body = await clonedResponse.json();
   } catch {
     return { ok: false, reason: 'network' };
@@ -2589,7 +2671,9 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     let csrfRejected = false;
     if (response.status === 403) {
       try {
-        const body403 = await response.clone().json();
+        try {
+          const body403 = await response.clone().json();
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         csrfRejected = /csrf/i.test(String(body403?.message ?? ''));
       } catch {
         csrfRejected = false;
@@ -2619,7 +2703,9 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
 
     let message;
     try {
-      const data = await response.clone().json();
+      try {
+        const data = await response.clone().json();
+      } catch (e) { console.warn('[SWR] clone failed:', e); return; }
       message = typeof data?.message === 'string' ? data.message : undefined;
     } catch {
       message = undefined;
@@ -3238,9 +3324,13 @@ self.addEventListener('install', (event) => {
         );
 
         if (!response.ok || !isSameOriginResponse(response)) return;
-        await cache.put(OFFLINE_URL, response.clone());
+        try {
+          await cache.put(OFFLINE_URL, response.clone());
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
 
-        const html = await response.clone().text();
+        try {
+          const html = await response.clone().text();
+        } catch (e) { console.warn('[SWR] clone failed:', e); return; }
         const assetUrls = Array.from(
           html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css|woff|woff2|ttf|eot))(?:\?[^"']*)?["']/g),
         )
