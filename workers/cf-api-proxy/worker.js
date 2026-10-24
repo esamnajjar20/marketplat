@@ -802,7 +802,7 @@ function corsHeaders(req) {
   return {
     'access-control-allow-origin': req.headers.get('origin') || '*',
     'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-    'access-control-allow-headers': 'Content-Type, Authorization, X-Offline-Op-Id, If-None-Match, X-CSRF-Token, X-Requested-With, Accept, Origin',
+    'access-control-allow-headers': 'Content-Type, Authorization, X-Offline-Op-Id, If-None-Match, X-CSRF-Token, X-Requested-With, Accept, Origin, last-event-id',
     'access-control-allow-credentials': 'true',
     'access-control-max-age': '86400',
   };
