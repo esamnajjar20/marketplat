@@ -87,7 +87,8 @@
   "reference": {
     "http": {
       "maxAgeSec": 300,
-      "staleWhileRevalidateSec": 600
+      "staleWhileRevalidateSec": 600,
+      "sharedMaxAgeSec": 900
     },
     "client": {
       "staleTimeMs": 3600000,
