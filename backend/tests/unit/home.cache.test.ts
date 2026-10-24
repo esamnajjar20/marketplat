@@ -48,6 +48,16 @@ const stored = (key: string): { softExpiresAt: number; hard: string; payload: un
 };
 
 describe('getCachedHomepage', () => {
+  // TEST-ISOLATION-FIX: the hanging-timeout test uses jest.useFakeTimers(),
+  // and if that test itself times out, the fake timers leak into every
+  // subsequent test AND into tests/setup.ts's afterEach (which awaits
+  // dynamic imports — those hang under fake timers). Force real timers
+  // back after every test in this suite so one bad test cannot cascade
+  // into 3 more.
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     fake.__store.clear();
     resetCacheGuard();
