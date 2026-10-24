@@ -62,6 +62,28 @@ describe('UsersService', () => {
       (usersRepository.findById as jest.Mock).mockResolvedValue({ ...mockUser, isActive: false });
       await expect(usersService.getUserById('user-1')).rejects.toThrow(NotFoundError);
     });
+
+    // FIX PROFILE-ID-RESOLVE-01 regression: cards link with ServiceProviderDetails.id /
+    // SellerProfile.id; that id must resolve to the owning user instead of a false 404.
+    it('resolves a provider/seller-profile id to the owning user', async () => {
+      (usersRepository.findPublicById as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...mockUser, _count: {}, sellerProfile: null });
+      (usersRepository.resolveUserIdByProfileId as jest.Mock).mockResolvedValue('user-1');
+      jest.spyOn(prisma.follow, 'count').mockResolvedValue(0 as never);
+
+      const result = await usersService.getUserById('provider-details-id');
+
+      expect(usersRepository.resolveUserIdByProfileId).toHaveBeenCalledWith('provider-details-id');
+      expect(usersRepository.findPublicById).toHaveBeenLastCalledWith('user-1');
+      expect(result.id).toBe('user-1');
+    });
+
+    it('still throws NotFound when neither a user nor a profile owns the id', async () => {
+      (usersRepository.findPublicById as jest.Mock).mockResolvedValue(null);
+      (usersRepository.resolveUserIdByProfileId as jest.Mock).mockResolvedValue(null);
+      await expect(usersService.getUserById('ghost')).rejects.toThrow(NotFoundError);
+    });
   });
 
   describe('getUserAds', () => {

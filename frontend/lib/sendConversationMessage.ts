@@ -3,6 +3,8 @@ import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperat
 import { useAuthStore } from '@/store/auth.store';
 import type { Message, SendMessagePayload } from '@/types/conversation.types';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 export type ConversationMessageRequest =
   | { kind: 'text'; payload: SendMessagePayload }
   | { kind: 'image'; file: File; body?: string }
@@ -68,7 +70,7 @@ export async function sendConversationMessage(
 
   let response: Response;
   try {
-    response = await fetch(messagePath(conversationId, request.kind), {
+    response = await fetch(`${API_BASE_URL}${messagePath(conversationId, request.kind)}`, {
       method: 'POST',
       headers,
       body,

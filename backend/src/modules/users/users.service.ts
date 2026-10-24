@@ -109,9 +109,18 @@ export const usersService = {
   // a suspended seller's storefront to new business. Hide sellerProfile
   // entirely rather than partially, so the frontend never has to special-case
   // a "suspended seller" tab state it has no design for.
-  getUserById: async (id: string): Promise<PublicUser> => {
-    const user = await usersRepository.findPublicById(id);
+  getUserById: async (requestedId: string): Promise<PublicUser> => {
+    let user = await usersRepository.findPublicById(requestedId);
+    if (!user) {
+      // FIX PROFILE-ID-RESOLVE-01: accept a ServiceProviderDetails.id / SellerProfile.id
+      // and resolve it to the owning user (see repository method for the why).
+      const ownerId = await usersRepository.resolveUserIdByProfileId(requestedId);
+      if (ownerId && ownerId !== requestedId) {
+        user = await usersRepository.findPublicById(ownerId);
+      }
+    }
     if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    const id = user.id; // always the real User.id from here on
     const [followersCount, followingCount] = await Promise.all([
       prisma.follow.count({ where: { targetType: 'USER', targetId: id } }),
       prisma.follow.count({ where: { followerId: id, targetType: 'USER' } }),

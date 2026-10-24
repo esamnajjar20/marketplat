@@ -169,6 +169,23 @@ export const usersRepository = {
   findById: async (id: string): Promise<SafeUser | null> =>
     prisma.user.findUnique({ where: { id }, select: safeUserSelect }),
 
+  // FIX PROFILE-ID-RESOLVE-01: the service-provider / seller cards link with the
+  // provider's own id (ServiceProviderDetails.id) or the SellerProfile.id, while
+  // /profile/:id and GET /users/:id only understand a User.id. When the
+  // /service-providers/:id redirect could not resolve the owner (provider lookup
+  // failed or was hidden), it fell back to /profile/<providerId> and the visitor
+  // saw "المستخدم غير موجود". Resolve those two ids to their owning user id.
+  resolveUserIdByProfileId: async (id: string): Promise<string | null> => {
+    const [provider, seller] = await Promise.all([
+      prisma.serviceProviderDetails.findUnique({
+        where: { id },
+        select: { sellerProfile: { select: { userId: true } } },
+      }),
+      prisma.sellerProfile.findUnique({ where: { id }, select: { userId: true } }),
+    ]);
+    return provider?.sellerProfile?.userId ?? seller?.userId ?? null;
+  },
+
   // SEC-FIX: used by the public GET /users/:id endpoint — excludes PII.
   findPublicById: async (id: string): Promise<(PublicUser & { isActive: boolean }) | null> =>
     prisma.user.findUnique({

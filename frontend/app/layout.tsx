@@ -254,7 +254,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       
         
-              <Script src="/chunk-error-handler.js" strategy="beforeInteractive" />
+              
       </body>
     </html>
   );
