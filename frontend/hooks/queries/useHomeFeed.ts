@@ -6,11 +6,19 @@ import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
 import { queryKeys } from '@/lib/queryKeys';
+import { useMounted } from '@/hooks/useMounted';
 
 /** The homepage's only network read. Every home section consumes this cache. */
 export function useHomeFeed() {
   const isHydrated = useAuthStore(selectIsHydrated);
-  const userId = useAuthStore((state) => state.user?.id ?? null);
+  // FIX HYDRATION-418-HOME-01: app/(public)/page.tsx prefetches the GUEST feed
+  // (identity=null) on the server. The persisted `user` is already present on the
+  // first client render, which changed the query key → no dehydrated data →
+  // `isPending` → skeleton on the client vs full content in the server HTML
+  // (React #418). Until mounted we use the same identity the server used; the
+  // real identity applies right after hydration.
+  const mounted = useMounted();
+  const userId = useAuthStore((state) => (mounted ? (state.user?.id ?? null) : null));
   const { city, explicitAll, isReady } = useBrowseCity();
   const identity = userId ?? null;
 

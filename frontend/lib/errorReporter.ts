@@ -25,13 +25,16 @@
  * captureException call; call sites don't need to change either way.
  */
 
-const reporterUrl = process.env.NEXT_PUBLIC_ERROR_REPORTER_URL;
+import { resolveErrorReporterUrl } from './errorReporterUrl';
 
 export function reportClientError(error: Error, context?: Record<string, unknown>): void {
   // Always log locally first — this is the original fallback behavior,
   // preserved regardless of whether a reporter URL is configured.
   console.error('[reportClientError]', error, context);
 
+  // Resolved per call (not at module load) so tests that set the env var after
+  // import keep working, and a legacy onrender.com value is mapped to the live API.
+  const reporterUrl = resolveErrorReporterUrl();
   if (!reporterUrl) return;
 
   const payload = JSON.stringify({

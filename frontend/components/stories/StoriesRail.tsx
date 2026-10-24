@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+import { useMounted } from '@/hooks/useMounted';
 import { useStoryFeed } from '@/hooks/queries/useStories';
 import { StoryComposer } from './StoryComposer';
 import { StoryViewer } from './StoryViewer';
@@ -12,7 +13,11 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import type { StoryGroup } from '@/api/stories.api';
 
 export function StoriesRail() {
-  const authenticated = useAuthStore(selectIsAuthenticated);
+  // FIX HYDRATION-418-HOME-01: in an offline visual session the store is already
+  // `isAuthenticated=true` on the first client render while the server rendered
+  // nothing → gate on mounted so hydration matches.
+  const mounted = useMounted();
+  const authenticated = useAuthStore(selectIsAuthenticated) && mounted;
   const { data: groups = [], isLoading, isError, refetch } = useStoryFeed();
   const [composerOpen, setComposerOpen] = useState(false);
   const [active, setActive] = useState<StoryGroup | null>(null);

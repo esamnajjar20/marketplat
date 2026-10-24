@@ -3,7 +3,7 @@
  * the primary UI flow. This replaces silent `.catch(() => undefined)`
  * patterns while keeping best-effort operations best-effort.
  */
-const reporterUrl = process.env.NEXT_PUBLIC_ERROR_REPORTER_URL;
+import { resolveErrorReporterUrl } from './errorReporterUrl';
 
 export function reportBackgroundFailure(
   context: string,
@@ -27,6 +27,7 @@ export function reportBackgroundFailure(
 
   console.warn('[background-task]', payload);
 
+  const reporterUrl = resolveErrorReporterUrl();
   if (!reporterUrl || typeof fetch === 'undefined') return;
 
   void fetch(reporterUrl, {

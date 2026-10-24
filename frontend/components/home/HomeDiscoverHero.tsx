@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { WelcomeBar } from '@/components/home/WelcomeBar';
 import { SearchBox } from '@/components/search/SearchBox';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
+import { useMounted } from '@/hooks/useMounted';
 
 /**
  * Homepage discovery hero: one primary search field followed by four direct
@@ -11,7 +12,12 @@ import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/a
  * surface without opening the global menu. It does not duplicate creation CTAs.
  */
 export function HomeDiscoverHero({ className }: { className?: string }) {
-  const isHydrated = useAuthStore(selectIsHydrated);
+  // FIX HYDRATION-418-HOME-01: the persisted auth store is already hydrated on
+  // the FIRST client render but never on the server, so `isHydrated` alone made
+  // the guest copy / WelcomeBar appear in the client tree only → React #418 on
+  // every load of "/". Gate on `mounted` so the first client render matches SSR.
+  const mounted = useMounted();
+  const isHydrated = useAuthStore(selectIsHydrated) && mounted;
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const showGuestCopy = isHydrated && !isAuthenticated;
 
