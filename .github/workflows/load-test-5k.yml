@@ -1,0 +1,145 @@
+name: Load Test 5K (5000 concurrent users)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'API URL to test'
+        default: 'https://marketplat-api.esamnajjar6.workers.dev'
+        required: false
+
+jobs:
+  k6-5k:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Warmup edge cache (critical for accurate 5K results)
+        run: |
+          API="${{ inputs.target_url }}"
+          echo "🔥 Warming cache at $API"
+          for path in \
+            /api/v1/categories \
+            /api/v1/product-categories \
+            /api/v1/service-categories \
+            "/api/v1/ads?limit=10" \
+            "/api/v1/ads?limit=20" \
+            "/api/v1/products?limit=10" \
+            "/api/v1/stores?limit=10" \
+            /api/v1/sellers/ranking \
+            /api/v1/home/static ; do
+            curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" "$API$path" || true
+            sleep 0.3
+          done
+          echo "🔥 Warmup done — waiting 2s..."
+          sleep 2
+
+      - name: Write k6 script
+        run: |
+          mkdir -p /tmp/k6
+          cat > /tmp/k6/5k-users.js << 'K6'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+
+          const TARGET = __ENV.TARGET;
+
+          // 5,000 concurrent users:
+          //   - Ramp up 0 → 1000 over 1 min
+          //   - Ramp up 1000 → 5000 over 2 min
+          //   - Sustain 5000 for 5 min
+          //   - Ramp down 5000 → 0 over 1 min
+          // Each VU does 1 request + 2-5s think time.
+          // Peak request rate: ~5000 / 3.5s ≈ 1400 req/s
+          export const options = {
+            scenarios: {
+              ramp_up_to_5k: {
+                executor: 'ramping-vus',
+                startVUs: 0,
+                stages: [
+                  { duration: '1m', target: 1000 },
+                  { duration: '2m', target: 5000 },
+                  { duration: '5m', target: 5000 },
+                  { duration: '1m', target: 0 },
+                ],
+                gracefulRampDown: '30s',
+              },
+            },
+            thresholds: {
+              // Relaxed for 5K test: 5% failure, 95th percentile < 3s
+              http_req_failed: ['rate<0.05'],
+              http_req_duration: ['p(95)<3000', 'p(99)<8000'],
+            },
+            summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
+          };
+
+          // Cacheable endpoints only (edge + KV).
+          // Render free tier would collapse at ~200 req/s if any of these miss cache.
+          const PATHS = [
+            '/api/v1/categories',
+            '/api/v1/product-categories',
+            '/api/v1/service-categories',
+            '/api/v1/ads?limit=10',
+            '/api/v1/ads?limit=20',
+            '/api/v1/products?limit=10',
+            '/api/v1/stores?limit=10',
+            '/api/v1/sellers/ranking',
+            '/api/v1/home/static',
+          ];
+
+          export default function () {
+            const path = PATHS[Math.floor(Math.random() * PATHS.length)];
+            const res = http.get(TARGET + path);
+
+            check(res, {
+              'status 2xx': (r) => r.status >= 200 && r.status < 300,
+              'cache HIT': (r) => {
+                const c = r.headers['X-Proxy-Cache'] || r.headers['x-proxy-cache'] || '';
+                return c.startsWith('HIT') || c.startsWith('KV-HIT') || c === 'STALE';
+              },
+            });
+
+            // Realistic user think time
+            sleep(2 + Math.random() * 3);
+          }
+          K6
+
+      - name: Run k6 5K test
+        run: |
+          k6 run \
+            --out json=/tmp/k6/results.json \
+            --summary-export /tmp/k6/summary.json \
+            -e TARGET=${{ inputs.target_url }} \
+            /tmp/k6/5k-users.js 2>&1 | tee /tmp/k6/run.log
+
+      - name: Generate markdown summary
+        if: always()
+        run: |
+          cat > /tmp/k6-summary.md << 'MD'
+          # 🚀 5K Concurrent Users Load Test
+
+          **Target:** `${{ inputs.target_url }}`
+          **Duration:** ~9 minutes (1m ramp + 2m to peak + 5m sustain + 1m down)
+
+          ## Thresholds
+          - `http_req_failed < 5%`
+          - `p(95) < 3s`, `p(99) < 8s`
+
+          See `run.log` for detailed metrics.
+          MD
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-5k-report
+          path: |
+            /tmp/k6/run.log
+            /tmp/k6/results.json
+            /tmp/k6/summary.json
+            /tmp/k6-summary.md
