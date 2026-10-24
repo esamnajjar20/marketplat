@@ -21,6 +21,15 @@
 
 const RENDER_ORIGIN = 'https://marketplat-nz19.onrender.com';
 
+const FORCE_CACHE_PREFIXES = [
+  '/api/v1/categories',
+  '/api/v1/ads',
+  '/api/v1/products',
+  '/api/v1/stores',
+  '/api/v1/service-categories',
+  '/api/v1/home'
+];
+
 const CACHEABLE_PREFIXES = [
   '/api/v1/home',
   '/api/v1/categories',
@@ -166,9 +175,18 @@ function edgeTagsFor(canon) {
 
 /* ───────────────────────── upstream policy ───────────────────────── */
 
-function isUpstreamCacheable(response) {
+function isUpstreamCacheable(response, requestUrl) {
   if (!response || response.status !== 200) return false;
   if (response.headers.has('set-cookie')) return false;
+
+  // FORCE CACHE for specific public routes regardless of Render's cache-control
+  if (requestUrl) {
+    const urlObj = new URL(requestUrl);
+    if (FORCE_CACHE_PREFIXES.some(prefix => urlObj.pathname.startsWith(prefix))) {
+      return true;
+    }
+  }
+
   // Vary: * can never be matched. Vary: Authorization / Cookie is allowed: the
   // origin's public routes (CACHE.STATIC/SHORT/MEDIUM/LIVE) always declare it on
   // anonymous responses, and this Worker only reaches this check for requests
@@ -492,7 +510,7 @@ async function processUpstream(upstream, ms, { canon, cache, cacheKey, ctx, env,
   // Never override private/no-store/no-cache or Set-Cookie responses with a public
   // Cache-Control header. Protects routes such as /home/feed and /recommendations.
   const { ttl, swr, browserMaxAge } = parseCacheControl(upstream.headers.get('cache-control') || '');
-  if (!isUpstreamCacheable({ status: upstream.status, headers: upstream.headers }) || ttl <= 0) {
+  if (!isUpstreamCacheable({ status: upstream.status, headers: upstream.headers }, request.url) || ttl <= 0) {
     return passthroughDesc(upstream, body, 'BYPASS-POLICY', ms);
   }
 
