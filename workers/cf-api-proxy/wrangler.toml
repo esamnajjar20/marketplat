@@ -1,0 +1,6 @@
+name = "marketplat-api"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"

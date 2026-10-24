@@ -83,3 +83,21 @@ app-debug.apk
 *.bak2
 *.bak*
 *.bak3
+
+# Build outputs
+frontend/.open-next/
+frontend/.next/
+frontend/.wrangler/
+workers/cf-api-proxy/.wrangler/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# Build outputs
+frontend/.open-next/
+frontend/.next/
+frontend/.wrangler/
+workers/cf-api-proxy/.wrangler/
+frontend/.env
+frontend/.env.local
+frontend/.env.production

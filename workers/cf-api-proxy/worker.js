@@ -510,7 +510,7 @@ async function processUpstream(upstream, ms, { canon, cache, cacheKey, ctx, env,
   // Never override private/no-store/no-cache or Set-Cookie responses with a public
   // Cache-Control header. Protects routes such as /home/feed and /recommendations.
   const { ttl, swr, browserMaxAge } = parseCacheControl(upstream.headers.get('cache-control') || '');
-  if (!isUpstreamCacheable({ status: upstream.status, headers: upstream.headers }, request.url) || ttl <= 0) {
+  if (!isUpstreamCacheable({ status: upstream.status, headers: upstream.headers }, canon.path || canon.key) || ttl <= 0) {
     return passthroughDesc(upstream, body, 'BYPASS-POLICY', ms);
   }
 
