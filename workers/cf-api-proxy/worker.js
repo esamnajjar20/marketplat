@@ -179,13 +179,6 @@ function isUpstreamCacheable(response, requestUrl) {
   if (!response || response.status !== 200) return false;
   if (response.headers.has('set-cookie')) return false;
 
-  // FORCE CACHE for specific public routes regardless of Render's cache-control
-  if (requestUrl) {
-    const urlObj = new URL(requestUrl);
-    if (FORCE_CACHE_PREFIXES.some(prefix => urlObj.pathname.startsWith(prefix))) {
-      return true;
-    }
-  }
 
   // Vary: * can never be matched. Vary: Authorization / Cookie is allowed: the
   // origin's public routes (CACHE.STATIC/SHORT/MEDIUM/LIVE) always declare it on
@@ -198,6 +191,14 @@ function isUpstreamCacheable(response, requestUrl) {
   const cc = (response.headers.get('cache-control') || '').toLowerCase();
   const directives = cc.split(',').map((part) => part.trim().split('=')[0]);
   if (['private', 'no-store', 'no-cache'].some((directive) => directives.includes(directive))) return false;
+
+  // FORCE CACHE for specific public routes regardless of Render's cache-control
+  if (requestUrl) {
+    const urlObj = new URL(requestUrl, 'https://placeholder.com');
+    if (FORCE_CACHE_PREFIXES.some(prefix => urlObj.pathname.startsWith(prefix))) {
+      return true;
+    }
+  }
   // The API Worker is a shared cache: require an explicit public policy from
   // the origin rather than converting private/default responses into public.
   return directives.includes('public') || /(?:^|,)\s*s-maxage=\d+/.test(cc);
@@ -835,7 +836,7 @@ export default {
     if (url.pathname === '/__warm__') {
       // When PURGE_TOKEN is configured the manual trigger needs it (the cron does not).
       const secret = env && env.PURGE_TOKEN;
-      if (secret && !timingSafeEqual(request.headers.get('x-purge-token'), secret)) {
+      if (!secret || !timingSafeEqual(request.headers.get('x-purge-token'), secret)) {
         return new Response('Forbidden', { status: 403 });
       }
       const results = await warmCache(env, ctx);
