@@ -4,3 +4,7 @@ compatibility_date = "2026-10-01"
 
 [vars]
 RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"
+
+[[kv_namespaces]]
+binding = "REFERENCE_KV"
+id = "1e04b5156df44331b12eeaed3cfabe96"

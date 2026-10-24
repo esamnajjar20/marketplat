@@ -27,6 +27,7 @@ const FORCE_CACHE_PREFIXES = [
   '/api/v1/products',
   '/api/v1/stores',
   '/api/v1/service-categories',
+  '/api/v1/sellers',
   '/api/v1/home'
 ];
 
@@ -42,14 +43,15 @@ const CACHEABLE_PREFIXES = [
   '/api/v1/stores',
   '/api/v1/service-listings',
   '/api/v1/service-providers',
+  '/api/v1/sellers',
   '/api/v1/sellers/ranking',
   '/api/v1/recommendations',
   '/api/v1/search',
   '/api/v1/requests',
 ];
 
-const DEFAULT_TTL = 300;
-const DEFAULT_SWR = 900;
+const DEFAULT_TTL = 900;   // Increased from 300 → 5 min to 15 min
+const DEFAULT_SWR = 3600;  // Increased from 900 → 15 min to 60 min
 const MAX_CACHE_SIZE = 10 * 1024 * 1024;
 const STALE_ON_ERROR = true;
 // Extra physical retention after ttl+swr so stale-on-error has something to serve.
@@ -759,6 +761,7 @@ const WARM_PATHS = [
   '/api/v1/stores?limit=10',
   '/api/v1/service-listings?limit=10',
   '/api/v1/service-providers?limit=10',
+  '/api/v1/sellers',
   '/api/v1/sellers/ranking',
 ];
 
