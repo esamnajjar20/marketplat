@@ -58,7 +58,7 @@ async function registerPushSubscriptionOnce(subscription: PushSubscription): Pro
   const existing = pushRegistrationInFlight.get(endpoint);
   if (existing) return existing;
 
-  const request = apiClient.post('/notifications/push-subscriptions', subscription.toJSON())
+  const request = apiClient.post('/api/v1/notifications/push-subscriptions', subscription.toJSON())
     .then(() => undefined)
     .finally(() => {
       if (pushRegistrationInFlight.get(endpoint) === request) {
@@ -575,7 +575,7 @@ export async function unsubscribeFromPush(): Promise<void> {
   const endpoint = subscription.endpoint;
   await subscription.unsubscribe();
   await apiClient
-    .delete('/notifications/push-subscriptions', { data: { endpoint } })
+    .delete('/api/v1/notifications/push-subscriptions', { data: { endpoint } })
     .catch((error) => reportBackgroundFailure('frontend/lib/pwa.ts', error)); // فشل حذف السجل من الخادم لا يجب أن يمنع الإلغاء المحلي
 }
 
