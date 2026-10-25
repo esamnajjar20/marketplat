@@ -1,3 +1,3 @@
 /// <reference types="expo/types" />
 
-// Expo environment type declarations are generated/managed by Expo tooling.
+// NOTE: This file should not be edited and should be in your git ignore

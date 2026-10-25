@@ -20,7 +20,7 @@ export async function persistSelectedAdImage(image: SelectedAdImage): Promise<Se
   if (!/^(file|content):\/\//i.test(image.uri)) throw new Error('مسار الصورة المختارة غير محلي.');
 
   await FileSystem.makeDirectoryAsync(IMAGE_DIRECTORY, { intermediates: true }).catch(() => undefined);
-  const source = await FileSystem.getInfoAsync(image.uri, { size: true });
+  const source = await FileSystem.getInfoAsync(image.uri);
   if (!source.exists || source.isDirectory) throw new Error('تعذر العثور على ملف الصورة المختارة. اختر الصورة مجددًا.');
   if (typeof source.size !== 'number' || source.size <= 0 || source.size > MAX_IMAGE_SIZE_BYTES) {
     throw new Error('يجب أن يكون حجم كل صورة أكبر من صفر ولا يتجاوز 5MB.');
@@ -29,7 +29,7 @@ export async function persistSelectedAdImage(image: SelectedAdImage): Promise<Se
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${safeFileName(image.fileName, image.mimeType)}`;
   const destination = `${IMAGE_DIRECTORY}${fileName}`;
   await FileSystem.copyAsync({ from: image.uri, to: destination });
-  const persisted = await FileSystem.getInfoAsync(destination, { size: true });
+  const persisted = await FileSystem.getInfoAsync(destination);
   if (!persisted.exists || persisted.isDirectory || typeof persisted.size !== 'number' || persisted.size !== source.size) {
     await FileSystem.deleteAsync(destination, { idempotent: true }).catch(() => undefined);
     throw new Error('تعذر التحقق من حفظ الصورة كاملة؛ حاول اختيارها مجددًا.');
@@ -98,7 +98,7 @@ export async function cleanupStaleUnreferencedAdImages(
     // The directory is app-managed; never accept separators from a listed name.
     if (!name || name.includes('/') || name.includes('\\') || name === '.' || name === '..') continue;
     const uri = `${IMAGE_DIRECTORY}${name}`;
-    const info = await FileSystem.getInfoAsync(uri, { size: true });
+    const info = await FileSystem.getInfoAsync(uri);
     if (!info.exists || info.isDirectory || typeof info.modificationTime !== 'number') continue;
     if (now - info.modificationTime * 1_000 < minimumAgeMs) continue;
     scanned += 1;

@@ -168,7 +168,7 @@ export default function AdEditorScreen() {
             },
           });
           setDraftCompleted(true);
-          try { await clearAdDraft(String(user.id)); } catch { /* queued payload is now the durable source of truth */ }
+          if (user?.id != null) { try { await clearAdDraft(String(user.id)); } catch { /* queued payload is now the durable source of truth */ } }
           Alert.alert('حُفظ الإعلان على الجهاز', 'لم يُنشر بعد. سيحاول التطبيق إرساله عند عودة الإنترنت. يمكنك متابعة حالته من «العمليات دون اتصال».', [
             { text: 'عرض العمليات', onPress: () => router.replace('/offline-queue') },
             { text: 'لاحقًا', onPress: () => router.replace('/') },
@@ -177,8 +177,10 @@ export default function AdEditorScreen() {
         }
         await createAd(draft, accessToken, csrfToken);
         setDraftCompleted(true);
-        try { await clearAdDraft(String(user.id)); }
-        catch { setError('تم إرسال الإعلان، لكن تعذر حذف نسخة المسودة المحلية. يمكنك حذفها لاحقًا من التطبيق.'); }
+        if (user?.id != null) {
+          try { await clearAdDraft(String(user.id)); }
+          catch { setError('تم إرسال الإعلان، لكن تعذر حذف نسخة المسودة المحلية. يمكنك حذفها لاحقًا من التطبيق.'); }
+        }
       }
       Alert.alert('تم الحفظ', id ? 'تم تحديث الإعلان.' : 'تم إرسال الإعلان إلى الخادم.', [{ text: 'حسنًا', onPress: () => router.replace('/my-ads') }]);
     } catch (e) {
@@ -191,7 +193,7 @@ export default function AdEditorScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.header}><Pressable onPress={() => router.back()}><Text style={styles.link}>إلغاء</Text></Pressable><Text style={styles.heading}>{id ? 'تعديل الإعلان' : 'إضافة إعلان'}</Text><View style={{ width: 44 }}/></View>
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
       <Text style={styles.label}>عنوان الإعلان *</Text><TextInput value={draft.title} onChangeText={(v) => set('title', v)} maxLength={200} placeholder="مثال: هاتف بحالة ممتازة" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" />
-      <Text style={styles.label}>الوصف *</Text><TextInput value={draft.description} onChangeText={(v) => set('description', v)} maxLength={5000} multiline minHeight={130} placeholder="اكتب تفاصيل الإعلان بوضوح…" placeholderTextColor={colors.muted} style={[styles.input, styles.multiline]} textAlign="right" textAlignVertical="top" />
+      <Text style={styles.label}>الوصف *</Text><TextInput value={draft.description} onChangeText={(v) => set('description', v)} maxLength={5000} multiline placeholder="اكتب تفاصيل الإعلان بوضوح…" placeholderTextColor={colors.muted} style={[styles.input, styles.multiline]} textAlign="right" textAlignVertical="top" />
       <Text style={styles.label}>السعر (₪)</Text><TextInput value={draft.price} onChangeText={(v) => set('price', v)} keyboardType="decimal-pad" placeholder="اتركه فارغًا إذا لم تحدد السعر" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" />
       <Text style={styles.label}>المدينة *</Text><TextInput value={draft.city} onChangeText={(v) => set('city', v)} maxLength={100} placeholder="المدينة" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" />
       <Text style={styles.label}>التصنيف</Text>

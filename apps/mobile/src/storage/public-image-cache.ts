@@ -59,7 +59,7 @@ export async function cachePublicImage(uri: string): Promise<string> {
   try {
     await FileSystem.makeDirectoryAsync(IMAGE_DIRECTORY, { intermediates: true }).catch(() => undefined);
     const destination = `${IMAGE_DIRECTORY}${hash(uri)}.${extensionFor(uri)}`;
-    const existing = await FileSystem.getInfoAsync(destination, { size: true });
+    const existing = await FileSystem.getInfoAsync(destination);
     if (existing.exists && !existing.isDirectory && typeof existing.size === 'number' && existing.size > 0 && existing.size <= MAX_IMAGE_BYTES) {
       return destination;
     }
@@ -70,7 +70,7 @@ export async function cachePublicImage(uri: string): Promise<string> {
       await FileSystem.deleteAsync(destination, { idempotent: true }).catch(() => undefined);
       return uri;
     }
-    const info = await FileSystem.getInfoAsync(destination, { size: true });
+    const info = await FileSystem.getInfoAsync(destination);
     if (!info.exists || info.isDirectory || typeof info.size !== 'number' || info.size <= 0 || info.size > MAX_IMAGE_BYTES) {
       await FileSystem.deleteAsync(destination, { idempotent: true }).catch(() => undefined);
       return uri;

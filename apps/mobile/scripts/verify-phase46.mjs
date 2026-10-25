@@ -10,7 +10,7 @@ assert.match(store, /return \[\.\.\.new Set\(previousUris\)\]\.filter\(\(uri\) =
 assert.match(editor, /draftOwnerReady !== ownerId/);
 assert.match(editor, /setDraft\(saved\?\.draft \?\? emptyDraft\)/);
 assert.match(editor, /for \(const uri of removedUris\)/);
-assert.match(editor, /setDraftCompleted\(true\);\s*try \{ await clearAdDraft/);
+assert.match(editor, /setDraftCompleted\(true\);\s*if \(user\?\.id != null\) \{\s*try \{ await clearAdDraft/);
 assert.doesNotMatch(editor, /setDraft\(\(current\) => \(\{ \.\.\.current, images: current\.images\.filter\(\(_, imageIndex\) => imageIndex !== index\) \}\)\); void removePersistedAdImageIfUnused/);
 assert.match(cleanup, /isAdImageReferencedByDraft\(uri\)/);
 assert.ok(pkg.scripts.test.includes('verify-phase46.mjs'));

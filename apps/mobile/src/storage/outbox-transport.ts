@@ -16,7 +16,7 @@ async function verifyOutboxImages(images: Array<{ uri: string; name: string; typ
     if (!image.uri.startsWith('file://')) {
       throw new Error(`صورة الإعلان رقم ${index + 1} ليست محفوظة في مساحة التطبيق الدائمة. أعد اختيار الصورة قبل المزامنة.`);
     }
-    const info = await FileSystem.getInfoAsync(image.uri, { size: true });
+    const info = await FileSystem.getInfoAsync(image.uri);
     if (!info.exists || info.isDirectory) {
       throw new Error(`ملف صورة الإعلان رقم ${index + 1} لم يعد موجودًا على الجهاز. أعد اختيار الصورة قبل المزامنة.`);
     }

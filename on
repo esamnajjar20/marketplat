@@ -1,0 +1,38 @@
+[1mdiff --git a/apps/mobile/package.json b/apps/mobile/package.json[m
+[1mindex fedd459d..c996ea6c 100644[m
+[1m--- a/apps/mobile/package.json[m
+[1m+++ b/apps/mobile/package.json[m
+[36m@@ -12,22 +12,22 @@[m
+     "test": "node ./scripts/verify-scaffold.mjs && node ./scripts/verify-phase7.mjs && node ./scripts/verify-phase8.mjs && node ./scripts/verify-phase9.mjs && node ./scripts/verify-phase10.mjs && node ./scripts/verify-phase11.mjs && node ./scripts/verify-phase12.mjs && node ./scripts/verify-phase13.mjs && node ./scripts/verify-phase14.mjs && node ./scripts/verify-phase15.mjs && node ./scripts/verify-phase17.mjs && node ./scripts/verify-phase18.mjs && node ./scripts/verify-phase19.mjs && node ./scripts/verify-phase20.mjs && node ./scripts/verify-phase21.mjs && node ./scripts/verify-phase22.mjs && node ./scripts/verify-phase23.mjs && node ./scripts/verify-phase24.mjs && node ./scripts/verify-phase25.mjs && node ./scripts/verify-phase26.mjs && node ./scripts/verify-phase27.mjs && node ./scripts/verify-phase28.mjs && node ./scripts/verify-phase29.mjs && node ./scripts/verify-phase30.mjs && node ./scripts/verify-phase31.mjs && node ./scripts/verify-phase32.mjs && node ./scripts/verify-phase33.mjs && node ./scripts/verify-phase34.mjs && node ./scripts/verify-phase35.mjs && node ./scripts/verify-phase36.mjs && node ./scripts/verify-phase37.mjs && node ./scripts/verify-phase38.mjs && node ./scripts/verify-phase39.mjs && node ./scripts/verify-phase40.mjs && node ./scripts/verify-phase41.mjs && node ./scripts/verify-phase42.mjs && node ./scripts/verify-phase43.mjs && node ./scripts/verify-phase44.mjs && node ./scripts/verify-phase45.mjs && node ./scripts/verify-phase46.mjs && node ./scripts/verify-phase47.mjs && node ./scripts/verify-phase48.mjs && node ./scripts/verify-phase49.mjs && node ./scripts/verify-phase50.mjs && node ./scripts/verify-phase51.mjs && node ./scripts/verify-phase52.mjs && node ./scripts/verify-phase53.mjs && node ./scripts/verify-phase54.mjs && node ./scripts/verify-phase55.mjs && node ./scripts/verify-phase56.mjs && node ./scripts/verify-phase57.mjs && node ./scripts/verify-phase58.mjs && node ./scripts/verify-phase59.mjs && node ./scripts/verify-phase60.mjs && node ./scripts/verify-phase61.mjs && node ./scripts/verify-phase62.mjs && node ./scripts/verify-phase63.mjs && node ./scripts/verify-phase64.mjs && node ./scripts/verify-phase65.mjs && node ./scripts/verify-phase66.mjs && node ./scripts/verify-phase67.mjs && node ./scripts/verify-phase68.mjs && node ./scripts/verify-phase69.mjs && node ./scripts/verify-phase70.mjs && node ./scripts/verify-phase71.mjs && node ./scripts/verify-phase72.mjs && node ./scripts/verify-phase73.mjs && node ./scripts/verify-phase74.mjs && node ./scripts/verify-phase75.mjs && node ./scripts/verify-phase76.mjs && node ./scripts/verify-phase77.mjs"[m
+   },[m
+   "dependencies": {[m
+[32m+[m[32m    "@react-native-community/netinfo": "^11.4.1",[m
+     "expo": "~54.0.0",[m
+[31m-    "expo-router": "~6.0.0",[m
+[31m-    "expo-status-bar": "~3.0.0",[m
+[31m-    "react": "19.1.0",[m
+[31m-    "react-native": "0.81.4",[m
+[31m-    "react-native-safe-area-context": "~5.6.0",[m
+[31m-    "react-native-screens": "~4.16.0",[m
+     "expo-constants": "~18.0.0",[m
+[32m+[m[32m    "expo-file-system": "~19.0.17",[m
+[32m+[m[32m    "expo-image-picker": "~17.0.8",[m
+     "expo-linking": "~8.0.0",[m
+[31m-    "expo-splash-screen": "~31.0.0",[m
+[31m-    "react-native-gesture-handler": "~2.28.0",[m
+[32m+[m[32m    "expo-router": "~6.0.0",[m
+     "expo-secure-store": "~15.0.7",[m
+[31m-    "expo-image-picker": "~17.0.8",[m
+[32m+[m[32m    "expo-splash-screen": "~31.0.0",[m
+     "expo-sqlite": "~16.0.8",[m
+[31m-    "@react-native-community/netinfo": "^11.4.1",[m
+[31m-    "expo-file-system": "~19.0.17"[m
+[32m+[m[32m    "expo-status-bar": "~3.0.0",[m
+[32m+[m[32m    "react": "19.1.0",[m
+[32m+[m[32m    "react-native": "0.81.5",[m
+[32m+[m[32m    "react-native-gesture-handler": "~2.28.0",[m
+[32m+[m[32m    "react-native-safe-area-context": "~5.6.0",[m
+[32m+[m[32m    "react-native-screens": "~4.16.0"[m
+   },[m
+   "devDependencies": {[m
+     "@types/react": "~19.1.0",[m

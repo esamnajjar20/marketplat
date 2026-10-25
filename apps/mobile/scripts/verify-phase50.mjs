@@ -11,7 +11,7 @@ const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url
 // preserve queue rows on transport failure, and reuse a stable server idempotency key.
 assert.match(transport, /import \* as FileSystem from 'expo-file-system\/legacy'/);
 assert.match(transport, /async function verifyOutboxImages/);
-assert.match(transport, /await FileSystem\.getInfoAsync\(image\.uri, \{ size: true \}\)/);
+assert.match(transport, /await FileSystem\.getInfoAsync\(image\.uri\)/);
 assert.match(transport, /if \(!info\.exists \|\| info\.isDirectory\)/);
 assert.match(transport, /info\.size > MAX_OUTBOX_IMAGE_SIZE_BYTES/);
 assert.match(transport, /await verifyOutboxImages\(request\.images\)/);
