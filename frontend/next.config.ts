@@ -126,8 +126,47 @@ const nextConfig: NextConfig = {
   // build/HMR pass — most noticeable in dev-server startup and
   // incremental build time on a codebase this size, with a modest
   // production bundle-size benefit as a side effect.
+  //
+  // PERF-04: Extend optimizePackageImports to other heavily-used packages
+  // with tree-shakeable named exports. This reduces bundle analysis overhead
+  // and enables better dead-code elimination for:
+  // - @radix-ui/* primitives (Dialog, DropdownMenu, Select, Avatar, Slot, Separator)
+  // - sonner (toast library, 50+ usages but only Toaster needed globally)
+  // - zod (validation schemas, backend-heavy but some frontend)
+  // - @tanstack/react-query (40+ hooks, already in shared chunks)
+  // - clsx/tailwind-merge/class-variance-authority (cn utility everywhere)
   experimental: {
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-separator',
+      'sonner',
+      'zod',
+      '@tanstack/react-query',
+      'clsx',
+      'tailwind-merge',
+      'class-variance-authority',
+    ],
+  },
+
+  // BUNDLE-OPT-01: modularizeImports for better tree-shaking of Radix UI and lucide-react
+  // This ensures only the specific submodules imported are included in the bundle
+  // Moved to top-level config in Next.js 14+ (was experimental.modularizeImports)
+  // NOTE: Only Radix UI and lucide-react support the {{member}} transform pattern.
+  // Other packages (sonner, zod, @tanstack/react-query, clsx, tailwind-merge, cva)
+  // are handled via optimizePackageImports instead.
+  modularizeImports: {
+    '@radix-ui/react-dialog': { transform: '@radix-ui/react-dialog/{{member}}' },
+    '@radix-ui/react-dropdown-menu': { transform: '@radix-ui/react-dropdown-menu/{{member}}' },
+    '@radix-ui/react-select': { transform: '@radix-ui/react-select/{{member}}' },
+    '@radix-ui/react-avatar': { transform: '@radix-ui/react-avatar/{{member}}' },
+    '@radix-ui/react-slot': { transform: '@radix-ui/react-slot/{{member}}' },
+    '@radix-ui/react-separator': { transform: '@radix-ui/react-separator/{{member}}' },
+    'lucide-react': { transform: 'lucide-react/{{member}}' },
   },
 
 

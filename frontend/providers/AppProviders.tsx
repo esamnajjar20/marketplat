@@ -9,14 +9,26 @@
 
 import { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Toaster, toast } from 'sonner';
-import { useTheme }            from 'next-themes';
 import { makeQueryClient }     from '@/lib/queryClient';
 import { AuthHydrationProvider } from './AuthHydrationProvider';
+
+// BUNDLE-OPT-01: Dynamically import sonner's toast only when needed (storage errors)
+// This avoids bundling sonner on public routes where ThemedToaster is not mounted
+async function showStorageErrorToast(message: string, description: string, duration: number) {
+  const { toast } = await import('sonner');
+  toast.error(message, { description, duration });
+}
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
-import { OfflineBootstrap }    from '@/components/pwa/OfflineBootstrap';
 import dynamic from 'next/dynamic';
+
+// BUNDLE-OPT-01: Lazy-load OfflineBootstrap (heavy IndexedDB/offline layer)
+// This removes ~89 kB raw (~28 kB gz) from the initial shared chunk
+// Only loads on client-side after initial render
+const OfflineBootstrap = dynamic(
+  () => import('@/components/pwa/OfflineBootstrap').then((m) => m.OfflineBootstrap),
+  { ssr: false, loading: () => null },
+);
 
 // SLOW-NET phase3: Capacitor APIs stay out of the default web chunk
 const CapacitorBootstrap = dynamic(
@@ -51,7 +63,6 @@ import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
 import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { OfflineStatusNotices } from '@/components/offline/OfflineStatusNotices';
-import { NotificationToasts }  from '@/components/notifications/NotificationToasts';
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { AnalyticsConsentBanner } from '@/components/shared/AnalyticsConsentBanner';
 import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
@@ -65,61 +76,6 @@ interface AppProvidersProps {
   // so next-themes can nonce its pre-hydration inline theme script. See
   // app/layout.tsx's FIX CSP-02 comment for the full explanation.
   nonce?: string;
-}
-
-/**
- * FIX UX-03 (cont.): Toaster's `richColors` styling was always drawn
- * from sonner's light palette regardless of the app's own theme —
- * harmless while dark mode was unreachable, but now that it's a real
- * option, an unthemed Toaster is the one surface left that wouldn't
- * follow. Split into its own child of ThemeProvider (rather than
- * called directly inside AppProviders) purely so it can call
- * useTheme() — that hook only works below ThemeProvider in the tree.
- */
-function ThemedToaster() {
-  const { resolvedTheme } = useTheme();
-  return (
-    <Toaster
-      // FIX NOTIF-TOAST-POSITION: was "bottom-center" with a
-      // safe-area-inset-bottom offset, which is a mobile-friendly
-      // choice for a generic toast but the wrong one for this app.
-      // The push/SSE-driven "new message" / "new offer" notifications
-      // land here (via NotificationToasts' toast() calls), and on a
-      // phone they were appearing underneath whatever the user was
-      // reading — frequently under the on-screen keyboard when a
-      // chat input was open, so they were missed entirely. The
-      // inline Toaster in components/shared/feedback/Toaster.tsx
-      // already defaults to top-center; this override was silently
-      // winning. Now top-center as well, with a top-safe-area-aware
-      // offset so it clears the notch/status bar.
-      position="top-center"
-      dir="rtl"
-      richColors
-      expand
-      duration={4600}
-      closeButton
-      // Let users dismiss every transient feedback message with a horizontal swipe.
-      // Sonner owns the gesture lifecycle so swiping does not activate toast actions.
-      swipeDirections={['left', 'right']}
-      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-      offset="max(1rem, env(safe-area-inset-top))"
-      toastOptions={{
-        classNames: {
-          toast: 'market-toast group font-sans',
-          title: 'market-toast-title',
-          description: 'market-toast-description',
-          icon: 'market-toast-icon',
-          success: 'market-toast-success',
-          error: 'market-toast-error',
-          warning: 'market-toast-warning',
-          info: 'market-toast-info',
-          actionButton: 'market-toast-action',
-          cancelButton: 'market-toast-cancel',
-          closeButton: 'market-toast-close',
-        },
-      }}
-    />
-  );
 }
 
 export function AppProviders({ children, nonce }: AppProvidersProps) {
@@ -148,23 +104,26 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
     const onLocalStorageError = (event: Event) => {
       const detail = (event as CustomEvent<{ reason?: string }>).detail;
       if (detail?.reason === 'quota') {
-        toast.error('مساحة التخزين على الجهاز ممتلئة', {
-          description: 'قد لا تُحفظ العملية أو المسودة محليًا. اتصل بالإنترنت لمزامنة المعلّق، وحرّر مساحة قبل إعادة المحاولة.',
-          duration: 9000,
-        });
+        void showStorageErrorToast(
+          'مساحة التخزين على الجهاز ممتلئة',
+          'قد لا تُحفظ العملية أو المسودة محليًا. اتصل بالإنترنت لمزامنة المعلّق، وحرّر مساحة قبل إعادة المحاولة.',
+          9000
+        );
         return;
       }
       if (detail?.reason === 'body-too-large') {
-        toast.error('المرفقات أكبر من حد الحفظ دون اتصال', {
-          description: 'لم تُحفظ هذه العملية في الطابور المحلي. اتصل بالإنترنت ثم أعد إرسالها، واحتفظ بنسخة من الملفات قبل مغادرة الصفحة.',
-          duration: 10000,
-        });
+        void showStorageErrorToast(
+          'المرفقات أكبر من حد الحفظ دون اتصال',
+          'لم تُحفظ هذه العملية في الطابور المحلي. اتصل بالإنترنت ثم أعد إرسالها، واحتفظ بنسخة من الملفات قبل مغادرة الصفحة.',
+          10000
+        );
       }
       if (detail?.reason === 'queue-full') {
-        toast.error('طابور العمليات دون اتصال ممتلئ', {
-          description: 'لم تُحفظ العملية الجديدة. اتصل بالإنترنت لمزامنة العمليات المعلّقة، أو راجع مركز المزامنة واحذف العناصر الفاشلة بعد التأكد منها، ثم أعد المحاولة.',
-          duration: 11000,
-        });
+        void showStorageErrorToast(
+          'طابور العمليات دون اتصال ممتلئ',
+          'لم تُحفظ العملية الجديدة. اتصل بالإنترنت لمزامنة العمليات المعلّقة، أو راجع مركز المزامنة واحذف العناصر الفاشلة بعد التأكد منها، ثم أعد المحاولة.',
+          11000
+        );
       }
     };
     window.addEventListener('marketplat:local-error', onLocalStorageError);
@@ -203,7 +162,8 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
           {children}
         </AuthHydrationProvider>
 
-        <ThemedToaster />
+        {/* FIX PERF-04: ThemedToaster moved to (protected)/layout.tsx to avoid
+             loading sonner on public routes. See app/(protected)/layout.tsx. */}
         {/* FIX NAV-DUP-01: NavigationProgress now mounts once in app/layout.tsx. */}
 
         <PwaBootstrap />
@@ -231,9 +191,6 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
 
         <NetworkStatusBanner />
         <OfflineStatusNotices />
-
-        {/* Critical notification toasts — still poll-based, no WS. */}
-        <NotificationToasts />
 
         {/* DESKTOP-AUDIT-03: Ctrl/Cmd+K quick-search — see the
             component's own header for the full rationale. No props,

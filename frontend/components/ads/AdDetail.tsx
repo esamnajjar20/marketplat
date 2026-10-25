@@ -4,20 +4,32 @@ import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { ZoomableDetailImage } from '@/components/shared/detail/ZoomableDetailImage';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
-import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, X, MessageSquare } from 'lucide-react';
+import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, MessageSquare } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
-import { SellerCard } from '@/components/ads/SellerCard';
+// BUNDLE-OPT-02: Lazy-load SellerCard (moves useSellerProfile, sonner, etc. to separate chunk)
+// Only loads when SellerCard is rendered (mobile inline + desktop sidebar)
+import dynamic from 'next/dynamic';
+const SellerCard = dynamic(
+  () => import('@/components/ads/SellerCard').then((m) => m.SellerCard),
+  { loading: () => <Skeleton className="h-24 w-full" /> },
+);
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice, formatDate, formatRelativeTime } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+// BUNDLE-OPT-02: Lazy-load Lightbox (Dialog + ZoomableDetailImage + icons)
+// Only loads when user opens image gallery
+const AdDetailLightbox = dynamic(
+  () => import('@/components/ads/AdDetailLightbox').then((m) => m.AdDetailLightbox),
+  { ssr: false, loading: () => null },
+);
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { queryKeys } from '@/lib/queryKeys';
@@ -34,7 +46,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
 import { DETAIL_GALLERY_SHELL, DETAIL_META_TILE, DETAIL_PANEL_PADDED, DETAIL_SECTION_TITLE, DETAIL_PRICE_PANEL } from '@/components/shared/detail/detailTokens';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 /**
  * FIX BUG-05: ROUTES.category() builds a /categories/:slug URL, but the
@@ -482,65 +493,17 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
         </div>
       )}
 
-      {/* Fullscreen lightbox */}
-      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent
-          className="flex h-[100dvh] w-screen max-w-none flex-col rounded-none border-0 bg-black/95 p-0 text-white shadow-none [&>button]:hidden"
-        >
-          <DialogTitle className="sr-only">معرض الصور</DialogTitle>
-          <div className="flex items-center justify-between p-3 text-white">
-            <span className="text-sm tabular-nums">
-              {imgIdx + 1} / {images.length}
-            </span>
-            <button
-              type="button"
-              onClick={() => setLightboxOpen(false)}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              aria-label="إغلاق"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div
-            className="relative flex min-h-0 flex-1 items-center justify-center px-4"
-            onTouchStart={(e) => {
-              touchStartX.current = e.changedTouches[0]?.clientX ?? null;
-            }}
-            onTouchEnd={(e) => {
-              if (touchStartX.current == null || images.length <= 1) return;
-              const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-              touchStartX.current = null;
-              if (Math.abs(dx) < 40) return;
-              if (dx > 0) goPrev();
-              else goNext();
-            }}
-          >
-            <ZoomableDetailImage key={imgIdx} src={currentImg} alt={ad.title} onSwipeNext={goNext} onSwipePrevious={goPrev} priority={imgIdx === 0} previousSrc={imgIdx > 0 ? getDetailImageUrl(images[imgIdx - 1] ?? PLACEHOLDER_SVG) : undefined} nextSrc={imgIdx < images.length - 1 ? getDetailImageUrl(images[imgIdx + 1] ?? PLACEHOLDER_SVG) : undefined} />
-            {images.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={goPrev}
-                  disabled={imgIdx === 0}
-                  aria-label="الصورة السابقة"
-                  className="absolute start-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={goNext}
-                  disabled={imgIdx === images.length - 1}
-                  aria-label="الصورة التالية"
-                  className="absolute end-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Fullscreen lightbox — lazy loaded */}
+      {lightboxOpen && (
+        <AdDetailLightbox
+          images={images}
+          currentIdx={imgIdx}
+          adTitle={ad.title}
+          onClose={() => setLightboxOpen(false)}
+          onNext={goNext}
+          onPrev={goPrev}
+        />
+      )}
     </div>
     </>
   );

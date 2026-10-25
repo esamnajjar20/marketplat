@@ -12,12 +12,18 @@ import { SearchX, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/hooks/queries/useStores';
 import { StoreHeader } from '@/components/stores/StoreHeader';
 import { StoreStorefront } from '@/components/stores/StoreStorefront';
-import { StoreRecommendations } from '@/components/recommendations/StoreRecommendations';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
+import dynamic from 'next/dynamic';
+
+// PERF-04: StoreRecommendations lazy-loaded — below-fold, not critical for initial render
+const StoreRecommendations = dynamic(
+  () => import('@/components/recommendations/StoreRecommendations').then((m) => m.StoreRecommendations),
+  { loading: () => <Suspense fallback={<div className="flex justify-center py-8"><LoadingSpinner /></div>} /> },
+);
 
 export function StoreDetailClient({ id }: { id: string }) {
   const { data: store, isLoading, isError, error, refetch } = useStore(id);

@@ -28,6 +28,8 @@
 
 import { useEffect }    from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import { Toaster } from 'sonner';
 import {
   useAuthStore,
   selectUser,
@@ -64,6 +66,40 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     pathname.includes('/create') ||
     pathname.includes('/edit') ||
     pathname.startsWith('/offline');
+
+  // PERF-04: ThemedToaster (sonner) — only on protected routes to avoid
+  // loading sonner on public pages. Moved from AppProviders.tsx.
+  function ThemedToaster() {
+    const { resolvedTheme } = useTheme();
+    return (
+      <Toaster
+        position="top-center"
+        dir="rtl"
+        richColors
+        expand
+        duration={4600}
+        closeButton
+        swipeDirections={['left', 'right']}
+        theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        offset="max(1rem, env(safe-area-inset-top))"
+        toastOptions={{
+          classNames: {
+            toast: 'market-toast group font-sans',
+            title: 'market-toast-title',
+            description: 'market-toast-description',
+            icon: 'market-toast-icon',
+            success: 'market-toast-success',
+            error: 'market-toast-error',
+            warning: 'market-toast-warning',
+            info: 'market-toast-info',
+            actionButton: 'market-toast-action',
+            cancelButton: 'market-toast-cancel',
+            closeButton: 'market-toast-close',
+          },
+        }}
+      />
+    );
+  }
 
 
   // FIX AUTH-04: don't make any auth decision until both hydration AND
@@ -173,6 +209,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     // handling (Timeline's overflow-x-auto overscroll-x-contain) actually take effect
     // instead of being bypassed by an ancestor refusing to shrink.
     <div className="flex min-h-screen min-h-dvh min-w-0 flex-col">
+      {/* PERF-04: ThemedToaster (sonner) — only on protected routes. */}
+      <ThemedToaster />
       {/* Phase 5: hide site chrome inside an open conversation (WhatsApp-style). */}
       {!isImmersiveTask && <ProtectedHeader />}
       {!isImmersiveTask && <EmailVerificationBanner />}
