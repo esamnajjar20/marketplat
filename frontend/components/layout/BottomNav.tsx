@@ -109,13 +109,8 @@ export function BottomNav() {
   // DRAFTS-BADGE-01
   const draftsCount = usePendingDraftsCount(user?.id);
 
-  const leadingItems = [
-    { label: 'الرئيسية', href: ROUTES.home, icon: Home },
-  ] as const;
-
-  const trailingItems = [
-    { label: 'الرسائل', href: ROUTES.messages, icon: MessageCircle },
-  ] as const;
+  const homeItem = { label: 'الرئيسية', href: ROUTES.home, icon: Home } as const;
+  const messagesItem = { label: 'الرسائل', href: ROUTES.messages, icon: MessageCircle } as const;
 
   // "استكشاف" reads as active on any of the destinations its own sheet
   // links to (see ExploreSheet), not just /search itself — otherwise
@@ -127,7 +122,7 @@ export function BottomNav() {
   const isExploreActive = EXPLORE_ACTIVE_PREFIXES.some((href) => pathname.startsWith(href));
 
   function renderItem({ label, href, icon: Icon }: {
-    label: string; href: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+    label: string; href: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean; strokeWidth?: number }>;
   }) {
     const isActive = href === ROUTES.home ? pathname === href : pathname.startsWith(href);
     return (
@@ -137,19 +132,14 @@ export function BottomNav() {
         prefetch={false}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'relative flex min-h-14 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1.5 text-2xs font-medium transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-          isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+          'relative flex min-h-[52px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[11px] transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          isActive ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
         )}
       >
-        <span
-          className={cn(
-            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-xl px-2.5 py-1 transition-colors duration-150',
-            isActive && 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/10',
-          )}
-        >
-          <Icon className={cn('h-5 w-5', isActive && 'text-primary')} aria-hidden={true} />
+        <span className="relative inline-flex items-center justify-center">
+          <Icon className="h-5 w-5" strokeWidth={isActive ? 2.2 : 1.8} aria-hidden={true} />
         </span>
-        <span className={cn(isActive && 'font-semibold text-primary')}>{label}</span>
+        <span>{label}</span>
       </Link>
     );
   }
@@ -161,42 +151,17 @@ export function BottomNav() {
       aria-hidden={navHidden ? true : undefined}
       inert={navHidden ? true : undefined}
       className={cn(
-        'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex items-end border-t border-border/70 px-1.5 pt-1.5',
-        'rounded-t-2xl bg-background/95 shadow-[0_-8px_28px_-16px_hsl(var(--shadow-color)/0.28)]',
-        'backdrop-blur-xl supports-[backdrop-filter]:bg-background/88 md:hidden native-bottom-nav',
-        // CLEANUP-EASE-AMBIGUOUS-01: an arbitrary cubic-bezier easing class was ambiguous in
-        // Tailwind (matches both transitionProperty and transitionTiming).
-        // Use explicit arbitrary property so the intent is unambiguous.
+        'pwa-safe-bottom fixed inset-x-0 bottom-0 z-50 flex h-[68px] items-end border-t border-border bg-background px-2 pb-2',
+        'md:hidden native-bottom-nav',
         'transition-transform duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
         navHidden ? 'translate-y-[calc(100%+1rem)] pointer-events-none' : 'translate-y-0',
       )}
     >
-      {leadingItems.map(renderItem)}
-
-      <button
-        type="button"
-        onClick={() => setExploreOpen(true)}
-        aria-expanded={exploreOpen}
-        aria-current={isExploreActive ? 'page' : undefined}
-        aria-haspopup="dialog"
-        className={cn(
-          'relative flex min-h-14 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1.5 text-2xs font-medium transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-          isExploreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        <span
-          className={cn(
-            'relative inline-flex min-h-8 min-w-10 items-center justify-center rounded-xl px-2.5 py-1 transition-colors duration-150',
-            isExploreActive && 'bg-primary/10 text-primary ring-1 ring-primary/10',
-          )}
-        >
-          <Compass className={cn('h-5 w-5', isExploreActive && 'text-primary')} aria-hidden={true} />
-        </span>
-        <span className={cn(isExploreActive && 'font-semibold text-primary')}>استكشاف</span>
-      </button>
+      {renderItem(homeItem)}
+      {renderItem(messagesItem)}
 
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">
-        <div className="relative -mt-5">
+        <div className="relative -mt-[22px]">
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
@@ -204,10 +169,10 @@ export function BottomNav() {
             aria-haspopup="dialog"
             aria-label={draftsCount > 0 ? `أضف — ${draftsCount} مسودة معلّقة` : 'أضف'}
             className={cn(
-              'flex h-[52px] w-[52px] min-h-[52px] min-w-[52px] items-center justify-center rounded-full',
-              'border-[3px] border-background bg-[#397F56] text-white',
-              'shadow-lg shadow-primary/20 transition-transform',
-              'transition-[transform,box-shadow] duration-150 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]',
+              'flex h-12 w-12 min-h-12 min-w-12 items-center justify-center rounded-full',
+              'bg-primary text-primary-foreground',
+              'shadow-[0_6px_16px_rgba(57,127,86,0.35)] transition-transform',
+              'transition-[transform,box-shadow] duration-150 hover:scale-[1.03] hover:shadow-[0_8px_20px_rgba(57,127,86,0.4)] active:scale-[0.98]',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             )}
           >
@@ -216,61 +181,48 @@ export function BottomNav() {
           {isAuthenticated && draftsCount > 0 && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -top-0.5 -end-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#C47A0A] px-1 text-[11px] font-extrabold leading-none text-white shadow-sm"
+              className="pointer-events-none absolute -top-1 -end-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#AD531F] px-1 text-[10px] font-extrabold leading-none text-white"
             >
               {draftsCount > 9 ? '9+' : draftsCount}
             </span>
           )}
         </div>
-        {/* Label added to match the other four items' icon+label
-            pattern — this button was the only one in the bar with no
-            visible text, breaking visual consistency with its
-            siblings. */}
-        <span className="text-2xs font-medium text-muted-foreground">أضف</span>
+        <span className="text-[11px] font-semibold text-muted-foreground">أضف</span>
       </div>
 
-      {trailingItems.map(renderItem)}
+      <button
+        type="button"
+        onClick={() => setExploreOpen(true)}
+        aria-expanded={exploreOpen}
+        aria-current={isExploreActive ? 'page' : undefined}
+        aria-haspopup="dialog"
+        className={cn(
+          'relative flex min-h-[52px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[11px] transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          isExploreActive ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
+        )}
+      >
+        <span className="relative inline-flex items-center justify-center">
+          <Compass className="h-5 w-5" strokeWidth={isExploreActive ? 2.2 : 1.8} aria-hidden={true} />
+        </span>
+        <span>استكشاف</span>
+      </button>
 
       {/* FIX SYNC-NAV-01: شارة الطابور كانت رقم فقط بدون وجهة.
           صارت رابطاً لـ /settings/sync (مركز المزامنة) بدل أن تبقى
           داخل رابط الملف الشخصي (a داخل a غير صالح، وما يوصل للمزامنة).
           الملف الشخصي/القائمة يبقيان على سلوكهما السابق. */}
       {isAuthenticated && user?.id ? (
-        <div className="relative flex flex-1 flex-col items-center justify-center min-h-[48px]">
-          <Link
-            href={ROUTES.userProfile(user.id)}
-            prefetch={false}
-            aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) || pathname.startsWith('/profile/') ? 'page' : undefined}
+        <div className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center">
+          <button
+            type="button"
+            onClick={toggleMobileNav}
             className={cn(
-              'flex w-full flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium transition-colors',
-              pathname.startsWith('/profile/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+              'flex w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              mobileNavOpen ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
             )}
           >
             <span className="relative inline-flex">
               <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-2xs" />
-            </span>
-            حسابي
-          </Link>
-          {queuedCount > 0 && (
-            <Link
-              href={ROUTES.offline.sync}
-              prefetch={false}
-              aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
-              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
-            >
-              {queuedCount > 9 ? '9+' : queuedCount}
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="relative flex flex-1 flex-col items-center justify-center min-h-[48px]">
-          <button
-            type="button"
-            onClick={toggleMobileNav}
-            className="flex min-h-[48px] w-full flex-col items-center justify-center gap-0.5 py-2 text-2xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-          >
-            <span className="relative inline-flex">
-              <Menu className="h-5 w-5" aria-hidden={true} />
             </span>
             القائمة
           </button>
@@ -279,7 +231,33 @@ export function BottomNav() {
               href={ROUTES.offline.sync}
               prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
-              className="absolute top-1.5 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
+              className="absolute top-1 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
+            >
+              {queuedCount > 9 ? '9+' : queuedCount}
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center">
+          <button
+            type="button"
+            onClick={toggleMobileNav}
+            className={cn(
+              'flex w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              mobileNavOpen ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
+            )}
+          >
+            <span className="relative inline-flex">
+              <Menu className="h-5 w-5" strokeWidth={1.8} aria-hidden={true} />
+            </span>
+            القائمة
+          </button>
+          {queuedCount > 0 && (
+            <Link
+              href={ROUTES.offline.sync}
+              prefetch={false}
+              aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
+              className="absolute top-1 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
             >
               {queuedCount > 9 ? '9+' : queuedCount}
             </Link>

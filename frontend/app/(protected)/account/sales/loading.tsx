@@ -1,12 +1,12 @@
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
-/** Route-specific skeleton content, rendered by the shared loading system. */
 export default function Loading() {
   return (
     <PageLoadingState
-      variant="table"
-      title="جارٍ تحميل المبيعات"
-      description="نجهّز ملخص المبيعات والجدول…"
+      variant="sales"
+      title={LOADING_COPY.page}
+      description="نجهّز سجل المبيعات…"
     />
   );
 }

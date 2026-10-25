@@ -4,7 +4,7 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 export default function Loading() {
   return (
     <PageLoadingState
-      variant="cards"
+      variant="browse"
       title={LOADING_COPY.page}
       description="لحظة من فضلك…"
     />

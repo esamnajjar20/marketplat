@@ -39,12 +39,12 @@ export function ProtectedHeader() {
       : 'text-muted-foreground hover:bg-muted hover:text-foreground';
 
   return (
-    <header className="pwa-safe-top sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-xs backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
-      <div className="mx-auto flex min-h-16 w-full max-w-[1440px] items-center gap-3 px-4 lg:gap-4 lg:px-6">
-      {/* AUDIT-FIX (protected #1): hamburger trigger for ProtectedMobileNav,
-          the only way to reach ProtectedSidebar's destinations below `lg`. */}
+    <header className="pwa-safe-top sticky top-0 z-50 w-full border-b border-border bg-background">
+      <div className="mx-auto flex h-14 w-full max-w-[1440px] items-center gap-3 px-4 lg:h-16 lg:gap-4 lg:px-6">
+      {/* Drawer mounts always (portal); its own toggle is lg:hidden so
+          BottomNav owns the menu entry on mobile. */}
       <ProtectedMobileNav />
-      <Link prefetch={false} href={ROUTES.home}>
+      <Link prefetch={false} href={ROUTES.home} className="shrink-0">
         <Logo />
       </Link>
 

@@ -1,5 +1,5 @@
 export const CARD_SHELL =
-  'h-full w-full min-w-0 overflow-hidden rounded-2xl border border-[#EAE3D6] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)] transition-[transform,box-shadow,border-color] duration-normal ease-standard';
+  'h-full w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)] transition-[transform,box-shadow,border-color] duration-normal ease-standard';
 export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3.5';
 export const CARD_BODY_COMPACT = 'flex min-w-0 flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3';
 export const CARD_IMAGE_43 = 'relative aspect-[4/3] overflow-hidden bg-muted';
@@ -44,7 +44,7 @@ export const CARD_BADGE_CONDITION_USED = 'bg-muted text-muted-foreground';
 export const CARD_MUTED_FOOTER = 'mt-auto flex min-h-5 min-w-0 flex-wrap items-center gap-1 border-t border-border/50 pt-1.5 text-[11px] text-muted-foreground sm:min-h-6 sm:gap-1.5 sm:pt-2 sm:text-xs';
 
 /** Shared profile/service card primitives. Keep layout-specific geometry in each component. */
-export const CARD_SHELL_SOFT = 'h-full min-w-0 overflow-hidden rounded-2xl border border-[#EAE3D6] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)] transition-[box-shadow,border-color] duration-normal ease-standard';
+export const CARD_SHELL_SOFT = 'h-full min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)] transition-[box-shadow,border-color] duration-normal ease-standard';
 export const CARD_AVATAR_FALLBACK = 'bg-primary/10 text-primary ring-1 ring-border/70';
 export const CARD_BADGE_SUCCESS = 'inline-flex h-5 items-center gap-0.5 rounded-full bg-success/10 px-1.5 text-[10px] font-bold text-success';
 export const CARD_BADGE_MUTED = 'inline-flex h-5 items-center rounded-full bg-muted px-2 text-[10px] font-bold text-muted-foreground';
@@ -52,7 +52,7 @@ export const CARD_COMPACT_ACTIONS = 'min-h-9 rounded-lg px-2.5 text-xs sm:min-h-
 
 
 /** Shared geometry for loading placeholders so skeletons match real cards. */
-export const CARD_SKELETON_SHELL = 'flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#EAE3D6] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)]';
+export const CARD_SKELETON_SHELL = 'flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)]';
 export const CARD_SKELETON_MEDIA = 'relative aspect-[4/3] w-full overflow-hidden bg-muted';
 export const CARD_SKELETON_BODY = 'flex flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3.5';
 export const CARD_SKELETON_BODY_COMPACT = 'flex min-w-0 flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3';

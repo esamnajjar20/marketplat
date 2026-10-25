@@ -1,15 +1,20 @@
-import { LoadingState } from '@/components/shared/feedback/LoadingState';
+import { PageLoadingState, type PageLoadingVariant } from '@/components/shared/feedback/PageLoadingState';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
-/** One consistent App Router fallback, shared by root and route-group boundaries. */
-export function RouteLoadingState() {
+/**
+ * fallback موحّد لـ App Router — هيكل صفحة (بيج ناعم) بدل سبنر فقط.
+ * يمكن تمرير variant لمطابقة شكل الصفحة الهدف.
+ */
+export function RouteLoadingState({
+  variant = 'cards',
+}: {
+  variant?: PageLoadingVariant;
+} = {}) {
   return (
-    <LoadingState
-      variant="page"
-      size="lg"
-      label={LOADING_COPY.page}
+    <PageLoadingState
+      variant={variant}
+      title={LOADING_COPY.page}
       description="نجهّز المحتوى لك…"
-      className="min-h-[45vh] min-h-[45dvh]"
     />
   );
 }

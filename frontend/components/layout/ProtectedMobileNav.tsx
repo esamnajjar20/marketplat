@@ -89,8 +89,8 @@ function MyAdsDrawerLink({ active, onNavigate }: { active: boolean; onNavigate: 
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-        active ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
+        'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+        active ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]' : 'text-[#2A241D] hover:bg-[#FBF9F4]',
       )}
     >
       إعلاناتي
@@ -116,17 +116,19 @@ function DrawerDisclosureGroup({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
-          isAnyChildActive && !isOpen ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
+          'flex h-11 w-full items-center gap-2 rounded-[10px] px-3 text-[15px] transition-colors',
+          isAnyChildActive
+            ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+            : 'font-semibold text-[#2A241D] hover:bg-[#FBF9F4]',
         )}
       >
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
-          ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          : <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+          ? <ChevronDown className="h-4 w-4 shrink-0 text-[#6B6459]" aria-hidden="true" />
+          : <ChevronLeft className="h-4 w-4 shrink-0 text-[#6B6459]" aria-hidden="true" />}
       </button>
       {isOpen && (
-        <ul className="mt-1 flex flex-col gap-1">
+        <ul className="mt-0.5 flex flex-col gap-0.5">
           {group.children.map((child) => {
             const isActive = navChildIsActive(pathname, child, search);
             return (
@@ -138,8 +140,10 @@ function DrawerDisclosureGroup({
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'block rounded-md px-3 py-2 ms-4 text-base font-medium transition-colors',
-                    isActive ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
+                    'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-[14px] transition-colors',
+                    isActive
+                      ? 'rounded-e-[10px] border-[#397F56] bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+                      : 'border-[#EAE3D6] font-semibold text-[#4A433A] hover:bg-[#FBF9F4]',
                   )}
                 >
                   {child.label}
@@ -324,7 +328,7 @@ export function ProtectedMobileNav() {
           <button
             ref={closeButtonRef}
             onClick={close}
-            className="min-h-10 min-w-10 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-10 min-w-10 rounded-lg p-2 text-[#397F56] hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="أغلق القائمة"
           >
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -337,7 +341,7 @@ export function ProtectedMobileNav() {
           type="button"
           onClick={() => setShowBrowse((value) => !value)}
           aria-expanded={showBrowse}
-          className="mt-6 flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+          className="mt-6 flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-[#397F56] hover:bg-muted"
         >
           <span className="flex-1 text-start">استكشاف</span>
           {showBrowse ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -352,11 +356,13 @@ export function ProtectedMobileNav() {
                   onClick={() => { recordNavigation(link.href); close(); }}
                   aria-current={pathname === link.href ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted',
-                    pathname === link.href ? 'bg-primary text-primary-foreground' : '',
+                    'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                    pathname === link.href
+                      ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+                      : 'text-[#2A241D] hover:bg-[#FBF9F4]',
                   )}
                 >
-                  <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <link.icon className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
                   {link.label}
                 </Link>
               </li>
@@ -378,8 +384,8 @@ export function ProtectedMobileNav() {
                   onClick={() => { recordNavigation(link.href); close(); }}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'block rounded-md px-3 py-2 text-base font-medium transition-colors',
-                    isActive ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold' : 'hover:bg-muted/60',
+                    'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                    isActive ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]' : 'text-[#2A241D] hover:bg-[#FBF9F4]',
                   )}
                 >
                   {link.label}
@@ -420,13 +426,13 @@ export function ProtectedMobileNav() {
                 onClick={close}
                 aria-current={pathname === ROUTES.settings.root ? 'page' : undefined}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname === ROUTES.settings.root
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted',
+                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
                 )}
               >
-                <Store className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <Store className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
                 أنشئ حساب بائع
               </Link>
             </li>
@@ -448,13 +454,13 @@ export function ProtectedMobileNav() {
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.storeDetail(myStore.id)) ? 'page' : undefined}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname.startsWith(ROUTES.storeDetail(myStore.id))
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted',
+                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
                 )}
               >
-                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <ExternalLink className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
                 عرض متجري
               </Link>
             </li>
@@ -491,13 +497,13 @@ export function ProtectedMobileNav() {
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname.startsWith(ROUTES.userProfile(user.id))
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted',
+                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
                 )}
               >
-                <User className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <User className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
                 عرض ملفي
               </Link>
             </li>
@@ -528,10 +534,10 @@ export function ProtectedMobileNav() {
                 onClick={close}
                 aria-current={pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`) ? 'page' : undefined}
                 className={cn(
-                  'block rounded-md px-3 py-2 text-base font-medium transition-colors',
+                  'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted',
+                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
                 )}
               >
                 لوحة الإدارة
@@ -542,7 +548,7 @@ export function ProtectedMobileNav() {
             <button
               onClick={() => { logout(); close(); }}
               disabled={isLoggingOut}
-              className="block w-full text-start rounded-md px-3 py-2 text-base font-medium text-destructive hover:bg-muted disabled:opacity-50"
+              className="flex h-11 w-full items-center rounded-[10px] px-3 text-start text-[15px] font-semibold text-[#9B2118] hover:bg-[#FBF9F4] disabled:opacity-50"
             >
               {isLoggingOut ? 'جارٍ تسجيل الخروج…' : 'تسجيل الخروج'}
             </button>

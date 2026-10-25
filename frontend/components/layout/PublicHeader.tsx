@@ -36,9 +36,16 @@ interface Props {
    * routes — the call site that knows it's the auth layout says so.
    */
   showSearch?: boolean;
+  /**
+   * When true, show the MobileNav hamburger in the header.
+   * Default false: (public)/(protected) mount BottomNav which owns
+   * the "القائمة" entry. Auth layout has no BottomNav — must pass true
+   * or guests on /login lose all access to the drawer on mobile.
+   */
+  showMenuTrigger?: boolean;
 }
 
-export function PublicHeader({ showSearch = true }: Props = {}) {
+export function PublicHeader({ showSearch = true, showMenuTrigger = false }: Props = {}) {
   // HYDRATION-SAFE: `mounted` becomes true only after the first commit,
     // so the first client render matches the server (anonymous). Zustand
     // persist rehydrates synchronously, so `isHydrated` alone is not enough.
@@ -102,18 +109,36 @@ export function PublicHeader({ showSearch = true }: Props = {}) {
           brand mark, bell kept unconditionally reachable next to it —
           while staying on the same theme tokens as the rest of the
           header so it needs no separate dark-mode treatment. */}
-      <div className="flex h-14 items-center justify-between px-4 lg:hidden">
-        {/* RTL order: the first flex item is placed at the right edge.
-            Keep the hamburger first so it matches ProtectedHeader on mobile. */}
-        <MobileNav />
-        <div className="flex items-center gap-1">
-          {isAuthenticated && <NotificationBell />}
-          <ThemeToggle />
-        </div>
+      <div className="flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden">
+        {/* RTL: first item sits on the right — logo + brand mark */}
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo size="sm" />
         </Link>
+        <div className="flex items-center gap-1">
+          {isAuthenticated && <NotificationBell />}
+          {showSearch && (
+            <Link
+              prefetch={false}
+              href={ROUTES.search}
+              aria-label="بحث"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3-3" />
+              </svg>
+            </Link>
+          )}
+          {/* Auth has no BottomNav — show hamburger here. Public/protected use BottomNav. */}
+          {showMenuTrigger && <MobileNav />}
+        </div>
       </div>
+      {/* Public/protected: drawer only; BottomNav toggles via ui.store */}
+      {!showMenuTrigger && (
+        <div className="lg:hidden">
+          <MobileNav hideTrigger />
+        </div>
+      )}
 
       <div className="container mx-auto hidden min-h-16 max-w-7xl items-center gap-3 px-4 py-2 lg:gap-4 lg:flex">
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">

@@ -1,12 +1,5 @@
-import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
+import { RouteLoadingState } from '@/components/shared/RouteLoadingState';
 
-/** Route-specific skeleton content, rendered by the shared loading system. */
 export default function Loading() {
-  return (
-    <PageLoadingState
-      variant="cards"
-      title="جارٍ تحميل الأقساط"
-      description="نجهّز بيانات الأقساط…"
-    />
-  );
+  return <RouteLoadingState variant="list" />;
 }

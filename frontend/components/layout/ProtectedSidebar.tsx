@@ -121,17 +121,26 @@ function NavLink({
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex min-h-11 items-center gap-2.5 rounded-[9px] py-2 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-        indent ? 'px-3 ms-7' : 'px-3',
-        isActive
-          ? 'bg-[#E8F1EC] text-[#1F4D33] font-extrabold'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        'flex h-10 items-center gap-2.5 text-[13px] transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        indent
+          ? cn(
+              'ms-3 border-inline-start-2 py-0 pe-3 ps-3',
+              isActive
+                ? 'border-[#397F56] bg-[#E8F1EC] font-extrabold text-[#1F4D33] rounded-e-[10px]'
+                : 'border-[#EAE3D6] font-semibold text-[#4A433A] hover:bg-[#FBF9F4]',
+            )
+          : cn(
+              'rounded-[10px] px-3',
+              isActive
+                ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+                : 'font-semibold text-[#6B6459] hover:bg-[#FBF9F4] hover:text-[#1F4D33]',
+            ),
       )}
     >
-      {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />}
+      {Icon && <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-[#397F56]' : 'text-[#397F56]')} aria-hidden={true} />}
       <span className="flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#397F56] px-1 text-[11px] font-extrabold text-white">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#397F56] px-1.5 text-[11px] font-extrabold text-white">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
@@ -161,20 +170,20 @@ function DisclosureGroup({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={cn(
-          'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
-          isAnyChildActive && !isOpen
-            ? 'bg-primary-soft text-primary'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          'flex h-10 w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
+          isAnyChildActive
+            ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
+            : 'font-semibold text-[#6B6459] hover:bg-[#FBF9F4] hover:text-[#1F4D33]',
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />
+        <Icon className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden={true} />
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
-          ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden={true} />
-          : <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden={true} />}
+          ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#6B6459]" aria-hidden={true} />
+          : <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-[#6B6459]" aria-hidden={true} />}
       </button>
       {isOpen && (
-        <div className="mt-1 flex flex-col gap-1">
+        <div className="mt-0.5 flex flex-col gap-0.5 pb-1">
           {group.children.map((child) => (
             <NavLink
               key={child.href}
@@ -241,9 +250,9 @@ export function ProtectedSidebar() {
   });
 
   return (
-    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border/80 bg-surface-1 lg:block lg:w-60">
-      <nav aria-label="القائمة الشخصية" className="flex flex-col gap-1.5 p-3 lg:p-4">
-        <p className="px-2.5 pb-1 text-[12px] font-bold text-[#6B6459]">الوصول السريع</p>
+    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-[#EAE3D6] bg-white lg:block lg:w-[260px]">
+      <nav aria-label="القائمة الشخصية" className="flex flex-col gap-0.5 p-3 lg:p-4">
+        <p className="px-3 pb-1 pt-1 text-[11px] font-bold text-[#6B6459]">الوصول السريع</p>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.href}
@@ -256,8 +265,8 @@ export function ProtectedSidebar() {
           />
         ))}
 
-        <div className="my-1.5 border-t border-border/70" aria-hidden="true" />
-        <p className="px-2.5 pt-1 text-[12px] font-bold text-[#6B6459]">مساحتي</p>
+        <div className="my-2 border-t border-[#EAE3D6]" aria-hidden="true" />
+        <p className="px-3 pt-1 text-[11px] font-bold text-[#6B6459]">مساحتي</p>
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {
@@ -275,8 +284,8 @@ export function ProtectedSidebar() {
           return <NavLink key={item.key} label={item.label} href={item.href} icon={item.icon} isActive={item.active} onNavigate={() => navigate(item.href)} />;
         })}
 
-        <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border/70 bg-background/60 p-1">
-            <p className="px-2 pt-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">النشاط والإعدادات</p>
+        <div className="mt-2 flex flex-col gap-0.5">
+            <p className="px-3 pt-1 text-[11px] font-bold text-[#6B6459]">النشاط والإعدادات</p>
             {!activityVisible && (
               <Suspense fallback={<DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>
