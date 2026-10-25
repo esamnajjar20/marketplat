@@ -45,7 +45,7 @@ interface Props {
   showMenuTrigger?: boolean;
 }
 
-export function PublicHeader({ showSearch = true, showMenuTrigger = false }: Props = {}) {
+export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrigger = false }: Props = {}) {
   // HYDRATION-SAFE: `mounted` becomes true only after the first commit,
     // so the first client render matches the server (anonymous). Zustand
     // persist rehydrates synchronously, so `isHydrated` alone is not enough.
@@ -129,16 +129,10 @@ export function PublicHeader({ showSearch = true, showMenuTrigger = false }: Pro
               </svg>
             </Link>
           )}
-          {/* Auth has no BottomNav — show hamburger here. Public/protected use BottomNav. */}
-          {showMenuTrigger && <MobileNav />}
+          {/* Hamburger in header for all page types. BottomNav no longer toggles the drawer. */}
+          <MobileNav />
         </div>
       </div>
-      {/* Public/protected: drawer only; BottomNav toggles via ui.store */}
-      {!showMenuTrigger && (
-        <div className="lg:hidden">
-          <MobileNav hideTrigger />
-        </div>
-      )}
 
       <div className="container mx-auto hidden min-h-16 max-w-7xl items-center gap-3 px-4 py-2 lg:gap-4 lg:flex">
         <Link prefetch={false} href={ROUTES.home} className="shrink-0">

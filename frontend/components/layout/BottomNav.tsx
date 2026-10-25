@@ -213,19 +213,22 @@ export function BottomNav() {
           الملف الشخصي/القائمة يبقيان على سلوكهما السابق. */}
       {isAuthenticated && user?.id ? (
         <div className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center">
-          <button
-            type="button"
-            onClick={toggleMobileNav}
+          <Link
+            href={ROUTES.userProfile(user.id)}
+            prefetch={false}
+            aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
             className={cn(
               'flex w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-              mobileNavOpen ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
+              pathname.startsWith(ROUTES.userProfile(user.id))
+                ? 'font-extrabold text-primary'
+                : 'font-semibold text-muted-foreground hover:text-primary',
             )}
           >
             <span className="relative inline-flex">
               <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-2xs" />
             </span>
-            القائمة
-          </button>
+            حسابي
+          </Link>
           {queuedCount > 0 && (
             <Link
               href={ROUTES.offline.sync}
