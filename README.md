@@ -1,7 +1,7 @@
 # فجوة #7 — نظام تحليلات سلوك المستخدم (Product Analytics)
 
 هاي الملفات جاهزة لدمجها بمشروعك — كل ملف بنفس مساره النسبي داخل
-`backend/` أو `frontend/`. انسخهم فوق البنية الأصلية (استبدال للملفات
+`apps/api/` أو `apps/web/`. انسخهم فوق البنية الأصلية (استبدال للملفات
 المعدّلة، إضافة للجديدة).
 
 جميع أنواع الأحداث السبعة مربوطة الآن فعليًا:
@@ -11,52 +11,52 @@
 ## ملفات جديدة بالكامل
 
 **Backend:**
-- `backend/prisma/migrations/20260806120000_add_analytics_events/migration.sql`
-- `backend/src/modules/analytics/` (كامل: controller, repository,
+- `apps/api/prisma/migrations/20260806120000_add_analytics_events/migration.sql`
+- `apps/api/src/modules/analytics/` (كامل: controller, repository,
   routes, service, validation, index)
 
 **Frontend:**
-- `frontend/lib/analytics.ts` — tracker خفيف من طرف العميل (session id،
+- `apps/web/lib/analytics.ts` — tracker خفيف من طرف العميل (session id،
   batching، sendBeacon عند مغادرة الصفحة)
-- `frontend/api/analytics.api.ts` — استدعاء ملخص الأدمن
-- `frontend/components/admin/AdminAnalyticsDashboard.tsx` — لوحة
+- `apps/web/api/analytics.api.ts` — استدعاء ملخص الأدمن
+- `apps/web/components/admin/AdminAnalyticsDashboard.tsx` — لوحة
   التحليلات (بطاقات ملخص، معدلات تحويل، رسم بياني بسيط، أكثر الفئات
   تصفحًا)
-- `frontend/components/shared/PageViewTracker.tsx` — تتبع `PAGE_VIEW`
+- `apps/web/components/shared/PageViewTracker.tsx` — تتبع `PAGE_VIEW`
   على مستوى كل الموقع (مستثنى: مسارات `/admin`)
-- `frontend/app/(admin)/admin/analytics/page.tsx`
-- `frontend/app/(admin)/admin/analytics/loading.tsx`
+- `apps/web/app/(admin)/admin/analytics/page.tsx`
+- `apps/web/app/(admin)/admin/analytics/loading.tsx`
 
 ## ملفات معدّلة (استبدال كامل)
 
 **Backend:**
-- `backend/prisma/schema.prisma` — أضيف موديل `AnalyticsEvent` +
+- `apps/api/prisma/schema.prisma` — أضيف موديل `AnalyticsEvent` +
   enum `AnalyticsEventType`
-- `backend/src/middlewares/rateLimit.middleware.ts` — أضيف
+- `apps/api/src/middlewares/rateLimit.middleware.ts` — أضيف
   `analyticsEventsRateLimit`
-- `backend/src/routes.ts` — ربط `/analytics` و `/admin/analytics`
+- `apps/api/src/routes.ts` — ربط `/analytics` و `/admin/analytics`
 
 **Frontend:**
-- `frontend/components/ads/AdDetailSection.tsx` — تتبع `AD_VIEW`
-- `frontend/components/ads/SellerCard.tsx` — تتبع `CONTACT_CLICK`
-- `frontend/components/search/SearchResults.tsx` — تتبع `SEARCH`
-- `frontend/components/home/CategoryHero.tsx` — تتبع `CATEGORY_BROWSE`
-- `frontend/components/auth/RegisterForm.tsx` — تتبع `SIGNUP_STARTED`
-- `frontend/hooks/mutations/useAuthMutations.ts` — تتبع
+- `apps/web/components/ads/AdDetailSection.tsx` — تتبع `AD_VIEW`
+- `apps/web/components/ads/SellerCard.tsx` — تتبع `CONTACT_CLICK`
+- `apps/web/components/search/SearchResults.tsx` — تتبع `SEARCH`
+- `apps/web/components/home/CategoryHero.tsx` — تتبع `CATEGORY_BROWSE`
+- `apps/web/components/auth/RegisterForm.tsx` — تتبع `SIGNUP_STARTED`
+- `apps/web/hooks/mutations/useAuthMutations.ts` — تتبع
   `SIGNUP_COMPLETED`
-- `frontend/hooks/queries/useAdmin.ts` — hook
+- `apps/web/hooks/queries/useAdmin.ts` — hook
   `useAdminAnalyticsSummary`
-- `frontend/lib/constants.ts` — `ROUTES.admin.analytics` +
+- `apps/web/lib/constants.ts` — `ROUTES.admin.analytics` +
   `CACHE_TTL.adminAnalytics`
-- `frontend/lib/queryKeys.ts` — `queryKeys.admin.analyticsSummary`
-- `frontend/components/admin/AdminSidebar.tsx` — رابط "التحليلات"
+- `apps/web/lib/queryKeys.ts` — `queryKeys.admin.analyticsSummary`
+- `apps/web/components/admin/AdminSidebar.tsx` — رابط "التحليلات"
   بالقائمة الجانبية
-- `frontend/providers/AppProviders.tsx` — ربط `PageViewTracker`
+- `apps/web/providers/AppProviders.tsx` — ربط `PageViewTracker`
   ليشتغل على كل صفحات الموقع (باستثناء `/admin`)
 
 ## خطوات ما بعد الدمج
 
-1. `cd backend && npx prisma migrate deploy` (أو `migrate dev` بالتطوير)
+1. `cd apps/api && npx prisma migrate deploy` (أو `migrate dev` بالتطوير)
    لتطبيق migration الجدول الجديد `analytics_events`
 2. `npx prisma generate` لتحديث Prisma Client بموديل
    `AnalyticsEvent` والـ enum الجديد

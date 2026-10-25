@@ -1,0 +1,16 @@
+-- FIX: the FEAT-FAVORITE-POLYMORPHIC migration (20260824000000) added
+-- entityType/entityId, backfilled them, dropped the old FK and unique
+-- constraint on adId, and documented adId as becoming "a plain
+-- nullable legacy compatibility column" — but never actually issued
+-- the ALTER COLUMN to drop adId's original NOT NULL constraint.
+--
+-- schema.prisma already declares `adId String?` (nullable), so
+-- Prisma Client stopped sending adId on favorite creation — but the
+-- live Postgres column was still NOT NULL underneath, causing every
+-- prisma.favorite.create() call to fail with:
+--   "Null constraint violation on the fields: (`adId`)"
+--
+-- This just catches the DB up to match the schema that was already
+-- declared. Non-destructive: loosening NOT NULL -> nullable never
+-- rejects existing rows or data.
+ALTER TABLE "favorites" ALTER COLUMN "adId" DROP NOT NULL;

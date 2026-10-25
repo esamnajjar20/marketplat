@@ -5,7 +5,7 @@
 ### Phase 1 — Baseline and measurement contract
 
 - Added `docs/performance/RENDER-PHASE-1-BASELINE.md`.
-- Added `frontend/scripts/render-audit.mjs` and the `perf:render-audit` npm script.
+- Added `apps/web/scripts/render-audit.mjs` and the `perf:render-audit` npm script.
 - The audit deliberately measures source architecture, not runtime render counts.
 - Defined representative profiler flows and acceptance criteria so later render changes can be measured instead of guessed.
 
@@ -52,7 +52,7 @@ The reduction from 24 → 14 is not achieved by deleting functionality. Ten stat
 
 ## Tests added
 
-`frontend/__tests__/hooks/useOnlineStatus.test.tsx` verifies:
+`apps/web/__tests__/hooks/useOnlineStatus.test.tsx` verifies:
 
 1. Multiple consumers share one `online` listener and one `offline` listener.
 2. The listeners are not removed while at least one consumer remains mounted.
@@ -71,7 +71,7 @@ The reduction from 24 → 14 is not achieved by deleting functionality. Ten stat
 This limitation is environmental and is not treated as a passing test result. After installing the project's locked dependencies normally, run:
 
 ```bash
-cd frontend
+cd apps/web
 npm ci
 npm run type-check
 npm run test -- __tests__/hooks/useOnlineStatus.test.tsx

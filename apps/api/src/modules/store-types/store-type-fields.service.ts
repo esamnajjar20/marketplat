@@ -1,0 +1,309 @@
+import { redis } from '../../config/redis';
+import { prisma } from '../../config/prisma';
+import { Prisma } from '@prisma/client';
+import { logger } from '../../../shared/utils/logger';
+import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { bumpPublicListCache } from '../../../shared/utils/publicListCache';
+import { storeTypesRepository } from './store-types.repository';
+import { storeTypeFieldsRepository } from './store-type-fields.repository';
+import {
+  CreateStoreTypeFieldInput,
+  UpdateStoreTypeFieldInput,
+} from './store-type-fields.validation';
+
+const MAX_FIELDS = 20;
+const CACHE_TTL_SECONDS = 30 * 60;
+const cacheKey = (storeTypeId: string) => `store_type_fields:${storeTypeId}:active:v2`;
+
+async function invalidate(storeTypeId: string) {
+  try {
+    await redis.del(cacheKey(storeTypeId));
+  } catch {
+    logger.warn('Store type fields cache invalidation failed');
+  }
+}
+
+export type StoreAttributes = Record<string, string | number | boolean>;
+export type StoreFieldScope = 'STORE' | 'PRODUCT';
+
+export const storeTypeFieldsService = {
+  getPublic: async (storeTypeId: string) => {
+    const type = await storeTypesRepository.findById(storeTypeId);
+    if (!type || !type.isActive) return [];
+    try {
+      const cached = await redis.get(cacheKey(storeTypeId));
+      if (cached) return JSON.parse(cached);
+    } catch {
+      logger.warn('Store type fields cache read failed');
+    }
+    const fields = (await storeTypeFieldsRepository.findActive(storeTypeId)).map(
+      ({
+        id,
+        storeTypeId: ownerId,
+        key,
+        scope,
+        labelAr,
+        cardLabelAr,
+        pageLabelAr,
+        showOnCard,
+        showOnPage,
+        type,
+        required,
+        options,
+        sortOrder,
+      }) => ({
+        id,
+        storeTypeId: ownerId,
+        key,
+        scope,
+        labelAr,
+        cardLabelAr,
+        pageLabelAr,
+        showOnCard,
+        showOnPage,
+        type,
+        required,
+        options,
+        sortOrder,
+      })
+    );
+    try {
+      await redis.setex(cacheKey(storeTypeId), CACHE_TTL_SECONDS, JSON.stringify(fields));
+    } catch {
+      logger.warn('Store type fields cache write failed');
+    }
+    return fields;
+  },
+
+  getAdmin: async (storeTypeId: string) => {
+    const type = await storeTypesRepository.findById(storeTypeId);
+    if (!type) throw new NotFoundError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+    return storeTypeFieldsRepository.findAll(storeTypeId);
+  },
+
+  create: async (storeTypeId: string, input: CreateStoreTypeFieldInput) => {
+    const type = await storeTypesRepository.findById(storeTypeId);
+    if (!type) throw new NotFoundError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+    const count = (await storeTypeFieldsRepository.findAll(storeTypeId)).filter(
+      field => field.scope === (input.scope ?? 'STORE')
+    ).length;
+    if (count >= MAX_FIELDS)
+      throw new BadRequestError(
+        'A store type cannot have more than 20 custom fields.',
+        'STORE_TYPE_FIELD_LIMIT'
+      );
+    try {
+      const created = await storeTypeFieldsRepository.create(storeTypeId, input);
+      await invalidate(storeTypeId);
+      await bumpPublicListCache('stores');
+      return created;
+    } catch (error) {
+      if (isPrismaError(error, 'P2002'))
+        throw new BadRequestError(
+          'Field key already exists for this store type.',
+          'STORE_TYPE_FIELD_KEY_EXISTS'
+        );
+      throw error;
+    }
+  },
+
+  update: async (storeTypeId: string, fieldId: string, input: UpdateStoreTypeFieldInput) => {
+    const field = await storeTypeFieldsRepository.findById(fieldId);
+    if (!field || field.storeTypeId !== storeTypeId)
+      throw new NotFoundError('Store type field not found', 'STORE_TYPE_FIELD_NOT_FOUND');
+    // scope is part of the field's unique
+    // identity; treat any change attempt as a client error rather than
+    // letting the DB throw P2002 (which would surface as 500).
+    if ((input as { scope?: unknown }).scope !== undefined) {
+      throw new BadRequestError(
+        'Field scope cannot be changed. Delete this field and create a new one in the target scope.',
+        'FIELD_SCOPE_IMMUTABLE'
+      );
+    }
+    const nextType = input.type ?? field.type;
+    const nextOptions = input.options === undefined ? field.options : input.options;
+    if (nextType === 'SELECT' && !nextOptions)
+      throw new BadRequestError(
+        'Select fields require options.',
+        'STORE_TYPE_FIELD_OPTIONS_REQUIRED'
+      );
+    if (nextType !== 'SELECT' && nextOptions)
+      throw new BadRequestError(
+        'Only select fields may define options.',
+        'STORE_TYPE_FIELD_OPTIONS_INVALID'
+      );
+
+    const scope = field.scope;
+    const typeChanged = input.type !== undefined && input.type !== field.type;
+    const optionsChanged =
+      input.options !== undefined &&
+      JSON.stringify(input.options) !== JSON.stringify(field.options);
+    const requiredEnabled = input.required === true && field.required === false;
+
+    if (typeChanged || optionsChanged) {
+      const usage =
+        scope === 'PRODUCT'
+          ? await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "products" p
+            JOIN "store_details" s ON s.id = p."storeId"
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND p.status <> 'DELETED'
+              AND p.attributes IS NOT NULL
+              AND p.attributes ? ${field.key}
+          `)
+          : await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "store_details" s
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND s.attributes IS NOT NULL
+              AND s.attributes ? ${field.key}
+          `);
+      const usedCount = Number(usage[0]?.count ?? 0n);
+      if (usedCount > 0) {
+        throw new BadRequestError(
+          `Field cannot change type or options while ${usedCount} existing ${scope === 'PRODUCT' ? 'products' : 'stores'} use it. Create a new field instead.`,
+          'STORE_TYPE_FIELD_IN_USE'
+        );
+      }
+    }
+
+    if (requiredEnabled) {
+      const missing =
+        scope === 'PRODUCT'
+          ? await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "products" p
+            JOIN "store_details" s ON s.id = p."storeId"
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND p.status <> 'DELETED'
+              AND (p.attributes IS NULL OR NOT (p.attributes ? ${field.key}) OR p.attributes->${field.key} IS NULL)
+          `)
+          : await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+            SELECT COUNT(*)::bigint AS count
+            FROM "store_details" s
+            WHERE s."storeTypeId" = ${storeTypeId}
+              AND (s.attributes IS NULL OR NOT (s.attributes ? ${field.key}) OR s.attributes->${field.key} IS NULL)
+          `);
+      const missingCount = Number(missing[0]?.count ?? 0n);
+      if (missingCount > 0) {
+        throw new BadRequestError(
+          `Field cannot become required because ${missingCount} existing ${scope === 'PRODUCT' ? 'products' : 'stores'} are missing it.`,
+          'STORE_TYPE_FIELD_REQUIRED_DATA_MISSING'
+        );
+      }
+    }
+
+    const updated = await storeTypeFieldsRepository.update(fieldId, input);
+    await invalidate(storeTypeId);
+    await bumpPublicListCache('stores');
+    return updated;
+  },
+
+  validateAttributes: async (
+    storeTypeId: string,
+    raw: unknown,
+    requireRequired: boolean,
+    scope: StoreFieldScope = 'STORE',
+    opts: { dropUnknownKeys?: boolean } = {}
+  ): Promise<StoreAttributes | null> => {
+    if (raw == null)
+      return requireRequired &&
+        (await storeTypeFieldsRepository.findActive(storeTypeId, scope)).some(f => f.required)
+        ? (() => {
+            throw new BadRequestError(
+              scope === 'PRODUCT'
+                ? 'Required product fields are missing.'
+                : 'Required store fields are missing.',
+              scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_REQUIRED' : 'STORE_ATTRIBUTES_REQUIRED'
+            );
+          })()
+        : null;
+    if (typeof raw !== 'object' || Array.isArray(raw))
+      throw new BadRequestError(
+        'Store attributes must be an object.',
+        scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_INVALID' : 'STORE_ATTRIBUTES_INVALID'
+      );
+    const input = raw as Record<string, unknown>;
+    const fields = await storeTypeFieldsRepository.findActive(storeTypeId, scope);
+    const byKey = new Map(fields.map(f => [f.key, f]));
+    const keys = Object.keys(input);
+    if (keys.length > MAX_FIELDS)
+      throw new BadRequestError(
+        scope === 'PRODUCT' ? 'Too many product attributes.' : 'Too many store attributes.',
+        scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTES_LIMIT' : 'STORE_ATTRIBUTES_LIMIT'
+      );
+    for (const key of keys) {
+      const field = byKey.get(key);
+      if (!field) {
+        // when an admin changes a store's
+        // type, the store's existing attributes (written against the OLD
+        // type) become unknown. Rather than reject the admin change with
+        // STORE_ATTRIBUTE_UNKNOWN, drop those keys silently — they belonged
+        // to a different schema. Normal (owner) saves still reject unknown
+        // keys, blocking typo'd fields at the API boundary.
+        if (opts.dropUnknownKeys) {
+          delete input[key];
+          continue;
+        }
+        throw new BadRequestError(
+          `Unknown ${scope === 'PRODUCT' ? 'product' : 'store'} field: ${key}`,
+          scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_UNKNOWN' : 'STORE_ATTRIBUTE_UNKNOWN'
+        );
+      }
+      const value = input[key];
+      if (value === null || value === '') {
+        if (field.required)
+          throw new BadRequestError(
+            `Field ${field.labelAr} is required.`,
+            scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_REQUIRED' : 'STORE_ATTRIBUTE_REQUIRED'
+          );
+        delete input[key];
+        continue;
+      }
+      if (field.type === 'TEXT' && typeof value !== 'string')
+        throw new BadRequestError(
+          `Field ${field.labelAr} must be text.`,
+          scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE'
+        );
+      if (field.type === 'NUMBER' && (typeof value !== 'number' || !Number.isFinite(value)))
+        throw new BadRequestError(
+          `Field ${field.labelAr} must be a number.`,
+          scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE'
+        );
+      if (field.type === 'BOOLEAN' && typeof value !== 'boolean')
+        throw new BadRequestError(
+          `Field ${field.labelAr} must be boolean.`,
+          scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE'
+        );
+      if (field.type === 'SELECT') {
+        if (typeof value !== 'string')
+          throw new BadRequestError(
+            `Field ${field.labelAr} has an invalid option.`,
+            scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_TYPE' : 'STORE_ATTRIBUTE_TYPE'
+          );
+        const options = Array.isArray(field.options) ? field.options : [];
+        if (!options.some((o: any) => o?.value === value))
+          throw new BadRequestError(
+            `Field ${field.labelAr} has an invalid option.`,
+            scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_OPTION' : 'STORE_ATTRIBUTE_OPTION'
+          );
+      }
+    }
+    if (requireRequired) {
+      for (const field of fields)
+        if (
+          field.required &&
+          (input[field.key] === undefined || input[field.key] === null || input[field.key] === '')
+        ) {
+          throw new BadRequestError(
+            `Field ${field.labelAr} is required.`,
+            scope === 'PRODUCT' ? 'PRODUCT_ATTRIBUTE_REQUIRED' : 'STORE_ATTRIBUTE_REQUIRED'
+          );
+        }
+    }
+    return input as StoreAttributes;
+  },
+};

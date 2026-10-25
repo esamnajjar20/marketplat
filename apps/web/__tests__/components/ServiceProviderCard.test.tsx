@@ -1,0 +1,180 @@
+/**
+ * __tests__/components/ServiceProviderCard.test.tsx
+ *
+ * Previously uncovered (0%), ~238 lines (mostly styling). Pure
+ * presentational card for /service-providers results — both nearby
+ * search (has distanceKm) and the Phase 3 city/browse directory (no
+ * distanceKm) — deliberately reads only plain ServiceProviderDetails
+ * fields plus optional distanceKm (no sellerProfile join, so no
+ * verified badge/rating here, unlike ServiceListingCard/ServiceProviderHeader).
+ *
+ * Coverage targets:
+ *  - Links to /service-providers/:id
+ *  - Renders businessName, description, contact phone (formatted),
+ *    joined serviceAreaCities
+ *  - Distance label: meters under 1km, one-decimal km at/above 1km
+ *  - Phase 3: distanceKm absent → shows shared city (serviceAreaCities ∩
+ *    user.city) instead of a distance; shows nothing if no overlap
+ *  - Availability dot + label for all three ServiceAvailability states
+ *  - Avatar falls back to the placeholder when logoUrl is null
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderWithProviders as render } from '@/test-support/render';
+import { screen } from '@testing-library/react';
+import { ServiceProviderCard } from '@/components/services/ServiceProviderCard';
+import { useAuthStore } from '@/store/auth.store';
+import type { NearbyServiceProviderRow, ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
+
+vi.mock('@/store/auth.store', () => ({
+  useAuthStore: vi.fn(),
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
+  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectAccessToken: (s: any) => s?.accessToken,
+  selectUser: (s: any) => s?.user,
+  selectIsAuthenticated: (s: any) => Boolean(s?.isAuthenticated ?? s?.user),
+  selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
+}));
+
+function mockUserCity(city: string | null) {
+  vi.mocked(useAuthStore).mockImplementation((selector: unknown) =>
+    (selector as (s: { user: { city: string | null } | null }) => unknown)({ user: { city } }),
+  );
+}
+
+function makeProvider(overrides: Partial<NearbyServiceProviderRow> = {}): NearbyServiceProviderRow {
+  return {
+    id: 'provider-1',
+    sellerProfileId: 'seller-1',
+    businessName: 'خدمات السباكة السريعة',
+    businessType: 'INDIVIDUAL',
+    logoUrl: null,
+    description: 'خدمات سباكة منزلية سريعة وموثوقة',
+    serviceAreaCities: ['غزة', 'خان يونس'],
+    workingHours: {} as NearbyServiceProviderRow['workingHours'],
+    contactPhone: '+970591234567',
+    availabilityStatus: 'AVAILABLE',
+    completedRequestsCount: 10,
+    fulfillmentRate: null,
+    latitude: null,
+    longitude: null,
+    distanceKm: 2.345,
+    ...overrides,
+  } as NearbyServiceProviderRow;
+}
+
+describe('ServiceProviderCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserCity(null);
+  });
+
+  it('links to the provider profile page', () => {
+    render(<ServiceProviderCard provider={makeProvider({ id: 'provider-42' })} />);
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/service-providers/provider-42');
+  });
+
+  it('renders the business name and description without exposing a phone number', () => {
+    render(<ServiceProviderCard provider={makeProvider({ contactPhone: '+970591234567' })} />);
+    expect(screen.getByText('خدمات السباكة السريعة')).toBeInTheDocument();
+    expect(screen.getByText('خدمات سباكة منزلية سريعة وموثوقة')).toBeInTheDocument();
+    expect(screen.getByText('غزة، خان يونس')).toBeInTheDocument();
+    expect(screen.queryByText('+970591234567')).not.toBeInTheDocument();
+  });
+
+  it('joins the supplied serviceAreaCities with an Arabic comma', () => {
+    render(<ServiceProviderCard provider={makeProvider({ serviceAreaCities: ['غزة', 'رفح', 'دير البلح'] })} />);
+    expect(screen.getByText('غزة، رفح، دير البلح')).toBeInTheDocument();
+  });
+
+  describe('distance formatting', () => {
+    it('shows meters (rounded) when distance is under 1km', () => {
+      render(<ServiceProviderCard provider={makeProvider({ distanceKm: 0.456 })} />);
+      expect(screen.getByText('456 م')).toBeInTheDocument();
+    });
+
+    it('shows one-decimal km when distance is at or above 1km', () => {
+      render(<ServiceProviderCard provider={makeProvider({ distanceKm: 3.14 })} />);
+      expect(screen.getByText('3.1 كم')).toBeInTheDocument();
+    });
+
+    it('shows km (not meters) exactly at the 1km boundary', () => {
+      render(<ServiceProviderCard provider={makeProvider({ distanceKm: 1 })} />);
+      expect(screen.getByText('1.0 كم')).toBeInTheDocument();
+    });
+  });
+
+  // Phase 3 (audit §4): city/browse directory rows have no distanceKm.
+  describe('fallback city label (no distanceKm)', () => {
+    function makeCityProvider(
+      overrides: Partial<ServiceProviderDetails> = {},
+    ): ServiceProviderDetails & { distanceKm?: number } {
+      const { distanceKm: _drop, ...base } = makeProvider(overrides);
+      return base;
+    }
+
+    it('shows the shared city when the provider serves the viewer\'s city', () => {
+      mockUserCity('خان يونس');
+      render(
+        <ServiceProviderCard
+          provider={makeCityProvider({ serviceAreaCities: ['غزة', 'خان يونس'] })}
+        />,
+      );
+      expect(screen.getByText('خان يونس')).toBeInTheDocument();
+    });
+
+    it('shows nothing in the label slot when there is no overlapping city', () => {
+      mockUserCity('رفح');
+      render(
+        <ServiceProviderCard
+          provider={makeCityProvider({ serviceAreaCities: ['غزة', 'خان يونس'] })}
+        />,
+      );
+      expect(screen.queryByText('رفح')).not.toBeInTheDocument();
+      expect(screen.queryByText(/كم|م$/)).not.toBeInTheDocument();
+    });
+
+    it('shows nothing in the label slot when the viewer has no city', () => {
+      mockUserCity(null);
+      render(
+        <ServiceProviderCard
+          provider={makeCityProvider({ serviceAreaCities: ['غزة', 'خان يونس'] })}
+        />,
+      );
+      expect(screen.queryByText('غزة')).not.toBeInTheDocument();
+    });
+
+    it('prefers distanceKm over the city fallback when both are present', () => {
+      mockUserCity('غزة');
+      render(
+        <ServiceProviderCard
+          provider={makeProvider({ serviceAreaCities: ['غزة'], distanceKm: 2 })}
+        />,
+      );
+      expect(screen.getByText('2.0 كم')).toBeInTheDocument();
+    });
+  });
+
+  describe('availability', () => {
+    it.each([
+      ['AVAILABLE', 'متاح الآن'],
+      ['BUSY', 'مشغول'],
+      ['UNAVAILABLE', 'غير متاح'],
+    ] as [ServiceAvailability, string][])('shows the correct label for %s', (status, label) => {
+      render(<ServiceProviderCard provider={makeProvider({ availabilityStatus: status })} />);
+      expect(screen.getByText(label)).toBeInTheDocument();
+    });
+  });
+
+  it('renders an avatar image with the business name as alt text', () => {
+    render(<ServiceProviderCard provider={makeProvider({ businessName: 'ورشة النجارة' })} />);
+    expect(screen.getByRole('img', { name: 'ورشة النجارة' })).toBeInTheDocument();
+  });
+
+  it('applies an additional className when provided', () => {
+    const { container } = render(<ServiceProviderCard provider={makeProvider()} className="custom-class" />);
+    expect(container.querySelector('a')?.className).toContain('custom-class');
+  });
+});

@@ -1,0 +1,482 @@
+/**
+ * PHASE-1 (خطة "بدون نت"): الحزمة الأساسية بدون نت (Offline Core Bundle).
+ *
+ * المشكلة اللي هذا الملف يحلّها: الكاش الحالي (sw.js's networkFirst) يخزّن
+ * فقط طلبات API اللي المستخدم زارها فعليًا وهو أونلاين. أي تصنيف أو صفحة
+ * منتجات/متاجر لم تُفتح من قبل = فشل كامل بدون نت، حتى لو المستخدم فتح
+ * التطبيق يوميًا وهو متصل.
+ *
+ * الحل: عند فتح التطبيق أونلاين، نجلب استباقيًا نفس الطلبات الافتراضية
+ * اللي تفتحها /categories و/products و/stores بأول تحميل (بدون أي فلتر من
+ * المستخدم) — بنفس queryFn/params اللي تستخدمها useCategories/useProducts/
+ * useStores تمامًا (page=1, sortBy='createdAt', sortOrder='desc', limit=12
+ * للمنتجات) — ونخزّنها في CORE_CACHE بـ sw.js، وهو كاش منفصل عن API_CACHE
+ * العادي فلا يتأثر بتقليم FIFO الناتج عن تصفح عادي (انظر تعليق CORE_CACHE
+ * في public/sw.js لتفاصيل هذه المشكلة بالذات).
+ *
+ * ⚠️ صيانة: لو تغيّرت قيم sortBy/sortOrder/limit الافتراضية في
+ * ProductsGrid.tsx أو StoresGrid.tsx، لازم تُحدَّث هنا كمان — الـ URL يجب
+ * يطابق حرفيًا لأن Cache API's match() يقارن URL كامل. هذا قيد معروف لهذا
+ * الحل (مو تلقائي التزامن)، مو باگ.
+ *
+ * النطاق متعمّد أن يبقى صغيرًا وثابتًا (تصنيفات + صفحة منتجات واحدة + صفحة
+ * متاجر واحدة + صورهم المصغّرة) — لا trimming ولا حد أقصى مطلوب لأن الحجم
+ * صغير أصلًا ومُدار صراحة (يُستبدل بالكامل بكل warmCoreBundle() جديدة، مو
+ * يتراكم).
+ *
+ * PHASE-3 (تكملة): أُضيفت صفحتا ads وservice-listings الافتراضيتان بنفس
+ * المنطق (نفس URL اللي يفتحه المتصفح العام بدون فلتر) — الآن ~65-70 طلب
+ * إجمالًا (4 قوائم بيانات + صورها المصغّرة، لا يزال محدودًا بـ
+ * thumbnailUrls.slice(0, 12) بالأسفل). لا حاجة لتغيير extractThumbnailUrls:
+ * ads/service-listings يحملان images[] بنفس بنية products، فالفحص
+ * الموجود أصلًا (obj.images[0]) يغطيهما دون أي تعديل.
+ */
+
+import { API_BASE_URL } from '@/lib/constants';
+import { CORE_CACHE_NAME } from '@/lib/cacheVersion';
+import { getWarmingPlan, isWarmingDisabled } from './offlineWarmingPlanner';
+import { runUnderWarmingLock } from './offlineWarmingCoordinator';
+import { getWarmingMode } from './warmingPreferences';
+import { getWarmingBudget } from './warmingBudget';
+import { reserveWarmingRequest, recordWarmingRuntimeBytes } from './warmingRuntimeBudget';
+import { PUBLIC_WARMING_QUERIES, warmingQueryUrl } from './warmingQueryContract';
+import { recordWarmingTransfer } from './warmingTelemetry';
+import { getNetworkPolicy } from './networkPolicy';
+import {
+  reportProgress,
+  subscribeWarmingProgress,
+  getWarmingProgressAggregate,
+} from './warmingProgress';
+import { reportWarmingFailure } from './offlineWarmingReport';
+import { fetchWithTimeout } from './fetchTimeout';
+import { getListThumbnailUrl, getAvatarUrl } from './cloudinary';
+import { saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from './offlineListCache';
+
+// FIX PWA-VER-01: نفس مشكلة lib/offlineRouteShells.ts's STATIC_CACHE — كانت
+// عالقة على 'v4' بينما public/sw.js تجاوزها إلى 'v5'، فكان warmCoreBundle()
+// يكتب بكاش يُحذف فورًا بـ 'activate' (غير مدرَج بـ currentCaches) ولا يقرأ
+// منه sw.js's networkFirstApi/offline-search-index أصلاً. رُفعت إلى 'v6'
+// لتطابق public/sw.js's CACHE_VERSION الحالية.
+// FIX SW-TRIM-ORDER-01: رُفعت إلى 'v22' لتطابق public/sw.js (انظر تعليق
+// CACHE_VERSION هناك) — راجع أيضًا __tests__/unit/lib/cacheVersionSync.test.ts
+// الذي يفشل تلقائيًا الآن لو تكرر هذا النوع من الانحراف مستقبلًا بدل أن
+// ينكشف فقط بمستخدم متضرر بالإنتاج.
+// FIX OFFLINE-CREATE-PAGES-01: رُفعت إلى 'v23' لنفس السبب (راجع تعليق
+// public/sw.js's CACHE_VERSION).
+// FIX SW-WEAK-NET-TIMEOUT-01: رُفعت إلى 'v24' لتطابق public/sw.js (استراتيجية
+// fetch تغيّرت — سباق مهلة على نت ضعيف، راجع تعليق CACHE_VERSION هناك).
+export const CORE_CACHE = CORE_CACHE_NAME; // from lib/cacheVersion (must match sw.js)
+// FIX WARM-MARKER-VERSION-01: append the cache version to this key so
+// a CACHE_VERSION bump automatically invalidates the "recently warmed"
+// marker. Without it, after every deploy the SW clears CORE_CACHE on
+// activate, but this key still says "warmed 3h ago" — warmCoreBundle()
+// sees it within the TTL window and returns immediately, leaving the
+// user with an empty cache for up to 6 hours, exactly when offline
+// coverage matters most (the window right after a fresh deploy).
+//
+// The suffix is derived from CORE_CACHE (which cacheVersionSync.test
+// already pins to sw.js's CACHE_VERSION) rather than a hardcoded
+// string, so it can never drift from the cache name it describes.
+const CACHE_VERSION_SUFFIX = CORE_CACHE.split('-').pop() ?? 'unknown';
+const LAST_WARMED_KEY = `marketplat:core-bundle:last-warmed:${CACHE_VERSION_SUFFIX}`;
+// FIX WARM-CORE-TTL-01: كانت المدة ثابتة 6 ساعات لكل الشبكات. القوائم هنا
+// هي "أحدث الإعلانات/المنتجات/الخدمات" — بعد 6 ساعات تصبح قديمة فعلاً في
+// سوق إعلانات مبوّب. المدة الآن تتبع جودة الشبكة الحالية (نفس getWarmingPlan
+// المستخدم بكل مكان): شبكة جيدة = تحديث أسرع (الحزمة صغيرة أصلاً)، شبكة
+// بطيئة/كروت = نحافظ على النطاق الترددي كما كان.
+export const CORE_TTL_BY_TIER_MS = {
+  full: 90 * 60 * 1000, // 1.5 ساعة
+  core: 3 * 60 * 60 * 1000, // 3 ساعات
+  critical: 6 * 60 * 60 * 1000, // 6 ساعات (كما كان)
+  none: 6 * 60 * 60 * 1000,
+} as const;
+
+function coreTtlMs(): number {
+  return CORE_TTL_BY_TIER_MS[getWarmingPlan().tier] ?? CORE_TTL_BY_TIER_MS.critical;
+}
+
+/** هل حان وقت تحديث الحزمة؟ (بدون أي شبكة — قراءة localStorage فقط). */
+export function isCoreBundleDue(now: number = Date.now()): boolean {
+  try {
+    const last = Number(localStorage.getItem(LAST_WARMED_KEY) ?? 0);
+    return now - last >= coreTtlMs();
+  } catch {
+    return true;
+  }
+}
+
+// PHASE-3a: core bundle uses a lock distinct from the route-shell locks
+// so the three warming passes (public shells, personal shells, core
+// data) can coordinate independently across tabs.
+const CORE_LOCK_NAME = 'marketplat-warming-core';
+
+// PHASE-3a: minimum fraction of items that must store successfully
+// before LAST_WARMED_KEY is written. The old code used `succeeded > 0`
+// — a single stored response (out of ~30 including thumbnails) marked
+// the whole pass successful and locked out retries for 6 hours. That
+// is WARM-FALSE-SUCCESS-01's exact pathology. 0.5 means "at least half
+// of what we tried actually landed", which is a meaningful bar on a
+// flaky network without being too strict for a first-visit pass.
+const SUCCESS_THRESHOLD = 0.5;
+
+// FEAT-WARMUP-UI: حالة تقدّم مشتركة يشترك بها WarmupIndicator.tsx — نفس
+// نمط sharedRegistration/sharedListeners المستخدم أصلًا بـ UpdatePrompt.tsx
+// لمشاركة حالة عابرة للمكوّنات بدون تمرير props أو state management خارجي.
+// الواجهة تبقى مستقلة تمامًا عن التحميل نفسه: إغلاقها (X) لا يوقف
+// warmCoreBundle، فقط يُخفي الشريط محليًا (انظر WarmupIndicator.tsx).
+export interface WarmupProgress {
+  active: boolean;
+  completed: number;
+  total: number;
+}
+
+let isWarming = false;
+
+// PHASE-3c: progress is now reported to the central aggregator so the UI
+// reflects all three warming passes in one bar. This module's own
+// listeners were removed; onWarmupProgress/getWarmupProgress below are
+// kept as thin aliases for the 'core' slice, in case anything external
+// still imports them.
+function notifyWarmup(progress: WarmupProgress) {
+  reportProgress('core', progress);
+}
+
+/** @deprecated Use subscribeWarmingProgress from '@/lib/warmingProgress'
+ * for aggregated progress across all sources. Retained for compatibility;
+ * returns only the 'core' source slice. */
+export function onWarmupProgress(listener: (progress: WarmupProgress) => void): () => void {
+  return subscribeWarmingProgress((agg) => listener(agg.bySource.core));
+}
+
+export function getWarmupProgress(): WarmupProgress {
+  return getWarmingProgressAggregate().bySource.core;
+}
+
+/** نفس بناء URL اللي productsApi.getAll/categoriesApi.getAll/storesApi.getAll
+ * يبنونه عبر axios — يُعاد هنا يدويًا لأننا نحتاج Response خام (fetch) قابل
+ * للتخزين في Cache Storage، مو JSON مُحلَّل (اللي axios يرجعه).
+ */
+export function buildCoreUrls(): { key: string; url: string }[] {
+  const contract = new Map(PUBLIC_WARMING_QUERIES.map((entry) => [entry.id, entry.path]));
+  return [
+    { key: 'categories', url: `${API_BASE_URL}/categories` },
+    { key: 'service-categories', url: `${API_BASE_URL}/service-categories` },
+    { key: 'product-categories', url: `${API_BASE_URL}/product-categories` },
+    { key: 'store-types', url: `${API_BASE_URL}/store-types` },
+    { key: 'service-types', url: `${API_BASE_URL}/service-types` },
+    ...([
+      ['products-default', 'products'],
+      ['stores-default', 'stores'],
+      ['ads-default', 'ads'],
+      ['services-default', 'services'],
+      ['ads-featured', 'ads-featured'],
+      ['products-home', 'products-home'],
+      ['stores-home', 'stores-home'],
+    ] as const).map(([id, key]) => ({ key, url: warmingQueryUrl(contract.get(id) as string) })),
+  ];
+}
+
+/**
+ * FIX WARM-THUMBS-01: الصور المصغّرة كانت تُسخَّن بالرابط الخام
+ * (`images[0]`) بينما البطاقات (AdCard/ProductCard/ServiceListingCard)
+ * تعرض `getListThumbnailUrl(raw, 320, 224)` عبر next/image — رابط مختلف
+ * تمامًا، فالنسخ المخزَّنة لم تُخدَم أبدًا (تحميل ضائع بحجم الصورة
+ * الأصلية، مئات الـKB لكل صورة). ثم كان `slice(0, 12)` يستهلكها بالكامل
+ * منتجات فقط، فلا إعلانات ولا خدمات ولا متاجر.
+ *
+ * الآن: نفس دالة الروابط التي تستخدمها البطاقات (بنفس الأبعاد)، وحد لكل
+ * قائمة بدل حد إجمالي واحد. المتاجر تعرض شعارًا عبر getAvatarUrl(…, 96).
+ * ⚠️ صيانة: لو تغيّرت أبعاد الصور في البطاقات (320×224 / 96) حدّثها هنا.
+ */
+export const THUMB_CAPS = { ads: 8, products: 6, services: 6, stores: 4 } as const;
+const CARD_THUMB_W = 320;
+const CARD_THUMB_H = 224;
+const STORE_LOGO_SIZE = 96;
+
+function firstImage(item: unknown): string | null {
+  if (!item || typeof item !== 'object') return null;
+  const images = (item as Record<string, unknown>).images;
+  return Array.isArray(images) && typeof images[0] === 'string' && images[0] ? images[0] : null;
+}
+
+export function collectThumbnailUrls(
+  bodies: Partial<Record<'ads' | 'products' | 'services' | 'stores', unknown>>,
+): string[] {
+  const out = new Set<string>();
+  const dataOf = (key: keyof typeof bodies): unknown[] => {
+    const body = bodies[key] as { data?: unknown } | undefined;
+    return Array.isArray(body?.data) ? (body!.data as unknown[]) : [];
+  };
+  const push = (u: string | null | undefined) => {
+    if (u && !u.startsWith('data:')) out.add(u);
+  };
+
+  // الأولوية: إعلانات (المحتوى الرئيسي) ثم منتجات ثم خدمات ثم شعارات المتاجر.
+  for (const key of ['ads', 'products', 'services'] as const) {
+    for (const item of dataOf(key).slice(0, THUMB_CAPS[key])) {
+      const raw = firstImage(item);
+      if (raw) push(getListThumbnailUrl(raw, CARD_THUMB_W, CARD_THUMB_H));
+    }
+  }
+  for (const item of dataOf('stores').slice(0, THUMB_CAPS.stores)) {
+    const logo = (item as Record<string, unknown> | null)?.logoUrl;
+    if (typeof logo === 'string' && logo) push(getAvatarUrl(logo, STORE_LOGO_SIZE));
+  }
+  return Array.from(out);
+}
+
+/** Extract a bounded list from the API envelope without assuming one wrapper shape. */
+function extractListItems(payload: unknown): unknown[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const root = payload as Record<string, unknown>;
+  const data = root.data;
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    const nested = data as Record<string, unknown>;
+    if (Array.isArray(nested.items)) return nested.items;
+    if (Array.isArray(nested.data)) return nested.data;
+  }
+  if (Array.isArray(root.items)) return root.items;
+  return [];
+}
+
+function persistWarmedPublicList(key: string, payload: unknown): void {
+  const items = extractListItems(payload);
+  if (!items.length) return;
+  // Keep homepage snapshots separate from browse snapshots: a small home
+  // response must never overwrite the user's larger browse-list fallback.
+  if (key === 'products-home') {
+    saveOfflineList(OFFLINE_LIST_KEYS.homeProducts, items, OFFLINE_LIST_LIMITS.homeProducts);
+  } else if (key === 'stores-home') {
+    saveOfflineList(OFFLINE_LIST_KEYS.homeStores, items, OFFLINE_LIST_LIMITS.homeStores);
+  } else if (key === 'products-default' || key === 'products') {
+    saveOfflineList(OFFLINE_LIST_KEYS.productsBrowse, items, OFFLINE_LIST_LIMITS.productsBrowse);
+  } else if (key === 'stores-default' || key === 'stores') {
+    saveOfflineList(OFFLINE_LIST_KEYS.storesBrowse, items, OFFLINE_LIST_LIMITS.storesBrowse);
+  } else if (key === 'ads-default' || key === 'ads' || key === 'ads-featured') {
+    // Featured-only results are not a safe substitute for the general ads list.
+    if (key !== 'ads-featured') saveOfflineList(OFFLINE_LIST_KEYS.adsBrowse, items, OFFLINE_LIST_LIMITS.adsBrowse);
+  } else if (key === 'services-default' || key === 'services') {
+    saveOfflineList(OFFLINE_LIST_KEYS.servicesBrowse, items, OFFLINE_LIST_LIMITS.servicesBrowse);
+  }
+}
+
+async function runPool<T>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  const queue = [...items];
+  const n = Math.max(1, Math.min(concurrency, queue.length));
+  await Promise.all(
+    Array.from({ length: n }, async () => {
+      while (queue.length > 0) {
+        const item = queue.shift() as T;
+        await worker(item);
+      }
+    }),
+  );
+}
+
+// FIX CORE-CACHE-STAMP-01: the SW reads CORE_CACHE as an API fallback and treats
+// any entry without `X-SW-Cached-At` as "age unknown" → not fresh, not stale-grace
+// → it DELETES the entry (networkFirstApi: isFreshCachedApiSnapshot). Entries
+// written raw here were therefore discarded on first use. Stamp them exactly like
+// the SW's putTimestamped / offlineSavedEntities do.
+export async function cachePut(cache: Cache, url: string, response: Response): Promise<boolean> {
+  try {
+    if (!response.ok) return false;
+    const headers = new Headers(response.headers);
+    headers.set('X-SW-Cached-At', String(Date.now()));
+    const body = await response.clone().blob();
+    await cache.put(
+      url,
+      new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      }),
+    );
+    return true;
+  } catch {
+    // تخزين فاشل لعنصر واحد (مساحة ممتلئة، مثلًا) لا يجب يوقف بقية الحزمة.
+    return false;
+  }
+}
+
+/**
+ * يجلب ويخزّن الحزمة الأساسية. آمن الاستدعاء المتكرر — لا يفعل شيء لو:
+ *  - المتصفح غير متصل (لا فائدة، ولا داعي لإفشال طلبات بلا سبب)
+ *  - Cache Storage API غير متوفرة (متصفحات قديمة/خاصة)
+ *  - تم التحديث خلال مدة CORE_TTL_BY_TIER_MS للشبكة الحالية (العلامة بـ localStorage)
+ *  - دورة تحميل سابقة ما زالت شغّالة (isWarming) — يمنع تشابك دورتين
+ *    متزامنتين (مثلًا PwaBootstrap's mount + 'online' event بفارق ميلي ثانية)
+ *    من إرباك شريط التقدّم بحالتين متداخلتين.
+ *
+ * لا يرمي استثناءات للمستدعي — فشل الحزمة الأساسية لا يجب يكسر أي شي
+ * بالواجهة، هي تحسين صامت بالخلفية فقط.
+ *
+ * FEAT-WARMUP-UI: يبعث تقدّم الدورة عبر onWarmupProgress أثناء التنفيذ
+ * (WarmupIndicator.tsx يعرضه كشريط مؤقت يختفي تلقائيًا عند total===completed).
+ * هذا البث مستقل تمامًا عن التحميل نفسه — لا مستمعين مسجَّلين (لا يوجد
+ * مكوّن UI مركّب أصلًا) لا يوقف أو يبطئ أي شيء، مجرد استدعاءات Set.forEach
+ * على مجموعة فارغة.
+ */
+async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!navigator.onLine) return;
+  if (typeof caches === 'undefined') return;
+  if (isWarming) return;
+
+  if (!options?.force && !isCoreBundleDue()) return;
+
+  isWarming = true;
+  const plan = getWarmingPlan();
+  // FIX WARM-CORE-CONCURRENCY-01: كانت كل الطلبات (8 JSON ثم 12 صورة)
+  // تنطلق دفعة واحدة مهما كانت الشبكة، بينما الخطة تقول concurrency=1 على
+  // الشبكات الضعيفة — فكانت تتزاحم وتنتهي مهلتها كلها معًا.
+  const concurrency = Math.max(1, plan.concurrency || 1);
+  const timeoutMs = plan.requestTimeoutMs > 0 ? plan.requestTimeoutMs : 15_000;
+
+  const urls = buildCoreUrls();
+  let completed = 0;
+  let total = urls.length; // يُحدَّث لاحقًا ليشمل الصور المصغّرة بعد معرفة عددها الفعلي.
+  // FIX WARM-FALSE-SUCCESS-01: نجاح فعلي فقط (cache.put) يُحتسب.
+  let jsonSucceeded = 0;
+  notifyWarmup({ active: true, completed, total });
+
+  try {
+    const cache = await caches.open(CORE_CACHE);
+    const bodies: Partial<Record<'ads' | 'products' | 'services' | 'stores', unknown>> = {};
+
+    await runPool(urls, concurrency, async ({ key, url }) => {
+      try {
+        if (!reserveWarmingRequest()) throw new Error('warming-request-budget-exhausted');
+        const response = await fetchWithTimeout(url, {}, timeoutMs); // بدون credentials — نقاط عامة
+        const length = Number(response.headers.get('content-length'));
+        if (Number.isFinite(length) && length > 0) {
+          if (!recordWarmingRuntimeBytes(length)) throw new Error('warming-byte-budget-exhausted');
+          recordWarmingTransfer(key, length);
+        }
+        if (await cachePut(cache, url, response.clone())) {
+          jsonSucceeded += 1;
+          try {
+            const payload: unknown = await response.clone().json();
+            persistWarmedPublicList(key, payload);
+            const bodyKey = (/^(ads|products|services|stores)(?:-|$)/.exec(key)?.[1] ?? null) as 'ads' | 'products' | 'services' | 'stores' | null;
+            if (bodyKey && !bodies[bodyKey]) bodies[bodyKey] = payload;
+          } catch {
+            // JSON تالف — الكاش الشبكي يبقى best-effort، ولا نخزن لقطة محلية فارغة.
+          }
+        }
+      } catch {
+        // طلب واحد فاشل لا يوقف الباقي.
+      } finally {
+        completed += 1;
+        notifyWarmup({ active: true, completed, total });
+      }
+    });
+
+    // FIX WARM-CORE-MARKER-01: علامة "تم التسخين" تعتمد على قوائم JSON
+    // فقط. كانت الصور تُحسب معها بالنسبة 50%، فعلى شبكة بطيئة تفشل
+    // الصور → لا علامة → كل فتح تطبيق يعيد جلب الـ8 قوائم من الصفر.
+    const jsonThreshold = Math.ceil(urls.length * SUCCESS_THRESHOLD);
+    const jsonOk = jsonSucceeded >= jsonThreshold;
+    if (jsonOk) {
+      // FIX WARM-CORE-MARKER-GUARD-01: a blocked/full localStorage (privacy mode,
+      // quota) must not abort the rest of the pass — the thumbnails and the prune
+      // below were skipped whenever this setItem threw. Worst case the marker is
+      // missing and the next pass simply runs again.
+      try {
+        localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
+      } catch {
+        // storage unavailable: no marker, no harm.
+      }
+    } else {
+      reportWarmingFailure({
+        source: 'core',
+        route: 'core-bundle',
+        error: `low-threshold-${jsonSucceeded}/${urls.length}`,
+        attempts: 2,
+      });
+    }
+
+    // الصور best-effort: تُسخَّن فقط إن نجحت القوائم (وإلا لا معنى لها).
+    const warmingMode = getWarmingMode();
+    const budget = getWarmingBudget(getNetworkPolicy(), warmingMode === 'full' ? 'full' : 'fast');
+    const thumbnails = jsonOk && budget.allowImages ? collectThumbnailUrls(bodies) : [];
+    total = urls.length + thumbnails.length;
+    notifyWarmup({ active: true, completed, total });
+
+    await runPool(thumbnails, concurrency, async (url) => {
+      try {
+        if (!reserveWarmingRequest()) throw new Error('warming-request-budget-exhausted');
+        const response = await fetchWithTimeout(url, {}, timeoutMs);
+        const length = Number(response.headers.get('content-length'));
+        if (Number.isFinite(length) && length > 0) {
+          if (!recordWarmingRuntimeBytes(length)) throw new Error('warming-byte-budget-exhausted');
+          recordWarmingTransfer(url, length);
+        }
+        await cachePut(cache, url, response);
+      } catch {
+        // صورة واحدة فاشلة لا توقف الباقي.
+      } finally {
+        completed += 1;
+        notifyWarmup({ active: true, completed, total });
+      }
+    });
+
+    // FIX WARM-CORE-PRUNE-01: الكاش كان يتراكم — كل دورة تضيف صور الإعلانات
+    // "الحالية" ولا تحذف أي قديمة، وCORE_CACHE بلا تقليم (انظر sw.js) فيكبر
+    // حتى نشر النسخة التالية. نحذف كل ما ليس ضمن مجموعة هذه الدورة (روابط
+    // الـ JSON المعروفة + الصور المطلوبة الآن).
+    // FIX WARM-CORE-PRUNE-IMAGES-01: the keep-set is only authoritative when this
+    // pass produced the COMPLETE set. Pruning after a pass that skipped images
+    // (slow link / Save-Data → allowImages=false → thumbnails=[]) or that missed a
+    // list deleted every thumbnail cached earlier on a good connection, i.e. the
+    // images were lost exactly when the user's network got worse.
+    const keepSetIsComplete = jsonSucceeded === urls.length && budget.allowImages;
+    if (jsonOk && keepSetIsComplete) {
+      try {
+        const keep = new Set<string>([...urls.map((u) => u.url), ...thumbnails]);
+        const existing = await cache.keys();
+        await Promise.all(
+          existing.filter((req) => !keep.has(req.url)).map((req) => cache.delete(req)),
+        );
+      } catch {
+        // تنظيف best-effort.
+      }
+    }
+  } catch {
+    // فشل الحزمة كاملة — يُعاد المحاولة لاحقًا (لم نحدّث LAST_WARMED_KEY).
+  } finally {
+    isWarming = false;
+    notifyWarmup({ active: false, completed, total });
+  }
+}
+
+/**
+ * PHASE-3a — public entry point. Guards with the same online/caches
+ * checks as before, then defers to warmCoreBundleImpl under a cross-tab
+ * lock. The plan gate here is intentionally coarse (skip if
+ * save-data or worse-than-3g): warming API data behind the user's back
+ * on a metered link is exactly what the old code did not do, and the
+ * cost/benefit on that class of connection is poor.
+ *
+ * The old isWarming per-tab flag still lives inside the impl — the
+ * lock handles cross-tab serialization, the flag handles intra-tab
+ * double-call races (mount + online event firing in the same tick).
+ */
+export async function warmCoreBundle(options?: { force?: boolean }): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!navigator.onLine) return;
+  if (typeof caches === 'undefined') return;
+
+  const plan = getWarmingPlan();
+  if (isWarmingDisabled(plan)) return;
+
+  await runUnderWarmingLock(
+    () => warmCoreBundleImpl(options),
+    CORE_LOCK_NAME,
+  );
+}

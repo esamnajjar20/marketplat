@@ -1,0 +1,12 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const source = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+assert.match(source, /MAX_ATTEMPTS = 8/, 'retry attempts are bounded');
+assert.match(source, /RETRY_BASE_DELAY_MS = 5_000/, 'retry delay has a non-zero base');
+assert.match(source, /RETRY_MAX_DELAY_MS = 60 \* 60 \* 1_000/, 'retry delay is capped');
+assert.match(source, /next_attempt_at INTEGER NOT NULL DEFAULT 0/, 'schema contains retry schedule');
+assert.match(source, /PRAGMA table_info\(mutation_outbox\)/, 'existing databases are upgraded without dropping queued rows');
+assert.match(source, /next_attempt_at <= \? AND attempts < \? ORDER BY created_at ASC LIMIT \?/, 'listing respects due time and retry budget');
+assert.match(source, /Math\.min\(RETRY_BASE_DELAY_MS \* \(2 \*\* Math\.max\(0, row\.attempts - 1\)\), RETRY_MAX_DELAY_MS\)/, 'failure schedules capped exponential backoff');
+assert.match(source, /state IN \(\'pending\',\'failed\'\) AND next_attempt_at <= \? AND attempts < \?/, 'claim respects retry schedule and budget');
+console.log('Phase 25 retry backoff contract checks passed (static source checks only; SQLite runtime not executed).');

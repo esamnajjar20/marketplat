@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const persistence = await readFile(new URL('../src/storage/persist-ad-image.ts', import.meta.url), 'utf8');
+const picker = await readFile(new URL('../app/ad-editor.tsx', import.meta.url), 'utf8');
+const transport = await readFile(new URL('../src/storage/outbox-transport-contract.mjs', import.meta.url), 'utf8');
+const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(persistence, /expo-file-system\/legacy/);
+assert.match(persistence, /FileSystem\.documentDirectory/);
+assert.match(persistence, /makeDirectoryAsync/);
+assert.match(persistence, /copyAsync/);
+assert.match(persistence, /getInfoAsync\(destination, \{ size: true \}\)/);
+assert.match(persistence, /persisted\.size !== source\.size/);
+assert.match(persistence, /source\.size > MAX_IMAGE_SIZE_BYTES/);
+assert.match(picker, /persistSelectedAdImage\(image\)/);
+assert.match(transport, /image\.sizeBytes !== undefined/);
+assert.equal(pkg.dependencies['expo-file-system'], '~19.0.17');
+assert.ok(pkg.scripts.test.includes('verify-phase43.mjs'));
+console.log('Phase 43 persistent image-copy/source-contract checks passed (static only; Expo filesystem/device runtime not exercised).');

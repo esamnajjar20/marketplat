@@ -7,8 +7,8 @@
 - الحفاظ على عرض البطاقة الأفقي على الهاتف ومنع انكماشها المفرط عبر نفس حدود العرض المستخدمة في المحتوى الحقيقي.
 
 ## الملفات المعدلة
-- `frontend/components/ads/RelatedAds.tsx`
-- `frontend/components/services/RelatedServices.tsx`
+- `apps/web/components/ads/RelatedAds.tsx`
+- `apps/web/components/services/RelatedServices.tsx`
 
 ## التحقق
 - راجعت تطابق أصناف الشبكة بين التحميل والعرض الفعلي في الملفات المعدلة.

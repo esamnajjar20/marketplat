@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const imageCache = await readFile(new URL('../src/storage/public-image-cache.ts', import.meta.url), 'utf8');
+const publicCache = await readFile(new URL('../src/storage/public-cache.ts', import.meta.url), 'utf8');
+const adsApi = await readFile(new URL('../src/features/ads/ads.api.ts', import.meta.url), 'utf8');
+const oldCheck = await readFile(new URL('./verify-phase18.mjs', import.meta.url), 'utf8');
+const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(publicCache, /export async function getReferencedPublicImageUris/);
+assert.match(publicCache, /SELECT value_json FROM public_cache/);
+assert.match(imageCache, /getReferencedPublicImageUris/);
+assert.match(imageCache, /if \(file\.referenced\) continue/);
+assert.match(imageCache, /Unreferenced images are evicted first/);
+assert.match(adsApi, /return cachedResult/);
+assert.match(oldCheck, /writePublicCache\(cacheKey, cachedResult\)/);
+assert.ok(pkg.scripts.test.includes('verify-phase53.mjs'));
+console.log('Phase 53 image-reference-aware eviction checks passed (static only; runtime storage/device behavior not exercised).');

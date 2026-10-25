@@ -1,0 +1,2470 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+
+  directUrl = env("DIRECT_URL")
+}
+
+model SavedSearch {
+  id             String    @id @default(cuid())
+  userId         String
+  label          String
+  // Search filters, same shape as GET /ads's query params (q/city/
+  // categoryId/condition/minPrice/maxPrice) — stored as-is rather than
+  // as separate columns so this stays in lockstep with getAdsSchema
+  // without a migration every time a new filter is added. Matching
+  // logic (savedSearches.service.ts) reads known keys back out of this
+  // JSON defensively.
+  filters        Json
+  createdAt      DateTime  @default(now())
+  // Bumped every time this search matches a newly created ad, so a
+  // user isn't re-notified for the exact same ad if matching logic
+  // ever runs more than once for it (defensive; matching currently only
+  // runs once, at ad-creation time).
+  lastNotifiedAt DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("saved_searches")
+}
+
+// Gap #10 ("نشاطي" / My Activity): a personal, reverse-chronological
+// timeline of a single user's own actions across the whole platform
+// (ads, products, service listings, stores, favorites, messages,
+// service requests, appointments, account changes).
+//
+// Deliberately a NEW table rather than reusing AuditLog or
+// AnalyticsEvent — both already exist in this schema but serve
+// different readers:
+//   - AuditLog is security/admin-facing (login, role change, password
+//     change) and is never read back by the acting user themselves.
+//   - AnalyticsEvent is aggregate/product-analytics-facing (funnels,
+//     category popularity) — high-volume, written for anonymous
+//     traffic too, and queried in rollups, not as one user's list.
+// UserActivity is the third, distinct shape: always tied to a real
+// user (no anonymous rows), always read as "my own list, newest
+// first, optionally filtered by type" — a query pattern neither
+// existing table indexes for cheaply. See activity.service.ts's
+// record() for the single write path every module calls through.
+model UserActivity {
+  id             String              @id @default(cuid())
+  userId         String
+  type           UserActivityType
+  // Pre-rendered Arabic title/description at write time (e.g. "تم نشر
+  // إعلان جديد" / ad.title) rather than re-derived at read time from
+  // entityId — keeps the timeline readable even after the referenced
+  // ad/product/listing is later deleted, and avoids an N+1 join back
+  // into 6+ different tables (ads/products/serviceListings/stores/
+  // conversations/serviceRequests) just to render a list.
+  title          String
+  description    String?
+  // What this activity links to, if anything (MESSAGE_SENT and
+  // PROFILE_UPDATED/PASSWORD_CHANGED have none). entityType is a plain
+  // string tag ('AD' | 'PRODUCT' | 'SERVICE_LISTING' | 'STORE' |
+  // 'CONVERSATION' | 'SERVICE_REQUEST' | 'APPOINTMENT'), not a Prisma
+  // relation — same deliberate non-FK reasoning as AnalyticsEvent
+  // above: the referenced row can be hard- or soft-deleted later
+  // without needing cascade/orphan handling on this table, since a
+  // timeline entry should keep existing (and its title/description
+  // still render) even after the thing it pointed to is gone.
+  entityType     ActivityEntityType?
+  entityId       String?
+  // Free-form extra context a specific activity type wants to carry
+  // (e.g. old/new status for SERVICE_REQUEST_STATUS_CHANGED) without
+  // needing a schema change per type — same convention as
+  // AuditLog.details / AnalyticsEvent.metadata.
+  metadata       Json?
+  // T452 — idempotency key for buffered writes. activityBuffer.ts
+  // pushes serialized entries onto a Redis list, then drains them to
+  // Postgres via createMany() on a timer. If the createMany commits
+  // but the response is lost before the buffer's LPOP+INSERT atomically
+  // confirms (a network blip between this process and Neon, a container
+  // restart mid-flush), the retry path re-pushes the same serialized
+  // entries — which would insert duplicates without this column. With
+  // it, the createMany call uses skipDuplicates:true and the retry
+  // becomes a no-op. Key is generated once in push() (randomUUID),
+  // carried through the Redis round-trip, and stable across re-pushes
+  // (see activityBuffer.ts's own doc comment for the exact shape).
+  // Nullable so pre-existing rows (from before this migration) are
+  // unaffected — Postgres treats multiple NULLs as non-conflicting in
+  // a unique index.
+  idempotencyKey String?             @unique
+  createdAt      DateTime            @default(now())
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Powers the two real query shapes activity.repository.ts runs:
+  // "my timeline, newest first" and "my timeline filtered to one type,
+  // newest first". No separate [userId, createdAt]-only index is
+  // needed alongside it — Postgres can use a composite index's leading
+  // column(s) alone, so [userId, type, createdAt] already serves an
+  // unfiltered query on just [userId, createdAt] too.
+  @@index([userId, type, createdAt])
+  @@map("user_activities")
+}
+
+model User {
+  id                        String                    @id @default(cuid())
+  name                      String
+  email                     String                    @unique
+  phone                     String?                   @unique
+  // FIX OAUTH-01: nullable now — a user created via Google OAuth (see
+  // modules/auth/google.strategy.ts) never sets a local password and
+  // has nothing to hash. authService.login() now additionally guards
+  // on passwordHash being present before comparing (an OAuth-only
+  // account has none to compare against).
+  passwordHash              String?
+  // FIX FEAT-EMAIL-VERIFY: true once the user has clicked the link in
+  // the verification email. New local registrations default to false;
+  // Google-signup users are created with true (Google already verified
+  // their address). Pre-existing users were backfilled to true by the
+  // 20260921120000_add_email_verification migration. Gating rules live
+  // in middlewares/requireVerifiedEmail.middleware.ts.
+  emailVerified             Boolean                   @default(false)
+  emailVerifiedAt           DateTime?
+  // FIX OAUTH-01: which identity provider created this account.
+  // 'local' (default) = registered via email/password. 'google' = the
+  // account either originated from Google Sign-In or had a Google
+  // identity linked to an existing local account (see
+  // google.strategy.ts's link-by-email path).
+  provider                  String                    @default("local")
+  // FIX OAUTH-01: the stable Google account identifier (OIDC `sub` /
+  // Google profile `id`). Optional + unique — null for every
+  // local-only user; Prisma/Postgres treat multiple NULLs in a unique
+  // column as non-conflicting, so this never collides across local
+  // accounts.
+  googleId                  String?                   @unique
+  role                      Role                      @default(USER)
+  city                      String?
+  // FEAT-GOOGLE-COMPLETE-PROFILE: true only for a brand-new account
+  // created via Google Sign-In (authRepository.createWithGoogle) —
+  // Google never supplies a city, and we ask the user to pick one
+  // (and confirm their name) on a dedicated /complete-profile step
+  // right after their first Google sign-up, instead of leaving city
+  // silently null. Defaults to false for every local registration
+  // (RegisterForm already collects city there, even though it's
+  // optional) and for existing/linked Google accounts (authService.
+  // loginWithGoogle's Case 1/2), so this never re-interrupts a
+  // returning user. Cleared to false the moment PATCH /users/me is
+  // called with a city (usersService.updateMe) — the completion form
+  // uses that exact endpoint, so no separate "complete" endpoint was
+  // needed.
+  needsProfileCompletion    Boolean                   @default(false)
+  bio                       String?
+  avatarUrl                 String?
+  isActive                  Boolean                   @default(true)
+  notificationPreferences   Json                      @default("{\"adViews\": false, \"newMessage\": true, \"promotions\": false, \"favAdUpdated\": true, \"followUpdates\": true}")
+  salesCostTrackingEnabled  Boolean                   @default(true)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  ads                       Ad[]
+  auditLogs                 AuditLog[]
+  conversationsAsBuyer      Conversation[]            @relation("ConversationsAsBuyer")
+  conversationsAsSeller     Conversation[]            @relation("ConversationsAsSeller")
+  conversationSettings      ConversationUserSetting[]
+  favorites                 Favorite[]
+  messagesSent              Message[]                 @relation("MessagesSent")
+  messagePins               MessagePin[]              @relation("MessagePins")
+  messageStars              MessageStar[]             @relation("MessageStars")
+  notifications             Notification[]
+  pushSubscriptions         PushSubscription[]
+  fcmDeviceTokens           FcmDeviceToken[]
+  passwordResetTokens       PasswordResetToken[]
+  emailVerificationTokens   EmailVerificationToken[]
+  reports                   Report[]
+  sellerProfile             SellerProfile?
+  sellerRatingsGiven        SellerRating[]
+  savedSearches             SavedSearch[]
+  serviceRequestsAsCustomer ServiceRequest[]          @relation("ServiceRequestsAsCustomer")
+  serviceReviewsGiven       ServiceReview[]           @relation("ServiceReviewsGiven")
+  // Open marketplace requests (PRODUCT/SERVICE/RENTAL) — separate from
+  // ServiceRequest (directed to a listing).
+  requestsAsCustomer        Request[]                 @relation("RequestsAsCustomer")
+  requestOffersMade         RequestOffer[]            @relation("RequestOffersAsOfferer")
+  storeFollows              StoreFollower[]
+  followsGiven              Follow[]                  @relation("FollowFollower")
+  storeReviewsGiven         StoreReview[]             @relation("StoreReviewsGiven")
+  blocksMade                UserBlock[]               @relation("BlocksMade")
+  blocksReceived            UserBlock[]               @relation("BlocksReceived")
+  activities                UserActivity[]
+  stories                   Story[]
+  storyViews                StoryView[]               @relation("StoryViewsByViewer")
+  fraudSignals              FraudSignal[]
+  sales                     SaleRecord[]              @relation("SellerSales")
+  customers                 Customer[]                @relation("SellerCustomers")
+  salesStatsCache           SalesStatsCache?          @relation("SellerSalesStats")
+  salesAutomationEvents     SalesAutomationEvent[]
+
+  storeMemberships   StoreMember[]  @relation("StoreMemberships")
+  storeMemberInvites StoreMember[]  @relation("StoreMemberInvites")
+  FavoriteList       FavoriteList[]
+
+  @@index([isActive, createdAt])
+  @@map("users")
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  nameAr    String     @unique
+  slug      String     @unique
+  parentId  String?
+  createdAt DateTime   @default(now())
+  ads       Ad[]
+  parent    Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryParent")
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Ad {
+  id                   String         @id @default(cuid())
+  title                String
+  description          String
+  price                Decimal?       @db.Decimal(10, 2)
+  images               String[]
+  city                 String
+  // TRACK-NEARBY-SEARCH: optional precise pin, same shape/precision as
+  // StoreDetails.latitude/longitude and ServiceProviderDetails's own
+  // pair — city (above) stays the required/primary location signal for
+  // every ad; these two are opt-in and only populated when the seller
+  // shares a precise location, enabling GET /search's lat/lng-based
+  // nearby sort/filter (search.repository.ts) the same way
+  // ServiceProviderDetails already enables GET /service-providers/nearby.
+  latitude             Decimal?       @db.Decimal(9, 6)
+  longitude            Decimal?       @db.Decimal(9, 6)
+  condition            AdCondition?
+  isNegotiable         Boolean        @default(false)
+  status               AdStatus       @default(ACTIVE)
+  // Public listings have a finite 60-day lifecycle. `expirationNotifiedAt`
+  // makes the 7-day warning idempotent across repeated cron runs.
+  expiresAt            DateTime?
+  expirationNotifiedAt DateTime?
+  views                Int            @default(0)
+  // Snapshot of `views` at the moment the last WEEKLY_AD_VIEWS_REPORT
+  // notification was generated for this ad's owner. The weekly report
+  // job (src/scripts/weeklyAdViewsReport.ts) needs a *delta* ("+42
+  // views this week"), but `views` itself is a lifetime cumulative
+  // counter with no history — this column is that missing baseline.
+  // Every run reads (views - viewsAtLastReport) then writes the new
+  // views value back here, so the next run's delta starts clean.
+  // Nullable/defaulted to 0 so existing ads before this migration are
+  // treated as "everything so far is new" on their first report.
+  viewsAtLastReport    Int            @default(0)
+  isFeatured           Boolean        @default(false)
+  isPinned             Boolean        @default(false)
+  pinnedByAdmin        Boolean        @default(false)
+  // Fraud-detection (item 12): 0-100 heuristic score computed at
+  // creation/update time by fraudService.scoreAd (see
+  // modules/fraud/fraud.service.ts). Not a Prisma relation target
+  // itself — the individual signals that produced this number are
+  // recorded separately in FraudSignal so the score stays explainable
+  // (an admin reviewing a flagged ad can see *why*, not just the
+  // number) and so re-scoring logic can evolve without needing to
+  // migrate historical rows.
+  riskScore            Int            @default(0)
+  // True once riskScore crosses env.fraud.autoFlagThreshold (or a
+  // manual admin flag). Indexed on its own below because the admin
+  // fraud queue's primary query is "give me every flagged ad",
+  // independent of status/city/etc — the same reasoning as
+  // isFeatured/isPinned already getting their own composite index.
+  flaggedForReview     Boolean        @default(false)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  userId               String
+  categoryId           String?
+  sellerProfileId      String?
+  // Optional store as the *visible* publisher. userId remains the
+  // owner for permissions/audit. null = personal ad; set = store ad.
+  storeId              String?
+  // FIX OFFLINE-IDEMPOTENCY-01: client-generated X-Offline-Op-Id from
+  // the SW offline queue. Unique when present so a replayed POST after
+  // a flaky network ACK returns the existing row instead of a duplicate ad.
+  offlineOperationId   String?        @unique
+  category             Category?      @relation(fields: [categoryId], references: [id])
+  sellerProfile        SellerProfile? @relation(fields: [sellerProfileId], references: [id])
+  store                StoreDetails?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations        Conversation[]
+  reports              Report[]
+  ratings              SellerRating[]
+  fraudSignals         FraudSignal[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([sellerProfileId])
+  @@index([storeId])
+  @@index([storeId, status, createdAt])
+  @@index([status, userId, createdAt])
+  @@index([status, createdAt])
+  @@index([status, city])
+  @@index([status, expiresAt])
+  @@index([expirationNotifiedAt])
+  @@index([userId, status])
+  @@index([isFeatured, isPinned])
+  @@index([flaggedForReview, createdAt])
+  // TRACK-NEARBY-SEARCH: same composite-index rationale as
+  // ServiceProviderDetails's own @@index([latitude, longitude]) — lets
+  // the bounding-box pre-filter in search.repository.ts's nearby branch
+  // hit an index instead of computing Haversine over every row.
+  @@index([latitude, longitude])
+  @@map("ads")
+}
+
+// FEAT-FAVORITE-POLYMORPHIC PR1: Favorite is being generalized from an
+// AD-only FK relation to the same entityType+entityId, no-FK shape
+// UserActivity/Report already established (see Report's own comment
+// above for the precedent and rationale — a favorited entity must keep
+// rendering in "My Favorites" logic even if it's later hard-deleted,
+// and Prisma has no cross-model polymorphic relation type).
+//
+// PR1 scope is AD only end-to-end (favorites.service.ts/.controller.ts
+// still only expose /favorites/:adId routes) — entityType/entityId
+// exist now so the schema and backfill are done once, but PRODUCT/
+// STORE/SERVICE_LISTING values are not yet written or read anywhere.
+// See PR2 for enabling those.
+//
+// adId is kept, nullable, as a legacy compatibility column — NOT the
+// source of truth after backfill (entityType/entityId is). It exists
+// solely so a fast rollback to the pre-PR1 schema/code is possible
+// without re-deriving data. A follow-up migration drops it once PR1
+// has been live and verified.
+enum FavoriteEntityType {
+  AD
+  PRODUCT
+  SERVICE_LISTING
+  STORE
+}
+
+model Favorite {
+  id         String             @id @default(cuid())
+  createdAt  DateTime           @default(now())
+  userId     String
+  entityType FavoriteEntityType
+  entityId   String
+  // Legacy compatibility column — see model doc comment above. No
+  // @relation: an FK here would defeat the point (can't point one
+  // column at 4 different tables), and the AD relation this used to
+  // carry is now resolved manually by favorites.repository.ts via
+  // entityType/entityId, same pattern as UserActivity's own entityId.
+  adId       String?
+  listId     String?
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list       FavoriteList?      @relation(fields: [listId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, entityType, entityId])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@map("favorites")
+}
+
+model FavoriteList {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites Favorite[]
+
+  @@unique([userId, name])
+  @@index([userId, sortOrder])
+  @@map("favorite_lists")
+}
+
+// FEAT-REPORT-USER-STORE: Report used to be AD-only (a required adId FK
+// straight to Ad, @@unique([adId, userId])). That made it structurally
+// impossible to report a user's profile or a store — there was no column
+// to point at them. Converted to the same polymorphic shape UserActivity
+// already established (targetType enum + targetId plain string, no FK):
+// deliberately NOT a relation, since a reported user/store/ad can be
+// deleted later and the report row must keep rendering in the admin
+// queue (reason/notes/status) even after the target is gone — same
+// reasoning as ActivityEntityType's doc comment above.
+// adId is kept as a nullable column (not dropped) so existing report rows
+// don't lose their ad reference; the migration backfills targetType=AD,
+// targetId=adId for every pre-existing row, so no data is lost.
+model Report {
+  id         String           @id @default(cuid())
+  reason     ReportReason
+  notes      String?          @db.VarChar(500)
+  status     ReportStatus     @default(PENDING)
+  createdAt  DateTime         @default(now())
+  targetType ReportTargetType
+  targetId   String
+  userId     String
+  // Legacy FK, retained only for the AD case so existing includes/joins
+  // that expect ad.title etc. keep working without a query-time branch.
+  // Nullable because USER/STORE reports have no Ad row at all.
+  adId       String?
+  ad         Ad?              @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([targetType, targetId, userId])
+  @@index([status])
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+// Fraud-detection (item 12 — "نظام مكافحة الاحتيال"). Append-only log
+// of individual heuristic signals fraudService.scoreAd/scoreUser emit,
+// distinct from AuditLog (security/admin actions) and Report
+// (user-submitted complaints) — this is *system-generated* suspicion,
+// never something a user files themselves. One row per signal firing
+// (not one row per ad), so an ad that trips both RAPID_POSTING and
+// SUSPICIOUS_PRICE gets two rows — same "explainable, not just a
+// number" reasoning as the doc comment on Ad.riskScore.
+model FraudSignal {
+  id         String          @id @default(cuid())
+  type       FraudSignalType
+  // Points this single signal contributed toward the subject's
+  // riskScore at the time it fired. Kept alongside `type` (rather than
+  // only in fraudRules.ts config) so a signal's historical weight is
+  // preserved even if the rule's weight is retuned later — an admin
+  // reviewing an old flag sees the score that actually drove the flag,
+  // not today's (possibly different) weight for that rule.
+  weight     Int
+  // Free-form context for the admin review UI — e.g. { postsInWindow: 12,
+  // windowSeconds: 60 } for RAPID_POSTING, { price: 1, medianPrice: 450 }
+  // for SUSPICIOUS_PRICE. Same "shape varies by type, consumer
+  // switches on type first" convention as AuditLog.details.
+  metadata   Json?
+  // Exactly one of userId/adId is the primary subject depending on
+  // `type` (account-level signals like RAPID_POSTING key off userId;
+  // content-level signals like SUSPICIOUS_PRICE/SUSPICIOUS_LINK key off
+  // adId), but both are stored whenever known so an admin looking at
+  // either the user's or the ad's history sees the full picture — same
+  // dual-key convenience as Ad already carrying both userId and
+  // sellerProfileId rather than forcing a join.
+  userId     String?
+  adId       String?
+  reviewed   Boolean         @default(false)
+  reviewedAt DateTime?
+  reviewedBy String?
+  createdAt  DateTime        @default(now())
+  user       User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ad         Ad?             @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([adId, createdAt])
+  @@index([type, createdAt])
+  @@index([reviewed, createdAt])
+  @@map("fraud_signals")
+}
+
+// Self-referential: a blocker prevents a blocked user from messaging
+// them. Directional (A blocking B does not imply B blocking A) — same
+// shape as StoreFollower's (userId, storeId) pair, just both sides
+// pointing at User instead of one side pointing at StoreDetails. Two
+// named relations on User (BlocksMade / BlocksReceived) exactly mirror
+// how Conversation already disambiguates ConversationsAsBuyer /
+// ConversationsAsSeller for its own two User FKs.
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  // AUDIT-FIX 1.6: existsEitherDirection (blocked-users.repository.ts)
+  // queries `OR: [{blockerId:A, blockedId:B}, {blockerId:B, blockedId:A}]`.
+  // The @@unique([blockerId, blockedId]) above covers the first branch
+  // perfectly; the plain @@index([blockedId]) alone is not an equally
+  // tight match for the second branch (blockerId=B AND blockedId=A is
+  // a two-column lookup, not a single-column one) and degrades toward a
+  // partial/full scan as the table grows. This composite index gives
+  // the second OR branch the same index-only lookup the first already
+  // has, in the argument order that branch actually needs.
+  @@index([blockedId, blockerId])
+  @@map("user_blocks")
+}
+
+model SellerProfile {
+  id                     String                   @id @default(cuid())
+  userId                 String                   @unique
+  displayName            String
+  bio                    String?
+  avatarUrl              String?
+  verified               Boolean                  @default(false)
+  verificationStatus     SellerVerificationStatus @default(UNVERIFIED)
+  verifiedAt             DateTime?
+  suspended              Boolean                  @default(false)
+  suspendedAt            DateTime?
+  trustScore             Int                      @default(0)
+  averageRating          Decimal                  @default(0) @db.Decimal(3, 2)
+  totalRatings           Int                      @default(0)
+  totalAds               Int                      @default(0)
+  activeAds              Int                      @default(0)
+  totalSales             Int                      @default(0)
+  responseRate           Decimal?                 @db.Decimal(5, 2)
+  responseTimeMinutes    Int?
+  joinedSellingAt        DateTime                 @default(now())
+  paymentMethods         Json?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  ads                    Ad[]
+  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ratings                SellerRating[]
+  serviceProviderDetails ServiceProviderDetails?
+  serviceReviews         ServiceReview[]
+  storeDetails           StoreDetails?
+  storeReviews           StoreReview[]
+
+  @@index([verified, trustScore])
+  @@index([trustScore])
+  @@map("seller_profiles")
+}
+
+model SellerRating {
+  id              String        @id @default(cuid())
+  score           Int
+  comment         String?       @db.VarChar(500)
+  sellerProfileId String
+  raterId         String
+  adId            String?
+  createdAt       DateTime      @default(now())
+  ad              Ad?           @relation(fields: [adId], references: [id])
+  rater           User          @relation(fields: [raterId], references: [id], onDelete: Cascade)
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerProfileId, raterId, adId])
+  @@index([sellerProfileId])
+  @@map("seller_ratings")
+}
+
+model ServiceProviderDetails {
+  id                     String                       @id @default(cuid())
+  sellerProfileId        String                       @unique
+  businessName           String
+  businessType           ServiceBusinessType          @default(INDIVIDUAL)
+  logoUrl                String?
+  description            String                       @db.VarChar(1000)
+  serviceAreaCities      String[]
+  workingHours           Json
+  contactPhone           String
+  // UNIFY-PAYMENTS: removed — a ServiceProviderDetails row always hangs
+  // off a SellerProfile (sellerProfileId is @unique above), so payment
+  // methods now live only on SellerProfile.paymentMethods and are read
+  // through the sellerProfile relation. Having two separate arrays that
+  // had to be merged/deduped for display (see PublicProfileHeader's old
+  // pushAll logic) was the exact duplicated-state problem this removes.
+  availabilityStatus     ServiceAvailability          @default(AVAILABLE)
+  latitude               Decimal?                     @db.Decimal(9, 6)
+  longitude              Decimal?                     @db.Decimal(9, 6)
+  completedRequestsCount Int                          @default(0)
+  fulfillmentRate        Decimal?                     @db.Decimal(5, 2)
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+  appointments           Appointment[]
+  listings               ServiceListing[]
+  sellerProfile          SellerProfile                @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  serviceTypeProfiles    ServiceProviderServiceType[]
+
+  @@index([availabilityStatus])
+  @@index([latitude, longitude])
+  // GIN index on serviceAreaCities (array containment for the `city`
+  // filter in GET /service-providers) is added via raw SQL migration
+  // 20260817000000_add_service_provider_city_index — not expressible
+  // here without the extendedIndexes preview feature. See that
+  // migration's comment and the Notification.data comment above for
+  // the same precedent.
+  @@map("service_provider_details")
+}
+
+model ServiceType {
+  id               String                       @id @default(cuid())
+  slug             String                       @unique
+  name             String                       @unique
+  nameAr           String                       @unique
+  icon             String?
+  labels           Json?
+  capabilities     Json?
+  presentation     Json?
+  isActive         Boolean                      @default(true)
+  sortOrder        Int                          @default(0)
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+  fields           ServiceTypeField[]
+  categories       ServiceCategory[]
+  listings         ServiceListing[]
+  openRequests     Request[]
+  providerProfiles ServiceProviderServiceType[]
+
+  @@index([isActive, sortOrder])
+  @@map("service_types")
+}
+
+model ServiceProviderServiceType {
+  id            String                 @id @default(cuid())
+  providerId    String
+  serviceTypeId String
+  attributes    Json?
+  isActive      Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  provider      ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceType   ServiceType            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([providerId, serviceTypeId])
+  @@index([serviceTypeId, isActive])
+  @@map("service_provider_service_types")
+}
+
+model ServiceTypeField {
+  id            String                @id @default(cuid())
+  serviceTypeId String
+  key           String
+  scope         ServiceTypeFieldScope @default(LISTING)
+  label         String
+  labelAr       String
+  cardLabelAr   String?
+  pageLabelAr   String?
+  type          ServiceTypeFieldType
+  required      Boolean               @default(false)
+  showOnCard    Boolean               @default(false)
+  showOnPage    Boolean               @default(true)
+  options       Json?
+  sortOrder     Int                   @default(0)
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  serviceType   ServiceType           @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceTypeId, key])
+  @@index([serviceTypeId, scope, isActive, sortOrder])
+  @@map("service_type_fields")
+}
+
+model ServiceCategory {
+  id            String            @id @default(cuid())
+  name          String            @unique
+  nameAr        String            @unique
+  slug          String            @unique
+  icon          String?
+  parentId      String?
+  serviceTypeId String
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  parent        ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id])
+  children      ServiceCategory[] @relation("ServiceCategoryParent")
+  serviceType   ServiceType       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  listings      ServiceListing[]
+
+  @@index([parentId])
+  @@index([serviceTypeId, isActive])
+  @@map("service_categories")
+}
+
+model ServiceListing {
+  id                 String                 @id @default(cuid())
+  providerId         String
+  categoryId         String
+  serviceTypeId      String
+  title              String
+  description        String                 @db.VarChar(2000)
+  images             String[]
+  attributes         Json?
+  pricingType        ServicePricingType     @default(NEGOTIABLE)
+  price              Decimal?               @db.Decimal(10, 2)
+  durationEstimate   String?
+  serviceLocation    ServiceLocationType    @default(AT_PROVIDER)
+  status             ServiceListingStatus   @default(ACTIVE)
+  views              Int                    @default(0)
+  // FIX OFFLINE-IDEMPOTENCY-01
+  offlineOperationId String?                @unique
+  /// Baseline for weekly provider views report deltas.
+  viewsAtLastReport  Int                    @default(0)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  category           ServiceCategory        @relation(fields: [categoryId], references: [id])
+  serviceType        ServiceType            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  provider           ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  requests           ServiceRequest[]
+
+  @@index([categoryId, status])
+  @@index([serviceTypeId, status])
+  @@index([providerId, status])
+  @@index([status, createdAt])
+  @@map("service_listings")
+}
+
+model ServiceRequest {
+  id                    String               @id @default(cuid())
+  listingId             String
+  customerId            String
+  status                ServiceRequestStatus @default(PENDING)
+  details               String               @db.VarChar(1000)
+  attachedImages        String[]
+  quotedPrice           Decimal?             @db.Decimal(10, 2)
+  agreedPrice           Decimal?             @db.Decimal(10, 2)
+  // FIX OFFLINE-IDEMPOTENCY-01
+  offlineOperationId    String?              @unique
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  respondedAt           DateTime?
+  /// Who triggered a CANCELLED transition: 'CUSTOMER' | 'PROVIDER'. NULL for
+  /// every other status and for rows cancelled before this column existed.
+  /// Lets provider stats count only provider-initiated cancellations.
+  cancelledBy           String?
+  disputeReason         String?              @db.VarChar(1000)
+  disputedAt            DateTime?
+  disputedBy            String?
+  disputeResolutionNote String?              @db.VarChar(1000)
+  disputeResolvedAt     DateTime?
+  disputeResolvedBy     String?
+  appointment           Appointment?
+  conversation          Conversation?
+  customer              User                 @relation("ServiceRequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  listing               ServiceListing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  review                ServiceReview?
+  saleRecord            SaleRecord?
+
+  @@index([listingId, status])
+  @@index([customerId])
+  @@index([status, createdAt])
+  @@map("service_requests")
+}
+
+model Appointment {
+  id             String                 @id @default(cuid())
+  providerId     String
+  requestId      String?                @unique
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  status         AppointmentStatus      @default(SCHEDULED)
+  notes          String?                @db.VarChar(500)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  provider       ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  request        ServiceRequest?        @relation(fields: [requestId], references: [id])
+
+  @@index([providerId, scheduledStart, scheduledEnd])
+  @@map("appointments")
+}
+
+model ServiceReview {
+  id              String         @id @default(cuid())
+  score           Int
+  comment         String?        @db.VarChar(500)
+  requestId       String         @unique
+  raterId         String
+  sellerProfileId String
+  createdAt       DateTime       @default(now())
+  rater           User           @relation("ServiceReviewsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+  request         ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  sellerProfile   SellerProfile  @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([sellerProfileId])
+  @@map("service_reviews")
+}
+
+// ---------------------------------------------------------------------
+// Service Request Marketplace: the "🔥" feature from the services
+// feature audit — a customer describes a need once (not tied to any
+// single provider's listing, unlike ServiceRequest above) and any
+// number of providers competing in that category/city can each submit
+// a price quote. The customer compares and accepts exactly one.
+// Deliberately a separate model from ServiceRequest rather than
+// bolting a nullable listingId onto it: ServiceRequest's whole status
+// machine (PENDING->ACCEPTED->IN_PROGRESS->COMPLETED, reviews,
+// provider stats) assumes a single fixed provider from the start,
+// which is the opposite of this feature's "many providers compete"
+// premise. Once a quote is accepted, the two parties coordinate the
+// rest (scheduling, the actual job) via the Conversation this creates
+// — see service-broadcasts.service.ts's acceptQuote — rather than
+// this model growing its own duplicate booking/appointment machinery.
+// ---------------------------------------------------------------------
+// =============================================================================
+// Open Requests marketplace (option B) — does NOT replace ServiceRequest
+// (directed to a listing). Phase 1 types: SERVICE | PRODUCT | RENTAL.
+// Offerer is always User (offererUserId); no offererRole column.
+// budgetMin/budgetMax optional. Accept path must use a transaction with
+// conditional update on status=OPEN.
+// =============================================================================
+
+enum RequestType {
+  SERVICE
+  PRODUCT
+  RENTAL
+}
+
+enum RequestStatus {
+  OPEN
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+enum RequestOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model Request {
+  id                 String         @id @default(cuid())
+  customerId         String
+  type               RequestType
+  /// Category id from the tree that matches `type` (service / product / ad).
+  /// Not a Prisma FK on purpose — different category tables per type;
+  /// the service layer validates existence and type alignment.
+  categoryId         String
+  serviceTypeId      String?
+  title              String
+  description        String         @db.VarChar(1000)
+  city               String?
+  attachedImages     String[]
+  budgetMin          Decimal?       @db.Decimal(12, 2)
+  budgetMax          Decimal?       @db.Decimal(12, 2)
+  /// Type-specific payload (e.g. condition, bedrooms) — Zod validates by type.
+  attributes         Json?
+  status             RequestStatus  @default(OPEN)
+  acceptedOfferId    String?        @unique
+  expiresAt          DateTime?
+  // FIX OFFLINE-IDEMPOTENCY-01
+  offlineOperationId String?        @unique
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  customer           User           @relation("RequestsAsCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  serviceType        ServiceType?   @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  offers             RequestOffer[] @relation("RequestOffers")
+  acceptedOffer      RequestOffer?  @relation("AcceptedRequestOffer", fields: [acceptedOfferId], references: [id])
+
+  @@index([type, status, createdAt])
+  @@index([categoryId, status, createdAt])
+  @@index([serviceTypeId, status, createdAt])
+  @@index([customerId])
+  @@index([status, expiresAt])
+  @@map("requests")
+}
+
+model RequestOffer {
+  id            String             @id @default(cuid())
+  requestId     String
+  /// Offering user — role/eligibility enforced in the service layer, not here.
+  offererUserId String
+  price         Decimal            @db.Decimal(12, 2)
+  message       String?            @db.VarChar(1000)
+  /// Optional extras (durationEstimate, linkedAdId, linkedProductId, …).
+  meta          Json?
+  status        RequestOfferStatus @default(PENDING)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  request       Request            @relation("RequestOffers", fields: [requestId], references: [id], onDelete: Cascade)
+  offerer       User               @relation("RequestOffersAsOfferer", fields: [offererUserId], references: [id], onDelete: Cascade)
+  acceptedFor   Request?           @relation("AcceptedRequestOffer")
+
+  @@unique([requestId, offererUserId])
+  @@index([offererUserId, status])
+  @@index([requestId, status])
+  @@map("request_offers")
+}
+
+// ---------------------------------------------------------------------
+// Stores module: local shops, built on top of an existing SellerProfile
+// — same "extension" relationship ServiceProviderDetails already has,
+// not a standalone User→Store link. A seller can hold a StoreDetails
+// and/or ServiceProviderDetails at once; both share the same
+// verification/suspension/trust-score gate on SellerProfile.
+// ---------------------------------------------------------------------
+enum StoreFieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  SELECT
+}
+
+enum StoreFieldScope {
+  STORE
+  PRODUCT
+}
+
+model StoreTypeField {
+  id          String          @id @default(cuid())
+  storeTypeId String
+  key         String
+  scope       StoreFieldScope @default(STORE)
+  labelAr     String
+  cardLabelAr String?
+  pageLabelAr String?
+  showOnCard  Boolean         @default(false)
+  showOnPage  Boolean         @default(true)
+  type        StoreFieldType
+  required    Boolean         @default(false)
+  options     Json?
+  sortOrder   Int             @default(0)
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  storeType   StoreType       @relation(fields: [storeTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeTypeId, scope, key])
+  @@index([storeTypeId, scope, isActive, sortOrder])
+  @@map("store_type_fields")
+}
+
+model StoreType {
+  id                String            @id
+  slug              String            @unique
+  nameAr            String
+  icon              String
+  labels            Json
+  presentation      Json
+  freeProductLimit  Int?
+  isActive          Boolean           @default(true)
+  sortOrder         Int               @default(0)
+  stores            StoreDetails[]
+  productCategories ProductCategory[]
+  fields            StoreTypeField[]
+
+  @@index([isActive, sortOrder])
+  @@map("store_types")
+}
+
+model StoreDetails {
+  id                 String            @id @default(cuid())
+  sellerProfileId    String            @unique
+  storeTypeId        String            @default("st_general")
+  name               String
+  // STORE-SLUG (Foundation v1): URL-safe, shareable identifier —
+  // /stores/:idOrSlug resolves this before falling back to the cuid
+  // `id`. Generated once at createStore time from `name` (see
+  // shared/utils/slugify.ts) and left immutable on rename, same
+  // reasoning as most marketplaces keep slugs stable so a shared link
+  // never 404s just because the owner edited their store name.
+  slug               String            @unique
+  description        String            @db.VarChar(1000)
+  logoUrl            String?
+  coverImageUrl      String?
+  city               String
+  address            String?
+  phone              String
+  status             StoreStatus       @default(PENDING)
+  plan               StorePlan         @default(FREE)
+  latitude           Decimal?          @db.Decimal(9, 6)
+  longitude          Decimal?          @db.Decimal(9, 6)
+  // STORE-HOURS (Foundation v1): same { sun: {open,close}|null, ... }
+  // shape as ServiceProviderDetails.workingHours — copied deliberately
+  // so both modules share one mental model and (later) one frontend
+  // component. Optional: a store with no hours set just never renders
+  // an open/closed badge (storesService.computeIsOpen returns null).
+  workingHours       Json?
+  /// StoreType-defined values only; keys are validated against active StoreTypeField definitions.
+  attributes         Json?
+  // UNIFY-PAYMENTS-STORES: removed — a StoreDetails row always hangs
+  // off a SellerProfile (sellerProfileId is @unique above), so payment
+  // methods now live only on SellerProfile.paymentMethods and are read
+  // through the sellerProfile relation. Same exact duplicated-state
+  // problem, and same fix, as ServiceProviderDetails.paymentMethods'
+  // removal (see that field's comment / the UNIFY-PAYMENTS migration).
+  // STORE-VIEWS (Foundation v1): lifetime counter, same convention as
+  // Product.views — bumped fire-and-forget from getPublicStore, not
+  // from the AnalyticsEvent pipeline (that table has no storeId column
+  // today; adding one is a separate, bigger migration).
+  views              Int               @default(0)
+  viewsAtLastReport  Int               @default(0)
+  featureRequestedAt DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  sellerProfile      SellerProfile     @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  storeType          StoreType         @relation(fields: [storeTypeId], references: [id])
+  products           Product[]
+  promotions         Promotion[]
+  followers          StoreFollower[]
+  collections        StoreCollection[]
+  members            StoreMember[]
+  ads                Ad[]
+  sales              SaleRecord[]
+  salesStatsCache    SalesStatsCache?
+
+  @@index([status, city])
+  @@index([status, plan])
+  @@index([storeTypeId])
+  @@map("store_details")
+}
+
+model StoreMember {
+  id          String            @id @default(cuid())
+  storeId     String
+  userId      String
+  role        StoreMemberRole
+  status      StoreMemberStatus @default(PENDING)
+  invitedById String
+  invitedAt   DateTime          @default(now())
+  acceptedAt  DateTime?
+  removedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  store     StoreDetails @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user      User         @relation("StoreMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User         @relation("StoreMemberInvites", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([storeId, status])
+  // Supports paginated team listing filtered by store/status and sorted by createdAt.
+  @@index([storeId, status, createdAt])
+  @@index([userId, status])
+  @@map("store_members")
+}
+
+model ProductCategory {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  nameAr      String            @unique
+  slug        String            @unique
+  icon        String?
+  parentId    String?
+  storeTypeId String?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  parent      ProductCategory?  @relation("ProductCategoryParent", fields: [parentId], references: [id])
+  children    ProductCategory[] @relation("ProductCategoryParent")
+  storeType   StoreType?        @relation(fields: [storeTypeId], references: [id])
+  products    Product[]
+
+  @@index([parentId])
+  @@index([storeTypeId])
+  @@map("product_categories")
+}
+
+model Product {
+  id                 String                   @id @default(cuid())
+  storeId            String
+  categoryId         String
+  name               String
+  description        String                   @db.VarChar(2000)
+  images             String[]
+  price              Decimal                  @db.Decimal(10, 2)
+  wholesalePrice     Decimal?                 @db.Decimal(10, 2)
+  costPrice          Decimal?                 @db.Decimal(10, 2)
+  wholesaleMinQty    Int?
+  discountPrice      Decimal?                 @db.Decimal(10, 2)
+  availability       ProductAvailability      @default(IN_STOCK)
+  stockQuantity      Int?
+  /// StoreType-defined product metadata. Keys are validated against PRODUCT-scope fields.
+  attributes         Json?
+  status             ProductStatus            @default(ACTIVE)
+  views              Int                      @default(0)
+  // FIX OFFLINE-IDEMPOTENCY-01: same as Ad.offlineOperationId
+  offlineOperationId String?                  @unique
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  store              StoreDetails             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category           ProductCategory          @relation(fields: [categoryId], references: [id])
+  promotions         Promotion[]
+  collections        StoreCollectionProduct[]
+  stockMovements     StockMovement[]
+  saleItems          SaleItem[]
+
+  @@index([storeId, status])
+  @@index([categoryId, status])
+  @@index([status, createdAt])
+  @@map("products")
+}
+
+model StockMovement {
+  id               String   @id @default(cuid())
+  productId        String
+  storeId          String
+  changedByUserId  String
+  previousQuantity Int?
+  newQuantity      Int?
+  delta            Int?
+  reason           String   @db.VarChar(120)
+  createdAt        DateTime @default(now())
+
+  product      Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  saleRecord   SaleRecord? @relation("SaleStockMovement")
+  saleItem     SaleItem?   @relation("SaleItemStockMovement")
+  returnRecord SaleReturn? @relation("ReturnStockMovement")
+
+  @@index([storeId, createdAt])
+  @@index([productId, createdAt])
+  @@index([changedByUserId, createdAt])
+  @@map("stock_movements")
+}
+
+// PROMO-1: scheduled/time-boxed discount on a single Product, decoupled
+// from Product.discountPrice (the older, still-supported static
+// override — see products.service.ts's getEffectivePrice for how the
+// two are reconciled: an ACTIVE-and-in-window Promotion always wins;
+// discountPrice is the fallback for products that never adopt
+// Promotion). Deliberately NOT linked to Ad here — Phase 13 of the
+// original design doc wires Ad -> Promotion later via a separate
+// optional Ad.promotionId, keeping "what's for sale / what's discounted
+// / what's advertised" as three independent concerns.
+model Promotion {
+  id             String          @id @default(cuid())
+  storeId        String
+  productId      String
+  title          String
+  description    String?         @db.VarChar(500)
+  discountType   DiscountType
+  discountValue  Decimal         @db.Decimal(10, 2)
+  startsAt       DateTime
+  endsAt         DateTime
+  status         PromotionStatus @default(SCHEDULED)
+  maxUses        Int?
+  usageCount     Int             @default(0)
+  // PROMO-1 (Phase 14): set the moment myPromotionsExpiring.ts sends
+  // the "about to expire" notification for this row — the idempotency
+  // guard so a promotion still within the warning window on the next
+  // run isn't re-notified every single run. Mirrors Ad's
+  // viewsAtLastReport baseline-column pattern (see
+  // weeklyAdViewsReport.ts) rather than a boolean flag, so re-running
+  // the script never re-sends for a row already warned, but a
+  // DIFFERENT promotion on the same product later still gets its own
+  // warning independently.
+  expiryWarnedAt DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  store          StoreDetails    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  // Supports the seller-facing history query (storeId + createdAt DESC)
+  // without sorting the full promotion history on every page visit.
+  @@index([storeId, createdAt])
+  @@index([productId, startsAt, endsAt])
+  @@map("promotions")
+}
+
+// COLLECTIONS (P1): lets a store owner group products into named
+// shelves ("Phones", "Best Sellers") that a product can belong to
+// more than one of — many-to-many via StoreCollectionProduct below,
+// same reasoning the design doc gave for rejecting a single
+// collectionId column on Product. slug is scoped to the store
+// (@@unique([storeId, slug]), not global) since /stores/:store/
+// collections/:slug is always read within one store's URL, unlike
+// StoreDetails.slug which must be globally unique on its own.
+model StoreCollection {
+  id          String                   @id @default(cuid())
+  storeId     String
+  name        String
+  slug        String
+  description String?                  @db.VarChar(500)
+  imageUrl    String?
+  // Owner-controlled manual ordering for the storefront's collection
+  // list (not createdAt) — mirrors ProductCategory.sortOrder.
+  sortOrder   Int                      @default(0)
+  // Lets an owner hide a collection (e.g. a seasonal one) without
+  // losing its product memberships, same convention as
+  // StoreDetails.status for the whole store.
+  isActive    Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  store       StoreDetails             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products    StoreCollectionProduct[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, isActive, sortOrder])
+  @@map("store_collections")
+}
+
+// Join table for the Collection <-> Product many-to-many. A composite
+// PK (rather than a surrogate id + separate @@unique) since the row
+// has no identity of its own beyond "this product is in this
+// collection" — mirrors how StoreFollower keys off (storeId,
+// followerId) for the same reason.
+model StoreCollectionProduct {
+  collectionId String
+  productId    String
+  // Owner-controlled position within THIS collection specifically —
+  // deliberately separate from Product's own createdAt/global
+  // ordering, since the same product can sit at position 1 in
+  // "Best Sellers" and position 8 in "Phones" simultaneously.
+  sortOrder    Int             @default(0)
+  addedAt      DateTime        @default(now())
+  collection   StoreCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, productId])
+  @@index([productId])
+  @@index([collectionId, sortOrder])
+  @@map("store_collection_products")
+}
+
+enum StoryVisibility {
+  PUBLIC
+  FOLLOWERS
+}
+
+model Story {
+  id            String          @id @default(cuid())
+  userId        String
+  mediaUrl      String?
+  mediaPublicId String?
+  text          String?         @db.VarChar(500)
+  background    String?         @db.VarChar(40)
+  visibility    StoryVisibility @default(FOLLOWERS)
+  expiresAt     DateTime
+  createdAt     DateTime        @default(now())
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views         StoryView[]
+
+  @@index([userId, expiresAt, createdAt])
+  @@index([expiresAt])
+  @@map("stories")
+}
+
+model StoryView {
+  id       String   @id @default(cuid())
+  storyId  String
+  viewerId String
+  viewedAt DateTime @default(now())
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer   User     @relation("StoryViewsByViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@index([storyId, viewedAt])
+  @@index([viewerId, viewedAt])
+  @@map("story_views")
+}
+
+enum FollowTargetType {
+  USER
+  STORE
+  CATEGORY
+}
+
+// Social follow graph. The target is intentionally polymorphic because the
+// product has exactly three followable concepts: people, stores and
+// marketplace categories. Content (ads/products/services) is never followed
+// directly; it appears in the follower feed because it belongs to a followed
+// person/store/category.
+model Follow {
+  id         String           @id @default(cuid())
+  followerId String
+  targetType FollowTargetType
+  targetId   String
+  createdAt  DateTime         @default(now())
+
+  follower User @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([followerId, createdAt])
+  @@map("follows")
+}
+
+model StoreFollower {
+  id        String       @id @default(cuid())
+  userId    String
+  storeId   String
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     StoreDetails @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@index([storeId])
+  @@map("store_followers")
+}
+
+model StoreReview {
+  id              String        @id @default(cuid())
+  score           Int
+  comment         String?       @db.VarChar(500)
+  sellerProfileId String
+  raterId         String
+  createdAt       DateTime      @default(now())
+  rater           User          @relation("StoreReviewsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  // One review per (user, store) — same shape as SellerRating's
+  // per-rater uniqueness, simpler than ServiceReview's per-request
+  // uniqueness since a store review isn't tied to a single transaction
+  // record the way a completed ServiceRequest is.
+  @@unique([sellerProfileId, raterId])
+  @@index([sellerProfileId])
+  @@map("store_reviews")
+}
+
+model Conversation {
+  id               String                    @id @default(cuid())
+  // FEAT-CONV-DEDUP: adId is initial-context only — which ad/listing
+  // the thread happened to start from — and is deliberately NOT part
+  // of the identity key below anymore. See @@unique([buyerId, sellerId]).
+  adId             String?
+  // CHAT-LINK: lets a service request's own detail page offer a
+  // "تواصل" entry point into a real thread instead of only a phone
+  // number, same as an ad already does via adId. Still its own
+  // @unique (a ServiceRequest has exactly one customer and one
+  // provider, so at most one thread can legitimately be "for" it) but
+  // no longer part of the conversation's identity key either — see
+  // @@unique([buyerId, sellerId]) below, which is now the sole
+  // identity for a thread between two users.
+  serviceRequestId String?                   @unique
+  buyerId          String
+  sellerId         String
+  // MSG-FEAT: pin/archive — pinned threads float to top; archived hidden from default list
+  pinnedAt         DateTime?
+  archivedAt       DateTime?
+  // CHAT-CONTEXT: immutable structured listing context for product/service conversations.
+  context          Json?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  ad               Ad?                       @relation(fields: [adId], references: [id])
+  serviceRequest   ServiceRequest?           @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  buyer            User                      @relation("ConversationsAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller           User                      @relation("ConversationsAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages         Message[]
+  userSettings     ConversationUserSetting[]
+
+  // FEAT-CONV-DEDUP: was @@unique([adId, buyerId, sellerId]) — that let
+  // the same two users accumulate a separate conversation per ad. The
+  // conversation's identity is now the (buyerId, sellerId) pair alone:
+  // one thread per pair of users, regardless of which ad/product/
+  // service/service-request it started from. Enforced at the DB level
+  // (not just an application-level findFirst) so concurrent requests
+  // can't create two rows for the same pair — see
+  // conversations.repository.ts's create() for the P2002-then-refetch
+  // handling this requires.
+  @@unique([buyerId, sellerId])
+  @@index([buyerId, updatedAt])
+  @@index([sellerId, updatedAt])
+  @@map("conversations")
+}
+
+model ConversationUserSetting {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  pinnedAt       DateTime?
+  archivedAt     DateTime?
+  deletedAt      DateTime?
+  mutedUntil     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, archivedAt, updatedAt])
+  @@index([userId, deletedAt])
+  @@index([conversationId, userId, mutedUntil])
+  @@map("conversation_user_settings")
+}
+
+model Message {
+  id                String        @id @default(cuid())
+  // Client-generated operation id is the durable idempotency key for message sends.
+  // Nullable so existing rows and non-idempotent internal writes remain valid.
+  clientOperationId String?       @db.VarChar(128)
+  conversationId    String
+  senderId          String
+  body              String        @db.VarChar(2000)
+  // MSG-FEAT: optional image attachment (Cloudinary URL)
+  imageUrl          String?
+  // CHAT-VOICE: optional voice-note URL stored outside the message body.
+  audioUrl          String?
+  fileUrl           String?
+  fileName          String?
+  fileMimeType      String?
+  fileSize          Int?
+  readAt            DateTime?
+  // Soft-delete: set by the sender via DELETE /conversations/:id/messages/:messageId.
+  // The row is kept (not physically removed) so the other party's thread
+  // still shows a "تم حذف هذه الرسالة" placeholder in place, rather than a
+  // gap that could read as a missing/broken message — same reasoning as
+  // Ad's own soft states elsewhere in this schema. `body` itself is left
+  // untouched on delete (not blanked) so a future admin/audit read path
+  // isn't blocked by this decision; every read-facing repository method
+  // is responsible for not leaking `body` once `deletedAt` is set.
+  deletedAt         DateTime?
+  createdAt         DateTime      @default(now())
+  conversation      Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender            User          @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  pin               MessagePin?   @relation("MessagePin")
+  stars             MessageStar[] @relation("MessageStars")
+
+  @@unique([senderId, clientOperationId])
+  @@index([conversationId, createdAt, id])
+  // FIX UX-15: powers the per-conversation unreadCount added to
+  // findManyForUser (conversations.repository.ts) — that query filters
+  // on conversationId + senderId + readAt together (unread = readAt
+  // IS NULL, sent by the other party), which [conversationId,
+  // createdAt] above doesn't cover.
+  @@index([conversationId, senderId, readAt])
+  @@map("messages")
+}
+
+model MessagePin {
+  messageId  String   @id
+  pinnedById String
+  createdAt  DateTime @default(now())
+  message    Message  @relation("MessagePin", fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy   User     @relation("MessagePins", fields: [pinnedById], references: [id], onDelete: Cascade)
+
+  @@index([pinnedById, createdAt])
+  @@map("message_pins")
+}
+
+model MessageStar {
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+  message   Message  @relation("MessageStars", fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation("MessageStars", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([userId, createdAt])
+  @@map("message_stars")
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  // Stable per-outbox-recipient key; nullable for legacy/non-outbox notifications.
+  idempotencyKey String?          @unique
+  userId         String
+  type           NotificationType
+  title          String
+  body           String           @db.VarChar(500)
+  // AUDIT-FIX 1.11 (reviewed, no index added): `data` carries small
+  // per-type payloads (adId, conversationId, storeId, savedSearchId —
+  // see notifications.service.ts's notificationEvents for every shape
+  // written here). Checked every read path on this model
+  // (notifications.repository.ts) before deciding: none of
+  // findManyForUser/countUnreadForUser ever filter on `data` — every
+  // query here is scoped by userId/readAt/createdAt only, all already
+  // covered by the two indexes below. A GIN index on `data` would add
+  // write overhead (every insert/createMany touches it) with zero
+  // current read benefit. If a future feature needs "find my
+  // notifications about ad X" or similar, add a targeted index
+  // (`@@index` on a GIN expression, or promote the specific key to its
+  // own column if it becomes a primary lookup path) at that point —
+  // not preemptively for a query that doesn't exist yet.
+  data           Json?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushDispatches NotificationPushDispatch[]
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+
+
+// Durable post-commit handoff for push notifications created by the transactional
+// outbox. This records dispatch intent atomically with the notification row, so a
+// worker crash after acknowledging the source event cannot silently skip handoff.
+model NotificationPushDispatch {
+  id             String        @id @default(cuid())
+  notificationId String        @unique
+  userId         String
+  payload        Json
+  idempotencyKey String        @unique
+  createdAt      DateTime      @default(now())
+  availableAt    DateTime      @default(now())
+  attempts       Int           @default(0)
+  lockedAt       DateTime?
+  lockedBy       String?
+  processedAt    DateTime?
+  deadLetterAt   DateTime?
+  lastError      String?       @db.VarChar(1000)
+  targetsSeededAt DateTime?
+  notification   Notification  @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  deliveryTargets NotificationPushDeliveryTarget[]
+
+  @@index([processedAt, availableAt, createdAt])
+  @@index([deadLetterAt, processedAt])
+  @@index([lockedAt])
+  @@map("notification_push_dispatches")
+}
+
+// FIX PWA-PUSH-01: persists the browser PushSubscription objects created
+// by apps/web/lib/pwa.ts's subscribeToPush() — previously nothing on the
+// backend received or stored these (see notifications.service.ts's
+// notificationEvents for the in-app notification rows this feeds
+// alongside; a push send is the "also ring the browser" counterpart to
+// each of those, not a replacement for them).
+//
+// One row per (user, device/browser) — a user can be subscribed on
+// several devices at once, each with its own endpoint. `endpoint` is
+// globally unique (it's a full URL issued by the browser's push
+// service, e.g. FCM or Mozilla's autopush) rather than unique per-user,
+// which is what makes it safe to use as the natural key for upserts:
+// re-subscribing the same browser (e.g. after clearing the permission
+// and re-granting it) sends the same endpoint again and should update
+// the existing row rather than create a duplicate.
+// Per-installation delivery ledger. targetId is the opaque database row id,
+// never the endpoint URL or FCM token. Provider acceptance is recorded per target
+// so a transient failure on one device does not resend to devices already marked SENT.
+model NotificationPushDeliveryTarget {
+  id          String   @id @default(cuid())
+  dispatchId  String
+  channel     String   @db.VarChar(16) // 'WEB_PUSH' | 'FCM'
+  targetId    String
+  status      String   @default("PENDING") @db.VarChar(16) // PENDING | SENT | GONE | FAILED
+  attempts    Int      @default(0)
+  availableAt DateTime @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?  @db.VarChar(120)
+  processedAt DateTime?
+  lastError   String?  @db.VarChar(1000)
+  createdAt   DateTime @default(now())
+  dispatch    NotificationPushDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+
+  @@unique([dispatchId, channel, targetId])
+  @@index([dispatchId, status, availableAt])
+  @@index([status, availableAt])
+  @@index([status, lockedAt])
+  @@map("notification_push_delivery_targets")
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  endpoint   String   @unique @db.VarChar(1000)
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+  // Device list (Phase 2 UX): `label` is the user-visible name — defaulted
+  // from the User-Agent on first registration, then owned by the user
+  // (re-registration never overwrites it). `lastSeenAt` is bumped each time
+  // the client re-registers the endpoint (app open / login sync).
+  label      String?  @db.VarChar(60)
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Every send fans out to "every subscription row for this user" —
+  // this is the only lookup pushService.ts's notifyUser needs.
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// NEW — device tokens for native push (Capacitor + Firebase Cloud
+// Messaging), the Android/iOS-app counterpart to PushSubscription
+// above (which is Web Push / VAPID, browser-only). See
+// apps/api/src/shared/utils/fcmPushService.ts's header for why
+// standard Web Push isn't reused for the native app instead of adding
+// a second table. Same upsert-on-natural-key shape as
+// PushSubscription: `token` is FCM's own opaque device token, unique
+// per installation, so re-registering the same device (app reopen,
+// token refresh) updates the existing row rather than duplicating it.
+model FcmDeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique @db.VarChar(500)
+  platform   String   @db.VarChar(20) // 'android' | 'ios'
+  createdAt  DateTime @default(now())
+  // See PushSubscription.label / lastSeenAt.
+  label      String?  @db.VarChar(60)
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("fcm_device_tokens")
+}
+
+// Small durable key/value store for global operational feature switches.
+// Values are deliberately JSON so future admin toggles do not require a new column.
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}
+
+model AuditLog {
+  id        String         @id @default(cuid())
+  event     AuditEventType
+  userId    String?
+  sessionId String?
+  ip        String?
+  userAgent String?
+  details   Json?
+  createdAt DateTime       @default(now())
+  user      User?          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([event])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+// Product-analytics event log — distinct from AuditLog, which tracks
+// security/admin actions (login, role changes). This tracks product
+// usage (page views, searches, ad views, contact clicks) for both
+// anonymous visitors and logged-in users, feeding the admin analytics
+// dashboard (funnel, category popularity, search→contact conversion).
+//
+// Deliberately NOT a Prisma relation to User (no `user User? @relation`,
+// just a plain nullable id): this table will grow far faster than any
+// other in the schema (every page view/search is a row), and tying it
+// to User via a real FK would (a) force a decision on cascade behavior
+// at user-deletion time for a table that's expected to be pruned/
+// rolled up on its own retention schedule rather than deleted alongside
+// a user, and (b) add relation-load weight to the User model for a
+// table nothing else ever needs to join through Prisma — reads here
+// always start from AnalyticsEvent, not from User.
+model AnalyticsEvent {
+  id        String             @id @default(cuid())
+  event     AnalyticsEventType
+  // Null for anonymous visitors. Deliberately not a foreign key — see
+  // model-level comment above.
+  userId    String?
+  // Groups events from the same browser session without requiring
+  // login — generated client-side (crypto.randomUUID(), persisted in
+  // sessionStorage-equivalent) so a single visit's page views/searches
+  // can be strung into a funnel even for anonymous traffic.
+  sessionId String
+  // Free-form event payload: adId for AD_VIEW, query text for SEARCH,
+  // categoryId for CATEGORY_BROWSE, step name for SIGNUP_STEP, etc.
+  // Shape intentionally varies by `event` — consumers switch on `event`
+  // before reading known keys out of this, same convention as
+  // AuditLog.details.
+  metadata  Json?
+  path      String?
+  referrer  String?
+  createdAt DateTime           @default(now())
+
+  // createdAt alone covers "events in the last N days" scans; the
+  // composite covers "trend for event X over time" without a second
+  // index — both are the two query shapes the admin summary endpoint
+  // actually runs.
+  @@index([createdAt])
+  @@index([event, createdAt])
+  @@index([sessionId])
+  @@index([userId])
+  // PR5C: recommendations.repository.ts's recentlyViewedCategoryIds
+  // (AD/PRODUCT/SERVICE_LISTING) all run the same shape —
+  // WHERE "userId" = ? AND "event" = ? AND "createdAt" >= ?
+  // ORDER BY "createdAt" DESC LIMIT 200
+  // — filtering on all three columns together. The existing
+  // [userId] and [event, createdAt] indexes each cover only part of
+  // that predicate; neither lets Postgres narrow to this one user's
+  // rows of this one event type directly. See migration
+  // 20260826000000_add_analytics_event_recommendation_index for the
+  // actual composite index (column order userId, event, createdAt —
+  // matches the three WHERE equality/range predicates left-to-right,
+  // with createdAt last so its DESC ordering also serves the
+  // ORDER BY/LIMIT for free once the first two columns narrow the
+  // scan).
+  @@index([userId, event, createdAt])
+  // FIX M-021: analytics.repository.ts's topCategories() groups by
+  // metadata->>'categoryId', which no index here covered — see
+  // migration 20260809000000_add_analytics_category_index for the
+  // actual expression index (`@@index` can't express a JSON path
+  // expression in this Prisma version, so it's applied via raw SQL in
+  // that migration and only documented here for discoverability).
+  @@map("analytics_events")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// FIX FEAT-EMAIL-VERIFY: mirror of PasswordResetToken for the email
+// verification flow. Kept as a separate table (not a `type` column on
+// the reset table) so the two flows can evolve independently and so
+// `used=false` cleanup queries stay trivially scoped. 24h TTL applies
+// at the service layer, not the DB. Cascade delete on user.
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+// FIX M-011 / M-012: this app has no message queue (BullMQ or
+// otherwise) — fire-and-forget side effects (notifications, fraud
+// scoring, ...) that fail transiently just log an error and vanish,
+// with no trace that anything needs a retry or a human look. Since
+// introducing a full queue is a larger architectural change than a
+// bug fix warrants, this table is the lower-cost mitigation the audit
+// report calls out explicitly: failed fire-and-forget work records
+// itself here instead of only a log line, so an admin/ops process can
+// query "what silently failed and still needs attention" and,
+// eventually, retry it. Deliberately generic (taskType + a JSON
+// payload) rather than one table per failure kind, since the shape of
+// "what do I need to retry this" varies by task and would otherwise
+// mean a new table per fire-and-forget call site.
+model FailedBackgroundTask {
+  id           String    @id @default(cuid())
+  taskType     String
+  // Enough to actually retry the operation later — e.g. { adId, userId,
+  // title, description, city, price, categoryId } for a failed
+  // FRAUD_SCORE_AD, or { adId, title } for a failed
+  // FAVORITED_AD_PRICE_CHANGED fan-out. Shape varies by taskType, same
+  // "consumer switches on type first" convention as AuditLog.details /
+  // FraudSignal.metadata elsewhere in this schema.
+  payload      Json
+  errorMessage String
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([taskType, resolved, createdAt])
+  @@map("failed_background_tasks")
+}
+
+enum NotificationType {
+  SALES_OVERDUE_DEBT
+  SALES_UPCOMING_INSTALLMENT
+  SALES_LOW_STOCK
+  SALES_INACTIVE_CUSTOMER
+  SALES_DAILY_SUMMARY
+  SALES_SMART_INSIGHT
+  NEW_MESSAGE
+  NEW_FOLLOWER
+  FOLLOWED_USER_ACTIVITY
+  FOLLOWED_STORE_ACTIVITY
+  FOLLOWED_CATEGORY_ACTIVITY
+  FAV_AD_PRICE_CHANGED
+  // Gap #15: fires when an ad a user favorited transitions to SOLD —
+  // see ads.service.ts's updateAd (the same justSold block that already
+  // handles the SellerProfile stat bump) and notifications.service.ts's
+  // onFavoritedAdSold.
+  FAV_AD_SOLD
+  PROMOTION
+  WEEKLY_AD_VIEWS_REPORT
+  WEEKLY_STORE_VIEWS_REPORT
+  WEEKLY_SERVICE_VIEWS_REPORT
+  SAVED_SEARCH_MATCH
+  STORE_NEW_PRODUCT
+  // PROMO-1 (Phase 14): lifecycle notification for a store owner's own
+  // Promotion (apps/api/src/modules/promotions) — started, about to
+  // expire, or expired. Deliberately separate from PROMOTION above
+  // (that one is the admin-broadcast marketplace newsletter, see
+  // notifications.service.ts's broadcastPromotion) — different
+  // audience and trigger, see users.validation.ts's myPromotions
+  // preference key for the full reasoning. `data` on this row's
+  // Notification always includes { promotionId, productId, event }
+  // where event is one of "started" | "expiring" | "expired", so the
+  // frontend can render one shared component for all three instead of
+  // three near-identical ones.
+  PROMOTION_STATUS_CHANGE
+  // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): distinct from
+  // PROMOTION_STATUS_CHANGE above for the same reason that one is
+  // distinct from PROMOTION — different audience (every follower of
+  // the store, not the store owner) and a different trigger (fired
+  // once, on the SCHEDULED -> ACTIVE transition only, from the same
+  // myPromotionsExpiring.ts sweep that already detects that
+  // transition for the owner-facing notification — no second sweep
+  // needed). `data` always includes { promotionId, productId, storeId }.
+  STORE_PROMOTION_STARTED
+  // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fired from
+  // products.service.ts's updateProduct on an OUT_OF_STOCK -> (IN_STOCK
+  // | LIMITED) transition, to every follower of the product's store.
+  // Scoped to store followers rather than a per-product wishlist —
+  // there is no Wishlist model in this schema yet (see the stores
+  // gap-analysis roadmap's "Store Wishlist + Price Alerts", P2,
+  // deferred). `data` always includes { productId, storeId }.
+  STORE_PRODUCT_RESTOCKED
+  // SERVICE REQUEST MARKETPLACE: fired to the customer when a provider
+  // submits a quote on their open broadcast, and to the provider whose
+  // quote gets accepted — see service-broadcasts.service.ts's
+  // submitQuote/acceptQuote. `data` always includes { broadcastId,
+  // quoteId }.
+  NEW_SERVICE_QUOTE
+  SERVICE_QUOTE_ACCEPTED
+  // Open Requests marketplace (Request / RequestOffer)
+  NEW_REQUEST_OFFER
+  REQUEST_OFFER_ACCEPTED
+  // FIX (audit #21): store-members.service.ts's inviteMember has fired
+  // AuditEventType.STORE_MEMBER_INVITED (audit log) since 20260905120000
+  // but had no matching NotificationType, so the invited user was never
+  // actually notified — see notifications.service.ts's
+  // onStoreMemberInvited. `data` always includes { storeId, memberId,
+  // storeName }. Reuses the existing `storeUpdates` preference key
+  // rather than adding a new one, consistent with other store-scoped
+  // notifications above (STORE_NEW_PRODUCT etc.).
+  STORE_MEMBER_INVITED
+  // SERVICE-REQUEST-NOTIFICATIONS: the ServiceRequest lifecycle
+  // (provider: new request / customer cancelled; customer: accepted /
+  // rejected / in progress / completed / provider cancelled) and
+  // appointment booked/cancelled for a customer's request. Reuse the
+  // existing `serviceQuotes` preference key. `data` always includes
+  // { requestId }; SERVICE_REQUEST_UPDATE also carries { status }.
+  SERVICE_REQUEST_NEW
+  SERVICE_REQUEST_UPDATE
+  APPOINTMENT_UPDATE
+  AD_EXPIRING_SOON
+  AD_EXPIRED
+  MODERATION_REPORT_RECEIVED
+  MODERATION_DECISION
+  SALES_DAILY_REMINDER
+  SALES_OVERDUE_INSTALLMENT
+  SALES_DEBT_REMINDER
+  SALES_WEEKLY_REPORT
+}
+
+// Gap #10 ("نشاطي"): every distinct event type the personal activity
+// timeline can record. Grouped by the module that produces them —
+// see activity.service.ts's ACTIVITY_META for the per-type Arabic
+// title/description templates and activity.validation.ts's
+// ACTIVITY_TYPE_GROUPS for how these map onto the frontend's filter
+// tabs (الكل/الإعلانات/المنتجات/الخدمات/المتاجر/الرسائل/الطلبات/الحساب).
+enum UserActivityType {
+  AD_CREATED
+  AD_UPDATED
+  AD_DELETED
+  PRODUCT_CREATED
+  PRODUCT_UPDATED
+  PRODUCT_DELETED
+  SERVICE_CREATED
+  SERVICE_UPDATED
+  SERVICE_DELETED
+  STORE_CREATED
+  STORE_UPDATED
+  FAVORITE_ADDED
+  FAVORITE_REMOVED
+  STORE_FOLLOWED
+  STORE_UNFOLLOWED
+  MESSAGE_SENT
+  SERVICE_REQUEST_CREATED
+  SERVICE_REQUEST_STATUS_CHANGED
+  APPOINTMENT_BOOKED
+  APPOINTMENT_CANCELLED
+  PROFILE_UPDATED
+  PASSWORD_CHANGED
+}
+
+// Gap #10 follow-up: was a free-form String? on UserActivity.entityType
+// (comment-only documentation of the 7 valid tags), which meant a typo
+// in activity.templates.ts (the only writer) would compile and pass
+// runtime validation silently, and any future reader matching on this
+// field had no compiler help either. Deliberately NOT a Prisma
+// relation, same as before — the referenced row can be hard/soft
+// deleted later without cascade/orphan handling, since a timeline
+// entry must keep rendering (title/description are pre-rendered at
+// write time) even after the thing it pointed to is gone.
+enum ActivityEntityType {
+  AD
+  PRODUCT
+  SERVICE_LISTING
+  STORE
+  CONVERSATION
+  SERVICE_REQUEST
+  APPOINTMENT
+}
+
+// Gap #20 (admin permission tiers): MODERATOR/ADMIN/SUPER_ADMIN form a
+// strict hierarchy — see shared/constants/roles.ts's ROLE_RANK for the
+// numeric ranking every permission/role-management check is built on.
+// MODERATOR: reports/fraud/ads moderation only. ADMIN: everything a
+// MODERATOR can do, plus sellers/stores/categories/users/broadcast/
+// audit-logs/analytics, plus promoting/demoting USER<->MODERATOR. Only
+// SUPER_ADMIN can grant or revoke admin-tier roles (MODERATOR/ADMIN/
+// SUPER_ADMIN) — see admin.service.ts's changeRole. SUPER_ADMIN itself
+// is never assignable through this endpoint; see changeRole's own
+// comment for why.
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AdStatus {
+  ACTIVE
+  SOLD
+  DELETED
+  EXPIRED
+}
+
+enum AdCondition {
+  NEW
+  USED
+  REFURBISHED
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportReason {
+  SCAM
+  FAKE
+  OFFENSIVE
+  SPAM
+}
+
+// FEAT-REPORT-USER-STORE: what kind of thing a Report points at. Mirrors
+// ActivityEntityType's role for UserActivity — see Report's own doc
+// comment for why targetId is a plain string with no FK.
+enum ReportTargetType {
+  AD
+  USER
+  STORE
+  PRODUCT
+  SERVICE_LISTING
+}
+
+// Fraud-detection (item 12). Each value maps to one concrete heuristic
+// in fraudService — kept as narrow/enumerable as AnalyticsEventType's
+// own "map to one concrete question" convention, not a free-text field,
+// so admin filtering/aggregation stays possible.
+enum FraudSignalType {
+  // Same user creating an abnormal number of ads within a short
+  // rolling window (see env.fraud.rapidPostingWindowSeconds/MaxPosts).
+  RAPID_POSTING
+  // Price is a statistical outlier vs. the category's recent median —
+  // both far below (classic "too good to be true" scam bait) and far
+  // above are flagged; fraudService records which direction in metadata.
+  SUSPICIOUS_PRICE
+  // Description/title contains a URL, a phone number outside the
+  // normal contact flow, or another off-platform-contact pattern —
+  // common precursor to steering a buyer off-platform before scamming
+  // them.
+  SUSPICIOUS_CONTACT_PATTERN
+  // Title/description matches known scam-keyword patterns (wire
+  // transfer only, "send deposit first", gift-card payment, etc.).
+  SUSPICIOUS_KEYWORDS
+  // This exact title+price+city (or a near-duplicate) already exists
+  // as another active ad from the same user — classic listing-spam
+  // pattern distinct from RAPID_POSTING's pure velocity check.
+  DUPLICATE_LISTING
+  // Account is very new (see env.fraud.newAccountWindowHours) and is
+  // already exhibiting another signal — new-ness alone isn't
+  // suspicious, but it raises the weight of everything else.
+  NEW_ACCOUNT_HIGH_ACTIVITY
+  // Manually raised by an admin outside the automated scoring path
+  // (e.g. from a pattern noticed while reviewing Reports) — lets a
+  // human-observed pattern live in the same signal/queue system as
+  // automated ones instead of a separate ad-hoc mechanism.
+  MANUAL_ADMIN_FLAG
+}
+
+enum SellerVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ServiceBusinessType {
+  INDIVIDUAL
+  SMALL_BUSINESS
+}
+
+enum ServiceTypeFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+}
+
+enum ServiceTypeFieldScope {
+  LISTING
+  PROVIDER
+}
+
+enum ServiceAvailability {
+  AVAILABLE
+  BUSY
+  UNAVAILABLE
+}
+
+enum ServicePricingType {
+  FIXED
+  STARTING_FROM
+  NEGOTIABLE
+}
+
+enum ServiceListingStatus {
+  ACTIVE
+  PAUSED
+  DELETED
+}
+
+enum ServiceLocationType {
+  AT_CUSTOMER
+  AT_PROVIDER
+  REMOTE
+}
+
+enum ServiceRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  // FIX SR-EXPIRY (audit H4): closed by the expiry cron, not by a user.
+  EXPIRED
+  DISPUTED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum StoreMemberRole {
+  MANAGER
+  STAFF
+  EDITOR
+}
+
+enum StoreMemberStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
+enum StoreStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+}
+
+// Free/Featured mirror the plan described in the stores proposal
+// (20-product cap + normal ranking vs. unlimited + boosted ranking).
+// No payment gateway exists in this codebase yet, so `plan` is a plain
+// column an admin (or a future billing webhook) flips — enforcement of
+// the product-count cap and any ranking boost lives in application
+// code, not here.
+enum StorePlan {
+  FREE
+  FEATURED
+}
+
+enum ProductAvailability {
+  IN_STOCK
+  LIMITED
+  OUT_OF_STOCK
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// SCHEDULED and ACTIVE are the two "live" states a promotion can be in
+// before it resolves to EXPIRED (endsAt passed) or CANCELLED (seller
+// pulled it manually) — see the partial unique index in this model's
+// migration, which enforces at most one live row per product using
+// exactly this SCHEDULED/ACTIVE distinction.
+enum PromotionStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum ProductStatus {
+  ACTIVE
+  PAUSED
+  DELETED
+}
+
+enum AuditEventType {
+  REGISTER
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  LOGOUT_ALL
+  TOKEN_REFRESHED
+  TOKEN_REUSE_DETECTED
+  SESSION_REVOKED
+  ACCOUNT_LOCKED
+  PASSWORD_CHANGED
+  ROLE_CHANGED
+  ACCOUNT_DISABLED
+  ADMIN_AD_FEATURED
+  ADMIN_AD_PINNED
+  ADMIN_AD_DELETED
+  ADMIN_USER_STATUS_CHANGED
+  ADMIN_SELLER_VERIFIED
+  ADMIN_SELLER_SUSPENDED
+  // AUDIT-FIX (issue #10 follow-up): updateStoreStatus (issue #1's
+  // admin approve/block action) was writing no audit trail at all —
+  // same gap ADMIN_SELLER_VERIFIED/SUSPENDED closed for sellers,
+  // applied here for the store status transition.
+  ADMIN_STORE_STATUS_CHANGED
+  ADMIN_STORE_PLAN_CHANGED
+  ADMIN_STORE_TYPE_CHANGED
+  // FIX OAUTH-01
+  OAUTH_LOGIN
+  // FIX FEAT-EMAIL-VERIFY
+  EMAIL_VERIFIED
+  OAUTH_ACCOUNT_LINKED
+  OAUTH_SIGNUP
+  // Fraud-detection (item 12): admin actions taken against the
+  // fraud queue — same "every admin write gets an audit row" rule
+  // ADMIN_SELLER_VERIFIED/SUSPENDED etc. already follow above.
+  ADMIN_FRAUD_SIGNAL_REVIEWED
+  ADMIN_FRAUD_MANUAL_FLAG
+  ADMIN_SERVICE_BROADCAST_CANCELLED
+  ADMIN_DEVELOPER_TOOLS_CHANGED
+  ADMIN_OPEN_REQUEST_CANCELLED
+  STORE_MEMBER_INVITED
+  STORE_MEMBER_REMOVED
+}
+
+// Gap #7 (product analytics): event vocabulary kept deliberately small
+// and funnel-shaped rather than exhaustive — each value maps to one
+// concrete question the admin summary answers (not "log everything").
+//
+// PR4A (recommendation view signals): PRODUCT_VIEW/SERVICE_VIEW added
+// alongside AD_VIEW rather than reusing it, matching AD_VIEW's own
+// metadata convention of one id-carrying key per event (adId for
+// AD_VIEW; productId for PRODUCT_VIEW; serviceListingId for
+// SERVICE_VIEW — see recommendations.repository.ts's
+// recentlyViewedProductCategoryIds/recentlyViewedServiceCategoryIds
+// for how each is resolved back to a category). AD_VIEW's own rows and
+// query shape are untouched by this addition.
+enum AnalyticsEventType {
+  PAGE_VIEW
+  AD_VIEW
+  SEARCH
+  CATEGORY_BROWSE
+  CONTACT_CLICK
+  SIGNUP_STARTED
+  SIGNUP_COMPLETED
+  PRODUCT_VIEW
+  SERVICE_VIEW
+}
+
+// SALES-LOG P1: seller-owned sales ledger. This is deliberately separate from
+// marketplace orders: a seller may record an offline/cash sale that never
+// passed through a marketplace checkout.
+model SaleRecord {
+  id                 String            @id @default(cuid())
+  sellerId           String
+  storeId            String?
+  entityType         SaleEntityType
+  entityId           String?
+  entityTitle        String
+  entityImageUrl     String?
+  quantity           Int               @default(1)
+  unitPrice          Decimal           @db.Decimal(10, 2)
+  costPrice          Decimal?          @db.Decimal(10, 2)
+  totalPrice         Decimal           @db.Decimal(10, 2)
+  currency           String            @default("ILS")
+  invoiceNumber      String?           @unique
+  invoicePdfUrl      String?
+  customerId         String?
+  buyerName          String
+  buyerPhone         String?
+  paymentStatus      SalePaymentStatus @default(PAID)
+  paidAmount         Decimal           @default(0) @db.Decimal(10, 2)
+  dueAmount          Decimal           @default(0) @db.Decimal(10, 2)
+  refundedAmount     Decimal           @default(0) @db.Decimal(10, 2)
+  dueDate            DateTime?
+  note               String?
+  internalNote       String?
+  // Idempotency is scoped to the seller; avoid a second global unique constraint.
+  offlineOperationId String?
+  soldAt             DateTime          @default(now())
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  stockMovementId    String?           @unique
+  serviceRequestId   String?           @unique
+
+  items SaleItem[]
+
+  seller         User              @relation("SellerSales", fields: [sellerId], references: [id], onDelete: Cascade)
+  store          StoreDetails?     @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  customer       Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  payments       SalePayment[]
+  returns        SaleReturn[]
+  installments   SaleInstallment[]
+  stockMovement  StockMovement?    @relation("SaleStockMovement", fields: [stockMovementId], references: [id], onDelete: SetNull)
+  serviceRequest ServiceRequest?   @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+
+  @@unique([sellerId, offlineOperationId])
+  @@index([sellerId, soldAt])
+  @@index([storeId, soldAt])
+  @@index([sellerId, entityType])
+  @@index([sellerId, paymentStatus])
+  @@index([customerId, soldAt])
+  @@index([sellerId, invoiceNumber])
+  @@map("sale_records")
+}
+
+enum SaleEntityType {
+  PRODUCT
+  AD
+  SERVICE
+  FREE
+}
+
+enum SalePaymentStatus {
+  PAID
+  PARTIAL
+  UNPAID
+  OVERDUE
+}
+
+enum SaleTransferMethod {
+  CASH
+  JAWWAL_PAY
+  BANK_PALESTINE
+  PALPAY
+  CARD
+  OTHER
+}
+
+model SaleItem {
+  id               String         @id @default(cuid())
+  saleId           String
+  productId        String?
+  entityType       SaleEntityType
+  entityId         String?
+  title            String
+  imageUrl         String?
+  quantity         Int
+  unitPrice        Decimal        @db.Decimal(10, 2)
+  costPrice        Decimal?       @db.Decimal(10, 2)
+  lineTotal        Decimal        @db.Decimal(10, 2)
+  returnedQuantity Int            @default(0)
+  stockMovementId  String?        @unique
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  sale          SaleRecord     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product       Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  stockMovement StockMovement? @relation("SaleItemStockMovement", fields: [stockMovementId], references: [id], onDelete: SetNull)
+  returns       SaleReturn[]
+
+  @@index([saleId])
+  @@index([productId, createdAt])
+  @@map("sale_items")
+}
+
+model SalePayment {
+  id          String             @id @default(cuid())
+  saleId      String
+  amount      Decimal            @db.Decimal(10, 2)
+  method      SaleTransferMethod
+  transferRef String?
+  paidAt      DateTime           @default(now())
+  note        String?
+  sale        SaleRecord         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId, paidAt])
+  @@map("sale_payments")
+}
+
+model SaleInstallment {
+  id            String            @id @default(cuid())
+  saleId        String
+  installmentNo Int
+  amount        Decimal           @db.Decimal(10, 2)
+  dueDate       DateTime
+  paidAt        DateTime?
+  paidAmount    Decimal?          @db.Decimal(10, 2)
+  status        InstallmentStatus @default(PENDING)
+  note          String?
+  sale          SaleRecord        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@unique([saleId, installmentNo])
+  @@index([dueDate, status])
+  @@map("sale_installments")
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  PARTIAL
+}
+
+model SaleReturn {
+  id                   String         @id @default(cuid())
+  saleId               String
+  quantity             Int
+  refundAmount         Decimal        @db.Decimal(10, 2)
+  reason               ReturnReason
+  reasonNote           String?
+  restockedToInventory Boolean        @default(true)
+  stockMovementId      String?        @unique
+  itemId               String?
+  createdAt            DateTime       @default(now())
+  sale                 SaleRecord     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  stockMovement        StockMovement? @relation("ReturnStockMovement", fields: [stockMovementId], references: [id], onDelete: SetNull)
+  item                 SaleItem?      @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([saleId])
+  @@index([itemId])
+  @@map("sale_returns")
+}
+
+enum ReturnReason {
+  DAMAGED
+  WRONG_ITEM
+  NOT_LIKED
+  LATE
+  OTHER
+}
+
+model Customer {
+  id              String       @id @default(cuid())
+  sellerId        String
+  name            String
+  phone           String?
+  email           String?
+  address         String?
+  note            String?
+  tags            String[]
+  totalSpent      Decimal      @default(0) @db.Decimal(10, 2)
+  totalDue        Decimal      @default(0) @db.Decimal(10, 2)
+  purchaseCount   Int          @default(0)
+  lastPurchaseAt  DateTime?
+  firstPurchaseAt DateTime?
+  isVip           Boolean      @default(false)
+  isBlacklisted   Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  seller          User         @relation("SellerCustomers", fields: [sellerId], references: [id], onDelete: Cascade)
+  sales           SaleRecord[]
+
+  @@unique([sellerId, phone])
+  @@index([sellerId, name])
+  @@index([sellerId, totalDue])
+  @@index([sellerId, lastPurchaseAt])
+  @@map("sales_customers")
+}
+
+// Public store stats are intentionally separate from the private sales ledger.
+// The cache contains only aggregate trust/sales numbers safe for a public page.
+model SalesStatsCache {
+  id             String        @id @default(cuid())
+  sellerId       String        @unique
+  storeId        String?       @unique
+  totalSales     Int           @default(0)
+  totalRevenue   Decimal       @default(0) @db.Decimal(10, 2)
+  averageRating  Decimal?      @db.Decimal(3, 2)
+  reviewCount    Int           @default(0)
+  verifiedSeller Boolean       @default(false)
+  updatedAt      DateTime      @updatedAt
+  seller         User          @relation("SellerSalesStats", fields: [sellerId], references: [id], onDelete: Cascade)
+  store          StoreDetails? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@map("sales_stats_cache")
+}
+
+// Concurrency-safe invoice sequence per seller/year. Keeping this separate
+// from SaleRecord avoids max(invoiceNumber)+1 races under concurrent sales.
+model InvoiceCounter {
+  id        String   @id @default(cuid())
+  year      Int      @unique
+  nextValue Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@map("invoice_counters")
+}
+
+// SALES-AUTOMATION-01: idempotent fingerprints for seller-facing sales alerts.
+// A fingerprint represents one logical alert (for example a specific low-stock
+// product or overdue sale) and prevents repeated notifications on every sweep.
+model SalesAutomationEvent {
+  id          String                   @id @default(cuid())
+  userId      String
+  type        SalesAutomationEventType
+  fingerprint String
+  lastSentAt  DateTime                 @default(now())
+  sendCount   Int                      @default(1)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, fingerprint])
+  @@index([userId, lastSentAt])
+  @@map("sales_automation_events")
+}
+
+enum SalesAutomationEventType {
+  LOW_STOCK
+  OVERDUE_DEBT
+  UPCOMING_INSTALLMENT
+  INACTIVE_CUSTOMER
+  DAILY_SUMMARY
+}
+
+// ── Transactional Outbox (batch 32) ───────────────────────────
+// Durable event queue for side effects that must survive a crash
+// between the domain write and the notification/activity delivery.
+// Events are inserted in the same transaction as the entity create
+// and claimed by a worker with FOR UPDATE SKIP LOCKED.
+model OutboxEvent {
+  id             String    @id @default(cuid())
+  eventType      String
+  aggregateType  String
+  aggregateId    String
+  ownerUserId    String?
+  payload        Json
+  idempotencyKey String    @unique
+  createdAt      DateTime  @default(now())
+  availableAt    DateTime  @default(now())
+  attempts       Int       @default(0)
+  lockedAt       DateTime?
+  lockedBy       String?
+  processedAt    DateTime?
+  deadLetterAt   DateTime?
+  lastError      String?   @db.VarChar(1000)
+
+  @@index([processedAt, availableAt, createdAt])
+  @@index([deadLetterAt, processedAt])
+  @@index([lockedAt])
+  @@map("outbox_events")
+}
+
+
+// Compact permanent ledger: keeps outbox idempotency keys reserved after old
+// processed event payload rows are pruned by the outbox worker. The insert
+// trigger is installed by the corresponding SQL migration.
+model OutboxEventIdempotency {
+  idempotencyKey String   @id
+  recordedAt     DateTime @default(now())
+
+  @@map("outbox_event_idempotency")
+}
+
+// Durable idempotency journal for offline image uploads. The journal row and
+// the ad's image-array append commit in one transaction, so a lost HTTP ACK
+// cannot attach the same upload twice on replay.
+model AdImageOfflineOperation {
+  id             String   @id @default(cuid())
+  operationId    String   @unique
+  adId           String
+  userId         String
+  imageUrls      String[]
+  createdAt      DateTime @default(now())
+
+  @@index([adId, userId])
+  @@index([createdAt])
+}
+

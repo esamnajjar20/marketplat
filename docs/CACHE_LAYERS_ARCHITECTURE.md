@@ -4,11 +4,11 @@
 
 `shared/cache-policy.json` is the canonical policy. The build syncs it to:
 
-- `frontend/lib/cache-policy.json` — typed browser consumers.
-- `backend/src/shared/cache/cache-policy.json` — typed server consumers.
-- `frontend/public/cache-policy.js` — classic Service Worker runtime.
+- `apps/web/lib/cache-policy.json` — typed browser consumers.
+- `apps/api/src/shared/cache/cache-policy.json` — typed server consumers.
+- `apps/web/public/cache-policy.js` — classic Service Worker runtime.
 
-`frontend/scripts/cache-layer-audit.mjs` fails when any generated copy drifts.
+`apps/web/scripts/cache-layer-audit.mjs` fails when any generated copy drifts.
 
 ## Layers
 
@@ -32,7 +32,7 @@
 
 ## Invalidation
 
-Mutations use `frontend/lib/cache/cacheInvalidationRegistry.ts` for local and Service Worker invalidation. The Service Worker now implements the `INVALIDATE_API_CACHE` message that the frontend already emitted; it removes matching entries from both the shared API cache and per-user API buckets.
+Mutations use `apps/web/lib/cache/cacheInvalidationRegistry.ts` for local and Service Worker invalidation. The Service Worker now implements the `INVALIDATE_API_CACHE` message that the frontend already emitted; it removes matching entries from both the shared API cache and per-user API buckets.
 
 Server-side public Redis caches use generation tokens instead of deleting keys while a refresh may still be in flight. This prevents a pre-mutation refresh from resurrecting stale data.
 
@@ -58,7 +58,7 @@ The cache system now has a single logical contract in `shared/cache/cache-contra
 
 - **Identity:** `shared/cache/cacheKey.ts` defines the canonical key algorithm used by frontend and backend.
 - **Domains:** every cache domain declares namespace, scope (`public`, `personal`, `private`) and policy.
-- **Invalidation:** mutation path prefixes, affected cache domains, and offline slots are defined once in the contract and consumed by frontend/backend registries and the Service Worker.
+- **Invalidation:** mutation path prefixes, affected cache domains, and offline slots are defined once in the contract and consumed by apps/web/backend registries and the Service Worker.
 - **HTTP ownership:** route middleware owns `Cache-Control`; controllers must not define cache TTLs or directives.
 - **Service Worker:** invalidation accepts canonical domains and resolves them back to physical URL prefixes while retaining exact prefix deletion for compatibility.
 - **Audit:** `npm run cache:audit` validates policy copies, contract copies, key-algorithm parity, invalidation parity, HTTP ownership, and SW integration.
@@ -73,14 +73,14 @@ The cache system now has a single logical contract in `shared/cache/cache-contra
 ## CACHE-W7..W9 — Storage Pressure, Contract Audit, and Correctness
 
 - **W7:** browser quota pressure is a shared budget across Cache Storage/IndexedDB. Warning pressure reduces background warming to public data; critical pressure pauses warming after best-effort cleanup of reconstructable caches. The Service Worker progressively trims API/image caches at 90%/95% quota and never targets durable offline-write/user-owned caches.
-- **W8:** `frontend/scripts/cache-contract-audit.mjs` validates domain scopes, query prefixes, invalidation references, and generated contract parity.
+- **W8:** `apps/web/scripts/cache-contract-audit.mjs` validates domain scopes, query prefixes, invalidation references, and generated contract parity.
 - **W9:** regression coverage verifies API-version mutation routing, unmapped-path no-op behavior, quota boundaries, and per-user ownership of offline JSON/list caches.
 
 ## CACHE-W10..W12 — Server Invalidation Boundary, Observability Hardening, Final Audit
 
-- **W10:** `backend/src/shared/cache/serverCacheInvalidation.ts` is the canonical server-side entry point for public-list generation invalidation. It resolves mutation paths from the shared contract and refuses to globally invalidate personal/private domains. The store-types mutation path now uses this boundary instead of hard-coding a Redis generation namespace.
+- **W10:** `apps/api/src/shared/cache/serverCacheInvalidation.ts` is the canonical server-side entry point for public-list generation invalidation. It resolves mutation paths from the shared contract and refuses to globally invalidate personal/private domains. The store-types mutation path now uses this boundary instead of hard-coding a Redis generation namespace.
 - **W11:** SWR telemetry is emitted at the actual `swrGetWithStatus()` decision points (`hit`, `stale`, `miss`, `bypass`) and during background refresh/lock contention. Metrics remain in the application Prometheus registry and use bounded logical cache/event labels rather than request/user identifiers.
-- **W12:** `frontend/scripts/cache-final-audit.mjs` performs the release gate across contract parity, key-algorithm parity, W4-W9 artifacts, server invalidation boundary, public-list canonical identity, HTTP ownership, Service Worker contract usage, and cache telemetry. `cache:contract-audit` and `cache:final-audit` are exposed as explicit package scripts.
+- **W12:** `apps/web/scripts/cache-final-audit.mjs` performs the release gate across contract parity, key-algorithm parity, W4-W9 artifacts, server invalidation boundary, public-list canonical identity, HTTP ownership, Service Worker contract usage, and cache telemetry. `cache:contract-audit` and `cache:final-audit` are exposed as explicit package scripts.
 
 ## CACHE-W10..W12 — Performance, Lifecycle, Final Hardening
 

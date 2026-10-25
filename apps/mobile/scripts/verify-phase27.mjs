@@ -1,0 +1,14 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const contract = readFileSync(new URL('../src/storage/outbox-transport-contract.mjs', import.meta.url), 'utf8');
+const middleware = readFileSync(new URL('../../api/src/middlewares/offlineOperationId.middleware.ts', import.meta.url), 'utf8');
+const service = readFileSync(new URL('../../api/src/modules/ads/ads.service.ts', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(contract, /item\.operation !== 'create-ad'/, 'only ad creation is eligible for the current automatic transport contract');
+assert.match(contract, /'X-Offline-Op-Id': item\.idempotencyKey/, 'mobile sends the header the API actually understands');
+assert.match(contract, /\^\[A-Za-z0-9\]\[A-Za-z0-9\._:-\]\{0,127\}\$/, 'client validates the same bounded header alphabet');
+assert.match(middleware, /OFFLINE_OPERATION_ID_PATTERN/, 'API middleware validates offline operation IDs');
+assert.match(middleware, /x-offline-op-id/, 'API reads X-Offline-Op-Id');
+assert.match(service, /where: \{ offlineOperationId \}/, 'ad service looks up prior creation by offline operation ID');
+assert.ok(pkg.scripts.test.includes('verify-phase27.mjs'), 'phase 27 check is wired into mobile test command');
+console.log('Phase 27 mobile/API outbox transport contract checks passed (static checks only; no live HTTP/DB integration).');

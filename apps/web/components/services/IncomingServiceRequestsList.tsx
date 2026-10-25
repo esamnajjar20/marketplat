@@ -1,0 +1,313 @@
+'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
+import { Button } from '@/components/shared/ui/Button';
+import { Badge } from '@/components/shared/ui/Badge';
+import { Pagination } from '@/components/shared/ui/Pagination';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { CreateAppointmentDialog } from './CreateAppointmentDialog';
+import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
+import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
+import { ROUTES } from '@/lib/constants';
+import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
+import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import {
+  SERVICE_REQUEST_STATUS_LABELS,
+  SERVICE_REQUEST_STATUS_VARIANT,
+} from '@/lib/serviceRequestStatus';
+import type { ServiceRequestStatus } from '@/types/service.types';
+import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
+
+const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
+  '', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'DISPUTED',
+];
+
+/**
+ * One request row's action buttons — only the actions legal from its
+ * current status (TRANSITION_ACTOR, service-requests.service.ts).
+ * Epic 4: "حجز موعد" is layered on top of that same status gate — an
+ * appointment only makes sense once the request is ACCEPTED or already
+ * IN_PROGRESS (appointments.service.ts's own createAppointment check),
+ * so the button appears alongside each of those states' existing action.
+ */
+function RequestActions({
+  id,
+  status,
+  onBookAppointment,
+  requiresCustomerApproval,
+}: {
+  id: string;
+  status: ServiceRequestStatus;
+  onBookAppointment: () => void;
+  requiresCustomerApproval: boolean;
+}) {
+  const respond = useRespondToServiceRequest(id);
+  const [confirmReject, setConfirmReject] = useState(false);
+
+  if (status === 'PENDING') {
+    // FIX REJECT-NO-CONFIRM: rejecting a pending request is a
+    // terminal transition — the customer cannot re-send the same
+    // request, only file a new one. Before this, the REJECT button
+    // (adjacent to ACCEPT, same size, same row, one tap away on
+    // mobile) fired the mutation on first click with no undo.
+    // MyServiceRequestsList already guards its CANCELLED transition
+    // behind a ConfirmDialog; this is the mirror side of the same
+    // flow and deserves the same protection. Same component, same
+    // prop shape as that file, so the two stay symmetric.
+    return (
+      <>
+        <div className="flex gap-1.5 shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 gap-1.5 rounded-xl font-bold text-destructive hover:text-destructive"
+            disabled={respond.isPending}
+            onClick={() => setConfirmReject(true)}
+          >
+            <X className="h-3.5 w-3.5" />رفض
+          </Button>
+          <Button
+            size="sm"
+            className="h-10 gap-1.5 rounded-xl font-bold"
+            disabled={respond.isPending}
+            onClick={() => respond.mutate({ action: 'ACCEPTED' })}
+          >
+            <Check className="h-3.5 w-3.5" />قبول
+          </Button>
+        </div>
+        <ConfirmDialog
+          open={confirmReject}
+          onOpenChange={setConfirmReject}
+          title="رفض الطلب؟"
+          description="لن يتمكن العميل من إعادة إرسال الطلب نفسه، بل سيتعيّن عليه إنشاء طلب جديد. لا يمكن التراجع بعد التأكيد."
+          confirmLabel="رفض الطلب"
+          destructive
+          isPending={respond.isPending}
+          onConfirm={() => {
+            respond.mutate({ action: 'REJECTED' }, { onSuccess: () => setConfirmReject(false) });
+          }}
+        />
+      </>
+    );
+  }
+
+  if (status === 'ACCEPTED') {
+    return (
+      <div className="flex gap-1.5 shrink-0">
+        <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-xl font-bold" onClick={onBookAppointment}>
+          <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
+        </Button>
+        {requiresCustomerApproval ? (
+          <span className="max-w-44 text-xs text-muted-foreground">بانتظار موافقة العميل على السعر</span>
+        ) : (
+          <Button size="sm" className="h-10 gap-1.5 rounded-xl font-bold" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'IN_PROGRESS' })}>
+            <Play className="h-3.5 w-3.5" />بدء التنفيذ
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  if (status === 'IN_PROGRESS') {
+    return (
+      <div className="flex gap-1.5 shrink-0">
+        <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-xl font-bold" onClick={onBookAppointment}>
+          <CalendarPlus className="h-3.5 w-3.5" />حجز موعد
+        </Button>
+        <Button size="sm" className="h-10 gap-1.5 rounded-xl font-bold" disabled={respond.isPending} onClick={() => respond.mutate({ action: 'COMPLETED' })}>
+          <CheckCheck className="h-3.5 w-3.5" />إنهاء
+        </Button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+/**
+ * IncomingServiceRequestsList — provider-side inbox at /my-services/requests.
+ * Epic 3.1: the report found zero appointments/requests UI for providers
+ * at all; this is the provider counterpart to MyServiceRequestsList,
+ * exposing serviceRequestsApi.getIncomingAsProvider + .respond.
+ */
+export function IncomingServiceRequestsList() {
+  const sp = useSearchParams();
+  const router = useRouter();
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  // SR-STATUS-VALIDATE-01: was `as ServiceRequestStatus` — a URL carrying a
+  // value that isn't in the backend enum (e.g. ?status=PAUSED from an old
+  // link) was passed straight through and 400'd with a ZodError. Only pass
+  // status to the API when it is one of the six known values.
+  const rawStatus = sp.get('status');
+  const status = rawStatus && (FILTER_TABS as readonly string[]).includes(rawStatus)
+    ? (rawStatus as ServiceRequestStatus)
+    : undefined;
+  const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
+  const [appointmentTarget, setAppointmentTarget] = useState<{
+    providerId: string;
+    requestId: string;
+    title: string;
+  } | null>(null);
+
+  const { data, isLoading, isError, refetch } = useIncomingServiceRequests({ page, limit: 10, status });
+
+  const items = data?.items ?? [];
+  const totalPages = data?.meta?.totalPages ?? 1;
+
+  useEffect(() => {
+    if (!data) return;
+    if (page > totalPages && totalPages >= 1) {
+      const params = new URLSearchParams(sp.toString());
+      if (totalPages > 1) params.set('page', String(totalPages));
+      else params.delete('page');
+      params.set('tab', 'requests'); // MY-SERVICES-HUB-01: tab lives in the query
+      router.replace(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
+    }
+  }, [data, page, totalPages, sp, router]);
+
+  function setStatus(s: string) {
+    const params = new URLSearchParams(sp.toString());
+    if (s) params.set('status', s); else params.delete('status');
+    params.delete('page');
+    params.set('tab', 'requests'); // MY-SERVICES-HUB-01
+    router.push(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
+  }
+
+  const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
+
+  if (isLoading || isOutOfRange) {
+    return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+  }
+
+  // A 404 here means the caller has no service-provider profile yet
+  // (service-requests.service.ts's getMyRequestsAsProvider throws
+  // SERVICE_PROVIDER_NOT_FOUND) — distinct from a genuine fetch failure,
+  // but both render the same retry affordance; the page around this
+  // component is only ever linked to from a provider's own dashboard.
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل الطلبات الواردة</p>
+        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 lg:space-y-5">
+      <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الطلبات الواردة حسب الحالة">
+        {FILTER_TABS.map((val) => (
+          <button
+            key={val}
+            onClick={() => setStatus(val)}
+            aria-pressed={(status ?? '') === val}
+            className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors
+              ${(status ?? '') === val ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
+          >
+            {val ? SERVICE_REQUEST_STATUS_LABELS[val] : 'الكل'}
+          </button>
+        ))}
+      </div>
+
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<Inbox className="h-10 w-10" />}
+          title="لا توجد طلبات واردة"
+          description="لم يصلك أي طلب خدمة بعد"
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((request) => {
+            const thumb = request.listing.images[0]
+              ? getThumbnailUrl(request.listing.images[0], 120, 90)
+              : PLACEHOLDER_SVG;
+
+            return (
+              <div key={request.id} className="flex flex-col gap-3 p-3 rounded-lg border bg-card sm:flex-row">
+                <div className="relative w-24 h-18 shrink-0 rounded overflow-hidden bg-muted">
+                  <SafeImage src={thumb} alt={request.listing.title} fill className="object-cover" sizes="96px" />
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      href={ROUTES.serviceDetail(request.listing.id)}
+                      className="font-medium text-sm hover:underline line-clamp-1"
+                    >
+                      {request.listing.title}
+                    </Link>
+                    <Badge variant={SERVICE_REQUEST_STATUS_VARIANT[request.status]} className="shrink-0 text-xs">
+                      {SERVICE_REQUEST_STATUS_LABELS[request.status]}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">من {request.customer.name}</p>
+                  <p className="text-sm line-clamp-2">{request.details}</p>
+                  <p className="text-xs text-muted-foreground">{<HydrationSafeRelativeTime date={request.createdAt} />}</p>
+                  {/* AUDIT-FIX (issue #6): details/attachedImages were
+                      clipped here with no way to see the full request —
+                      this links to the new detail page for both. */}
+                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline">
+                    عرض التفاصيل الكاملة
+                  </Link>
+                </div>
+                <div className="flex items-center sm:items-end">
+                  <div className="flex flex-wrap items-end gap-1.5">
+                    <RequestActions
+                      id={request.id}
+                      status={request.status}
+                      requiresCustomerApproval={request.listing.serviceType?.capabilities?.requestQuote === true}
+                      onBookAppointment={() =>
+                        setAppointmentTarget({
+                          providerId: request.listing.provider.id,
+                          requestId: request.id,
+                          title: request.listing.title,
+                        })
+                      }
+                    />
+                    {(['ACCEPTED','IN_PROGRESS','COMPLETED'] as const).includes(request.status as any) && (request.agreedPrice ?? request.quotedPrice) != null ? (
+                      <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-xl font-bold" onClick={() => setSalePrefill({ entityType:'SERVICE', entityId:request.listing.id, entityTitle:request.listing.title, entityImageUrl:request.listing.images?.[0] ?? null, unitPrice:Number(request.agreedPrice ?? request.quotedPrice), serviceRequestId:request.id, buyerName:request.customer.name })}>
+                        <WalletCards className="h-3.5 w-3.5" />تسجيل البيع
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <Pagination
+          totalPages={totalPages}
+          currentPage={page}
+          baseUrl={MY_SERVICES_HUB_PATH}
+          searchParams={Object.fromEntries(sp.entries())}
+        />
+      )}
+
+      <AddSaleDialog open={Boolean(salePrefill)} onOpenChange={(open) => { if (!open) setSalePrefill(null); }} prefill={salePrefill} />
+
+      {appointmentTarget && (
+        <CreateAppointmentDialog
+          open={appointmentTarget !== null}
+          onOpenChange={(open) => { if (!open) setAppointmentTarget(null); }}
+          providerId={appointmentTarget.providerId}
+          requestId={appointmentTarget.requestId}
+          contextLabel={appointmentTarget.title}
+        />
+      )}
+    </div>
+  );
+}

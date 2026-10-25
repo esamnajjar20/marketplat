@@ -49,10 +49,10 @@ tmp/
 
 # TypeScript
 *.tsbuildinfo
-frontend/playwright-report/
-frontend/test-results/
+apps/web/playwright-report/
+apps/web/test-results/
 
-backend/scripts/make-admin.ts
+apps/api/scripts/make-admin.ts
 frontend-full.txt
 .backup_*/
 
@@ -85,20 +85,23 @@ app-debug.apk
 *.bak3
 
 # Build outputs
-frontend/.open-next/
-frontend/.next/
-frontend/.wrangler/
+apps/web/.open-next/
+apps/web/.next/
+apps/web/.wrangler/
 workers/cf-api-proxy/.wrangler/
-frontend/.env
-frontend/.env.local
-frontend/.env.production
+apps/web/.env
+apps/web/.env.local
+apps/web/.env.production
 
 # Build outputs
-frontend/.open-next/
-frontend/.next/
-frontend/.wrangler/
+apps/web/.open-next/
+apps/web/.next/
+apps/web/.wrangler/
 workers/cf-api-proxy/.wrangler/
-frontend/.env
-frontend/.env.local
-frontend/.env.production
+apps/web/.env
+apps/web/.env.local
+apps/web/.env.production
 Modelfile.fast
+
+# Monorepo package-manager local store
+.pnpm-store/

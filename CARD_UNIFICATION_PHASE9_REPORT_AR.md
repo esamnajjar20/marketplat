@@ -4,14 +4,14 @@
 تقليل تجاوز النصوص الطويلة لحدود البطاقات، خصوصًا في العرض الأفقي وعلى الشاشات الصغيرة، دون تغيير البيانات أو سلوك التنقل أو التفضيل.
 
 ## الملفات المعدلة
-- `frontend/components/services/ServiceListingCard.tsx`
+- `apps/web/components/services/ServiceListingCard.tsx`
   - إضافة `min-w-0` لمنطقة البيانات الوصفية الأفقية.
   - منع اسم منطقة الخدمة الطويل من دفع البطاقة خارج عرضها، مع إبقاء الاسم الكامل في `title`.
   - السماح لسعر الخدمة بالالتفاف عند الحاجة وإظهار الأرقام باستخدام `tabular-nums`.
-- `frontend/components/stores/StoreCard.tsx`
+- `apps/web/components/stores/StoreCard.tsx`
   - تقييد عرض اسم المدينة الطويل في صف المعلومات، مع الحفاظ على الاسم الكامل عبر `title`.
 
 ## التحقق
 - تمت مراجعة التعديلات النصية بعد تطبيقها.
-- لم تُشغّل اختبارات TypeScript أو ESLint أو Vitest أو بناء Next.js؛ مجلد `frontend/node_modules` غير موجود في بيئة العمل الحالية.
+- لم تُشغّل اختبارات TypeScript أو ESLint أو Vitest أو بناء Next.js؛ مجلد `apps/web/node_modules` غير موجود في بيئة العمل الحالية.
 - لا يُعد هذا التقرير إثباتًا لاختبار بصري فعلي على الهاتف أو الكمبيوتر.

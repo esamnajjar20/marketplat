@@ -4,21 +4,21 @@
 
 ## ما تم تعديله
 
-1. **اختبار تكامل الأوفلاين `frontend/e2e/tests/offline-phase8.integration.spec.ts`**
+1. **اختبار تكامل الأوفلاين `apps/web/e2e/tests/offline-phase8.integration.spec.ts`**
    - أصبح ينتظر تسجيل Service Worker وسيطرته على الصفحة قبل فصل الشبكة.
    - أعيدت الشبكة داخل `finally` حتى لا يبقى سياق الاختبار Offline إذا فشل assertion.
    - اختبار فشل API أصبح يثبت اعتراض الطلبات عبر `page.route('**/api/**')` قبل الانتقال إلى `/products`، ثم يتحقق من ظهور حالة الخطأ.
    - صححنا اسم عنوان مركز الأوفلاين في الاختبار إلى النص الموجود فعليًا في `OfflineHub`: `جاهزية التطبيق بدون نت`.
 
 2. **إصلاح فحوص التدقيق الثابتة**
-   - `frontend/scripts/loading-system-audit.mjs`: أصبح فحص زر حفظ البحث يقبل ترتيب خصائص JSX الفعلي، مع بقاء التحقق من `loading` و`loadingText`.
-   - `frontend/scripts/hydration-regression-audit.mjs`: تم تحديث نمط الفحص ليتوافق مع `className` المكتوب كقالب JSX، ومع مكوّن Next.js `Script` المستخدم فعليًا.
-   - `frontend/scripts/route-navigation-loading-audit.mjs`: تم ربط فحص إعادة توجيه الإدارة بالملف المسؤول فعليًا `components/admin/AdminLayoutClient.tsx`، وتحديث فحوص تغيّر المسار/المؤقتات وفق تطبيق `NavigationProgress` الحالي.
+   - `apps/web/scripts/loading-system-audit.mjs`: أصبح فحص زر حفظ البحث يقبل ترتيب خصائص JSX الفعلي، مع بقاء التحقق من `loading` و`loadingText`.
+   - `apps/web/scripts/hydration-regression-audit.mjs`: تم تحديث نمط الفحص ليتوافق مع `className` المكتوب كقالب JSX، ومع مكوّن Next.js `Script` المستخدم فعليًا.
+   - `apps/web/scripts/route-navigation-loading-audit.mjs`: تم ربط فحص إعادة توجيه الإدارة بالملف المسؤول فعليًا `components/admin/AdminLayoutClient.tsx`، وتحديث فحوص تغيّر المسار/المؤقتات وفق تطبيق `NavigationProgress` الحالي.
 
 3. **أوامر npm التي كانت تشير إلى ملفات تدقيق غير موجودة**
-   - أزلنا 36 مدخلًا من `frontend/package.json` كانت تشير مباشرة إلى ملفات `scripts/*` غير موجودة في الحزمة.
+   - أزلنا 36 مدخلًا من `apps/web/package.json` كانت تشير مباشرة إلى ملفات `scripts/*` غير موجودة في الحزمة.
    - لم نحذف تقارير المراحل أو ملفات المصدر؛ أزلنا فقط أوامر تشغيل معطوبة حتى لا توحي بأنها اختبارات قابلة للتشغيل.
-   - أضفنا `npm run audit:script-references` مع `frontend/scripts/package-script-reference-audit.mjs` للتحقق من وجود ملفات الأوامر وصحة مراجع `npm run` الداخلية.
+   - أضفنا `npm run audit:script-references` مع `apps/web/scripts/package-script-reference-audit.mjs` للتحقق من وجود ملفات الأوامر وصحة مراجع `npm run` الداخلية.
 
 ## نتائج التحقق التي أُعيد تشغيلها
 

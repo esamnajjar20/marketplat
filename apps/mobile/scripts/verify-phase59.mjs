@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const store = readFileSync(new URL('../src/storage/ad-draft-store.ts', import.meta.url), 'utf8');
+const editor = readFileSync(new URL('../app/ad-editor.tsx', import.meta.url), 'utf8');
+const images = readFileSync(new URL('../src/storage/ad-draft-store.ts', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(store, /CREATE TABLE IF NOT EXISTS ad_edit_drafts/);
+assert.match(store, /PRIMARY KEY\(owner_id, resource_id\)/);
+assert.match(store, /export async function saveAdEditDraft/);
+assert.match(store, /export async function loadAdEditDraft/);
+assert.match(store, /export async function clearAdEditDraft/);
+assert.match(editor, /await saveAdEditDraft\(String\(user\.id\), String\(id\), draft\)/, 'Offline edits must be durably saved per owner and ad');
+assert.match(editor, /savedEdit\?\.draft \?\? baseDraft/, 'Saved edit draft must restore over server detail');
+assert.match(editor, /images: draft\.images\.map/, 'Image-bearing edits must retain persisted images for replay');
+assert.match(editor, /await clearAdEditDraft\(String\(user\.id\), String\(id\)\)/, 'Successful online edit clears its local edit draft');
+assert.match(images, /SELECT draft_json FROM ad_drafts UNION ALL SELECT draft_json FROM ad_edit_drafts/, 'Image cleanup must preserve edit-draft images');
+assert.match(pkg.scripts.test, /verify-phase59\.mjs/, 'Phase 59 verifier must be in test chain');
+console.log('Phase 59 checks passed: durable per-ad edit drafts, restore, honest offline status, and image-reference protection.');

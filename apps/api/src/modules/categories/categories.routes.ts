@@ -1,0 +1,48 @@
+import { Router } from 'express';
+import { categoriesController } from './categories.controller';
+import { authenticate } from '../../middlewares/auth.middleware';
+import { CACHE } from '../../middlewares/cacheControl.middleware';
+import { requireAdmin } from '../../middlewares/admin.middleware';
+import {
+  categoryMutationRateLimit,
+  categoryDeleteRateLimit,
+} from '../../middlewares/rateLimit.middleware';
+
+export const categoriesRouter = Router();
+
+categoriesRouter.get('/', CACHE.STATIC, categoriesController.getCategories); // 1h — rarely changes
+categoriesRouter.get('/slug/:slug', CACHE.STATIC, categoriesController.getCategoryBySlug);
+// registered before /:id so "admin" is
+// never swallowed as an :id param — same convention as
+// service-categories.routes.ts and product-categories.routes.ts.
+// CACHE.NONE since this always needs the live, uncached state (see
+// service's getCategoriesForAdmin comment for the full rationale).
+categoriesRouter.get(
+  '/admin/all',
+  authenticate,
+  requireAdmin,
+  CACHE.NONE,
+  categoriesController.getCategoriesForAdmin
+);
+categoriesRouter.get('/:id', CACHE.STATIC, categoriesController.getCategoryById);
+categoriesRouter.post(
+  '/',
+  authenticate,
+  requireAdmin,
+  categoryMutationRateLimit,
+  categoriesController.createCategory
+);
+categoriesRouter.patch(
+  '/:id',
+  authenticate,
+  requireAdmin,
+  categoryMutationRateLimit,
+  categoriesController.updateCategory
+);
+categoriesRouter.delete(
+  '/:id',
+  authenticate,
+  requireAdmin,
+  categoryDeleteRateLimit,
+  categoriesController.deleteCategory
+);

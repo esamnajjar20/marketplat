@@ -1,13 +1,13 @@
 # Source locations containing `as any` or ts suppression directives
-frontend/components/stores/StoreHeader.tsx:106:          <button type="button" onClick={() => safeBack(router as any)} aria-label="رجوع" className={CIRCLE_BTN}>
-frontend/components/profile/PublicProfileHeader.tsx:69:          <button type="button" onClick={() => safeBack(router as any)} aria-label="رجوع" className={CIRCLE_BTN}>
-frontend/components/services/IncomingServiceRequestsList.tsx:278:                    {(['ACCEPTED','IN_PROGRESS','COMPLETED'] as const).includes(request.status as any) && (request.agreedPrice ?? request.quotedPrice) != null ? (
-frontend/open-next.config.ts:1:// The eslint rule @typescript-eslint/ban-ts-comment prefers @ts-expect-error
-frontend/open-next.config.ts:2:// over @ts-ignore because the latter silently swallows ALL errors on the
-frontend/open-next.config.ts:3:// following line. Here we specifically cannot use @ts-expect-error: this
-frontend/open-next.config.ts:5:// package is not installed, so the import errors and @ts-expect-error
-frontend/open-next.config.ts:7:// import is clean and @ts-expect-error would itself fail with "unused
-frontend/open-next.config.ts:11:// @ts-ignore - Package installed on Cloudflare but not locally (Termux ARM64)
-frontend/hooks/useOwnedListPage.ts:44: * each component, same as any other hook — no hook is ever called
-frontend/app/(public)/service-providers/[id]/page.tsx:30:    const data = res.data.data as any;
-frontend/components/sales/ReturnSaleDialog.tsx:8: const items=sale.items?.length?sale.items:[{id:'legacy',title:sale.entityTitle,quantity:sale.quantity,returnedQuantity:(sale.returns??[]).reduce((s,r)=>s+Number(r.quantity),0),unitPrice:sale.unitPrice} as any];
+apps/web/components/stores/StoreHeader.tsx:106:          <button type="button" onClick={() => safeBack(router as any)} aria-label="رجوع" className={CIRCLE_BTN}>
+apps/web/components/profile/PublicProfileHeader.tsx:69:          <button type="button" onClick={() => safeBack(router as any)} aria-label="رجوع" className={CIRCLE_BTN}>
+apps/web/components/services/IncomingServiceRequestsList.tsx:278:                    {(['ACCEPTED','IN_PROGRESS','COMPLETED'] as const).includes(request.status as any) && (request.agreedPrice ?? request.quotedPrice) != null ? (
+apps/web/open-next.config.ts:1:// The eslint rule @typescript-eslint/ban-ts-comment prefers @ts-expect-error
+apps/web/open-next.config.ts:2:// over @ts-ignore because the latter silently swallows ALL errors on the
+apps/web/open-next.config.ts:3:// following line. Here we specifically cannot use @ts-expect-error: this
+apps/web/open-next.config.ts:5:// package is not installed, so the import errors and @ts-expect-error
+apps/web/open-next.config.ts:7:// import is clean and @ts-expect-error would itself fail with "unused
+apps/web/open-next.config.ts:11:// @ts-ignore - Package installed on Cloudflare but not locally (Termux ARM64)
+apps/web/hooks/useOwnedListPage.ts:44: * each component, same as any other hook — no hook is ever called
+apps/web/app/(public)/service-providers/[id]/page.tsx:30:    const data = res.data.data as any;
+apps/web/components/sales/ReturnSaleDialog.tsx:8: const items=sale.items?.length?sale.items:[{id:'legacy',title:sale.entityTitle,quantity:sale.quantity,returnedQuantity:(sale.returns??[]).reduce((s,r)=>s+Number(r.quantity),0),unitPrice:sale.unitPrice} as any];

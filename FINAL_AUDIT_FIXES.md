@@ -3,10 +3,10 @@
 Applied on top of Cache W1-W12.
 
 ## Fixed
-- Removed unused `SW_CACHE_VERSION` import from `frontend/lib/offlineStoragePressure.ts`.
+- Removed unused `SW_CACHE_VERSION` import from `apps/web/lib/offlineStoragePressure.ts`.
 - Added `cacheWarmupTasksTotal` and `cacheWarmupTaskDurationSeconds` to the shared Prometheus registry.
-- Wired cache-warmup task outcome/duration telemetry in `backend/src/shared/utils/cacheWarmup.ts` using monotonic timing.
-- Fixed `cache-performance-audit.mjs` and `cache-final-audit.mjs` so npm execution from `frontend/` resolves repository-root paths correctly.
+- Wired cache-warmup task outcome/duration telemetry in `apps/api/src/shared/utils/cacheWarmup.ts` using monotonic timing.
+- Fixed `cache-performance-audit.mjs` and `cache-final-audit.mjs` so npm execution from `apps/web/` resolves repository-root paths correctly.
 - Extended the final audit to catch dead storage-pressure imports and missing/unwired warmup telemetry.
 
 ## Validation

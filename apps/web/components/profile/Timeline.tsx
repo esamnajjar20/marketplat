@@ -1,0 +1,287 @@
+'use client';
+import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import {
+  Megaphone,
+  ShoppingBag,
+  Wrench,
+  Store,
+  MessageSquare,
+  ClipboardList,
+  CalendarCheck,
+  User,
+  History,
+  Search,
+} from 'lucide-react';
+import { Input } from '@/components/shared/ui/Input';
+import { Button } from '@/components/shared/ui/Button';
+import { Badge } from '@/components/shared/ui/Badge';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { cn } from '@/lib/utils';
+import { useMyActivity } from '@/hooks/queries/useActivity';
+import { ROUTES } from '@/lib/constants';
+import type { ActivityGroup, UserActivity } from '@/types/activity.types';
+
+/** Matches activity.validation.ts's ACTIVITY_GROUPS exactly — same 8
+ * tabs (الكل/الإعلانات/المنتجات/الخدمات/المتاجر/الرسائل/الطلبات/الحساب),
+ * same button-group pattern as SearchTabs.tsx (no shadcn Tabs
+ * primitive is installed in this project). */
+const GROUP_TABS: { value: ActivityGroup; label: string }[] = [
+  { value: 'ALL', label: 'الكل' },
+  { value: 'ADS', label: 'الإعلانات' },
+  { value: 'PRODUCTS', label: 'المنتجات' },
+  { value: 'SERVICES', label: 'الخدمات' },
+  { value: 'STORES', label: 'المتاجر' },
+  { value: 'MESSAGES', label: 'الرسائل' },
+  { value: 'REQUESTS', label: 'الطلبات' },
+  { value: 'ACCOUNT', label: 'الحساب' },
+];
+
+/** One icon per activity type's underlying domain — mirrors the
+ * grouping activity.service.ts's GROUP_TYPES uses server-side, so an
+ * ad-related row (created/updated/deleted) always shows the same
+ * Megaphone icon regardless of which of the three it is. */
+function iconFor(type: UserActivity['type']) {
+  if (type.startsWith('AD_')) return Megaphone;
+  if (type.startsWith('PRODUCT_')) return ShoppingBag;
+  if (type.startsWith('SERVICE_') && !type.startsWith('SERVICE_REQUEST')) return Wrench;
+  if (type.startsWith('STORE_') || type.startsWith('FAVORITE_')) return Store;
+  if (type === 'MESSAGE_SENT') return MessageSquare;
+  if (type.startsWith('SERVICE_REQUEST_')) return ClipboardList;
+  if (type.startsWith('APPOINTMENT_')) return CalendarCheck;
+  return User; // PROFILE_UPDATED / PASSWORD_CHANGED
+}
+
+/** The one place a row's entityId is turned into a link — kept in
+ * sync with activity.'s entityType tags. Returns null for
+ * types with no link (account-related rows, or a MESSAGE_SENT row
+ * whose conversation may have since been deleted). */
+function linkFor(activity: UserActivity): string | null {
+  if (!activity.entityId) return null;
+  switch (activity.entityType) {
+    case 'AD':
+      return ROUTES.adDetail(activity.entityId);
+    case 'STORE':
+      return ROUTES.storeDetail(activity.entityId);
+    case 'CONVERSATION':
+      return ROUTES.conversationDetail(activity.entityId);
+    case 'SERVICE_REQUEST':
+      return ROUTES.serviceRequestDetail(activity.entityId);
+    // PRODUCT / SERVICE_LISTING / APPOINTMENT: no single-item public
+    // route exists for these in ROUTES yet, so no link is rendered —
+    // same "link only when a real destination exists" restraint
+    // SavedSearchesList.tsx applies to its own "عرض النتائج" link.
+    default:
+      return null;
+  }
+}
+
+/** BUG FIX: sending several messages in the same conversation back to
+ * back (e.g. "محمد بعت رسالة" repeated) used to render one identical
+ * row per message — same icon, same title, same recipient — instead
+ * of a single collapsed row. The backend intentionally keeps one
+ * UserActivity row per message sent (that's the correct source of
+ * truth), so the merge happens here at render time: consecutive
+ * MESSAGE_SENT rows pointing at the same conversation (entityId) are
+ * folded into one GroupedActivity with a count, same idea as chat
+ * apps collapsing repeated system messages. Only *consecutive* rows
+ * merge — if another activity type happened in between, the streak
+ * breaks and a new group starts, so the feed's chronological order
+ * never gets reshuffled.
+ */
+type GroupedActivity = UserActivity & { count: number };
+
+function groupConsecutiveMessages(items: UserActivity[]): GroupedActivity[] {
+  const grouped: GroupedActivity[] = [];
+  for (const activity of items) {
+    const prev = grouped[grouped.length - 1];
+    const canMerge =
+      prev &&
+      activity.type === 'MESSAGE_SENT' &&
+      prev.type === 'MESSAGE_SENT' &&
+      activity.entityId != null &&
+      activity.entityId === prev.entityId;
+    if (canMerge) {
+      prev.count += 1;
+      // Keep the most recent timestamp of the group (items arrive
+      // newest-first from the API) so "قبل 3 دقائق" reflects the
+      // latest message, not the oldest one in the streak.
+    } else {
+      grouped.push({ ...activity, count: 1 });
+    }
+  }
+  return grouped;
+}
+
+function ActivityRow({ activity }: { activity: GroupedActivity }) {
+  const Icon = iconFor(activity.type);
+  const href = linkFor(activity);
+  const statusChange =
+    activity.type === 'SERVICE_REQUEST_STATUS_CHANGED' && activity.metadata?.toStatus;
+
+  const content = (
+    <div className="flex items-start gap-3 rounded-[14px] border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#E8F1EC] text-primary">
+        <Icon className="h-4 w-4" strokeWidth={1.8} />
+      </div>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[14px] font-extrabold text-foreground">{activity.title}</p>
+          {activity.count > 1 ? (
+            <Badge variant="secondary" className="shrink-0 font-normal">
+              ×{activity.count}
+            </Badge>
+          ) : (
+            statusChange && (
+              <Badge variant="secondary" className="shrink-0 font-normal">
+                {statusChange}
+              </Badge>
+            )
+          )}
+        </div>
+        {activity.description && (
+          <p className="text-sm text-muted-foreground truncate">{activity.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground">{<HydrationSafeRelativeTime date={activity.createdAt} />}</p>
+      </div>
+    </div>
+  );
+
+  if (!href) return content;
+
+  return (
+    <Link href={href} className="block transition-opacity hover:opacity-80">
+      {content}
+    </Link>
+  );
+}
+
+export function Timeline() {
+  const [group, setGroup] = useState<ActivityGroup>('ALL');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isError, refetch, isFetching } = useMyActivity({
+    group,
+    q: q.trim() || undefined,
+    page,
+  });
+
+  function handleGroupChange(next: ActivityGroup) {
+    setGroup(next);
+    setPage(1);
+  }
+
+  function handleSearchChange(next: string) {
+    setQ(next);
+    setPage(1);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div
+        role="tablist"
+        aria-label="تصفية النشاط"
+        className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
+      >
+        {GROUP_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={group === tab.value}
+            onClick={() => handleGroupChange(tab.value)}
+            className={cn(
+              'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-bold transition-colors',
+              group === tab.value
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-[#EAE3D6] bg-card text-[#4A433A] hover:bg-muted/50'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative">
+        {/* RTL-01 FIX: start-3/ps-9 (logical) instead of right-3/pr-9
+            (physical), matching SearchInput/StoresFilters/PriceInput etc. */}
+        <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder="ابحث في نشاطك..."
+          className="h-10 rounded-[10px] border-[#D9D1C3] ps-9 text-[13px]"
+          aria-label="بحث في النشاط"
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <LoadingSpinner />
+        </div>
+      ) : isError ? (
+        <div className="rounded-[14px] border border-[#F1C9C4] bg-card px-4 py-4 text-center">
+          <p className="text-[14px] font-bold text-[#9B2118]">حدث خطأ أثناء تحميل نشاطك</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="text-sm text-primary hover:underline"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      ) : (data?.items.length ?? 0) === 0 ? (
+        <EmptyState
+          icon={<History className="h-10 w-10" />}
+          title="لا يوجد نشاط بعد"
+          description={
+            q.trim()
+              ? 'لم يتم العثور على نشاط مطابق لبحثك'
+              : 'ستظهر هنا كل الأنشطة المرتبطة بحسابك — الإعلانات، الرسائل، الطلبات وغيرها'
+          }
+        />
+      ) : (
+        <>
+          <div className="space-y-3">
+            {groupConsecutiveMessages(data!.items).map((activity) => (
+              <ActivityRow key={activity.id} activity={activity} />
+            ))}
+          </div>
+
+          {data!.meta.totalPages > 1 && (
+            <nav
+              className="flex items-center justify-center gap-2 py-4"
+              aria-label="Pagination"
+            >
+              {page <= 1 ? (
+                <Button variant="outline" size="sm" disabled aria-disabled="true" className="pointer-events-none opacity-50">
+                  السابق
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={isFetching}>
+                  السابق
+                </Button>
+              )}
+              <span className="text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
+                {page} / {data!.meta.totalPages}
+              </span>
+              {page >= data!.meta.totalPages ? (
+                <Button variant="outline" size="sm" disabled aria-disabled="true" className="pointer-events-none opacity-50">
+                  التالي
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={isFetching}>
+                  التالي
+                </Button>
+              )}
+            </nav>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

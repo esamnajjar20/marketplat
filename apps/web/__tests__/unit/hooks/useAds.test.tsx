@@ -1,0 +1,210 @@
+/**
+ * Coverage targets:
+ *
+ *  useAds / useMyAds / useUserAds:
+ *   - call the right API method with the right params
+ *   - useMyAds calls /ads/me (regression guard for the historical
+ *     /ads/my typo, FIX C-06 — already covered at the API layer in
+ *     thin-wrappers.test.ts, repeated here at the hook layer since
+ *     that's the layer components actually consume)
+ *
+ *  useSearchAds:
+ *   - REGRESSION (FIX API-INT-06): does not crash and is simply
+ *     disabled when q is undefined, rather than calling
+ *     undefined.trim() — this was a real crash before the fix
+ *   - disabled when q is shorter than 2 characters (after trimming)
+ *   - enabled once q reaches 2+ trimmed characters
+ *
+ *  useAd / useRelatedAds / useUserAds:
+ *   - disabled (no request fired) when the id/userId is empty
+ *   - enabled once a real id is provided
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
+import { useAds, useSearchAds, useAd, useRelatedAds, useMyAds, useMyAdStats, useUserAds } from '@/hooks/queries/useAds';
+import { adsApi } from '@/api/ads.api';
+import { usersApi } from '@/api/users.api';
+import { useAuthStore } from '@/store/auth.store';
+
+vi.mock('@/api/ads.api', () => ({
+  adsApi: { getAll: vi.fn(), searchAds: vi.fn(), getById: vi.fn(), getRelated: vi.fn(), getMyAds: vi.fn(), getMyStats: vi.fn() },
+}));
+
+vi.mock('@/api/users.api', () => ({
+  usersApi: { getUserAds: vi.fn() },
+}));
+
+const saveOfflineList = vi.fn();
+const getOfflineList = vi.fn(() => null);
+vi.mock('@/lib/offlineListCache', () => ({
+  getOfflineList: (...args: unknown[]) => getOfflineList(...args),
+  saveOfflineList: (...args: unknown[]) => saveOfflineList(...args),
+  OFFLINE_LIST_KEYS: { adsBrowse: 'adsBrowse' },
+  OFFLINE_LIST_LIMITS: { adsBrowse: 60 },
+}));
+
+function createWrapper() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  getOfflineList.mockReturnValue(null);
+  (adsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
+  (adsApi.searchAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
+  (adsApi.getById as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 'ad-1' } } });
+  // FIX API-SHAPE-02: getRelated's backend endpoint is NOT paginated —
+  // `data` is a bare array, unlike getAll/searchAds/getMyAds below
+  // which go through unwrapPaginated and resolve to { items, meta }.
+  (adsApi.getRelated as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: [] } });
+  (adsApi.getMyAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
+  (adsApi.getMyStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+    data: { data: { activeAds: 0, soldAds: 0, totalViews: 0, favoritesCount: 0 } },
+  });
+  (usersApi.getUserAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
+});
+
+describe('useAds', () => {
+  it('calls adsApi.getAll with the given params', async () => {
+    const { result } = renderHook(() => useAds({ page: 2, city: 'غزة' }), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(adsApi.getAll).toHaveBeenCalledWith({ page: 2, city: 'غزة' }, expect.anything());
+  });
+
+  // FIX PERF-04: SearchResults.tsx calls both useAds and useSearchAds
+  // unconditionally (Hooks can't be conditional) and picks the right
+  // result based on isSearch — without this opt-out, useAds fired a
+  // fully wasted GET /ads on every real search alongside GET /ads/search.
+  it('does not call adsApi.getAll when enabled: false is passed', async () => {
+    renderHook(() => useAds({ page: 1 }, { enabled: false }), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(adsApi.getAll).not.toHaveBeenCalled();
+  });
+
+  it('still calls adsApi.getAll by default when no options are passed (backward compatible)', async () => {
+    const { result } = renderHook(() => useAds({ page: 1 }), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(adsApi.getAll).toHaveBeenCalledWith({ page: 1 }, expect.anything());
+  });
+
+  // FIX ADS-OFFLINE-SORT-01
+  it('writes unfiltered page-1 default sort into adsBrowse offline slot', async () => {
+    (adsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { items: [{ id: '1' }], meta: {} } },
+    });
+    const { result } = renderHook(() => useAds({ page: 1 }), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(saveOfflineList).toHaveBeenCalled();
+  });
+
+  it('does NOT write price-sorted page-1 into adsBrowse offline slot', async () => {
+    (adsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { items: [{ id: '1' }], meta: {} } },
+    });
+    const { result } = renderHook(
+      () => useAds({ page: 1, sortBy: 'price', sortOrder: 'asc' }),
+      { wrapper: createWrapper() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(saveOfflineList).not.toHaveBeenCalled();
+  });
+});
+
+describe('useSearchAds', () => {
+  it('REGRESSION (FIX API-INT-06): does not throw and stays disabled when q is undefined', () => {
+    expect(() =>
+      renderHook(() => useSearchAds({} as any), { wrapper: createWrapper() }),
+    ).not.toThrow();
+    expect(adsApi.searchAds).not.toHaveBeenCalled();
+  });
+
+  it('stays disabled for a query shorter than 2 trimmed characters', async () => {
+    renderHook(() => useSearchAds({ q: ' a ' }), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(adsApi.searchAds).not.toHaveBeenCalled();
+  });
+
+  it('stays disabled for an empty/whitespace-only query', async () => {
+    renderHook(() => useSearchAds({ q: '   ' }), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(adsApi.searchAds).not.toHaveBeenCalled();
+  });
+
+  it('fires the search once the trimmed query reaches 2+ characters', async () => {
+    const { result } = renderHook(() => useSearchAds({ q: 'phone' }), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(adsApi.searchAds).toHaveBeenCalledWith({ q: 'phone' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+});
+
+describe('useAd', () => {
+  it('does not call adsApi.getById when id is empty', async () => {
+    renderHook(() => useAd(''), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(adsApi.getById).not.toHaveBeenCalled();
+  });
+
+  it('calls adsApi.getById once a real id is provided', async () => {
+    const { result } = renderHook(() => useAd('ad-1'), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(adsApi.getById).toHaveBeenCalledWith('ad-1', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+});
+
+describe('useRelatedAds', () => {
+  it('does not call adsApi.getRelated when id is empty', async () => {
+    renderHook(() => useRelatedAds(''), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(adsApi.getRelated).not.toHaveBeenCalled();
+  });
+
+  it('returns an empty array (not undefined) when the response has no items', async () => {
+    (adsApi.getRelated as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: undefined } });
+    const { result } = renderHook(() => useRelatedAds('ad-1'), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([]);
+  });
+});
+
+describe('useMyAds', () => {
+  it('calls adsApi.getMyAds (the /ads/me endpoint, not /ads/my)', async () => {
+    const { result } = renderHook(() => useMyAds({ page: 1, status: 'ACTIVE' as any }), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(adsApi.getMyAds).toHaveBeenCalledWith({ page: 1, status: 'ACTIVE' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+});
+
+describe('useMyAdStats', () => {
+  it('calls adsApi.getMyStats and resolves with the aggregate response', async () => {
+    useAuthStore.getState().setAuth(
+      { id: 'u1', name: 'Test User', email: 'test@example.com', role: 'USER' },
+      { accessToken: 'test-token' },
+    );
+    (adsApi.getMyStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 } },
+    });
+    const { result } = renderHook(() => useMyAdStats(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(adsApi.getMyStats).toHaveBeenCalled();
+    expect(result.current.data).toEqual({ activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 });
+  });
+});
+
+describe('useUserAds', () => {
+  it('does not call usersApi.getUserAds when userId is empty', async () => {
+    renderHook(() => useUserAds(''), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(usersApi.getUserAds).not.toHaveBeenCalled();
+  });
+
+  it('calls usersApi.getUserAds once a real userId is provided', async () => {
+    const { result } = renderHook(() => useUserAds('user-1', { page: 1 }), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(usersApi.getUserAds).toHaveBeenCalledWith('user-1', { page: 1 }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+});

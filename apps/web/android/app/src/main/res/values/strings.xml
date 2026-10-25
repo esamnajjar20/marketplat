@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MarketPlat</string>
+    <string name="title_activity_main">MarketPlat</string>
+    <string name="package_name">com.marketplat.app</string>
+    <string name="custom_url_scheme">com.marketplat.app</string>
+    <string name="shortcut_search_short">بحث</string>
+    <string name="shortcut_search_long">البحث في السوق</string>
+    <string name="shortcut_create_short">نشر</string>
+    <string name="shortcut_create_long">نشر إعلان جديد</string>
+    <string name="shortcut_messages_short">رسائل</string>
+    <string name="shortcut_messages_long">المحادثات</string>
+</resources>

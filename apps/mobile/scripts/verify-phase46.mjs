@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const store = await readFile(new URL('../src/storage/ad-draft-store.ts', import.meta.url), 'utf8');
+const cleanup = await readFile(new URL('../src/storage/persist-ad-image.ts', import.meta.url), 'utf8');
+const editor = await readFile(new URL('../app/ad-editor.tsx', import.meta.url), 'utf8');
+const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(store, /saveAdDraft\(ownerId: string, draft: AdDraft\): Promise<string\[\]>/);
+assert.match(store, /SELECT draft_json FROM ad_drafts WHERE owner_id = \?/);
+assert.match(store, /return \[\.\.\.new Set\(previousUris\)\]\.filter\(\(uri\) => !currentUris\.has\(uri\)\)/);
+assert.match(editor, /draftOwnerReady !== ownerId/);
+assert.match(editor, /setDraft\(saved\?\.draft \?\? emptyDraft\)/);
+assert.match(editor, /for \(const uri of removedUris\)/);
+assert.match(editor, /setDraftCompleted\(true\);\s*try \{ await clearAdDraft/);
+assert.doesNotMatch(editor, /setDraft\(\(current\) => \(\{ \.\.\.current, images: current\.images\.filter\(\(_, imageIndex\) => imageIndex !== index\) \}\)\); void removePersistedAdImageIfUnused/);
+assert.match(cleanup, /isAdImageReferencedByDraft\(uri\)/);
+assert.ok(pkg.scripts.test.includes('verify-phase46.mjs'));
+console.log('Phase 46 draft-owner isolation, stale-image cleanup, and submit-success contracts passed (static only).');

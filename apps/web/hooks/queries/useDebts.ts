@@ -1,0 +1,20 @@
+'use client';
+import { useQuery } from '@tanstack/react-query';
+import { salesApi } from '@/api/sales.api';
+import { queryKeys } from '@/lib/queryKeys';
+import { useAuthStore, selectIsAuthenticated, selectHasAccessToken, selectIsAuthResolving } from '@/store/auth.store';
+
+/** Private sales data must not be requested before the server-verified session is ready. */
+export function useDebts(options?: { enabled?: boolean; page?: number; limit?: number }) {
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 20;
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasAccessToken = useAuthStore(selectHasAccessToken);
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+
+  return useQuery({
+    queryKey: queryKeys.sales.debts(page, limit),
+    queryFn: ({ signal }) => salesApi.debts({ page, limit }, { signal }).then((r) => r.data.data),
+    enabled: (options?.enabled ?? true) && isAuthenticated && hasAccessToken && !isAuthResolving,
+  });
+}

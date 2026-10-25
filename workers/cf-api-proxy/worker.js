@@ -158,7 +158,7 @@ function makeCacheKey(input) {
 
 /* ───────────────────────── cache tags (#8) ───────────────────────── */
 
-// MUST stay identical to backend/src/shared/cache/edgePurge.ts (see parity tests).
+// MUST stay identical to apps/api/src/shared/cache/edgePurge.ts (see parity tests).
 function cityTagValue(city) {
   return encodeURIComponent(
     String(city).normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase().replace(/ /g, '-'),

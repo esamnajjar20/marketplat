@@ -9,11 +9,11 @@
 
 ## الملفات المعدلة
 
-- `frontend/components/shared/skeletons/ProductCardSkeleton.tsx`
-- `frontend/components/shared/skeletons/AdCardSkeleton.tsx`
-- `frontend/components/shared/skeletons/AdListItemSkeleton.tsx`
-- `frontend/components/shared/skeletons/ServiceListingCardSkeleton.tsx`
-- `frontend/components/shared/skeletons/StoreCardSkeleton.tsx`
+- `apps/web/components/shared/skeletons/ProductCardSkeleton.tsx`
+- `apps/web/components/shared/skeletons/AdCardSkeleton.tsx`
+- `apps/web/components/shared/skeletons/AdListItemSkeleton.tsx`
+- `apps/web/components/shared/skeletons/ServiceListingCardSkeleton.tsx`
+- `apps/web/components/shared/skeletons/StoreCardSkeleton.tsx`
 
 ## التحقق
 

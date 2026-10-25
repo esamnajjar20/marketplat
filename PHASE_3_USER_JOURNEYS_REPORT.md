@@ -4,11 +4,11 @@
 This increment improves shared page-shell behavior without restructuring page routes or business logic.
 
 ## Changes
-- `frontend/components/shared/account/AccountPageShell.tsx`: account-page action controls can wrap onto a full-width row on narrow screens instead of being forced into a non-shrinking header row.
-- `frontend/components/shared/legal/LegalPageShell.tsx`: legal/about navigation links now have a 44px minimum target, visible keyboard focus, and reduced-motion handling.
-- `frontend/components/shared/list/ListPageShell.tsx`: links and buttons placed in the shared browse toolbar receive a 44px minimum height and touch-manipulation hint.
-- `frontend/scripts/user-journey-shell-audit.mjs`: adds six static contract checks for these behaviors.
-- `frontend/package.json`: registers `npm run ux:user-journey-shell-audit`.
+- `apps/web/components/shared/account/AccountPageShell.tsx`: account-page action controls can wrap onto a full-width row on narrow screens instead of being forced into a non-shrinking header row.
+- `apps/web/components/shared/legal/LegalPageShell.tsx`: legal/about navigation links now have a 44px minimum target, visible keyboard focus, and reduced-motion handling.
+- `apps/web/components/shared/list/ListPageShell.tsx`: links and buttons placed in the shared browse toolbar receive a 44px minimum height and touch-manipulation hint.
+- `apps/web/scripts/user-journey-shell-audit.mjs`: adds six static contract checks for these behaviors.
+- `apps/web/package.json`: registers `npm run ux:user-journey-shell-audit`.
 
 ## Validation performed
 - `node scripts/user-journey-shell-audit.mjs`: 6/6 passed.

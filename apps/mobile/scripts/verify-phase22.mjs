@@ -1,0 +1,15 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const source = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(source, /JSON\.stringify\(input\.payload\)/, 'payload is serialized as JSON');
+assert.match(source, /JSON-serializable/, 'non-serializable payloads are rejected');
+assert.match(source, /MAX_PAYLOAD_CHARS/, 'payload size remains bounded');
+assert.match(source, /containsCredentialField\(input\.payload\)/, 'credential fields are checked in payload objects');
+assert.match(source, /Object\.entries\(value as Record<string, unknown>\)/, 'credential detection examines keys rather than arbitrary text values');
+assert.match(source, /client\[_-\]\?secret|api\[_-\]\?key/i, 'additional credential key variants are rejected');
+assert.match(source, /DELETE FROM mutation_outbox WHERE id = \? AND state = 'processing'/, 'acknowledgement only removes a worker-owned processing row');
+assert.match(source, /result\.changes === 1/, 'acknowledgement reports whether a row was actually removed');
+assert.match(source, /idempotencyKey: string/, 'idempotency key is required in the outbox contract');
+assert.match(pkg.scripts.test, /verify-phase22\.mjs/, 'phase 22 check is part of mobile test command');
+console.log('Phase 22 outbox safety contract checks passed (static source checks only; no SQLite/device/server test performed).');

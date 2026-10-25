@@ -3,7 +3,7 @@
 ## الحالة
 
 - **تم تنفيذ جولة الإصلاح الأولى** على ملفات المرحلة الأولى الـ19.
-- **لم يتم اعتماد المرحلة نهائيًا بعد** لأن تشغيل Vitest غير متاح في بيئة العمل الحالية: `vitest: not found`، ومجلد `frontend/node_modules` غير موجود/غير مكتمل. لذلك لا أصف الاختبارات بأنها ناجحة.
+- **لم يتم اعتماد المرحلة نهائيًا بعد** لأن تشغيل Vitest غير متاح في بيئة العمل الحالية: `vitest: not found`، ومجلد `apps/web/node_modules` غير موجود/غير مكتمل. لذلك لا أصف الاختبارات بأنها ناجحة.
 - فحصت صياغة TypeScript/TSX للملفات المعدّلة باستخدام TypeScript transpile: **23 ملفًا تم تحليلها دون أخطاء صياغية**. هذا فحص صياغة فقط وليس بديلًا عن type-check أو الاختبارات.
 
 ## أهم التغييرات
@@ -47,7 +47,7 @@
 قبل اعتبار المرحلة مغلقة، شغّل في بيئة فيها الاعتماديات المثبتة:
 
 ```bash
-cd frontend
+cd apps/web
 npm ci
 npm test -- --run __tests__/unit/api/client.test.ts __tests__/unit/api/stores.api.test.ts __tests__/hooks/useLocationResolver.test.tsx __tests__/hooks/useOnlineStatus.test.tsx __tests__/unit/forYouFeed.test.ts __tests__/unit/hooks/useAdMutations.test.tsx __tests__/unit/hooks/useAdminMutations.test.tsx __tests__/unit/hooks/useAds.test.tsx __tests__/unit/hooks/useAppointmentMutations.test.tsx __tests__/unit/hooks/useCategoriesAndListings.test.tsx __tests__/unit/hooks/useFavoriteLists.test.ts __tests__/unit/hooks/useFavorites.test.tsx __tests__/unit/hooks/useMoreQueries.test.tsx __tests__/unit/hooks/useNotificationsReportsConversations.test.tsx __tests__/unit/hooks/usePresence.test.tsx __tests__/unit/hooks/useProductMutations.test.tsx __tests__/unit/hooks/useProductServiceStoreRecommendations.test.tsx __tests__/unit/hooks/usePromotionMutations.test.tsx __tests__/unit/hooks/useSavedSearches.test.tsx
 ```

@@ -12,10 +12,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - working-directory: frontend
+          cache-dependency-path: apps/web/package-lock.json
+      - working-directory: apps/web
         run: npm ci
-      - working-directory: frontend
+      - working-directory: apps/web
         run: npx knip --include files,dependencies,exports --no-exit-code
 
   knip-backend:
@@ -26,8 +26,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: backend/package-lock.json
-      - working-directory: backend
+          cache-dependency-path: apps/api/package-lock.json
+      - working-directory: apps/api
         run: npm ci
-      - working-directory: backend
+      - working-directory: apps/api
         run: npx knip --include files,dependencies,exports --no-exit-code

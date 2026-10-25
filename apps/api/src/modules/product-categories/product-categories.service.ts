@@ -1,0 +1,258 @@
+import {
+  productCategoriesRepository,
+  ProductCategoryWithChildren,
+} from './product-categories.repository';
+import { ProductCategory } from '@prisma/client';
+import {
+  CreateProductCategoryInput,
+  UpdateProductCategoryInput,
+} from './product-categories.validation';
+import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { redis } from '../../config/redis';
+import { logger } from '../../../shared/utils/logger';
+import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { storeTypesRepository } from '../store-types/store-types.repository';
+import { bumpPublicListCache } from '../../../shared/utils/publicListCache';
+import { invalidateHomeCache } from '../home/home.cache.keys';
+import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
+
+// versioned key — bump the suffix whenever
+// the cached payload shape changes (see categories.service.ts).
+const PRODUCT_CATEGORIES_CACHE_KEY = 'product_categories:all:v1';
+const PRODUCT_CATEGORIES_TTL = 60 * 60; // 1 hour, same as service categories
+
+const invalidateProductCategoriesCache = async (): Promise<void> => {
+  try {
+    await redis.del(PRODUCT_CATEGORIES_CACHE_KEY);
+  } catch {
+    // The dependent generations below still need to advance if this key
+    // cannot be deleted; the category-tree key will expire by TTL.
+    logger.warn('Product categories cache invalidation failed');
+  }
+
+  // Public product list payloads embed category id/name/nameAr. Deleting
+  // only the category-tree key leaves cached product cards with stale labels.
+  await bumpPublicListCache('products');
+  // The homepage has its own assembled payload and does not automatically
+  // observe the product-list soft generation bump.
+  await invalidateHomeCache();
+  // Workers-KV copy of GET /product-categories at the edge.
+  purgeReferenceKv();
+};
+
+export const productCategoriesService = {
+  createProductCategory: async (input: CreateProductCategoryInput): Promise<ProductCategory> => {
+    const [existingName, existingNameAr, existingSlug] = await Promise.all([
+      productCategoriesRepository.findByName(input.name),
+      productCategoriesRepository.findByNameAr(input.nameAr),
+      productCategoriesRepository.findBySlug(input.slug),
+    ]);
+    if (existingName) throw new BadRequestError('Product category name already exists');
+    if (existingNameAr) throw new BadRequestError('Arabic product category name already exists');
+    if (existingSlug) throw new BadRequestError('Product category slug already exists');
+
+    // T430 — mirror categories: reject unknown parentId before it
+    // falls through to a raw P2003 -> 500.
+    // T425 — same 2-level depth guard as categories.
+    if (input.parentId) {
+      const parent = await productCategoriesRepository.findById(input.parentId);
+      if (!parent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+      if (parent.parentId !== null) {
+        throw new BadRequestError(
+          'Product categories support only two levels (top-level + direct children).',
+          'CATEGORY_DEPTH_EXCEEDED'
+        );
+      }
+    }
+
+    if (input.storeTypeId) {
+      const storeType = await storeTypesRepository.findById(input.storeTypeId);
+      if (!storeType) {
+        throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+      }
+    }
+
+    try {
+      const category = await productCategoriesRepository.create(input);
+      await invalidateProductCategoriesCache();
+      return category;
+    } catch (err) {
+      if (isPrismaError(err, 'P2002')) {
+        throw new BadRequestError('Product category name or slug already exists');
+      }
+      throw err;
+    }
+  },
+
+  getProductCategories: async (): Promise<ProductCategoryWithChildren[]> => {
+    try {
+      const cached = await redis.get(PRODUCT_CATEGORIES_CACHE_KEY);
+      if (cached) return JSON.parse(cached) as ProductCategoryWithChildren[];
+    } catch {
+      logger.warn('Product categories cache read failed, falling back to DB');
+    }
+
+    const categories = await productCategoriesRepository.findMany();
+
+    try {
+      await redis.setex(
+        PRODUCT_CATEGORIES_CACHE_KEY,
+        PRODUCT_CATEGORIES_TTL,
+        JSON.stringify(categories)
+      );
+    } catch {
+      // Fail silently — DB result is still returned
+    }
+
+    return categories;
+  },
+
+  getProductCategoriesForAdmin: async () => {
+    return productCategoriesRepository.findManyForAdmin();
+  },
+
+  getProductCategoryById: async (id: string): Promise<ProductCategory> => {
+    // T511 — public read: a deactivated category must 404 here even
+    // though it still resolves through the admin-facing findById.
+    const category = await productCategoriesRepository.findPublicById(id);
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+    return category;
+  },
+
+  getProductCategoryBySlug: async (slug: string): Promise<ProductCategory> => {
+    const category = await productCategoriesRepository.findBySlug(slug);
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+    return category;
+  },
+
+  updateProductCategory: async (
+    id: string,
+    input: UpdateProductCategoryInput
+  ): Promise<ProductCategory> => {
+    const category = await productCategoriesRepository.findById(id);
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+
+    // BUGFIX (circular category reference): reassigning parentId to the
+    // category's own id, or to one of its own descendants, creates a
+    // cycle in the parent chain — any code that walks parentId upward
+    // (breadcrumbs, admin tree rendering) would loop forever without a
+    // visited-set guard, and the two-level `children` tree the public
+    // findMany relies on would silently misrender. Only need to check
+    // when parentId is actually changing and non-null (clearing it to
+    // make the category top-level can never introduce a cycle).
+    if (input.parentId && input.parentId !== category.parentId) {
+      if (input.parentId === id) {
+        throw new BadRequestError(
+          'A category cannot be its own parent',
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
+      }
+      // T431 — same class as categories T421: verify existence first,
+      // otherwise an unknown id returns an empty ancestor chain and
+      // passes the cycle check silently before failing on write.
+      const proposedParent = await productCategoriesRepository.findById(input.parentId);
+      if (!proposedParent) {
+        throw new BadRequestError('Parent category not found', 'PARENT_CATEGORY_NOT_FOUND');
+      }
+      // T425 — same 2-level depth constraint as categories.
+      if (proposedParent.parentId !== null) {
+        throw new BadRequestError(
+          'Product categories support only two levels (top-level + direct children).',
+          'CATEGORY_DEPTH_EXCEEDED'
+        );
+      }
+      const ancestorChain = await productCategoriesRepository.findParentChain(input.parentId);
+      if (ancestorChain.includes(id)) {
+        throw new BadRequestError(
+          "Cannot set parent to one of this category's own subcategories",
+          'CIRCULAR_CATEGORY_REFERENCE'
+        );
+      }
+    }
+
+    if (input.slug && input.slug !== category.slug) {
+      const existing = await productCategoriesRepository.findBySlug(input.slug);
+      if (existing) throw new BadRequestError('Slug already in use');
+    }
+    if (input.name && input.name !== category.name) {
+      const existing = await productCategoriesRepository.findByName(input.name);
+      if (existing) throw new BadRequestError('Product category name already in use');
+    }
+    if (input.nameAr && input.nameAr !== category.nameAr) {
+      const existing = await productCategoriesRepository.findByNameAr(input.nameAr);
+      if (existing) throw new BadRequestError('Arabic name already in use');
+    }
+
+    if (input.storeTypeId) {
+      const storeType = await storeTypesRepository.findById(input.storeTypeId);
+      if (!storeType) {
+        throw new BadRequestError('Store type not found', 'STORE_TYPE_NOT_FOUND');
+      }
+    }
+
+    if (input.storeTypeId !== undefined && input.storeTypeId !== category.storeTypeId) {
+      const productsCount = await productCategoriesRepository.countProducts(id);
+      if (productsCount > 0) {
+        throw new BadRequestError(
+          `Category type cannot be changed while it has ${productsCount} active products.`,
+          'PRODUCT_CATEGORY_TYPE_CHANGE_HAS_PRODUCTS'
+        );
+      }
+    }
+
+    try {
+      const updated = await productCategoriesRepository.update(id, input);
+      await invalidateProductCategoriesCache();
+      return updated;
+    } catch (err) {
+      if (isPrismaError(err, 'P2002')) {
+        throw new BadRequestError('Product category name, Arabic name, or slug already exists');
+      }
+      throw err;
+    }
+  },
+
+  deleteProductCategory: async (id: string): Promise<void> => {
+    const category = await productCategoriesRepository.findById(id);
+    if (!category)
+      throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+
+    const productsCount = await productCategoriesRepository.countProducts(id);
+    if (productsCount > 0) {
+      throw new BadRequestError(`Cannot delete category with ${productsCount} active products`);
+    }
+
+    // BUGFIX (unhandled P2003 on delete): a category with subcategories
+    // was not guarded the way products were — deleting it directly hit
+    // Prisma's foreign-key constraint (children.parentId still
+    // references this row) and surfaced as an unhandled 500 instead of
+    // a clear, actionable 400. Same treatment as the products guard
+    // above: move blocking subcategories elsewhere first.
+    const childrenCount = await productCategoriesRepository.countChildren(id);
+    if (childrenCount > 0) {
+      throw new BadRequestError(`Cannot delete category with ${childrenCount} subcategories`);
+    }
+
+    try {
+      await productCategoriesRepository.delete(id);
+    } catch (err) {
+      // T432 — counts are advisory (a product/child can be created
+      // between the count and the delete); the FK constraint is the
+      // real guard. P2003 -> 400, P2025 -> 404.
+      if (isPrismaError(err, 'P2003')) {
+        throw new BadRequestError('Cannot delete category — it is still referenced.');
+      }
+      if (isPrismaError(err, 'P2025')) {
+        throw new NotFoundError('Product category not found', 'PRODUCT_CATEGORY_NOT_FOUND');
+      }
+      throw err;
+    }
+    await invalidateProductCategoriesCache();
+  },
+};

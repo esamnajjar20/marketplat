@@ -17,7 +17,7 @@
 ## تثبيت الحزمة
 
 ```bash
-cd frontend
+cd apps/web
 npm i @capacitor/haptics
 npx cap sync
 ```

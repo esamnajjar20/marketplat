@@ -4,13 +4,13 @@
 
 | المسار | إجراء |
 |--------|--------|
-| `frontend/styles/native-app.css` | **جديد** |
-| `frontend/components/pwa/CapacitorBootstrap.tsx` | **استبدال** |
-| `frontend/components/layout/PublicFooter.tsx` | **استبدال** |
-| `frontend/components/layout/PublicHeader.tsx` | **استبدال** |
-| `frontend/components/layout/BottomNav.tsx` | **استبدال** |
-| `frontend/app/(public)/layout.tsx` | **استبدال** |
-| `frontend/lib/runtime/navigation.ts` | دمج `applyNativeChrome` من الملف الملحق |
+| `apps/web/styles/native-app.css` | **جديد** |
+| `apps/web/components/pwa/CapacitorBootstrap.tsx` | **استبدال** |
+| `apps/web/components/layout/PublicFooter.tsx` | **استبدال** |
+| `apps/web/components/layout/PublicHeader.tsx` | **استبدال** |
+| `apps/web/components/layout/BottomNav.tsx` | **استبدال** |
+| `apps/web/app/(public)/layout.tsx` | **استبدال** |
+| `apps/web/lib/runtime/navigation.ts` | دمج `applyNativeChrome` من الملف الملحق |
 
 ## تفعيل CSS
 

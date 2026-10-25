@@ -1,0 +1,80 @@
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { Megaphone } from 'lucide-react';
+import { adsApi } from '@/api/ads.api';
+import { AdCard } from '@/components/ads/AdCard';
+import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { queryKeys } from '@/lib/queryKeys';
+
+interface Props {
+  storeId: string;
+  storeName: string;
+}
+
+/**
+ * إعلانات منشورة باسم هذا المتجر (storeId) — منفصلة عن إعلانات البائع الشخصية.
+ */
+export function StoreAds({ storeId, storeName }: Props) {
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.ads.list({ storeId, limit: 24 }),
+    queryFn: async () => {
+      const res = await adsApi.getAll({ storeId, limit: 24, page: 1 } as never);
+      // دعم أشكال الاستجابة المختلفة
+      const body = (res as { data?: { data?: unknown } }).data?.data ?? (res as { data?: unknown }).data ?? res;
+      if (body && typeof body === 'object' && 'items' in (body as object)) {
+        return body as { items: unknown[]; meta?: unknown };
+      }
+      if (Array.isArray(body)) return { items: body };
+      return { items: [] };
+    },
+  });
+
+  if (isLoading && !data) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <AdCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col items-start gap-2 text-sm" role="status">
+        <p className="text-destructive">تعذّر تحميل إعلانات المتجر ولا توجد نسخة محفوظة.</p>
+        <button type="button" className="underline underline-offset-4" onClick={() => void refetch()}>إعادة المحاولة</button>
+      </div>
+    );
+  }
+
+  const items = (data?.items ?? []) as Parameters<typeof AdCard>[0]['ad'][];
+
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={<Megaphone className="h-10 w-10" />}
+        title="لا إعلانات لهذا المتجر"
+        description={`لم ينشر «${storeName}» إعلانات بعد`}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {isError && data && (
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground" role="status">
+          <span>تعذّر التحديث؛ تُعرض آخر نسخة محفوظة من إعلانات المتجر.</span>
+          <button type="button" className="shrink-0 underline underline-offset-4" onClick={() => void refetch()}>إعادة المحاولة</button>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+      {items.map((ad) => (
+        <AdCard key={ad.id} ad={ad} context="store" />
+      ))}
+      </div>
+    </div>
+  );
+}

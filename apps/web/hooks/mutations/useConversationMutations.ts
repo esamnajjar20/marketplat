@@ -1,0 +1,312 @@
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { conversationsApi } from '@/api/conversations.api';
+import { queryKeys } from '@/lib/queryKeys';
+import { parseApiError } from '@/lib/errorParser';
+import { useAuthStore, selectUser } from '@/store/auth.store';
+import { toast } from 'sonner';
+import { sendConversationMessage } from '@/lib/sendConversationMessage';
+import type { StartConversationPayload, SendMessagePayload, Message, ConversationListItem } from '@/types/conversation.types';
+import type { PaginatedResponse } from '@/types/api.types';
+
+export type SendMessageVariables = SendMessagePayload & { operationId?: string };
+
+/**
+ * POST /conversations — SellerCard's "مراسلة البائع" (adId) and
+ * PublicProfileHeader's "مراسلة" (userId) both go through this same
+ * mutation; the payload's shape picks which backend branch handles it
+ * (startFromAd vs startFromUser). Idempotent server-side either way —
+ * both branches reuse an existing thread instead of creating a
+ * duplicate — so the caller can navigate straight to the returned
+ * conversation's id without needing to distinguish "created" from
+ * "reopened" here.
+ */
+export function useStartConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: StartConversationPayload) =>
+      conversationsApi.start(payload).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/**
+ * POST /conversations/:id/messages. Optimistically updates both the thread
+ * and every cached conversation-list page so the latest-message preview and
+ * ordering respond immediately, then reconciles or rolls back on completion.
+ * The server refetch remains the source of truth.
+ *
+ * UX-FIX (perceived-latency): previously did nothing to the cache until
+ * the request resolved, then invalidated — ChatWindow (reading from the
+ * same cache) showed nothing at all for however long the round-trip
+ * took, then the bubble "popped in" all at once. That gap is exactly
+ * what a chat UI shouldn't have: the whole point of the read/sent/
+ * delivered ticks ChatWindow already renders is to make sending feel
+ * immediate. onMutate now writes a temporary optimistic Message
+ * (client-generated id, no readAt) straight into every currently-
+ * mounted `messages` query for this conversation — ChatWindow's own
+ * scroll-to-bottom effect (keyed on message count) picks it up the
+ * same way a real message would. onError rolls that specific cache
+ * write back and restores the composer's text (MessageInput's onError
+ * below) so a failed send doesn't silently lose what was typed.
+ * onSettled still invalidates as before — the refetch it triggers
+ * replaces the temporary id with the server's real one (and a real
+ * readAt/deliveredAt going forward), so this is purely additive to the
+ * existing flow, not a replacement for it.
+ *
+ * FEAT-OFFLINE-MSG: offline sends used to hit this exact onError path
+ * too — sw.js's 202 {queued:true} becomes a rejected promise with
+ * code:'OFFLINE_QUEUED' (client.ts's interceptor) — which rolled the
+ * optimistic bubble straight back out of the UI and toasted an error,
+ * even though the message genuinely was saved (to the SW's IndexedDB
+ * queue) and will send automatically once back online. The bubble
+ * disappearing while a "queued" toast played was actively misleading —
+ * looked exactly like a failed send. Now: a queued rejection still
+ * rolls back this hook's own ephemeral optimistic entry (no toast) —
+ * but only because ChatWindow renders a durable replacement instead,
+ * sourced from the SW's own queue via usePendingMessages(), which
+ * survives page reloads and app restarts (the in-memory optimistic
+ * entry here never would). A real failure (wrong network entirely,
+ * validation, blocked user while still online) keeps the original
+ * rollback + error toast behaviour unchanged.
+ */
+export function useSendMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore(selectUser);
+
+  return useMutation({
+    networkMode: 'offlineFirst',
+    mutationFn: ({ operationId, ...payload }: SendMessageVariables) =>
+      sendConversationMessage(
+        conversationId,
+        { kind: 'text', payload },
+        operationId,
+      ),
+
+    onMutate: async (payload) => {
+      if (!currentUser) return;
+
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
+      });
+
+      const optimisticMessage: Message = {
+        // FIX OPTIMISTIC-ID-COLLISION-01: append a short random
+        // suffix so two messages sent in the same millisecond don't
+        // collide on React key + optimistic entry lookups. The
+        // previous `optimistic-${Date.now()}` was sufficient for a
+        // single human user (sub-ms send rate is implausible) but
+        // would break for a scripted send or a fast multi-message
+        // paste-and-enter sequence.
+        id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        conversationId,
+        senderId: currentUser.id,
+        body: payload.body?.trim() || (payload.imageUrl ? '📷' : ''),
+        imageUrl: payload.imageUrl ?? null,
+        readAt: null,
+        deletedAt: null,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Every currently-mounted `messages` query for this conversation
+      // (there's normally just one — ChatWindow's live page — but this
+      // stays correct even if params ever differ) gets the optimistic
+      // message appended, matching useMessages' own "oldest → newest"
+      // ordering (it reverses the backend's newest-first response).
+      const matches = queryClient.getQueriesData<PaginatedResponse<Message>>({
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
+      });
+
+      const previous = matches.map(([key, data]) => [key, data] as const);
+      const previousConversations = queryClient.getQueriesData<PaginatedResponse<ConversationListItem>>({
+        queryKey: queryKeys.conversations.mineRoot(),
+      });
+      const sentAt = optimisticMessage.createdAt;
+
+      // Update the preview and timestamp in cached list pages immediately.
+      // The list component sorts by updatedAt (with pinned threads first), so
+      // the active conversation naturally rises without a refetch flash.
+      for (const [key, data] of previousConversations) {
+        if (!data?.items?.some((item) => item.id === conversationId)) continue;
+        queryClient.setQueryData<PaginatedResponse<ConversationListItem>>(key, {
+          ...data,
+          items: data.items.map((item) => item.id === conversationId
+            ? { ...item, lastMessage: optimisticMessage, updatedAt: sentAt }
+            : item),
+        });
+      }
+
+      for (const [key, data] of matches) {
+        if (!data) continue;
+        queryClient.setQueryData<PaginatedResponse<Message>>(key, {
+          ...data,
+          items: [...data.items, optimisticMessage],
+        });
+      }
+
+      return { previous, previousConversations, optimisticId: optimisticMessage.id };
+    },
+
+    // FIX CHAT-OPTIMISTIC-SSE-DUP-01: replace the temp id with the server
+    // message as soon as HTTP succeeds so SSE (same id) becomes a no-op
+    // and we do not briefly show optimistic-* + real id side by side.
+    onSuccess: (serverMessage, _payload, context) => {
+      // FIX CHAT-OPTIMISTIC-SSE-DUP-03: React Query types the first
+      // onSuccess arg as TData | undefined; bail if the server returned
+      // nothing (the query-layer owns the fallback).
+      if (!serverMessage) return;
+      const optimisticId = context?.optimisticId;
+      const sentAt = serverMessage.createdAt || new Date().toISOString();
+      const listMatches = queryClient.getQueriesData<PaginatedResponse<ConversationListItem>>({
+        queryKey: queryKeys.conversations.mineRoot(),
+      });
+      for (const [key, data] of listMatches) {
+        if (!data?.items?.some((item) => item.id === conversationId)) continue;
+        queryClient.setQueryData<PaginatedResponse<ConversationListItem>>(key, {
+          ...data,
+          items: data.items.map((item) => item.id === conversationId
+            ? { ...item, lastMessage: serverMessage, updatedAt: sentAt }
+            : item),
+        });
+      }
+      const matches = queryClient.getQueriesData<PaginatedResponse<Message>>({
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
+      });
+      for (const [key, data] of matches) {
+        if (!data?.items) continue;
+        // FIX CHAT-OPTIMISTIC-SSE-DUP-02: drop ONLY the optimistic row.
+        // If SSE already placed serverMessage (id present), keep its
+        // fields (e.g. readAt) instead of overwriting with the raw HTTP
+        // body; upsert only when SSE has not arrived yet.
+        const withoutOptimistic = data.items.filter((m) => m.id !== optimisticId);
+        const hasServerAlready = withoutOptimistic.some((m) => m.id === serverMessage.id);
+        const items = hasServerAlready
+          ? withoutOptimistic
+          : [...withoutOptimistic, serverMessage];
+        queryClient.setQueryData<PaginatedResponse<Message>>(key, {
+          ...data,
+          items,
+          meta:
+            hasServerAlready || !data.meta
+              ? data.meta
+              : { ...data.meta, total: (data.meta.total ?? withoutOptimistic.length) + 1 },
+        });
+      }
+      // Safety net: reconcile server-side fields (Cloudinary transforms,
+      // readAt, etc.) the raw POST body may not carry. Inactive-only so
+      // the visible list does not flash.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
+        refetchType: 'inactive',
+      });
+    },
+
+    onError: (err, _payload, context) => {
+      // Roll back only the exact cache entries this mutation touched.
+      context?.previous.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      context?.previousConversations?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      // FEAT-OFFLINE-MSG: a queued-offline rejection isn't a real failure —
+      // see this hook's doc comment above. Skip the error toast; the
+      // pending-send indicator ChatWindow now renders from the SW queue
+      // (usePendingMessages) already communicates the state honestly.
+      const parsed = parseApiError(err);
+      if (parsed.queued) return;
+      toast.error(parsed.message);
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+    },
+  });
+}
+
+/**
+ * DELETE /conversations/:id/messages/:messageId — soft-delete. Only
+ * invalidates this thread's messages, not the conversation list: a
+ * deleted message doesn't change updatedAt server-side (softDelete
+ * doesn't touch the conversation row), so the list's ordering/preview
+ * is unaffected — same "invalidate only what actually changed" idea as
+ * every other mutation here.
+ */
+export function useDeleteMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (messageId: string) =>
+      conversationsApi.deleteMessage(conversationId, messageId).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations.messagesRoot(conversationId),
+      });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+/** PATCH /conversations/:id/flags — pin or archive a thread. */
+export function useSetConversationFlags() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...flags
+    }: {
+      id: string;
+      pinned?: boolean;
+      archived?: boolean;
+      mutedUntil?: string | null;
+    }) => conversationsApi.setFlags(id, flags).then((r) => r.data.data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+      if (variables?.id) queryClient.invalidateQueries({ queryKey: queryKeys.conversations.detail(variables.id) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+export function useMessageMarkMutation(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageId, kind, active }: { messageId: string; kind: 'pin' | 'star'; active: boolean }) => {
+      if (kind === 'pin') {
+        if (active) return conversationsApi.pinMessage(conversationId, messageId);
+        return conversationsApi.unpinMessage(conversationId, messageId);
+      }
+      if (active) return conversationsApi.starMessage(conversationId, messageId);
+      return conversationsApi.unstarMessage(conversationId, messageId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.media(conversationId) });
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}
+
+
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => conversationsApi.deleteConversation(id).then((r) => r.data.data),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: queryKeys.conversations.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
+      toast.success('تم حذف المحادثة من محادثاتك');
+    },
+    onError: (err) => toast.error(parseApiError(err).message),
+  });
+}

@@ -1,0 +1,36 @@
+-- FIX M-021
+--
+-- analytics.repository.ts's topCategories() runs:
+--   SELECT metadata->>'categoryId' AS "categoryId", COUNT(*)
+--   FROM "analytics_events"
+--   WHERE "event" = 'CATEGORY_BROWSE'
+--     AND "createdAt" >= $1 AND "createdAt" < $2
+--     AND metadata->>'categoryId' IS NOT NULL
+--   GROUP BY 1
+--   ORDER BY count DESC
+--   LIMIT $3
+--
+-- AnalyticsEvent already has @@index([event, createdAt]), which lets
+-- Postgres narrow to the right event type and date range efficiently,
+-- but the GROUP BY on metadata->>'categoryId' still requires
+-- evaluating that JSON expression for every matching row with no
+-- index to serve it directly. The existing GIN indexes in this schema
+-- (ads_search_idx, products_search_idx, ...) are full-text search
+-- indexes on tsvector expressions for entirely different tables/
+-- columns — none of them cover this table or this expression.
+--
+-- A plain B-tree expression index on metadata->>'categoryId' lets
+-- Postgres serve the equality/group-by directly from the index rather
+-- than re-extracting the JSON field per row at query time, and keeps
+-- the query's cost from scaling linearly with total table size as the
+-- analytics_events table grows.
+--
+-- CONCURRENTLY avoids taking a write lock on this (potentially large,
+-- constantly-inserted-into) table for the duration of the index
+-- build. Note: CREATE INDEX CONCURRENTLY cannot run inside a
+-- transaction block — if this migration is applied through tooling
+-- that always wraps migrations in a transaction, drop CONCURRENTLY
+-- for that run, or apply this statement manually outside the
+-- transaction.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "analytics_events_category_id_idx"
+  ON "analytics_events" ((metadata->>'categoryId'));

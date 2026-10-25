@@ -1,0 +1,73 @@
+import type { Metadata }    from 'next';
+import { Suspense } from 'react';
+import { notFound }         from 'next/navigation';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
+import { AdDetailSection }  from '@/components/ads/AdDetailSection';
+import { PublishedSuccessBanner } from '@/components/ads/PublishedSuccessBanner';
+import { getQueryClient }   from '@/lib/queryClient';
+import { queryKeys }        from '@/lib/queryKeys';
+import { prefetchAdDetail as prefetchAd } from '@/lib/prefetch';
+import { buildAdMetadata }  from '@/lib/seo';
+import { headers }          from 'next/headers';
+import type { Ad }          from '@/types/ad.types';
+import { buildAdJsonLd, safeJsonLd } from '@/lib/structuredData';
+
+interface Props { params: Promise<{ id: string }> }
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const qc = getQueryClient();
+  try {
+    await prefetchAd(qc, id);
+    const ad = qc.getQueryData<{ title: string; description: string; images: string[]; price: string | null; city: string }>(queryKeys.ads.detail(id));
+    if (!ad) return { title: 'الإعلان غير موجود' };
+    return buildAdMetadata({ id, ...ad });
+  } catch { return { title: 'الإعلان' }; }
+}
+
+export default async function AdDetailPage({ params }: Props) {
+  const { id } = await params;
+  const qc = getQueryClient();
+  try {
+    await prefetchAd(qc, id);
+  } catch (err) {
+    // Avoid telling users an ad is deleted when the API is temporarily down.
+    const statusCode =
+      (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
+      (err as { response?: { status?: number } })?.response?.status;
+    if (statusCode === 404) notFound();
+    // A transient network/5xx failure must not abort the route. The client
+    // detail section can restore persisted query data or show an explicit
+    // offline fallback instead of returning a server error page.
+  }
+
+  // SW-SEO-JSONLD-AD-01: read the same Ad object that generateMetadata
+  // already fetched — prefetchAd populates the cache and getQueryData
+  // resolves it synchronously, so this adds no extra network call.
+  // The Ad is typed as the full interface; missing optional fields
+  // (sellerProfile, category, images) are handled by the builder.
+  const ad = qc.getQueryData<Ad>(queryKeys.ads.detail(id));
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
+  return (
+    <div className="container mx-auto max-w-7xl px-3 py-6 sm:px-4 lg:py-8">
+      {/* Product + Offer schema so Google can surface the price,
+          availability, and (when available) the aggregate rating in
+          search results. Only emitted when an Ad is actually in
+          cache — a 404 or fetch failure above calls notFound() and
+          never reaches this render. Same CSP nonce as every other
+          inline script in the app. */}
+      {ad && (
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(buildAdJsonLd(ad)) }}
+        />
+      )}
+      <HydrationBoundary state={dehydrate(qc)}>
+        <Suspense fallback={null}><PublishedSuccessBanner /></Suspense>
+        <AdDetailSection id={id} />
+      </HydrationBoundary>
+    </div>
+  );
+}

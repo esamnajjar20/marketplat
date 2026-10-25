@@ -1,0 +1,15 @@
+import { readFileSync } from 'node:fs';
+import { strict as assert } from 'node:assert';
+const screen = readFileSync(new URL('../app/offline-queue.tsx', import.meta.url), 'utf8');
+const myAds = readFileSync(new URL('../app/my-ads.tsx', import.meta.url), 'utf8');
+const outbox = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+assert.match(screen, /listAllOutboxMutations/);
+assert.match(screen, /discardOutboxMutation/);
+assert.match(screen, /retryExhaustedMutation/);
+assert.match(screen, /Alert\.alert\('إلغاء العملية المحفوظة'/);
+assert.match(screen, /blocked.*غير مدعومة|غير مدعومة بالمزامنة/s);
+assert.match(screen, /item\.state !== 'processing'/);
+assert.match(myAds, /router\.push\('\/offline-queue'\)/);
+assert.match(outbox, /state IN \('pending','failed'\)/);
+assert.match(outbox, /state = 'processing'/);
+console.log('Phase 35 offline queue UI source-contract checks passed (static checks only; no React Native/SQLite runtime test).');

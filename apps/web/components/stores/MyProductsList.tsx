@@ -1,0 +1,475 @@
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
+import {
+  Pencil,
+  Trash2,
+  Package,
+  AlertTriangle,
+  Pause,
+  Play,
+  Tag,
+  Layers,
+  Search,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
+import { Pagination } from '@/components/shared/ui/Pagination';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { useMyProducts } from '@/hooks/queries/useProducts';
+import { useDeleteProduct, useToggleProductStatus } from '@/hooks/mutations/useProductMutations';
+import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
+import { ROUTES } from '@/lib/constants';
+import { myStoreTabHref } from '@/lib/myStoreHubTabs';
+import { formatPrice } from '@/lib/formatters';
+import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import type { ProductAvailability, ProductStatus } from '@/types/product.types';
+
+const STATUS_LABELS: Record<ProductStatus, string> = {
+  ACTIVE: 'نشط',
+  PAUSED: 'متوقف',
+  DELETED: 'محذوف',
+};
+
+const AVAIL_LABELS: Record<ProductAvailability, string> = {
+  IN_STOCK: 'متوفر',
+  LIMITED: 'كمية محدودة',
+  OUT_OF_STOCK: 'غير متوفر',
+};
+
+import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
+import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
+import { Spinner } from '@/components/ui/spinner';
+export function MyProductsList() {
+  const router = useRouter();
+  const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
+  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStore);
+  const availability = (sp.get('availability') as ProductAvailability | null) || undefined;
+  const searchQ = sp.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(searchQ);
+
+  const { data, isLoading, isError, refetch } = useMyProducts({
+    page,
+    limit: 10,
+    status,
+    availability,
+    search: searchQ || undefined,
+  });
+  const deleteProduct = useDeleteProduct();
+  const toggleStatus = useToggleProductStatus();
+
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // BULK-PRODUCTS-DELETE-01: confirm dialog for deleting the current
+  // selection. The existing selection toolbar only offered status
+  // toggles; a seller who wants to clear five discontinued products
+  // had to open each one and delete individually.
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+
+  const items = data?.items ?? [];
+  const showPendingOffline = page === 1 && !status && !(sp.get('q') ?? '').trim();
+
+  const totalPages = data?.meta?.totalPages ?? 1;
+
+  const isOutOfRange = useOutOfRangeRedirect({
+    baseUrl: ROUTES.myStore,
+    page,
+    totalPages: data?.meta?.totalPages,
+    hasData: !!data,
+    searchParams: sp,
+  });
+
+  function pushParams(mutator: (params: URLSearchParams) => void) {
+    const params = new URLSearchParams(sp.toString());
+    mutator(params);
+    params.delete('page');
+    router.push(`${ROUTES.myStore}?${params.toString()}`);
+  }
+
+  function setAvailability(val: string) {
+    pushParams((params) => {
+      if (val) params.set('availability', val);
+      else params.delete('availability');
+    });
+  }
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    pushParams((params) => {
+      const q = searchInput.trim();
+      if (q) params.set('q', q);
+      else params.delete('q');
+    });
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkStatus(next: 'ACTIVE' | 'PAUSED') {
+    setBulkBusy('status');
+    try {
+      for (const id of selected) {
+        await toggleStatus.mutateAsync({ id, status: next });
+      }
+    } finally {
+      setBulkBusy(null);
+      setSelected(new Set());
+    }
+  }
+
+  // BULK-PRODUCTS-DELETE-01: sequential delete of the current selection
+  // — same concurrency-4 batching used on /my-ads, so a slow network
+  // doesn't leave dozens of parallel requests in flight.
+  async function performBulkDelete() {
+    setConfirmBulkDelete(false);
+    setBulkBusy('delete');
+    const ids = Array.from(selected);
+    const CONCURRENCY = 4;
+    let ok = 0, fail = 0;
+    try {
+      for (let i = 0; i < ids.length; i += CONCURRENCY) {
+        const batch = ids.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((id) => deleteProduct.mutateAsync(id)),
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') ok += 1; else fail += 1;
+        }
+      }
+      const msg = fail > 0 ? `حُذف ${ok} (فشل ${fail})` : `حُذف ${ok} منتج`;
+      toast.success(msg);
+    } finally {
+      setBulkBusy(null);
+      setSelected(new Set());
+    }
+  }
+
+  if (isLoading || isOutOfRange) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <AdListItemSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
+        <p className="text-destructive">حدث خطأ أثناء تحميل منتجاتك</p>
+        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 lg:space-y-5">
+      {showPendingOffline && <PendingOfflinePublishCard kind="product" />}
+      <form onSubmit={submitSearch} className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="ابحث باسم المنتج…"
+            className="ps-9 pe-9"
+            aria-label="بحث في المنتجات"
+          />
+          {searchInput && (
+            <button
+              type="button"
+              aria-label="مسح البحث"
+              onClick={() => {
+                setSearchInput('');
+                pushParams((params) => params.delete('q'));
+              }}
+              className="absolute end-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <Button type="submit" variant="secondary" className="w-full sm:w-auto">
+          بحث
+        </Button>
+      </form>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain flex-1" role="group" aria-label="تصفية حسب الحالة">
+          {([['', 'الكل'], ['ACTIVE', 'نشط'], ['PAUSED', 'متوقف'], ['DELETED', 'محذوف']] as const).map(
+            ([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setStatus(val)}
+                aria-pressed={(status ?? '') === val}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  (status ?? '') === val
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'}`}
+              >
+                {label}
+              </button>
+            ),
+          )}
+        </div>
+        <Link href={ROUTES.myStoreProductCreate}>
+          <Button size="sm">إضافة منتج</Button>
+        </Link>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1" role="group" aria-label="تصفية حسب التوفر">
+        {(
+          [
+            ['', 'كل التوفر'],
+            ['IN_STOCK', 'متوفر'],
+            ['LIMITED', 'محدود'],
+            ['OUT_OF_STOCK', 'نفد'],
+          ] as const
+        ).map(([val, label]) => (
+          <button
+            key={val}
+            type="button"
+            onClick={() => setAvailability(val)}
+            aria-pressed={(availability ?? '') === val}
+            className={`shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              (availability ?? '') === val
+                ? 'bg-primary/10 border-primary text-primary'
+                : 'text-muted-foreground hover:bg-muted'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">
+          <span className="font-medium">{selected.size} محدد</span>
+          <Button size="sm" variant="outline" onClick={() => bulkStatus('ACTIVE')} disabled={toggleStatus.isPending}>
+            تفعيل
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => bulkStatus('PAUSED')} disabled={bulkBusy !== null || toggleStatus.isPending}>
+            إيقاف
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setConfirmBulkDelete(true)}
+            disabled={bulkBusy !== null}
+            className="gap-1.5"
+          >
+            {bulkBusy === 'delete' ? <Spinner size="xs" /> : <Trash2 className="h-3.5 w-3.5" />}
+            حذف المحدد
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy !== null}>
+            إلغاء التحديد
+          </Button>
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<Package className="h-10 w-10" />}
+          title={searchQ || availability ? 'لا نتائج لهذا التصفية' : 'لا توجد منتجات'}
+          description={
+            searchQ || availability
+              ? 'جرّب تغيير البحث أو فلاتر التوفر'
+              : 'أضف منتجاتك ثم نظّمها في مجموعات أو أطلق عرضًا لجذب المشترين'
+          }
+          action={
+            <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <Link href={ROUTES.myStoreProductCreate}>
+                <Button>إضافة منتج</Button>
+              </Link>
+              {!searchQ && !availability && (
+                <>
+                  <Link href={ROUTES.myStoreCollections}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Layers className="h-4 w-4" /> المجموعات
+                    </Button>
+                  </Link>
+                  <Link href={ROUTES.myStorePromotions}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Tag className="h-4 w-4" /> العروض
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+          }
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((product) => {
+            const thumb = product.images[0]
+              ? getThumbnailUrl(product.images[0], 120, 90)
+              : PLACEHOLDER_SVG;
+            return (
+              <div key={product.id} className="flex items-start gap-2.5 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm transition-shadow hover:shadow-md sm:gap-3 sm:p-3">
+                {product.status !== 'DELETED' && (
+                  <input
+                    type="checkbox"
+                    className="mt-3 h-5 w-5 shrink-0 rounded-md border-border"
+                    checked={selected.has(product.id)}
+                    onChange={() => toggleSelect(product.id)}
+                    aria-label={`تحديد ${product.name}`}
+                  />
+                )}
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-primary/10 sm:h-16 sm:w-16">
+                  <SafeImage src={thumb} alt={product.name} fill className="object-cover" sizes="64px" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="line-clamp-2 text-[13px] font-bold leading-snug sm:text-sm">{product.name}</span>
+                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
+                      <span className="text-sm font-extrabold tabular-nums text-primary">
+                        {formatPrice(product.discountPrice ?? product.price)}
+                      </span>
+                      {product.discountPrice && (
+                        <span className="text-[11px] text-muted-foreground line-through">
+                          {formatPrice(product.price)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={
+                        product.status === 'ACTIVE'
+                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary'
+                          : product.status === 'PAUSED'
+                            ? 'inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-[11px] font-bold text-muted-foreground'
+                            : 'inline-flex h-6 items-center rounded-full bg-destructive/10 px-2.5 text-[11px] font-bold text-destructive'
+                      }
+                    >
+                      {STATUS_LABELS[product.status]}
+                    </span>
+                    <span
+                      className={
+                        product.availability === 'IN_STOCK'
+                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary'
+                          : product.availability === 'LIMITED'
+                            ? 'inline-flex h-6 items-center rounded-full bg-[#FBF0D9] px-2.5 text-[11px] font-bold text-[#7A4B07]'
+                            : 'inline-flex h-6 items-center rounded-full bg-[#FBE9E7] px-2.5 text-[11px] font-bold text-[#9B2118]'
+                      }
+                    >
+                      {AVAIL_LABELS[product.availability]}
+                    </span>
+                    {!product.images?.length && (
+                      <span className="inline-flex h-6 items-center rounded-full bg-warning/15 px-2.5 text-[11px] font-bold text-warning">
+                        بدون صور
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col gap-1">
+                  {product.status === 'ACTIVE' && (
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-success" aria-label={`بيع ${product.name}`} title="بعت" onClick={() => setSalePrefill({ entityType: 'PRODUCT', entityId: product.id, entityTitle: product.name, entityImageUrl: product.images?.[0] ?? null, unitPrice: Number(product.discountPrice ?? product.price), storeId: product.storeId })}>
+                      <Package className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Link href={ROUTES.myStoreProductEdit(product.id)}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${product.name}`}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
+                  {product.status === 'ACTIVE' && (
+                    <Link href={myStoreTabHref('promotions', { productId: product.id })}>
+                      <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`عرض لـ ${product.name}`} title="إنشاء عرض">
+                        <Tag className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  )}
+                  {product.status !== 'DELETED' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10"
+                      aria-label={product.status === 'PAUSED' ? `إعادة تفعيل ${product.name}` : `إيقاف ${product.name} مؤقتاً`}
+                      disabled={toggleStatus.isPending && toggleStatus.variables?.id === product.id}
+                      onClick={() =>
+                        toggleStatus.mutate({
+                          id: product.id,
+                          status: product.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED',
+                        })
+                      }
+                    >
+                      {product.status === 'PAUSED' ? (
+                        <Play className="h-3.5 w-3.5 text-success" />
+                      ) : (
+                        <Pause className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 text-destructive hover:text-destructive"
+                    aria-label={`حذف ${product.name}`}
+                    onClick={() => setDeleteTargetId(product.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <Pagination
+          totalPages={totalPages}
+          currentPage={page}
+          baseUrl={ROUTES.myStore}
+          searchParams={Object.fromEntries(sp.entries())}
+        />
+      )}
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
+        title="حذف المنتج؟"
+        description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
+        confirmLabel="حذف"
+        destructive
+        isPending={deleteProduct.isPending}
+        onConfirm={() => {
+          if (!deleteTargetId) return;
+          deleteProduct.mutate(deleteTargetId, { onSuccess: () => setDeleteTargetId(null) });
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        onOpenChange={setConfirmBulkDelete}
+        title={`حذف ${selected.size} منتج؟`}
+        description="لا يمكن التراجع عن هذا الإجراء بعد التأكيد."
+        confirmLabel="حذف المحدد"
+        destructive
+        isPending={bulkBusy === 'delete'}
+        onConfirm={() => void performBulkDelete()}
+      />
+    <AddSaleDialog open={Boolean(salePrefill)} onOpenChange={(open) => { if (!open) setSalePrefill(null); }} prefill={salePrefill} />
+    </div>
+  );
+}

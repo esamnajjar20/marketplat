@@ -1,0 +1,201 @@
+import winston from 'winston';
+import Transport from 'winston-transport';
+import DailyRotateFile from 'winston-daily-rotate-file';
+import path from 'path';
+import { Sentry } from '../../instrument';
+import { env } from '../../config/env';
+
+const { combine, timestamp, printf, colorize, errors, json } = winston.format;
+
+const devFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
+  let log = `${timestamp} [${level}]: ${message}`;
+  if (Object.keys(meta).length > 0) log += `\n${JSON.stringify(meta, null, 2)}`;
+  if (stack) log += `\n${stack}`;
+  return log;
+});
+
+const isDev = env.nodeEnv !== 'production';
+
+const transports: winston.transport[] = [
+  new winston.transports.Console({
+    format: isDev
+      ? combine(colorize(), timestamp({ format: 'HH:mm:ss' }), errors({ stack: true }), devFormat)
+      : combine(timestamp(), errors({ stack: true }), json()),
+  }),
+];
+
+if (!isDev) {
+  transports.push(
+    new DailyRotateFile({
+      filename: path.join('logs', 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      level: 'error',
+      maxFiles: '30d',
+      maxSize: '20m',
+      format: combine(timestamp(), errors({ stack: true }), json()),
+    }),
+    new DailyRotateFile({
+      filename: path.join('logs', 'combined-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '14d',
+      maxSize: '20m',
+      format: combine(timestamp(), json()),
+    })
+  );
+}
+
+export const logger = winston.createLogger({
+  level: isDev ? 'debug' : 'info',
+  // BUGFIX: must run at the core logger level, not only inside each
+  // transport's own format — see comment above WebhookErrorReporterTransport
+  // and SentryErrorReporterTransport below for why an Error passed as
+  // the sole log argument (logger.error(someError)) needs this here to
+  // be normalized correctly before any transport sees it.
+  format: errors({ stack: true }),
+  transports,
+  exitOnError: false,
+});
+
+/**
+ * previously every `logger.error(...)` call across the codebase
+ * (the sitemap-equivalent silent failures, views-buffer flush errors,
+ * the error middleware's catch-all, etc.) only ever reached
+ * stdout/the rotating log files. Without a shipping/aggregation layer
+ * or an error tracker, none of that is actionable beyond manually
+ * reading container logs — several issues found in earlier audit
+ * passes would have been invisible in production without one.
+ *
+ * Implemented as a Winston transport (not a monkey-method) so
+ * it hooks into every log call through Winston's own dispatch — the
+ * idiomatic extension point — without reassigning logger.error or
+ * fighting Winston's TypeScript types.
+ *
+ * a real @sentry/node integration now exists below this
+ * block (see SentryErrorReporterTransport) — this generic webhook
+ * transport is KEPT alongside it, not replaced, as a vendor-agnostic
+ * option for anyone who wants a different destination (a custom
+ * alerting endpoint, an internal Slack/PagerDuty bridge, or even
+ * Sentry's own webhook-style ingest as an alternative to the SDK) without
+ * touching code — set ERROR_REPORTER_WEBHOOK_URL to any HTTPS endpoint
+ * and every error-level log is also POSTed there as JSON, independent
+ * of whether SENTRY_DSN is also configured.
+ *
+ * If ERROR_REPORTER_WEBHOOK_URL is unset (the default), this transport
+ * is simply never added — behavior is unchanged from before this fix.
+ */
+// Some unit tests intentionally mock only the env sections they exercise.
+// Treat an omitted optional observability section the same as an unset webhook.
+const errorReporterUrl = env.observability?.errorReporterWebhookUrl || undefined;
+
+if (errorReporterUrl) {
+  class WebhookErrorReporterTransport extends Transport {
+    log(info: winston.LogEntry, callback: () => void) {
+      const payload = JSON.stringify({
+        level: info.level,
+        message: info.message,
+        meta: { ...info, level: undefined, message: undefined },
+        timestamp: new Date().toISOString(),
+        service: 'classifieds-backend',
+        environment: env.nodeEnv,
+      });
+
+      // Fire-and-forget — never let error reporting itself throw or
+      // block the logger. fetch is available globally in Node 18+.
+      fetch(errorReporterUrl as string, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      }).catch(() => {
+        // Intentionally swallowed — if the error reporter itself is
+        // down, that's not something the app's own error path should
+        // fail on.
+      });
+
+      callback();
+    }
+  }
+
+  logger.add(
+    new WebhookErrorReporterTransport({ level: 'error', format: errors({ stack: true }) })
+  );
+}
+
+/**
+ * real Sentry integration, as a Winston transport — same
+ * extension point as the webhook transport above, so every existing
+ * `logger.error(...)` call site across the codebase (error.middleware.ts's
+ * catch-all, server.ts's uncaughtException/unhandledRejection handlers,
+ * viewsBuffer's flush-failure logging, etc.) automatically reaches
+ * Sentry too, with zero changes needed at any of those call sites.
+ *
+ * Only added if instrument.ts actually initialized Sentry (i.e.
+ * SENTRY_DSN was set) — Sentry.captureException on an uninitialized
+ * SDK is a documented no-op, not an error, but this transport is kept
+ * conditional anyway so `logger.add()` isn't called at all when Sentry
+ * isn't configured, matching the same "does nothing extra when unset"
+ * contract the webhook transport above already has.
+ *
+ * Runs ALONGSIDE the webhook transport, not instead of it — a team
+ * could have both configured (e.g. Sentry for error tracking, a
+ * separate Slack/PagerDuty webhook for a different alerting need)
+ * without conflict, since Winston dispatches to every added transport
+ * independently.
+ */
+if (env.observability?.sentryDsn) {
+  class SentryErrorReporterTransport extends Transport {
+    log(info: winston.LogEntry, callback: () => void) {
+      const { level, message, stack, ...meta } = info;
+
+      // (updated): winston.createLogger() now applies
+      // errors({ stack: true }) as its own base-level `format` (see the
+      // logger definition above) — BUGFIX: previously that base format
+      // didn't exist and errors() was only applied per-transport, which
+      // meant an Error passed as the sole log argument (e.g.
+      // logger.error(someError)) wasn't reliably normalized into a
+      // plain-string `message` + `stack` before reaching a transport
+      // with no format of its own, silently falling through to
+      // captureMessage every time. This transport's own explicit
+      // `format: errors({ stack: true })` below is now redundant with
+      // the base format but kept anyway as belt-and-suspenders, so this
+      // transport doesn't silently regress if the base format is ever
+      // removed.
+      //
+      // even with that format applied, Winston's errors()
+      // formatter ONLY auto-detects an Error passed directly as an
+      // argument (e.g. logger.error('msg', someError) — the pattern
+      // server.ts, adminStatsCache.ts, and viewsBuffer.ts use) — it does
+      // NOT reach into a metadata object to find one (e.g.
+      // logger.error('msg', { err, otherField }) — the pattern
+      // securityAlert.ts, auditLog.ts, userCache.ts, and
+      // emailService.ts actually use, which is most call sites in this
+      // codebase). Without the fallback below, all of THOSE calls would
+      // silently lose their stack trace and get reported to Sentry as a
+      // bare message, unable to properly group/deduplicate by
+      // exception. This checks meta.err / meta.error for a real Error
+      // instance as a fallback, so both real conventions already in use
+      // across this codebase are handled correctly, rather than
+      // quietly degrading half of them.
+      const nestedError =
+        meta.err instanceof Error ? meta.err : meta.error instanceof Error ? meta.error : undefined;
+
+      if (stack && typeof message === 'string') {
+        const reconstructedError = new Error(message);
+        reconstructedError.stack = stack as string;
+        Sentry.captureException(reconstructedError, { extra: meta });
+      } else if (nestedError) {
+        Sentry.captureException(nestedError, {
+          extra: { ...meta, loggedMessage: message },
+        });
+      } else {
+        Sentry.captureMessage(typeof message === 'string' ? message : JSON.stringify(message), {
+          level: level === 'error' ? 'error' : 'warning',
+          extra: meta,
+        });
+      }
+
+      callback();
+    }
+  }
+
+  logger.add(new SentryErrorReporterTransport({ level: 'error', format: errors({ stack: true }) }));
+}

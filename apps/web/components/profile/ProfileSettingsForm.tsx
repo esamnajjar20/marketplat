@@ -1,0 +1,236 @@
+'use client';
+
+/**
+ * FIX BUG-05: bio and phone were seeded with useState('') — always
+ * empty regardless of what the user had actually saved before, unlike
+ * NotificationSettingsForm.tsx next to it which correctly loads real
+ * data via useMe(). A user who had a bio/phone saved would open this
+ * form, see both fields blank, and — if they typed something new and
+ * saved without noticing — silently overwrite their existing value
+ * with whatever they'd just typed, never having seen what was there
+ * before. name/city are now synced from the same useMe() response too
+ * for consistency, instead of only ever reading the leaner
+ * useAuthStore snapshot (AuthUser, which has no bio/phone field at
+ * all — there is nowhere in the store these two could have come from).
+ */
+import { useRef, useState, useEffect } from 'react';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
+import { Button }    from '@/components/shared/ui/Button';
+import { Input }     from '@/components/shared/ui/Input';
+import { FormField } from '@/components/shared/forms/FormField';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { CITIES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
+import { useAuthStore, selectUser } from '@/store/auth.store';
+import { useMe } from '@/hooks/queries/useAuth';
+import { useUpdateProfile, useUploadAvatar } from '@/hooks/mutations/useUpdateProfile';
+import { getAvatarUrl } from '@/lib/cloudinary';
+import { parseApiError } from '@/lib/errorParser';
+import { toast } from 'sonner';
+
+export function ProfileSettingsForm() {
+  const user = useAuthStore(selectUser);
+  const { data: me, isLoading: isMeLoading } = useMe();
+  const updateProfile = useUpdateProfile();
+  const uploadAvatar  = useUploadAvatar();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const [name, setName] = useState(user?.name ?? '');
+  const [city, setCity] = useState(user?.city ?? '');
+  const [bio,  setBio]  = useState('');
+  const [phone, setPhone] = useState('');
+  const [errors, setErrors] = useState<{ name?: string; phone?: string; city?: string }>({});
+  // FIX M-1: the real gap here — updateProfileSchema validates phone against
+  // /^\+?[0-9]{9,15}$/ (users.validation.ts), which this form never checked
+  // client-side (plain <Input type="tel">, no pattern/JS check below). Any
+  // phone number with spaces, dashes, or the wrong digit count — very
+  // common when typed by hand — passed straight through to a 400 with no
+  // indication of what was wrong. `name`'s min(2)/max(100) is effectively
+  // already covered by the trim() check below for any realistic input, but
+  // this catches it too if the backend rule ever tightens further.
+  const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  function fieldError(field: 'name' | 'phone' | 'city'): string | undefined {
+    return errors[field] ?? serverErrors?.[field]?.[0];
+  }
+
+  // SW-PROFILE-FORM-SYNC-ONCE-01: sync server values into the form
+  // exactly once, then stop.
+  //
+  // The previous version ran on every change to `me`. React Query's
+  // default refetchOnWindowFocus is true, and staleTime here is 2
+  // minutes (CACHE_TTL.userProfile), so any of these events fired this
+  // effect and wiped whatever the user had typed but not yet saved:
+  //
+  //   - Switching tabs and coming back after >= 2 minutes.
+  //   - Uploading a new avatar (useUploadAvatar's own onSuccess calls
+  //     queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() })
+  //     — a real, common path: pick photo, start typing bio, pick photo
+  //     again → bio lost).
+  //   - Any other mutation anywhere that invalidates the me query.
+  //
+  // The fix is the standard "seed once" flag: read the initial server
+  // state into the form fields the first time `me` resolves, then never
+  // again until the component remounts. Subsequent `me` updates are
+  // ignored by design — this is an edit form, and user input wins over
+  // a background refetch.
+  const [didInitialSync, setDidInitialSync] = useState(false);
+  useEffect(() => {
+    if (!me || didInitialSync) return;
+    setName(me.name);
+    setCity(me.city ?? '');
+    setBio(me.bio ?? '');
+    setPhone(me.phone ?? '');
+    setDidInitialSync(true);
+  }, [me, didInitialSync]);
+
+  function validate() {
+    const e: typeof errors = {};
+    if (!name.trim()) e.name = 'الاسم مطلوب';
+    if (!city.trim()) e.city = 'المدينة مطلوبة';
+    // UX-03 FIX: implements the check the FIX M-1 comment above already
+    // described but never applied — matches updateProfileSchema's
+    // /^\+?[0-9]{9,15}$/ (users.validation.ts) so a bad phone is caught
+    // here instead of round-tripping to a 400.
+    if (phone && !/^\+?[0-9]{9,15}$/.test(phone)) e.phone = 'رقم هاتف غير صالح';
+    setErrors(e);
+    setServerErrors(undefined);
+    return Object.keys(e).length === 0;
+  }
+
+  // الاسم + المدينة مطلوبان
+  const isFormIncomplete = !name.trim() || !city.trim();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    updateProfile.mutate(
+      { name: name.trim(), city: city.trim(), bio: bio || undefined, phone: phone || undefined },
+      {
+        onSuccess: () => toast.success('تم حفظ التغييرات'),
+        onError: (err) => setServerErrors(parseApiError(err).fieldErrors),
+      }
+    );
+  }
+
+  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type as typeof ALLOWED_IMAGE_TYPES[number])) {
+      toast.error('نوع الصورة غير مدعوم (JPG، PNG، أو WEBP فقط)');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`حجم الصورة يجب ألا يتجاوز ${MAX_FILE_SIZE_MB} ميجابايت`);
+      return;
+    }
+    uploadAvatar.mutate(file);
+  }
+
+  if (isMeLoading) {
+    return <div className="flex justify-center py-8"><LoadingSpinner /></div>;
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="mx-auto max-w-lg space-y-5 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5 md:p-6"
+    >
+      {/* Avatar — matches design: avatar + change button side by side */}
+      <div className="flex items-center justify-end gap-3">
+        <div className="min-w-0 text-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            loading={uploadAvatar.isPending}
+            loadingText="جارٍ الرفع…"
+            onClick={() => avatarInputRef.current?.click()}
+          >
+            تغيير الصورة
+          </Button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept={ALLOWED_IMAGE_TYPES.join(',')}
+            className="hidden"
+            onChange={handleAvatarChange}
+          />
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+            JPG، PNG، أو WEBP — بحد أقصى {MAX_FILE_SIZE_MB} MB
+          </p>
+        </div>
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-primary-soft text-lg font-extrabold text-primary">
+          <SafeImage
+            variant="avatar"
+            src={getAvatarUrl(user?.avatarUrl ?? '', 64)}
+            alt={user?.name ?? ''}
+            fill
+            className="object-cover"
+            sizes="56px"
+          />
+        </div>
+      </div>
+
+      <FormField label="الاسم الكامل" htmlFor="pname" required error={fieldError('name')}>
+        <Input id="pname" className="h-11 rounded-xl" value={name} onChange={(e) => setName(e.target.value)} />
+      </FormField>
+
+      <FormField label="المدينة" htmlFor="pcity" required error={fieldError('city')}>
+        <Select value={city} onValueChange={setCity}>
+          <SelectTrigger id="pcity" className="h-11 rounded-xl">
+            <SelectValue placeholder="اختر مدينتك" />
+          </SelectTrigger>
+          <SelectContent>
+            {CITIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
+
+      <FormField label="رقم الهاتف" htmlFor="pphone" hint="لن يُعرض للعامة" error={fieldError('phone')}>
+        <Input
+          id="pphone"
+          type="tel"
+          dir="ltr"
+          className="h-11 rounded-xl"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+970..."
+        />
+      </FormField>
+
+      <FormField label="نبذة شخصية" htmlFor="pbio">
+        <textarea
+          id="pbio"
+          rows={3}
+          maxLength={300}
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="أخبر الآخرين عنك..."
+          className="w-full resize-none rounded-xl border border-input bg-transparent px-3 py-2.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+        <p className="text-end text-xs text-muted-foreground">{bio.length}/300</p>
+      </FormField>
+
+      <Button
+        type="submit"
+        className="h-12 w-full rounded-xl text-base font-bold"
+        disabled={isFormIncomplete}
+        loading={updateProfile.isPending}
+        loadingText="جارٍ الحفظ…"
+      >
+        حفظ التغييرات
+      </Button>
+    </form>
+  );
+}

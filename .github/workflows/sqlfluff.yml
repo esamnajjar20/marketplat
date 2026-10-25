@@ -13,7 +13,7 @@ jobs:
           python-version: '3.12'
       - run: pip install sqlfluff
       - name: Lint SQL files
-        working-directory: backend
+        working-directory: apps/api
         run: |
           echo "=== migrations ==="
           sqlfluff lint prisma/migrations/ \

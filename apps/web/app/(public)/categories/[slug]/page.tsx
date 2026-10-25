@@ -1,0 +1,104 @@
+import type { Metadata }    from 'next';
+import dynamic from 'next/dynamic';
+import { Suspense }         from 'react';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
+import { getQueryClient }   from '@/lib/queryClient';
+import { prefetchCategories } from '@/lib/prefetch';
+import { buildCategoryMetadata } from '@/lib/seo';
+import { LoadingSpinner }   from '@/components/shared/feedback/LoadingSpinner';
+import { categoriesApi }    from '@/api/categories.api';
+
+interface Props { params: Promise<{ slug: string }> }
+
+const CategoryHero = dynamic(
+  () => import('@/components/home/CategoryHero').then((module) => module.CategoryHero),
+);
+const SearchFilters = dynamic(
+  () => import('@/components/ads/SearchFilters').then((module) => module.SearchFilters),
+  { loading: () => <div className="min-h-20" aria-hidden="true" /> },
+);
+const SearchFiltersSheet = dynamic(
+  () =>
+    import('@/components/ads/SearchFiltersSheet').then(
+      (module) => module.SearchFiltersSheet,
+    ),
+  { loading: () => <div className="min-h-10" aria-hidden="true" /> },
+);
+const SearchSortBarWrapper = dynamic(
+  () =>
+    import('@/components/ads/SearchSortBarWrapper').then(
+      (module) => module.SearchSortBarWrapper,
+    ),
+  { loading: () => <div className="min-h-10" aria-hidden="true" /> },
+);
+const SearchResults = dynamic(
+  () => import('@/components/ads/SearchResults').then((module) => module.SearchResults),
+  {
+    loading: () => (
+      <div className="flex justify-center py-12" role="status">
+        <LoadingSpinner />
+      </div>
+    ),
+  },
+);
+
+// UX-FIX (audit P2-04): previously called buildCategoryMetadata({ slug,
+// name: slug }) — the raw URL slug stood in for the display name, so
+// <title>/meta description showed e.g. "electronics-devices — App"
+// while the page's own <h1> (CategoryHero, via useCategoryBySlug)
+// correctly showed the Arabic name. Same try/catch-with-fallback shape
+// already used by ads/[id]/page.tsx and profile/[id]/page.tsx — a
+// failed/unknown slug still renders a sane generic title instead of
+// throwing out of generateMetadata.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const res = await categoriesApi.getBySlug(slug);
+    const category = res.data.data;
+    if (!category) return { title: 'القسم غير موجود' };
+    return buildCategoryMetadata({ slug, name: category.nameAr });
+  } catch {
+    return { title: 'الفئات' };
+  }
+}
+
+export default async function CategoryPage({ params }: Props) {
+  const { slug } = await params;
+  const qc = getQueryClient();
+  await prefetchCategories(qc);
+
+  return (
+    <div className="container mx-auto w-full max-w-7xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
+      <HydrationBoundary state={dehydrate(qc)}>
+        <CategoryHero slug={slug} />
+        {/* P0 FIX (layout audit §1): SearchFiltersSheet mirrors /search's
+            FIX P1-2 — full filter panel behind a "تصفية" trigger below
+            `lg`, so mobile users see results before they see filters. */}
+        {/* FIX P2-08 (audit item #8): sort sits next to the filters
+            trigger, independent of it, on every breakpoint. */}
+        <div className="flex items-center gap-2">
+          <Suspense>
+            <SearchFiltersSheet categorySlug={slug} />
+          </Suspense>
+          <div className="flex-1 sm:flex-none sm:w-48 lg:ms-auto">
+            <Suspense>
+              <SearchSortBarWrapper />
+            </Suspense>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <aside className="hidden lg:col-span-1 lg:block">
+            <div className="sticky top-24">
+              <Suspense><SearchFilters categorySlug={slug} /></Suspense>
+            </div>
+          </aside>
+          <div className="lg:col-span-3">
+            <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
+              <SearchResults categorySlug={slug} />
+            </Suspense>
+          </div>
+        </div>
+      </HydrationBoundary>
+    </div>
+  );
+}

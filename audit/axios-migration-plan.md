@@ -20,33 +20,33 @@
 ## Files importing `@/api/client` (non-test source)
 | File | Imports | Category |
 |---|---|---|
-| frontend/api/auth.api.ts | apiClient | (b) needs careful review — auth entrypoint |
-| frontend/api/search.api.ts | apiClient | (a) safe to migrate |
-| frontend/api/products.api.ts | apiClient | (a) safe to migrate |
-| frontend/api/conversations.api.ts | apiClient | (b) needs careful review — messages/offline |
-| frontend/api/service-listings.api.ts | apiClient | (a) safe to migrate |
-| frontend/api/service-providers.api.ts | apiClient | (a) safe to migrate |
-| frontend/api/service-requests.api.ts | apiClient | (a) safe to migrate |
-| frontend/api/service-reviews.api.ts | apiClient | (a) safe to migrate |
-| frontend/api/service-types.api.ts | apiClient | (a) safe to migrate |
-| frontend/api/service-categories.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/auth.api.ts | apiClient | (b) needs careful review — auth entrypoint |
+| apps/web/api/search.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/products.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/conversations.api.ts | apiClient | (b) needs careful review — messages/offline |
+| apps/web/api/service-listings.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/service-providers.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/service-requests.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/service-reviews.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/service-types.api.ts | apiClient | (a) safe to migrate |
+| apps/web/api/service-categories.api.ts | apiClient | (a) safe to migrate |
 | (33 more api/*.ts) | apiClient | (a) safe to migrate |
-| frontend/hooks/mutations/useAuthMutations.ts | resumeSession | (b) needs careful review |
-| frontend/hooks/useAuthRestoreRetry.ts | refreshSessionShared | (b) needs careful review |
-| frontend/lib/capacitor/nativePush.ts | apiClient | (a) safe to migrate |
-| frontend/lib/pwa.ts | apiClient | (a) safe to migrate |
-| frontend/lib/swTokenSync.ts | refreshSessionShared | (b) needs careful review |
-| frontend/providers/AuthHydrationProvider.tsx | isSessionRevoked, refreshSessionShared | (b) needs careful review |
+| apps/web/hooks/mutations/useAuthMutations.ts | resumeSession | (b) needs careful review |
+| apps/web/hooks/useAuthRestoreRetry.ts | refreshSessionShared | (b) needs careful review |
+| apps/web/lib/capacitor/nativePush.ts | apiClient | (a) safe to migrate |
+| apps/web/lib/pwa.ts | apiClient | (a) safe to migrate |
+| apps/web/lib/swTokenSync.ts | refreshSessionShared | (b) needs careful review |
+| apps/web/providers/AuthHydrationProvider.tsx | isSessionRevoked, refreshSessionShared | (b) needs careful review |
 
 ## Phase 3 migration order
-1. frontend/api/sitemap.ts — does not exist (skip)
-2. frontend/api/auth.api.ts — (b) review
-3. frontend/api/search.api.ts — (a) safe
-4. frontend/api/products.api.ts — (a) safe
-5. frontend/api/services.api.ts — does not exist (use service-*.api.ts files)
-6. frontend/api/messages.api.ts — does not exist (use conversations.api.ts)
+1. apps/web/api/sitemap.ts — does not exist (skip)
+2. apps/web/api/auth.api.ts — (b) review
+3. apps/web/api/search.api.ts — (a) safe
+4. apps/web/api/products.api.ts — (a) safe
+5. apps/web/api/services.api.ts — does not exist (use service-*.api.ts files)
+6. apps/web/api/messages.api.ts — does not exist (use conversations.api.ts)
 7. Remaining api/*.ts files, then lib/ and hooks/ consumers
 
 ## Exclusions (never touch)
-- frontend/app/error.tsx, frontend/app/global-error.tsx
+- apps/web/app/error.tsx, apps/web/app/global-error.tsx
 - Any "use client" file with no axios dependency

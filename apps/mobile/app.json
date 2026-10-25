@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "MarketPlat",
+    "slug": "marketplat-mobile",
+    "scheme": "marketplat",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "اسمح لـ MarketPlat بالوصول إلى صورك لإرفاقها بإعلاناتك.",
+          "cameraPermission": "اسمح لـ MarketPlat باستخدام الكاميرا لالتقاط صور للإعلانات."
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "package": "com.marketplat.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F8FA"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.marketplat.mobile",
+      "supportsTablet": true
+    }
+  }
+}

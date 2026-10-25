@@ -5,7 +5,7 @@
 | 7 | Cache-Key Normalization | ✅ | `workers/cf-api-proxy/worker.js` |
 | 12 | SWR كامل على الـ Edge | ✅ | `worker.js` |
 | 9 | Negative caching (404، 60s) | ✅ | `worker.js` |
-| 8 | Cache-Tag Purge | ✅ (يعمل عند ضبط env) | `worker.js` + `backend/src/shared/cache/edgePurge.ts` + `ads.cache.keys.ts` |
+| 8 | Cache-Tag Purge | ✅ (يعمل عند ضبط env) | `worker.js` + `apps/api/src/shared/cache/edgePurge.ts` + `ads.cache.keys.ts` |
 | 10 | Edge KV للتصنيفات | ✅ (يعمل عند ربط KV) | `worker.js`, `wrangler.example.jsonc` |
 | 11 | static / personal في /home | ✅ | `GET /home/static` + الواجهة |
 

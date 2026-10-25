@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const outbox = read('../src/storage/mutation-outbox.ts');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(outbox, /CREATE TABLE IF NOT EXISTS mutation_outbox/);
+assert.match(outbox, /idempotency_key TEXT NOT NULL UNIQUE/);
+assert.match(outbox, /CHECK\(state IN \('pending','processing','failed'\)\)/);
+assert.match(outbox, /UPDATE mutation_outbox SET state = 'pending', lease_owner = NULL, lease_until = 0, next_attempt_at = MAX\(next_attempt_at, \?\) WHERE state = 'processing' AND lease_until <= \?/, 'only expired interrupted work is recovered with a retry delay');
+assert.match(outbox, /MAX_PENDING = 50/);
+assert.match(outbox, /MAX_PAYLOAD_CHARS = 100_000/);
+assert.match(outbox, /export async function enqueueMutation/);
+assert.match(outbox, /export async function claimMutation/);
+assert.match(outbox, /export async function acknowledgeMutation/);
+assert.match(outbox, /Never store auth tokens\/cookies here/);
+assert.ok(pkg.scripts.test.includes('verify-phase20.mjs'));
+console.log('Phase 20 outbox contract checks passed (static source checks only; SQLite runtime and server idempotency were not tested).');

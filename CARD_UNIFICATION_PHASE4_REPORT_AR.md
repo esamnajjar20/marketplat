@@ -10,9 +10,9 @@
 
 ## الملفات المعدلة
 
-- `frontend/components/services/ServiceListingsGrid.tsx`
-- `frontend/components/ads/AdCard.tsx`
-- `frontend/components/stores/ProductCard.tsx`
+- `apps/web/components/services/ServiceListingsGrid.tsx`
+- `apps/web/components/ads/AdCard.tsx`
+- `apps/web/components/stores/ProductCard.tsx`
 
 ## حدود التحقق
 

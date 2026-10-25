@@ -2,7 +2,7 @@
 
 ## Phase 3: consistent offline query states
 
-- Added `frontend/components/shared/feedback/OfflineQueryFallback.tsx` as a reusable, accessible fallback for a query with no in-memory or persisted data while offline.
+- Added `apps/web/components/shared/feedback/OfflineQueryFallback.tsx` as a reusable, accessible fallback for a query with no in-memory or persisted data while offline.
 - Reused it for the initial loading state of product, store, ad, service, unified search, and request listings. Offline users now see an explicit explanation instead of an indefinitely pulsing skeleton.
 - For offline query errors, product/ad/service/request listings no longer present a retry button that cannot work without a connection. Existing online skeletons and retry states remain the fallback when online.
 - Added unit tests for the shared component.

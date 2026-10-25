@@ -1,0 +1,180 @@
+/**
+ * Ads API — maps to backend /api/v1/ads/* endpoints.
+ *
+ * FIX C-06: getMyAds uses '/ads/me' (not '/ads/my').
+ * FIX T-05: params use sortBy/sortOrder (not sort/order).
+ * FIX API-02: added searchAds() calling GET /ads/search with 'q' param.
+ * FIX M-01: there is no dedicated POST /ads/:id/sold endpoint — markAsSold
+ *           below uses the general PATCH /ads/:id with { status: 'SOLD' }.
+ * FIX API-SHAPE-01: getAll/searchAds/getMyAds now unwrap the backend's
+ *   real response shape (data: T[] directly, meta.pagination for paging)
+ *   via unwrapPaginated — see lib/apiPagination.ts for the full story.
+ */
+import { apiClient } from './client';
+import type { AxiosRequestConfig } from 'axios';
+import { unwrapPaginated } from '@/lib/apiPagination';
+import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
+import type {
+  Ad,
+  AdListItem,
+  CreateAdPayload,
+  UpdateAdPayload,
+  AdSearchParams,
+  AdSearchQuery,
+} from '@/types/ad.types';
+import type { ApiResponse } from '@/types/api.types';
+
+export const adsApi = {
+  /** GET /ads — paginated + filtered list */
+  getAll: (params?: AdSearchParams, config?: AxiosRequestConfig) =>
+    apiClient
+      .get<ApiResponse<AdListItem[]>>('/ads', { ...config, params })
+      .then((r) => unwrapPaginated<AdListItem>(r)),
+
+  /**
+   * GET /ads/search — full-text search.
+   * FIX API-02: uses 'q' as the required search term (backend searchAdsSchema).
+   * Spread AdSearchQuery so sortBy/sortOrder/city/etc are also sent.
+   */
+  searchAds: (params: AdSearchQuery, config?: AxiosRequestConfig) =>
+    apiClient
+      .get<ApiResponse<AdListItem[]>>('/ads/search', { ...config, params })
+      .then((r) => unwrapPaginated<AdListItem>(r)),
+
+  /** GET /ads/:id — full detail */
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    (config ? apiClient.get<ApiResponse<Ad>>(`/ads/${id}`, config) : apiClient.get<ApiResponse<Ad>>(`/ads/${id}`)),
+
+  /**
+   * GET /ads/:id/related — similar listings.
+   * FIX API-SHAPE-02: unlike getAll/searchAds/getMyAds, this endpoint is
+   * NOT paginated — the backend (ads.controller.ts's getRelatedAds) calls
+   * successResponse('Related ads fetched', ads) with no third `meta`
+   * argument at all, so `data` here is a bare AdWithAuthor[], not
+   * { items: [...] }. useRelatedAds's `.then(r => r.data.data?.items ?? [])`
+   * was therefore always reading an `.items` that never existed on a
+   * bare array, silently falling through to `[]` every time — the
+   * "related ads" section was empty on every single ad detail page.
+   */
+  getRelated: (id: string, config?: AxiosRequestConfig) =>
+    (config ? apiClient.get<ApiResponse<AdListItem[]>>(`/ads/${id}/related`, config) : apiClient.get<ApiResponse<AdListItem[]>>(`/ads/${id}/related`)),
+
+  /**
+   * GET /ads/me — current user's ads.
+   * FIX C-06: was '/ads/my' — correct endpoint is '/ads/me'.
+   */
+  getMyAds: (params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>, config?: AxiosRequestConfig) =>
+    apiClient
+      .get<ApiResponse<AdListItem[]>>('/ads/me', { ...config, params })
+      .then((r) => unwrapPaginated<AdListItem>(r)),
+
+  /**
+   * GET /ads/me/stats — aggregate counts for the dashboard
+   * (active/sold ads, total views, favorites count). Not paginated —
+   * bare object response, no unwrapPaginated needed.
+   */
+  getMyStats: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<{
+      activeAds: number;
+      soldAds: number;
+      totalViews: number;
+      favoritesCount: number;
+    }>>('/ads/me/stats', config),
+
+  /**
+   * POST /ads — create new ad (multipart/form-data).
+   *
+   * UX-FIX P3-10b: accepts an optional onUploadProgress callback so
+   * ImageUpload can show a real progress bar during the actual upload
+   * (create/edit ad submission) instead of no feedback at all between
+   * "Publish" and the success toast. This is one combined percentage for
+   * the whole multipart request — axios reports progress at the request
+   * level, not per-file within a single FormData — but that's still a
+   * large, honest improvement over a multi-second silent wait on a slow
+   * connection with several photos attached.
+   */
+  /**
+   * operationId (اختياري): FIX AD-DRAFT-QUEUE-LINK-01 — يُرسَل كـ header
+   * عادي فيُخزَّن تلقائيًا مع أي نسخة من هذا الطلب تدخل طابور الـ SW عند
+   * فشل الشبكة (handleMutation بـ sw.js يحفظ كل الـ headers أصلًا). يسمح
+   * لاحقًا بربط مسودة الإعلان (lib/offlineAdDrafts.ts) بحالة الطابور
+   * الفعلية بدل أن يكونا مصدرين منفصلين لا يتزامنان أبدًا — انظر
+   * lib/offlineAdDraftSync.ts.
+   */
+  create: (
+    payload: CreateAdPayload,
+    onUploadProgress?: (percent: number) => void,
+    operationId?: string,
+  ) => {
+    const form = new FormData();
+    (Object.keys(payload) as (keyof CreateAdPayload)[]).forEach((key) => {
+      const value = payload[key];
+      if (value === undefined) return;
+      if (key === 'images' && Array.isArray(value)) {
+        (value as File[]).forEach((file) => form.append('images', file));
+      } else {
+        form.append(key, String(value));
+      }
+    });
+    // FIX MULTIPART-BOUNDARY-01: لا تضبط Content-Type يدويًا.
+    // axios + FormData يضيفان boundary تلقائيًا. التعيين اليدوي
+    // `multipart/form-data` بدون boundary يفسد التحليل على السيرفر
+    // وقد يظهر كـ 503/فشل شبكة رغم أن الـ API يعمل على GET.
+    return apiClient.post<ApiResponse<Ad>>('/ads', form, {
+      headers: {
+        ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
+      },
+      onUploadProgress: onUploadProgress
+        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
+        : undefined,
+    });
+  },
+
+  /** PATCH /ads/:id — partial update (status, title, price, etc.) */
+  update: (id: string, payload: UpdateAdPayload, operationId?: string) =>
+    apiClient.patch<ApiResponse<Ad>>(`/ads/${id}`, payload, {
+      headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined,
+    }),
+
+  /**
+   * Mark ad as SOLD via the general update endpoint.
+   * FIX M-01: no dedicated /sold endpoint exists — use PATCH with status.
+   */
+  markAsSold: (id: string) =>
+    apiClient.patch<ApiResponse<Ad>>(`/ads/${id}`, { status: 'SOLD' }),
+
+  /** DELETE /ads/:id — soft delete (sets status to DELETED) */
+  delete: (id: string) =>
+    apiClient.delete<ApiResponse<null>>(`/ads/${id}`),
+
+  /**
+   * POST /ads/:id/images — add images to existing ad.
+   * UX-FIX P3-10b: same onUploadProgress support as create(), for the
+   * edit-ad flow.
+   */
+  addImages: (id: string, files: File[], onUploadProgress?: (percent: number) => void) => {
+    const form = new FormData();
+    files.forEach((f) => form.append('images', f));
+    return apiClient.post<ApiResponse<Ad>>(`/ads/${id}/images`, form, {
+      // FIX MULTIPART-BOUNDARY-01: دع axios يضبط boundary
+      headers: {},
+      onUploadProgress: onUploadProgress
+        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
+        : undefined,
+    });
+  },
+
+  /** DELETE /ads/:id/images — remove one image by URL */
+  removeImage: (id: string, imageUrl: string) =>
+    apiClient.delete<ApiResponse<Ad>>(`/ads/${id}/images`, {
+      data: { imageUrl },
+    }),
+
+  /**
+   * PUT /ads/:id/images/reorder — Gap #11. Body must be a permutation
+   * of the ad's current image URLs (same set, new order) — the backend
+   * rejects anything else with IMAGES_MISMATCH.
+   */
+  reorderImages: (id: string, images: string[]) =>
+    apiClient.put<ApiResponse<Ad>>(`/ads/${id}/images/reorder`, { images }),
+};

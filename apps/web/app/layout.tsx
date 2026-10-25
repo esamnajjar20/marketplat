@@ -1,0 +1,243 @@
+import Script from 'next/script';
+import { NavigationProgress } from '@/components/shared/NavigationProgress';
+import '@/app/icon.svg';
+
+/**
+ * Root layout — applies to every route.
+ *
+ * FIX SEO-01: lang="ar" dir="rtl" (was lang="en" dir="ltr").
+ * FIX SEO-03: openGraph locale set to ar_PS.
+ *
+ * Fonts:
+ *   Cairo         — headings + UI chrome
+ *   IBM Plex Sans Arabic — body text
+ *   IBM Plex Mono — prices (monospace for consistent digit widths)
+ *
+ * Fonts are loaded via next/font/google (self-hosted at build time,
+ * served from /_next/static). Cairo, IBM Plex Sans Arabic, and IBM Plex
+ * Mono are subset to Arabic where applicable. Zero runtime network calls
+ * after the build; works in offline/air-gapped environments.
+ */
+import type { Metadata, Viewport }    from 'next';
+import { Cairo, IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from 'next/font/google';
+import './navigation-progress.css';
+import { headers, cookies }            from 'next/headers';
+import FloatingDebugConsole             from '@/components/shared/FloatingDebugConsole';
+import { AppProviders }               from '@/providers/AppProviders';
+import { WebVitals }                  from '@/components/shared/WebVitals';
+import { ErudaDebug }                 from '@/components/debug/ErudaDebug';
+import { DeviceErrorCapture }         from '@/components/debug/DeviceErrorCapture';
+import { AdminScriptConsole }         from '@/components/debug/AdminScriptConsole';
+import { SkipLink }                   from '@/components/shared/a11y/SkipLink';
+import { APP_NAME, APP_URL }          from '@/lib/constants';
+import {
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+  safeJsonLd,
+} from '@/lib/structuredData';
+import '@/app/globals.css';
+
+// ── Fonts ─────────────────────────────────────────────────────────
+// PERF-03: Cairo handles Arabic headings + UI chrome.
+//          IBM_Plex_Sans_Arabic handles Arabic body text.
+//          IBM_Plex_Mono handles prices for consistent digit widths.
+//
+// GLOBAL-OPTIMIZATION-2A: replaced @fontsource with next/font/google so
+// font files become self-hosted build assets served from /_next/static.
+// Cairo 400/600 and IBM Plex Sans Arabic / Mono 400 load on the critical
+// path via <body> variable classes. Heavier weights were previously loaded
+// lazily by DeferredFonts and are no longer preloaded here.
+const cairo = Cairo({
+  subsets: ['arabic'],
+  weight: ['400', '600'],
+  variable: '--font-cairo',
+  display: 'swap',
+});
+const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
+  subsets: ['arabic'],
+  weight: ['400'],
+  variable: '--font-ibm-plex-sans-arabic',
+  display: 'swap',
+});
+const ibmPlexMono = IBM_Plex_Mono({ subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-ibm-plex-mono',
+  display: 'swap',
+});
+
+// ── Metadata ──────────────────────────────────────────────────────
+
+export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
+  title: {
+    default:  APP_NAME,
+    template: `%s | ${APP_NAME}`,
+  },
+  description: 'منصة الإعلانات المبوّبة الأولى في غزة — بيع، شراء، واستئجار',
+  keywords:    ['إعلانات', 'غزة', 'بيع', 'شراء', 'عقارات', 'سيارات', 'إلكترونيات'],
+  authors:     [{ name: APP_NAME }],
+  robots:      { index: true, follow: true },
+
+  // FIX SEO-03: locale is ar_PS
+  // FIX SEO-04 (resolved): public/og-default.png (1200×630) now exists, so the
+  // default share image is restored below. Pages built with buildMetadata()
+  // inherit it too (see lib/seo.ts → DEFAULT_OG_IMAGE).
+  openGraph: {
+    type:      'website',
+    locale:    'ar_PS',
+    url:       APP_URL,
+    siteName:  APP_NAME,
+    title:     APP_NAME,
+    description: 'منصة الإعلانات المبوّبة الأولى في غزة',
+    images: [{ url: '/og-default.png', width: 1200, height: 630, alt: APP_NAME }],
+  },
+
+  twitter: {
+    card:  'summary_large_image',
+    title: APP_NAME,
+    images: ['/og-default.png'],
+  },
+
+  // FIX PWA-04: manifest.ts ينتج /manifest.webmanifest تلقائيًا، لكن
+  // Next.js لا يضيف وسم <link rel="manifest"> إلا إذا صرّحنا عنه هنا —
+  // بدونه Chrome/Android لا يكتشف قابلية التثبيت إطلاقًا.
+  manifest: '/manifest.webmanifest',
+
+  // FIX PWA-05: iOS Safari يتجاهل <link rel="manifest"> تمامًا لأغراض
+  // "الإضافة للشاشة الرئيسية" ويعتمد فقط على وسوم apple-* التالية —
+  // بدونها يفتح كتبويب متصفح عادي حتى لو أضافه المستخدم للشاشة الرئيسية.
+  appleWebApp: {
+    capable: true,
+    // FIX PWA-06: 'default' يعرض شريط الحالة بخلفية بيضاء (يتناقض مع
+    // theme_color الداكن)؛ 'black-translucent' يمدّ المحتوى تحت شريط
+    // الحالة فعليًا (نفس تأثير edge-to-edge على Android) — التطبيق
+    // يتعامل مع safe-area عبر globals.css (env(safe-area-inset-*))
+    // بدلاً من الاعتماد على شريط حالة يحجز مساحته الخاصة.
+    statusBarStyle: 'black-translucent',
+    title: APP_NAME,
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    // GOOGLE-TRANSLATE-418: Chrome's auto-translate rewrites <html lang>/class
+    // mid-flight (translated-ltr etc.) and React sees a mismatch on the root
+    // element on hydration — #418 with args[]=HTML. The app is already Arabic;
+    // there is nothing meaningful to translate. This meta is the documented
+    // opt-out (alongside the same hint any multilingual site needs).
+    google: 'notranslate',
+  },
+};
+
+export const viewport: Viewport = {
+  width:        'device-width',
+  initialScale: 1,
+  // FIX PWA-07: maximumScale/userScalable الافتراضي (بدون تحديد) يسمح
+  // بالتكبير — لا نمنعه صراحة (يضر بإمكانية الوصول)، لكن viewportFit
+  // ضروري لتفعيل env(safe-area-inset-*) في CSS على iOS (الإشعار/الحواف
+  // المستديرة).
+  viewportFit: 'cover',
+  // FIX PWA-12 (cont.) / FIX UX-03: a single static themeColor stayed
+  // correct for light mode but went stale the moment dark mode became
+  // reachable (ThemeToggle) — the browser chrome/PWA status bar would
+  // still show the light-mode olive (#2F5D45) while the app itself had
+  // switched to the dark palette's lighter primary. The array form lets
+  // Next.js emit both light/dark <meta name="theme-color"> tags with
+  // their own media queries, so the chrome always matches whichever
+  // .dark or :root --primary is actually active. Hex values computed
+  // directly from the same HSL tokens in globals.css (light: 148.7
+  // 32.9% 27.5%, dark: 148 38% 52%) — keep these two in sync if the
+  // palette ever changes.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#2F5D45' },
+    { media: '(prefers-color-scheme: dark)',  color: '#56B381' },
+  ],
+};
+
+// ── Layout ────────────────────────────────────────────────────────
+
+// FIX CSP-01: RootLayout must read `headers()` so Next.js treats every
+// route under this layout as dynamically rendered — otherwise Next.js
+// may statically render/cache the page and its own RSC/hydration
+// `<script>` tags won't reliably carry the current request's nonce.
+//
+// FIX CSP-02: reading `headers()` alone was NOT enough. `next-themes`
+// (mounted via ThemeProvider inside AppProviders) injects its own
+// inline <script> before hydration to set the theme class on <html>
+// pre-paint (avoids flash-of-wrong-theme). That script is next-themes'
+// own code, not something Next.js auto-nonces — its content is fixed
+// per build (hence the CSP violation always reporting the SAME sha256
+// hash regardless of which nonce is currently active), and next-themes
+// only nonces it if explicitly given one via its own `nonce` prop.
+// Confirmed via providers/ThemeProvider.tsx: it forwards `...props` to
+// next-themes' <ThemeProvider>, so passing `nonce` through from here
+// down to AppProviders -> ThemeProvider is enough; no change needed
+// inside ThemeProvider.tsx itself. The actual nonce value must be the
+// SAME one middleware just minted (sent via the `x-nonce` request
+// header) — reading it back out here with headers().get('x-nonce') is
+// how a Server Component accesses a header middleware set on the
+// request.
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const isDebugConsoleEnabled = cookieStore.get('mp_debug_console')?.value === '1';
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
+  return (
+    // FIX UX-03: suppressHydrationWarning is required by next-themes —
+    // it sets the `class`/`style` attributes on <html> from
+    // localStorage before React hydrates, so the server-rendered
+    // markup and the first client render legitimately differ on this
+    // one element. Without this, React logs a hydration mismatch
+    // warning on every load even though nothing is actually broken.
+    <html lang="ar" dir="rtl" translate="no" suppressHydrationWarning>
+      <head>
+        {process.env.NODE_ENV !== 'production' && (
+          <Script src="/hydration-trace.js" strategy="lazyOnload" />
+        )}
+      </head>
+      <body className={`notranslate ${cairo.variable} ${ibmPlexSansArabic.variable} ${ibmPlexMono.variable}`} translate="no" suppressHydrationWarning>
+        {/* DESKTOP-AUDIT-02: first tab stop on every page, before any
+            header/nav — see SkipLink's own doc comment. */}
+        <SkipLink />
+        <AppProviders nonce={nonce}>
+          <WebVitals />
+          {process.env.NODE_ENV === 'development' && <ErudaDebug />}
+          <DeviceErrorCapture />
+          <AdminScriptConsole />
+          {/* FIX NAV-DUP-01: the ONLY NavigationProgress mount (was also in AppProviders). */}
+          <NavigationProgress />
+        {children}
+        {isDebugConsoleEnabled && <FloatingDebugConsole />}
+        </AppProviders>
+
+        {/* SW-SEO-JSONLD-SITE-01: Organization + WebSite — the two
+            schema.org entities Google uses to build the site's
+            Knowledge Graph entry and the sitelinks searchbox (a
+            search input directly in the SERP that deep-links into
+            /search?q=). Rendered here, once, so every page inherits
+            them via the root layout.
+
+            Both scripts carry the per-request CSP nonce — without
+            it, proxy.ts's CSP header (script-src 'self') blocks
+            inline scripts and these would silently fail to load.
+            Same nonce the app already uses for next-themes' pre-
+            hydration script below in this file. */}
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(buildOrganizationJsonLd()),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd(buildWebSiteJsonLd()),
+          }}
+        />
+      
+        
+              
+      </body>
+    </html>
+  );
+}

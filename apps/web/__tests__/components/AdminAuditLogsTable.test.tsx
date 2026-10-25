@@ -1,0 +1,165 @@
+/**
+ * __tests__/components/AdminAuditLogsTable.test.tsx
+ *
+ * Covers: rendering event/user/date/IP/user-agent columns, the empty
+ * state, the details dialog opening with the raw `details` JSON, and
+ * that filter inputs push the right query params (clearing `page`) —
+ * mirroring AdminReportsTable.test.tsx / AdminUsersTable's search
+ * pattern for this codebase's URL-state-driven admin tables.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { setupUser } from '@/test-support/user-event';
+import { AdminAuditLogsTable } from '@/components/admin/AdminAuditLogsTable';
+import { useAdminAuditLogs } from '@/hooks/queries/useAdmin';
+import { AUDIT_EVENT_LABELS } from '@/lib/constants';
+import type { AuditLog } from '@/types/admin.types';
+
+vi.mock('@/hooks/queries/useAdmin', () => ({
+  useAdminAuditLogs: vi.fn(),
+}));
+
+let mockSearchParams = new URLSearchParams();
+const mockPush = vi.fn();
+const mockReplace = vi.fn();
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => mockSearchParams,
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+}));
+
+const baseLog: AuditLog = {
+  id: 'log-1',
+  event: 'ADMIN_USER_STATUS_CHANGED',
+  userId: 'admin-1',
+  sessionId: null,
+  ip: '127.0.0.1',
+  userAgent: 'Mozilla/5.0 Test Agent',
+  details: { targetUserId: 'user-1', isActive: false },
+  createdAt: '2026-01-01T00:00:00.000Z',
+  user: { id: 'admin-1', name: 'أحمد', email: 'admin@example.com' },
+};
+
+function mockAuditLogsData(items: AuditLog[]) {
+  vi.mocked(useAdminAuditLogs).mockReturnValue({
+    data: { items, meta: { totalPages: 1 } },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  } as never);
+}
+
+describe('AdminAuditLogsTable', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
+    mockAuditLogsData([baseLog]);
+  });
+
+  describe('rendering', () => {
+    it('renders the Arabic label for the event', () => {
+      render(<AdminAuditLogsTable />);
+      expect(screen.getAllByText('تغيير حالة مستخدم (إدارة)').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('renders the related user name', () => {
+      render(<AdminAuditLogsTable />);
+      expect(screen.getAllByText('أحمد').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('renders the IP address', () => {
+      render(<AdminAuditLogsTable />);
+      expect(screen.getAllByText('127.0.0.1').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('renders the user agent', () => {
+      render(<AdminAuditLogsTable />);
+      expect(screen.getAllByText('Mozilla/5.0 Test Agent').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('falls back to the raw userId when no related user is present', () => {
+      mockAuditLogsData([{ ...baseLog, user: null }]);
+      render(<AdminAuditLogsTable />);
+      expect(screen.getAllByText('admin-1').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('shows an empty-state message when there are no logs', () => {
+      mockAuditLogsData([]);
+      render(<AdminAuditLogsTable />);
+      expect(screen.getByText('لا توجد سجلات')).toBeInTheDocument();
+    });
+
+    it('falls back to the raw event name for an unmapped event', () => {
+      mockAuditLogsData([{ ...baseLog, event: 'SOME_FUTURE_EVENT' as never }]);
+      render(<AdminAuditLogsTable />);
+      expect(screen.getAllByText('SOME_FUTURE_EVENT').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('details dialog', () => {
+    it('opens and shows the formatted JSON details on clicking the details button', async () => {
+      const user = setupUser();
+      render(<AdminAuditLogsTable />);
+
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('button', { name: /تفاصيل/ }));
+
+      // FIX P1-6: details render as a translated key/value table, not raw
+      // JSON — the raw key "targetUserId" never appears; its Arabic label
+      // (DETAIL_KEY_LABELS) does. The string value itself passes through
+      // formatDetailValue unchanged, so 'user-1' is still findable as-is.
+      expect(screen.getByText('المستخدم المستهدف')).toBeInTheDocument();
+      expect(screen.getByText(/user-1/)).toBeInTheDocument();
+    });
+
+    it('shows a placeholder when details is null', async () => {
+      mockAuditLogsData([{ ...baseLog, details: null }]);
+      const user = setupUser();
+      render(<AdminAuditLogsTable />);
+
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('button', { name: /تفاصيل/ }));
+
+      const detailsSection = screen.getByText('التفاصيل:').parentElement;
+      expect(within(detailsSection as HTMLElement).getByText('—')).toBeInTheDocument();
+    });
+  });
+
+  describe('filters', () => {
+    it('pushes userId filter and clears the page param', async () => {
+      mockSearchParams = new URLSearchParams('page=3');
+      const user = setupUser();
+      render(<AdminAuditLogsTable />);
+
+      const input = screen.getAllByPlaceholderText('بحث بمعرّف المستخدم…')[0];
+      await user.clear(input);
+      await user.type(input, 'user-42');
+      await user.tab(); // triggers onBlur → router.replace
+
+      const nav = mockReplace.mock.calls.length
+        ? mockReplace
+        : mockPush;
+      expect(nav).toHaveBeenCalled();
+      const calledUrl = String(nav.mock.calls[nav.mock.calls.length - 1][0]);
+      expect(calledUrl).toMatch(/userId=user-42/);
+      expect(calledUrl).not.toMatch(/page=/);
+    });
+
+    it('pushes the selected event type filter', async () => {
+      const user = setupUser();
+      render(<AdminAuditLogsTable />);
+
+      // The event-type filter is a Radix Select (FIX UX-02 swapped the
+      // native <select> for it — see AdminAuditLogsTable.tsx), which
+      // renders as role="combobox" with no value attribute, so
+      // getByDisplayValue can't find it and selectOptions can't act on
+      // it directly. Open the trigger, then click the option.
+      await user.click(screen.getAllByRole('combobox')[0]);
+      await user.click(await screen.findByRole('option', { name: AUDIT_EVENT_LABELS.LOGIN_FAILED }));
+
+      const nav = mockReplace.mock.calls.length ? mockReplace : mockPush;
+      expect(nav).toHaveBeenCalled();
+      const calledUrl = String(nav.mock.calls[nav.mock.calls.length - 1][0]);
+      expect(calledUrl).toMatch(/event=LOGIN_FAILED/);
+    });
+  });
+});

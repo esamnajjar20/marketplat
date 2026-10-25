@@ -7,8 +7,8 @@
 
 ## Tooling and E2E availability
 
-- **Package manager:** npm 11.19.0; `frontend/package-lock.json` exists. pnpm 12.3.4 is installed but there is no pnpm lockfile, so npm is the reproducible choice.
-- **Playwright:** `@playwright/test` 1.64.0 and `frontend/playwright.config.ts` already exist; 39 spec files are present. The current config defines `chromium` and `mobile-chromium` only.
+- **Package manager:** npm 11.19.0; `apps/web/package-lock.json` exists. pnpm 12.3.4 is installed but there is no pnpm lockfile, so npm is the reproducible choice.
+- **Playwright:** `@playwright/test` 1.64.0 and `apps/web/playwright.config.ts` already exist; 39 spec files are present. The current config defines `chromium` and `mobile-chromium` only.
 - **Cypress:** not installed/configured.
 - **axe integration:** `@axe-core/playwright` is not installed.
 - **Browsers:** Playwright Chromium, Firefox, WebKit binaries were downloaded for this audit. Browser launch is blocked by host libraries (first missing `libatk-1.0.so.0`); this user has no sudo privileges. No browser test ran successfully at baseline.
@@ -34,4 +34,4 @@
 
 ## Full command logs
 
-Raw command output was captured during the baseline run in `/tmp/audit-baseline-{typecheck,lint,unit,build,e2e}.log`. Playwright wrote diagnostic traces and error contexts under ignored `frontend/test-results/`. These temporary logs are not deliverables and are not tracked.
+Raw command output was captured during the baseline run in `/tmp/audit-baseline-{typecheck,lint,unit,build,e2e}.log`. Playwright wrote diagnostic traces and error contexts under ignored `apps/web/test-results/`. These temporary logs are not deliverables and are not tracked.

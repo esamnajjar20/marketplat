@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 
-const backend = fs.readFileSync('backend/src/shared/errors/errorCodes.ts', 'utf8');
-const frontendCodes = fs.readFileSync('frontend/lib/errorCodes.ts', 'utf8');
-const frontendMessages = fs.readFileSync('frontend/lib/i18n/ar/errors.ts', 'utf8');
+const backend = fs.readFileSync('apps/api/src/shared/errors/errorCodes.ts', 'utf8');
+const frontendCodes = fs.readFileSync('apps/web/lib/errorCodes.ts', 'utf8');
+const frontendMessages = fs.readFileSync('apps/web/lib/i18n/ar/errors.ts', 'utf8');
 
 const keys = (text) => new Set(
   [...text.matchAll(/^\s*([A-Z][A-Z0-9_]*)\s*:\s*(?:['"]|\()/gm)].map((m) => m[1])

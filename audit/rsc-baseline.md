@@ -1,6 +1,6 @@
 # RSC migration baseline
 
-Captured from `cd frontend && npm run build` on `audit/refactor-20261022`
+Captured from `cd apps/web && npm run build` on `audit/refactor-20261022`
 before any migration changes (Next.js 15.5.27). Values are Next.js build
 output's **First Load JS** per route; the shared bundle was 105 kB.
 

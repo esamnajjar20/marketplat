@@ -4,7 +4,7 @@
 
 This baseline covers the frontend rendering architecture before the Phase 2 connectivity refactor. It is intentionally source-based and reproducible; it does **not** claim that a static count equals a runtime render count.
 
-Run from `frontend/`:
+Run from `apps/web/`:
 
 ```bash
 npm run perf:render-audit

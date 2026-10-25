@@ -28,32 +28,32 @@
 
 ## الملفات التي تغيّرت في هذه الجولة
 
-- `frontend/lib/prefetch.ts`
-- `frontend/lib/pwa.ts`
-- `frontend/__tests__/components/OfflineBootstrap.test.tsx`
-- `frontend/__tests__/components/SellerCard.test.tsx`
-- `frontend/__tests__/components/SellerTodayTasks.test.tsx`
-- `frontend/__tests__/components/ServiceCategoryFilter.test.tsx`
-- `frontend/__tests__/components/StoreHeader.test.tsx`
-- `frontend/__tests__/components/StoreStorefront.test.tsx`
-- `frontend/__tests__/components/StoresFilters.test.tsx`
-- `frontend/__tests__/components/StoresGrid.test.tsx`
-- `frontend/__tests__/components/ads/SearchSortBarWrapper.test.tsx`
-- `frontend/__tests__/components/search/SearchNearbyToggle.test.tsx`
-- `frontend/__tests__/components/search/SearchResults.test.tsx`
-- `frontend/__tests__/components/search/SearchSortBarWrapper.test.tsx`
-- `frontend/__tests__/components/shared/DetailSafetyTips.test.tsx`
-- `frontend/__tests__/components/shared/SearchSortBar.test.tsx`
-- `frontend/__tests__/components/stores/SearchSortBarWrapper.test.tsx`
-- `frontend/__tests__/unit/hooks/useNotificationsReportsConversations.test.tsx`
-- `frontend/__tests__/unit/lib/offlineMessagesStore.test.ts`
-- `frontend/__tests__/unit/lib/offlineQueue.test.ts`
-- `frontend/__tests__/unit/lib/pwa.test.ts`
+- `apps/web/lib/prefetch.ts`
+- `apps/web/lib/pwa.ts`
+- `apps/web/__tests__/components/OfflineBootstrap.test.tsx`
+- `apps/web/__tests__/components/SellerCard.test.tsx`
+- `apps/web/__tests__/components/SellerTodayTasks.test.tsx`
+- `apps/web/__tests__/components/ServiceCategoryFilter.test.tsx`
+- `apps/web/__tests__/components/StoreHeader.test.tsx`
+- `apps/web/__tests__/components/StoreStorefront.test.tsx`
+- `apps/web/__tests__/components/StoresFilters.test.tsx`
+- `apps/web/__tests__/components/StoresGrid.test.tsx`
+- `apps/web/__tests__/components/ads/SearchSortBarWrapper.test.tsx`
+- `apps/web/__tests__/components/search/SearchNearbyToggle.test.tsx`
+- `apps/web/__tests__/components/search/SearchResults.test.tsx`
+- `apps/web/__tests__/components/search/SearchSortBarWrapper.test.tsx`
+- `apps/web/__tests__/components/shared/DetailSafetyTips.test.tsx`
+- `apps/web/__tests__/components/shared/SearchSortBar.test.tsx`
+- `apps/web/__tests__/components/stores/SearchSortBarWrapper.test.tsx`
+- `apps/web/__tests__/unit/hooks/useNotificationsReportsConversations.test.tsx`
+- `apps/web/__tests__/unit/lib/offlineMessagesStore.test.ts`
+- `apps/web/__tests__/unit/lib/offlineQueue.test.ts`
+- `apps/web/__tests__/unit/lib/pwa.test.ts`
 
 ## التحقق
 
 - فحص تحويل TypeScript/TSX للصياغة: **97/97 ملفًا** من ملفات الاختبار المخططة وملفي الإنتاج `prefetch.ts` و`pwa.ts` اجتازت التحويل دون أخطاء صياغية.
-- لم تُشغّل اختبارات Vitest: `frontend/node_modules/.bin/vitest` و`backend/node_modules/.bin/vitest` غير موجودين في هذه البيئة.
+- لم تُشغّل اختبارات Vitest: `apps/web/node_modules/.bin/vitest` و`apps/api/node_modules/.bin/vitest` غير موجودين في هذه البيئة.
 - لذلك لا توجد نتيجة تشغيل تؤكد نجاح الاختبارات، ولم يتم الادعاء بأن CI أصبح أخضر.
 
 ## المتبقي لإغلاق العمل نهائيًا

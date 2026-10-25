@@ -1,0 +1,11 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const source = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const report = readFileSync(new URL('../../../MONOREPO_PHASE23_REPORT_AR.md', import.meta.url), 'utf8');
+assert.match(source, /containsCredentialField\(input\.payload\)/, 'credential detection inspects the payload object');
+assert.match(source, /Object\.entries\(value as Record<string, unknown>\)/, 'nested object keys are examined');
+assert.match(source, /Array\.isArray\(value\)/, 'arrays are recursively inspected');
+assert.match(source, /CREDENTIAL_KEY/, 'credential key allowlist/denylist is explicit');
+assert.equal(source.includes('test(payloadJson)'), false, 'does not scan arbitrary serialized content for credential words');
+assert.match(report, /فحوصات ساكنة/, 'Arabic report documents static-test limitation');
+console.log('Phase 23 credential-field detection checks passed (static source checks only).');

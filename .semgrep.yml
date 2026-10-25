@@ -24,7 +24,7 @@ rules:
           ...
     paths:
       include:
-        - 'backend/src/**/*.routes.ts'
+        - 'apps/api/src/**/*.routes.ts'
 
   # ─────────────────────────────────────────────────────────────
   # SECRET-01: No hardcoded JWT secrets or API keys
@@ -58,8 +58,8 @@ rules:
           type $T = { ... }
     paths:
       include:
-        - 'backend/src/**'
-        - 'frontend/lib/**'
+        - 'apps/api/src/**'
+        - 'apps/web/lib/**'
 
   # ─────────────────────────────────────────────────────────────
   # PRISMA-01: $executeRaw / $queryRaw must use tagged templates
@@ -84,7 +84,7 @@ rules:
       - pattern-not: tx.$queryRaw`...`
     paths:
       include:
-        - 'backend/src/**'
+        - 'apps/api/src/**'
 
   # ─────────────────────────────────────────────────────────────
   # CSRF-01: Mutating requests must carry CSRF or X-Offline-Op-Id
@@ -108,4 +108,4 @@ rules:
           ...
     paths:
       include:
-        - 'backend/src/**/*.routes.ts'
+        - 'apps/api/src/**/*.routes.ts'

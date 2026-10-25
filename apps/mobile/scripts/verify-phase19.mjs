@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const cache = read('../src/storage/public-cache.ts');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8'));
+assert.match(cache, /from 'expo-sqlite'/);
+assert.match(cache, /CREATE TABLE IF NOT EXISTS public_cache/);
+assert.match(cache, /cache_key TEXT PRIMARY KEY/);
+assert.match(cache, /MAX_ENTRY_CHARS = 500_000/);
+assert.match(cache, /MAX_ENTRIES = 100/);
+assert.match(cache, /MAX_TOTAL_CHARS = 3_000_000/);
+assert.match(cache, /ORDER BY saved_at ASC/);
+assert.match(cache, /export async function clearPublicCache/);
+assert.ok(pkg.dependencies['expo-sqlite']);
+assert.ok(pkg.scripts.test.includes('verify-phase19.mjs'));
+assert.ok(app.expo.plugins.includes('expo-sqlite'));
+console.log('Phase 19 SQLite cache checks passed (static checks only; dependency installation and device/database runtime were not tested).');

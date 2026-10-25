@@ -1,0 +1,72 @@
+'use client';
+
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Heart } from 'lucide-react';
+import { StoreCard } from './StoreCard';
+import { Pagination } from '@/components/shared/ui/Pagination';
+import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { Button } from '@/components/shared/ui/Button';
+import { useMyFollowedStores } from '@/hooks/queries/useStores';
+import { ROUTES } from '@/lib/constants';
+
+export function FollowedStoresList() {
+  const sp = useSearchParams();
+  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
+  const rawPage = Number(sp.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+  const { data, isLoading, isError, refetch } = useMyFollowedStores({ page, limit: 12 });
+
+  const items = data?.items ?? [];
+  const totalPages = data?.meta?.totalPages ?? 1;
+
+  if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <p className="text-destructive">حدث خطأ أثناء تحميل المتاجر المتابَعة</p>
+        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+          إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    // FIX P2-09-B (audit item #9): every sibling empty state on this
+    // page family ("nothing saved/followed yet") points somewhere —
+    // FavoritesList/SavedSearchesList both send the user to browse
+    // (ROUTES.home / ROUTES.search). This one had no action at all
+    // despite ROUTES.stores existing and being the obvious next step.
+    return (
+      <EmptyState
+        icon={<Heart className="h-10 w-10" />}
+        title="لا تتابع أي متجر بعد"
+        description="تابع متاجرك المفضلة لتصلك آخر منتجاتها"
+        action={<Link href={ROUTES.stores}><Button variant="outline">تصفح المتاجر</Button></Link>}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in">
+        {items.map((follow) => (
+          <StoreCard key={follow.id} store={follow.store} />
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <Pagination
+          totalPages={totalPages}
+          currentPage={page}
+          baseUrl={ROUTES.myFollowedStores}
+          searchParams={Object.fromEntries(sp.entries())}
+        />
+      )}
+    </div>
+  );
+}

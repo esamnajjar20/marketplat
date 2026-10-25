@@ -4,25 +4,25 @@
 تم تنفيذ المرحلة الثانية على نسخة `marketplat-main.zip` المرفقة، مع التركيز على الرموز المشتركة وغلاف البطاقات الأساسية دون تغيير عقود البيانات أو سلوك التفاعل.
 
 ## الملفات المعدلة
-1. `frontend/components/shared/cards/cardTokens.ts`
+1. `apps/web/components/shared/cards/cardTokens.ts`
    - إضافة رموز دلالية مشتركة لعنوان البطاقة والسعر وهوية البائع والشارات وتذييل البيانات.
-2. `frontend/components/ads/AdCard.tsx`
+2. `apps/web/components/ads/AdCard.tsx`
    - توحيد غلاف تخطيط التصميم مع `CARD_SHELL` و`CARD_HOVER` بدل الحدود والظل المحليين.
    - جعل لون السعر يستخدم لون التصميم الدلالي `text-primary`.
-3. `frontend/components/stores/ProductCard.tsx`
+3. `apps/web/components/stores/ProductCard.tsx`
    - توحيد غلاف تخطيط التصميم مع رموز الغلاف المشتركة.
    - إزالة لون السعر الأخضر الثابت لصالح `text-primary`.
-4. `frontend/components/services/ServiceListingCard.tsx`
+4. `apps/web/components/services/ServiceListingCard.tsx`
    - توحيد غلاف البطاقة الأفقية مع `CARD_SHELL`.
    - تحويل ألوان السعر والتوفر إلى ألوان دلالية للتصميم.
-5. `frontend/components/search/UnifiedResultCard.tsx`
+5. `apps/web/components/search/UnifiedResultCard.tsx`
    - توحيد الغلاف والحركة والتركيز والضغط باستخدام الرموز المشتركة.
    - استخدام نسبة صورة البطاقة المشتركة 4:3 في تخطيط الشبكة، مع الاحتفاظ بمقاس الصورة المخصص للقائمة.
    - استخدام تباعد جسم البطاقة المشترك.
 
 ## فحوصات التنفيذ
 - نجحت فحوصات ساكنة مخصصة للتحقق من وجود الملفات والرموز الجديدة وتوازن محددات النصوص الأساسية.
-- لم تُشغّل اختبارات Vitest أو TypeScript أو ESLint أو Next.js Build لأن `frontend/node_modules` غير موجودة في الأرشيف، ولم يتم تنزيل الاعتمادات.
+- لم تُشغّل اختبارات Vitest أو TypeScript أو ESLint أو Next.js Build لأن `apps/web/node_modules` غير موجودة في الأرشيف، ولم يتم تنزيل الاعتمادات.
 - الفحص الساكن ليس بديلًا عن بناء المشروع والاختبارات أو المقارنة البصرية في المتصفح.
 
 ## ملاحظات وحدود

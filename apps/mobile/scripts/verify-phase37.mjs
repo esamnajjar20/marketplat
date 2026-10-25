@@ -1,0 +1,15 @@
+import { readFileSync } from 'node:fs';
+import { strict as assert } from 'node:assert';
+const outbox = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const sync = readFileSync(new URL('../src/storage/outbox-sync.ts', import.meta.url), 'utf8');
+const pkgPath = new URL('../package.json', import.meta.url);
+const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+assert.match(outbox, /retryExhaustedMutation/);
+assert.match(outbox, /NOT EXISTS\s*\(/);
+assert.match(outbox, /older\.created_at < mutation_outbox\.created_at/);
+assert.match(outbox, /DELETE FROM mutation_outbox WHERE state != 'processing'/);
+assert.match(sync, /const latestHead = await getOldestOutboxMutation\(\)/);
+assert.match(sync, /latestHead\.state === 'processing'/);
+assert.match(sync, /status: 'already-processing'/);
+assert.match(pkg.scripts.test, /verify-phase37\.mjs/);
+console.log('Phase 37 FIFO retry gating, in-flight preservation, and claim-race source-contract checks passed (static only).');

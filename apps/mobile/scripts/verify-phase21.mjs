@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const outbox = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(outbox, /state IN \('pending','failed'\)/, 'failed operations can be retried');
+assert.match(outbox, /if \(result\.changes !== 1\) return null/, 'a worker only owns a row it atomically claimed');
+assert.match(outbox, /WHERE id = \? AND state = 'processing'/, 'failure transition is restricted to processing items');
+assert.match(outbox, /idempotency_key TEXT NOT NULL UNIQUE/, 'idempotency key remains unique in local queue');
+assert.ok(pkg.scripts.test.includes('verify-phase21.mjs'), 'phase 21 checks are part of mobile test script');
+console.log('Phase 21 outbox retry/claim contract checks passed (static checks only; no SQLite runtime or server integration test).');

@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const source = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const report = readFileSync(new URL('../../../MONOREPO_PHASE24_REPORT_AR.md', import.meta.url), 'utf8');
+assert.match(source, /withExclusiveTransactionAsync\(async \(txn\)/, 'capacity check and insert use an exclusive SQLite transaction');
+const txStart = source.indexOf('withExclusiveTransactionAsync(async (txn)');
+const txEnd = source.indexOf('});', txStart);
+assert.ok(txStart >= 0 && txEnd > txStart, 'exclusive transaction callback is present');
+const txBody = source.slice(txStart, txEnd);
+assert.match(txBody, /COUNT\(\*\).*mutation_outbox/s, 'queue capacity is checked inside the transaction');
+assert.match(txBody, /txn\.runAsync\([\s\S]*INSERT INTO mutation_outbox/, 'queue insert is inside the same transaction');
+assert.match(report, /الفحص المضاف ساكن/, 'report states the test limitation clearly');
+console.log('Phase 24 outbox capacity-atomicity checks passed (static source checks only; SQLite concurrency not executed).');

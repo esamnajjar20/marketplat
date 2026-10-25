@@ -21,16 +21,16 @@ respectively. The shared First Load JS remains 105 kB.
 
 ### Converted from Client to Server
 
-- `frontend/app/(public)/profile/[id]/followers/page.tsx`
-- `frontend/app/(public)/profile/[id]/following/page.tsx`
-- `frontend/components/profile/PublicProfileHeader.tsx` — static profile
+- `apps/web/app/(public)/profile/[id]/followers/page.tsx`
+- `apps/web/app/(public)/profile/[id]/following/page.tsx`
+- `apps/web/components/profile/PublicProfileHeader.tsx` — static profile
   identity and statistics are server-rendered.
 
 ### Extracted Client Components
 
-- `frontend/components/follows/FollowActionButton.tsx` — retains per-target
+- `apps/web/components/follows/FollowActionButton.tsx` — retains per-target
   follow status and follow/unfollow mutations at the interactive leaf.
-- `frontend/components/profile/PublicProfileInteractive.tsx` — isolates
+- `apps/web/components/profile/PublicProfileInteractive.tsx` — isolates
   back/share, story/presence, follow, and message/edit controls.
 
 ### Deferred / not converted
@@ -82,12 +82,12 @@ Full lint reports 53 existing warnings and no errors. No E2E tests were run.
 
 ### Converted from Client to Server
 
-- `frontend/app/(public)/promoted/page.tsx` — fetches the initial page and
+- `apps/web/app/(public)/promoted/page.tsx` — fetches the initial page and
   renders its cards, total count, and empty state on the server.
 
 ### Extracted Client Components
 
-- `frontend/components/promoted/PromotedLoadMore.tsx` — fetches subsequent
+- `apps/web/components/promoted/PromotedLoadMore.tsx` — fetches subsequent
   pages only on explicit click and appends cards.
 
 ## Increment 3: admin and messages route shells
@@ -176,12 +176,12 @@ no E2E tests were run.
 
 ### Converted from Client to Server
 
-- `frontend/app/(protected)/account/sales/[id]/receipt/page.tsx` — resolves
+- `apps/web/app/(protected)/account/sales/[id]/receipt/page.tsx` — resolves
   route params and renders the client receipt leaf.
 
 ### Extracted Client Components
 
-- `frontend/components/sales/ReceiptPageClient.tsx` — preserves print/share,
+- `apps/web/components/sales/ReceiptPageClient.tsx` — preserves print/share,
   QR generation, and data loading through native fetch without the Axios
   client dependency.
 

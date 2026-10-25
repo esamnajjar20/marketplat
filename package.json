@@ -1,0 +1,30 @@
+{
+  "name": "marketplat-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MarketPlat web, API, and mobile applications in a shared monorepo",
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter marketplat dev",
+    "dev:api": "pnpm --filter classifieds-platform-backend dev",
+    "build:web": "pnpm --filter marketplat build",
+    "build:api": "pnpm --filter classifieds-platform-backend build",
+    "test:web": "pnpm --filter marketplat test",
+    "test:api": "pnpm --filter classifieds-platform-backend test",
+    "type-check:web": "pnpm --filter marketplat type-check",
+    "type-check:api": "pnpm --filter classifieds-platform-backend type-check",
+    "lint:web": "pnpm --filter marketplat lint",
+    "lint:api": "pnpm --filter classifieds-platform-backend lint",
+    "verify:workspace": "node tooling/verify-workspace.mjs",
+    "test:contracts": "pnpm --filter @marketplat/contracts test",
+    "type-check:contracts": "pnpm --filter @marketplat/contracts type-check",
+    "dev:mobile": "pnpm --filter @marketplat/mobile dev",
+    "android:mobile": "pnpm --filter @marketplat/mobile android",
+    "ios:mobile": "pnpm --filter @marketplat/mobile ios",
+    "type-check:mobile": "pnpm --filter @marketplat/mobile type-check",
+    "test:mobile": "pnpm --filter @marketplat/mobile test"
+  }
+}

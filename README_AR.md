@@ -15,10 +15,10 @@ Run workflow تكتب الرقم اللي تريده (200 / 500 / 1000...) بد�
 
 هذا المُدخَل يمرَّر كـ LOAD_TEST_VUS إلى k6، وعدّلت 4 ملفات سكربتات
 لتقرأه بدل رقم ثابت:
-- backend/load-tests/scenarios/browsing.js  (ذروة، افتراضي 100)
-- backend/load-tests/scenarios/search.js    (ذروة، افتراضي 60)
-- backend/load-tests/scenarios/spike.js     (ذروة الـspike، افتراضي 500)
-- backend/load-tests/scenarios/connection-pool-stress.js (ذروة، افتراضي 150)
+- apps/api/load-tests/scenarios/browsing.js  (ذروة، افتراضي 100)
+- apps/api/load-tests/scenarios/search.js    (ذروة، افتراضي 60)
+- apps/api/load-tests/scenarios/spike.js     (ذروة الـspike، افتراضي 500)
+- apps/api/load-tests/scenarios/connection-pool-stress.js (ذروة، افتراضي 150)
 
 كل ملف يحافظ على نسبة warm-up/baseline الأصلية نسبةً للذروة (مثلاً
 browsing.js: warm-up = 20% من VUS، تمامًا كنسبة 20/100 الأصلية) — حتى
@@ -41,11 +41,11 @@ browsing.js: warm-up = 20% من VUS، تمامًا كنسبة 20/100 الأصل�
 
 ## الملفات المعدَّلة في هذا التسليم
 - .github/workflows/load-test.yml (DISABLE_RATE_LIMIT + مُدخَلا vus/upload_vus)
-- backend/load-tests/scenarios/browsing.js
-- backend/load-tests/scenarios/search.js
-- backend/load-tests/scenarios/spike.js
-- backend/load-tests/scenarios/connection-pool-stress.js
-- backend/load-tests/README.md (توثيق LOAD_TEST_VUS + تحديث فقرة GitHub Actions)
+- apps/api/load-tests/scenarios/browsing.js
+- apps/api/load-tests/scenarios/search.js
+- apps/api/load-tests/scenarios/spike.js
+- apps/api/load-tests/scenarios/connection-pool-stress.js
+- apps/api/load-tests/README.md (توثيق LOAD_TEST_VUS + تحديث فقرة GitHub Actions)
 
 تحقّقت من صحة الصياغة (syntax) لكل ملف k6 المعدَّل عبر `node --check`،
 ومن صحة YAML عبر `yaml.safe_load` — لم يُشغَّل أي منها فعليًا ضد سيرفر

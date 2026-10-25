@@ -4,13 +4,13 @@
 منع اختلاف ارتفاع الجزء العلوي من البطاقات عندما يكون عنوان منتج أو إعلان أو خدمة قصيرًا بينما عنوان البطاقة المجاورة يمتد إلى سطرين، وبالتالي تقليل تحرك السعر والبيانات السفلية بصريًا بين البطاقات.
 
 ## التعديلات
-- `frontend/components/shared/cards/cardTokens.ts`
+- `apps/web/components/shared/cards/cardTokens.ts`
   - إضافة `CARD_TITLE_GRID` المبني على عنوان البطاقة المشترك مع حد أدنى لسطرين: `min-h-10 sm:min-h-12`.
-- `frontend/components/ads/AdCard.tsx`
+- `apps/web/components/ads/AdCard.tsx`
   - استخدام `CARD_TITLE_GRID` لعنوان بطاقة الإعلان.
-- `frontend/components/stores/ProductCard.tsx`
+- `apps/web/components/stores/ProductCard.tsx`
   - استخدام الرمز المشترك في بطاقة المنتج الشبكية، مع إبقاء نمط العنوان الأساسي للتخطيط الأفقي/القائمة.
-- `frontend/components/services/ServiceListingCard.tsx`
+- `apps/web/components/services/ServiceListingCard.tsx`
   - تطبيق ارتفاع العنوان الثابت على بطاقة الخدمة الشبكية فقط، مع عدم تغيير تخطيط الخدمة الأفقي.
 
 ## حدود التحقق

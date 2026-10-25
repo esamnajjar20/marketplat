@@ -8,12 +8,12 @@
 
 ## 1. Test Inventory
 
-There are 39 existing spec files under `frontend/e2e/tests/`. Existing suites cover root/public document health, auth input validation and unauthenticated route guards, search/navigation/history, responsive overflow, API/network degradation, storage resilience, and offline connectivity/SW queue behavior. Several `missing-business-journeys-mocked.spec.ts` tests exercise CRUD-like paths but depend on authenticated/seeded backend state; names and fixtures should be reconciled before treating them as deterministic. This run added no new Playwright spec because Phase 3 was gated on a clean full unit suite.
+There are 39 existing spec files under `apps/web/e2e/tests/`. Existing suites cover root/public document health, auth input validation and unauthenticated route guards, search/navigation/history, responsive overflow, API/network degradation, storage resilience, and offline connectivity/SW queue behavior. Several `missing-business-journeys-mocked.spec.ts` tests exercise CRUD-like paths but depend on authenticated/seeded backend state; names and fixtures should be reconciled before treating them as deterministic. This run added no new Playwright spec because Phase 3 was gated on a clean full unit suite.
 
 | Spec group | Files / examples | Status |
 |---|---|---|
 | Boot, route health, metadata, 404 | `marketplace-smoke`, `public-runtime-health`, `document-integrity`, `route-health-and-metadata`, `route-query-and-not-found`, `advanced-route-contracts` | PARTIAL — samples routes; no forced React error-boundary test |
-| Auth and protected routes | `auth-form-validation`, `auth-accessibility-and-boundaries`, `protected-route-guards`, `missing-business-operations-gates` | PARTIAL — validation/guards covered; successful login/logout/session persistence require backend/auth fixtures |
+| Auth and protected routes | `auth-form-validation`, `auth-accessibility-and-boundaries`, `protected-route-guards`, `missing-business-operations-gates` | PARTIAL — validation/guards covered; successful login/logout/session persistence require apps/api/auth fixtures |
 | Search, navigation, history | `search-journeys`, `search-and-resilience`, `native-filters`, `browser-history-navigation`, `ci-regression-round3` | PARTIAL — broad search coverage; not every top-level route/feature flow |
 | Offline/network/cache | `offline-connectivity`, `offline-phase8.integration`, `offline-phase9-queue-isolation`, `network-degradation-matrix`, `network-failure-recovery`, `cache-storage-resilience` | PARTIAL — connectivity and some SW queue flows; controller-dependent tests skip, no optimistic rollback contract |
 | Keyboard/responsive | `accessibility-and-responsive`, `form-keyboard-accessibility`, `keyboard-and-focus-regression`, `responsive-interaction-matrix` | PARTIAL — selected fields/routes/viewports; not all dialogs/dropdowns or requested tablet/Safari devices |
@@ -54,10 +54,10 @@ There are 39 existing spec files under `frontend/e2e/tests/`. Existing suites co
 
 ## 3. Configuration and Testability Gaps
 
-- `frontend/playwright.config.ts:22-35` defines only `chromium` and `mobile-chromium`; no Firefox, WebKit, mobile Safari, or tablet.
+- `apps/web/playwright.config.ts:22-35` defines only `chromium` and `mobile-chromium`; no Firefox, WebKit, mobile Safari, or tablet.
 - The config has retries `2` in CI and `0` locally, `fullyParallel`, and trace/video/screenshot retention. Trace is `retain-on-failure`, not `on-first-retry`.
 - `webServer` always runs `npm run build && npm run start`; the build warns `next start` is incompatible with `output: 'standalone'`. There is no dev-vs-CI server selection.
-- `frontend/e2e/` has no `fixtures/`, `pages/`, or `helpers/` directories and no `global-setup.ts`; tests are directly in `e2e/tests`.
+- `apps/web/e2e/` has no `fixtures/`, `pages/`, or `helpers/` directories and no `global-setup.ts`; tests are directly in `e2e/tests`.
 - No global `page.on('console')` rejection exists. Only two specs attach local `pageerror` listeners.
 - Tests are backend-dependent unless each test installs its own `page.route()` mock; no stable shared seed/auth fixture was found.
 - Fixed URLs/backends and real auth seed availability must be controlled before classifying CRUD journeys as repeatable CI coverage.
@@ -71,7 +71,7 @@ The original Phase 0 run could not launch Chromium because the host lacked `liba
 The successful focused run used:
 
 ```sh
-cd frontend
+cd apps/web
 E2E_BASE_URL=http://127.0.0.1:3131 npx playwright test --project=chromium \
   e2e/tests/marketplace-smoke.spec.ts \
   e2e/tests/route-query-and-not-found.spec.ts --reporter=line
@@ -109,7 +109,7 @@ The original browser-launch failure is classified as ENV/INFRA and required host
 
 ## 7. Running Locally
 
-From `frontend/`:
+From `apps/web/`:
 
 ```sh
 npm run e2e -- --project=chromium

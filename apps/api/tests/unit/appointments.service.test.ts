@@ -1,0 +1,656 @@
+import { appointmentsService } from '../../src/modules/appointments/appointments.service';
+import { appointmentsRepository } from '../../src/modules/appointments/appointments.repository';
+import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
+import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
+import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
+import { blockedUsersService } from '../../src/modules/blocked-users';
+import { redis } from '../../src/config/redis';
+import { notificationEvents } from '../../src/modules/notifications/notifications.service';
+import { NotFoundError } from '../../src/shared/errors/NotFoundError';
+import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
+import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { ConflictError } from '../../src/shared/errors/ConflictError';
+
+jest.mock('../../src/modules/appointments/appointments.repository');
+jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/service-providers/service-providers.repository');
+jest.mock('../../src/modules/service-requests/service-requests.repository');
+jest.mock('../../src/modules/service-types/service-types.repository');
+jest.mock('../../src/modules/blocked-users', () => ({
+  blockedUsersService: { isBlockedEitherDirection: jest.fn() },
+}));
+jest.mock('../../src/modules/notifications/notifications.service', () => ({
+  notificationEvents: {
+    onServiceRequestCreated: jest.fn(),
+    onServiceRequestStatusChanged: jest.fn(),
+    onAppointmentChanged: jest.fn(),
+  },
+}));
+
+const userId = 'user-1';
+const sellerProfile = { id: 'seller-1', userId } as any;
+// Open every day 06:00–23:00 market time (Asia/Gaza) so the existing
+// createAppointment cases (2099-08-01 10:00–11:00Z = 13:00–14:00 local)
+// pass the working-hours check; the check itself is covered below.
+const allDay = { open: '06:00', close: '23:00' };
+const provider = {
+  id: 'provider-1',
+  sellerProfileId: 'seller-1',
+  workingHours: { sun: allDay, mon: allDay, tue: allDay, wed: allDay, thu: allDay, fri: allDay, sat: allDay },
+} as any;
+
+const mockAppointment = {
+  id: 'appt-1',
+  providerId: provider.id,
+  requestId: null,
+  scheduledStart: new Date('2026-08-01T10:00:00.000Z'),
+  scheduledEnd: new Date('2026-08-01T11:00:00.000Z'),
+  status: 'SCHEDULED',
+  notes: null,
+} as any;
+
+describe('appointmentsService', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    // Re-armed every test: restoreAllMocks/clearAllMocks in this suite can
+    // drop the resolved value, and the services call .catch() on the result.
+    (notificationEvents.onServiceRequestCreated as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onServiceRequestStatusChanged as jest.Mock).mockResolvedValue(null);
+    (notificationEvents.onAppointmentChanged as jest.Mock).mockResolvedValue(null);
+    (redis as any).__clear();
+    (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(sellerProfile);
+    (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(provider);
+    (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(false);
+    (serviceTypesRepository.findById as jest.Mock).mockResolvedValue({
+      id: 'service-type-1',
+      isActive: true,
+      capabilities: { appointments: true },
+    });
+  });
+
+  describe('createAppointment', () => {
+    const input = {
+      scheduledStart: new Date('2099-08-01T10:00:00.000Z'),
+      scheduledEnd: new Date('2099-08-01T11:00:00.000Z'),
+    } as any;
+
+    it('throws BadRequestError when the caller has no seller profile', async () => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(null);
+
+      await expect(appointmentsService.createAppointment(userId, input)).rejects.toThrow(
+        BadRequestError
+      );
+      expect(serviceProvidersRepository.findBySellerProfileId).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestError when the caller has no service provider profile', async () => {
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+
+      await expect(appointmentsService.createAppointment(userId, input)).rejects.toThrow(
+        BadRequestError
+      );
+    });
+
+    it('throws NotFoundError when requestId is given but the request does not exist', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        appointmentsService.createAppointment(userId, { ...input, requestId: 'req-1' })
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws ForbiddenError when the request belongs to a different provider', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
+        status: 'ACCEPTED',
+        listing: { providerId: 'someone-elses-provider', serviceTypeId: 'service-type-1' },
+      });
+
+      await expect(
+        appointmentsService.createAppointment(userId, { ...input, requestId: 'req-1' })
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('throws BadRequestError when the request is not ACCEPTED or IN_PROGRESS', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
+        status: 'PENDING',
+        listing: { providerId: provider.id, serviceTypeId: 'service-type-1' },
+      });
+
+      await expect(
+        appointmentsService.createAppointment(userId, { ...input, requestId: 'req-1' })
+      ).rejects.toThrow(BadRequestError);
+    });
+
+    it('allows an IN_PROGRESS request to be scheduled (not just ACCEPTED)', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
+        status: 'IN_PROGRESS',
+        listing: { providerId: provider.id, serviceTypeId: 'service-type-1' },
+      });
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      const result = await appointmentsService.createAppointment(userId, {
+        ...input,
+        requestId: 'req-1',
+      });
+
+      expect(result).toEqual(mockAppointment);
+    });
+
+    it('notifies the request\'s customer when an appointment is booked for their request', async () => {
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'req-1',
+        customerId: 'customer-1',
+        status: 'ACCEPTED',
+        listing: { providerId: provider.id, title: 'Plumbing', serviceTypeId: 'service-type-1', provider: { sellerProfile: { userId: 'provider-user-1' } } },
+      });
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await appointmentsService.createAppointment(userId, { ...input, requestId: 'req-1' });
+
+      expect(notificationEvents.onAppointmentChanged).toHaveBeenCalledWith(
+        'customer-1',
+        'req-1',
+        'Plumbing',
+        'booked',
+        mockAppointment.scheduledStart
+      );
+    });
+
+    it('does not notify anyone for a direct booking with no requestId', async () => {
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await appointmentsService.createAppointment(userId, input);
+
+      expect(notificationEvents.onAppointmentChanged).not.toHaveBeenCalled();
+    });
+
+    it('creates an appointment with no requestId (direct booking)', async () => {
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      const result = await appointmentsService.createAppointment(userId, input);
+
+      expect(result).toEqual(mockAppointment);
+      expect(serviceRequestsRepository.findById).not.toHaveBeenCalled();
+      expect(appointmentsRepository.create).toHaveBeenCalledWith(provider.id, {
+        requestId: undefined,
+        scheduledStart: input.scheduledStart,
+        scheduledEnd: input.scheduledEnd,
+        notes: undefined,
+      });
+    });
+
+    // audit H3 — booking must respect working hours (market time).
+    it('rejects a slot that starts before opening time (OUTSIDE_WORKING_HOURS)', async () => {
+      // 02:00Z–03:00Z in August = 05:00–06:00 local; provider opens 06:00.
+      const early = {
+        scheduledStart: new Date('2099-08-01T02:00:00.000Z'),
+        scheduledEnd: new Date('2099-08-01T03:00:00.000Z'),
+      } as any;
+
+      await expect(appointmentsService.createAppointment(userId, early)).rejects.toThrow(BadRequestError);
+      expect(appointmentsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a slot that ends after closing time', async () => {
+      // 19:30Z–21:00Z in August = 22:30–00:00 local; provider closes 23:00.
+      const late = {
+        scheduledStart: new Date('2099-08-01T19:30:00.000Z'),
+        scheduledEnd: new Date('2099-08-01T21:00:00.000Z'),
+      } as any;
+
+      await expect(appointmentsService.createAppointment(userId, late)).rejects.toThrow(BadRequestError);
+    });
+
+    it('rejects a slot on a day the provider is closed', async () => {
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({
+        ...provider,
+        workingHours: { ...provider.workingHours, sat: null },
+      });
+      // 2099-08-01 is a Saturday.
+      await expect(appointmentsService.createAppointment(userId, input)).rejects.toThrow(BadRequestError);
+    });
+
+    it('does not block providers whose workingHours was never configured', async () => {
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({
+        ...provider,
+        workingHours: null,
+      });
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await expect(appointmentsService.createAppointment(userId, input)).resolves.toEqual(mockAppointment);
+    });
+
+    it('throws ConflictError when the pre-lock overlap check finds a conflict', async () => {
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await expect(appointmentsService.createAppointment(userId, input)).rejects.toThrow(
+        ConflictError
+      );
+      expect(appointmentsRepository.create).not.toHaveBeenCalled();
+    });
+
+    // services-design.md §8: the decisive check happens again inside the
+    // lock — this proves the second check is actually reached and can
+    // independently reject even when the first (pre-lock) check passed,
+    // simulating a conflict that appeared between the two checks.
+    it('throws ConflictError when the in-lock re-check finds a conflict even though the pre-check passed', async () => {
+      (appointmentsRepository.findOverlapping as jest.Mock)
+        .mockResolvedValueOnce(null) // pre-lock check: clear
+        .mockResolvedValueOnce(mockAppointment); // in-lock re-check: now conflicting
+
+      await expect(appointmentsService.createAppointment(userId, input)).rejects.toThrow(
+        ConflictError
+      );
+      expect(appointmentsRepository.create).not.toHaveBeenCalled();
+      expect(appointmentsRepository.findOverlapping).toHaveBeenCalledTimes(2);
+    });
+
+    it('passes notes through to the repository when provided', async () => {
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await appointmentsService.createAppointment(userId, { ...input, notes: 'Bring the car in early' });
+
+      expect(appointmentsRepository.create).toHaveBeenCalledWith(
+        provider.id,
+        expect.objectContaining({ notes: 'Bring the car in early' })
+      );
+    });
+
+    it('serializes two concurrent createAppointment calls for the same provider so only one can win the slot', async () => {
+      // The loser can be rejected via two different internal paths
+      // depending on exact timing — either withProviderScheduleLock
+      // itself (if it arrives after the winner already holds the Redis
+      // lock) or the in-lock overlap re-check (if it arrives before the
+      // winner but after the winner's create() has committed). Both
+      // surface as ConflictError, which is the behavior that actually
+      // matters here: exactly one caller gets the slot.
+      let created = false;
+      (appointmentsRepository.findOverlapping as jest.Mock).mockImplementation(async () =>
+        created ? mockAppointment : null
+      );
+      (appointmentsRepository.create as jest.Mock).mockImplementation(async () => {
+        created = true;
+        return mockAppointment;
+      });
+
+      const firstPromise = appointmentsService.createAppointment(userId, input);
+      const secondPromise = appointmentsService.createAppointment(userId, input);
+      const results = await Promise.allSettled([firstPromise, secondPromise]);
+
+      const fulfilled = results.filter(r => r.status === 'fulfilled');
+      const rejected = results.filter(r => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictError);
+    });
+  });
+
+  describe('getMyAppointments', () => {
+    it('still lists the caller\'s own (customer) appointments when they have no provider profile', async () => {
+      // Customers can own appointments too (via their service requests), so a
+      // missing provider profile is no longer an error — the repository is
+      // queried with providerId=null and filters by userId instead.
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.findManyByUserId as jest.Mock).mockResolvedValue({
+        appointments: [mockAppointment],
+        total: 1,
+      });
+
+      const result = await appointmentsService.getMyAppointments(userId, {});
+
+      expect(result.items).toEqual([mockAppointment]);
+      expect(appointmentsRepository.findManyByUserId).toHaveBeenCalledWith(null, userId, {});
+    });
+
+    it('returns paginated appointments for the caller’s provider profile', async () => {
+      (appointmentsRepository.findManyByUserId as jest.Mock).mockResolvedValue({
+        appointments: [mockAppointment],
+        total: 1,
+      });
+
+      const result = await appointmentsService.getMyAppointments(userId, { page: 1, limit: 20 });
+
+      expect(result.items).toEqual([mockAppointment]);
+      expect(result.meta.total).toBe(1);
+      expect(appointmentsRepository.findManyByUserId).toHaveBeenCalledWith(
+        provider.id,
+        userId,
+        { page: 1, limit: 20 }
+      );
+    });
+
+    it('defaults page/limit in pagination meta when the query omits them', async () => {
+      (appointmentsRepository.findManyByUserId as jest.Mock).mockResolvedValue({
+        appointments: [],
+        total: 0,
+      });
+
+      const result = await appointmentsService.getMyAppointments(userId, {});
+
+      expect(result.meta.page).toBe(1);
+      expect(result.meta.limit).toBe(20);
+      expect(result.items).toEqual([]);
+    });
+  });
+
+  describe('updateAppointmentStatus', () => {
+    it('throws ForbiddenError when the caller has no provider profile and is not the request\'s customer', async () => {
+      // Ownership is now provider-or-customer: with no provider profile (and no
+      // linked request making the caller the customer) the appointment is not theirs.
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await expect(
+        appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'COMPLETED')
+      ).rejects.toThrow(ForbiddenError);
+      expect(appointmentsRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when the appointment does not exist', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'COMPLETED')
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws ForbiddenError when the appointment belongs to a different provider', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        providerId: 'someone-elses-provider',
+      });
+
+      await expect(
+        appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'COMPLETED')
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('throws ConflictError when the appointment is not currently SCHEDULED', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        status: 'COMPLETED',
+      });
+
+      await expect(
+        appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'CANCELLED')
+      ).rejects.toThrow(ConflictError);
+    });
+
+    it.each(['COMPLETED', 'CANCELLED', 'NO_SHOW'] as const)(
+      'updates status to %s when the appointment is owned and SCHEDULED',
+      async status => {
+        (appointmentsRepository.findById as jest.Mock).mockResolvedValue(mockAppointment);
+        (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
+          ...mockAppointment,
+          status,
+        });
+
+        const result = await appointmentsService.updateAppointmentStatus(userId, 'appt-1', status);
+
+        expect(result.status).toBe(status);
+        expect(appointmentsRepository.updateStatus).toHaveBeenCalledWith('appt-1', status);
+      }
+    );
+
+    it('notifies the request\'s customer when a linked appointment is cancelled', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAppointment, requestId: 'req-1' });
+      (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        requestId: 'req-1',
+        status: 'CANCELLED',
+      });
+      (serviceRequestsRepository.findById as jest.Mock).mockResolvedValue({
+        id: 'req-1',
+        customerId: 'customer-1',
+        listing: { title: 'Plumbing' },
+      });
+
+      await appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'CANCELLED');
+      await new Promise((resolve) => setImmediate(resolve)); // let the fire-and-forget lookup settle
+
+      expect(notificationEvents.onAppointmentChanged).toHaveBeenCalledWith(
+        'customer-1',
+        'req-1',
+        'Plumbing',
+        'cancelled',
+        mockAppointment.scheduledStart
+      );
+    });
+
+    it('fails closed (no status change) when the linked-request lookup used for ownership throws', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAppointment, requestId: 'req-1' });
+      (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        requestId: 'req-1',
+        status: 'CANCELLED',
+      });
+      // The linked request is loaded *before* the update because it decides
+      // whether the caller is the customer — so a lookup failure must abort the
+      // change rather than silently skip the ownership check.
+      (serviceRequestsRepository.findById as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+
+      await expect(
+        appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'CANCELLED')
+      ).rejects.toThrow('db down');
+      expect(appointmentsRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('does not notify for COMPLETED or NO_SHOW even when linked to a request', async () => {
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue({ ...mockAppointment, requestId: 'req-1' });
+      (appointmentsRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockAppointment,
+        requestId: 'req-1',
+        status: 'COMPLETED',
+      });
+
+      await appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'COMPLETED');
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(notificationEvents.onAppointmentChanged).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getAvailability', () => {
+    const providerId = 'provider-1';
+
+    it('throws NotFoundError when the provider does not exist', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(appointmentsService.getAvailability(providerId, '2026-08-03')).rejects.toThrow(
+        NotFoundError
+      );
+    });
+
+    it('returns unavailable with no free ranges when the provider is closed that weekday', async () => {
+      // 2026-08-03 is a Monday — closed if workingHours.mon is null.
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result).toEqual({ date: '2026-08-03', available: false, freeRanges: [] });
+      expect(appointmentsRepository.findManyInRange).not.toHaveBeenCalled();
+    });
+
+    it('builds the window in market time (Asia/Gaza), not UTC: 09:00–17:00 local in August = 06:00–14:00Z', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([]);
+
+      await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      const [, from, to] = (appointmentsRepository.findManyInRange as jest.Mock).mock.calls[0];
+      expect((from as Date).toISOString()).toBe('2026-08-03T06:00:00.000Z');
+      expect((to as Date).toISOString()).toBe('2026-08-03T14:00:00.000Z');
+    });
+
+    it('extends an overnight window (18:00–02:00) into the next calendar day', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '18:00', close: '02:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T15:00:00.000Z', end: '2026-08-03T23:00:00.000Z' },
+      ]);
+    });
+
+    it('returns unavailable for a non-existent calendar date instead of rolling over', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-02-31');
+
+      expect(result).toEqual({ date: '2026-02-31', available: false, freeRanges: [] });
+    });
+
+    it('returns the full working window as free when there are no bookings', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.available).toBe(true);
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T06:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
+      ]);
+    });
+
+    it('subtracts a single booking from the middle of the working window', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
+        {
+          scheduledStart: new Date('2026-08-03T09:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T10:00:00.000Z'),
+        },
+      ]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.available).toBe(true);
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T06:00:00.000Z', end: '2026-08-03T09:00:00.000Z' },
+        { start: '2026-08-03T10:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
+      ]);
+    });
+
+    it('returns unavailable with no free ranges when a booking covers the entire working window', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
+        {
+          scheduledStart: new Date('2026-08-03T06:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T14:00:00.000Z'),
+        },
+      ]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.available).toBe(false);
+      expect(result.freeRanges).toEqual([]);
+    });
+
+    it('clamps a booking that starts before the working window to the window start', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
+        {
+          // Starts before the window opens (e.g. spilled over from a
+          // previous day's overlapping range query).
+          scheduledStart: new Date('2026-08-03T04:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T07:00:00.000Z'),
+        },
+      ]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T07:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
+      ]);
+    });
+
+    it('clamps a booking that ends after the working window to the window end', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
+        {
+          scheduledStart: new Date('2026-08-03T13:00:00.000Z'),
+          // Ends after the window closes.
+          scheduledEnd: new Date('2026-08-03T16:00:00.000Z'),
+        },
+      ]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T06:00:00.000Z', end: '2026-08-03T13:00:00.000Z' },
+      ]);
+    });
+
+    it('handles multiple bookings with a gap between them', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
+        {
+          scheduledStart: new Date('2026-08-03T06:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T07:00:00.000Z'),
+        },
+        {
+          scheduledStart: new Date('2026-08-03T11:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T12:00:00.000Z'),
+        },
+      ]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T07:00:00.000Z', end: '2026-08-03T11:00:00.000Z' },
+        { start: '2026-08-03T12:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
+      ]);
+    });
+
+    it('handles back-to-back bookings with no gap between them (cursor exactly meets the next appt start)', async () => {
+      (serviceProvidersRepository.findById as jest.Mock).mockResolvedValue({
+        workingHours: { sun: null, mon: { open: '09:00', close: '17:00' }, tue: null, wed: null, thu: null, fri: null, sat: null },
+      });
+      (appointmentsRepository.findManyInRange as jest.Mock).mockResolvedValue([
+        {
+          scheduledStart: new Date('2026-08-03T06:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T09:00:00.000Z'),
+        },
+        {
+          // Starts exactly where the previous one ends — no gap, so no
+          // free range should be emitted between them.
+          scheduledStart: new Date('2026-08-03T09:00:00.000Z'),
+          scheduledEnd: new Date('2026-08-03T10:00:00.000Z'),
+        },
+      ]);
+
+      const result = await appointmentsService.getAvailability(providerId, '2026-08-03');
+
+      expect(result.freeRanges).toEqual([
+        { start: '2026-08-03T10:00:00.000Z', end: '2026-08-03T14:00:00.000Z' },
+      ]);
+    });
+  });
+});

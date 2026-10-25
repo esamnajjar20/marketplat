@@ -1,0 +1,445 @@
+/* generated from shared/cache/cache-contract.json — do not edit */
+self.MARKET_CACHE_CONTRACT = {
+  "version": 1,
+  "keyAlgorithmVersion": 1,
+  "domains": {
+    "adsList": {
+      "namespace": "ads-list",
+      "scope": "public",
+      "policy": "publicLive",
+      "queryPrefixes": [
+        [
+          "ads"
+        ]
+      ]
+    },
+    "productList": {
+      "namespace": "products-list",
+      "scope": "public",
+      "policy": "publicLive",
+      "queryPrefixes": [
+        [
+          "products"
+        ]
+      ]
+    },
+    "productDetail": {
+      "namespace": "product-detail",
+      "scope": "public",
+      "policy": "publicDetail",
+      "queryPrefixes": [
+        [
+          "products"
+        ]
+      ]
+    },
+    "serviceList": {
+      "namespace": "services-list",
+      "scope": "public",
+      "policy": "publicLive",
+      "queryPrefixes": [
+        [
+          "service-listings"
+        ]
+      ]
+    },
+    "serviceProviderList": {
+      "namespace": "providers-list",
+      "scope": "public",
+      "policy": "publicLive",
+      "queryPrefixes": [
+        [
+          "service-providers"
+        ]
+      ]
+    },
+    "storeList": {
+      "namespace": "stores-list",
+      "scope": "public",
+      "policy": "publicLive",
+      "queryPrefixes": [
+        [
+          "stores"
+        ]
+      ]
+    },
+    "categories": {
+      "namespace": "categories",
+      "scope": "public",
+      "policy": "reference",
+      "queryPrefixes": [
+        [
+          "categories"
+        ]
+      ]
+    },
+    "productCategories": {
+      "namespace": "product-categories",
+      "scope": "public",
+      "policy": "reference",
+      "queryPrefixes": [
+        [
+          "product-categories"
+        ]
+      ]
+    },
+    "serviceCategories": {
+      "namespace": "service-categories",
+      "scope": "public",
+      "policy": "reference",
+      "queryPrefixes": [
+        [
+          "service-categories"
+        ],
+        [
+          "service-types"
+        ]
+      ]
+    },
+    "home": {
+      "namespace": "home",
+      "scope": "public",
+      "policy": "publicHome",
+      "queryPrefixes": [
+        [
+          "home"
+        ]
+      ]
+    },
+    "recommendations": {
+      "namespace": "recommendations",
+      "scope": "personal",
+      "policy": "recommendations",
+      "queryPrefixes": [
+        [
+          "recommendations"
+        ]
+      ]
+    },
+    "search": {
+      "namespace": "search",
+      "scope": "public",
+      "policy": "publicLive",
+      "queryPrefixes": [
+        [
+          "search"
+        ]
+      ]
+    },
+    "profile": {
+      "namespace": "profile",
+      "scope": "personal",
+      "policy": "personal",
+      "queryPrefixes": [
+        [
+          "auth",
+          "me"
+        ]
+      ]
+    },
+    "seller": {
+      "namespace": "seller",
+      "scope": "personal",
+      "policy": "personal",
+      "queryPrefixes": [
+        [
+          "sellers",
+          "me"
+        ],
+        [
+          "sellers"
+        ]
+      ]
+    },
+    "storeSelf": {
+      "namespace": "store-self",
+      "scope": "personal",
+      "policy": "personal",
+      "queryPrefixes": [
+        [
+          "stores",
+          "me"
+        ]
+      ]
+    },
+    "providerSelf": {
+      "namespace": "provider-self",
+      "scope": "personal",
+      "policy": "personal",
+      "queryPrefixes": [
+        [
+          "service-providers",
+          "me"
+        ]
+      ]
+    },
+    "activity": {
+      "namespace": "activity",
+      "scope": "personal",
+      "policy": "personal",
+      "queryPrefixes": [
+        [
+          "activity"
+        ]
+      ]
+    },
+    "savedSearches": {
+      "namespace": "saved-searches",
+      "scope": "personal",
+      "policy": "personal",
+      "queryPrefixes": [
+        [
+          "saved-searches"
+        ]
+      ]
+    },
+    "appointments": {
+      "namespace": "appointments",
+      "scope": "personal",
+      "policy": "personal",
+      "queryPrefixes": [
+        [
+          "appointments"
+        ]
+      ]
+    },
+    "notifications": {
+      "namespace": "notifications",
+      "scope": "personal",
+      "policy": "messages",
+      "queryPrefixes": [
+        [
+          "notifications"
+        ]
+      ]
+    },
+    "conversations": {
+      "namespace": "conversations",
+      "scope": "personal",
+      "policy": "messages",
+      "queryPrefixes": [
+        [
+          "conversations"
+        ]
+      ]
+    },
+    "messages": {
+      "namespace": "messages",
+      "scope": "personal",
+      "policy": "messages",
+      "queryPrefixes": [
+        [
+          "conversations"
+        ]
+      ]
+    },
+    "media": {
+      "namespace": "media",
+      "scope": "private",
+      "policy": "security",
+      "queryPrefixes": []
+    }
+  },
+  "invalidation": [
+    {
+      "prefixes": [
+        "/ads",
+        "/favorites"
+      ],
+      "domains": [
+        "adsList"
+      ],
+      "local": [
+        "ads",
+        "myAds"
+      ]
+    },
+    {
+      "prefixes": [
+        "/products",
+        "/promotions",
+        "/collections"
+      ],
+      "domains": [
+        "productList",
+        "productDetail",
+        "home"
+      ],
+      "local": [
+        "products"
+      ]
+    },
+    {
+      "prefixes": [
+        "/service-listings"
+      ],
+      "domains": [
+        "serviceList",
+        "home"
+      ],
+      "local": [
+        "services"
+      ]
+    },
+    {
+      "prefixes": [
+        "/service-providers"
+      ],
+      "domains": [
+        "serviceProviderList",
+        "home"
+      ],
+      "local": [
+        "services",
+        "providerSelf"
+      ]
+    },
+    {
+      "prefixes": [
+        "/stores",
+        "/store-types"
+      ],
+      "domains": [
+        "storeList",
+        "home"
+      ],
+      "local": [
+        "stores",
+        "storeSelf"
+      ]
+    },
+    {
+      "prefixes": [
+        "/categories"
+      ],
+      "domains": [
+        "categories",
+        "home"
+      ],
+      "local": [
+        "categories"
+      ]
+    },
+    {
+      "prefixes": [
+        "/product-categories"
+      ],
+      "domains": [
+        "productCategories",
+        "productList",
+        "home"
+      ],
+      "local": [
+        "productCategories"
+      ]
+    },
+    {
+      "prefixes": [
+        "/service-categories",
+        "/service-types"
+      ],
+      "domains": [
+        "serviceCategories",
+        "serviceList",
+        "home"
+      ],
+      "local": [
+        "serviceCategories"
+      ]
+    },
+    {
+      "prefixes": [
+        "/activity"
+      ],
+      "domains": [
+        "activity"
+      ],
+      "local": [
+        "activity"
+      ]
+    },
+    {
+      "prefixes": [
+        "/saved-searches"
+      ],
+      "domains": [
+        "savedSearches"
+      ],
+      "local": [
+        "savedSearches"
+      ]
+    },
+    {
+      "prefixes": [
+        "/appointments"
+      ],
+      "domains": [
+        "appointments"
+      ],
+      "local": [
+        "appointments"
+      ]
+    },
+    {
+      "prefixes": [
+        "/users/me"
+      ],
+      "domains": [
+        "profile",
+        "recommendations"
+      ],
+      "local": [
+        "profile"
+      ]
+    },
+    {
+      "prefixes": [
+        "/sellers/me"
+      ],
+      "domains": [
+        "seller",
+        "recommendations"
+      ],
+      "local": [
+        "seller"
+      ]
+    },
+    {
+      "prefixes": [
+        "/notifications"
+      ],
+      "domains": [
+        "notifications"
+      ],
+      "local": [
+        "notifications"
+      ]
+    },
+    {
+      "prefixes": [
+        "/conversations"
+      ],
+      "domains": [
+        "conversations",
+        "messages"
+      ],
+      "local": [
+        "conversations",
+        "messages"
+      ]
+    },
+    {
+      "prefixes": [
+        "/messages"
+      ],
+      "domains": [
+        "messages",
+        "conversations"
+      ],
+      "local": [
+        "messages",
+        "conversations"
+      ]
+    }
+  ]
+};

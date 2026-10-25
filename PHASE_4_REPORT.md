@@ -1,10 +1,10 @@
 # MarketPlat — Phase 4: Shared feedback and motion
 
 ## Scope
-- Updated `frontend/components/shared/feedback/LoadingSpinner.tsx` so spinner rotation and pulse stop when the user requests reduced motion.
-- Updated `frontend/components/shared/feedback/EmptyState.tsx` to explicitly suppress its entrance animation under reduced-motion preferences.
-- Marked the purely decorative page progress bar in `frontend/components/shared/feedback/PageLoadingState.tsx` as hidden from assistive technology.
-- Added `frontend/scripts/feedback-motion-audit.mjs` and registered `ux:feedback-motion-audit` in `frontend/package.json`.
+- Updated `apps/web/components/shared/feedback/LoadingSpinner.tsx` so spinner rotation and pulse stop when the user requests reduced motion.
+- Updated `apps/web/components/shared/feedback/EmptyState.tsx` to explicitly suppress its entrance animation under reduced-motion preferences.
+- Marked the purely decorative page progress bar in `apps/web/components/shared/feedback/PageLoadingState.tsx` as hidden from assistive technology.
+- Added `apps/web/scripts/feedback-motion-audit.mjs` and registered `ux:feedback-motion-audit` in `apps/web/package.json`.
 
 ## Verification
 - `node scripts/feedback-motion-audit.mjs`: 7/7 checks passed.

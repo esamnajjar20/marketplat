@@ -8,16 +8,16 @@ Replace heavy client dependencies (`axios`, `@fontsource`, infinite scroll `Inte
 ### Safety net (already satisfied — no change required)
 The files explicitly named in the safety net already use native `fetch` and TanStack Query's `useMutation` with `networkMode: 'offlineFirst'`, so the PWA offline message queue is intact:
 
-- `frontend/lib/sendConversationMessage.ts` — uses native `fetch` (credentials: 'include', CSRF + Bearer headers), zero `axios`.
-- `frontend/hooks/mutations/useConversationMutations.ts` (`useSendMessage`) — `useMutation({ networkMode: 'offlineFirst', ... })` wrapping `sendConversationMessage`.
-- `frontend/components/messages/MessageInput.tsx` — consumes `useSendMessage`; zero `axios` / `@/api/client`.
+- `apps/web/lib/sendConversationMessage.ts` — uses native `fetch` (credentials: 'include', CSRF + Bearer headers), zero `axios`.
+- `apps/web/hooks/mutations/useConversationMutations.ts` (`useSendMessage`) — `useMutation({ networkMode: 'offlineFirst', ... })` wrapping `sendConversationMessage`.
+- `apps/web/components/messages/MessageInput.tsx` — consumes `useSendMessage`; zero `axios` / `@/api/client`.
 
 Verified: `grep axios|@/api/client|apiClient` returns empty for all three files.
 
 ### Deferred / accepted tech debt
 All remaining `axios` / `@/api/client` usage in `"use client"` files is concentrated in auth-critical infrastructure that cannot be safely or piecemeal migrated:
 
-- `frontend/api/client.ts` (986 lines): the axios singleton with token refresh, silent-refresh queue, CSRF rotation, `withCredentials: 'include'`, offline-queue fallback (`enqueueOfflineMutationFallback`), retry policy, and network observability.
+- `apps/web/api/client.ts` (986 lines): the axios singleton with token refresh, silent-refresh queue, CSRF rotation, `withCredentials: 'include'`, offline-queue fallback (`enqueueOfflineMutationFallback`), retry policy, and network observability.
 - `"use client"` auth hooks consuming `resumeSession` / `refreshSessionShared` from `@/api/client`: `hooks/mutations/useAuthMutations.ts`, `hooks/useAuthRestoreRetry.ts`, `lib/offlineWarmingUserData.ts`.
 - Other `apiClient` consumers: `lib/capacitor/nativePush.ts`, `lib/pwa.ts`, `lib/swTokenSync.ts`, `lib/authCleanup.ts`.
 
@@ -28,7 +28,7 @@ Decision: deferred. Documented as **accepted tech debt**. Retry once the server-
 ## 3B — Convert infinite scroll to Load More (/products, /services, /stores)
 
 ### Status: deferred (per safety net)
-`frontend/components/shared/list/InfiniteScrollTrigger.tsx` already renders a Load More button (`تحميل المزيد`) as a keyboard/fallback alongside IntersectionObserver prefetch, so the explicit-interaction path exists.
+`apps/web/components/shared/list/InfiniteScrollTrigger.tsx` already renders a Load More button (`تحميل المزيد`) as a keyboard/fallback alongside IntersectionObserver prefetch, so the explicit-interaction path exists.
 
 A full conversion to "Server Component renders initial data + client Load More button fetches next page" was already experimented on in this project and **reverted** due to bundle-size regressions (see `audit/rsc-report.md`):
 - `/products` server-fetch: 119 kB → 154 kB (+29.4%) — reverted

@@ -1,0 +1,99 @@
+import { Router } from 'express';
+import { serviceProvidersController } from './service-providers.controller';
+import { authenticate } from '../../middlewares/auth.middleware';
+import { CACHE } from '../../middlewares/cacheControl.middleware';
+import { uploadMiddleware } from '../../middlewares/upload.middleware';
+import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
+import {
+  createServiceProviderRateLimit,
+  serviceProviderImagesRateLimit,
+} from '../../middlewares/rateLimit.middleware';
+// update had no rate limit at all. Reused
+// createServiceProviderRateLimit (10/hr) — same mutation class.
+const serviceProviderMutationRateLimit = createServiceProviderRateLimit;
+
+export const serviceProvidersRouter = Router();
+
+// Authenticated only — no role check, same as /sellers/me/profile. Any
+// signed-in USER who already has a SellerProfile is eligible.
+serviceProvidersRouter.get(
+  '/me',
+  authenticate,
+  CACHE.NONE,
+  serviceProvidersController.getMyServiceProvider
+);
+// create/update/logo did not require a
+// verified email, while stores.createStore, ads.createAd, and
+// service-listings.createServiceListing all do. Same "broken UI, not
+// a verification prompt" symptom already on those three
+// modules. All mutating routes here now gate on the same rule.
+serviceProvidersRouter.post(
+  '/me',
+  authenticate,
+  requireVerifiedEmail,
+  createServiceProviderRateLimit,
+  serviceProvidersController.createServiceProvider
+);
+serviceProvidersRouter.patch(
+  '/me',
+  authenticate,
+  requireVerifiedEmail,
+  serviceProviderMutationRateLimit,
+  CACHE.NONE,
+  serviceProvidersController.updateMyServiceProvider
+);
+
+serviceProvidersRouter.get(
+  '/me/service-types',
+  authenticate,
+  CACHE.NONE,
+  serviceProvidersController.getMyServiceTypeProfiles
+);
+
+serviceProvidersRouter.patch(
+  '/me/service-types/:serviceTypeId',
+  authenticate,
+  requireVerifiedEmail,
+  serviceProviderMutationRateLimit,
+  CACHE.NONE,
+  serviceProvidersController.updateMyServiceTypeProfile
+);
+
+// ANALYTICS — owner-only. Registered alongside the other /me routes,
+// same reasoning as /me/logo below: must never be swallowed by the
+// public /:id route.
+serviceProvidersRouter.get(
+  '/me/analytics',
+  authenticate,
+  CACHE.NONE,
+  serviceProvidersController.getMyServiceProviderAnalytics
+);
+
+// Logo upload — same single-image pattern as POST /users/me/avatar
+// and /stores/me/logo. Registered alongside the other /me routes so
+// it's never swallowed as the public /:id route below.
+serviceProvidersRouter.post(
+  '/me/logo',
+  authenticate,
+  requireVerifiedEmail,
+  serviceProviderImagesRateLimit,
+  uploadMiddleware,
+  serviceProvidersController.uploadLogo
+);
+
+// Public — city/browse directory (Home discovery plan, ).
+// Mirrors GET /stores and GET /products: plain paginated list, city
+// optional. Registered here (bare path) so it can never collide with
+// /nearby or /:id regardless of ordering.
+serviceProvidersRouter.get('/', CACHE.SHORT, serviceProvidersController.getServiceProviders);
+
+// Public — nearby search must be registered before /:id so "nearby"
+// isn't swallowed as an :id param, same ordering concern as ads' /search.
+serviceProvidersRouter.get('/nearby', CACHE.SHORT, serviceProvidersController.getNearby);
+
+// Public — anyone can view a service provider's page, no auth required.
+serviceProvidersRouter.get(
+  '/:id',
+  CACHE.MEDIUM,
+  serviceProvidersController.getPublicServiceProvider
+);

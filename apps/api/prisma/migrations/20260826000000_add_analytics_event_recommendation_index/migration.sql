@@ -1,0 +1,42 @@
+-- PR5C
+--
+-- recommendations.repository.ts's recentlyViewedCategoryIds runs the
+-- same shape for AD, PRODUCT, and SERVICE_LISTING alike:
+--
+--   SELECT ...
+--   FROM "analytics_events" e
+--   JOIN "<entity_table>" x ON x."id" = e.metadata->>'<idField>'
+--   WHERE e."userId" = $1
+--     AND e."event" = $2   (AD_VIEW / PRODUCT_VIEW / SERVICE_VIEW / CATEGORY_BROWSE)
+--     AND e."createdAt" >= $3
+--   ORDER BY e."createdAt" DESC
+--   LIMIT 200
+--
+-- filtering on userId + event + createdAt together, on every call
+-- this recommendation rail makes for a logged-in user. The two
+-- existing indexes on this table each cover only part of that
+-- predicate: @@index([userId]) narrows to the user but still leaves
+-- Postgres to scan and filter every one of that user's events by
+-- event type and date; @@index([event, createdAt]) does the reverse
+-- (narrows by event type across ALL users, not this one). Neither
+-- lets Postgres jump straight to "this user's rows of this one event
+-- type, newest first".
+--
+-- Column order (userId, event, createdAt) matches the three WHERE
+-- predicates left-to-right — two equality filters first, then the
+-- range/ORDER BY column last, which is what makes a composite B-tree
+-- index usable for all three in one index scan (and lets the
+-- trailing createdAt DESC serve the query's own ORDER BY + LIMIT 200
+-- directly, with no separate sort step).
+--
+-- CONCURRENTLY, same reasoning as migration
+-- 20260809000000_add_analytics_category_index on this same table:
+-- analytics_events is high-volume, constantly-inserted-into telemetry
+-- (see that model's own schema.prisma comment) — CONCURRENTLY avoids
+-- taking a write lock on it for the duration of the index build.
+-- CREATE INDEX CONCURRENTLY cannot run inside a transaction block —
+-- if this migration is applied through tooling that always wraps
+-- migrations in a transaction, drop CONCURRENTLY for that run, or
+-- apply this statement manually outside the transaction.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "analytics_events_userId_event_createdAt_idx"
+  ON "analytics_events" ("userId", "event", "createdAt");

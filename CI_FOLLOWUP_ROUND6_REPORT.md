@@ -21,44 +21,44 @@ The new archive is a targeted follow-up based on the prior round-5 project archi
 
 ### Backend
 
-1. `backend/tests/setup.ts`
+1. `apps/api/tests/setup.ts`
    - Added Redis Set support (`SADD`, `SCARD`) to the shared test double and pipeline.
    - CI showed login requests failing with `TypeError: pipeline.scard is not a function`; the mock lacked commands used by `tokenStore.getIpStats` and failed-login tracking.
 
-2. `backend/src/modules/sales/sales.service.ts`
+2. `apps/api/src/modules/sales/sales.service.ts`
    - Single-product sales now store `productId` on the `SaleItem`, so return and sale-deletion stock restoration can locate the inventory row.
 
-3. `backend/tests/integration/sales.flow.test.ts`
+3. `apps/api/tests/integration/sales.flow.test.ts`
    - Corrected the multi-product POS fixture total. Its line totals are `(8 - 1) * 2 + (8 - 0) * 1 = 22`, not 23; the old fixture requested a payment larger than the calculated total and received HTTP 400.
 
-4. `backend/tests/integration/auth.extended.test.ts`, `auth.security.test.ts`, `users.extended.test.ts`, `forgotPassword.test.ts`
+4. `apps/api/tests/integration/auth.extended.test.ts`, `auth.security.test.ts`, `users.extended.test.ts`, `forgotPassword.test.ts`
    - Replaced weak registration fixture passwords with `TestPassword123!` where the test directly registers users, matching the current password policy.
    - Preserved `password123` in the forgot-password assertion that verifies the original password of a user created directly by the test helper.
 
-5. `backend/tests/integration/auth.test.ts`
+5. `apps/api/tests/integration/auth.test.ts`
    - Updated the session-hint cookie assertion to match the implementation's explicit HttpOnly policy. The hint contains no secret; server-side middleware can read it, and making it HttpOnly prevents client-side script from altering it.
 
-6. `backend/tests/integration/recommendations.test.ts`
+6. `apps/api/tests/integration/recommendations.test.ts`
    - Added enough eligible alternative ads to test the normal owned/favorited exclusion behavior without triggering the service's documented last-resort backfill for small catalogs.
 
 ### Frontend
 
-7. `frontend/__tests__/components/ProductsGrid.test.tsx` and `StoresGrid.test.tsx`
+7. `apps/web/__tests__/components/ProductsGrid.test.tsx` and `StoresGrid.test.tsx`
    - Added `usePathname` to navigation mocks. CI showed the grids failing because the shared sort bar now reads the current pathname.
 
-8. `frontend/__tests__/unit/lib/pwa.test.ts`
+8. `apps/web/__tests__/unit/lib/pwa.test.ts`
    - Added the `registration.update()` mock. Production registration checks updates after registering; the incomplete test registration object caused successful registration tests to return `null`.
 
-9. `frontend/__tests__/unit/lib/offlineMessagesStore.test.ts`
+9. `apps/web/__tests__/unit/lib/offlineMessagesStore.test.ts`
    - Uses a current timestamp for the conversation fixture. The production store intentionally removes conversations older than 30 days, so the old January 2026 fixture was correctly expired in the October 2026 CI run.
 
-10. `frontend/__tests__/unit/lib/cacheVersionSync.test.ts`
+10. `apps/web/__tests__/unit/lib/cacheVersionSync.test.ts`
     - Checks exported `SW_CACHE_LIMITS` values rather than assuming the policy keeps numeric literals inline. The policy now delegates to `CACHE_POLICY`.
 
-11. `frontend/__tests__/unit/lib/offlineWarmingPlanner.test.ts`
+11. `apps/web/__tests__/unit/lib/offlineWarmingPlanner.test.ts`
     - Resets the mutable network-policy mock in a test located outside the suite-level `beforeEach`, preventing a prior test's disabled-warming state from leaking into the 3G case.
 
-12. `frontend/lib/offlineRouteShells.ts`
+12. `apps/web/lib/offlineRouteShells.ts`
     - Moves `/saved-payments` into the early core warming tranche, so the local-only page linked from the offline hub is not omitted by the normal bounded warming selection.
 
 ## Validation limitations

@@ -1,0 +1,207 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
+import { Button }    from '@/components/shared/ui/Button';
+import { PasswordInput } from '@/components/shared/ui/PasswordInput';
+import { FormField } from '@/components/shared/forms/FormField';
+import { cn } from '@/lib/utils';
+import { useChangePassword } from '@/hooks/mutations/useAuthMutations';
+import { parseApiError } from '@/lib/errorParser';
+import { toast } from 'sonner';
+import { API_BASE_URL } from '@/lib/constants';
+
+interface Errors { current?: string; newPass?: string; confirm?: string; }
+
+
+
+function GoogleLinkSection() {
+  const [status, setStatus] = useState<'idle' | 'linked'>('idle');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google') === 'linked') {
+      setStatus('linked');
+      window.history.replaceState(window.history.state, '', '/settings?tab=security');
+    }
+    const code = params.get('code');
+    const error = params.get('error');
+    if (code === 'GOOGLE_LINK_EMAIL_MISMATCH') {
+      toast.error('يجب أن يكون بريد Google هو نفس البريد المرتبط بحسابك.');
+    } else if (code === 'GOOGLE_ALREADY_LINKED_ELSEWHERE') {
+      toast.error('حساب Google هذا مرتبط بحساب سوق غزة آخر بالفعل.');
+    } else if (error === 'session_expired') {
+      toast.error('انتهت جلستك. سجّل الدخول ثم حاول مرة أخرى.');
+    } else if (error === 'google_auth_failed') {
+      toast.error('تعذر ربط Google. حاول مرة أخرى.');
+    }
+    if (code || error) {
+      window.history.replaceState(window.history.state, '', '/settings?tab=security');
+    }
+  }, []);
+
+  return (
+    <section className="mx-auto max-w-lg space-y-3 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5 md:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-bold">حساب Google</h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            اربط Google بحسابك الحالي لتتمكن من تسجيل الدخول به لاحقًا. يجب أن يكون البريد مطابقًا لبريد حسابك.
+          </p>
+        </div>
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-extrabold text-foreground"
+          aria-hidden
+        >
+          G
+        </span>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-11 w-full rounded-xl font-bold"
+        onClick={() => {
+          window.location.assign(`${API_BASE_URL}/auth/google?purpose=link`);
+        }}
+      >
+        {status === 'linked' ? 'تم ربط Google بنجاح' : 'ربط Google'}
+      </Button>
+    </section>
+  );
+}
+
+export function SecuritySettingsForm() {
+  const [current,  setCurrent]  = useState('');
+  const [newPass,  setNewPass]  = useState('');
+  const [confirm,  setConfirm]  = useState('');
+  const [errors,   setErrors]   = useState<Errors>({});
+  const changePassword = useChangePassword();
+
+  function validate() {
+    const e: Errors = {};
+    if (!current)                   e.current = 'أدخل كلمة المرور الحالية';
+    if (!newPass)                   e.newPass = 'أدخل كلمة المرور الجديدة';
+    else if (newPass.length < 8)    e.newPass = '8 أحرف على الأقل';
+    else if (newPass === current)   e.newPass = 'كلمة المرور الجديدة يجب أن تختلف عن الحالية';
+    if (confirm !== newPass)        e.confirm = 'كلمتا المرور غير متطابقتين';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  // UX-FIX: mirrors validate()'s required-field rules read-only.
+  const isFormIncomplete =
+    !current || !newPass || newPass.length < 8 || newPass === current || confirm !== newPass;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    // FIX SEC-07: on success, useChangePassword itself clears the local
+    // session and redirects to /login — this form no longer resets its
+    // own fields on success because the component unmounts on redirect
+    // before that would matter. On failure the user stays here and the
+    // fields are deliberately left as-is so they don't have to retype
+    // everything after e.g. a typo in the current password.
+    // FIX M-1: this used to assume every 400 here meant "current password
+    // wrong" and hardcoded that message onto the `current` field — true for
+    // users.service.ts's BadRequestError('كلمة المرور الحالية غير صحيحة')
+    // (verified: that's the exact string it throws), but wrong for the other
+    // real 400 this endpoint can return: changePasswordSchema caps
+    // newPassword at 100 chars (auth.validation.ts), which nothing here
+    // checked client-side — that failure is a ZodError and arrives with a
+    // proper fieldErrors.newPassword, not fieldErrors.current, so hardcoding
+    // it onto `current` pointed the user at the wrong field entirely.
+    // fieldErrors is only ever present for genuine Zod validation failures
+    // (see parseApiError), so when it exists we trust it over the guess.
+    //
+    // Now switches on parsed.code === 'CURRENT_PASSWORD_INVALID' (the code
+    // users.service.ts's changePassword() actually attaches) instead of
+    // guessing from statusCode alone — the old statusCode-only check
+    // happened to be correct today only because no other bare
+    // BadRequestError exists on this endpoint's 400 path, but it would
+    // silently mis-target `current` again the moment one is added (the
+    // same class of bug RegisterForm.tsx had). parsed.message is used
+    // directly rather than a second hardcoded copy of the same string,
+    // since errorParser.ts now resolves it from the shared i18n dictionary.
+    changePassword.mutate({ currentPassword: current, newPassword: newPass }, {
+      onError: (err) => {
+        const parsed = parseApiError(err);
+        if (parsed.fieldErrors) {
+          setErrors({
+            current: parsed.fieldErrors.currentPassword?.[0],
+            newPass: parsed.fieldErrors.newPassword?.[0],
+          });
+        } else if (parsed.code === 'CURRENT_PASSWORD_INVALID') {
+          setErrors({ current: parsed.message });
+        } else {
+          toast.error(parsed.message);
+        }
+      },
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <GoogleLinkSection />
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="mx-auto max-w-lg space-y-5 rounded-2xl border border-border/70 bg-card p-4 shadow-xs sm:p-5 md:p-6"
+      >
+        <h2 className="font-bold">تغيير كلمة المرور</h2>
+        <FormField label="كلمة المرور الحالية" htmlFor="current" required error={errors.current}>
+          <PasswordInput
+            id="current"
+            dir="ltr"
+            className="h-11 rounded-xl"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="••••••••"
+          />
+        </FormField>
+        <FormField
+          label="كلمة المرور الجديدة"
+          htmlFor="newp"
+          required
+          error={errors.newPass}
+          hint={
+            <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-success')}>
+              {newPass.length >= 8 && <Check className="h-3.5 w-3.5" />}
+              8 أحرف على الأقل
+            </span>
+          }
+        >
+          <PasswordInput
+            id="newp"
+            dir="ltr"
+            className="h-11 rounded-xl"
+            autoComplete="new-password"
+            value={newPass}
+            onChange={(e) => setNewPass(e.target.value)}
+            placeholder="••••••••"
+          />
+        </FormField>
+        <FormField label="تأكيد كلمة المرور" htmlFor="confirmp" required error={errors.confirm}>
+          <PasswordInput
+            id="confirmp"
+            dir="ltr"
+            className="h-11 rounded-xl"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="••••••••"
+          />
+        </FormField>
+        <Button
+          type="submit"
+          className="h-12 w-full rounded-xl text-base font-bold"
+          disabled={isFormIncomplete}
+          loading={changePassword.isPending}
+          loadingText="جارٍ التغيير…"
+        >
+          تغيير كلمة المرور
+        </Button>
+      </form>
+    </div>
+  );
+}

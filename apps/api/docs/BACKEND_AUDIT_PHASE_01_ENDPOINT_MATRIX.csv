@@ -1,0 +1,329 @@
+method,full_path_prefix_estimate,local_path,module,source_file,line,declaration_following_text,handler_identifier_heuristic
+GET,/api/v1/activity,/,activity,src/modules/activity/activity.routes.ts,11,", authenticate, CACHE.NONE, activityController.getMyActivity",getMyActivity
+GET,/api/v1/admin/products,/products,admin,src/modules/admin/admin.routes.ts,37,", requireMinRole(ROLES.MODERATOR), adminController.getAdminProducts",getAdminProducts
+PATCH,/api/v1/admin/products/:id/status,/products/:id/status,admin,src/modules/admin/admin.routes.ts,38,", requireMinRole(ROLES.MODERATOR), adminController.setProductStatus",setProductStatus
+GET,/api/v1/admin/service-listings,/service-listings,admin,src/modules/admin/admin.routes.ts,39,", requireMinRole(ROLES.MODERATOR), adminController.getAdminServiceListings",getAdminServiceListings
+PATCH,/api/v1/admin/service-listings/:id/status,/service-listings/:id/status,admin,src/modules/admin/admin.routes.ts,40,", requireMinRole(ROLES.MODERATOR), adminController.setServiceListingStatus",setServiceListingStatus
+GET,/api/v1/admin/service-request-disputes,/service-request-disputes,admin,src/modules/admin/admin.routes.ts,43,", requireMinRole(ROLES.MODERATOR), adminController.getServiceRequestDisputes",getServiceRequestDisputes
+PATCH,/api/v1/admin/service-request-disputes/:id/resolve,/service-request-disputes/:id/resolve,admin,src/modules/admin/admin.routes.ts,44,", requireMinRole(ROLES.MODERATOR), adminController.resolveServiceRequestDispute",resolveServiceRequestDispute
+GET,/api/v1/admin/open-requests,/open-requests,admin,src/modules/admin/admin.routes.ts,46,", requireMinRole(ROLES.MODERATOR), adminController.getAdminOpenRequests",getAdminOpenRequests
+PATCH,/api/v1/admin/open-requests/:id/cancel,/open-requests/:id/cancel,admin,src/modules/admin/admin.routes.ts,47,", requireMinRole(ROLES.MODERATOR), adminController.adminCancelOpenRequest",adminCancelOpenRequest
+GET,/api/v1/admin/trends,/trends,admin,src/modules/admin/admin.routes.ts,49,", requireMinRole(ROLES.ADMIN), adminController.getPlatformTrends",getPlatformTrends
+GET,/api/v1/admin/system-health,/system-health,admin,src/modules/admin/admin.routes.ts,50,", requireMinRole(ROLES.ADMIN), adminController.getSystemHealth",getSystemHealth
+GET,/api/v1/admin/export/users.csv,/export/users.csv,admin,src/modules/admin/admin.routes.ts,51,", requireMinRole(ROLES.ADMIN), adminController.exportUsersCsv",exportUsersCsv
+GET,/api/v1/admin/export/reports.csv,/export/reports.csv,admin,src/modules/admin/admin.routes.ts,52,", requireMinRole(ROLES.ADMIN), adminController.exportReportsCsv",exportReportsCsv
+GET,/api/v1/admin/ops-queue,/ops-queue,admin,src/modules/admin/admin.routes.ts,54,", requireMinRole(ROLES.MODERATOR), adminController.getOpsQueue",getOpsQueue
+GET,/api/v1/admin/stats,/stats,admin,src/modules/admin/admin.routes.ts,55,", requireMinRole(ROLES.ADMIN), adminController.getStats",getStats
+GET,/api/v1/admin/ads,/ads,admin,src/modules/admin/admin.routes.ts,59,", requireMinRole(ROLES.MODERATOR), adminController.getAllAds",getAllAds
+PATCH,/api/v1/admin/ads/bulk/featured,/ads/bulk/featured,admin,src/modules/admin/admin.routes.ts,63,", requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdFeatured",bulkSetAdFeatured
+PATCH,/api/v1/admin/ads/bulk/pinned,/ads/bulk/pinned,admin,src/modules/admin/admin.routes.ts,64,", requireMinRole(ROLES.MODERATOR), adminController.bulkSetAdPinned",bulkSetAdPinned
+DELETE,/api/v1/admin/ads/bulk,/ads/bulk,admin,src/modules/admin/admin.routes.ts,65,", requireMinRole(ROLES.MODERATOR), adminController.bulkDeleteAds",bulkDeleteAds
+PATCH,/api/v1/admin/ads/:id/featured,/ads/:id/featured,admin,src/modules/admin/admin.routes.ts,67,", requireMinRole(ROLES.MODERATOR), adminController.setAdFeatured",setAdFeatured
+PATCH,/api/v1/admin/ads/:id/pinned,/ads/:id/pinned,admin,src/modules/admin/admin.routes.ts,68,", requireMinRole(ROLES.MODERATOR), adminController.setAdPinned",setAdPinned
+DELETE,/api/v1/admin/ads/:id,/ads/:id,admin,src/modules/admin/admin.routes.ts,69,", requireMinRole(ROLES.MODERATOR), adminController.deleteAd",deleteAd
+GET,/api/v1/admin/users,/users,admin,src/modules/admin/admin.routes.ts,73,", requireMinRole(ROLES.ADMIN), adminController.getAllUsers",getAllUsers
+PATCH,/api/v1/admin/users/bulk/active,/users/bulk/active,admin,src/modules/admin/admin.routes.ts,85,", requireMinRole(ROLES.ADMIN), adminController.bulkToggleUserActive",bulkToggleUserActive
+PATCH,/api/v1/admin/users/:id/active,/users/:id/active,admin,src/modules/admin/admin.routes.ts,87,", requireMinRole(ROLES.ADMIN), adminController.toggleUserActive",toggleUserActive
+PATCH,/api/v1/admin/users/:id/role,/users/:id/role,admin,src/modules/admin/admin.routes.ts,92,", requireMinRole(ROLES.ADMIN), adminController.changeRole",changeRole
+GET,/api/v1/admin/sellers,/sellers,admin,src/modules/admin/admin.routes.ts,97,", requireMinRole(ROLES.ADMIN), sellersController.getAllSellers",getAllSellers
+PATCH,/api/v1/admin/sellers/bulk/verify,/sellers/bulk/verify,admin,src/modules/admin/admin.routes.ts,113,", requireMinRole(ROLES.ADMIN), sellersController.bulkVerifySellers",bulkVerifySellers
+PATCH,/api/v1/admin/sellers/bulk/suspend,/sellers/bulk/suspend,admin,src/modules/admin/admin.routes.ts,114,", requireMinRole(ROLES.ADMIN), sellersController.bulkSuspendSellers",bulkSuspendSellers
+PATCH,/api/v1/admin/sellers/:id/verify,/sellers/:id/verify,admin,src/modules/admin/admin.routes.ts,119,", requireMinRole(ROLES.ADMIN), sellersController.verifySeller",verifySeller
+PATCH,/api/v1/admin/sellers/:id/suspend,/sellers/:id/suspend,admin,src/modules/admin/admin.routes.ts,125,", requireMinRole(ROLES.ADMIN), sellersController.suspendSeller",suspendSeller
+GET,/api/v1/admin/stores,/stores,admin,src/modules/admin/admin.routes.ts,136,", requireMinRole(ROLES.ADMIN), storesController.getAllStores",getAllStores
+GET,/api/v1/admin/store-types,/store-types,admin,src/modules/admin/admin.routes.ts,137,", requireMinRole(ROLES.ADMIN), storeTypesController.getAllForAdmin",getAllForAdmin
+POST,/api/v1/admin/store-types,/store-types,admin,src/modules/admin/admin.routes.ts,138,", requireMinRole(ROLES.ADMIN), storeTypesController.create",create
+PATCH,/api/v1/admin/store-types/:id,/store-types/:id,admin,src/modules/admin/admin.routes.ts,139,", requireMinRole(ROLES.ADMIN), storeTypesController.update",update
+PATCH,/api/v1/admin/store-types/:id/status,/store-types/:id/status,admin,src/modules/admin/admin.routes.ts,140,", requireMinRole(ROLES.ADMIN), storeTypesController.updateStatus",updateStatus
+GET,/api/v1/admin/store-types/:storeTypeId/fields,/store-types/:storeTypeId/fields,admin,src/modules/admin/admin.routes.ts,141,", requireMinRole(ROLES.ADMIN), storeTypeFieldsController.getAdmin",getAdmin
+POST,/api/v1/admin/store-types/:storeTypeId/fields,/store-types/:storeTypeId/fields,admin,src/modules/admin/admin.routes.ts,142,", requireMinRole(ROLES.ADMIN), storeTypeFieldsController.create",create
+PATCH,/api/v1/admin/store-types/:storeTypeId/fields/:fieldId,/store-types/:storeTypeId/fields/:fieldId,admin,src/modules/admin/admin.routes.ts,143,", requireMinRole(ROLES.ADMIN), storeTypeFieldsController.update",update
+PATCH,/api/v1/admin/stores/bulk/status,/stores/bulk/status,admin,src/modules/admin/admin.routes.ts,154,", requireMinRole(ROLES.ADMIN), storesController.bulkUpdateStoreStatus",bulkUpdateStoreStatus
+PATCH,/api/v1/admin/stores/:id/status,/stores/:id/status,admin,src/modules/admin/admin.routes.ts,156,", requireMinRole(ROLES.ADMIN), storesController.updateStoreStatus",updateStoreStatus
+PATCH,/api/v1/admin/stores/:id/type,/stores/:id/type,admin,src/modules/admin/admin.routes.ts,157,", requireMinRole(ROLES.ADMIN), storesController.updateStoreType",updateStoreType
+PATCH,/api/v1/admin/stores/:id/plan,/stores/:id/plan,admin,src/modules/admin/admin.routes.ts,160,", requireMinRole(ROLES.ADMIN), storesController.updateStorePlan",updateStorePlan
+POST,/api/v1/admin/notifications/broadcast,/notifications/broadcast,admin,src/modules/admin/admin.routes.ts,166,", requireMinRole(ROLES.ADMIN), adminController.broadcastNotification",broadcastNotification
+GET,/api/v1/ads,/,ads,src/modules/ads/ads.routes.ts,14,", CACHE.LIVE, adsController.getAds",getAds
+GET,/api/v1/ads/me,/me,ads,src/modules/ads/ads.routes.ts,15,", authenticate, CACHE.NONE, adsController.getMyAds",getMyAds
+GET,/api/v1/ads/me/stats,/me/stats,ads,src/modules/ads/ads.routes.ts,20,", authenticate, CACHE.NONE, adsController.getMyStats",getMyStats
+GET,/api/v1/ads/search,/search,ads,src/modules/ads/ads.routes.ts,21,", CACHE.LIVE, adsController.searchAds",searchAds
+GET,/api/v1/ads/:id,/:id,ads,src/modules/ads/ads.routes.ts,22,", CACHE.LIVE, adsController.getAdById",getAdById
+GET,/api/v1/ads/:id/related,/:id/related,ads,src/modules/ads/ads.routes.ts,23,", CACHE.LIVE, adsController.getRelatedAds",getRelatedAds
+POST,/api/v1/ads,/,ads,src/modules/ads/ads.routes.ts,26,", authenticate, requireVerifiedEmail, createAdRateLimit, uploadMultipleMiddleware, adsController.createAd ",createAd
+PATCH,/api/v1/ads/:id,/:id,ads,src/modules/ads/ads.routes.ts,33,", authenticate, adsController.updateAd",updateAd
+POST,/api/v1/ads/:id/images,/:id/images,ads,src/modules/ads/ads.routes.ts,34,", authenticate, requireVerifiedEmail, addAdImagesRateLimit, uploadMultipleMiddleware, adsController.addImages",addImages
+DELETE,/api/v1/ads/:id/images,/:id/images,ads,src/modules/ads/ads.routes.ts,35,", authenticate, adsController.removeImage",removeImage
+PUT,/api/v1/ads/:id/images/reorder,/:id/images/reorder,ads,src/modules/ads/ads.routes.ts,38,", authenticate, adsController.reorderImages",reorderImages
+DELETE,/api/v1/ads/:id,/:id,ads,src/modules/ads/ads.routes.ts,39,", authenticate, adsController.deleteAd",deleteAd
+PATCH,/api/v1/ads/:id/pin,/:id/pin,ads,src/modules/ads/ads.routes.ts,42,", authenticate, adsPinController.setPinned",setPinned
+POST,/api/v1/ads/:id/republish,/:id/republish,ads,src/modules/ads/ads.routes.ts,45,", authenticate, requireVerifiedEmail, createAdRateLimit, adsRepublishController.republish ",republish
+POST,/api/v1/admin/analytics/events,/events,analytics,src/modules/analytics/analytics.routes.ts,15,", analyticsEventsRateLimit, analyticsController.trackEvents",trackEvents
+GET,/api/v1/admin/analytics/summary,/summary,analytics,src/modules/analytics/analytics.routes.ts,20,", authenticate, requireAdmin, analyticsController.getSummary ",getSummary
+GET,/api/v1/appointments/availability/:providerId,/availability/:providerId,appointments,src/modules/appointments/appointments.routes.ts,19,", CACHE.SHORT, availabilityRateLimit, appointmentsController.getAvailability ",getAvailability
+GET,/api/v1/appointments/me,/me,appointments,src/modules/appointments/appointments.routes.ts,28,", authenticate, CACHE.NONE, appointmentsController.getMyAppointments",getMyAppointments
+POST,/api/v1/appointments,/,appointments,src/modules/appointments/appointments.routes.ts,32,", authenticate, requireVerifiedEmail, createAppointmentRateLimit, appointmentsController.createAppointment ",createAppointment
+PATCH,/api/v1/appointments/:id/status,/:id/status,appointments,src/modules/appointments/appointments.routes.ts,38,", authenticate, requireVerifiedEmail, appointmentUpdateRateLimit, appointmentsController.updateAppointmentStatus ",updateAppointmentStatus
+GET,/api/v1/admin/audit-logs,/,audit-logs,src/modules/audit-logs/audit-logs.routes.ts,9,", authenticate, requireAdmin, auditLogsController.getAuditLogs",getAuditLogs
+POST,/api/v1/auth/register,/register,auth,src/modules/auth/auth.routes.ts,65,", authRateLimit, authController.register",register
+POST,/api/v1/auth/login,/login,auth,src/modules/auth/auth.routes.ts,87,", authRateLimit, authController.login",login
+POST,/api/v1/auth/refresh,/refresh,auth,src/modules/auth/auth.routes.ts,108,", refreshRateLimit, authController.refresh",refresh
+POST,/api/v1/auth/logout,/logout,auth,src/modules/auth/auth.routes.ts,122,", authenticate, authController.logout",logout
+POST,/api/v1/auth/logout-all,/logout-all,auth,src/modules/auth/auth.routes.ts,133,", authenticate, authController.logoutAll",logoutAll
+GET,/api/v1/auth/sessions,/sessions,auth,src/modules/auth/auth.routes.ts,144,", authenticate, authController.getSessions",getSessions
+DELETE,/api/v1/auth/sessions/:sessionId,/sessions/:sessionId,auth,src/modules/auth/auth.routes.ts,161,", authenticate, authController.revokeSession",revokeSession
+POST,/api/v1/auth/forgot-password,/forgot-password,auth,src/modules/auth/auth.routes.ts,167,", forgotPasswordRateLimit, authController.forgotPassword",forgotPassword
+POST,/api/v1/auth/reset-password,/reset-password,auth,src/modules/auth/auth.routes.ts,173,", authRateLimit, authController.resetPassword",resetPassword
+POST,/api/v1/auth/verify-email,/verify-email,auth,src/modules/auth/auth.routes.ts,179,", authRateLimit, authController.verifyEmail",verifyEmail
+POST,/api/v1/auth/resend-verification,/resend-verification,auth,src/modules/auth/auth.routes.ts,180,", authenticate, resendVerificationRateLimit, authController.resendVerification, ",resendVerification
+GET,/api/v1/auth/google,/google,auth,src/modules/auth/auth.routes.ts,207,", authRateLimit, requireGoogleOAuthConfigured, // generate a random `state` value, store it in a // short-lived httpOnly cookie scoped to this browser, and pass the // same value to Google via passport's `state` option so it comes // back u",CSRF
+GET,/api/v1/auth/google/callback,/google/callback,auth,src/modules/auth/auth.routes.ts,283,", requireGoogleOAuthConfigured, // verify the `state` Google echoed back in the query // string matches the value we stored in the httpOnly cookie when // this flow started at GET /auth/google, before ever calling // passport.authenticate. ",browse
+GET,/api/v1/auth/google/failure,/google/failure,auth,src/modules/auth/auth.routes.ts,340,", (_req, res) => { const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}login`; res.redirect(`${base}?error=google_auth_failed`",google_auth_failed
+GET,/api/v1/badges/store/:storeId,/store/:storeId,badges,src/modules/badges/badges.routes.ts,11,", CACHE.SHORT, badgesController.getStoreBadges",getStoreBadges
+GET,/api/v1/badges/provider/:providerId,/provider/:providerId,badges,src/modules/badges/badges.routes.ts,12,", CACHE.SHORT, badgesController.getProviderBadges",getProviderBadges
+GET,/api/v1/blocked-users,/,blocked-users,src/modules/blocked-users/blocked-users.routes.ts,11,", authenticate, CACHE.NONE, blockedUsersController.getMyBlockedUsers",getMyBlockedUsers
+POST,/api/v1/blocked-users/:userId,/:userId,blocked-users,src/modules/blocked-users/blocked-users.routes.ts,12,", authenticate, userBlockRateLimit, blockedUsersController.toggleBlock ",toggleBlock
+GET,/api/v1/categories,/,categories,src/modules/categories/categories.routes.ts,13,", CACHE.STATIC, categoriesController.getCategories",getCategories
+GET,/api/v1/categories/slug/:slug,/slug/:slug,categories,src/modules/categories/categories.routes.ts,14,", CACHE.STATIC, categoriesController.getCategoryBySlug",getCategoryBySlug
+GET,/api/v1/categories/admin/all,/admin/all,categories,src/modules/categories/categories.routes.ts,20,", authenticate, requireAdmin, CACHE.NONE, categoriesController.getCategoriesForAdmin, ",getCategoriesForAdmin
+GET,/api/v1/categories/:id,/:id,categories,src/modules/categories/categories.routes.ts,27,", CACHE.STATIC, categoriesController.getCategoryById",getCategoryById
+POST,/api/v1/categories,/,categories,src/modules/categories/categories.routes.ts,28,", authenticate, requireAdmin, categoryMutationRateLimit, categoriesController.createCategory",createCategory
+PATCH,/api/v1/categories/:id,/:id,categories,src/modules/categories/categories.routes.ts,29,", authenticate, requireAdmin, categoryMutationRateLimit, categoriesController.updateCategory",updateCategory
+DELETE,/api/v1/categories/:id,/:id,categories,src/modules/categories/categories.routes.ts,30,", authenticate, requireAdmin, categoryDeleteRateLimit, categoriesController.deleteCategory",deleteCategory
+GET,/api/v1/collections/store/:storeId,/store/:storeId,collections,src/modules/collections/collections.routes.ts,21,", CACHE.SHORT, collectionsController.getPublicCollections",getPublicCollections
+GET,/api/v1/collections/:id/products,/:id/products,collections,src/modules/collections/collections.routes.ts,22,", CACHE.SHORT, collectionsController.getPublicCollectionProducts",getPublicCollectionProducts
+POST,/api/v1/collections,/,collections,src/modules/collections/collections.routes.ts,29,", authenticate, requireVerifiedEmail, createCollectionRateLimit, collectionsController.createCollection",createCollection
+GET,/api/v1/collections/me,/me,collections,src/modules/collections/collections.routes.ts,30,", authenticate, collectionsController.getMyCollections",getMyCollections
+PATCH,/api/v1/collections/reorder,/reorder,collections,src/modules/collections/collections.routes.ts,31,", authenticate, reorderCollectionsRateLimit, collectionsController.reorderCollections",reorderCollections
+GET,/api/v1/collections/:id,/:id,collections,src/modules/collections/collections.routes.ts,33,", authenticate, collectionsController.getCollectionById",getCollectionById
+PATCH,/api/v1/collections/:id,/:id,collections,src/modules/collections/collections.routes.ts,34,", authenticate, updateCollectionRateLimit, collectionsController.updateCollection",updateCollection
+DELETE,/api/v1/collections/:id,/:id,collections,src/modules/collections/collections.routes.ts,35,", authenticate, deleteCollectionRateLimit, collectionsController.deleteCollection",deleteCollection
+POST,/api/v1/collections/:id/products/:productId,/:id/products/:productId,collections,src/modules/collections/collections.routes.ts,37,", authenticate, collectionMemberRateLimit, collectionsController.addProduct ",addProduct
+DELETE,/api/v1/collections/:id/products/:productId,/:id/products/:productId,collections,src/modules/collections/collections.routes.ts,43,", authenticate, collectionMemberRateLimit, collectionsController.removeProduct ",removeProduct
+GET,/api/v1/conversations,/,conversations,src/modules/conversations/conversations.routes.ts,14,", authenticate, CACHE.NONE, conversationsController.getMyConversations",getMyConversations
+GET,/api/v1/conversations/unread-count,/unread-count,conversations,src/modules/conversations/conversations.routes.ts,16,", authenticate, CACHE.NONE, conversationsController.getUnreadCount ",getUnreadCount
+POST,/api/v1/conversations,/,conversations,src/modules/conversations/conversations.routes.ts,22,", authenticate, requireVerifiedEmail, startConversationRateLimit, conversationsController.startConversation ",startConversation
+GET,/api/v1/conversations/:id,/:id,conversations,src/modules/conversations/conversations.routes.ts,28,", authenticate, CACHE.NONE, conversationsController.getConversationById",getConversationById
+GET,/api/v1/conversations/:id/messages,/:id/messages,conversations,src/modules/conversations/conversations.routes.ts,29,", authenticate, CACHE.NONE, conversationsController.getMessages ",getMessages
+GET,/api/v1/conversations/:id/messages/media,/:id/messages/media,conversations,src/modules/conversations/conversations.routes.ts,35,", authenticate, CACHE.NONE, conversationsController.getMedia ",getMedia
+GET,/api/v1/conversations/:id/messages/:messageId/media/:kind,/:id/messages/:messageId/media/:kind,conversations,src/modules/conversations/conversations.routes.ts,41,", authenticate, CACHE.NONE, conversationsController.getMediaAsset ",getMediaAsset
+POST,/api/v1/conversations/:id/messages,/:id/messages,conversations,src/modules/conversations/conversations.routes.ts,47,", authenticate, // the image-send route below already // required a verified email, but this text path did not — a user // with an unverified email could send text messages but not images, // which reads as ""the image button is broken"" rath",only
+POST,/api/v1/conversations/:id/messages/file,/:id/messages/file,conversations,src/modules/conversations/conversations.routes.ts,61,", authenticate, requireVerifiedEmail, sendMessageRateLimit, uploadMessageFileMiddleware, conversationsController.sendMessageFile ",sendMessageFile
+POST,/api/v1/conversations/:id/messages/audio,/:id/messages/audio,conversations,src/modules/conversations/conversations.routes.ts,69,", authenticate, requireVerifiedEmail, sendMessageRateLimit, uploadAudioMiddleware, conversationsController.sendMessageAudio ",sendMessageAudio
+POST,/api/v1/conversations/:id/messages/image,/:id/messages/image,conversations,src/modules/conversations/conversations.routes.ts,77,", authenticate, sendMessageRateLimit, uploadMiddleware, conversationsController.sendMessageImage ",sendMessageImage
+POST,/api/v1/conversations/:id/messages/:messageId/pin,/:id/messages/:messageId/pin,conversations,src/modules/conversations/conversations.routes.ts,84,", authenticate, sendMessageRateLimit, conversationsController.pinMessage",pinMessage
+DELETE,/api/v1/conversations/:id/messages/:messageId/pin,/:id/messages/:messageId/pin,conversations,src/modules/conversations/conversations.routes.ts,85,", authenticate, sendMessageRateLimit, conversationsController.unpinMessage",unpinMessage
+POST,/api/v1/conversations/:id/messages/:messageId/star,/:id/messages/:messageId/star,conversations,src/modules/conversations/conversations.routes.ts,86,", authenticate, sendMessageRateLimit, conversationsController.starMessage",starMessage
+DELETE,/api/v1/conversations/:id/messages/:messageId/star,/:id/messages/:messageId/star,conversations,src/modules/conversations/conversations.routes.ts,87,", authenticate, sendMessageRateLimit, conversationsController.unstarMessage",unstarMessage
+DELETE,/api/v1/conversations/:id/messages/:messageId,/:id/messages/:messageId,conversations,src/modules/conversations/conversations.routes.ts,89,", authenticate, // neither deleteMessage nor setFlags below // had any rate limit — an authenticated caller could loop either // endpoint arbitrarily. Reused sendMessageRateLimit as the closest // fitting bucket: same per-conversation mutat",definitions
+DELETE,/api/v1/conversations/:id,/:id,conversations,src/modules/conversations/conversations.routes.ts,102,", authenticate, sendMessageRateLimit, conversationsController.deleteConversation",deleteConversation
+PATCH,/api/v1/conversations/:id/flags,/:id/flags,conversations,src/modules/conversations/conversations.routes.ts,103,", authenticate, sendMessageRateLimit, conversationsController.setFlags ",setFlags
+POST,/api/v1/conversations/:id/typing,/:id/typing,conversations,src/modules/conversations/conversations.routes.ts,112,", authenticate, typingRateLimit, conversationsController.typing ",typing
+GET,/api/v1/customers/summary,/summary,customers,src/modules/customers/customers.routes.ts,7,", customersController.summary",summary
+GET,/api/v1/customers,/,customers,src/modules/customers/customers.routes.ts,8,", customersController.list",list
+GET,/api/v1/customers/search,/search,customers,src/modules/customers/customers.routes.ts,9,", customersController.search",search
+GET,/api/v1/customers/:id,/:id,customers,src/modules/customers/customers.routes.ts,10,", customersController.getById",getById
+POST,/api/v1/customers,/,customers,src/modules/customers/customers.routes.ts,11,", customersController.create",create
+PATCH,/api/v1/customers/:id,/:id,customers,src/modules/customers/customers.routes.ts,12,", customersController.update",update
+GET,/api/v1/favorites/lists,/lists,favorites,src/modules/favorites/favorites.routes.ts,10,", authenticate, favoriteListsController.list",list
+POST,/api/v1/favorites/lists,/lists,favorites,src/modules/favorites/favorites.routes.ts,11,", authenticate, favoriteListsController.create",create
+PATCH,/api/v1/favorites/lists/:listId,/lists/:listId,favorites,src/modules/favorites/favorites.routes.ts,19,", authenticate, favoritesRateLimit, favoriteListsController.rename",rename
+DELETE,/api/v1/favorites/lists/:listId,/lists/:listId,favorites,src/modules/favorites/favorites.routes.ts,20,", authenticate, favoritesRateLimit, favoriteListsController.remove",remove
+PATCH,/api/v1/favorites/items/:favoriteId/list,/items/:favoriteId/list,favorites,src/modules/favorites/favorites.routes.ts,21,", authenticate, favoritesRateLimit, favoriteListsController.moveFavorite ",moveFavorite
+GET,/api/v1/favorites,/,favorites,src/modules/favorites/favorites.routes.ts,28,", authenticate, favoritesController.getMyFavorites",getMyFavorites
+GET,/api/v1/favorites/:adId/check,/:adId/check,favorites,src/modules/favorites/favorites.routes.ts,29,", authenticate, favoritesController.checkFavorited",checkFavorited
+POST,/api/v1/favorites/:adId,/:adId,favorites,src/modules/favorites/favorites.routes.ts,30,", authenticate, favoritesRateLimit, favoritesController.toggleFavorite",toggleFavorite
+GET,/api/v1/favorites/:entityType/:entityId/check,/:entityType/:entityId/check,favorites,src/modules/favorites/favorites.routes.ts,33,", authenticate, favoritesController.checkFavoritedEntity ",checkFavoritedEntity
+POST,/api/v1/favorites/:entityType/:entityId,/:entityType/:entityId,favorites,src/modules/favorites/favorites.routes.ts,38,", authenticate, favoritesRateLimit, favoritesController.toggleFavoriteEntity ",toggleFavoriteEntity
+GET,/api/v1/follows/feed,/feed,follows,src/modules/follows/follows.routes.ts,8,", authenticate, followsController.feed",feed
+POST,/api/v1/follows,/,follows,src/modules/follows/follows.routes.ts,9,", authenticate, followRateLimit, followsController.toggle",toggle
+GET,/api/v1/follows/me,/me,follows,src/modules/follows/follows.routes.ts,10,", authenticate, followsController.myFollowing",myFollowing
+GET,/api/v1/follows/status/:targetType/:targetId,/status/:targetType/:targetId,follows,src/modules/follows/follows.routes.ts,11,", authenticate, followsController.status",status
+GET,/api/v1/follows/target/:targetType/:targetId/followers,/target/:targetType/:targetId/followers,follows,src/modules/follows/follows.routes.ts,12,", followsController.targetFollowers",targetFollowers
+GET,/api/v1/follows/users/:id/followers,/users/:id/followers,follows,src/modules/follows/follows.routes.ts,13,", followsController.userFollowers",userFollowers
+GET,/api/v1/follows/users/:id/following,/users/:id/following,follows,src/modules/follows/follows.routes.ts,14,", followsController.userFollowing",userFollowing
+GET,/api/v1/admin/fraud/ads,/ads,fraud,src/modules/fraud/fraud.routes.ts,13,", fraudController.getFlaggedAds",getFlaggedAds
+PATCH,/api/v1/admin/fraud/ads/:adId/clear,/ads/:adId/clear,fraud,src/modules/fraud/fraud.routes.ts,14,", fraudController.clearAdFlag",clearAdFlag
+POST,/api/v1/admin/fraud/ads/:adId/flag,/ads/:adId/flag,fraud,src/modules/fraud/fraud.routes.ts,15,", fraudController.manualFlag",manualFlag
+GET,/api/v1/admin/fraud/signals,/signals,fraud,src/modules/fraud/fraud.routes.ts,17,", fraudController.getSignals",getSignals
+PATCH,/api/v1/admin/fraud/signals/:id/review,/signals/:id/review,fraud,src/modules/fraud/fraud.routes.ts,18,", fraudController.reviewSignal",reviewSignal
+GET,/api/v1/home/feed,/feed,home,src/modules/home/home.routes.ts,9,", CACHE.PERSONAL, homeFeedController.getHomeFeed",getHomeFeed
+GET,/api/v1/home,/,home,src/modules/home/home.routes.ts,10,", CACHE.PUBLIC_HOME, homeController.getHomepage",getHomepage
+POST,/api/v1/media/images,/images,media,src/modules/media/media.routes.ts,12,", authenticate, mediaUploadRateLimit, uploadMultipleMiddleware, mediaController.uploadImages, ",uploadImages
+GET,/api/v1/notifications,/,notifications,src/modules/notifications/notifications.routes.ts,11,", authenticate, CACHE.NONE, notificationsController.getMyNotifications",getMyNotifications
+GET,/api/v1/notifications/unread-count,/unread-count,notifications,src/modules/notifications/notifications.routes.ts,12,", authenticate, CACHE.NONE, notificationsController.getUnreadCount ",getUnreadCount
+GET,/api/v1/notifications/stream,/stream,notifications,src/modules/notifications/notifications.routes.ts,18,", authenticate, CACHE.STREAM, notificationsController.stream ",stream
+PATCH,/api/v1/notifications/read-all,/read-all,notifications,src/modules/notifications/notifications.routes.ts,24,", authenticate, notificationsController.markAllRead",markAllRead
+DELETE,/api/v1/notifications/read,/read,notifications,src/modules/notifications/notifications.routes.ts,25,", authenticate, notificationsController.deleteAllRead",deleteAllRead
+PATCH,/api/v1/notifications/:id/read,/:id/read,notifications,src/modules/notifications/notifications.routes.ts,26,", authenticate, notificationsController.markRead",markRead
+PATCH,/api/v1/notifications/:id/unread,/:id/unread,notifications,src/modules/notifications/notifications.routes.ts,27,", authenticate, notificationsController.markUnread",markUnread
+DELETE,/api/v1/notifications/:id,/:id,notifications,src/modules/notifications/notifications.routes.ts,28,", authenticate, notificationsController.deleteNotification",deleteNotification
+POST,/api/v1/notifications/push-subscriptions,/push-subscriptions,notifications,src/modules/notifications/notifications.routes.ts,33,", authenticate, notificationsController.subscribeToPush ",subscribeToPush
+DELETE,/api/v1/notifications/push-subscriptions,/push-subscriptions,notifications,src/modules/notifications/notifications.routes.ts,38,", authenticate, notificationsController.unsubscribeFromPush ",unsubscribeFromPush
+POST,/api/v1/notifications/push-test,/push-test,notifications,src/modules/notifications/notifications.routes.ts,44,", authenticate, notificationsController.sendTestPush",sendTestPush
+POST,/api/v1/notifications/fcm-tokens,/fcm-tokens,notifications,src/modules/notifications/notifications.routes.ts,48,", authenticate, notificationsController.registerFcmToken ",registerFcmToken
+DELETE,/api/v1/notifications/fcm-tokens,/fcm-tokens,notifications,src/modules/notifications/notifications.routes.ts,53,", authenticate, notificationsController.unregisterFcmToken ",unregisterFcmToken
+GET,/api/v1/notifications/devices,/devices,notifications,src/modules/notifications/notifications.routes.ts,61,", authenticate, CACHE.NONE, notificationsController.listDevices",listDevices
+PATCH,/api/v1/notifications/devices/:kind/:id,/devices/:kind/:id,notifications,src/modules/notifications/notifications.routes.ts,62,", authenticate, notificationsController.renameDevice",renameDevice
+DELETE,/api/v1/notifications/devices/:kind/:id,/devices/:kind/:id,notifications,src/modules/notifications/notifications.routes.ts,63,", authenticate, notificationsController.removeDevice",removeDevice
+POST,/api/v1/observability/client-error,/client-error,observability,src/modules/observability/observability.routes.ts,20,", analyticsEventsRateLimit, observabilityController.clientError, ",clientError
+GET,/api/v1/product-categories,/,product-categories,src/modules/product-categories/product-categories.routes.ts,13,", CACHE.STATIC, productCategoriesController.getProductCategories",getProductCategories
+GET,/api/v1/product-categories/slug/:slug,/slug/:slug,product-categories,src/modules/product-categories/product-categories.routes.ts,14,", CACHE.STATIC, productCategoriesController.getProductCategoryBySlug ",getProductCategoryBySlug
+GET,/api/v1/product-categories/admin/all,/admin/all,product-categories,src/modules/product-categories/product-categories.routes.ts,21,", authenticate, requireAdmin, CACHE.NONE, productCategoriesController.getProductCategoriesForAdmin ",getProductCategoriesForAdmin
+GET,/api/v1/product-categories/:id,/:id,product-categories,src/modules/product-categories/product-categories.routes.ts,28,", CACHE.STATIC, productCategoriesController.getProductCategoryById",getProductCategoryById
+POST,/api/v1/product-categories,/,product-categories,src/modules/product-categories/product-categories.routes.ts,29,", authenticate, requireAdmin, categoryMutationRateLimit, productCategoriesController.createProductCategory ",createProductCategory
+PATCH,/api/v1/product-categories/:id,/:id,product-categories,src/modules/product-categories/product-categories.routes.ts,36,", authenticate, requireAdmin, categoryMutationRateLimit, productCategoriesController.updateProductCategory ",updateProductCategory
+DELETE,/api/v1/product-categories/:id,/:id,product-categories,src/modules/product-categories/product-categories.routes.ts,43,", authenticate, requireAdmin, categoryDeleteRateLimit, productCategoriesController.deleteProductCategory ",deleteProductCategory
+GET,/api/v1/products,/,products,src/modules/products/products.routes.ts,23,", CACHE.SHORT, productsController.getProducts",getProducts
+GET,/api/v1/products/me,/me,products,src/modules/products/products.routes.ts,25,", authenticate, CACHE.NONE, productsController.getMyProducts",getMyProducts
+GET,/api/v1/products/:id,/:id,products,src/modules/products/products.routes.ts,26,", CACHE.MEDIUM, productsController.getProductById",getProductById
+GET,/api/v1/products/stock/summary,/stock/summary,products,src/modules/products/products.routes.ts,29,", authenticate, CACHE.NONE, productsStockController.getSummary",getSummary
+GET,/api/v1/products/stock/history,/stock/history,products,src/modules/products/products.routes.ts,30,", authenticate, CACHE.NONE, productsStockController.getHistory",getHistory
+POST,/api/v1/products,/,products,src/modules/products/products.routes.ts,33,", authenticate, requireVerifiedEmail, createProductRateLimit, uploadMultipleMiddleware, productsController.createProduct ",createProduct
+PATCH,/api/v1/products/:id,/:id,products,src/modules/products/products.routes.ts,46,", authenticate, requireVerifiedEmail, productMutationRateLimit, productsController.updateProduct ",updateProduct
+PATCH,/api/v1/products/:id/stock,/:id/stock,products,src/modules/products/products.routes.ts,54,", authenticate, requireVerifiedEmail, productMutationRateLimit, productsStockController.adjustStock ",adjustStock
+POST,/api/v1/products/:id/images,/:id/images,products,src/modules/products/products.routes.ts,64,", authenticate, requireVerifiedEmail, addProductImagesRateLimit, uploadMultipleMiddleware, productsController.addImages ",addImages
+DELETE,/api/v1/products/:id/images,/:id/images,products,src/modules/products/products.routes.ts,71,", authenticate, requireVerifiedEmail, productMutationRateLimit, productsController.removeImage ",removeImage
+PUT,/api/v1/products/:id/images/reorder,/:id/images/reorder,products,src/modules/products/products.routes.ts,79,", authenticate, requireVerifiedEmail, productMutationRateLimit, productsController.reorderImages ",reorderImages
+DELETE,/api/v1/products/:id,/:id,products,src/modules/products/products.routes.ts,86,", authenticate, requireVerifiedEmail, productMutationRateLimit, productsController.deleteProduct ",deleteProduct
+POST,/api/v1/promotions,/,promotions,src/modules/promotions/promotions.routes.ts,19,", authenticate, requireVerifiedEmail, createPromotionRateLimit, promotionsController.createPromotion",createPromotion
+GET,/api/v1/promotions/me,/me,promotions,src/modules/promotions/promotions.routes.ts,20,", authenticate, promotionsController.getMyPromotions",getMyPromotions
+GET,/api/v1/promotions/:id,/:id,promotions,src/modules/promotions/promotions.routes.ts,21,", authenticate, promotionsController.getPromotionById",getPromotionById
+PATCH,/api/v1/promotions/:id,/:id,promotions,src/modules/promotions/promotions.routes.ts,22,", authenticate, updatePromotionRateLimit, promotionsController.updatePromotion",updatePromotion
+DELETE,/api/v1/promotions/:id,/:id,promotions,src/modules/promotions/promotions.routes.ts,23,", authenticate, cancelPromotionRateLimit, promotionsController.cancelPromotion",cancelPromotion
+GET,/api/v1/recommendations,/,recommendations,src/modules/recommendations/recommendations.routes.ts,22,", recommendationsRateLimit, CACHE.NONE, recommendationsController.getRecommendations, ",getRecommendations
+POST,/api/v1/reports/ads/:adId,/ads/:adId,reports,src/modules/reports/reports.routes.ts,10,", authenticate, reportRateLimit, reportsController.createReport",createReport
+POST,/api/v1/reports/:targetType/:targetId,/:targetType/:targetId,reports,src/modules/reports/reports.routes.ts,19,", authenticate, reportRateLimit, reportsController.createTargetReport ",createTargetReport
+GET,/api/v1/reports/me,/me,reports,src/modules/reports/reports.routes.ts,30,", authenticate, reportsController.getMyReports",getMyReports
+GET,/api/v1/reports,/,reports,src/modules/reports/reports.routes.ts,32,", authenticate, requireMinRole(ROLES.MODERATOR), reportsController.getReports",getReports
+PATCH,/api/v1/reports/bulk/status,/bulk/status,reports,src/modules/reports/reports.routes.ts,39,", authenticate, requireMinRole(ROLES.MODERATOR), reportsController.bulkUpdateReportStatus ",bulkUpdateReportStatus
+GET,/api/v1/reports/:id,/:id,reports,src/modules/reports/reports.routes.ts,46,", authenticate, requireMinRole(ROLES.MODERATOR), reportsController.getReportById",getReportById
+PATCH,/api/v1/reports/:id/status,/:id/status,reports,src/modules/reports/reports.routes.ts,47,", authenticate, requireMinRole(ROLES.MODERATOR), reportsController.updateReportStatus ",updateReportStatus
+GET,/api/v1/requests,/,requests,src/modules/requests/requests.routes.ts,18,", optionalAuthenticate, CACHE.SHORT, requestsController.getOpenFeed",getOpenFeed
+GET,/api/v1/requests/me,/me,requests,src/modules/requests/requests.routes.ts,19,", authenticate, CACHE.NONE, requestsController.getMyRequests",getMyRequests
+GET,/api/v1/requests/offers/me,/offers/me,requests,src/modules/requests/requests.routes.ts,20,", authenticate, CACHE.NONE, requestsController.getMyOffers",getMyOffers
+GET,/api/v1/requests/:id,/:id,requests,src/modules/requests/requests.routes.ts,21,", optionalAuthenticate, CACHE.NONE, requestsController.getById",getById
+POST,/api/v1/requests,/,requests,src/modules/requests/requests.routes.ts,23,", authenticate, requireVerifiedEmail, createOpenRequestRateLimit, requestsController.create",create
+PATCH,/api/v1/requests/:id/cancel,/:id/cancel,requests,src/modules/requests/requests.routes.ts,24,", authenticate, cancelRequestRateLimit, requestsController.cancel",cancel
+POST,/api/v1/requests/:id/offers,/:id/offers,requests,src/modules/requests/requests.routes.ts,26,", authenticate, requireVerifiedEmail, submitRequestOfferRateLimit, requestsController.submitOffer, ",submitOffer
+DELETE,/api/v1/requests/:id/offers/:offerId,/:id/offers/:offerId,requests,src/modules/requests/requests.routes.ts,32,", authenticate, withdrawOfferRateLimit, requestsController.withdrawOffer",withdrawOffer
+PATCH,/api/v1/requests/:id/offers/:offerId/accept,/:id/offers/:offerId/accept,requests,src/modules/requests/requests.routes.ts,33,", authenticate, acceptOfferRateLimit, requestsController.acceptOffer",acceptOffer
+GET,/api/v1/public/stores/upcoming,/upcoming,sales,src/modules/sales/installments.routes.ts,6,",installmentsController.upcoming",upcoming
+GET,/api/v1/public/stores/overdue,/overdue,sales,src/modules/sales/installments.routes.ts,7,",installmentsController.overdue",overdue
+POST,/api/v1/public/stores/:id/pay,/:id/pay,sales,src/modules/sales/installments.routes.ts,8,",installmentsController.pay",pay
+GET,/api/v1/public/stores/:slug/stats,/:slug/stats,sales,src/modules/sales/public-stats.routes.ts,4,", publicSalesStatsController.getStoreStats",getStoreStats
+GET,/api/v1/public/stores/cost-settings,/cost-settings,sales,src/modules/sales/sales.routes.ts,8,", salesController.costSettings",costSettings
+PATCH,/api/v1/public/stores/cost-settings,/cost-settings,sales,src/modules/sales/sales.routes.ts,9,", salesController.updateCostSettings",updateCostSettings
+GET,/api/v1/public/stores/cost-products,/cost-products,sales,src/modules/sales/sales.routes.ts,10,", salesController.costProducts",costProducts
+PATCH,/api/v1/public/stores/cost-products/:productId,/cost-products/:productId,sales,src/modules/sales/sales.routes.ts,11,", salesController.updateProductCost",updateProductCost
+POST,/api/v1/public/stores,/,sales,src/modules/sales/sales.routes.ts,12,", salesController.create",create
+GET,/api/v1/public/stores,/,sales,src/modules/sales/sales.routes.ts,13,", salesController.list",list
+GET,/api/v1/public/stores/summary,/summary,sales,src/modules/sales/sales.routes.ts,14,", salesController.summary",summary
+GET,/api/v1/public/stores/chart,/chart,sales,src/modules/sales/sales.routes.ts,15,", salesController.chart",chart
+GET,/api/v1/public/stores/compare,/compare,sales,src/modules/sales/sales.routes.ts,16,", salesController.compare",compare
+GET,/api/v1/public/stores/top,/top,sales,src/modules/sales/sales.routes.ts,17,", salesController.top",top
+GET,/api/v1/public/stores/dashboard,/dashboard,sales,src/modules/sales/sales.routes.ts,18,", salesController.dashboard",dashboard
+GET,/api/v1/public/stores/reports,/reports,sales,src/modules/sales/sales.routes.ts,19,", salesController.report",report
+GET,/api/v1/public/stores/smart-insights,/smart-insights,sales,src/modules/sales/sales.routes.ts,20,", salesController.smartInsights",smartInsights
+POST,/api/v1/public/stores/automation/run,/automation/run,sales,src/modules/sales/sales.routes.ts,21,", salesController.automationRun",automationRun
+GET,/api/v1/public/stores/debts/summary,/debts/summary,sales,src/modules/sales/sales.routes.ts,22,", salesController.debtSummary",debtSummary
+GET,/api/v1/public/stores/debts,/debts,sales,src/modules/sales/sales.routes.ts,23,", salesController.debts",debts
+GET,/api/v1/public/stores/:id/receipt,/:id/receipt,sales,src/modules/sales/sales.routes.ts,24,", salesController.receipt",receipt
+GET,/api/v1/public/stores/:id,/:id,sales,src/modules/sales/sales.routes.ts,25,", salesController.getById",getById
+PATCH,/api/v1/public/stores/:id,/:id,sales,src/modules/sales/sales.routes.ts,26,", salesController.update",update
+DELETE,/api/v1/public/stores/:id,/:id,sales,src/modules/sales/sales.routes.ts,27,", salesController.remove",remove
+POST,/api/v1/public/stores/:id/payments,/:id/payments,sales,src/modules/sales/sales.routes.ts,28,", salesController.addPayment",addPayment
+POST,/api/v1/public/stores/:id/return,/:id/return,sales,src/modules/sales/sales.routes.ts,29,", salesController.addReturn",addReturn
+GET,/api/v1/saved-searches,/,saved-searches,src/modules/saved-searches/saved-searches.routes.ts,11,", authenticate, savedSearchesController.getMySavedSearches",getMySavedSearches
+POST,/api/v1/saved-searches,/,saved-searches,src/modules/saved-searches/saved-searches.routes.ts,12,", authenticate, savedSearchRateLimit, savedSearchesController.createSavedSearch ",createSavedSearch
+DELETE,/api/v1/saved-searches/:id,/:id,saved-searches,src/modules/saved-searches/saved-searches.routes.ts,18,", authenticate, deleteSavedSearchRateLimit, savedSearchesController.deleteSavedSearch",deleteSavedSearch
+GET,/api/v1/search,/,search,src/modules/search/search.routes.ts,11,", CACHE.SHORT, searchController.search",search
+GET,/api/v1/search/suggestions,/suggestions,search,src/modules/search/search.routes.ts,18,", searchSuggestionsRateLimit, CACHE.SHORT, searchController.suggest",suggest
+GET,/api/v1/sellers/me/profile,/me/profile,sellers,src/modules/sellers/sellers.routes.ts,17,", authenticate, CACHE.NONE, sellersController.getMySellerProfile",getMySellerProfile
+PATCH,/api/v1/sellers/me/profile,/me/profile,sellers,src/modules/sellers/sellers.routes.ts,26,", authenticate, requireVerifiedEmail, createSellerProfileRateLimit, CACHE.NONE, sellersController.updateMySellerProfile ",updateMySellerProfile
+GET,/api/v1/sellers/me/attention,/me/attention,sellers,src/modules/sellers/sellers.routes.ts,33,", authenticate, CACHE.NONE, sellersController.getMyAttention",getMyAttention
+POST,/api/v1/sellers/me/profile,/me/profile,sellers,src/modules/sellers/sellers.routes.ts,34,", authenticate, requireVerifiedEmail, createSellerProfileRateLimit, sellersController.createSellerProfile ",createSellerProfile
+POST,/api/v1/sellers/me/profile/verification-request,/me/profile/verification-request,sellers,src/modules/sellers/sellers.routes.ts,45,", authenticate, requireVerifiedEmail, requestVerificationRateLimit, sellersController.requestVerification ",requestVerification
+GET,/api/v1/sellers/ranking,/ranking,sellers,src/modules/sellers/sellers.routes.ts,53,", CACHE.SHORT, sellersRankingController.getTop",getTop
+GET,/api/v1/sellers/:id,/:id,sellers,src/modules/sellers/sellers.routes.ts,56,", CACHE.MEDIUM, sellersController.getPublicSellerProfile",getPublicSellerProfile
+POST,/api/v1/sellers/:id/ratings,/:id/ratings,sellers,src/modules/sellers/sellers.routes.ts,58,", authenticate, requireVerifiedEmail, sellerRatingRateLimit, sellersController.createRating ",createRating
+GET,/api/v1/sellers/:id/ratings,/:id/ratings,sellers,src/modules/sellers/sellers.routes.ts,70,", CACHE.SHORT, sellersController.getSellerRatings",getSellerRatings
+GET,/api/v1/service-categories,/,service-categories,src/modules/service-categories/service-categories.routes.ts,13,", CACHE.STATIC, serviceCategoriesController.getServiceCategories",getServiceCategories
+GET,/api/v1/service-categories/slug/:slug,/slug/:slug,service-categories,src/modules/service-categories/service-categories.routes.ts,14,", CACHE.STATIC, serviceCategoriesController.getServiceCategoryBySlug ",getServiceCategoryBySlug
+GET,/api/v1/service-categories/admin/all,/admin/all,service-categories,src/modules/service-categories/service-categories.routes.ts,23,", authenticate, requireAdmin, CACHE.NONE, serviceCategoriesController.getServiceCategoriesForAdmin ",getServiceCategoriesForAdmin
+GET,/api/v1/service-categories/:id,/:id,service-categories,src/modules/service-categories/service-categories.routes.ts,30,", CACHE.STATIC, serviceCategoriesController.getServiceCategoryById",getServiceCategoryById
+POST,/api/v1/service-categories,/,service-categories,src/modules/service-categories/service-categories.routes.ts,31,", authenticate, requireAdmin, categoryMutationRateLimit, serviceCategoriesController.createServiceCategory ",createServiceCategory
+PATCH,/api/v1/service-categories/:id,/:id,service-categories,src/modules/service-categories/service-categories.routes.ts,38,", authenticate, requireAdmin, categoryMutationRateLimit, serviceCategoriesController.updateServiceCategory ",updateServiceCategory
+DELETE,/api/v1/service-categories/:id,/:id,service-categories,src/modules/service-categories/service-categories.routes.ts,45,", authenticate, requireAdmin, categoryDeleteRateLimit, serviceCategoriesController.deleteServiceCategory ",deleteServiceCategory
+GET,/api/v1/service-listings,/,service-listings,src/modules/service-listings/service-listings.routes.ts,20,", CACHE.SHORT, serviceListingsController.getServiceListings",getServiceListings
+GET,/api/v1/service-listings/me,/me,service-listings,src/modules/service-listings/service-listings.routes.ts,22,", authenticate, CACHE.NONE, serviceListingsController.getMyServiceListings ",getMyServiceListings
+GET,/api/v1/service-listings/:id/matches,/:id/matches,service-listings,src/modules/service-listings/service-listings.routes.ts,28,", CACHE.SHORT, serviceListingsController.getServiceListingMatches",getServiceListingMatches
+GET,/api/v1/service-listings/:id,/:id,service-listings,src/modules/service-listings/service-listings.routes.ts,29,", CACHE.MEDIUM, serviceListingsController.getServiceListingById",getServiceListingById
+POST,/api/v1/service-listings,/,service-listings,src/modules/service-listings/service-listings.routes.ts,32,", authenticate, requireVerifiedEmail, createServiceListingRateLimit, uploadMultipleMiddleware, serviceListingsController.createServiceListing ",createServiceListing
+PATCH,/api/v1/service-listings/:id,/:id,service-listings,src/modules/service-listings/service-listings.routes.ts,42,", authenticate, requireVerifiedEmail, serviceListingMutationRateLimit, serviceListingsController.updateServiceListing ",updateServiceListing
+POST,/api/v1/service-listings/:id/images,/:id/images,service-listings,src/modules/service-listings/service-listings.routes.ts,50,", authenticate, requireVerifiedEmail, addServiceListingImagesRateLimit, uploadMultipleMiddleware, serviceListingsController.addImages ",addImages
+DELETE,/api/v1/service-listings/:id/images,/:id/images,service-listings,src/modules/service-listings/service-listings.routes.ts,57,", authenticate, requireVerifiedEmail, serviceListingMutationRateLimit, serviceListingsController.removeImage ",removeImage
+PUT,/api/v1/service-listings/:id/images/reorder,/:id/images/reorder,service-listings,src/modules/service-listings/service-listings.routes.ts,64,", authenticate, requireVerifiedEmail, serviceListingMutationRateLimit, serviceListingsController.reorderImages ",reorderImages
+DELETE,/api/v1/service-listings/:id,/:id,service-listings,src/modules/service-listings/service-listings.routes.ts,70,", authenticate, requireVerifiedEmail, serviceListingMutationRateLimit, serviceListingsController.deleteServiceListing ",deleteServiceListing
+GET,/api/v1/service-providers/me,/me,service-providers,src/modules/service-providers/service-providers.routes.ts,19,", authenticate, CACHE.NONE, serviceProvidersController.getMyServiceProvider ",getMyServiceProvider
+POST,/api/v1/service-providers/me,/me,service-providers,src/modules/service-providers/service-providers.routes.ts,30,", authenticate, requireVerifiedEmail, createServiceProviderRateLimit, serviceProvidersController.createServiceProvider ",createServiceProvider
+PATCH,/api/v1/service-providers/me,/me,service-providers,src/modules/service-providers/service-providers.routes.ts,36,", authenticate, requireVerifiedEmail, serviceProviderMutationRateLimit, CACHE.NONE, serviceProvidersController.updateMyServiceProvider ",updateMyServiceProvider
+GET,/api/v1/service-providers/me/service-types,/me/service-types,service-providers,src/modules/service-providers/service-providers.routes.ts,44,", authenticate, CACHE.NONE, serviceProvidersController.getMyServiceTypeProfiles ",getMyServiceTypeProfiles
+PATCH,/api/v1/service-providers/me/service-types/:serviceTypeId,/me/service-types/:serviceTypeId,service-providers,src/modules/service-providers/service-providers.routes.ts,51,", authenticate, requireVerifiedEmail, serviceProviderMutationRateLimit, CACHE.NONE, serviceProvidersController.updateMyServiceTypeProfile ",updateMyServiceTypeProfile
+GET,/api/v1/service-providers/me/analytics,/me/analytics,service-providers,src/modules/service-providers/service-providers.routes.ts,62,", authenticate, CACHE.NONE, serviceProvidersController.getMyServiceProviderAnalytics ",getMyServiceProviderAnalytics
+POST,/api/v1/service-providers/me/logo,/me/logo,service-providers,src/modules/service-providers/service-providers.routes.ts,72,", authenticate, requireVerifiedEmail, serviceProviderImagesRateLimit, uploadMiddleware, serviceProvidersController.uploadLogo ",uploadLogo
+GET,/api/v1/service-providers,/,service-providers,src/modules/service-providers/service-providers.routes.ts,84,", CACHE.SHORT, serviceProvidersController.getServiceProviders",getServiceProviders
+GET,/api/v1/service-providers/nearby,/nearby,service-providers,src/modules/service-providers/service-providers.routes.ts,88,", CACHE.SHORT, serviceProvidersController.getNearby",getNearby
+GET,/api/v1/service-providers/:id,/:id,service-providers,src/modules/service-providers/service-providers.routes.ts,91,", CACHE.MEDIUM, serviceProvidersController.getPublicServiceProvider",getPublicServiceProvider
+GET,/api/v1/service-requests/me,/me,service-requests,src/modules/service-requests/service-requests.routes.ts,15,", authenticate, CACHE.NONE, serviceRequestsController.getMyRequestsAsCustomer ",getMyRequestsAsCustomer
+GET,/api/v1/service-requests/incoming,/incoming,service-requests,src/modules/service-requests/service-requests.routes.ts,21,", authenticate, CACHE.NONE, serviceRequestsController.getMyRequestsAsProvider ",getMyRequestsAsProvider
+GET,/api/v1/service-requests/:id,/:id,service-requests,src/modules/service-requests/service-requests.routes.ts,27,", authenticate, CACHE.NONE, serviceRequestsController.getRequestById",getRequestById
+POST,/api/v1/service-requests,/,service-requests,src/modules/service-requests/service-requests.routes.ts,29,", authenticate, requireVerifiedEmail, createServiceRequestRateLimit, serviceRequestsController.createRequest ",createRequest
+PATCH,/api/v1/service-requests/:id/respond,/:id/respond,service-requests,src/modules/service-requests/service-requests.routes.ts,44,", authenticate, requireVerifiedEmail, respondServiceRequestRateLimit, serviceRequestsController.respondToRequest ",respondToRequest
+GET,/api/v1/service-reviews/seller/:sellerProfileId,/seller/:sellerProfileId,service-reviews,src/modules/service-reviews/service-reviews.routes.ts,11,", CACHE.SHORT, serviceReviewsController.getReviewsForSeller ",getReviewsForSeller
+POST,/api/v1/service-reviews,/,service-reviews,src/modules/service-reviews/service-reviews.routes.ts,19,", authenticate, requireVerifiedEmail, serviceReviewRateLimit, serviceReviewsController.createReview ",createReview
+GET,/api/v1/service-types,/,service-types,src/modules/service-types/service-types.routes.ts,8,", CACHE.STATIC, serviceTypesController.getActive",getActive
+GET,/api/v1/service-types/admin/all,/admin/all,service-types,src/modules/service-types/service-types.routes.ts,9,", authenticate, requireAdmin, CACHE.NONE, serviceTypesController.getAllForAdmin",getAllForAdmin
+POST,/api/v1/service-types,/,service-types,src/modules/service-types/service-types.routes.ts,10,", authenticate, requireAdmin, serviceTypesController.create",create
+POST,/api/v1/service-types/fields,/fields,service-types,src/modules/service-types/service-types.routes.ts,11,", authenticate, requireAdmin, serviceTypesController.createField",createField
+PATCH,/api/v1/service-types/fields/:id,/fields/:id,service-types,src/modules/service-types/service-types.routes.ts,12,", authenticate, requireAdmin, serviceTypesController.updateField",updateField
+PATCH,/api/v1/service-types/:id,/:id,service-types,src/modules/service-types/service-types.routes.ts,13,", authenticate, requireAdmin, serviceTypesController.update",update
+DELETE,/api/v1/service-types/fields/:id,/fields/:id,service-types,src/modules/service-types/service-types.routes.ts,14,", authenticate, requireAdmin, serviceTypesController.deleteField",deleteField
+GET,/api/v1/store-types/:storeTypeId/fields,/:storeTypeId/fields,store-types,src/modules/store-types/store-type-fields.routes.ts,6,", CACHE.MEDIUM, storeTypeFieldsController.getPublic",getPublic
+GET,/api/v1/store-types,/,store-types,src/modules/store-types/store-types.routes.ts,7,", CACHE.STATIC, storeTypesController.getActive",getActive
+GET,/api/v1/stores,/,stores,src/modules/stores/stores.routes.ts,26,", CACHE.SHORT, storesController.getStores",getStores
+GET,/api/v1/stores/me,/me,stores,src/modules/stores/stores.routes.ts,30,", authenticate, CACHE.NONE, storesController.getMyStore",getMyStore
+PATCH,/api/v1/stores/me,/me,stores,src/modules/stores/stores.routes.ts,31,", authenticate, storesController.updateMyStore",updateMyStore
+GET,/api/v1/stores/me/followed,/me/followed,stores,src/modules/stores/stores.routes.ts,32,", authenticate, CACHE.NONE, storesController.getMyFollowedStores",getMyFollowedStores
+GET,/api/v1/stores/me/analytics,/me/analytics,stores,src/modules/stores/stores.routes.ts,36,", authenticate, CACHE.NONE, storesController.getMyStoreAnalytics",getMyStoreAnalytics
+POST,/api/v1/stores/me/feature-request,/me/feature-request,stores,src/modules/stores/stores.routes.ts,37,", authenticate, requireVerifiedEmail, CACHE.NONE, storesController.requestFeature",requestFeature
+POST,/api/v1/stores/me/logo,/me/logo,stores,src/modules/stores/stores.routes.ts,42,", authenticate, requireVerifiedEmail, storeImagesRateLimit, uploadMiddleware, storesController.uploadLogo ",uploadLogo
+POST,/api/v1/stores/me/cover,/me/cover,stores,src/modules/stores/stores.routes.ts,49,", authenticate, requireVerifiedEmail, storeImagesRateLimit, uploadMiddleware, storesController.uploadCover ",uploadCover
+GET,/api/v1/stores/me/member-invites,/me/member-invites,stores,src/modules/stores/stores.routes.ts,60,", authenticate, CACHE.NONE, storeMembersController.listMyPendingInvites ",listMyPendingInvites
+POST,/api/v1/stores/me/member-invites/:memberId/accept,/me/member-invites/:memberId/accept,stores,src/modules/stores/stores.routes.ts,66,", authenticate, storeMembersController.acceptInvite ",acceptInvite
+POST,/api/v1/stores,/,stores,src/modules/stores/stores.routes.ts,72,", authenticate, requireVerifiedEmail, createStoreRateLimit, storesController.createStore",createStore
+GET,/api/v1/stores/:id/members,/:id/members,stores,src/modules/stores/stores.routes.ts,76,", authenticate, CACHE.NONE, storeMembersController.listMembers ",listMembers
+POST,/api/v1/stores/:id/members,/:id/members,stores,src/modules/stores/stores.routes.ts,82,", authenticate, // these three mutations had no rate // limit at all — an owner or manager could loop any of them // arbitrarily (email spam via invite, role-flip spam, remove-then- // re-add churn). Reused the store-images limiter as the c",inviteMember
+PATCH,/api/v1/stores/:id/members/:memberId,/:id/members/:memberId,stores,src/modules/stores/stores.routes.ts,93,", authenticate, storeMembersRateLimit, storeMembersController.updateMemberRole ",updateMemberRole
+DELETE,/api/v1/stores/:id/members/:memberId,/:id/members/:memberId,stores,src/modules/stores/stores.routes.ts,99,", authenticate, storeMembersRateLimit, storeMembersController.removeMember ",removeMember
+GET,/api/v1/stores/:id,/:id,stores,src/modules/stores/stores.routes.ts,108,", CACHE.MEDIUM, storesController.getPublicStore",getPublicStore
+PATCH,/api/v1/stores/:id/status,/:id/status,stores,src/modules/stores/stores.routes.ts,113,", authenticate, requireAdmin, storesController.updateStoreStatus ",updateStoreStatus
+POST,/api/v1/stores/:id/follow,/:id/follow,stores,src/modules/stores/stores.routes.ts,121,", authenticate, storeFollowRateLimit, storesController.toggleFollow ",toggleFollow
+GET,/api/v1/stores/:id/reviews,/:id/reviews,stores,src/modules/stores/stores.routes.ts,129,", CACHE.SHORT, storesController.getStoreReviews",getStoreReviews
+POST,/api/v1/stores/:id/reviews,/:id/reviews,stores,src/modules/stores/stores.routes.ts,130,", authenticate, requireVerifiedEmail, storeReviewRateLimit, storesController.createReview ",createReview
+GET,/api/v1/stories/feed,/feed,stories,src/modules/stories/stories.routes.ts,8,", authenticate, storiesController.feed",feed
+GET,/api/v1/stories/user/:userId,/user/:userId,stories,src/modules/stories/stories.routes.ts,9,", optionalAuthenticate, storiesController.userStories",userStories
+GET,/api/v1/stories/:id/viewers,/:id/viewers,stories,src/modules/stories/stories.routes.ts,10,", authenticate, storiesController.viewers",viewers
+POST,/api/v1/stories,/,stories,src/modules/stories/stories.routes.ts,11,", authenticate, mediaUploadRateLimit, uploadMiddleware, storiesController.create",create
+POST,/api/v1/stories/:id/view,/:id/view,stories,src/modules/stories/stories.routes.ts,12,", authenticate, storiesController.view",view
+DELETE,/api/v1/stories/:id,/:id,stories,src/modules/stories/stories.routes.ts,13,", authenticate, storiesController.delete",delete
+GET,/api/v1/users/me/bootstrap,/me/bootstrap,users,src/modules/users/users.routes.ts,14,", authenticate, usersController.getBootstrap",getBootstrap
+GET,/api/v1/users/me,/me,users,src/modules/users/users.routes.ts,15,", authenticate, usersController.getMe",getMe
+PATCH,/api/v1/users/me,/me,users,src/modules/users/users.routes.ts,16,", authenticate, usersController.updateMe",updateMe
+DELETE,/api/v1/users/me,/me,users,src/modules/users/users.routes.ts,17,", authenticate, usersController.deleteMe",deleteMe
+POST,/api/v1/users/me/password,/me/password,users,src/modules/users/users.routes.ts,20,", authenticate, changePasswordRateLimit, usersController.changePassword",changePassword
+POST,/api/v1/users/me/avatar,/me/avatar,users,src/modules/users/users.routes.ts,21,", authenticate, requireVerifiedEmail, uploadMiddleware, usersController.uploadAvatar",uploadAvatar
+PATCH,/api/v1/users/me/notifications,/me/notifications,users,src/modules/users/users.routes.ts,22,", authenticate, usersController.updateNotificationPreferences",updateNotificationPreferences
+PATCH,/api/v1/users/me/presence,/me/presence,users,src/modules/users/users.routes.ts,23,", authenticate, usersController.touchPresence",touchPresence
+GET,/api/v1/users/presence,/presence,users,src/modules/users/users.routes.ts,27,", authenticate, usersController.getPresence",getPresence
+GET,/api/v1/users/:id,/:id,users,src/modules/users/users.routes.ts,30,", usersController.getUserById",getUserById
+GET,/api/v1/users/:id/ads,/:id/ads,users,src/modules/users/users.routes.ts,31,", usersController.getUserAds",getUserAds
