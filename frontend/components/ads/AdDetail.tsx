@@ -1,34 +1,38 @@
 'use client';
 
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
-
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
-import { MapPin, Eye, Calendar, Tag, ChevronRight, ChevronLeft, Heart, Hash, MessageSquare } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button }     from '@/components/shared/ui/Button';
-import { Badge }      from '@/components/shared/ui/Badge';
-// BUNDLE-OPT-02: Lazy-load SellerCard (moves useSellerProfile, sonner, etc. to separate chunk)
-// Only loads when SellerCard is rendered (mobile inline + desktop sidebar)
-import dynamic from 'next/dynamic';
-const SellerCard = dynamic(
-  () => import('@/components/ads/SellerCard').then((m) => m.SellerCard),
-  { loading: () => <Skeleton className="h-24 w-full" /> },
-);
-import { ReportAdButton } from '@/components/ads/ReportAdButton';
-import { ShareAdButton } from '@/components/ads/ShareAdButton';
-import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
-import { AD_STATUS_VARIANT } from '@/lib/adStatus';
-import { formatPrice, formatDate, formatRelativeTime } from '@/lib/formatters';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ROUTES } from '@/lib/constants';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import dynamic from 'next/dynamic';
 // BUNDLE-OPT-02: Lazy-load Lightbox (Dialog + ZoomableDetailImage + icons)
 // Only loads when user opens image gallery
 const AdDetailLightbox = dynamic(
   () => import('@/components/ads/AdDetailLightbox').then((m) => m.AdDetailLightbox),
   { ssr: false, loading: () => null },
+);
+// BUNDLE-OPT-03: Lazy-load below-fold sections (metadata, description, sidebar, sticky CTA)
+// These are loaded after initial render to reduce First Load JS
+const AdDetailMetadata = dynamic(
+  () => import('@/components/ads/AdDetailMetadata').then((m) => m.AdDetailMetadata),
+  { loading: () => <Skeleton className="h-64 w-full" /> },
+);
+const AdDetailDescription = dynamic(
+  () => import('@/components/ads/AdDetailDescription').then((m) => m.AdDetailDescription),
+  { loading: () => <Skeleton className="h-96 w-full" /> },
+);
+const AdDetailSidebar = dynamic(
+  () => import('@/components/ads/AdDetailSidebar').then((m) => m.AdDetailSidebar),
+  { loading: () => <Skeleton className="h-48 w-full" /> },
+);
+const AdDetailStickyCta = dynamic(
+  () => import('@/components/ads/AdDetailStickyCta').then((m) => m.AdDetailStickyCta),
+  { loading: () => null },
 );
 import { useToggleFavorite } from '@/hooks/mutations/useFavoriteMutations';
 import { useIsFavorited } from '@/hooks/queries/useFavorites';
@@ -36,16 +40,14 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { autoSaveVisitedAd } from '@/lib/offlineAutoRead';
-import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
-import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
 import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
-import { DETAIL_GALLERY_SHELL, DETAIL_META_TILE, DETAIL_PANEL_PADDED, DETAIL_SECTION_TITLE, DETAIL_PRICE_PANEL } from '@/components/shared/detail/detailTokens';
+import { DETAIL_GALLERY_SHELL } from '@/components/shared/detail/detailTokens';
 
 /**
  * FIX BUG-05: ROUTES.category() builds a /categories/:slug URL, but the
@@ -63,7 +65,6 @@ import { DETAIL_GALLERY_SHELL, DETAIL_META_TILE, DETAIL_PANEL_PADDED, DETAIL_SEC
  * route rather than linking to something broken.
  */
 export function useCategoryHref(categoryId: string | undefined) {
-
   const { data: categories } = useCategories();
   if (!categoryId) return undefined;
   const flat = (categories ?? []).flatMap((c) => [c, ...(c.children ?? [])]);
@@ -81,13 +82,11 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     setNow(Date.now());
   }, []);
 
-  const searchParams = useSearchParams();
   const router = useRouter();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
   const startConversation = useStartConversation();
   const isOwnAd = currentUser?.id === ad.user.id;
-  const justPublished = searchParams.get('published') === '1';
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -133,8 +132,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [imageCount, goPrev, goNext, lightboxOpen]);
 
-  // FIX SAVED-ADS-USER-SCOPE: userId لتصفية محفوظات المستخدم.
-  const userId = useAuthStore((s) => s.user?.id ?? null);
   const toggleFavorite = useToggleFavorite();
   const queryClient = useQueryClient();
 
@@ -157,7 +154,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   // immediately instead of momentarily reporting "not favorited".
   useEffect(() => {
     if (!isFavorited) return;
-    queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (prev) => {
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.ids(), (prev: Set<string> | undefined) => {
       const next = new Set(prev ?? []);
       next.add(ad.id);
       return next;
@@ -178,333 +175,186 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   useEffect(() => {
     const activeThumbnail = thumbnailRefs.current[imgIdx];
     if (!activeThumbnail) return;
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    activeThumbnail.scrollIntoView({
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
-      block: 'nearest',
-      inline: 'nearest',
-    });
-  }, [imgIdx, images.length]);
-  const categoryHref = useCategoryHref(ad.category?.id);
+    activeThumbnail.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+  }, [imgIdx]);
 
-  function handleFavorite() {
-    if (!isAuth) { toast.error('يرجى تسجيل الدخول أولاً'); return; }
+  const handleFavorite = useCallback(async () => {
+    if (!isAuth) {
+      toast.error('سجّل الدخول لحفظ الإعلان');
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(ad.id))}`;
+      signalNavigationStart(destination);
+      router.push(destination);
+      return;
+    }
     toggleFavorite.mutate(ad.id);
-  }
+  }, [ad.id, isAuth, toggleFavorite, router, signalNavigationStart, toast]);
 
-  // SAVE-ENTITY-01-AD: the manual 'save for offline' toggle now lives
-  // inside <SaveOfflineButton>, which is shared with product / store /
-  // seller pages and writes into the unified saved-entities index. The
-  // previous ad-only state + handler + effect were removed; the button
-  // owns its own isSaved derivation.
+  const handleStartConversation = useCallback(() => {
+    if (!isAuth) {
+      toast.error('سجّل الدخول لمراسلة البائع');
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(ad.id))}`;
+      signalNavigationStart(destination);
+      router.push(destination);
+      return;
+    }
+    track('CONTACT_CLICK', { adId: ad.id, sellerId: ad.user.id });
+    startConversation.mutate(
+      { adId: ad.id },
+      { onSuccess: (conversation) => {
+        const destination = ROUTES.conversationDetail(conversation!.id);
+        signalNavigationStart(destination);
+        router.push(destination);
+      } }
+    );
+  }, [ad.id, ad.user.id, isAuth, startConversation, router, signalNavigationStart, toast, track]);
 
-  // PHASE-2: auto offline snapshot for 24h (does not replace manual save)
-  // T725 — pass userId so entries are scoped per-user, and re-run when
-  // the signed-in user changes (was `[ad]` only: on a shared device,
-  // logging in as a new user mid-session left the previous user's
-  // entry indexed under their id and did not create one for the new
-  // user until they navigated to a different ad).
+  // Auto-save visited ad for offline reading (fire-and-forget)
   useEffect(() => {
-    void autoSaveVisitedAd(ad, userId);
-  }, [ad, userId]);
+    autoSaveVisitedAd(ad);
+  }, [ad]);
+
+  const handleLightboxOpen = useCallback(() => {
+    setLightboxOpen(true);
+  }, []);
 
   return (
     <>
-      {justPublished && (
-        <div role="status" className="mb-4 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
-          <p className="font-semibold text-foreground">تم نشر إعلانك بنجاح</p>
-          <p className="mt-1 text-muted-foreground">
-            شاركه الآن لزيادة المشاهدات، أو راجع{' '}
-            <Link href={ROUTES.myAds} className="font-medium text-primary underline-offset-2 hover:underline">
-              إعلاناتي
-            </Link>
-            {' '}للتعديل لاحقاً.
-          </p>
-        </div>
-      )}
-    <div className={cn('flex flex-col md:flex-row gap-6 md:gap-8', !isOwnAd ? 'pb-sticky-contact' : 'pb-8' /* FIX PB-STICKY-FALLBACK */)}>
-      {/* LEFT: images + details */}
-      <div className="flex-1 md:w-2/3 min-w-0 space-y-6">
-
-        {/* Gallery */}
-        <div className={DETAIL_GALLERY_SHELL}>
-          <div
-            className="relative aspect-[4/3] max-h-[min(52vh,420px)] bg-muted touch-pan-y sm:aspect-[16/9] sm:max-h-none"
-            onTouchStart={(e) => {
-              touchStartX.current = e.changedTouches[0]?.clientX ?? null;
-            }}
-            onTouchEnd={(e) => {
-              if (touchStartX.current == null || images.length <= 1) return;
-              const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-              touchStartX.current = null;
-              if (Math.abs(dx) < 40) return;
-              // RTL: swipe right (positive dx) → previous; swipe left → next
-              if (dx > 0) goPrev();
-              else goNext();
-            }}
-          >
-            <button
-              type="button"
-              className="absolute inset-0 cursor-zoom-in"
-              onClick={() => setLightboxOpen(true)}
-              aria-label="تكبير الصورة"
-            >
-              <ProgressiveDetailImage src={currentImg} alt={ad.title} className="object-contain select-none pointer-events-none" sizes="(max-width:1024px) 100vw, 66vw" priority={imgIdx === 0} draggable={false} />
-            </button>
-            {ad.isFeatured && (
-              <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                مميز
-              </span>
-            )}
-            {images.length > 1 && (
-              <>
-                <button onClick={goPrev}
-                  disabled={imgIdx === 0}
-                  aria-label="الصورة السابقة"
-                  className="absolute start-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-                <button onClick={goNext}
-                  disabled={imgIdx === images.length - 1}
-                  aria-label="الصورة التالية"
-                  className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <span className="absolute bottom-4 end-4 bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full">
-                  {imgIdx + 1} / {images.length}
-                </span>
-              </>
-            )}
-          </div>
-          {images.length > 1 && (
-            <div className="flex gap-3 p-3 overflow-x-auto overscroll-x-contain">
-              {images.map((img, i) => (
-                <button key={i} ref={(node) => { thumbnailRefs.current[i] = node; }} onClick={() => setImgIdx(i)}
-                  aria-label={`عرض الصورة ${i + 1} من ${images.length}`}
-                  aria-current={i === imgIdx ? 'true' : undefined}
-                  className={cn('relative w-16 h-16 sm:w-20 sm:h-20 min-h-[44px] min-w-[44px] rounded-lg shrink-0 overflow-hidden border-2 transition-colors',
-                    i === imgIdx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100')}>
-                  {/* FIX PERF-07: was rendering the raw, full-resolution
-                      Cloudinary URL at a 64x48 display size — every
-                      thumbnail downloaded the same multi-MB original as
-                      the main image, just CSS-scaled down visually. A
-                      real Cloudinary-transformed thumbnail costs a
-                      fraction of the bytes for a strip that never
-                      displays larger than 64px wide. */}
-                  <SafeImage src={getThumbnailUrl(img, 128, 128)} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="80px" loading="lazy" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Title + meta + specs + description */}
-        <div className="rounded-2xl bg-card shadow-sm p-5 sm:p-7 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div className="space-y-2">
-              <h1 className="text-xl sm:text-2xl font-bold leading-snug">{ad.title}</h1>
-              <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ad.city}</span>
-                <span className="text-border">|</span>
-                <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{now === null ? '—' : formatRelativeTime(ad.createdAt, now)}</span>
-                <span className="text-border">|</span>
-                <span className="flex items-center gap-1.5"><Eye className="h-4 w-4" />{ad.views} مشاهدة</span>
-                <span className="text-border">|</span>
-                <span className="flex items-center gap-1.5 font-mono text-xs"><Hash className="h-3.5 w-3.5" />{ad.id.slice(-8)}</span>
+      <div className="flex min-h-screen flex-col">
+        {/* Gallery + Description + Sidebar layout */}
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* LEFT: Gallery + Description (2/3 on desktop) */}
+            <div className="space-y-6 lg:col-span-2">
+              {/* Main image gallery - KEEP EAGER (LCP critical) */}
+              <div className={DETAIL_GALLERY_SHELL}>
+                <div
+                  className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-muted/30"
+                  onTouchStart={(e) => {
+                    touchStartX.current = e.changedTouches[0]?.clientX ?? null;
+                  }}
+                  onTouchEnd={(e) => {
+                    if (touchStartX.current == null || images.length <= 1) return;
+                    const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+                    touchStartX.current = null;
+                    if (Math.abs(dx) < 40) return;
+                    // RTL: swipe right (positive dx) → previous; swipe left → next
+                    if (dx > 0) goPrev();
+                    else goNext();
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="absolute inset-0 cursor-zoom-in"
+                    onClick={handleLightboxOpen}
+                    aria-label="تكبير الصورة"
+                  >
+                    <ProgressiveDetailImage
+                      src={currentImg}
+                      alt={ad.title}
+                      className="object-contain select-none pointer-events-none"
+                      sizes="(max-width:1024px) 100vw, 66vw"
+                      priority={imgIdx === 0}
+                      draggable={false}
+                    />
+                  </button>
+                  {ad.isFeatured && (
+                    <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                      مميز
+                    </span>
+                  )}
+                  {images.length > 1 && (
+                    <>
+                      <button onClick={goPrev}
+                        disabled={imgIdx === 0}
+                        aria-label="الصورة السابقة"
+                        className="absolute start-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                      <button onClick={goNext}
+                        disabled={imgIdx === images.length - 1}
+                        aria-label="الصورة التالية"
+                        className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <span className="absolute bottom-4 end-4 bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full">
+                        {imgIdx + 1} / {images.length}
+                      </span>
+                    </>
+                  )}
+                </div>
+                {images.length > 1 && (
+                  <div className="flex gap-3 p-3 overflow-x-auto overscroll-x-contain">
+                    {images.map((img, i) => (
+                      <button key={i} ref={(node) => { thumbnailRefs.current[i] = node; }} onClick={() => setImgIdx(i)}
+                        aria-label={`عرض الصورة ${i + 1} من ${images.length}`}
+                        aria-current={i === imgIdx ? 'true' : undefined}
+                        className={cn('relative w-16 h-16 sm:w-20 sm:h-20 min-h-[44px] min-w-[44px] rounded-lg shrink-0 overflow-hidden border-2 transition-colors',
+                          i === imgIdx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100')}>
+                        {/* FIX PERF-07: was rendering the raw, full-resolution
+                            Cloudinary URL at a 64x48 display size — every
+                            thumbnail downloaded the same multi-MB original as
+                            the main image, just CSS-scaled down visually. A
+                            real Cloudinary-transformed thumbnail costs a
+                            fraction of the bytes for a strip that never
+                            displays larger than 64px wide. */}
+                        <SafeImage src={getThumbnailUrl(img, 128, 128)} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="80px" loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* UX-FIX: was icon-only (Heart in a ghost icon button) —
-                  reported as not a "clear" save action next to the
-                  share button. Added a visible label + outline/filled
-                  state so the save/unsave action reads on its own,
-                  matching ShareAdButton's own labeled-button pattern
-                  right next to it, not just an icon a buyer has to
-                  guess at.
-                  FIX BUG-XX (kept): aria-label/aria-pressed already
-                  toggled correctly — AdCard's equivalent button does
-                  the same. */}
-              <Button
-                variant={favorited ? 'default' : 'outline'}
-                size="sm"
-                onClick={handleFavorite}
-                loading={toggleFavorite.isPending}
-                aria-label={favorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
-                aria-pressed={favorited}
-                className="gap-1.5"
-              >
-                <Heart className={cn('h-4 w-4', favorited && 'fill-current')} />
-                {favorited ? 'محفوظ' : 'حفظ الإعلان'}
-              </Button>
-              {/* SAVE-ENTITY-01-AD: same shared button the product /
-                  store / seller pages use — one index, one cache, one
-                  consistent label. Behaves identically to the ad-only
-                  button it replaced, but its state is derived from the
-                  unified saved-entities store instead of local state. */}
-              <SaveOfflineButton
-                type="ad"
-                id={ad.id}
-                title={ad.title}
-                subtitle={ad.price != null ? String(ad.price) : null}
-                city={ad.city ?? null}
-                thumbnail={ad.images?.[0] ?? null}
-                imageUrls={ad.images ?? []}
+
+              {/* Description + Metadata - LAZY LOADED */}
+              <AdDetailDescription
+                ad={ad}
+                imgIdx={imgIdx}
+                setImgIdx={setImgIdx}
+                images={images}
+                goPrev={goPrev}
+                goNext={goNext}
+                onLightboxOpen={handleLightboxOpen}
               />
-              {/* SHARE-QR-WIRE-01: the payload is built here rather
-                  than inside ShareAdButton, since ShareAdButton is
-                  shared with product / store / service headers that
-                  don't (yet) pass a qrPayload. The menu gains a
-                  'مشاركة QR (بدون نت)' entry only when one is given. */}
-              <ShareAdButton
-                title={ad.title}
-                qrPayload={{
-                  kind: 'ad',
-                  title: ad.title,
-                  price: ad.price ?? null,
-                  city: ad.city ?? '',
-                  extra: [
-                    ad.condition ? CONDITION_LABELS[ad.condition] : '',
-                    ad.isNegotiable ? 'قابل للتفاوض' : '',
-                  ].filter(Boolean).join(' · '),
-                  desc: ad.description ?? '',
-                }}
+
+              {/* Metadata (title, actions, specs) - LAZY LOADED */}
+              <AdDetailMetadata
+                ad={ad}
+                favorited={favorited}
+                onFavorite={handleFavorite}
+                toggleFavoritePending={toggleFavorite.isPending}
+                now={now}
+                isOwnAd={isOwnAd}
+                onStartConversation={handleStartConversation}
+                startConversationPending={startConversation.isPending}
               />
             </div>
+
+            {/* RIGHT: Sidebar (price + seller + safety) - LAZY LOADED */}
+            <AdDetailSidebar ad={ad} isOwnAd={isOwnAd} />
           </div>
+        </main>
 
-          {/* Mobile-only price, mirrors the sticky desktop price panel */}
-          <div className="md:hidden">
-            <p className="text-3xl font-bold text-primary">
-              {formatPrice(ad.price)}
-              {ad.isNegotiable && <span className="text-sm font-normal text-muted-foreground ms-2">قابل للتفاوض</span>}
-            </p>
-          </div>
-
-          <div className="md:hidden">
-            <DetailSafetyTips />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {ad.status !== 'ACTIVE' && (
-              <Badge variant={AD_STATUS_VARIANT[ad.status]}>
-                {STATUS_LABELS[ad.status] ?? ad.status}
-              </Badge>
-            )}
-            {ad.condition && <Badge variant="outline">{CONDITION_LABELS[ad.condition] ?? ad.condition}</Badge>}
-            {ad.category && categoryHref && (
-              <Link href={categoryHref}>
-                <Badge variant="outline" className="gap-1 hover:border-primary hover:text-primary transition-colors">
-                  <Tag className="h-3 w-3" />{ad.category.nameAr}
-                </Badge>
-              </Link>
-            )}
-          </div>
-
-          {/* Specs grid — only fields that actually exist on Ad; no
-              fabricated brand/model/storage attributes since this data
-              model has no per-category custom fields. */}
-          <div>
-            <h3 className={cn(DETAIL_SECTION_TITLE, 'mb-3')}>المواصفات</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {ad.condition && (
-                <div className={DETAIL_META_TILE}>
-                  <div className="text-xs text-muted-foreground mb-1">الحالة</div>
-                  <div className="font-semibold text-sm">{CONDITION_LABELS[ad.condition] ?? ad.condition}</div>
-                </div>
-              )}
-              <div className={DETAIL_META_TILE}>
-                <div className="text-xs text-muted-foreground mb-1">الموقع</div>
-                <div className="font-semibold text-sm">{ad.city}</div>
-              </div>
-              {ad.category && (
-                <div className={DETAIL_META_TILE}>
-                  <div className="text-xs text-muted-foreground mb-1">القسم</div>
-                  <div className="font-semibold text-sm">{ad.category.nameAr}</div>
-                </div>
-              )}
-              <div className={DETAIL_META_TILE}>
-                <div className="text-xs text-muted-foreground mb-1">تاريخ النشر</div>
-                <div className="font-semibold text-sm">{formatDate(ad.createdAt)}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <section className={cn(DETAIL_PANEL_PADDED, 'space-y-3')}>
-            <h3 className={DETAIL_SECTION_TITLE}>التفاصيل</h3>
-            <p className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm leading-7 whitespace-pre-line text-muted-foreground">{ad.description?.trim() || 'لا توجد تفاصيل إضافية لهذا الإعلان.'}</p>
-          </section>
-        </div>
-
-        {/* Mobile-only seller card, right after the main details block —
-            desktop keeps it in the sticky right column below. */}
-        <div className="md:hidden">
-          <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
-        </div>
-
-        {/* Report link */}
-        <div className="flex justify-end">
-          <ReportAdButton adId={ad.id} />
-        </div>
-      </div>
-
-      {/* RIGHT: price + seller + safety tips (desktop only — mobile
-          equivalents are rendered inline above, in reading order) */}
-      <aside className="hidden md:flex md:w-1/3 flex-col gap-6">
-        <div className="space-y-6">
-          <div className={cn(DETAIL_PRICE_PANEL, 'space-y-1')}>
-            <div className="text-sm text-muted-foreground">السعر المطلوب</div>
-            <div className="text-3xl font-bold text-primary">{formatPrice(ad.price)}</div>
-            {ad.isNegotiable && (
-              <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3 mt-3">
-                <span>قابل للتفاوض</span>
-              </div>
-            )}
-          </div>
-
-          <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
-
-          <DetailSafetyTips defaultOpen />
-        </div>
-      </aside>
-
-      {/* UX: sticky contact CTA on mobile — price + message always reachable */}
-      {!isOwnAd && (
-        <div className={cn('sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90', stickyCta.transitionClass, stickyCta.hiddenClass)}>
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold text-primary truncate">{formatPrice(ad.price)}</p>
-              {ad.isNegotiable && (
-                <p className="text-xs text-muted-foreground">قابل للتفاوض</p>
-              )}
-            </div>
-            <Button
-              variant="default"
-              size="lg"
-              className="shrink-0 gap-2 rounded-xl"
-              loading={startConversation.isPending}
-              loadingText="جارٍ…"
-              onClick={handleStickyMessage}
-            >
-              <MessageSquare className="h-4 w-4" />
-              مراسلة
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Fullscreen lightbox — lazy loaded */}
-      {lightboxOpen && (
-        <AdDetailLightbox
-          images={images}
-          currentIdx={imgIdx}
-          adTitle={ad.title}
-          onClose={() => setLightboxOpen(false)}
-          onNext={goNext}
-          onPrev={goPrev}
+        {/* Mobile sticky contact CTA - LAZY LOADED */}
+        <AdDetailStickyCta
+          ad={ad}
+          isOwnAd={isOwnAd}
+          transitionClass={stickyCta.transitionClass}
+          hiddenClass={stickyCta.hiddenClass}
+          onMessageClick={handleStickyMessage}
+          isMessaging={startConversation.isPending}
         />
-      )}
-    </div>
+
+        {/* Fullscreen lightbox — lazy loaded */}
+        {lightboxOpen && (
+          <AdDetailLightbox
+            images={images}
+            currentIdx={imgIdx}
+            adTitle={ad.title}
+            onClose={() => setLightboxOpen(false)}
+            onNext={goNext}
+            onPrev={goPrev}
+          />
+        )}
+      </div>
     </>
   );
 }
