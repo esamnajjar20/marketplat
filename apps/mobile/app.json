@@ -6,7 +6,6 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "plugins": [
       "expo-router",
       [
@@ -16,7 +15,9 @@
           "cameraPermission": "اسمح لـ MarketPlat باستخدام الكاميرا لالتقاط صور للإعلانات."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true

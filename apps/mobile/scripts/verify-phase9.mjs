@@ -25,7 +25,7 @@ assert.match(authContext, /SecureStore\.deleteItemAsync/);
 assert.match(authContext, /refreshAccessSession\(\)/);
 assert.match(authContext, /expiresAt/);
 assert.doesNotMatch(authApi + authContext, /refreshToken\s*[:,=]/);
-assert.equal(mobilePackage.dependencies['expo-secure-store'], '~15.0.7');
+assert.equal(mobilePackage.dependencies['expo-secure-store'], '~58.0.2');
 assert.match(login, /التخزين الآمن للجهاز/);
 
 console.log('Phase 9 session persistence/refresh contract checks passed (static checks only; no live cookie test or native build performed).');
