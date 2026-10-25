@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root = new URL('../', import.meta.url);
+const read = (path) => readFile(new URL(path, root), 'utf8');
+const lifecycle = await read('src/features/ads/favorites-sync-lifecycle.ts');
+const bridge = await read('src/features/ads/FavoritesSyncLifecycleBridge.tsx');
+const store = await read('src/features/ads/favorites.store.ts');
+assert.match(lifecycle, /let sessionEpoch = 0/, 'session changes have a monotonic generation');
+assert.match(lifecycle, /export function invalidateFavoritesSyncSession\(\)/, 'auth bridge can invalidate stale sync snapshots');
+assert.match(lifecycle, /const capturedEpoch = sessionEpoch/, 'each sync captures the auth generation');
+assert.ok((lifecycle.match(/if \(!sessionStillCurrent\(\)\)/g) ?? []).length >= 5, 'session generation is checked before and after async boundaries');
+assert.match(lifecycle, /If auth changed while HTTP was in flight/, 'in-flight request behavior is documented and safe to replay');
+assert.match(lifecycle, /return deferForSessionChange\(\)/, 'stale sync stops rather than starting more requests');
+assert.match(bridge, /invalidateFavoritesSyncSession\(\)/, 'auth identity/token changes invalidate stale work');
+assert.match(store, /PRIMARY KEY \(user_id, ad_id\)/, 'pending favorite operations remain account scoped');
+assert.match(store, /operation_id = \?'/, 'acknowledgement and cancel remain operation-id scoped');
+console.log('Phase 73 passed: stale favorite sync sessions are invalidated across auth changes.');
+console.log('Static contract checks only; this does not replace runtime TypeScript, API, or device tests.');

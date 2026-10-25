@@ -11,6 +11,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/features/auth/AuthContext';
+import { acknowledgeFavoriteState, enqueueFavoriteState, listPendingFavoriteStates, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
+import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites.api';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail, getCachedAdDetail } from '@/features/ads/ads.api';
 import type { AdDetail } from '@/features/ads/ads.api';
@@ -33,11 +36,15 @@ function formatDate(value?: string): string | null {
 
 export default function AdDetailScreen() {
   const { width } = useWindowDimensions();
+  const { user, accessToken, csrfToken } = useAuth();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const [ad, setAd] = useState<AdDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -68,6 +75,76 @@ export default function AdDetailScreen() {
   }, [id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    if (!id) return () => { active = false; };
+    void (async () => {
+      try {
+        const localIds = await readFavoriteAdIds(user?.id);
+        if (active) setIsFavorite(localIds.includes(id));
+      } catch { /* Local state is a best-effort offline hint. */ }
+      if (!accessToken || !user?.id) return;
+      try {
+        // Drain this account's desired-state queue in FIFO order. A failure leaves
+        // the row intact; the endpoint uses PUT desired-state semantics, not toggle.
+        const pending = await listPendingFavoriteStates(user.id);
+        for (const operation of pending) {
+          try {
+            await setFavoriteAdState(operation.adId, operation.favorited, accessToken, operation.operationId, csrfToken);
+            await acknowledgeFavoriteState(user.id, operation.adId, operation.operationId);
+          } catch { break; }
+        }
+        const serverIds = await fetchFavoriteAdIds(accessToken);
+        const pendingAfterSync = await listPendingFavoriteStates(user.id);
+        const merged = new Set(serverIds);
+        for (const operation of pendingAfterSync) {
+          if (operation.favorited) merged.add(operation.adId);
+          else merged.delete(operation.adId);
+        }
+        const mergedIds = [...merged];
+        await writeFavoriteAdIds(mergedIds, user?.id);
+        if (active) setIsFavorite(merged.has(id));
+      } catch { /* Keep cached state if offline; never claim a sync occurred. */ }
+    })();
+    return () => { active = false; };
+  }, [accessToken, csrfToken, id, user?.id]);
+
+  const onToggleFavorite = useCallback(async () => {
+    if (!accessToken) {
+      setFavoriteMessage('لحفظ المفضلة ومزامنتها، سجّل الدخول أولاً.');
+      return;
+    }
+    if (!id || favoriteBusy) return;
+    setFavoriteBusy(true);
+    setFavoriteMessage(null);
+    const next = !isFavorite;
+    try {
+      const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      await setFavoriteAdState(id, next, accessToken, operationId, csrfToken);
+      setIsFavorite(next);
+      const ids = await readFavoriteAdIds(user?.id);
+      await writeFavoriteAdIds(next ? [...ids, id] : ids.filter((item) => item !== id), user?.id);
+      setFavoriteMessage(next ? 'أُضيف الإعلان إلى المفضلة.' : 'أُزيل الإعلان من المفضلة.');
+    } catch (error) {
+      // Queue only transport/time-out failures. Auth/validation/server business errors
+      // must remain visible and must not be disguised as an offline success.
+      if (error instanceof ApiError && error.status === undefined && user?.id) {
+        try {
+          const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          await enqueueFavoriteState({ userId: user.id, adId: id, favorited: next, previousFavorited: isFavorite, operationId });
+          setIsFavorite(next);
+          const ids = await readFavoriteAdIds(user?.id);
+          await writeFavoriteAdIds(next ? [...ids, id] : ids.filter((item) => item !== id), user?.id);
+          setFavoriteMessage('حُفظ التغيير على هذا الجهاز، وسيُزامَن عند عودة الاتصال.');
+        } catch (queueError) {
+          setFavoriteMessage(queueError instanceof Error ? queueError.message : 'تعذر حفظ التغيير محليًا.');
+        }
+      } else {
+        setFavoriteMessage(error instanceof Error ? error.message : 'تعذر تحديث المفضلة. لم يتم تأكيد التغيير.');
+      }
+    } finally { setFavoriteBusy(false); }
+  }, [accessToken, csrfToken, favoriteBusy, id, isFavorite, user?.id]);
 
   const images = (ad?.images ?? []).filter((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url));
 
@@ -101,6 +178,10 @@ export default function AdDetailScreen() {
             <Text style={styles.price}>{formatPrice(ad.price)}</Text>
             <Text style={styles.title}>{ad.title}</Text>
             <Text style={styles.meta}>{[ad.city, ad.category?.nameAr || ad.category?.name, ad.condition].filter(Boolean).join(' · ') || 'إعلان محلي'}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} disabled={favoriteBusy} onPress={() => { void onToggleFavorite(); }} style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}>
+              <Text style={[styles.favoriteButtonText, isFavorite && styles.favoriteButtonTextActive]}>{favoriteBusy ? 'جارٍ تحديث المفضلة…' : isFavorite ? '♥ محفوظ في المفضلة' : '♡ أضف إلى المفضلة'}</Text>
+            </Pressable>
+            {favoriteMessage ? <Text accessibilityLiveRegion="polite" style={styles.favoriteMessage}>{favoriteMessage}</Text> : null}
             {ad.isNegotiable ? <Text style={styles.negotiable}>السعر قابل للتفاوض</Text> : null}
             {formatDate(ad.createdAt) ? <Text style={styles.date}>تاريخ النشر: {formatDate(ad.createdAt)}</Text> : null}
           </View>
@@ -115,7 +196,7 @@ export default function AdDetailScreen() {
             <Text style={styles.sellerName}>{ad.user?.name?.trim() || 'بائع على MarketPlat'}</Text>
             <Text style={styles.meta}>{ad.user?.city || ad.city || 'الموقع غير محدد'}</Text>
             {ad.sellerProfile?.verified ? <Text style={styles.verified}>✓ بائع موثّق</Text> : null}
-            <Text style={styles.sellerNote}>التواصل المباشر والمفضلة ستُضاف بعد إكمال تسجيل الدخول والصلاحيات.</Text>
+            <Text style={styles.sellerNote}>بيانات الاتصال المباشر غير متاحة ضمن بيانات الإعلان الحالية.</Text>
           </View>
         </ScrollView>
       ) : null}
@@ -146,6 +227,11 @@ const styles = StyleSheet.create({
   sellerName: { color: colors.ink, fontSize: 15, fontWeight: '800', textAlign: 'right' },
   verified: { color: colors.brand, fontSize: 12, textAlign: 'right', fontWeight: '700' },
   sellerNote: { color: colors.muted, fontSize: 12, lineHeight: 19, textAlign: 'right' },
+  favoriteButton: { alignSelf: 'flex-end', borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginTop: spacing.sm },
+  favoriteButtonActive: { backgroundColor: colors.brandSoft },
+  favoriteButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
+  favoriteButtonTextActive: { color: colors.brandDark },
+  favoriteMessage: { color: colors.muted, fontSize: 12, textAlign: 'right', lineHeight: 18 },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
   muted: { color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 21 },
   stateTitle: { color: colors.ink, fontSize: 17, fontWeight: '800', textAlign: 'center' },

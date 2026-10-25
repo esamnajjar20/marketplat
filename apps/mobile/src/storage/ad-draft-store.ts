@@ -15,7 +15,7 @@ async function database(): Promise<SQLite.SQLiteDatabase> {
         owner_id TEXT PRIMARY KEY NOT NULL,
         draft_json TEXT NOT NULL,
         updated_at INTEGER NOT NULL
-      );
+      );`);
       await db.execAsync(`CREATE TABLE IF NOT EXISTS ad_edit_drafts (
         owner_id TEXT NOT NULL, resource_id TEXT NOT NULL, draft_json TEXT NOT NULL, updated_at INTEGER NOT NULL,
         PRIMARY KEY(owner_id, resource_id)

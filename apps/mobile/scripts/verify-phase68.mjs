@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root = new URL('../', import.meta.url);
+const read = (path) => readFile(new URL(path, root), 'utf8');
+const api = await read('src/features/ads/favorites.api.ts');
+const detail = await read('app/ads/[id].tsx');
+assert.match(api, /\/api\/v1\/favorites\?page=\$\{page\}&limit=100/);
+assert.match(api, /X-CSRF-Token/);
+assert.match(api, /action !== 'added' && action !== 'removed'/);
+assert.match(detail, /fetchFavoriteAdIds\(accessToken\)/);
+assert.match(detail, /await setFavoriteAdState\(id, next, accessToken, operationId, csrfToken\)/);
+assert.match(detail, /setIsFavorite\(next\)/);
+assert.match(detail, /بيانات الاتصال المباشر غير متاحة/);
+console.log('Phase 68 passed: mobile favorites use existing authenticated API, reconcile local IDs after server reads, and only change local state after server-confirmed toggle.');
+console.log('Static contract checks only; authenticated API integration and offline-device tests remain required.');

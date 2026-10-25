@@ -190,6 +190,29 @@ export const favoritesService = {
   toggleFavorite: async (userId: string, adId: string): Promise<{ action: 'added' | 'removed' }> =>
     performToggle(userId, 'AD', adId),
 
+  /** Idempotent desired-state write for offline replay; unlike toggle, retrying this cannot invert state. */
+  setFavoriteState: async (userId: string, adId: string, favorited: boolean): Promise<{ action: 'added' | 'removed'; isFavorited: boolean }> => {
+    const entity = await resolveEntity('AD', adId);
+    if (!entity) throw new NotFoundError(NOT_FOUND_BY_TYPE.AD.message, NOT_FOUND_BY_TYPE.AD.code);
+    const existing = await favoritesRepository.findByUserAndEntity(userId, 'AD', adId);
+    if (favorited) {
+      if (!existing) {
+        let inserted = true;
+        try { await favoritesRepository.create(userId, 'AD', adId); }
+        catch (err) { if (isPrismaError(err, 'P2002')) inserted = false; else throw err; }
+        if (inserted) activityService.record({ userId, ...activityTemplates.favoriteAdded(TO_ACTIVITY_ENTITY_TYPE.AD, adId, entity.title) });
+      }
+      return { action: 'added', isFavorited: true };
+    }
+    if (existing) {
+      let deleted = true;
+      try { await favoritesRepository.delete(userId, 'AD', adId); }
+      catch (err) { if (isPrismaError(err, 'P2025')) deleted = false; else throw err; }
+      if (deleted) activityService.record({ userId, ...activityTemplates.favoriteRemoved(TO_ACTIVITY_ENTITY_TYPE.AD, adId, entity.title) });
+    }
+    return { action: 'removed', isFavorited: false };
+  },
+
   // FEAT-FAVORITE-POLYMORPHIC PR2: generic entry point for the new
   // /favorites/:entityType/:entityId routes (products/stores/services
   // — see favorites.validation.ts's URL param mapping; AD isn't

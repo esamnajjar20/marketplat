@@ -37,6 +37,14 @@ favoritesRouter.patch(
 
 favoritesRouter.get('/', authenticate, favoritesController.getMyFavorites);
 favoritesRouter.get('/:adId/check', authenticate, favoritesController.checkFavorited);
+// Desired-state endpoint is safe to retry after offline/lost-ack replay; unlike POST toggle it is idempotent.
+favoritesRouter.put(
+  '/:adId/state',
+  authenticate,
+  favoritesRateLimit,
+  favoritesController.setFavoriteState
+);
+
 favoritesRouter.post(
   '/:adId',
   authenticate,

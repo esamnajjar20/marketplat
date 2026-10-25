@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +6,8 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { discardOutboxMutation, listAllOutboxMutations, retryExhaustedMutation, type OutboxItem } from '@/storage/mutation-outbox';
 import { syncOutboxIfReady } from '@/storage/outbox-sync';
+import { acknowledgeFavoriteState, discardFavoriteState, listPendingFavoriteStates, restoreFavoriteStateIfAbsent, writeFavoriteAdIds, type PendingFavoriteState } from '@/features/ads/favorites.store';
+import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites.api';
 import { useNetInfo } from '@react-native-community/netinfo';
 
 function operationLabel(operation: OutboxItem['operation']): string {
@@ -30,17 +32,28 @@ export default function OfflineQueueScreen() {
   const { accessToken, csrfToken, user } = useAuth();
   const netInfo = useNetInfo();
   const [items, setItems] = useState<OutboxItem[]>([]);
+  const [favoriteItems, setFavoriteItems] = useState<PendingFavoriteState[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const sessionRef = useRef({ userId: user?.id ?? null, token: accessToken, epoch: 0 });
+  useEffect(() => {
+    if (sessionRef.current.userId !== (user?.id ?? null) || sessionRef.current.token !== accessToken) {
+      sessionRef.current = { userId: user?.id ?? null, token: accessToken, epoch: sessionRef.current.epoch + 1 };
+    }
+  }, [user?.id, accessToken]);
   const online = netInfo.isConnected === true && netInfo.isInternetReachable !== false;
 
   const refresh = useCallback(async () => {
     setLoading(true); setError(null);
-    try { setItems(await listAllOutboxMutations()); }
+    try {
+      const mutations = await listAllOutboxMutations();
+      setItems(mutations);
+      setFavoriteItems(user?.id ? await listPendingFavoriteStates(user.id) : []);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'تعذر قراءة العمليات المحفوظة.'); }
     finally { setLoading(false); }
-  }, []);
+  }, [user?.id]);
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   const discard = (item: OutboxItem) => Alert.alert('إلغاء العملية المحفوظة', 'سيتم حذف هذه العملية من هذا الجهاز ولن تُرسل إلى الخادم. هل تريد المتابعة؟', [
@@ -73,15 +86,77 @@ export default function OfflineQueueScreen() {
     finally { setBusyId(null); }
   };
 
+  const retryFavorite = async (item: PendingFavoriteState) => {
+    if (!online || !accessToken || !user?.id) { Alert.alert('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول بالحساب نفسه أولًا.'); return; }
+    const session = { ...sessionRef.current };
+    if (session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل إعادة المحاولة.'); return; }
+    setBusyId(item.operationId); setError(null);
+    try {
+      await setFavoriteAdState(item.adId, item.favorited, accessToken, item.operationId, csrfToken);
+      if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) { setError('تغيّرت جلسة الدخول أثناء الطلب؛ احتُفظ بالعملية للمزامنة الآمنة لاحقًا.'); return; }
+      const removed = await acknowledgeFavoriteState(user.id, item.adId, item.operationId);
+      if (!removed) Alert.alert('تغيّرت العملية', 'تم تأكيد الحالة مع الخادم، لكن ظهرت نية أحدث محليًا؛ احتُفظ بالعملية الأحدث.');
+      else Alert.alert('تمت المزامنة', 'أكد الخادم حالة المفضلة المطلوبة.');
+      await refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'تعذرت مزامنة المفضلة.'); }
+    finally { setBusyId(null); }
+  };
+
+  const cancelFavorite = (item: PendingFavoriteState) => {
+    if (!online || !accessToken || !user?.id) { Alert.alert('الإلغاء يحتاج اتصالًا', 'لا يمكن التأكد مما إذا كان الخادم قد استلم التغيير قبل انقطاع الاتصال. اتصل بالإنترنت ثم ألغِ العملية بأمان.'); return; }
+    Alert.alert('إلغاء تغيير المفضلة', 'سيُتحقق من الحالة الحالية على الخادم أولًا، ثم يُحذف التغيير المعلّق وتُحدّث النسخة المحلية.', [
+    { text: 'رجوع', style: 'cancel' },
+    { text: 'إلغاء التغيير', style: 'destructive', onPress: () => {
+      const session = { ...sessionRef.current };
+      if (session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل الإلغاء.'); return; }
+      setBusyId(item.operationId);
+      void (async () => {
+        let removed = false;
+        try {
+          // A transport failure is ambiguous: the server may already have applied the desired state.
+          // Fetch authoritative state before cancellation, then overlay any other queued intents.
+          const serverIds = await fetchFavoriteAdIds(accessToken);
+          if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) { setError('تغيّرت جلسة الدخول أثناء التحقق؛ لم يُلغَ التغيير.'); return; }
+          removed = user?.id ? await discardFavoriteState(user.id, item.adId, item.operationId) : false;
+          if (!removed) Alert.alert('لم يُلغَ التغيير', 'تغيّرت العملية أو لم تعد موجودة؛ حدّث القائمة.');
+          else if (user?.id) {
+            const pending = await listPendingFavoriteStates(user.id);
+            if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) {
+              await restoreFavoriteStateIfAbsent(item);
+              setError('تغيّرت جلسة الدخول أثناء الإلغاء؛ أُعيدت العملية للطابور حفاظًا على سلامتها.');
+              return;
+            }
+            const merged = new Set(serverIds);
+            for (const queued of pending) { if (queued.favorited) merged.add(queued.adId); else merged.delete(queued.adId); }
+            await writeFavoriteAdIds([...merged], user.id);
+          }
+          await refresh();
+        } catch (e) { setError(e instanceof Error ? e.message : 'تعذر إلغاء تغيير المفضلة.'); }
+        finally { setBusyId(null); }
+      })();
+    } },
+    ]);
+  };
+
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><Text style={styles.heading}>العمليات دون اتصال</Text><Pressable onPress={() => void refresh()} accessibilityRole="button"><Text style={styles.link}>تحديث</Text></Pressable></View>
-    <View style={styles.notice}><Text style={styles.noticeText}>تُحفظ هذه العمليات على الجهاز. قد توقف عملية أقدم غير مدعومة المزامنة للحفاظ على ترتيب التعديلات. لا تلغِ عملية إلا إذا كنت متأكدًا أنك لا تريد إرسالها.</Text></View>
+    <View style={styles.notice}><Text style={styles.noticeText}>تُحفظ هذه العمليات على الجهاز. قد توقف عملية أقدم غير مدعومة المزامنة، وستتوقف العمليات الأحدث حتى تُحل المشكلة للحفاظ على ترتيب التعديلات. لا تلغِ عملية إلا إذا كنت متأكدًا أنك لا تريد إرسالها.</Text></View>
     {!user ? <View style={styles.center}><Text style={styles.title}>سجّل الدخول لمزامنة العمليات</Text><Pressable style={styles.primary} onPress={() => router.push('/login')}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View>
       : loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري قراءة العمليات…</Text></View>
       : error && items.length === 0 ? <View style={styles.center}><Text style={styles.title}>تعذر تحميل القائمة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void refresh()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View>
       : <ScrollView contentContainerStyle={styles.list}>{error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-        <Text style={styles.summary}>{items.length} عملية محفوظة من أصل حد أقصى 50</Text>
-        {items.length === 0 ? <View style={styles.empty}><Text style={styles.title}>لا توجد عمليات معلّقة</Text><Text style={styles.muted}>ستظهر هنا العمليات التي تحتاج إلى المزامنة أو التدخل.</Text></View> : items.map((item) => {
+        <Text style={styles.summary}>{items.length} عملية إعلانات محفوظة · {favoriteItems.length} تغيير مفضلة معلّق</Text>
+        {favoriteItems.map((item) => <View key={`favorite-${item.adId}`} style={styles.card}>
+          <Text style={styles.adTitle}>المفضلة · إعلان {item.adId}</Text>
+          <Text style={styles.status}>{item.favorited ? 'بانتظار الإضافة إلى المفضلة' : 'بانتظار الإزالة من المفضلة'}</Text>
+          <Text style={styles.muted}>حُفظ: {new Date(Number(item.operationId.match(/^fav-(\d+)/)?.[1]) || Date.now()).toLocaleString('ar')}</Text>
+          <Text style={styles.muted}>تُرسل الحالة المطلوبة بأمان عند إعادة المحاولة؛ لن يُستخدم تبديل عكسي قد يكرر التغيير.</Text>
+          <View style={styles.actions}>
+            <Pressable disabled={busyId === item.operationId} style={styles.secondary} onPress={() => void retryFavorite(item)}><Text style={styles.secondaryText}>{busyId === item.operationId ? 'جارٍ…' : 'مزامنة الآن'}</Text></Pressable>
+            <Pressable disabled={busyId === item.operationId} style={[styles.delete, busyId === item.operationId && styles.disabled]} onPress={() => cancelFavorite(item)}><Text style={styles.deleteText}>إلغاء التغيير</Text></Pressable>
+          </View>
+        </View>)}
+        {items.length === 0 && favoriteItems.length === 0 ? <View style={styles.empty}><Text style={styles.title}>لا توجد عمليات معلّقة</Text><Text style={styles.muted}>ستظهر هنا العمليات التي تحتاج إلى المزامنة أو التدخل.</Text></View> : items.map((item) => {
           const exhausted = item.state === 'failed' && item.attempts >= 8;
           const canDiscard = item.state !== 'processing';
           const isHead = items[0]?.id === item.id;

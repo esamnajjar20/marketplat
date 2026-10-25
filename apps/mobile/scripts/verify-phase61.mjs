@@ -24,6 +24,6 @@ const deleteService = apiService.slice(apiService.indexOf('deleteAd: async'));
 assert.match(deleteService, /if \(!ad\) throw new NotFoundError/, 'Missing ads still return not found');
 assert.match(deleteService, /if \(ad\.status === 'DELETED'\) return/, 'Repeated authorized delete is idempotent after a lost acknowledgement');
 assert.match(queueScreen, /يتضمن هذا التعديل صورًا محفوظة محليًا/, 'UI explains image-bearing updates that remain unsupported');
-assert.match(queueScreen, /ستتوقف العمليات الأحدث/, 'UI explains FIFO blocking behavior');
+assert.match(queueScreen, /ستتوقف العمليات الأحدث|قد توقف عملية أقدم غير مدعومة المزامنة/, 'UI explains FIFO blocking behavior using either accepted Arabic wording');
 assert.match(pkg.scripts.test, /verify-phase61\.mjs/, 'Phase 61 verifier is included in npm test');
 console.log('Phase 61 regression checks passed: create idempotency exists; image-bearing update replay remains blocked; delete replay is safe at the API service boundary.');

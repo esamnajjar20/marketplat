@@ -5,6 +5,20 @@ import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 
 export const favoritesController = {
+  setFavoriteState: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = favoriteAdSchema.parse({ params: req.params });
+      const favorited = req.body?.favorited;
+      if (typeof favorited !== 'boolean') {
+        res.status(400).json({ success: false, message: 'favorited must be a boolean.' });
+        return;
+      }
+      const result = await favoritesService.setFavoriteState(user.userId, params.adId, favorited);
+      res.status(200).json(successResponse('Favorite state saved', result));
+    } catch (error) { next(error); }
+  },
+
   toggleFavorite: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);

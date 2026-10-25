@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root = new URL('../', import.meta.url);
+const read = (path) => readFile(new URL(path, root), 'utf8');
+const lifecycle = await read('src/features/ads/favorites-sync-lifecycle.ts');
+const store = await read('src/features/ads/favorites.store.ts');
+const queue = await read('app/offline-queue.tsx');
+assert.match(lifecycle, /while \(remaining\.length > 0 && passes < 10\)/, 'drain is bounded against continuous user edits');
+assert.match(lifecycle, /latest\.operationId !== operation\.operationId/, 'stale snapshots are not sent when a newer intent exists');
+assert.match(lifecycle, /acknowledgeFavoriteState\(key, latest\.adId, latest\.operationId\)/, 'acknowledgement is scoped to the exact operation');
+assert.match(lifecycle, /if \(newerPending\.length > 0\)/, 'changes during cache reconciliation are not reported as fully synced');
+assert.match(lifecycle, /حُفظ محليًا وسيُرسل في المزامنة التالية/, 'concurrent edits are explicitly deferred');
+assert.match(store, /PRIMARY KEY \(user_id, ad_id\)/, 'only one coalesced desired state per account/ad');
+assert.match(store, /operation_id = \?'/, 'ack/cancel delete must match operation id');
+assert.match(queue, /discardFavoriteState\(user\.id, item\.adId, item\.operationId\)/, 'cancel uses exact account and operation');
+console.log('Phase 72 passed: bounded queue draining protects newer favorite intent and reports concurrent edits as deferred.');
+console.log('Static contract checks only; runtime TypeScript, device, and live API tests are not executed here.');

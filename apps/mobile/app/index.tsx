@@ -3,6 +3,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   RefreshControl,
@@ -18,7 +19,7 @@ import { AdListItem, fetchPublicAds, getCachedPublicAdsWithMetadata } from '@/fe
 import { fetchPublicCategories, flattenPublicCategories, getCachedPublicCategories, PublicCategory } from '@/features/categories/categories.api';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
-import { readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
+import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
 
 type Category = PublicCategory & { title: string; symbol: string; color: string };
 const categoryColors = ['#E7F0FF', '#FBEBD9', '#F1E8FF', '#DFF5EC', '#FFF0C7', '#E9EDF1'];
@@ -131,17 +132,29 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let active = true;
-    readFavoriteAdIds().then((ids) => { if (active) setFavoriteIds(ids); });
+    readFavoriteAdIds(user?.id).then((ids) => { if (active) setFavoriteIds(ids); });
     return () => { active = false; };
-  }, []);
+  }, [user?.id]);
 
-  const toggleFavorite = useCallback((id: string) => {
-    setFavoriteIds((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      void writeFavoriteAdIds(next).catch(() => {});
-      return next;
-    });
-  }, []);
+  const toggleFavorite = useCallback(async (id: string) => {
+    const previous = favoriteIds;
+    const favorited = !previous.includes(id);
+    const next = favorited ? [...previous, id] : previous.filter((item) => item !== id);
+    // Render the tap immediately, but persist account intent before treating it as durable.
+    setFavoriteIds(next);
+    try {
+      if (user?.id) {
+        const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        await enqueueFavoriteState({ userId: user.id, adId: id, favorited, previousFavorited: previous.includes(id), operationId });
+      }
+      await writeFavoriteAdIds(next, user?.id);
+    } catch (error) {
+      // Do not leave an optimistic state on screen when it could not be saved durably.
+      const cached = await readFavoriteAdIds(user?.id);
+      setFavoriteIds(cached);
+      Alert.alert('تعذر حفظ المفضلة', error instanceof Error ? error.message : 'لم يتم حفظ التغيير على الجهاز.');
+    }
+  }, [favoriteIds, user?.id]);
 
   useEffect(() => {
     let active = true;
