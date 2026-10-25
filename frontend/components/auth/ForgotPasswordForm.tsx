@@ -62,32 +62,47 @@ export function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <div className="text-center space-y-4">
-        <div className="mx-auto w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-2xl text-success">✓</div>
-        <h2 className="font-semibold text-lg">تحقق من بريدك الإلكتروني</h2>
-        <p className="text-sm text-muted-foreground">
-          أرسلنا رابط إعادة تعيين كلمة المرور إلى <span className="font-medium text-foreground">{email}</span>
+      <div className="space-y-5 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F1EC] text-[#397F56]">
+          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M3 7l9 6 9-6" />
+          </svg>
+        </div>
+        <h2 className="text-[18px] font-extrabold text-[#2A241D]">تحقق من بريدك الإلكتروني</h2>
+        <p className="text-[13px] leading-relaxed text-[#6B6459]">
+          أرسلنا رابط إعادة تعيين كلمة المرور إلى{' '}
+          <span className="font-bold text-[#2A241D]">{email}</span>
         </p>
-        <Link href={loginHref} className="block text-sm text-primary hover:underline">
-          العودة لتسجيل الدخول
-        </Link>
+        <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[#EAE3D6] font-bold">
+          <Link href={loginHref}>العودة لتسجيل الدخول</Link>
+        </Button>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
-      </p>
-
       <FormField label="البريد الإلكتروني" htmlFor="email" required error={error}>
-        <Input id="email" type="email" dir="ltr" autoComplete="email"
-          value={email} onChange={(e) => setEmail(e.target.value)}
-          placeholder="example@email.com" />
+        <Input
+          id="email"
+          type="email"
+          dir="ltr"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="example@email.com"
+          className="h-12 rounded-2xl border-[#EAE3D6]"
+        />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ الإرسال…">
+      <Button
+        type="submit"
+        className="h-12 w-full rounded-2xl text-[15px] font-bold"
+        disabled={isFormIncomplete || isPending}
+        loading={isPending}
+        loadingText="جارٍ الإرسال..."
+      >
         إرسال رابط الاسترداد
       </Button>
 
@@ -104,14 +119,14 @@ export function ForgotPasswordForm() {
           prevent). */}
       <AuthDivider />
 
-      <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-xl">
+      <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[#EAE3D6] font-bold">
         <a href={`${API_BASE_URL}/auth/google?purpose=reset`}>
           <GoogleIcon />
           إعادة كلمة السر عبر Google
         </a>
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-[13px] font-bold text-[#1F4D33]">
         <Link href={loginHref} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
       </p>
     </form>

@@ -1,6 +1,17 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
-import { DETAIL_GALLERY_SHELL, DETAIL_GALLERY_FRAME, DETAIL_PANEL_PADDED, DETAIL_SECTION_TITLE, DETAIL_THUMBNAIL_RAIL, DETAIL_PRICE_PANEL } from '@/components/shared/detail/detailTokens';
+import {
+  DETAIL_GALLERY_SHELL,
+  DETAIL_GALLERY_FRAME,
+  DETAIL_PANEL_PADDED,
+  DETAIL_SECTION_TITLE,
+  DETAIL_THUMBNAIL_RAIL,
+  DETAIL_PRICE_PANEL,
+  TAG_AVAILABLE,
+  TAG_LIMITED,
+  TAG_OUT,
+  STICKY_BAR,
+} from '@/components/shared/detail/detailTokens';
 
 /**
  * Public product detail — mirrors AdDetail structure so shoppers get
@@ -256,22 +267,23 @@ export function ProductDetail({ product, related = [] }: Props) {
         </aside>
       </div>
 
-      {/* Mobile sticky contact CTA — price + message above BottomNav */}
+      {/* Mobile sticky contact CTA — matches design mockup */}
       {ownerId && (
-        <div className={cn('sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90', stickyCta.transitionClass, stickyCta.hiddenClass)}>
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold text-primary truncate">
-                {formatPrice(String(displayPrice))}
-              </p>
-              {hasDiscount && (
-                <p className="text-xs text-muted-foreground line-through">
-                  {formatPrice(String(effectivePrice.originalPrice ?? product.price ?? 0))}
-                </p>
-              )}
-            </div>
-            <MessageUserButtonGate targetUserId={ownerId} context={{ type: 'product', id: product.id }} size="lg" variant="default" label="مراسلة" className="shrink-0 gap-2 rounded-xl" />
+        <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] text-[#6B6459]">السعر</div>
+            <b className="text-[15px] font-extrabold text-[#1F4D33] tabular-nums">
+              {formatPrice(String(displayPrice))}
+            </b>
           </div>
+          <MessageUserButtonGate
+            targetUserId={ownerId}
+            context={{ type: 'product', id: product.id }}
+            size="lg"
+            variant="default"
+            label="راسل المتجر"
+            className="flex-[1.6] gap-1.5 rounded-xl font-bold"
+          />
         </div>
       )}
 
@@ -374,10 +386,10 @@ function PriceBlock({
       <span
         className={
           product.availability === 'OUT_OF_STOCK'
-            ? 'inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
+            ? TAG_OUT
             : product.availability === 'LIMITED'
-              ? 'inline-flex rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-strong dark:text-warning'
-              : 'inline-flex rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success'
+              ? TAG_LIMITED
+              : TAG_AVAILABLE
         }
       >
         {AVAILABILITY_LABEL[product.availability]}

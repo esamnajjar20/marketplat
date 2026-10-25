@@ -6,7 +6,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowRight, MapPin, Wallet, CalendarClock, Clock, MessageSquare } from 'lucide-react';
+import { ArrowRight, MapPin, CalendarClock, Clock, MessageSquare } from 'lucide-react';
 import { useRequestDetail } from '@/hooks/queries/useRequests';
 import { useCancelRequest } from '@/hooks/mutations/useRequestMutations';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
@@ -137,7 +137,7 @@ export default function RequestDetailPage() {
           )}
         </div>
 
-        <h1 className="text-xl font-bold tracking-tight leading-snug sm:text-2xl">
+        <h1 className="text-xl font-extrabold tracking-tight leading-snug sm:text-2xl">
           {request.title}
         </h1>
 
@@ -159,35 +159,31 @@ export default function RequestDetailPage() {
         </div>
       </header>
 
-      {/* Value summary card */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <div className="rounded-xl border border-border/80 bg-card p-3 shadow-xs">
-          <p className="text-2xs text-muted-foreground sm:text-xs">الميزانية</p>
-          <p className="mt-0.5 text-sm font-semibold tabular-nums">
+      {/* Value summary — soft beige tiles matching design */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl bg-[#F6F1E7] p-2.5 text-center sm:p-3">
+          <p className="text-[11px] text-[#6B6459]">الميزانية</p>
+          <p className="mt-0.5 text-[15px] font-extrabold tabular-nums text-foreground">
             {budget ?? 'مفتوحة'}
           </p>
         </div>
-        <div className="rounded-xl border border-border/80 bg-card p-3 shadow-xs">
-          <p className="text-2xs text-muted-foreground sm:text-xs">العروض</p>
-          <p className="mt-0.5 text-sm font-semibold">{formatOffersCount(offersCount)}</p>
+        <div className="rounded-xl bg-[#F6F1E7] p-2.5 text-center sm:p-3">
+          <p className="text-[11px] text-[#6B6459]">العروض</p>
+          <p className="mt-0.5 text-[15px] font-extrabold">{offersCount}</p>
         </div>
-        <div className="col-span-2 rounded-xl border border-border/80 bg-card p-3 shadow-xs sm:col-span-1">
-          <p className="text-2xs text-muted-foreground sm:text-xs">المدينة</p>
-          <p className="mt-0.5 text-sm font-semibold">{request.city ?? 'غير محددة'}</p>
+        <div className="rounded-xl bg-[#F6F1E7] p-2.5 text-center sm:p-3">
+          <p className="text-[11px] text-[#6B6459]">المدينة</p>
+          <p className="mt-0.5 text-[15px] font-extrabold">{request.city ?? '—'}</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs">
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-          {request.description}
-        </p>
-        {budget && (
-          <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
-            <Wallet className="h-4 w-4 text-primary" aria-hidden />
-            الميزانية: {budget}
+      {request.description && (
+        <div className="rounded-xl bg-[#F6F1E7] px-3.5 py-3">
+          <p className="whitespace-pre-wrap text-[13px] leading-[1.9] text-[#4A433A]">
+            {request.description}
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -225,20 +221,18 @@ export default function RequestDetailPage() {
       )}
 
       {!isAuthenticated && request.status === 'OPEN' && !isOwner && (
-        <div className="hidden rounded-xl border border-dashed p-4 text-center sm:block">
-          <p className="mb-3 text-sm text-muted-foreground">
-            سجّل الدخول لتقديم عرض على هذا الطلب
-          </p>
-          <Button asChild className="min-h-11">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#CFE0D5] bg-[#E8F1EC] p-3.5">
+          <span className="text-[13px] font-bold text-[#1F4D33]">سجّل الدخول لتقديم عرض على هذا الطلب</span>
+          <Button asChild className="h-9 shrink-0 rounded-xl text-sm font-bold">
             <Link href={loginHref}>تسجيل الدخول</Link>
           </Button>
         </div>
       )}
 
       {!isOwner && request.status !== 'OPEN' && (
-        <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-          هذا الطلب لم يعد مفتوحًا لاستقبال عروض جديدة.
-        </p>
+        <div className="rounded-xl border border-[#EBD7A8] bg-[#FBF0D9] px-3.5 py-3 text-[13px] leading-relaxed text-[#5A3705]">
+          ⚠ هذا الطلب لم يعد مفتوحًا لاستقبال عروض جديدة.
+        </div>
       )}
 
       <RequestOffersList
@@ -250,24 +244,24 @@ export default function RequestDetailPage() {
         totalOffersCount={offersCount}
       />
 
-      {/* Mobile sticky CTA — budget + primary action */}
+      {/* Mobile sticky CTA — matches design mockup */}
       {!isOwner && request.status === 'OPEN' && (
         <div
-          className="fixed inset-x-0 bottom-[var(--bottom-nav-offset)] z-40 border-t border-border/80 bg-card/95 p-3 backdrop-blur md:hidden"
+          className="fixed inset-x-0 bottom-[var(--bottom-nav-offset)] z-40 border-t border-[#EAE3D6] bg-white/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden"
         >
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
+          <div className="mx-auto flex max-w-3xl items-center gap-2.5">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs text-muted-foreground">الميزانية</p>
-              <p className="truncate text-sm font-semibold tabular-nums">
+              <div className="text-[11px] text-[#6B6459]">الميزانية</div>
+              <b className="text-[15px] font-extrabold text-[#1F4D33] tabular-nums">
                 {budget ?? 'مفتوحة'}
-              </p>
+              </b>
             </div>
             {isAuthenticated ? (
-              <Button asChild className="h-12 min-w-[9rem] flex-1 text-base sm:flex-none">
+              <Button asChild className="h-11 flex-[1.6] rounded-xl text-sm font-bold">
                 <a href="#offer-form">قدّم عرضًا</a>
               </Button>
             ) : (
-              <Button asChild className="h-12 min-w-[9rem] flex-1 text-base sm:flex-none">
+              <Button asChild className="h-11 flex-[1.6] rounded-xl text-sm font-bold">
                 <Link href={loginHref}>سجّل الدخول</Link>
               </Button>
             )}

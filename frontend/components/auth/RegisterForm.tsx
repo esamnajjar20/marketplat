@@ -176,7 +176,7 @@ export function RegisterForm() {
 
       <AuthField label="رقم الهاتف" htmlFor="phone" icon={Phone} error={fieldError('phone')} hint="اختياري">
         <Input id="phone" type="tel" autoComplete="tel" dir="ltr" value={phone}
-          onChange={(e) => setPhone(e.target.value)} onBlur={() => handleBlur('phone')} placeholder="+970591234567" />
+          onChange={(e) => setPhone(e.target.value)} onBlur={() => handleBlur('phone')} placeholder="[رقم الهاتف]" />
       </AuthField>
 
       {/*
@@ -196,7 +196,7 @@ export function RegisterForm() {
           of the form so it doesn't look out of place beside them. */}
       <FormField label="المدينة" htmlFor="city" hint="اختياري">
         <Select value={city} onValueChange={setCity}>
-          <SelectTrigger id="city" className="h-12 rounded-xl">
+          <SelectTrigger id="city" className="h-12 rounded-2xl border-[#EAE3D6]">
             <SelectValue placeholder="اختر مدينتك" />
           </SelectTrigger>
           <SelectContent>
@@ -205,7 +205,7 @@ export function RegisterForm() {
         </Select>
       </FormField>
 
-      <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base mt-2" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ التسجيل…">
+      <Button type="submit" size="lg" className="mt-2 h-12 w-full rounded-2xl text-[15px] font-bold" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ التسجيل...">
         إنشاء الحساب
       </Button>
 
@@ -213,9 +213,9 @@ export function RegisterForm() {
 
       <GoogleAuthButton label="التسجيل باستخدام Google" />
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-[13px] text-[#6B6459]">
         لديك حساب بالفعل؟{' '}
-        <Link href={loginHref} className="text-primary hover:underline font-medium">تسجيل الدخول</Link>
+        <Link href={loginHref} className="font-bold text-[#1F4D33] hover:underline">تسجيل الدخول</Link>
       </p>
     </form>
   );

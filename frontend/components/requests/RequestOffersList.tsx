@@ -5,7 +5,6 @@ import type { RequestOfferListItem, RequestStatus } from '@/types/request.types'
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { MessageSquare } from 'lucide-react';
-import { formatOffersCount } from '@/lib/requestStatus';
 import { RequestOfferCard } from '@/components/requests/RequestOfferCard';
 
 type Props = {
@@ -30,14 +29,14 @@ export function RequestOffersList({
 
   if (hiddenForCompetition && offers.length === 0) {
     return (
-      <section className="space-y-2 rounded-xl border border-dashed p-4">
+      <section className="space-y-2 rounded-2xl border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold">العروض</h2>
-          <span className="text-xs font-medium text-muted-foreground tabular-nums">{formatOffersCount(totalOffersCount)}</span>
+          <h2 className="text-[15px] font-extrabold">العروض ({totalOffersCount})</h2>
+          <span className="text-xs font-medium text-[#6B6459]">الأسعار الأخرى مخفية</span>
         </div>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className="text-[13px] leading-relaxed text-[#4A433A]">
           توجد عروض على هذا الطلب، لكن أسعار العروض الأخرى مخفية للحفاظ على نزاهة المنافسة.
-          {offers.length > 0 ? ' يظهر لك عرضك فقط.' : ' يمكنك تقديم عرضك دون معرفة أسعار المنافسين.'}
+          يمكنك تقديم عرضك دون معرفة أسعار المنافسين.
         </p>
       </section>
     );
@@ -46,9 +45,9 @@ export function RequestOffersList({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">العروض ({totalOffersCount})</h2>
+        <h2 className="text-[15px] font-extrabold">العروض ({totalOffersCount})</h2>
         {hiddenForCompetition && (
-          <span className="text-xs text-muted-foreground">الأسعار الأخرى مخفية</span>
+          <span className="text-xs text-[#6B6459]">الأسعار الأخرى مخفية</span>
         )}
       </div>
 
@@ -71,8 +70,8 @@ export function RequestOffersList({
               offer={o}
               context={isOwner ? 'owner' : 'public'}
               action={isOwner && requestStatus === 'OPEN' && o.status === 'PENDING' ? (
-                <Button size="sm" disabled={accept.isPending} onClick={() => accept.mutate({ id: requestId, offerId: o.id })}>
-                  قبول العرض
+                <Button size="sm" className="h-10 w-full rounded-xl font-bold" disabled={accept.isPending} onClick={() => accept.mutate({ id: requestId, offerId: o.id })}>
+                  ✓ قبول العرض
                 </Button>
               ) : undefined}
             />

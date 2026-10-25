@@ -11,6 +11,7 @@ import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.st
 import { ROUTES } from '@/lib/constants';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { toast } from 'sonner';
+import { SuccessCard } from '@/components/shared/feedback/SuccessCard';
 
 interface Props {
   listingId: string;
@@ -27,6 +28,7 @@ const MAX_DETAILS_LENGTH = 1000;
  */
 export function ServiceRequestButton({ listingId, providerUserId, providerAvailability = 'AVAILABLE' }: Props) {
   const [open, setOpen] = useState(false);
+  const [sent, setSent] = useState(false);
   const [details, setDetails] = useState('');
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const user = useAuthStore(selectUser);
@@ -37,9 +39,11 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
 
   if (providerAvailability === 'UNAVAILABLE') {
     return (
-      <div className="rounded-xl border border-border/80 bg-muted/40 px-4 py-3 text-center" role="status">
-        <p className="text-sm font-semibold">مقدم الخدمة غير متاح حاليًا</p>
-        <p className="mt-1 text-xs text-muted-foreground">يمكنك حفظ الخدمة والعودة إليها لاحقًا عندما يصبح متاحًا.</p>
+      <div className="rounded-2xl border border-[#EBD7A8] bg-[#FBF0D9] px-4 py-3.5" role="status">
+        <p className="text-[14px] font-extrabold text-[#5A3705]">مقدم الخدمة غير متاح حاليًا</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-[#5A3705]/90">
+          يمكنك حفظ الخدمة والعودة إليها لاحقًا عندما يصبح متاحًا.
+        </p>
       </div>
     );
   }
@@ -64,9 +68,10 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
       { listingId, details: details.trim() },
       {
         onSuccess: () => {
-          setOpen(false);
           setDetails('');
-          toast.success('تم إرسال الطلب — تابع حالته من «طلباتي»', {
+          setSent(true);
+          toast.success('تم إرسال الطلب', {
+            description: 'تابع حالته من «طلباتي».',
             action: {
               label: 'طلباتي',
               onClick: () => {
@@ -82,67 +87,93 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
 
   return (
     <>
-      <Button onClick={handleOpen} className="w-full gap-1.5">
+      <Button onClick={handleOpen} className="h-11 w-full gap-1.5 rounded-xl text-sm font-bold">
         <MessageSquarePlus className="h-4 w-4" />
         إرسال طلب لمقدم الخدمة
       </Button>
-      <p className="text-2xs-tight text-muted-foreground text-center leading-relaxed">
-        المسار: طلب → رد المقدّم → (اختياري) موعد → اكتمال الخدمة
-      </p>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>إرسال طلب خدمة</DialogTitle>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSent(false); }}>
+        <DialogContent className="rounded-2xl border border-[#EAE3D6] bg-[#FBF9F4] p-0 gap-0 overflow-hidden sm:max-w-md">
+          <DialogHeader className="px-4 pt-4 pb-0">
+            <DialogTitle className="text-[17px] font-extrabold text-[#2A241D]">
+              {sent ? 'تم إرسال الطلب' : 'إرسال طلب خدمة'}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <ol className="list-decimal ps-4 text-xs text-muted-foreground space-y-1">
-              <li>صف احتياجك بوضوح (مكان، وقت، تفاصيل).</li>
-              <li>المقدّم يرد بالقبول أو الرفض أو عرض سعر.</li>
-              <li>يمكنك متابعة الحالة من صفحة طلباتي.</li>
-            </ol>
+          {sent ? (
+            <div className="px-4 pb-4 pt-2">
+              <SuccessCard
+                title="تم إرسال الطلب"
+                description="تابع حالته من «طلباتي»."
+                singleAction
+                primaryAction={
+                  <Button
+                    className="h-11 w-full rounded-xl font-bold"
+                    onClick={() => {
+                      setOpen(false);
+                      setSent(false);
+                      signalNavigationStart(ROUTES.myServiceRequests);
+                      router.push(ROUTES.myServiceRequests);
+                    }}
+                  >
+                    طلباتي
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+          <div className="space-y-3.5 px-4 pb-4 pt-2">
+            <p className="text-[12px] leading-relaxed text-[#6B6459]">
+              المسار: طلب ← رد المقدّم ← (اختياري) موعد ← اكتمال الخدمة
+            </p>
+            <ul className="space-y-1 text-[12px] leading-relaxed text-[#4A433A]">
+              <li>• صف احتياجك بوضوح (مكان، وقت، تفاصيل).</li>
+              <li>• المقدّم يرد بالقبول أو الرفض أو عرض سعر.</li>
+              <li>• يمكنك متابعة الحالة من صفحة طلباتي.</li>
+            </ul>
 
             <div className="space-y-1.5">
-              <label htmlFor="request-details" className="text-sm font-medium">
+              <label htmlFor="request-details" className="text-[13px] font-bold text-[#2A241D]">
                 وصّف اللي محتاجه بالتفصيل
               </label>
               <textarea
                 id="request-details"
-                rows={5}
+                rows={4}
                 maxLength={MAX_DETAILS_LENGTH}
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 placeholder="مثال: بدي تصليح تسريب مي بالمطبخ، متوفر أيام الجمعة بعد الظهر..."
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                className="w-full rounded-xl border border-[#D9D1C3] bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-[#2A241D] shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#397F56]/30 resize-none"
               />
-              <p className="text-xs text-muted-foreground text-end">
-                {details.length}/{MAX_DETAILS_LENGTH}
-              </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Link
-                href={ROUTES.myServiceRequests}
-                className="text-xs text-primary hover:underline"
+            <Link
+              href={ROUTES.myServiceRequests}
+              className="inline-block text-[13px] font-bold text-[#397F56] hover:underline"
+              onClick={() => setOpen(false)}
+            >
+              عرض طلباتي السابقة
+            </Link>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
                 onClick={() => setOpen(false)}
+                className="h-11 flex-1 rounded-xl border-[#EAE3D6] font-bold"
               >
-                عرض طلباتي السابقة
-              </Link>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>
-                  إلغاء
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={details.trim().length < MIN_DETAILS_LENGTH}
-                  loading={createRequest.isPending}
-                  loadingText="جارٍ الإرسال…"
-                >
-                  إرسال الطلب
-                </Button>
-              </div>
+                إلغاء
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={details.trim().length < MIN_DETAILS_LENGTH}
+                loading={createRequest.isPending}
+                loadingText="جارٍ الإرسال…"
+                className="h-11 flex-[1.4] rounded-xl font-bold"
+              >
+                إرسال الطلب
+              </Button>
             </div>
           </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

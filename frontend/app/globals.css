@@ -631,120 +631,168 @@ html[data-app-mode='native'] .pwa-safe-bottom {
 }
 
 
-/* NOTIFICATIONS-POLISH-PHASE-75: premium, readable in-app feedback. */
+/* Toasts — مطابقة لتصميم 2025 (حبة بيضاء، حد ملوّن في البداية، أيقونة دائرية) */
 [data-sonner-toaster] {
-  --width: min(420px, calc(100vw - 24px));
+  --width: min(400px, calc(100vw - 28px));
   font-family: var(--font-cairo, inherit);
+  --offset-top: max(12px, env(safe-area-inset-top, 0px));
 }
 
 [data-sonner-toast].market-toast {
   width: var(--width) !important;
-  min-height: 68px;
-  padding: 14px 16px !important;
-  gap: 12px !important;
-  border: 1px solid hsl(var(--border) / 0.92) !important;
-  border-radius: 18px !important;
-  background: hsl(var(--card) / 0.97) !important;
-  color: hsl(var(--foreground)) !important;
-  box-shadow: 0 14px 42px -18px rgb(31 26 19 / 0.32), 0 3px 12px -6px rgb(31 26 19 / 0.18) !important;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  min-height: 52px;
+  padding: 12px 14px !important;
+  gap: 10px !important;
+  border: 1px solid #EAE3D6 !important;
+  border-radius: 16px !important;
+  border-inline-start-width: 4px !important;
+  background: #ffffff !important;
+  color: #2A241D !important;
+  box-shadow: 0 4px 20px -6px rgba(42, 36, 29, 0.14), 0 1px 3px rgba(42, 36, 29, 0.06) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 [data-sonner-toast].market-toast [data-title],
 [data-sonner-toast].market-toast .market-toast-title {
   font-size: 14px !important;
-  line-height: 1.55 !important;
-  font-weight: 750 !important;
+  line-height: 1.45 !important;
+  font-weight: 700 !important;
   letter-spacing: -0.01em;
+  color: #2A241D !important;
 }
 
 [data-sonner-toast].market-toast [data-description],
 [data-sonner-toast].market-toast .market-toast-description {
-  margin-top: 3px;
+  margin-top: 2px;
   font-size: 12px !important;
-  line-height: 1.65 !important;
-  color: hsl(var(--muted-foreground)) !important;
+  line-height: 1.55 !important;
+  color: #6B6459 !important;
   overflow-wrap: anywhere;
 }
 
 [data-sonner-toast].market-toast [data-icon],
 [data-sonner-toast].market-toast .market-toast-icon {
-  align-self: flex-start;
-  margin-top: 1px;
-}
-
-[data-sonner-toast].market-toast-success { border-inline-start: 4px solid hsl(var(--success)) !important; }
-[data-sonner-toast].market-toast-error { border-inline-start: 4px solid hsl(var(--destructive)) !important; }
-[data-sonner-toast].market-toast-warning { border-inline-start: 4px solid hsl(var(--warning-strong)) !important; }
-[data-sonner-toast].market-toast-info { border-inline-start: 4px solid hsl(var(--info)) !important; }
-
-[data-sonner-toast].market-toast button[data-button],
-[data-sonner-toast].market-toast .market-toast-action {
-  min-height: 34px;
-  border-radius: 10px !important;
-  padding: 0 12px !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  transition: transform 150ms ease, opacity 150ms ease;
-}
-[data-sonner-toast].market-toast button[data-button]:active { transform: scale(0.97); }
-[data-sonner-toast].market-toast [data-close-button],
-[data-sonner-toast].market-toast .market-toast-close {
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  min-height: 30px !important;
+  align-self: center;
+  margin: 0 !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  border-radius: 999px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+/* Success — green end + soft green icon */
+[data-sonner-toast].market-toast-success {
+  border-inline-start-color: #397F56 !important;
+}
+[data-sonner-toast].market-toast-success [data-icon] {
+  background: #E8F1EC !important;
+  color: #1F4D33 !important;
+}
+
+/* Error — red end + soft red icon */
+[data-sonner-toast].market-toast-error {
+  border-inline-start-color: #B3261E !important;
+}
+[data-sonner-toast].market-toast-error [data-icon] {
+  background: #FBE9E7 !important;
+  color: #9B2118 !important;
+}
+
+/* Warning — amber end + soft amber icon */
+[data-sonner-toast].market-toast-warning {
+  border-inline-start-color: #D9962B !important;
+}
+[data-sonner-toast].market-toast-warning [data-icon] {
+  background: #FBF0D9 !important;
+  color: #7A4B07 !important;
+}
+
+/* Info — blue end + soft blue icon */
+[data-sonner-toast].market-toast-info {
+  border-inline-start-color: #3B6EA5 !important;
+}
+[data-sonner-toast].market-toast-info [data-icon] {
+  background: #E3EEF5 !important;
+  color: #1F4D6B !important;
+}
+
+[data-sonner-toast].market-toast button[data-button],
+[data-sonner-toast].market-toast .market-toast-action {
+  min-height: 32px;
   border-radius: 10px !important;
-  border: 1px solid hsl(var(--border) / 0.9) !important;
-  background: hsl(var(--muted) / 0.72) !important;
-  color: hsl(var(--foreground)) !important;
-  opacity: 0.88;
+  padding: 0 12px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1F4D33 !important;
+  background: transparent !important;
+  border: 0 !important;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+[data-sonner-toast].market-toast button[data-button]:active { transform: scale(0.97); }
+
+[data-sonner-toast].market-toast [data-close-button],
+[data-sonner-toast].market-toast .market-toast-close {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #6B6459 !important;
+  opacity: 0.7;
   transition: background-color 150ms ease, opacity 150ms ease, transform 150ms ease;
+  inset-inline-end: 8px !important;
+  top: 8px !important;
 }
 [data-sonner-toast].market-toast [data-close-button]:hover,
 [data-sonner-toast].market-toast .market-toast-close:hover {
   opacity: 1;
-  background: hsl(var(--accent)) !important;
+  background: #F6F1E7 !important;
 }
 [data-sonner-toast].market-toast [data-close-button]:active,
 [data-sonner-toast].market-toast .market-toast-close:active {
   transform: scale(0.94);
 }
 [data-sonner-toast].market-toast:focus-visible {
-  outline: 2px solid hsl(var(--ring)) !important;
+  outline: 2px solid #397F56 !important;
   outline-offset: 3px;
 }
 
 .market-live-notification {
-  border-color: hsl(var(--primary) / 0.26) !important;
-  box-shadow: 0 18px 48px -20px rgb(25 55 39 / 0.38), 0 4px 16px -8px rgb(25 55 39 / 0.18) !important;
+  border-color: #EAE3D6 !important;
+  border-inline-start: 4px solid #397F56 !important;
+  box-shadow: 0 4px 20px -6px rgba(42, 36, 29, 0.14) !important;
 }
 .market-live-notification-icon {
   display: inline-flex;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   align-items: center;
   justify-content: center;
-  border: 1px solid hsl(var(--primary) / 0.15);
-  border-radius: 13px;
-  background: hsl(var(--primary) / 0.10);
-  color: hsl(var(--primary));
+  border: 0;
+  border-radius: 999px;
+  background: #E8F1EC;
+  color: #1F4D33;
 }
 
 @media (max-width: 480px) {
-  [data-sonner-toaster] { left: 0 !important; right: 0 !important; padding-inline: 12px !important; }
-  [data-sonner-toast].market-toast { width: calc(100vw - 24px) !important; min-height: 64px; border-radius: 16px !important; padding: 12px 13px !important; }
+  [data-sonner-toaster] { left: 0 !important; right: 0 !important; padding-inline: 14px !important; }
+  [data-sonner-toast].market-toast { width: calc(100vw - 28px) !important; min-height: 50px; border-radius: 16px !important; padding: 12px 14px !important; }
   [data-sonner-toast].market-toast [data-title],
   [data-sonner-toast].market-toast .market-toast-title { font-size: 14px !important; }
   [data-sonner-toast].market-toast [data-description],
   [data-sonner-toast].market-toast .market-toast-description { font-size: 12px !important; }
   [data-sonner-toast].market-toast button[data-button],
-  [data-sonner-toast].market-toast .market-toast-action { min-height: 38px; }
+  [data-sonner-toast].market-toast .market-toast-action { min-height: 36px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

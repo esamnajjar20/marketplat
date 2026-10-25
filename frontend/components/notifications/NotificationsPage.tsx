@@ -304,7 +304,7 @@ export function NotificationsPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-[#EAE3D6] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
         {isLoading ? (
           <div className="divide-y" role="status" aria-label="جارٍ التحميل">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -386,8 +386,9 @@ export function NotificationsPage() {
 
             {groups.map((group) => (
               <div key={group.label}>
-                <div className="sticky top-0 z-[1] border-b bg-muted/60 px-4 py-1.5 text-2xs-tight font-semibold text-muted-foreground backdrop-blur-sm">
-                  {group.label}
+                <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-[#EAE3D6] bg-[#FBF9F4]/95 px-4 py-2.5 backdrop-blur-sm">
+                  <span className="text-[13px] font-bold text-[#1F4D33]">{group.label}</span>
+                  <span className="text-[12px] tabular-nums text-[#6B6459]">{group.items.length}</span>
                 </div>
                 <ul className="divide-y">
                   {group.items.map((n) => (

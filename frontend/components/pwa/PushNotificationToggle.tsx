@@ -68,7 +68,7 @@ export function PushNotificationToggle() {
       if (devices === 0) {
         toast.error('لا يوجد جهاز مسجّل لحسابك. أوقف الإشعارات ثم فعّلها من جديد.');
       } else {
-        toast.success('أُرسل إشعار تجريبي — إن لم يظهر خلال ثوانٍ تحقق من إعدادات النظام.');
+        toast.success('إشعار تجريبي', { description: 'إذا ظهر لك هذا الإشعار فإشعارات هذا الجهاز تعمل.' });
       }
     } catch (err) {
       toast.error(parseApiError(err).message);
@@ -158,7 +158,7 @@ export function PushNotificationToggle() {
           setState(token ? 'subscribed' : 'unsubscribed');
           setPermission(token ? 'granted' : 'denied');
           if (token) toast.success('تم تفعيل إشعارات الجهاز');
-          else toast.error('لم يتم منح إذن الإشعارات');
+          else toast.error('لم يتم منح إذن الإشعارات', { description: 'فعّله من إعدادات المتصفح ثم حاول مجددًا.' });
         }
         return;
       }
@@ -166,7 +166,7 @@ export function PushNotificationToggle() {
       if (getBrowserNotificationPermission() === 'denied') {
         setPermission('denied');
         setState('unsubscribed');
-        toast.error('الإذن مرفوض من إعدادات المتصفح — فعّله يدوياً ثم أعد المحاولة');
+        toast.error('لم يتم منح إذن الإشعارات', { description: 'فعّله من إعدادات المتصفح ثم حاول مجددًا.' });
         return;
       }
 
@@ -181,7 +181,7 @@ export function PushNotificationToggle() {
         setPermission(getBrowserNotificationPermission());
         setState(success ? 'subscribed' : 'unsubscribed');
         if (success) toast.success('تم تفعيل إشعارات الجهاز');
-        else toast.error('لم يتم منح إذن الإشعارات');
+        else toast.error('لم يتم منح إذن الإشعارات', { description: 'فعّله من إعدادات المتصفح ثم حاول مجددًا.' });
       }
     } catch {
       toast.error('تعذّر تحديث إعدادات الإشعارات');
@@ -231,29 +231,29 @@ export function PushNotificationToggle() {
     <div className="space-y-3">
       <div
         className={cn(
-          'flex items-center justify-between gap-3 rounded-xl border p-4',
-          isDenied && 'border-destructive/40 bg-destructive/5',
-          isOn && !isDenied && 'border-primary/30 bg-primary/5',
+          'flex items-center justify-between gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
+          isDenied && 'border-[#F1C9C4] bg-[#FBE9E7]/40',
+          isOn && !isDenied && 'border-[#CFE0D5] bg-[#E8F1EC]/40',
         )}
       >
         <div className="flex items-start gap-3">
           {isOn && !isDenied ? (
-            <Bell className="mt-0.5 h-5 w-5 text-primary" />
+            <Bell className="mt-0.5 h-5 w-5 text-[#397F56]" />
           ) : isDenied ? (
-            <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 text-[#9B2118]" />
           ) : (
-            <BellOff className="mt-0.5 h-5 w-5 text-muted-foreground" />
+            <BellOff className="mt-0.5 h-5 w-5 text-[#6B6459]" />
           )}
           <div>
-            <p className="font-medium">إشعارات هذا الجهاز</p>
-            <p className="mt-0.5 text-sm text-muted-foreground">
+            <p className="text-[14px] font-bold text-[#2A241D]">تفعيل إشعارات الجهاز</p>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-[#6B6459]">
               {isChecking
                 ? 'جارٍ التحقق…'
                 : isDenied
                   ? 'مرفوضة من إعدادات المتصفح/النظام — لن تظهر إشعارات خارجية'
                   : isOn
-                    ? 'مفعّلة — تصلك حتى والـPWA أو المتصفح مغلقان'
-                    : 'غير مفعّلة على هذا الجهاز — فعّلها لاستلام التنبيهات فورًا'}
+                    ? 'مفعّلة — تصلك حتى والتطبيق مغلق'
+                    : 'يمكنك إيقافها في أي وقت'}
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-1 text-2xs-tight text-muted-foreground">
               <Smartphone className="h-3 w-3" />
@@ -275,6 +275,7 @@ export function PushNotificationToggle() {
         <Button
           variant={isOn ? 'outline' : isDenied ? 'outline' : 'default'}
           size="sm"
+          className={cn('shrink-0 rounded-xl font-bold', !isOn && !isDenied && 'min-w-[5.5rem]')}
           disabled={isChecking || isDenied}
           onClick={handleToggle}
         >

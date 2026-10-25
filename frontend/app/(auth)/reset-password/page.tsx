@@ -1,8 +1,9 @@
-import type { Metadata }   from 'next';
+import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
-import { Suspense }        from 'react';
-import { buildMetadata }   from '@/lib/seo';
+import { Suspense } from 'react';
+import { buildMetadata } from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+import { AuthBrand } from '@/components/auth/AuthBrand';
 
 const ResetPasswordForm = dynamic(
   () =>
@@ -13,18 +14,24 @@ const ResetPasswordForm = dynamic(
 
 export const metadata: Metadata = buildMetadata({ title: 'تعيين كلمة مرور جديدة', noIndex: true });
 
-interface Props { searchParams: Promise<{ token?: string }> }
+interface Props {
+  searchParams: Promise<{ token?: string }>;
+}
 
-// #2: same LoginPage — see its comment.
 export default async function ResetPasswordPage({ searchParams }: Props) {
   const { token = '' } = await searchParams;
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-primary sm:text-3xl">تعيين كلمة مرور جديدة</h1>
+      <div className="flex flex-col items-center text-center">
+        <AuthBrand />
+        <h1 className="text-[28px] font-extrabold tracking-tight text-[#1F4D33] sm:text-[32px]">
+          تعيين كلمة مرور جديدة
+        </h1>
       </div>
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-md">
-        <Suspense fallback={<SuspenseFallback />}><ResetPasswordForm token={token} /></Suspense>
+      <div className="rounded-2xl border border-[#EAE3D6] bg-white p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">
+        <Suspense fallback={<SuspenseFallback />}>
+          <ResetPasswordForm token={token} />
+        </Suspense>
       </div>
     </div>
   );

@@ -71,11 +71,11 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-3 rounded-xl border border-border/80 bg-card p-4 shadow-xs"
+      className="space-y-3.5 rounded-2xl border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]"
       noValidate
     >
       <div>
-        <h2 className="text-base font-semibold">
+        <h2 className="text-[15px] font-extrabold">
           {myOffer ? 'تعديل عرضك' : 'قدّم عرضًا'}
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -93,8 +93,8 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
       </div>
 
       {!canEdit && (
-        <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning-strong dark:text-warning">
-          لا يمكن تعديل هذا العرض لأنه أصبح {REQUEST_OFFER_STATUS_LABEL[myOffer!.status]}. يمكنك متابعة الطلب من حالة العرض الحالية.
+        <div className="rounded-xl border border-[#EBD7A8] bg-[#FBF0D9] px-3 py-2.5 text-xs leading-relaxed text-[#5A3705]">
+          ⚠ لا يمكن تعديل هذا العرض لأنه أصبح {REQUEST_OFFER_STATUS_LABEL[myOffer!.status]}. يمكنك متابعة الطلب من حالة العرض الحالية.
         </div>
       )}
 
@@ -133,10 +133,10 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
               disabled={!canEdit}
               onClick={() => applyTemplate(t.id, t.text)}
               className={cn(
-                'h-8 shrink-0 rounded-full border px-3 text-xs font-medium transition-colors',
+                'h-8 shrink-0 rounded-full border px-3 text-xs font-bold transition-colors',
                 activeTemplate === t.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                  ? 'border-[#397F56] bg-[#E8F1EC] text-[#1F4D33]'
+                  : 'border-[#EAE3D6] bg-white text-[#4A433A] hover:border-[#CFE0D5]',
               )}
             >
               {t.label}

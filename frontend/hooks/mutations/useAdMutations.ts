@@ -82,9 +82,16 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
       operationFingerprintRef.current = null;
       clearActiveOfflineDraftId();
       void invalidateAdBrowseCaches(queryClient);
-      toast.success('تم نشر الإعلان بنجاح', {
-        description: 'شاركه مع معارفك لزيادة المشاهدات. يمكنك تعديله لاحقاً من «إعلاناتي».',
-        duration: 5000,
+      toast.success('تم نشر إعلانك', {
+        description: 'إعلانك الآن ظاهر للجميع. يمكنك تعديله أو متابعة مشاهداته من «إعلاناتي».',
+        duration: 5500,
+        action: {
+          label: 'إعلاناتي',
+          onClick: () => {
+            signalNavigationStart(ROUTES.myAds);
+            router.push(ROUTES.myAds);
+          },
+        },
       });
       if (ad) {
         const destination = `${ROUTES.adDetail(ad.id)}?published=1`;

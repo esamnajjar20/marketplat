@@ -84,12 +84,21 @@ export function ResetPasswordForm({ token }: Props) {
 
   if (missingToken) {
     return (
-      <div className="space-y-4 text-center">
-        <p className="text-sm text-destructive">
+      <div className="space-y-5 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FBE9E7] text-[#9B2118]">
+          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+        </div>
+        <p className="text-[15px] font-bold leading-relaxed text-[#2A241D]">
           رابط إعادة تعيين كلمة المرور غير صالح. يرجى طلب رابط جديد.
         </p>
-        <Link href={ROUTES.forgotPassword} className="text-sm text-primary hover:underline">
-          طلب رابط جديد
+        <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
+          <Link href={ROUTES.forgotPassword}>طلب رابط جديد</Link>
+        </Button>
+        <Link href={ROUTES.login} className="block text-[13px] font-bold text-[#1F4D33] hover:underline">
+          العودة لتسجيل الدخول
         </Link>
       </div>
     );
@@ -108,11 +117,11 @@ export function ResetPasswordForm({ token }: Props) {
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ الحفظ…">
+      <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-bold" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ الحفظ...">
         تعيين كلمة المرور
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-[13px] font-bold text-[#1F4D33]">
         <Link href={ROUTES.login} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
       </p>
     </form>

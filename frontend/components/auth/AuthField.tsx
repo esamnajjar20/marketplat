@@ -1,27 +1,7 @@
 import { type ReactNode, type ReactElement, useId, isValidElement, cloneElement } from 'react';
-import { type LucideIcon } from 'lucide-react';
+import { type LucideIcon, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * AuthField — DESIGN-PASS AUTH-01.
- *
- * A field wrapper used only by LoginForm/RegisterForm, giving the
- * reference design's look: a leading icon inside the field and a small
- * pill-style label inset on the field's top border, instead of
- * FormField's stacked label above the input.
- *
- * Deliberately NOT built on top of FormField (shared/forms/FormField.tsx):
- * FormField always renders its own stacked <label>, which cannot be
- * suppressed via its render-prop child form — that form only swaps the
- * *input* slot, not the label — so composing them would have produced
- * two labels for one field. FormField has ~15 other call sites (ad
- * forms, settings, ...) that all want that stacked label, so it isn't
- * changed here; this component instead mirrors its same a11y pattern
- * directly (aria-describedby wired to a generated error/hint id,
- * aria-invalid on error, role="alert" on the error text) so behavior
- * for screen readers matches every other field in the app — only the
- * visual position of the label/icon differs.
- */
 interface AuthFieldProps {
   label: string;
   htmlFor: string;
@@ -29,18 +9,24 @@ interface AuthFieldProps {
   error?: string;
   hint?: ReactNode;
   required?: boolean;
-  /**
-   * PasswordInput's show/hide toggle is at the field's physical
-   * right edge (it's dir="ltr" like all password fields in this app —
-   * see PasswordInput.tsx's own comment), which would collide with
-   * this component's icon there. Pass this for any PasswordInput
-   * child so the leading icon renders on the left instead.
-   */
+  /** Password fields: put icon on the physical left to avoid collision with eye toggle. */
   iconOnLeft?: boolean;
   children: ReactElement<Record<string, unknown>>;
 }
 
-export function AuthField({ label, htmlFor, icon: Icon, error, hint, required, iconOnLeft, children }: AuthFieldProps) {
+/**
+ * حقل مصادقة — تسمية أعلى الحقل + أيقونة داخل الحقل + حالة خطأ وردية.
+ */
+export function AuthField({
+  label,
+  htmlFor,
+  icon: Icon,
+  error,
+  hint,
+  required,
+  iconOnLeft,
+  children,
+}: AuthFieldProps) {
   const uid = useId();
   const errorId = error ? `${uid}-error` : undefined;
   const hintId = hint && !error ? `${uid}-hint` : undefined;
@@ -49,49 +35,59 @@ export function AuthField({ label, htmlFor, icon: Icon, error, hint, required, i
   const styledChild = isValidElement(children)
     ? cloneElement(children, {
         className: cn(
-          'h-12 rounded-xl border-input bg-transparent shadow-sm',
-          // Icon side gets the extra padding to clear it; the other
-          // side keeps normal spacing. Both the icon inset and the
-          // padding use LOGICAL sides (start/end) so they stay on the
-          // same edge in RTL and LTR. Earlier code mixed physical
-          // insets with logical padding, which put the icon on top of
-          // the input text in RTL.
-          // PasswordInput adds its own pe-9 for the eye toggle via
-          // its className merge on top of this.
+          'h-12 rounded-2xl border bg-white shadow-none transition-colors',
+          'placeholder:text-[#A39E94]',
+          error
+            ? 'border-[#E8A8A0] bg-[#FDF6F5] focus-visible:ring-[#B3261E]/25'
+            : 'border-[#EAE3D6] focus-visible:ring-[#397F56]/25',
           iconOnLeft ? 'pe-11 ps-4' : 'ps-11 pe-4',
           (children.props as { className?: string }).className,
         ),
-        'aria-describedby': (children.props as { ['aria-describedby']?: string })['aria-describedby'] ?? describedBy,
-        'aria-invalid': (children.props as { ['aria-invalid']?: boolean })['aria-invalid'] ?? (error ? true : undefined),
+        'aria-describedby':
+          (children.props as { ['aria-describedby']?: string })['aria-describedby'] ?? describedBy,
+        'aria-invalid':
+          (children.props as { ['aria-invalid']?: boolean })['aria-invalid'] ??
+          (error ? true : undefined),
       })
     : children;
 
   return (
     <div className="flex flex-col gap-1.5">
+      <label htmlFor={htmlFor} className="text-[13px] font-bold text-[#2A241D]">
+        {label}
+        {required && (
+          <>
+            <span className="ms-1 text-[#B3261E]" aria-hidden="true">
+              *
+            </span>
+            <span className="sr-only">(مطلوب)</span>
+          </>
+        )}
+      </label>
       <div className="relative">
-        <label
-          htmlFor={htmlFor}
-          className="pointer-events-none absolute -top-2 start-4 z-10 bg-card px-2 text-xs font-medium text-muted-foreground"
-        >
-          {label}
-          {required && <span className="ms-1 text-destructive" aria-hidden="true">*</span>}
-          {required && <span className="sr-only">(مطلوب)</span>}
-        </label>
         <Icon
           aria-hidden
           className={cn(
-            'pointer-events-none absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/60',
+            'pointer-events-none absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2',
+            error ? 'text-[#B3261E]/70' : 'text-[#A39E94]',
             iconOnLeft ? 'end-4' : 'start-4',
           )}
         />
         {styledChild}
       </div>
-
       {hint && !error && (
-        <p id={hintId} className="text-xs text-muted-foreground">{hint}</p>
+        <p id={hintId} className="text-[12px] text-[#6B6459]">
+          {hint}
+        </p>
       )}
       {error && (
-        <p id={errorId} className="text-xs text-destructive" role="alert" aria-live="assertive">
+        <p
+          id={errorId}
+          className="flex items-center gap-1.5 text-[12px] font-medium text-[#9B2118]"
+          role="alert"
+          aria-live="assertive"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {error}
         </p>
       )}

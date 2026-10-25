@@ -1,7 +1,9 @@
 import type { Metadata }    from 'next';
+import { Suspense } from 'react';
 import { notFound }         from 'next/navigation';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { AdDetailSection }  from '@/components/ads/AdDetailSection';
+import { PublishedSuccessBanner } from '@/components/ads/PublishedSuccessBanner';
 import { getQueryClient }   from '@/lib/queryClient';
 import { queryKeys }        from '@/lib/queryKeys';
 import { prefetchAdDetail as prefetchAd } from '@/lib/prefetch';
@@ -63,6 +65,7 @@ export default async function AdDetailPage({ params }: Props) {
         />
       )}
       <HydrationBoundary state={dehydrate(qc)}>
+        <Suspense fallback={null}><PublishedSuccessBanner /></Suspense>
         <AdDetailSection id={id} />
       </HydrationBoundary>
     </div>

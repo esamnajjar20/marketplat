@@ -2,7 +2,7 @@
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { MapPin, Clock, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Clock, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { ZoomableDetailImage } from '@/components/shared/detail/ZoomableDetailImage';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
@@ -19,7 +19,16 @@ import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
-import { DETAIL_GALLERY_SHELL, DETAIL_PANEL_PADDED, DETAIL_SECTION_TITLE, DETAIL_THUMBNAIL_RAIL } from '@/components/shared/detail/detailTokens';
+import {
+  DETAIL_GALLERY_SHELL,
+  DETAIL_PANEL_PADDED,
+  DETAIL_SECTION_TITLE,
+  DETAIL_THUMBNAIL_RAIL,
+  TAG_AVAILABLE,
+  TAG_OUT,
+  TAG_MUTED,
+  STICKY_BAR,
+} from '@/components/shared/detail/detailTokens';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';
 
@@ -227,18 +236,22 @@ export function ServiceListingDetail({ listing, action }: Props) {
               <p className="text-lg font-semibold text-primary">
                 {formatServicePrice(listing.pricingType, listing.price)}
               </p>
-              {listing.provider.availabilityStatus === 'UNAVAILABLE' && (
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">غير متاح حاليًا</span>
+              {listing.provider.availabilityStatus === 'UNAVAILABLE' ? (
+                <span className={TAG_OUT}>غير متاح حاليًا</span>
+              ) : (
+                <span className={TAG_AVAILABLE}>متاح الآن</span>
               )}
               {listing.provider.sellerProfile?.verified && (
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">مقدم موثّق</span>
+                <span className={TAG_AVAILABLE}>
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12l5 5 9-10"/></svg>
+                  مقدم موثّق
+                </span>
+              )}
+              {LOCATION_LABELS[listing.serviceLocation] && (
+                <span className={TAG_MUTED}>{LOCATION_LABELS[listing.serviceLocation]}</span>
               )}
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" aria-hidden />
-                {LOCATION_LABELS[listing.serviceLocation]}
-              </span>
               {listing.durationEstimate && (
                 <span className="inline-flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" aria-hidden />
@@ -300,24 +313,27 @@ export function ServiceListingDetail({ listing, action }: Props) {
       </div>
 
 
-      {/* Mobile sticky contact CTA — price + message above BottomNav */}
-      {providerUserId && (
-        <div className={cn('sticky-contact-bar md:hidden border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-card/90', stickyCta.transitionClass, stickyCta.hiddenClass)}>
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-primary truncate">
-                {formatServicePrice(listing.pricingType, listing.price)}
-              </p>
-            </div>
+      {/* Mobile sticky CTA — matches design: price + primary action */}
+      {(providerUserId || action) && (
+        <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] text-[#6B6459]">يبدأ من</div>
+            <b className="text-[15px] font-extrabold text-[#1F4D33] tabular-nums">
+              {formatServicePrice(listing.pricingType, listing.price)}
+            </b>
+          </div>
+          {action ? (
+            <div className="flex-[1.6]">{action}</div>
+          ) : providerUserId ? (
             <MessageUserButtonGate
               targetUserId={providerUserId}
               size="lg"
               variant="default"
-              label="مراسلة"
+              label="راسل مقدم الخدمة"
               context={{ type: 'service', id: listing.id }}
-              className="shrink-0 gap-2 rounded-xl"
+              className="flex-[1.6] gap-1.5 rounded-xl font-bold"
             />
-          </div>
+          ) : null}
         </div>
       )}
 

@@ -57,12 +57,14 @@ function VerifyEmailInner() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-10">
-      <h1 className="text-2xl font-bold tracking-tight">تأكيد البريد الإلكتروني</h1>
+      <h1 className="text-[24px] font-extrabold tracking-tight text-[#1F4D33]">تأكيد البريد الإلكتروني</h1>
 
       {state.kind === 'idle' && (
-        <div className="w-full space-y-4 rounded-xl border bg-card p-6 text-center shadow-sm">
-          <Mail className="mx-auto h-12 w-12 text-muted-foreground" aria-hidden />
-          <p className="text-sm text-muted-foreground">
+        <div className="w-full space-y-4 rounded-2xl border border-[#EAE3D6] bg-white p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F1EC] text-[#397F56]">
+            <Mail className="h-6 w-6" aria-hidden />
+          </div>
+          <p className="text-[13px] leading-relaxed text-[#6B6459]">
             افتح الرابط الذي أرسلناه إلى بريدك الإلكتروني لتأكيد الحساب.
           </p>
 
@@ -85,7 +87,7 @@ function VerifyEmailInner() {
             </div>
           </div>
 
-          <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-xl">
+          <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[#EAE3D6] font-bold">
             <a href={`${API_BASE_URL}/auth/google?purpose=verify`}>
               <GoogleIcon />
               تأكيد بريدي عبر Google
@@ -95,33 +97,35 @@ function VerifyEmailInner() {
       )}
 
       {state.kind === 'verifying' && (
-        <div className="flex w-full flex-col items-center gap-3 rounded-xl border bg-card p-6 shadow-sm">
+        <div className="flex w-full flex-col items-center gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-8 shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
           <LoadingSpinner />
-          <p className="text-sm text-muted-foreground">جارٍ تأكيد بريدك الإلكتروني…</p>
+          <p className="text-[13px] text-[#6B6459]">جارٍ تأكيد بريدك الإلكتروني...</p>
         </div>
       )}
 
       {state.kind === 'success' && (
-        <div className="w-full space-y-4 rounded-xl border bg-card p-6 text-center shadow-sm">
-          <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden />
-          <p className="text-lg font-semibold">تم تأكيد بريدك الإلكتروني بنجاح</p>
-          <p className="text-sm text-muted-foreground">
-            يمكنك الآن استخدام جميع ميزات سوق غزة.
-          </p>
-          <Button asChild className="w-full">
+        <div className="w-full space-y-4 rounded-2xl border border-[#EAE3D6] bg-white p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F1EC] text-[#397F56]">
+            <CheckCircle2 className="h-7 w-7" aria-hidden />
+          </div>
+          <p className="text-[18px] font-extrabold text-[#2A241D]">تم تأكيد بريدك الإلكتروني بنجاح</p>
+          <p className="text-[13px] text-[#6B6459]">يمكنك الآن استخدام جميع ميزات سوق غزة.</p>
+          <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
             <Link href={ROUTES.home}>الذهاب إلى الصفحة الرئيسية</Link>
           </Button>
         </div>
       )}
 
       {state.kind === 'error' && (
-        <div className="w-full space-y-4 rounded-xl border border-destructive/30 bg-card p-6 text-center shadow-sm">
-          <XCircle className="mx-auto h-12 w-12 text-destructive" aria-hidden />
-          <p className="text-sm text-destructive">{state.message}</p>
-          <p className="text-xs text-muted-foreground">
+        <div className="w-full space-y-4 rounded-2xl border border-[#F1C9C4] bg-white p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FBE9E7] text-[#9B2118]">
+            <XCircle className="h-7 w-7" aria-hidden />
+          </div>
+          <p className="text-[14px] font-bold text-[#9B2118]">{state.message}</p>
+          <p className="text-[12px] text-[#6B6459]">
             قد يكون الرابط منتهي الصلاحية. يمكنك طلب رابط جديد من صفحة الملف الشخصي.
           </p>
-          <Button asChild variant="outline" className="w-full">
+          <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[#EAE3D6] font-bold">
             <Link href={ROUTES.home}>العودة للرئيسية</Link>
           </Button>
         </div>

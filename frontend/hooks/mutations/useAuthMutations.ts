@@ -170,7 +170,7 @@ export function useLogin() {
       // always present on AuthResultUser), so this doesn't wait on the
       // background getMe() enrichment call.
       toast.success('تم تسجيل الدخول بنجاح', {
-        description: `أهلًا بعودتك ${data.user.name}، يسعدنا وجودك مجددًا.`,
+        description: `أهلًا بعودتك، ${data.user.name}`,
         duration: 4200,
       });
 
@@ -239,9 +239,16 @@ export function useRegister() {
       // with a toast before/alongside navigating; register was the one
       // silent exception despite being a bigger, one-time moment for a
       // new user.
-      toast.success('أهلًا بك في منصتنا!', {
-        description: `تم إنشاء حسابك بنجاح يا ${data.user.name}. يمكنك الآن البدء باستكشاف الخدمات.`,
-        duration: 4800,
+      toast.success('تم إنشاء حسابك بنجاح', {
+        description: `مرحبًا بك في سوق غزة. ابدأ بتصفح الإعلانات أو انشر أول إعلان لك.`,
+        duration: 5200,
+        action: {
+          label: 'ابدأ التصفح',
+          onClick: () => {
+            signalNavigationStart(ROUTES.home);
+            router.push(ROUTES.home);
+          },
+        },
       });
       // AUDIT-FIX auth#1: previously always pushed ROUTES.dashboard,
       // ignoring a ?from= target carried over from middleware.ts (via

@@ -101,12 +101,20 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {sessionExpired && (
-          <p role="alert" className="text-sm text-warning-foreground bg-warning/10 border border-warning/30 rounded-md px-3 py-2 text-center">
-            انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
-          </p>
-        )}
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-xl border border-[#EBD7A8] bg-[#FBF0D9] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#5A3705]"
+        >
+          <span aria-hidden>⚠</span>
+          انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
+        </p>
+      )}
       {googleAuthFailed && (
-        <p role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2 text-center">
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-xl border border-[#F1C9C4] bg-[#FBE9E7] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#9B2118]"
+        >
+          <span aria-hidden>⚠</span>
           تعذّر تسجيل الدخول باستخدام Google، الرجاء المحاولة مرة أخرى أو استخدام البريد الإلكتروني
         </p>
       )}
@@ -153,7 +161,7 @@ export function LoginForm() {
       </AuthField>
 
       <div className="flex justify-end">
-        <Link href={ROUTES.forgotPassword} className="text-sm text-primary hover:underline">
+        <Link href={ROUTES.forgotPassword} className="text-[13px] font-bold text-[#1F4D33] hover:underline">
           نسيت كلمة المرور؟
         </Link>
       </div>
@@ -168,11 +176,11 @@ export function LoginForm() {
       <Button
         type="submit"
         size="lg"
-        className={`h-12 w-full rounded-xl text-base ${isFormIncomplete ? 'opacity-60' : ''}`}
+        className={`h-12 w-full rounded-2xl text-[15px] font-bold ${isFormIncomplete ? 'opacity-60' : ''}`}
         aria-disabled={isFormIncomplete || isPending}
         disabled={isFormIncomplete || isPending}
         loading={isPending}
-        loadingText="جارٍ الدخول…"
+        loadingText="جارٍ الدخول..."
       >
         تسجيل الدخول
       </Button>
@@ -184,9 +192,9 @@ export function LoginForm() {
 
       <GoogleAuthButton label="تسجيل الدخول باستخدام Google" />
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-[13px] text-[#6B6459]">
         ليس لديك حساب؟{' '}
-        <Link href={registerHref} className="text-primary hover:underline font-medium">
+        <Link href={registerHref} className="font-bold text-[#1F4D33] hover:underline">
           إنشاء حساب
         </Link>
       </p>
