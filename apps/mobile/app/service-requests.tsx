@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -19,14 +19,19 @@ export default function ServiceRequestsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
+    const sequence = ++requestSequence.current;
     if (!accessToken) { setLoading(false); setError('سجّل الدخول لعرض طلباتك.'); return; }
     setLoading(true); setError(null);
-    try { setItems(await fetchServiceRequests(accessToken, incoming)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل الطلبات.'); }
-    finally { setLoading(false); }
+    try {
+      const result = await fetchServiceRequests(accessToken, incoming);
+      if (sequence === requestSequence.current) setItems(result);
+    } catch (e) {
+      if (sequence === requestSequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل الطلبات.');
+    } finally { if (sequence === requestSequence.current) setLoading(false); }
   }, [accessToken, incoming]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); return () => { requestSequence.current += 1; }; }, [load]);
   const submit = async () => {
     if (!listingId || !accessToken || saving) return;
     if (details.trim().length < 10) { Alert.alert('تفاصيل الطلب', 'اكتب 10 أحرف على الأقل لتوضيح احتياجك.'); return; }
@@ -49,7 +54,7 @@ export default function ServiceRequestsScreen() {
         <Pressable accessibilityRole="button" accessibilityState={{ selected: incoming }} onPress={() => setIncoming(true)} style={[styles.switchChip, incoming && styles.switchChipActive]}><Text style={[styles.switchText, incoming && styles.switchTextActive]}>الطلبات الواردة</Text></Pressable>
       </View> : null}
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{incoming ? 'طلبات العملاء الواردة' : user ? 'طلباتي السابقة' : 'طلبات الخدمات'}</Text><Pressable accessibilityRole="button" onPress={() => void load()}><Text style={styles.link}>تحديث</Text></Pressable></View>
-      {loading ? <View style={styles.state}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الطلبات…</Text></View> : error ? <View style={styles.state}><Text style={styles.muted}>{error}</Text><Pressable onPress={() => !accessToken ? router.push('/login') : void load()} style={styles.primary}><Text style={styles.primaryText}>{user ? 'تسجيل الدخول' : 'إعادة المحاولة'}</Text></Pressable></View> : items.length === 0 ? <View style={styles.state}><Text style={styles.emptyIcon}>▤</Text><Text style={styles.emptyTitle}>لا توجد طلبات بعد</Text><Text style={styles.muted}>عندما تطلب خدمة، ستظهر حالة الطلب ورد مقدم الخدمة هنا.</Text></View> : <View style={styles.list}>{items.map((item) => <View key={item.id} style={styles.requestCard}><View style={styles.requestHeader}><Text style={styles.requestTitle} numberOfLines={2}>{item.listing?.title || 'طلب خدمة'}</Text><Text style={[styles.status, item.status === 'COMPLETED' ? styles.statusSuccess : null]}>{statusLabels[item.status || ''] || item.status || 'قيد المتابعة'}</Text></View><Text style={styles.details} numberOfLines={3}>{item.details || 'لا توجد تفاصيل إضافية.'}</Text><Text style={styles.meta}>{item.createdAt ? new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(item.createdAt)) : ''}{item.quotedPrice != null ? ` · السعر المقترح ${item.quotedPrice} ₪` : ''}</Text>{incoming && item.status === 'PENDING' ? <View style={styles.responseRow}><Pressable accessibilityRole="button" onPress={() => Alert.alert('قبول الطلب', 'هل تريد قبول طلب الخدمة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'قبول', onPress: () => { if (!accessToken) return; void respondToServiceRequest(item.id, 'ACCEPTED', accessToken, csrfToken).then(() => load()).catch((e) => Alert.alert('تعذر تحديث الطلب', e instanceof Error ? e.message : 'حاول مجددًا.')); } }])} style={styles.acceptButton}><Text style={styles.acceptText}>قبول الطلب</Text></Pressable><Pressable accessibilityRole="button" onPress={() => Alert.alert('رفض الطلب', 'هل تريد رفض طلب الخدمة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'رفض الطلب', style: 'destructive', onPress: () => { if (!accessToken) return; void respondToServiceRequest(item.id, 'REJECTED', accessToken, csrfToken).then(() => load()).catch((e) => Alert.alert('تعذر تحديث الطلب', e instanceof Error ? e.message : 'حاول مجددًا.')); } }])} style={styles.rejectButton}><Text style={styles.rejectText}>رفض</Text></Pressable></View> : null}</View>)}</View>}
+      {loading ? <View style={styles.state}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الطلبات…</Text></View> : error ? <View style={styles.state}><Text style={styles.muted}>{error}</Text><Pressable onPress={() => !accessToken ? router.push('/login') : void load()} style={styles.primary}><Text style={styles.primaryText}>{accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'}</Text></Pressable></View> : items.length === 0 ? <View style={styles.state}><Text style={styles.emptyIcon}>▤</Text><Text style={styles.emptyTitle}>لا توجد طلبات بعد</Text><Text style={styles.muted}>عندما تطلب خدمة، ستظهر حالة الطلب ورد مقدم الخدمة هنا.</Text></View> : <View style={styles.list}>{items.map((item) => <View key={item.id} style={styles.requestCard}><View style={styles.requestHeader}><Text style={styles.requestTitle} numberOfLines={2}>{item.listing?.title || 'طلب خدمة'}</Text><Text style={[styles.status, item.status === 'COMPLETED' ? styles.statusSuccess : null]}>{statusLabels[item.status || ''] || item.status || 'قيد المتابعة'}</Text></View><Text style={styles.details} numberOfLines={3}>{item.details || 'لا توجد تفاصيل إضافية.'}</Text><Text style={styles.meta}>{item.createdAt ? new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(item.createdAt)) : ''}{item.quotedPrice != null ? ` · السعر المقترح ${item.quotedPrice} ₪` : ''}</Text>{incoming && item.status === 'PENDING' ? <View style={styles.responseRow}><Pressable accessibilityRole="button" onPress={() => Alert.alert('قبول الطلب', 'هل تريد قبول طلب الخدمة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'قبول', onPress: () => { if (!accessToken) return; void respondToServiceRequest(item.id, 'ACCEPTED', accessToken, csrfToken).then(() => load()).catch((e) => Alert.alert('تعذر تحديث الطلب', e instanceof Error ? e.message : 'حاول مجددًا.')); } }])} style={styles.acceptButton}><Text style={styles.acceptText}>قبول الطلب</Text></Pressable><Pressable accessibilityRole="button" onPress={() => Alert.alert('رفض الطلب', 'هل تريد رفض طلب الخدمة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'رفض الطلب', style: 'destructive', onPress: () => { if (!accessToken) return; void respondToServiceRequest(item.id, 'REJECTED', accessToken, csrfToken).then(() => load()).catch((e) => Alert.alert('تعذر تحديث الطلب', e instanceof Error ? e.message : 'حاول مجددًا.')); } }])} style={styles.rejectButton}><Text style={styles.rejectText}>رفض</Text></Pressable></View> : null}</View>)}</View>}
     </ScrollView>
   </SafeAreaView>;
 }

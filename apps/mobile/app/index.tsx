@@ -76,6 +76,7 @@ export default function HomeScreen() {
     const isCurrentRequest = () => requestSequence === adsRequestSequence.current;
     if (isRefresh) setRefreshing(true);
     setErrorMessage(null);
+    setLoadingMore(false);
     setPage(1);
     setTotalPages(1);
     const options = { page: 1, limit: 8, search: submittedSearch, categoryId: selectedCategory ?? undefined } as {
@@ -148,8 +149,12 @@ export default function HomeScreen() {
       setPage(result.page || nextPage);
       setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? nextPage + 1 : nextPage));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل المزيد من الإعلانات.');
-    } finally { setLoadingMore(false); }
+      if (requestSequence === adsRequestSequence.current) {
+        setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل المزيد من الإعلانات.');
+      }
+    } finally {
+      if (requestSequence === adsRequestSequence.current) setLoadingMore(false);
+    }
   }, [loadingMore, loading, page, totalPages, showFavorites, submittedSearch, selectedCategory, filters, sortBy, sortOrder]);
 
   const applyFilters = useCallback(() => {

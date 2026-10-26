@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -8,8 +8,9 @@ import { colors, radius, spacing } from '@/theme/tokens';
 function price(item: ProductSummary) { const v = Number(item.effectivePrice?.price ?? item.effectivePrice?.amount ?? item.discountPrice ?? item.price); return Number.isFinite(v) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(v)} ₪` : 'السعر عند التواصل'; }
 export default function ProductsScreen() {
   const { user } = useAuth(); const [items,setItems]=useState<ProductSummary[]>([]); const [query,setQuery]=useState(''); const [submitted,setSubmitted]=useState(''); const [loading,setLoading]=useState(true); const [refreshing,setRefreshing]=useState(false); const [error,setError]=useState<string|null>(null);
-  const load=useCallback(async(refresh=false)=>{if(refresh)setRefreshing(true);else setLoading(true);setError(null);try{const result=await fetchProducts({page:1,limit:30,search:submitted});setItems(result.items);}catch(e){setError(e instanceof Error?e.message:'تعذر تحميل المنتجات.');}finally{setLoading(false);setRefreshing(false);}},[submitted]);
-  useEffect(()=>{void load();},[load]);
+  const requestSequence=useRef(0);
+  const load=useCallback(async(refresh=false)=>{const sequence=++requestSequence.current;if(refresh)setRefreshing(true);else setLoading(true);setError(null);try{const result=await fetchProducts({page:1,limit:30,search:submitted});if(sequence===requestSequence.current)setItems(result.items);}catch(e){if(sequence===requestSequence.current)setError(e instanceof Error?e.message:'تعذر تحميل المنتجات.');}finally{if(sequence===requestSequence.current){setLoading(false);setRefreshing(false);}}},[submitted]);
+  useEffect(()=>{void load();return()=>{requestSequence.current+=1;};},[load]);
   return <SafeAreaView style={s.safe} edges={['top']}><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor={colors.brand}/> }>
     <View style={s.header}><Pressable accessibilityRole="button" onPress={()=>router.back()} style={s.back}><Text style={s.backText}>→</Text></Pressable><View style={s.headerText}><Text style={s.title}>المنتجات</Text><Text style={s.subtitle}>تصفح المنتجات المعروضة في المتاجر</Text></View></View>
     <View style={s.search}><TextInput value={query} onChangeText={setQuery} onSubmitEditing={()=>setSubmitted(query.trim())} placeholder="ابحث عن منتج…" placeholderTextColor={colors.muted} style={s.input} textAlign="right" returnKeyType="search"/><Pressable accessibilityRole="button" onPress={()=>setSubmitted(query.trim())} style={s.searchButton}><Text style={s.searchText}>بحث</Text></Pressable></View>
