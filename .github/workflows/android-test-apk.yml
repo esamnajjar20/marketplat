@@ -62,19 +62,6 @@ jobs:
       - name: Verify test APK configuration
         run: pnpm verify:apk:test
 
-      - name: Ensure hermesc is executable
-        shell: bash
-        run: |
-          set -euo pipefail
-          HERMESC=$(find -L node_modules -type f -name hermesc -path '*/linux64-bin/*' 2>/dev/null | head -1 || true)
-          if [ -n "$HERMESC" ]; then
-            chmod +x "$HERMESC"
-            echo "✅ chmod +x $HERMESC"
-          else
-            echo "❌ hermesc not found"
-            exit 1
-          fi
-
       - name: Build Release APK
         working-directory: apps/mobile/android
         run: ./gradlew --no-daemon assembleRelease
