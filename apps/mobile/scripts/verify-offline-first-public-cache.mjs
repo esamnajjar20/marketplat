@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+const root = resolve(import.meta.dirname, '..');
+const client = readFileSync(resolve(root, 'src/api/client.ts'), 'utf8');
+assert.match(client, /publicGetCacheKey/);
+assert.match(client, /method\.toUpperCase\(\) !== 'GET'/);
+assert.match(client, /hasToken/);
+assert.match(client, /v1\\\/ads/);
+assert.match(client, /isSuccessfulPublicEnvelope/);
+assert.match(client, /readPublicCache<T>\(cacheKey\)/);
+assert.match(client, /if \(!API_BASE_URL\) \{[\s\S]*?if \(cacheKey\)/);
+assert.match(client, /writePublicCache\(cacheKey, payload\)/);
+assert.match(client, /mutations are always excluded/);
+console.log('Offline-first public GET cache audit checks passed (static checks only).');

@@ -35,8 +35,8 @@ export default function MySalesScreen() {
     setError('');
     try {
       const [summaryResult, pageResult] = await Promise.all([
-        fetchSalesSummary(period, accessToken),
-        fetchSales(accessToken, 1, status === 'ALL' ? undefined : status),
+        fetchSalesSummary(period, accessToken, user?.id),
+        fetchSales(accessToken, 1, status === 'ALL' ? undefined : status, user?.id),
       ]);
       setSummary(summaryResult);
       setItems(pageResult.items);
@@ -45,7 +45,7 @@ export default function MySalesScreen() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحميل المبيعات.');
     } finally { setLoading(false); setRefreshing(false); }
-  }, [accessToken, period, status]);
+  }, [accessToken, period, status, user?.id]);
 
   useEffect(() => { if (!isRestoring) void load(); }, [isRestoring, load]);
 
@@ -53,7 +53,7 @@ export default function MySalesScreen() {
     if (!accessToken || loadingMore || loading || page >= totalPages) return;
     setLoadingMore(true);
     try {
-      const next = await fetchSales(accessToken, page + 1, status === 'ALL' ? undefined : status);
+      const next = await fetchSales(accessToken, page + 1, status === 'ALL' ? undefined : status, user?.id);
       setItems(current => {
         const seen = new Set(current.map(item => item.id));
         return [...current, ...next.items.filter(item => !seen.has(item.id))];

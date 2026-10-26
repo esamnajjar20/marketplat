@@ -254,8 +254,18 @@ export const requestsService = {
   submitOffer: async (
     userId: string,
     requestId: string,
-    input: SubmitOfferInput
+    input: SubmitOfferInput,
+    offlineOperationId?: string | null
   ): Promise<RequestOffer> => {
+    if (offlineOperationId) {
+      const existingOperation = await prisma.requestOffer.findUnique({ where: { offlineOperationId } });
+      if (existingOperation) {
+        if (existingOperation.requestId !== requestId || existingOperation.offererUserId !== userId) {
+          throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
+        }
+        return existingOperation;
+      }
+    }
     const request = await requestsRepository.findById(requestId);
     if (!request) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
     if (request.status !== 'OPEN') {
@@ -318,16 +328,17 @@ export const requestsService = {
             message: payload.message,
             meta: payload.meta ?? Prisma.JsonNull,
             status: 'PENDING',
+            ...(offlineOperationId ? { offlineOperationId } : {}),
           },
         });
       }
       if (existing.status !== 'PENDING') {
         throw new ConflictError('This offer can no longer be revised.', 'OFFER_NOT_PENDING');
       }
-      return requestOffersRepository.update(existing.id, payload);
+      return requestOffersRepository.update(existing.id, { ...payload, offlineOperationId });
     }
 
-    const created = await requestOffersRepository.create(requestId, userId, payload);
+    const created = await requestOffersRepository.create(requestId, userId, { ...payload, offlineOperationId });
 
     // Fire-and-forget notification to the request owner
     const offererName =

@@ -26,16 +26,16 @@ function page<T>(response: Envelope<T[]>, fallback: string, requestedPage: numbe
 export async function createMarketplaceOrder(input: { items: { productId: string; quantity: number }[]; recipientName: string; recipientPhone: string; shippingCity: string; shippingAddress: string; buyerNote?: string; idempotencyKey: string }, token: string, csrfToken?: string | null) {
   return unwrap(await apiRequest<Envelope<MarketplaceOrder>>('/api/v1/orders', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر إنشاء الطلب.');
 }
-export async function fetchMyOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus) {
+export async function fetchMyOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null) {
   const params = new URLSearchParams({ page: String(pageNo), limit: '20' }); if (status) params.set('status', status);
-  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/mine?${params}`, { token }), 'تعذر تحميل طلباتك.', pageNo);
+  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/mine?${params}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل طلباتك.', pageNo);
 }
-export async function fetchSellerOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus) {
+export async function fetchSellerOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null) {
   const params = new URLSearchParams({ page: String(pageNo), limit: '20' }); if (status) params.set('status', status);
-  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/seller?${params}`, { token }), 'تعذر تحميل طلبات المتجر.', pageNo);
+  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/seller?${params}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل طلبات المتجر.', pageNo);
 }
-export async function fetchMarketplaceOrder(id: string, token: string) {
-  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}`, { token }), 'تعذر تحميل تفاصيل الطلب.');
+export async function fetchMarketplaceOrder(id: string, token: string, ownerId?: string | null) {
+  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل تفاصيل الطلب.');
 }
 export async function updateMarketplaceOrderStatus(id: string, status: MarketplaceOrderStatus, token: string, csrfToken?: string | null, sellerNote?: string) {
   return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}/status`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ status, sellerNote }) }), 'تعذر تحديث حالة الطلب.');

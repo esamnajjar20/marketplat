@@ -1,3 +1,4 @@
+import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { apiRequest } from '@/api/client';
 import { readPublicCache, writePublicCache } from '@/storage/public-cache';
 
@@ -78,10 +79,18 @@ export async function respondToServiceRequest(id: string, action: 'ACCEPTED' | '
 
 export type ServiceCategoryOption = { id: string; name: string; nameAr?: string | null; serviceTypeId?: string | null; isActive?: boolean };
 export async function fetchServiceCategoryOptions(): Promise<ServiceCategoryOption[]> {
-  const response = await apiRequest<Envelope<ServiceCategoryOption[]>>('/api/v1/service-categories');
-  const items = readData(response, 'تعذر تحميل تصنيفات الخدمات.');
-  if (!Array.isArray(items)) throw new Error('استجابة تصنيفات الخدمات غير صالحة.');
-  return items.filter((item) => item && typeof item.id === 'string' && item.isActive !== false);
+  try {
+    const response = await apiRequest<Envelope<ServiceCategoryOption[]>>('/api/v1/service-categories');
+    const items = readData(response, 'تعذر تحميل تصنيفات الخدمات.');
+    if (!Array.isArray(items)) throw new Error('استجابة تصنيفات الخدمات غير صالحة.');
+    const filtered = items.filter((item) => item && typeof item.id === 'string' && item.isActive !== false);
+    await cacheOfflineCreationReferenceData('service-categories', filtered).catch(() => undefined);
+    return filtered;
+  } catch (error) {
+    const cached = await readOfflineCreationReferenceData<ServiceCategoryOption[]>('service-categories').catch(() => null);
+    if (Array.isArray(cached) && cached.length) return cached.filter((item) => item && typeof item.id === 'string' && item.isActive !== false);
+    throw error;
+  }
 }
 export async function fetchMyServiceListings(token: string): Promise<ServiceListing[]> {
   const response = await apiRequest<Envelope<ServiceListing[]>>('/api/v1/service-listings/me?page=1&limit=50&sortBy=createdAt&sortOrder=desc', { token });
@@ -89,8 +98,11 @@ export async function fetchMyServiceListings(token: string): Promise<ServiceList
   if (!Array.isArray(items)) throw new Error('استجابة خدماتك غير صالحة.');
   return items;
 }
-export async function createMyServiceListing(input: { categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price?: number; durationEstimate?: string; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE' }, token: string, csrfToken?: string | null): Promise<ServiceListing> {
-  const response = await apiRequest<Envelope<ServiceListing>>('/api/v1/service-listings', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) });
+export async function createMyServiceListing(input: { categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price?: number; durationEstimate?: string; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE' }, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = []): Promise<ServiceListing> {
+  const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };
+  let body: FormData | string = JSON.stringify(input);
+  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, typeof value === 'string' ? value : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
+  const response = await apiRequest<Envelope<ServiceListing>>('/api/v1/service-listings', { method: 'POST', token, headers, body });
   return readData(response, 'تعذر إنشاء الخدمة.');
 }
 export async function updateMyServiceListing(id: string, input: Partial<{ categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price: number|null; durationEstimate: string|null; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE'; status: 'ACTIVE'|'PAUSED' }>, token: string, csrfToken?: string | null): Promise<ServiceListing> {

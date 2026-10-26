@@ -1,3 +1,4 @@
+import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { apiRequest } from '@/api/client';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
@@ -58,13 +59,24 @@ export async function fetchMyProducts(token: string, search = '', options: { pag
   return pageFrom(await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products/me?${params}`, { token }), 'تعذر تحميل منتجاتك.', page);
 }
 export async function fetchProductCategories() {
-  const response = await apiRequest<Envelope<ProductCategory[]>>('/api/v1/product-categories');
-  const categories = dataOf(response, 'تعذر تحميل تصنيفات المنتجات.');
-  if (!Array.isArray(categories)) throw new Error('استجابة التصنيفات غير صالحة.');
-  const flattened: ProductCategory[] = []; const visit = (nodes: ProductCategory[]) => { for (const category of nodes) { if (!category || typeof category.id !== 'string' || category.isActive === false) continue; flattened.push(category); if (Array.isArray(category.children)) visit(category.children); } }; visit(categories); return flattened;
+  try {
+    const response = await apiRequest<Envelope<ProductCategory[]>>('/api/v1/product-categories');
+    const categories = dataOf(response, 'تعذر تحميل تصنيفات المنتجات.');
+    if (!Array.isArray(categories)) throw new Error('استجابة التصنيفات غير صالحة.');
+    const flattened: ProductCategory[] = []; const visit = (nodes: ProductCategory[]) => { for (const category of nodes) { if (!category || typeof category.id !== 'string' || category.isActive === false) continue; flattened.push(category); if (Array.isArray(category.children)) visit(category.children); } }; visit(categories);
+    await cacheOfflineCreationReferenceData('product-categories', flattened).catch(() => undefined);
+    return flattened;
+  } catch (error) {
+    const cached = await readOfflineCreationReferenceData<ProductCategory[]>('product-categories').catch(() => null);
+    if (Array.isArray(cached) && cached.length) return cached.filter((item) => item && typeof item.id === 'string' && item.isActive !== false);
+    throw error;
+  }
 }
-export async function createProduct(input: { categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity?: number }, token: string, csrfToken?: string | null) {
-  return dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر إنشاء المنتج.');
+export async function createProduct(input: { categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity?: number }, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = []) {
+  const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };
+  let body: FormData | string = JSON.stringify(input);
+  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, typeof value === 'string' ? value : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
+  return dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, headers, body }), 'تعذر إنشاء المنتج.');
 }
 export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number; status: string }>, token: string, csrfToken?: string | null) {
   return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');

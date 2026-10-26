@@ -33,7 +33,7 @@ assert.match(notifications, /markAllNotificationsRead\(accessToken, csrfToken\)/
 assert.match(notifications, /markNotificationRead\(item.id, accessToken, csrfToken\)/);
 assert.match(adDetail, /startConversationFromAd\(id, accessToken, csrfToken\)/);
 assert.match(productDetail, /startConversationWithUser\([^\n]+csrfToken\)/);
-assert.match(productEditor, /createProduct\(payload,accessToken,csrfToken\)/);
+assert.match(productEditor, /createProduct\(payload,accessToken,csrfToken/);
 assert.match(productEditor, /updateProduct\(id,payload,accessToken,csrfToken\)/);
 assert.match(myProducts, /deleteProduct\(item.id,accessToken,csrfToken\)/);
 assert.match(storyViewer, /markStoryViewed\(story.id, accessToken, csrfToken\)/);

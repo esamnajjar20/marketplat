@@ -1,5 +1,9 @@
 import { AppState, type AppStateStatus } from 'react-native';
 import { syncOutboxIfReady, type GuardedOutboxSyncResult } from './outbox-sync';
+import { syncNextMarketplaceRequest } from './request-outbox';
+import { syncNextMarketplaceOrder } from './order-outbox';
+import { syncNextRequestOffer } from './request-offer-outbox';
+import { syncNextOfflineCreate } from './entity-create-outbox';
 
 export type OutboxLifecycleSnapshot = {
   isOnline: boolean;
@@ -46,6 +50,33 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
         const result = await syncOutboxIfReady(snapshot);
         lastResult = result;
         if (result.status !== 'sync-result' || result.result.status !== 'synced') break;
+      }
+      // Requests use their own durable table and the backend's X-Offline-Op-Id
+      // idempotency ledger; process one after the ad queue on each lifecycle pass.
+      if (!stopped && currentGeneration === generation) {
+        const snapshot = options.getSnapshot();
+        await syncNextMarketplaceRequest({ isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken });
+        // Request offers use a dedicated durable queue and server-side idempotency key.
+        if (!stopped && currentGeneration === generation) {
+          const offerSnapshot = options.getSnapshot();
+          await syncNextRequestOffer({ isOnline: offerSnapshot.isOnline, token: offerSnapshot.token, ownerId: offerSnapshot.ownerId, csrfToken: offerSnapshot.csrfToken });
+        }
+        // Marketplace orders use their own durable queue and server idempotency key.
+        // Stock and price are revalidated transactionally by the server at sync time.
+        if (!stopped && currentGeneration === generation) {
+          const latestSnapshot = options.getSnapshot();
+          await syncNextMarketplaceOrder({ isOnline: latestSnapshot.isOnline, token: latestSnapshot.token, ownerId: latestSnapshot.ownerId, csrfToken: latestSnapshot.csrfToken });
+        }
+        // Product, service-listing, and manual-sale creation share a durable queue;
+        // all three endpoints accept X-Offline-Op-Id and deduplicate on the server.
+        if (!stopped && currentGeneration === generation) {
+          for (let processed = 0; processed < 50; processed += 1) {
+            if (stopped || currentGeneration !== generation || AppState.currentState !== 'active') break;
+            const createSnapshot = options.getSnapshot();
+            const result = await syncNextOfflineCreate({ isOnline: createSnapshot.isOnline, token: createSnapshot.token, ownerId: createSnapshot.ownerId, csrfToken: createSnapshot.csrfToken });
+            if (result !== 'synced') break;
+          }
+        }
       }
       if (!stopped && currentGeneration === generation && lastResult) options.onResult?.(lastResult);
     } catch (error) {

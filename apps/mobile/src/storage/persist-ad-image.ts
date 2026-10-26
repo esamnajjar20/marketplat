@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import type { SelectedAdImage } from '@/features/ads/manage-ads.api';
 import { listAllOutboxMutations } from './mutation-outbox';
 import { isAdImageReferencedByDraft } from './ad-draft-store';
+import { isOfflineCreateImageReferenced } from './entity-create-outbox';
 
 const IMAGE_DIRECTORY = `${FileSystem.documentDirectory ?? ''}marketplat-offline-images/`;
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -48,6 +49,7 @@ export async function removePersistedAdImageIfUnused(uri: string): Promise<'dele
   // the draft autosave and delete the only durable copy of its image.
   if (await isAdImageReferencedByDraft(uri)) return 'retained';
 
+  if (await isOfflineCreateImageReferenced(uri)) return 'retained';
   const operations = await listAllOutboxMutations();
   for (const operation of operations) {
     try {

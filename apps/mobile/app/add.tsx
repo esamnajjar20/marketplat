@@ -8,6 +8,7 @@ const destinations = [
   { title: 'إضافة منتج', description: 'أضف منتجًا إلى متجرك', path: '/product-editor' },
   { title: 'إضافة خدمة', description: 'أنشئ قائمة خدمة جديدة', path: '/service-editor' },
   { title: 'إنشاء طلب', description: 'اطلب خدمة أو منتجًا أو تأجيرًا', path: '/request-create' },
+  { title: 'تسجيل عملية بيع', description: 'سجّل بيعًا يدويًا واحفظه للمزامنة عند عودة الإنترنت', path: '/sale-create' },
   { title: 'إنشاء متجر أو تعديل بياناته', description: 'إدارة بيانات المتجر والشعار والغلاف', path: '/my-store' },
   { title: 'إنشاء ملف مقدم خدمة', description: 'أنشئ ملف نشاطك وأدر خدماتك', path: '/service-provider-profile' },
 ];

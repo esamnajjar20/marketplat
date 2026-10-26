@@ -860,6 +860,8 @@ model RequestOffer {
   message       String?            @db.VarChar(1000)
   /// Optional extras (durationEstimate, linkedAdId, linkedProductId, …).
   meta          Json?
+  /// Idempotency key for a locally queued offer submission.
+  offlineOperationId String? @unique
   status        RequestOfferStatus @default(PENDING)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt

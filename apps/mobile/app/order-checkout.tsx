@@ -5,6 +5,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.api';
 import { createMarketplaceOrder } from '@/features/commerce/orders.api';
+import { enqueueMarketplaceOrder } from '@/storage/order-outbox';
+import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 
 const money = (value: unknown) => `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(value) || 0)} ₪`;
@@ -36,9 +38,20 @@ export default function OrderCheckoutScreen() {
     if (recipientName.trim().length < 2 || recipientPhone.trim().length < 6 || shippingCity.trim().length < 2 || shippingAddress.trim().length < 4) { setError('أكمل الاسم ورقم الهاتف والمدينة والعنوان بشكل صحيح.'); return; }
     setSubmitting(true); setError('');
     try {
-      const order = await createMarketplaceOrder({ items: [{ productId: product.id, quantity }], recipientName: recipientName.trim(), recipientPhone: recipientPhone.trim(), shippingCity: shippingCity.trim(), shippingAddress: shippingAddress.trim(), buyerNote: buyerNote.trim() || undefined, idempotencyKey }, accessToken, csrfToken);
+      const payload = { items: [{ productId: product.id, quantity }], recipientName: recipientName.trim(), recipientPhone: recipientPhone.trim(), shippingCity: shippingCity.trim(), shippingAddress: shippingAddress.trim(), buyerNote: buyerNote.trim() || undefined, idempotencyKey };
+      const order = await createMarketplaceOrder(payload, accessToken, csrfToken);
       Alert.alert('تم إرسال الطلب', 'استلم المتجر طلبك. يمكنك متابعة حالته من صفحة طلباتي.', [{ text: 'عرض الطلب', onPress: () => router.replace(`/orders/${encodeURIComponent(order.id)}`) }]);
-    } catch (e) { setError(e instanceof Error ? e.message : 'تعذر إرسال الطلب. حاول مجددًا.'); }
+    } catch (e) {
+      // Queue only transport failures/unknown delivery outcomes. Validation, stock,
+      // authorization and other explicit server errors must be shown, not replayed.
+      if (user?.id && accessToken && e instanceof ApiError && e.status === undefined) {
+        try {
+          await enqueueMarketplaceOrder(user.id, { items: [{ productId: product.id, quantity }], recipientName: recipientName.trim(), recipientPhone: recipientPhone.trim(), shippingCity: shippingCity.trim(), shippingAddress: shippingAddress.trim(), buyerNote: buyerNote.trim() || undefined, idempotencyKey });
+          Alert.alert('حُفظ الطلب على الجهاز', 'لم يؤكد الخادم استلام الطلب. حُفظ محليًا وسيُعاد إرساله عند عودة الاتصال، وقد يتغير السعر أو المخزون قبل المزامنة.', [{ text: 'عرض العمليات', onPress: () => router.replace('/offline-queue') }]);
+          return;
+        } catch (queueError) { setError(queueError instanceof Error ? queueError.message : 'تعذر حفظ الطلب دون اتصال.'); }
+      } else setError(e instanceof Error ? e.message : 'تعذر إرسال الطلب. حاول مجددًا.');
+    }
     finally { setSubmitting(false); }
   };
   if (isRestoring) return <SafeAreaView style={s.safe}><View style={s.state}><ActivityIndicator color={colors.brand}/><Text style={s.muted}>جارٍ التحقق من الجلسة…</Text></View></SafeAreaView>;

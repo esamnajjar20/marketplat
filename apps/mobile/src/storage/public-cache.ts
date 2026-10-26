@@ -155,3 +155,24 @@ export async function getReferencedPublicImageUris(): Promise<Set<string>> {
   }
   return referenced;
 }
+
+/** Remove one cached representation after a successful mutation of the same resource. */
+export async function deletePublicCacheEntry(key: string): Promise<void> {
+  if (!key.trim() || key.length > 300) return;
+  try {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM public_cache WHERE cache_key = ?', key);
+  } catch {
+    // Cache invalidation is best-effort; network mutations remain authoritative.
+  }
+}
+
+/** Clear all authenticated snapshots after any successful mutation. Conservative invalidation avoids stale cross-feature views. */
+export async function clearPrivateCache(): Promise<void> {
+  try {
+    const db = await getDatabase();
+    await db.runAsync("DELETE FROM public_cache WHERE cache_key LIKE 'api-private:%'");
+  } catch {
+    // Cache invalidation is best-effort; the server remains authoritative.
+  }
+}

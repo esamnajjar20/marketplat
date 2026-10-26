@@ -93,7 +93,11 @@ export const requestsController = {
     try {
       const user = requireUser(req);
       const { params, body } = submitOfferSchema.parse({ params: req.params, body: req.body });
-      const offer = await requestsService.submitOffer(user.userId, params.id, body);
+      const offlineOpId =
+        (req.headers['x-offline-op-id'] as string | undefined) ||
+        (req.headers['X-Offline-Op-Id'] as string | undefined) ||
+        null;
+      const offer = await requestsService.submitOffer(user.userId, params.id, body, offlineOpId);
       res.status(201).json(successResponse('Offer submitted', offer));
     } catch (error) {
       next(error);
