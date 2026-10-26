@@ -417,6 +417,11 @@ export default function HomeScreen() {
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلباتي</Text><Text style={styles.quickSubtitle}>تابع مشترياتك وحالة التسليم</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-sales')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>₪</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مبيعاتي</Text><Text style={styles.quickSubtitle}>الإيرادات والمدفوعات والمبالغ المستحقة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
           {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/seller-orders')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▣</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات متجري</Text><Text style={styles.quickSubtitle}>إدارة الطلبات الواردة</Text></View>

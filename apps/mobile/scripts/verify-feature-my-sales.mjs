@@ -1,0 +1,18 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const screen = read('../app/my-sales.tsx');
+const api = read('../src/features/sales/sales.api.ts');
+const home = read('../app/index.tsx');
+const store = read('../app/my-store.tsx');
+assert.match(screen, /ملخص المبيعات/);
+assert.match(screen, /إجمالي الإيرادات/);
+assert.match(screen, /المبالغ المستحقة/);
+assert.match(screen, /تحميل المزيد/);
+assert.match(screen, /OVERDUE/);
+assert.match(api, /\/api\/v1\/sales\?\$\{params\}/);
+assert.match(api, /\/api\/v1\/sales\/summary\?period=/);
+assert.match(api, /Authorization|token/);
+assert.match(home, /router\.push\('\/my-sales'\)/);
+assert.match(store, /router\.push\('\/my-sales'\)/);
+console.log('My Sales mobile feature verification passed (10 checks).');
