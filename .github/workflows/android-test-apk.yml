@@ -48,16 +48,11 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 16.0
 
-      - name: Install Android SDK packages
-        run: |
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-37" \
-            "platforms;android-36" \
-            "build-tools;37.0.0" \
-            "ndk;27.1.12297006"
-          yes | sdkmanager --licenses || true
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
