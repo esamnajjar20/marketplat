@@ -207,10 +207,10 @@ export default function AdDetailScreen() {
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>معلومات البائع</Text>
-            <Text style={styles.sellerName}>{ad.user?.name?.trim() || 'بائع على MarketPlat'}</Text>
+            <Pressable accessibilityRole="button" disabled={!ad.user?.id} onPress={() => { if (ad.user?.id) router.push({ pathname: '/profile/[id]', params: { id: ad.user.id } }); }}><Text style={styles.sellerName}>{ad.user?.name?.trim() || 'بائع على MarketPlat'}  ↗</Text></Pressable>
             <Text style={styles.meta}>{ad.user?.city || ad.city || 'الموقع غير محدد'}</Text>
             {ad.sellerProfile?.verified ? <Text style={styles.verified}>✓ بائع موثّق</Text> : null}
-            <Text style={styles.sellerNote}>بيانات الاتصال المباشر غير متاحة ضمن بيانات الإعلان الحالية.</Text>
+            <Text style={styles.sellerNote}>بيانات الاتصال المباشر غير متاحة ضمن بيانات الإعلان الحالية.</Text>{ad.user?.id !== user?.id ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/report/[targetType]/[targetId]', params: { targetType: 'ads', targetId: ad.id } })} style={styles.favoriteButton}><Text style={styles.favoriteButtonText}>الإبلاغ عن الإعلان</Text></Pressable> : null}
           </View>
         </ScrollView>
       ) : null}
