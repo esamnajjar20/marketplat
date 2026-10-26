@@ -57,6 +57,16 @@ export default function HomeScreen() {
   const [adsFromCache, setAdsFromCache] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [cityInput, setCityInput] = useState('');
+  const [minPriceInput, setMinPriceInput] = useState('');
+  const [maxPriceInput, setMaxPriceInput] = useState('');
+  const [filters, setFilters] = useState<{ city?: string; minPrice?: number; maxPrice?: number }>({});
+  const [filterError, setFilterError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'createdAt' | 'price' | 'views'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<string[]>([]);
   const adsRequestSequence = useRef(0);
   const connectivityRef = useRef<boolean | null>(null);
@@ -65,10 +75,15 @@ export default function HomeScreen() {
     const requestSequence = ++adsRequestSequence.current;
     const isCurrentRequest = () => requestSequence === adsRequestSequence.current;
     if (isRefresh) setRefreshing(true);
-    // Keep the current screen visible while SQLite is read; only show the full-page
-    // loader when no local result exists for this exact search/filter combination.
     setErrorMessage(null);
-    const options = { page: 1, limit: 8, search: submittedSearch, categoryId: selectedCategory ?? undefined };
+    setPage(1);
+    setTotalPages(1);
+    const options = { page: 1, limit: 8, search: submittedSearch, categoryId: selectedCategory ?? undefined } as {
+      page: number; limit: number; search: string; categoryId: string | undefined;
+      city?: string; minPrice?: number; maxPrice?: number;
+      sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
+    };
+    Object.assign(options, { city: filters.city, minPrice: filters.minPrice, maxPrice: filters.maxPrice, sortBy, sortOrder });
     let hasCachedData = false;
     let previousSavedAt: number | null = null;
     try {
@@ -78,6 +93,8 @@ export default function HomeScreen() {
         hasCachedData = true;
         previousSavedAt = cached.savedAt;
         setAds(cached.result.items);
+        setPage(cached.result.page || 1);
+        setTotalPages(cached.result.totalPages ?? (cached.result.items.length >= options.limit ? 2 : 1));
         setAdsSavedAt(cached.savedAt);
         setAdsFromCache(true);
         setLoading(false);
@@ -88,8 +105,8 @@ export default function HomeScreen() {
       const result = await fetchPublicAds(options);
       if (!isCurrentRequest()) return;
       setAds(result.items);
-      // A changed saved_at proves a network result was persisted. If the API fell
-      // back to its cached value after a network error, preserve the old timestamp.
+      setPage(result.page || 1);
+      setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? (result.page || 1) + 1 : (result.page || 1)));
       const latestCache = await getCachedPublicAdsWithMetadata(options);
       if (!isCurrentRequest()) return;
       if (latestCache) {
@@ -107,7 +124,50 @@ export default function HomeScreen() {
         setRefreshing(false);
       }
     }
-  }, [submittedSearch, selectedCategory]);
+  }, [submittedSearch, selectedCategory, filters, sortBy, sortOrder]);
+
+  const loadMoreAds = useCallback(async () => {
+    if (loadingMore || loading || page >= totalPages || showFavorites) return;
+    setLoadingMore(true);
+    setErrorMessage(null);
+    const requestSequence = adsRequestSequence.current;
+    const nextPage = page + 1;
+    const options = { page: nextPage, limit: 8, search: submittedSearch, categoryId: selectedCategory ?? undefined } as {
+      page: number; limit: number; search: string; categoryId: string | undefined;
+      city?: string; minPrice?: number; maxPrice?: number;
+      sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
+    };
+    Object.assign(options, { city: filters.city, minPrice: filters.minPrice, maxPrice: filters.maxPrice, sortBy, sortOrder });
+    try {
+      const result = await fetchPublicAds(options);
+      if (requestSequence !== adsRequestSequence.current) return;
+      setAds((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...result.items.filter((item) => !seen.has(item.id))];
+      });
+      setPage(result.page || nextPage);
+      setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? nextPage + 1 : nextPage));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل المزيد من الإعلانات.');
+    } finally { setLoadingMore(false); }
+  }, [loadingMore, loading, page, totalPages, showFavorites, submittedSearch, selectedCategory, filters, sortBy, sortOrder]);
+
+  const applyFilters = useCallback(() => {
+    const minText = minPriceInput.trim();
+    const maxText = maxPriceInput.trim();
+    const min = minText ? Number(minText) : undefined;
+    const max = maxText ? Number(maxText) : undefined;
+    if ((minText && (!Number.isFinite(min) || min! < 0)) || (maxText && (!Number.isFinite(max) || max! < 0))) {
+      setFilterError('أدخل أسعارًا رقمية صحيحة وغير سالبة.');
+      return;
+    }
+    if (min !== undefined && max !== undefined && min > max) {
+      setFilterError('الحد الأدنى للسعر لا يمكن أن يتجاوز الحد الأعلى.');
+      return;
+    }
+    setFilterError(null);
+    setFilters({ city: cityInput.trim() || undefined, minPrice: min, maxPrice: max });
+  }, [cityInput, minPriceInput, maxPriceInput]);
 
   useEffect(() => { void loadAds(); }, [loadAds]);
 
@@ -276,7 +336,7 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>تصفّح الأقسام</Text>
-          <Pressable onPress={() => { setSelectedCategory(null); setQuery(''); setSubmittedSearch(''); }} accessibilityRole="button">
+          <Pressable onPress={() => { setSelectedCategory(null); setQuery(''); setSubmittedSearch(''); setCityInput(''); setMinPriceInput(''); setMaxPriceInput(''); setFilters({}); setFilterError(null); setSortBy('createdAt'); setSortOrder('desc'); }} accessibilityRole="button">
             <Text style={styles.link}>عرض الكل</Text>
           </Pressable>
         </View>
@@ -308,6 +368,23 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityState={{ selected: !showFavorites }} onPress={() => setShowFavorites(false)} style={[styles.filterChip, !showFavorites && styles.filterChipSelected]}><Text style={[styles.filterText, !showFavorites && styles.filterTextSelected]}>كل الإعلانات</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityState={{ selected: showFavorites }} onPress={() => setShowFavorites(true)} style={[styles.filterChip, showFavorites && styles.filterChipSelected]}><Text style={[styles.filterText, showFavorites && styles.filterTextSelected]}>♥ المفضلة ({favoriteIds.length})</Text></Pressable>
         </View>
+
+        {!showFavorites ? <View style={styles.advancedFilters}>
+          <Text style={styles.filterHeading}>تصفية النتائج</Text>
+          <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor="#858D98" textAlign="right" style={styles.filterInput} returnKeyType="done" />
+          <View style={styles.priceInputs}>
+            <TextInput accessibilityLabel="أقل سعر" value={minPriceInput} onChangeText={setMinPriceInput} keyboardType="decimal-pad" placeholder="أقل سعر" placeholderTextColor="#858D98" textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+            <TextInput accessibilityLabel="أعلى سعر" value={maxPriceInput} onChangeText={setMaxPriceInput} keyboardType="decimal-pad" placeholder="أعلى سعر" placeholderTextColor="#858D98" textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+          </View>
+          {filterError ? <Text style={styles.filterError} accessibilityLiveRegion="polite">{filterError}</Text> : null}
+          <View style={styles.sortRow}>
+            <Text style={styles.filterCaption}>الترتيب:</Text>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'createdAt' }} onPress={() => { setSortBy('createdAt'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'createdAt' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'createdAt' && styles.filterTextSelected]}>الأحدث</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'price' }} onPress={() => { setSortBy('price'); setSortOrder('asc'); }} style={[styles.filterChip, sortBy === 'price' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'price' && styles.filterTextSelected]}>الأقل سعرًا</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'views' }} onPress={() => { setSortBy('views'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'views' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'views' && styles.filterTextSelected]}>الأكثر مشاهدة</Text></Pressable>
+          </View>
+          <Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable>
+        </View> : null}
 
         {adsSavedAt !== null && !loading ? (
           <View style={styles.cacheStatus} accessibilityLiveRegion="polite">
@@ -349,6 +426,11 @@ export default function HomeScreen() {
             })}
           </View>
         )}
+        {!showFavorites && !loading && !errorMessage && ads.length > 0 && page < totalPages ? (
+          <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => { void loadMoreAds(); }} style={[styles.loadMoreButton, loadingMore && styles.busyButton]}>
+            {loadingMore ? <ActivityIndicator color={colors.brand} /> : <Text style={styles.loadMoreText}>تحميل المزيد من الإعلانات</Text>}
+          </Pressable>
+        ) : null}
 
       </ScrollView>
     </SafeAreaView>
@@ -395,6 +477,19 @@ const styles = StyleSheet.create({
   categoryIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   categorySymbol: { fontSize: 25 },
   categoryTitle: { color: colors.ink, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  advancedFilters: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  filterHeading: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  filterInput: { minHeight: 44, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, borderRadius: radius.sm, paddingHorizontal: spacing.md, color: colors.ink, fontSize: 13 },
+  priceInputs: { flexDirection: 'row-reverse', gap: spacing.sm },
+  priceInput: { flex: 1 },
+  filterError: { color: colors.danger, fontSize: 12, textAlign: 'right' },
+  sortRow: { flexDirection: 'row-reverse', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xs },
+  filterCaption: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  applyFiltersButton: { minHeight: 44, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  applyFiltersText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  loadMoreButton: { minHeight: 48, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
+  loadMoreText: { color: colors.brand, fontSize: 14, fontWeight: '800' },
+  busyButton: { opacity: 0.65 },
   adsList: { gap: spacing.md },
   filterRow: { flexDirection: 'row-reverse', gap: spacing.sm },
   filterChip: { borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },

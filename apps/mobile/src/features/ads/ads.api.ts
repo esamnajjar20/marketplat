@@ -41,35 +41,47 @@ export type AdListResult = {
   totalPages?: number;
 };
 
-export function publicAdsCacheKey(options: { page?: number; limit?: number; search?: string; categoryId?: string } = {}): string {
+type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' };
+
+export function publicAdsCacheKey(options: PublicAdsOptions = {}): string {
   const params = new URLSearchParams();
   params.set('page', String(options.page ?? 1));
   params.set('limit', String(options.limit ?? 8));
   if (options.search?.trim()) params.set('search', options.search.trim());
   if (options.categoryId) params.set('categoryId', options.categoryId);
+  if (options.city?.trim()) params.set('city', options.city.trim());
+  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
+  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
+  if (options.sortBy) params.set('sortBy', options.sortBy);
+  if (options.sortOrder) params.set('sortOrder', options.sortOrder);
   return `ads:${params.toString()}`;
 }
 
 /** Read previously saved results without waiting for the network. */
-export async function getCachedPublicAds(options: { page?: number; limit?: number; search?: string; categoryId?: string } = {}): Promise<AdListResult | null> {
+export async function getCachedPublicAds(options: PublicAdsOptions = {}): Promise<AdListResult | null> {
   const cached = await readPublicCache<AdListResult>(publicAdsCacheKey(options));
   return cached && Array.isArray(cached.items) ? cached : null;
 }
 
 /** Includes the durable save time so the UI can distinguish local data from a fresh sync. */
-export async function getCachedPublicAdsWithMetadata(options: { page?: number; limit?: number; search?: string; categoryId?: string } = {}): Promise<{ result: AdListResult; savedAt: number } | null> {
+export async function getCachedPublicAdsWithMetadata(options: PublicAdsOptions = {}): Promise<{ result: AdListResult; savedAt: number } | null> {
   const entry = await readPublicCacheEntry<AdListResult>(publicAdsCacheKey(options));
   if (!entry || !entry.value || !Array.isArray(entry.value.items)) return null;
   return { result: entry.value, savedAt: entry.savedAt };
 }
 
 /** Reads the existing backend route; does not create or alter any backend endpoint. */
-export async function fetchPublicAds(options: { page?: number; limit?: number; search?: string; categoryId?: string } = {}): Promise<AdListResult> {
+export async function fetchPublicAds(options: PublicAdsOptions = {}): Promise<AdListResult> {
   const params = new URLSearchParams();
   params.set('page', String(options.page ?? 1));
   params.set('limit', String(options.limit ?? 8));
   if (options.search?.trim()) params.set('search', options.search.trim());
   if (options.categoryId) params.set('categoryId', options.categoryId);
+  if (options.city?.trim()) params.set('city', options.city.trim());
+  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
+  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
+  if (options.sortBy) params.set('sortBy', options.sortBy);
+  if (options.sortOrder) params.set('sortOrder', options.sortOrder);
 
   const cacheKey = publicAdsCacheKey(options);
   let response: ApiEnvelope<AdListItem[]>;
