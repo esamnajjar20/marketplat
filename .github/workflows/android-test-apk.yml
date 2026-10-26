@@ -62,39 +62,18 @@ jobs:
       - name: Verify test APK configuration
         run: pnpm verify:apk:test
 
-      - name: Fix hermesc for RN 0.88 (copy full directory)
+      - name: Ensure hermesc is executable
         shell: bash
         run: |
           set -euo pipefail
-
-          # 1) البحث عن مجلد hermes-compiler
-          HERMES_PKG=$(find -L node_modules -type d -name "hermes-compiler" 2>/dev/null | head -1 || true)
-
-          if [ -z "$HERMES_PKG" ]; then
-            echo "❌ hermes-compiler not found in node_modules"
-            find node_modules -maxdepth 4 -type d -name '*hermes*' 2>/dev/null | head -20
+          HERMESC=$(find -L node_modules -type f -name hermesc -path '*/linux64-bin/*' 2>/dev/null | head -1 || true)
+          if [ -n "$HERMESC" ]; then
+            chmod +x "$HERMESC"
+            echo "✅ chmod +x $HERMESC"
+          else
+            echo "❌ hermesc not found"
             exit 1
           fi
-          echo "✅ hermes-compiler found at: $HERMES_PKG"
-
-          # 2) نسخ مجلد hermesc بالكامل إلى المسار الذي يتوقعه Gradle
-          SOURCE_HERMESC="$HERMES_PKG/hermesc"
-          TARGET_DIR="node_modules/react-native/sdks/hermesc"
-
-          if [ ! -d "$SOURCE_HERMESC" ]; then
-            echo "❌ hermesc directory not found at $SOURCE_HERMESC"
-            ls -la "$HERMES_PKG"
-            exit 1
-          fi
-
-          rm -rf "$TARGET_DIR"
-          mkdir -p "$(dirname "$TARGET_DIR")"
-          cp -a "$SOURCE_HERMESC" "$TARGET_DIR"
-          echo "✅ Copied hermesc from $SOURCE_HERMESC to $TARGET_DIR"
-
-          # 3) التأكد من صلاحية التنفيذ
-          find "$TARGET_DIR" -type f -name hermesc -exec chmod +x {} \;
-          ls -la "$TARGET_DIR/linux64-bin/" || true
 
       - name: Build Release APK
         working-directory: apps/mobile/android
