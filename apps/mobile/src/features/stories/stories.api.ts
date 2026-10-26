@@ -29,8 +29,8 @@ export async function createStory(input: { text?: string; visibility: 'PUBLIC' |
   if (asset) form.append('image', { uri: asset.uri, name: asset.fileName || `story-${Date.now()}.jpg`, type: asset.mimeType || 'image/jpeg' } as unknown as Blob);
   return unwrap(await apiRequest<Envelope<Story>>('/api/v1/stories', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: form }), 'تعذر نشر القصة.');
 }
-export async function markStoryViewed(storyId: string, token: string): Promise<void> {
-  unwrap(await apiRequest<Envelope<unknown>>(`/api/v1/stories/${encodeURIComponent(storyId)}/view`, { method: 'POST', token, body: JSON.stringify({}) }), 'تعذر تسجيل مشاهدة القصة.');
+export async function markStoryViewed(storyId: string, token: string, csrfToken?: string | null): Promise<void> {
+  unwrap(await apiRequest<Envelope<unknown>>(`/api/v1/stories/${encodeURIComponent(storyId)}/view`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر تسجيل مشاهدة القصة.');
 }
 export async function deleteStory(storyId: string, token: string, csrfToken?: string | null): Promise<void> {
   unwrap(await apiRequest<Envelope<unknown>>(`/api/v1/stories/${encodeURIComponent(storyId)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined }), 'تعذر حذف القصة.');

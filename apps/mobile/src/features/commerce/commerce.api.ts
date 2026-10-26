@@ -20,7 +20,7 @@ export type ProductSummary = {
   discountPrice?: number | string | null; effectivePrice?: { price?: number | string; amount?: number | string } | null;
   images?: string[]; availability?: string; status?: string; stockQuantity?: number | null;
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
-  store?: { id?: string; name?: string; logoUrl?: string | null; city?: string | null } | null;
+  store?: { id?: string; name?: string; logoUrl?: string | null; city?: string | null; sellerProfile?: { userId?: string } | null } | null;
   createdAt?: string;
 };
 export type ProductCategory = { id: string; name: string; nameAr?: string | null; slug?: string; parentId?: string | null; isActive?: boolean; children?: ProductCategory[] };
@@ -63,14 +63,14 @@ export async function fetchProductCategories() {
   if (!Array.isArray(categories)) throw new Error('استجابة التصنيفات غير صالحة.');
   const flattened: ProductCategory[] = []; const visit = (nodes: ProductCategory[]) => { for (const category of nodes) { if (!category || typeof category.id !== 'string' || category.isActive === false) continue; flattened.push(category); if (Array.isArray(category.children)) visit(category.children); } }; visit(categories); return flattened;
 }
-export async function createProduct(input: { categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity?: number }, token: string) {
-  return dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, body: JSON.stringify(input) }), 'تعذر إنشاء المنتج.');
+export async function createProduct(input: { categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity?: number }, token: string, csrfToken?: string | null) {
+  return dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر إنشاء المنتج.');
 }
-export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number; status: string }>, token: string) {
-  return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');
+export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number; status: string }>, token: string, csrfToken?: string | null) {
+  return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');
 }
-export async function deleteProduct(id: string, token: string) {
-  return dataOf(await apiRequest<Envelope<unknown>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'DELETE', token, body: JSON.stringify({}) }), 'تعذر حذف المنتج.');
+export async function deleteProduct(id: string, token: string, csrfToken?: string | null) {
+  return dataOf(await apiRequest<Envelope<unknown>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر حذف المنتج.');
 }
 
 

@@ -1,0 +1,21 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+
+const hook = readFileSync(new URL('../src/features/messaging/useUnreadCounts.ts', import.meta.url), 'utf8');
+const inbox = readFileSync(new URL('../app/messages.tsx', import.meta.url), 'utf8');
+const notifications = readFileSync(new URL('../app/notifications.tsx', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(hook, /fetchUnreadCounts\(accessToken\)/, 'unread counts should come from the server');
+assert.match(hook, /useFocusEffect/, 'counts should refresh when the screen regains focus');
+assert.match(hook, /AppState\.addEventListener\('change'/, 'counts should refresh when the app returns to foreground');
+assert.match(hook, /currentSequence === sequence\.current/, 'stale count responses must not overwrite newer counts');
+assert.match(hook, /sequence\.current \+= 1/, 'screen blur should invalidate in-flight count requests');
+assert.match(hook, /if \(!accessToken\)[\s\S]*setCounts\(\{ messages: 0, notifications: 0 \}\)/, 'sign-out must clear counts from the previous session');
+assert.match(inbox, /useUnreadCounts\(\)/, 'inbox should subscribe to unread counts');
+assert.match(inbox, /counts\.messages > 0/, 'inbox should display unread-message count');
+assert.match(inbox, /counts\.notifications > 0/, 'inbox header should expose unread-notification count');
+assert.match(notifications, /useUnreadCounts\(\)/, 'notification screen should subscribe to unread counts');
+assert.match(notifications, /void refreshUnreadCounts\(\)/, 'mark-read actions should refresh the server-backed count');
+assert.match(notifications, /counts\.notifications > 0/, 'notification screen should display unread count');
+assert.match(pkg.scripts.test, /verify-unread-counts-lifecycle-audit\.mjs/, 'unread-count lifecycle audit must run in npm test');
+console.log('Unread-count lifecycle audit checks passed (focus, foreground, stale responses, sign-out and mark-read refresh).');

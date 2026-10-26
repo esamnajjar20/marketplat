@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Alert, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteStory, fetchStoryFeed, fetchUserStories, markStoryViewed, type Story } from '@/features/stories/stories.api';
@@ -27,11 +27,13 @@ export default function StoryViewerScreen() {
       const target = found.findIndex(item => item.id === id);
       if (target < 0) throw new Error('القصة غير متاحة أو انتهت صلاحيتها أو لا تملك صلاحية مشاهدتها.');
       setStories(found); setIndex(target);
-      if (accessToken) void markStoryViewed(id, accessToken).catch(() => undefined);
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر فتح القصة.'); }
     finally { setLoading(false); }
   }, [id, userId, accessToken]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (story?.id && accessToken) void markStoryViewed(story.id, accessToken, csrfToken).catch(() => undefined);
+  }, [story?.id, accessToken]);
   const close = () => router.back();
   const next = () => { if (index + 1 < stories.length) setIndex(index + 1); else close(); };
   const previous = () => setIndex(Math.max(0, index - 1));

@@ -26,7 +26,7 @@ export default function StoriesScreen() {
     Alert.alert('إضافة قصة', 'اختر طريقة نشر القصة', [
       { text: 'إلغاء', style: 'cancel' },
       { text: 'قصة نصية', onPress: () => router.push('/story-create') },
-      { text: 'اختيار صورة', onPress: () => { void (async () => {
+      { text: 'صورة للمتابعين', onPress: () => { void (async () => {
         setBusy(true); setError('');
         try {
           const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -39,6 +39,22 @@ export default function StoriesScreen() {
           if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('اختر صورة JPEG أو PNG أو WebP.');
           await createStory({ visibility: 'FOLLOWERS' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, accessToken, csrfToken);
           await load(); Alert.alert('تم النشر', 'نُشرت القصة وستنتهي صلاحيتها بعد 24 ساعة.');
+        } catch (e) { setError(e instanceof Error ? e.message : 'تعذر نشر القصة.'); }
+        finally { setBusy(false); }
+      })(); } },
+      { text: 'صورة عامة', onPress: () => { void (async () => {
+        setBusy(true); setError('');
+        try {
+          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!permission.granted) throw new Error('اسمح للتطبيق بالوصول إلى الصور.');
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
+          if (result.canceled || !result.assets[0]) return;
+          const asset = result.assets[0];
+          if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
+          const mime = asset.mimeType || 'image/jpeg';
+          if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('اختر صورة JPEG أو PNG أو WebP.');
+          await createStory({ visibility: 'PUBLIC' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, accessToken, csrfToken);
+          await load(); Alert.alert('تم النشر', 'نُشرت القصة العامة وستنتهي صلاحيتها بعد 24 ساعة.');
         } catch (e) { setError(e instanceof Error ? e.message : 'تعذر نشر القصة.'); }
         finally { setBusy(false); }
       })(); } },

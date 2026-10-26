@@ -157,7 +157,7 @@ export default function AdDetailScreen() {
     if (!id || startingConversation || (user?.id && ad?.user?.id === user.id)) return;
     setStartingConversation(true);
     setConversationMessage(null);
-    try { const conversation = await startConversationFromAd(id, accessToken); router.push({ pathname: '/messages/[id]', params: { id: conversation.id } }); }
+    try { const conversation = await startConversationFromAd(id, accessToken, csrfToken); router.push({ pathname: '/messages/[id]', params: { id: conversation.id } }); }
     catch (error) { setConversationMessage(error instanceof Error ? error.message : 'تعذر بدء المحادثة. حاول مرة أخرى.'); }
     finally { setStartingConversation(false); }
   }, [accessToken, ad?.user?.id, id, startingConversation, user?.id]);

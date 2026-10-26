@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const stories = fs.readFileSync(new URL('../app/stories.tsx', import.meta.url), 'utf8');
+const appointments = fs.readFileSync(new URL('../app/appointment-create.tsx', import.meta.url), 'utf8');
+assert.match(stories, /صورة للمتابعين/);
+assert.match(stories, /صورة عامة/);
+assert.match(stories, /createStory\(\{ visibility: 'FOLLOWERS' \}/);
+assert.match(stories, /createStory\(\{ visibility: 'PUBLIC' \}/);
+assert.match(appointments, /startHour>23\|\|startMinute>59\|\|endHour>23\|\|endMinute>59/);
+assert.match(appointments, /from\.getFullYear\(\)!==year/);
+assert.match(appointments, /التاريخ غير موجود في التقويم/);
+console.log('Remaining pages audit checks passed (story visibility choices and strict appointment date/time validation).');

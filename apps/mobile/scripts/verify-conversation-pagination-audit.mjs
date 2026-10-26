@@ -1,0 +1,20 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+
+const api = readFileSync(new URL('../src/features/messaging/messaging.api.ts', import.meta.url), 'utf8');
+const screen = readFileSync(new URL('../app/messages.tsx', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(api, /export async function fetchConversationsPage/);
+assert.match(api, /new URLSearchParams\(\{ page: String\(safePage\), limit: '50' \}\)/, 'conversation requests must send the requested page');
+assert.match(api, /pagination\?\.totalPages/, 'pagination metadata must determine whether another page exists');
+assert.match(api, /hasMore: currentPage < totalPages/, 'page API should expose a reliable hasMore flag');
+assert.match(screen, /const loadMore = useCallback/);
+assert.match(screen, /fetchConversationsPage\(accessToken, requestedPage\)/, 'inbox must request the next page');
+assert.match(screen, /const moreRequest = useRef\(false\)/, 'prevent duplicate load-more requests');
+assert.match(screen, /const moreRequestId = useRef\(0\)/, 'stale load-more completion must not release a newer request lock');
+assert.match(screen, /currentMoreRequestId === moreRequestId\.current/, 'only the current page request may release its in-flight lock');
+assert.match(screen, /if \(parentRequestId !== requestId\.current\) return/, 'ignore page responses after refresh or navigation invalidates them');
+assert.match(screen, /تحميل المزيد من المحادثات/, 'provide a user-visible pagination control');
+assert.match(screen, /loadMoreError \? <Text style=\{styles\.moreError\}/, 'load-more failure should not replace the already loaded inbox');
+assert.match(pkg.scripts.test, /verify-conversation-pagination-audit\.mjs/, 'pagination audit must be part of npm test');
+console.log('Conversation pagination audit checks passed (inbox pages follow server metadata and safely append unique conversations).');
