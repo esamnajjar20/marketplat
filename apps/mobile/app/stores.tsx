@@ -7,16 +7,17 @@ import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api
 
 export default function StoresScreen() {
   const [items, setItems] = useState<StoreSummary[]>([]); const [query, setQuery] = useState(''); const [submitted, setSubmitted] = useState('');
-  const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true); const [loadingMore, setLoadingMore] = useState(false); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState<string | null>(null); const [page, setPage] = useState(1); const [totalPages, setTotalPages] = useState(1);
   const requestSequence = useRef(0);
   const load = useCallback(async (refresh = false) => {
-    const sequence = ++requestSequence.current;
+    const sequence = ++requestSequence.current; setLoadingMore(false);
     if (refresh) setRefreshing(true); else setLoading(true); setError(null);
-    try { const result = await fetchStores({ page: 1, limit: 30, search: submitted }); if (sequence === requestSequence.current) setItems(result.items); }
+    try { const result = await fetchStores({ page: 1, limit: 30, search: submitted }); if (sequence === requestSequence.current) { setItems(result.items); setPage(result.page); setTotalPages(result.totalPages); } }
     catch (e) { if (sequence === requestSequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المتاجر.'); }
     finally { if (sequence === requestSequence.current) { setLoading(false); setRefreshing(false); } }
   }, [submitted]);
   useEffect(() => { void load(); return () => { requestSequence.current += 1; }; }, [load]);
+  const loadMore = async () => { if (loadingMore || loading || page >= totalPages) return; const sequence = requestSequence.current; setLoadingMore(true); setError(null); try { const result = await fetchStores({ page: page + 1, limit: 30, search: submitted }); if (sequence === requestSequence.current) { setItems(current => { const seen = new Set(current.map(item => item.id)); return [...current, ...result.items.filter(item => !seen.has(item.id))]; }); setPage(result.page); setTotalPages(result.totalPages); } } catch (e) { if (sequence === requestSequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المتاجر.'); } finally { if (sequence === requestSequence.current) setLoadingMore(false); } };
   return <SafeAreaView style={s.safe} edges={['top']}><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}>
     <View style={s.header}><Pressable accessibilityRole="button" onPress={() => router.back()} style={s.back}><Text style={s.backText}>→</Text></Pressable><View style={s.headerText}><Text style={s.title}>المتاجر</Text><Text style={s.subtitle}>اكتشف المتاجر المحلية ومنتجاتها</Text></View></View>
     <View style={s.search}><TextInput value={query} onChangeText={setQuery} onSubmitEditing={() => setSubmitted(query.trim())} placeholder="ابحث باسم المتجر أو المدينة…" placeholderTextColor={colors.muted} style={s.input} textAlign="right" returnKeyType="search"/><Pressable accessibilityRole="button" onPress={() => setSubmitted(query.trim())} style={s.searchButton}><Text style={s.searchText}>بحث</Text></Pressable></View>
@@ -25,6 +26,7 @@ export default function StoresScreen() {
       {store.logoUrl ? <Image source={{ uri: store.logoUrl }} style={s.image} resizeMode="cover"/> : <View style={s.imagePlaceholder}><Text style={s.glyph}>▣</Text></View>}
       <View style={s.cardBody}><Text style={s.cardTitle} numberOfLines={2}>{store.name}</Text><Text style={s.muted} numberOfLines={2}>{store.description || 'متجر محلي على MarketPlat'}</Text><Text style={s.location}>{store.city || 'الموقع غير محدد'}{typeof store._count?.products === 'number' ? ` · ${store._count.products} منتج` : ''}</Text></View><Text style={s.chevron}>‹</Text>
     </Pressable>)}</View>}
+    {!loading && !error && page < totalPages ? <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void loadMore()} style={[s.secondary, loadingMore && { opacity: 0.6 }]}><Text style={s.secondaryText}>{loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد من المتاجر'}</Text></Pressable> : null}
     <Pressable accessibilityRole="button" onPress={() => router.push('/products')} style={s.secondary}><Text style={s.secondaryText}>تصفح جميع المنتجات</Text></Pressable>
   </ScrollView></SafeAreaView>;
 }

@@ -39,9 +39,9 @@ export async function fetchStores(options: { page?: number; limit?: number; sear
 }
 export async function fetchStore(id: string) { return dataOf(await apiRequest<Envelope<StoreSummary>>(`/api/v1/stores/${encodeURIComponent(id)}`), 'تعذر تحميل المتجر.'); }
 export async function toggleStoreFollow(id: string, token: string, csrfToken?: string | null) { return dataOf(await apiRequest<Envelope<{ action: 'followed' | 'unfollowed' }>>(`/api/v1/stores/${encodeURIComponent(id)}/follow`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر تحديث متابعة المتجر.'); }
-export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' } = {}) {
+export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' } = {}) {
   const page = options.page ?? 1; const sortBy = options.sortBy ?? 'createdAt'; const sortOrder = options.sortOrder ?? (sortBy === 'price' ? 'asc' : 'desc'); const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 20), sortBy, sortOrder });
-  if (options.search?.trim()) params.set('search', options.search.trim()); if (options.storeId) params.set('storeId', options.storeId); if (options.categoryId) params.set('categoryId', options.categoryId);
+  if (options.search?.trim()) params.set('search', options.search.trim()); if (options.storeId) params.set('storeId', options.storeId); if (options.categoryId) params.set('categoryId', options.categoryId); if (options.hasPromotion) params.set('hasPromotion', 'true');
   const response = await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products?${params}`);
   return pageFrom(response, 'تعذر تحميل المنتجات.', page);
 }
@@ -53,9 +53,9 @@ export async function createStore(input: { name: string; description: string; ci
 export async function updateMyStore(input: Partial<Pick<StoreSummary, 'name' | 'description' | 'city' | 'address' | 'phone'>>, token: string, csrfToken?: string | null) {
   return dataOf(await apiRequest<Envelope<StoreSummary>>('/api/v1/stores/me', { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المتجر.');
 }
-export async function fetchMyProducts(token: string, search = '') {
-  const params = new URLSearchParams({ page: '1', limit: '50' }); if (search.trim()) params.set('search', search.trim());
-  return pageFrom(await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products/me?${params}`, { token }), 'تعذر تحميل منتجاتك.', 1);
+export async function fetchMyProducts(token: string, search = '', options: { page?: number; limit?: number } = {}) {
+  const page = options.page ?? 1; const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 50) }); if (search.trim()) params.set('search', search.trim());
+  return pageFrom(await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products/me?${params}`, { token }), 'تعذر تحميل منتجاتك.', page);
 }
 export async function fetchProductCategories() {
   const response = await apiRequest<Envelope<ProductCategory[]>>('/api/v1/product-categories');

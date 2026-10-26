@@ -307,6 +307,16 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.quickActions}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>⌕</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف</Text><Text style={styles.quickSubtitle}>الأقسام والمتاجر والخدمات والعروض</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>＋</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>إعلان أو منتج أو خدمة أو طلب</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.push('/service-providers')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>♙</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مقدمو الخدمات</Text><Text style={styles.quickSubtitle}>اكتشف مقدمي الخدمات حسب المدينة</Text></View>
@@ -385,6 +395,16 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" onPress={() => router.push('/products')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>◇</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المنتجات</Text><Text style={styles.quickSubtitle}>تصفح المنتجات والأسعار</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/product-categories')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FBEBD9' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▦</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>تصنيفات المنتجات</Text><Text style={styles.quickSubtitle}>تصفح المنتجات حسب التصنيف</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/promoted')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>✦</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>العروض المروجة</Text><Text style={styles.quickSubtitle}>اكتشف المنتجات ذات العروض</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
           {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/orders')} style={styles.quickAction}>
