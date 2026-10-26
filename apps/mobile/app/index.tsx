@@ -251,6 +251,26 @@ export default function HomeScreen() {
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات الخدمات</Text><Text style={styles.quickSubtitle}>تابع طلباتك وردودها</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>▣</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المتاجر</Text><Text style={styles.quickSubtitle}>اكتشف المتاجر المحلية</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/products')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>◇</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المنتجات</Text><Text style={styles.quickSubtitle}>تصفح المنتجات والأسعار</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-store')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▤</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إدارة متجري</Text><Text style={styles.quickSubtitle}>بيانات المتجر والمنتجات</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-products')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▦</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>منتجاتي</Text><Text style={styles.quickSubtitle}>تعديل وإدارة المنتجات</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
         </View>
 
         <View style={styles.sectionHeader}>
