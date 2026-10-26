@@ -198,6 +198,8 @@ model User {
   customers                 Customer[]                @relation("SellerCustomers")
   salesStatsCache           SalesStatsCache?          @relation("SellerSalesStats")
   salesAutomationEvents     SalesAutomationEvent[]
+  ordersAsBuyer             MarketplaceOrder[] @relation("OrdersAsBuyer")
+  ordersAsSeller            MarketplaceOrder[] @relation("OrdersAsSeller")
 
   storeMemberships   StoreMember[]  @relation("StoreMemberships")
   storeMemberInvites StoreMember[]  @relation("StoreMemberInvites")
@@ -983,6 +985,7 @@ model StoreDetails {
   promotions         Promotion[]
   followers          StoreFollower[]
   collections        StoreCollection[]
+  marketplaceOrders  MarketplaceOrder[]
   members            StoreMember[]
   ads                Ad[]
   sales              SaleRecord[]
@@ -1066,6 +1069,7 @@ model Product {
   collections        StoreCollectionProduct[]
   stockMovements     StockMovement[]
   saleItems          SaleItem[]
+  orderItems         MarketplaceOrderItem[]
 
   @@index([storeId, status])
   @@index([categoryId, status])
@@ -2155,6 +2159,73 @@ enum AnalyticsEventType {
   SIGNUP_COMPLETED
   PRODUCT_VIEW
   SERVICE_VIEW
+}
+
+
+enum MarketplaceOrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+// Buyer-to-store product orders. Kept separate from SaleRecord, which is
+// the seller's ledger for offline/cash sales and must not imply a buyer checkout.
+model MarketplaceOrder {
+  id               String                 @id @default(cuid())
+  buyerId          String
+  sellerId         String
+  storeId          String
+  status           MarketplaceOrderStatus @default(PENDING)
+  currency         String                 @default("ILS")
+  subtotal         Decimal                @db.Decimal(10, 2)
+  shippingFee      Decimal                @default(0) @db.Decimal(10, 2)
+  total            Decimal                @db.Decimal(10, 2)
+  paymentMethod    String                 @default("CASH_ON_DELIVERY")
+  paymentStatus    String                 @default("UNPAID")
+  recipientName    String                 @db.VarChar(160)
+  recipientPhone   String                 @db.VarChar(40)
+  shippingCity     String                 @db.VarChar(100)
+  shippingAddress  String                 @db.VarChar(500)
+  buyerNote        String?                @db.VarChar(1000)
+  sellerNote       String?                @db.VarChar(1000)
+  idempotencyKey   String?
+  confirmedAt      DateTime?
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  buyer            User                   @relation("OrdersAsBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller           User                   @relation("OrdersAsSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  store            StoreDetails           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items            MarketplaceOrderItem[]
+
+  @@unique([buyerId, idempotencyKey])
+  @@index([buyerId, createdAt])
+  @@index([sellerId, status, createdAt])
+  @@index([storeId, createdAt])
+  @@map("marketplace_orders")
+}
+
+model MarketplaceOrderItem {
+  id             String           @id @default(cuid())
+  orderId        String
+  productId      String?
+  productName    String           @db.VarChar(200)
+  productImage   String?
+  quantity       Int
+  unitPrice      Decimal          @db.Decimal(10, 2)
+  lineTotal      Decimal          @db.Decimal(10, 2)
+  createdAt      DateTime         @default(now())
+  order          MarketplaceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("marketplace_order_items")
 }
 
 // SALES-LOG P1: seller-owned sales ledger. This is deliberately separate from

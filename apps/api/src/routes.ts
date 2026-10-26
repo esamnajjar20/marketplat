@@ -23,6 +23,7 @@ import { savedSearchesRouter } from './modules/saved-searches';
 import { storesRouter } from './modules/stores';
 import { storeTypesRouter, storeTypeFieldsRouter } from './modules/store-types';
 import { productsRouter } from './modules/products';
+import { marketplaceOrdersRouter } from './modules/marketplace-orders';
 import { productCategoriesRouter } from './modules/product-categories';
 import { promotionsRouter } from './modules/promotions';
 import { collectionsRouter } from './modules/collections';
@@ -124,6 +125,7 @@ router.use('/stores', storesRouter);
 router.use('/store-types', storeTypesRouter);
 router.use('/store-types', storeTypeFieldsRouter);
 router.use('/products', productsRouter);
+router.use('/orders', marketplaceOrdersRouter);
 router.use('/product-categories', productCategoriesRouter);
 // PROMO-1: store-owner-only CRUD for scheduled product discounts — see
 // promotions.routes.ts's doc comment for why there's no public GET

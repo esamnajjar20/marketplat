@@ -327,6 +327,16 @@ export default function HomeScreen() {
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المنتجات</Text><Text style={styles.quickSubtitle}>تصفح المنتجات والأسعار</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/orders')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▤</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلباتي</Text><Text style={styles.quickSubtitle}>تابع مشترياتك وحالة التسليم</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/seller-orders')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▣</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات متجري</Text><Text style={styles.quickSubtitle}>إدارة الطلبات الواردة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
           {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-store')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▤</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إدارة متجري</Text><Text style={styles.quickSubtitle}>بيانات المتجر والمنتجات</Text></View>
