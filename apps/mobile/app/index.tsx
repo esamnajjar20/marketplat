@@ -201,6 +201,8 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
+            {user ? <Pressable accessibilityRole="button" accessibilityLabel="المحادثات" onPress={() => router.push('/messages')} style={styles.myAdsButton}><Text style={styles.myAdsButtonText}>الرسائل</Text></Pressable> : null}
+            {user ? <Pressable accessibilityRole="button" accessibilityLabel="الإشعارات" onPress={() => router.push('/notifications')} style={styles.myAdsButton}><Text style={styles.myAdsButtonText}>الإشعارات</Text></Pressable> : null}
             {user ? <Pressable accessibilityRole="button" accessibilityLabel="إعلاناتي" onPress={() => router.push('/my-ads')} style={styles.myAdsButton}><Text style={styles.myAdsButtonText}>إعلاناتي</Text></Pressable> : null}
             <Pressable
               accessibilityRole="button"

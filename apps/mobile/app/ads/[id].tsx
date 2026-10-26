@@ -17,6 +17,7 @@ import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites
 import { ApiError } from '@/api/client';
 import { fetchAdDetail, getCachedAdDetail } from '@/features/ads/ads.api';
 import type { AdDetail } from '@/features/ads/ads.api';
+import { startConversationFromAd } from '@/features/messaging/messaging.api';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {
@@ -45,6 +46,8 @@ export default function AdDetailScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
+  const [startingConversation, setStartingConversation] = useState(false);
+  const [conversationMessage, setConversationMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -148,6 +151,16 @@ export default function AdDetailScreen() {
 
   const images = (ad?.images ?? []).filter((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url));
 
+  const onMessageSeller = useCallback(async () => {
+    if (!accessToken) { router.push('/login'); return; }
+    if (!id || startingConversation || (user?.id && ad?.user?.id === user.id)) return;
+    setStartingConversation(true);
+    setConversationMessage(null);
+    try { const conversation = await startConversationFromAd(id, accessToken); router.push({ pathname: '/messages/[id]', params: { id: conversation.id } }); }
+    catch (error) { setConversationMessage(error instanceof Error ? error.message : 'تعذر بدء المحادثة. حاول مرة أخرى.'); }
+    finally { setStartingConversation(false); }
+  }, [accessToken, ad?.user?.id, id, startingConversation, user?.id]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.topBar}>
@@ -178,6 +191,7 @@ export default function AdDetailScreen() {
             <Text style={styles.price}>{formatPrice(ad.price)}</Text>
             <Text style={styles.title}>{ad.title}</Text>
             <Text style={styles.meta}>{[ad.city, ad.category?.nameAr || ad.category?.name, ad.condition].filter(Boolean).join(' · ') || 'إعلان محلي'}</Text>
+            {ad.user?.id !== user?.id ? <><Pressable accessibilityRole="button" disabled={startingConversation} onPress={() => { void onMessageSeller(); }} style={[styles.messageSellerButton, startingConversation && styles.busyButton]}><Text style={styles.messageSellerButtonText}>{startingConversation ? 'جارٍ فتح المحادثة…' : '✉ مراسلة البائع'}</Text></Pressable>{conversationMessage ? <Text accessibilityLiveRegion="polite" style={styles.favoriteMessage}>{conversationMessage}</Text> : null}</> : null}
             <Pressable accessibilityRole="button" accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} disabled={favoriteBusy} onPress={() => { void onToggleFavorite(); }} style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}>
               <Text style={[styles.favoriteButtonText, isFavorite && styles.favoriteButtonTextActive]}>{favoriteBusy ? 'جارٍ تحديث المفضلة…' : isFavorite ? '♥ محفوظ في المفضلة' : '♡ أضف إلى المفضلة'}</Text>
             </Pressable>
@@ -227,6 +241,9 @@ const styles = StyleSheet.create({
   sellerName: { color: colors.ink, fontSize: 15, fontWeight: '800', textAlign: 'right' },
   verified: { color: colors.brand, fontSize: 12, textAlign: 'right', fontWeight: '700' },
   sellerNote: { color: colors.muted, fontSize: 12, lineHeight: 19, textAlign: 'right' },
+  messageSellerButton: { alignSelf: 'stretch', alignItems: 'center', backgroundColor: colors.brand, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginTop: spacing.sm },
+  messageSellerButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  busyButton: { opacity: 0.65 },
   favoriteButton: { alignSelf: 'flex-end', borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginTop: spacing.sm },
   favoriteButtonActive: { backgroundColor: colors.brandSoft },
   favoriteButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
