@@ -10,8 +10,8 @@ import { listPendingFavoriteStates } from '@/features/ads/favorites.store';
 import { colors } from '@/theme/tokens';
 
 type QueueStats = { pending: number; blockedLegacy: number; pendingFavorites: number };
-function formatBytes(chars: number): string {
-  const bytes = Math.max(0, chars); // JSON character counts are a useful estimate, not an exact filesystem size.
+function formatBytes(bytesValue: number): string {
+  const bytes = Math.max(0, bytesValue); // UTF-8 serialized payload size; excludes SQLite/filesystem overhead.
   if (bytes < 1024) return `${bytes} بايت تقريبًا`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} كيلوبايت تقريبًا`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} ميغابايت تقريبًا`;
@@ -26,8 +26,8 @@ function StatRow({ label, value, detail }: { label: string; value: string; detai
 }
 export default function StorageScreen() {
   const { user } = useAuth();
-  const [cache, setCache] = useState<PublicCacheStats>({ entries: 0, sizeChars: 0, newestSavedAt: null });
-  const [drafts, setDrafts] = useState<AdDraftStorageSummary>({ drafts: 0, editDrafts: 0, sizeChars: 0, newestUpdatedAt: null });
+  const [cache, setCache] = useState<PublicCacheStats>({ entries: 0, sizeBytes: 0, newestSavedAt: null });
+  const [drafts, setDrafts] = useState<AdDraftStorageSummary>({ drafts: 0, editDrafts: 0, sizeBytes: 0, newestUpdatedAt: null });
   const [queue, setQueue] = useState<QueueStats>({ pending: 0, blockedLegacy: 0, pendingFavorites: 0 });
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
@@ -38,14 +38,15 @@ export default function StorageScreen() {
     try {
       const [cacheStats, draftStats, outbox, legacy, favoriteOps] = await Promise.all([
         getPublicCacheStats(),
-        user?.id ? getAdDraftStorageSummary(user.id) : Promise.resolve({ drafts: 0, editDrafts: 0, sizeChars: 0, newestUpdatedAt: null }),
+        user?.id ? getAdDraftStorageSummary(user.id) : Promise.resolve({ drafts: 0, editDrafts: 0, sizeBytes: 0, newestUpdatedAt: null }),
         user?.id ? listAllOutboxMutations(user.id) : Promise.resolve([]),
         countUnownedOutboxMutations(),
         user?.id ? listPendingFavoriteStates(user.id) : Promise.resolve([]),
       ]);
       setCache(cacheStats); setDrafts(draftStats);
       setQueue({ pending: outbox.length, blockedLegacy: legacy, pendingFavorites: favoriteOps.length });
-    } catch (e) { setError(e instanceof Error ? e.message : 'تعذر قراءة بيانات التخزين المحلي.'); }
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : 'تعذر قراءة بيانات التخزين المحلي.'); return false; }
     finally { setLoading(false); }
   }, [user?.id]);
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
@@ -53,17 +54,22 @@ export default function StorageScreen() {
     { text: 'إلغاء', style: 'cancel' },
     { text: 'مسح الذاكرة المؤقتة', style: 'destructive', onPress: () => {
       setClearing(true);
-      void clearPublicCache().then(async () => { await refresh(); setMessage('تم مسح الذاكرة المؤقتة.'); }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر مسح الذاكرة المؤقتة.')).finally(() => setClearing(false));
+      void clearPublicCache().then(async () => {
+        const refreshed = await refresh();
+        if (!refreshed) throw new Error('تم تنفيذ طلب المسح لكن تعذر التحقق من النتيجة. أعد تحديث معلومات التخزين.');
+        if (cache.entries !== 0) throw new Error('لم تصبح الذاكرة المؤقتة فارغة بعد المسح. أعد المحاولة.');
+        setMessage('تم مسح الذاكرة المؤقتة بنجاح.');
+      }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر مسح الذاكرة المؤقتة.')).finally(() => setClearing(false));
     } },
   ]);
   return <PageShell title="التخزين والبيانات">
-    <Text style={styles.intro}>إدارة البيانات المحلية في هذا الجهاز. أحجام التخزين تقديرية مبنية على طول بيانات JSON وليست قياسًا دقيقًا لمساحة الملفات.</Text>
+    <Text style={styles.intro}>إدارة البيانات المحلية في هذا الجهاز. الحجم هو عدد بايتات UTF-8 لنصوص JSON المخزنة، ويستثني فهارس SQLite ومساحة قاعدة البيانات الإضافية؛ لذلك هو تقدير لحجم المحتوى لا لحجم الملفات على القرص.</Text>
     {error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}
-    {loading ? <SectionCard><ActivityIndicator color={colors.brand}/><Text style={styles.loading}>جارٍ قراءة التخزين…</Text></SectionCard> : <>
+    {loading ? <SectionCard><ActivityIndicator color={colors.brand}/><Text style={styles.loading}>جارٍ قراءة التخزين…</Text></SectionCard> : error ? <SectionCard><Text style={styles.loading}>تعذر قراءة الإحصاءات؛ لم نعرض أرقامًا افتراضية حتى لا تبدو كأن التخزين فارغ.</Text><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void refresh()} /></SectionCard> : <>
       <SectionCard>
         <Text style={styles.sectionTitle}>الذاكرة المؤقتة العامة</Text>
         <StatRow label="عناصر مخزنة" value={String(cache.entries)} />
-        <StatRow label="الحجم التقديري" value={formatBytes(cache.sizeChars)} />
+        <StatRow label="الحجم التقديري" value={formatBytes(cache.sizeBytes)} />
         <StatRow label="آخر تحديث" value={formatDate(cache.newestSavedAt)} />
         <PrimaryButton label="مسح الذاكرة المؤقتة" variant="secondary" busy={clearing} onPress={clearCache} />
       </SectionCard>
@@ -71,7 +77,7 @@ export default function StorageScreen() {
         <Text style={styles.sectionTitle}>مسودات الإعلانات</Text>
         <StatRow label="مسودات إنشاء" value={String(drafts.drafts)} />
         <StatRow label="مسودات تعديل" value={String(drafts.editDrafts)} />
-        <StatRow label="الحجم التقديري" value={formatBytes(drafts.sizeChars)} />
+        <StatRow label="الحجم التقديري" value={formatBytes(drafts.sizeBytes)} />
         <StatRow label="آخر حفظ" value={formatDate(drafts.newestUpdatedAt)} />
         <Notice tone="muted">المسودات محفوظة محليًا للحفاظ على عملك. لا تُحذف عند مسح الذاكرة المؤقتة.</Notice>
       </SectionCard>

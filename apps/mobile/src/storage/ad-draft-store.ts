@@ -139,26 +139,31 @@ export async function clearAdEditDraft(ownerId: string, resourceId: string): Pro
   return result.changes === 1;
 }
 
-export type AdDraftStorageSummary = { drafts: number; editDrafts: number; sizeChars: number; newestUpdatedAt: number | null };
+export type AdDraftStorageSummary = { drafts: number; editDrafts: number; sizeBytes: number; newestUpdatedAt: number | null };
 
-/** Aggregate only the current account's draft metadata; draft contents are never returned. */
-export async function getAdDraftStorageSummary(ownerId: string): Promise<AdDraftStorageSummary> {
-  if (!ownerId.trim()) return { drafts: 0, editDrafts: 0, sizeChars: 0, newestUpdatedAt: null };
-  try {
-    const db = await database();
-    const row = await db.getFirstAsync<{ drafts: number; edit_drafts: number; size_chars: number; newest_updated_at: number | null }>(
-      `SELECT
-        (SELECT COUNT(*) FROM ad_drafts WHERE owner_id = ?) AS drafts,
-        (SELECT COUNT(*) FROM ad_edit_drafts WHERE owner_id = ?) AS edit_drafts,
-        (SELECT COALESCE(SUM(LENGTH(draft_json)), 0) FROM ad_drafts WHERE owner_id = ?) +
-        (SELECT COALESCE(SUM(LENGTH(draft_json)), 0) FROM ad_edit_drafts WHERE owner_id = ?) AS size_chars,
-        MAX(updated_at) AS newest_updated_at FROM (
-          SELECT updated_at FROM ad_drafts WHERE owner_id = ? UNION ALL
-          SELECT updated_at FROM ad_edit_drafts WHERE owner_id = ?
-        )`, ownerId, ownerId, ownerId, ownerId, ownerId, ownerId,
-    );
-    return { drafts: row?.drafts ?? 0, editDrafts: row?.edit_drafts ?? 0, sizeChars: row?.size_chars ?? 0, newestUpdatedAt: row?.newest_updated_at ?? null };
-  } catch {
-    return { drafts: 0, editDrafts: 0, sizeChars: 0, newestUpdatedAt: null };
+function utf8ByteLength(value: string): number {
+  let bytes = 0;
+  for (const character of value) {
+    const point = character.codePointAt(0) ?? 0;
+    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
   }
+  return bytes;
+}
+
+/** Aggregate only current-account metadata; DB errors throw so the UI never reports a false empty state. */
+export async function getAdDraftStorageSummary(ownerId: string): Promise<AdDraftStorageSummary> {
+  if (!ownerId.trim()) throw new Error('A valid account is required to inspect draft storage.');
+  const db = await database();
+  const [createRows, editRows] = await Promise.all([
+    db.getAllAsync<{ draft_json: string; updated_at: number }>(
+      'SELECT draft_json, updated_at FROM ad_drafts WHERE owner_id = ?', ownerId,
+    ),
+    db.getAllAsync<{ draft_json: string; updated_at: number }>(
+      'SELECT draft_json, updated_at FROM ad_edit_drafts WHERE owner_id = ?', ownerId,
+    ),
+  ]);
+  const allRows = [...createRows, ...editRows];
+  const newestUpdatedAt = allRows.reduce<number | null>((latest, row) => latest === null || row.updated_at > latest ? row.updated_at : latest, null);
+  const sizeBytes = allRows.reduce((total, row) => total + utf8ByteLength(row.draft_json), 0);
+  return { drafts: createRows.length, editDrafts: editRows.length, sizeBytes, newestUpdatedAt };
 }

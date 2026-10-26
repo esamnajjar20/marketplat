@@ -34,19 +34,30 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 }
 
 
-export type PublicCacheStats = { entries: number; sizeChars: number; newestSavedAt: number | null };
+export type PublicCacheStats = { entries: number; sizeBytes: number; newestSavedAt: number | null };
 
-/** Read aggregate cache metadata for the storage-management screen. */
-export async function getPublicCacheStats(): Promise<PublicCacheStats> {
-  try {
-    const db = await getDatabase();
-    const row = await db.getFirstAsync<{ entries: number; size_chars: number; newest_saved_at: number | null }>(
-      'SELECT COUNT(*) AS entries, COALESCE(SUM(size_chars), 0) AS size_chars, MAX(saved_at) AS newest_saved_at FROM public_cache',
-    );
-    return { entries: row?.entries ?? 0, sizeChars: row?.size_chars ?? 0, newestSavedAt: row?.newest_saved_at ?? null };
-  } catch {
-    return { entries: 0, sizeChars: 0, newestSavedAt: null };
+function utf8ByteLength(value: string): number {
+  let bytes = 0;
+  for (const character of value) {
+    const point = character.codePointAt(0) ?? 0;
+    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
   }
+  return bytes;
+}
+
+/** Strict aggregate read for the storage-management screen: DB errors must remain distinguishable from an empty cache. */
+export async function getPublicCacheStats(): Promise<PublicCacheStats> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ value_json: string; saved_at: number }>(
+    'SELECT value_json, saved_at FROM public_cache',
+  );
+  let sizeBytes = 0;
+  let newestSavedAt: number | null = null;
+  for (const row of rows) {
+    sizeBytes += utf8ByteLength(row.value_json);
+    if (newestSavedAt === null || row.saved_at > newestSavedAt) newestSavedAt = row.saved_at;
+  }
+  return { entries: rows.length, sizeBytes, newestSavedAt };
 }
 
 /** SQLite-backed cache for public read-only data; never store auth/session secrets here. */
@@ -110,12 +121,8 @@ export async function writePublicCache<T>(key: string, value: T): Promise<void> 
 }
 
 export async function clearPublicCache(): Promise<void> {
-  try {
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM public_cache');
-  } catch {
-    // Clearing a nonessential cache should not crash the app.
-  }
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM public_cache');
 }
 
 /** Returns local file URIs referenced by saved public cache records so image eviction cannot break offline records. */
