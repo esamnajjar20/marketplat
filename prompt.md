@@ -1,1 +1,0 @@
-Read apps/web/next.config.ts. Check if `images.remotePatterns` includes `res.cloudinary.com`. If NOT present, add it to the array. Then run `npm run type-check` once. If passes, commit with "perf(images): add cloudinary to next/image remotePatterns". Do NOT read other files. Do NOT run build.
