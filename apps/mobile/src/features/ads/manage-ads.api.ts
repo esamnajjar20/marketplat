@@ -76,3 +76,24 @@ export async function deleteAd(id: string, token: string, csrfToken?: string | n
     method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
   });
 }
+
+
+/** Remove one existing image. The backend enforces ownership and keeps at least one image. */
+export async function removeAdImage(id: string, imageUrl: string, token: string, csrfToken?: string | null): Promise<ManagedAd> {
+  if (!id.trim() || !/^https?:\/\//i.test(imageUrl)) throw new Error('بيانات الصورة غير صالحة.');
+  const response = await apiRequest<Envelope<ManagedAd>>(`/api/v1/ads/${encodeURIComponent(id)}/images`, {
+    method: 'DELETE', token, body: JSON.stringify({ imageUrl }),
+    headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+  });
+  return requireEnvelopeData(response, 'تعذر حذف الصورة.');
+}
+
+/** Reorder the complete current image URL set; the backend rejects missing/foreign URLs. */
+export async function reorderAdImages(id: string, images: string[], token: string, csrfToken?: string | null): Promise<ManagedAd> {
+  if (!id.trim() || images.length < 1 || images.some((url) => !/^https?:\/\//i.test(url))) throw new Error('ترتيب الصور غير صالح.');
+  const response = await apiRequest<Envelope<ManagedAd>>(`/api/v1/ads/${encodeURIComponent(id)}/images/reorder`, {
+    method: 'PUT', token, body: JSON.stringify({ images }),
+    headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+  });
+  return requireEnvelopeData(response, 'تعذر حفظ ترتيب الصور.');
+}

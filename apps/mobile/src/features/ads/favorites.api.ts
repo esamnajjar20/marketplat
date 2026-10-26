@@ -3,7 +3,8 @@ import { apiRequest } from '@/api/client';
 export type FavoriteRecord = {
   id: string;
   adId: string;
-  ad?: { id: string; title?: string };
+  createdAt?: string;
+  ad?: { id: string; title?: string; price?: number | string | null; images?: string[]; city?: string; isNegotiable?: boolean; createdAt?: string; category?: { id: string; name?: string; nameAr?: string | null } | null; user?: { id: string; name?: string | null; city?: string | null } | null };
 };
 
 type Envelope<T> = { success: boolean; data?: T; meta?: { pagination?: { totalPages?: number } } };
@@ -76,4 +77,18 @@ export async function setFavoriteAdState(
     throw new Error('لم يؤكد الخادم حالة المفضلة المطلوبة.');
   }
   return response.data.isFavorited;
+}
+
+
+/** Fetch the paginated ad records for the dedicated favorites screen. */
+export async function fetchFavoriteAds(token: string): Promise<FavoriteRecord[]> {
+  const records: FavoriteRecord[] = [];
+  for (let page = 1; page <= 100; page += 1) {
+    const response = await apiRequest<Envelope<FavoriteRecord[]>>(`/api/v1/favorites?page=${page}&limit=100`, { token });
+    if (response?.success !== true || !Array.isArray(response.data)) throw new Error('استجابة المفضلة من الخادم غير متوقعة.');
+    records.push(...response.data.filter((item) => typeof item?.adId === 'string' && item.ad && typeof item.ad.id === 'string'));
+    const totalPages = response.meta?.pagination?.totalPages;
+    if (typeof totalPages === 'number' ? page >= totalPages : response.data.length < 100) break;
+  }
+  return records;
 }
