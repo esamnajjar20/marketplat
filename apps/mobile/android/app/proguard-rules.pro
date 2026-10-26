@@ -12,3 +12,17 @@
 -keep class com.facebook.react.turbomodule.** { *; }
 
 # Add any project specific keep options here:
+
+# MarketPlat — حماية R8 من حذف كود ضروري في runtime
+-keep class com.marketplat.** { *; }
+-keep class expo.modules.** { *; }
+-keep class com.facebook.react.** { *; }
+-keep class com.facebook.hermes.** { *; }
+-keep class com.swmansion.** { *; }
+-keepclassmembers class * {
+    @com.facebook.react.bridge.ReactMethod *;
+    @com.facebook.react.bridge.ReactMethod <methods>;
+}
+-keepclassmembers @com.google.gson.annotations.SerializedName class * { *; }
+-dontwarn com.facebook.react.**
+-dontwarn expo.modules.**
