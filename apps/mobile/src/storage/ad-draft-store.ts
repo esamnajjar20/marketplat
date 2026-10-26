@@ -138,3 +138,27 @@ export async function clearAdEditDraft(ownerId: string, resourceId: string): Pro
   const result = await db.runAsync('DELETE FROM ad_edit_drafts WHERE owner_id = ? AND resource_id = ?', ownerId, resourceId);
   return result.changes === 1;
 }
+
+export type AdDraftStorageSummary = { drafts: number; editDrafts: number; sizeChars: number; newestUpdatedAt: number | null };
+
+/** Aggregate only the current account's draft metadata; draft contents are never returned. */
+export async function getAdDraftStorageSummary(ownerId: string): Promise<AdDraftStorageSummary> {
+  if (!ownerId.trim()) return { drafts: 0, editDrafts: 0, sizeChars: 0, newestUpdatedAt: null };
+  try {
+    const db = await database();
+    const row = await db.getFirstAsync<{ drafts: number; edit_drafts: number; size_chars: number; newest_updated_at: number | null }>(
+      `SELECT
+        (SELECT COUNT(*) FROM ad_drafts WHERE owner_id = ?) AS drafts,
+        (SELECT COUNT(*) FROM ad_edit_drafts WHERE owner_id = ?) AS edit_drafts,
+        (SELECT COALESCE(SUM(LENGTH(draft_json)), 0) FROM ad_drafts WHERE owner_id = ?) +
+        (SELECT COALESCE(SUM(LENGTH(draft_json)), 0) FROM ad_edit_drafts WHERE owner_id = ?) AS size_chars,
+        MAX(updated_at) AS newest_updated_at FROM (
+          SELECT updated_at FROM ad_drafts WHERE owner_id = ? UNION ALL
+          SELECT updated_at FROM ad_edit_drafts WHERE owner_id = ?
+        )`, ownerId, ownerId, ownerId, ownerId, ownerId, ownerId,
+    );
+    return { drafts: row?.drafts ?? 0, editDrafts: row?.edit_drafts ?? 0, sizeChars: row?.size_chars ?? 0, newestUpdatedAt: row?.newest_updated_at ?? null };
+  } catch {
+    return { drafts: 0, editDrafts: 0, sizeChars: 0, newestUpdatedAt: null };
+  }
+}

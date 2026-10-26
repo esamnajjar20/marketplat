@@ -33,6 +33,22 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return databasePromise;
 }
 
+
+export type PublicCacheStats = { entries: number; sizeChars: number; newestSavedAt: number | null };
+
+/** Read aggregate cache metadata for the storage-management screen. */
+export async function getPublicCacheStats(): Promise<PublicCacheStats> {
+  try {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ entries: number; size_chars: number; newest_saved_at: number | null }>(
+      'SELECT COUNT(*) AS entries, COALESCE(SUM(size_chars), 0) AS size_chars, MAX(saved_at) AS newest_saved_at FROM public_cache',
+    );
+    return { entries: row?.entries ?? 0, sizeChars: row?.size_chars ?? 0, newestSavedAt: row?.newest_saved_at ?? null };
+  } catch {
+    return { entries: 0, sizeChars: 0, newestSavedAt: null };
+  }
+}
+
 /** SQLite-backed cache for public read-only data; never store auth/session secrets here. */
 export async function readPublicCacheEntry<T>(key: string): Promise<PublicCacheEntry<T> | null> {
   if (!key.trim() || key.length > 300) return null;

@@ -387,6 +387,11 @@ export default function HomeScreen() {
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الإعدادات</Text><Text style={styles.quickSubtitle}>إدارة الإشعارات والتفضيلات</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/storage')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▤</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>التخزين والبيانات</Text><Text style={styles.quickSubtitle}>إدارة الذاكرة المؤقتة والمسودات والمزامنة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
           <Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>▣</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المتاجر</Text><Text style={styles.quickSubtitle}>اكتشف المتاجر المحلية</Text></View>
