@@ -65,7 +65,7 @@ jobs:
       - name: Set API URL for build
         shell: bash
         run: |
-          echo "EXPO_PUBLIC_API_URL=https://marketplat-api.esamnajjar6.workers.dev/api/v1" >> $GITHUB_ENV
+          echo "EXPO_PUBLIC_API_URL=https://marketplat-api.esamnajjar6.workers.dev" >> $GITHUB_ENV
 
       - name: Build Release APK
         working-directory: apps/mobile/android
