@@ -48,18 +48,22 @@ jobs:
           cache: gradle
           cache-dependency-path: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK packages
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          sdkmanager --install \
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          fi
+          test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-37" \
             "build-tools;36.0.0" \
             "ndk;27.1.12297006"
-          yes | sdkmanager --licenses >/dev/null
-
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
