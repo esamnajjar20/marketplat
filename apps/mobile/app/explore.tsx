@@ -4,6 +4,7 @@ import { PageShell, SectionCard } from '@/components/MobileUI';
 import { colors } from '@/theme/tokens';
 const destinations = [
   { title: 'الإعلانات', description: 'اكتشف أحدث الإعلانات من المستخدمين', path: '/' },
+  { title: 'القصص', description: 'شاهد القصص النشطة أو انشر قصة تختفي بعد 24 ساعة وشارك رابطها', path: '/stories' },
   { title: 'تصنيفات السوق', description: 'تصفح التصنيفات العامة والإعلانات ضمن كل تصنيف', path: '/categories' },
   { title: 'البحث المتقدم', description: 'ابحث عبر الإعلانات والمنتجات والمتاجر والخدمات مع فلاتر السعر والتصنيف', path: '/search' },
   { title: 'مقترحات لك', description: 'محتوى مقترح حسب اهتماماتك ونشاطك عند تسجيل الدخول', path: '/suggestions' },

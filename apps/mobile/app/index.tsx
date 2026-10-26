@@ -332,6 +332,11 @@ export default function HomeScreen() {
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>أفضل البائعين</Text><Text style={styles.quickSubtitle}>تعرف على البائعين الأعلى تقييمًا وثقة</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/stories')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6C45A8' }]}>◉</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>القصص</Text><Text style={styles.quickSubtitle}>شاهد القصص أو انشر قصة جديدة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>⌕</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف</Text><Text style={styles.quickSubtitle}>الأقسام والمتاجر والخدمات والعروض</Text></View>

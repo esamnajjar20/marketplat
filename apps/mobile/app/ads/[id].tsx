@@ -18,6 +18,7 @@ import { ApiError } from '@/api/client';
 import { fetchAdDetail, getCachedAdDetail } from '@/features/ads/ads.api';
 import type { AdDetail } from '@/features/ads/ads.api';
 import { startConversationFromAd } from '@/features/messaging/messaging.api';
+import { shareMarketPlatResource } from '@/features/sharing/deep-links';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {
@@ -168,7 +169,7 @@ export default function AdDetailScreen() {
           <Text style={styles.backText}>→</Text>
         </Pressable>
         <Text style={styles.topTitle}>تفاصيل الإعلان</Text>
-        <View style={styles.backButton} />
+        <Pressable accessibilityRole="button" accessibilityLabel="مشاركة الإعلان" onPress={() => { if (ad) void shareMarketPlatResource('ads', ad.id, ad.title); }} style={styles.backButton}><Text style={styles.link}>مشاركة</Text></Pressable>
       </View>
       {loading ? (
         <View style={styles.centerState}><ActivityIndicator size="large" color={colors.brand} /><Text style={styles.muted}>جاري تحميل تفاصيل الإعلان…</Text></View>
