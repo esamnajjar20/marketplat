@@ -3,7 +3,7 @@ import { storeReviewsRepository } from '../stores/store-reviews.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { serviceReviewsRepository } from '../service-reviews/service-reviews.repository';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { Badge, computeBadges, ProviderBadge, computeProviderBadges } from './badges.types';
 
 const toBadgeInput = (

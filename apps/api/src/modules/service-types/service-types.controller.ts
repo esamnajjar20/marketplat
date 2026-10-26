@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireAdmin } from '../../middlewares/admin.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { serviceTypesService } from './service-types.service';
 import {
   createServiceTypeFieldSchema,

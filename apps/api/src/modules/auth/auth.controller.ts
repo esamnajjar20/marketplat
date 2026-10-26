@@ -8,7 +8,7 @@ import {
   resetPasswordSchema,
   verifyEmailSchema,
 } from './auth.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 import { getBearerToken } from '../../middlewares/auth.middleware';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';

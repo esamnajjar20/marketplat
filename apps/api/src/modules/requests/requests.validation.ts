@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 const requestTypeEnum = z.enum(['SERVICE', 'PRODUCT', 'RENTAL']);
 

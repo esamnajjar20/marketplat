@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { storeTypeFieldsService } from './store-type-fields.service';
 import {
   createStoreTypeFieldSchema,

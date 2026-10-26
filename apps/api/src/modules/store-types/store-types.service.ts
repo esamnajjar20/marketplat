@@ -1,5 +1,5 @@
 import { redis } from '../../config/redis';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';

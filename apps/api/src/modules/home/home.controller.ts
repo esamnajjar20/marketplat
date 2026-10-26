@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { getCachedHomepageWithStatus } from './home.cache'; // HOME-STATUS-HEADER-01
 import { getHomepageSchema } from './home.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const homeController = {
   getHomepage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

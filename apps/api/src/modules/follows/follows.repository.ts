@@ -1,6 +1,6 @@
 import { FollowTargetType, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type FollowRow = Prisma.FollowGetPayload<{}>;
 

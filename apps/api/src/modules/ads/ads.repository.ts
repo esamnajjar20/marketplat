@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import { analyzeSearchQuery } from '../../../shared/utils/searchQueryIntelligence';
 import { AdStatus, Prisma } from '@prisma/client';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, AdSortField } from './ads.validation';

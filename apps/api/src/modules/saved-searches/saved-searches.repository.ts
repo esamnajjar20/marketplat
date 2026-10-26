@@ -1,6 +1,6 @@
 import { Prisma, SavedSearch } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import type { SavedSearchFilters } from './saved-searches.validation';
 
 // findAllForMatching had no cap at all — with

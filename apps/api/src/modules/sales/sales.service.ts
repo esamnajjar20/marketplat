@@ -14,7 +14,7 @@ import {
   UpdateCostSettingsInput,
   UpdateProductCostInput,
 } from './sales.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { ConflictError } from '../../../shared/errors/ConflictError';

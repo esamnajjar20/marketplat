@@ -4,7 +4,7 @@
 // reads -- so raising the cap is a one-line change in config/limits.ts.
 import multer, { FileFilterCallback } from 'multer';
 import { Request, Response, NextFunction } from 'express';
-import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { BadRequestError } from '../shared/errors/BadRequestError';
 import { isAllowedImageContent } from '../../shared/utils/fileSignature';
 import {
   ALLOWED_IMAGE_MIME_TYPES,

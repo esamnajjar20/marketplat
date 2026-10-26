@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // (audit H3): nothing capped the length, so a 10-hour or
 // multi-day "appointment" could block a provider's whole calendar.

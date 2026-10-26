@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { sellersRankingService } from './sellers-ranking.service';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
 
 const querySchema = z.object({

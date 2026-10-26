@@ -14,7 +14,7 @@ import { AdListRow } from '../ads/ads.repository';
 import { ProductWithStore, ProductWithStoreLite } from '../products/products.repository';
 import { ServiceListingWithProvider } from '../service-listings/service-listings.repository';
 import { StoreWithSeller } from '../stores/stores.repository';
-import { verifyAccessToken } from '../../../shared/utils/jwt';
+import { verifyAccessToken } from '../../shared/utils/jwt';
 import { logger } from '../../../shared/utils/logger';
 import { GetRecommendationsQuery } from './recommendations.validation';
 

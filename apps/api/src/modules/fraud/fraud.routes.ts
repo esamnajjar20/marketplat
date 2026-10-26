@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { fraudController } from './fraud.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireMinRole } from '../../middlewares/admin.middleware';
-import { ROLES } from '../../../shared/constants/roles';
+import { ROLES } from '../../shared/constants/roles';
 
 export const fraudRouter = Router();
 

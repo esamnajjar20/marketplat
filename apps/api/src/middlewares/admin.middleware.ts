@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { ForbiddenError } from '../shared/errors/ForbiddenError';
 import { ROLE_RANK, Role, isAdminTier } from '../../shared/constants/roles';
 
 /**

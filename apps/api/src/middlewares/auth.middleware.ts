@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../../shared/utils/jwt';
 import {

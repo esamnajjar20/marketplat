@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, Conversation, Message } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import { isPrismaError } from '../../../shared/utils/prismaErrors';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { decodeMessageCursor, encodeMessageCursor } from '../../../shared/utils/messageCursor';

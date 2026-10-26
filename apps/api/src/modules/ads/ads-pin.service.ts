@@ -4,7 +4,7 @@
  */
 import { AdStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { bumpAdsCacheVersion } from './ads.cache.keys';

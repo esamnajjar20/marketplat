@@ -12,7 +12,7 @@
  *   npm run build && npm run report:notification-digest
  */
 import { PrismaClient, NotificationType } from '@prisma/client';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 
 const prisma = new PrismaClient();
 

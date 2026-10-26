@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, StoreDetails, StoreStatus } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import { analyzeSearchQuery } from '../../../shared/utils/searchQueryIntelligence';
 import { GetStoresQuery } from './stores.validation';
 

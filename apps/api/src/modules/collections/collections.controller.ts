@@ -8,7 +8,7 @@ import {
   collectionProductParamsSchema,
   storeIdParamSchema,
 } from './collections.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 
 export const collectionsController = {

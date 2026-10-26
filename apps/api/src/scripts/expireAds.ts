@@ -14,7 +14,7 @@ import { AdStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { notificationEvents } from '../modules/notifications/notifications.service';
 import { bumpAdsCacheVersionAndHome } from '../modules/ads/ads.cache.keys';
-import { flushEdgePurge } from '../../shared/cache/edgePurge';
+import { flushEdgePurge } from '../shared/cache/edgePurge';
 import { redis } from '../config/redis';
 
 const WARNING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;

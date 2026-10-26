@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import { Prisma, FavoriteEntityType } from '@prisma/client';
 import { GetFavoritesQuery, FAVORITE_QUERY_TYPE_MAP } from './favorites.validation';
 import {

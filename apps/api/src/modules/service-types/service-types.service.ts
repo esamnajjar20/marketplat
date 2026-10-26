@@ -1,5 +1,5 @@
 import { redis } from '../../config/redis';
-import { canonicalCacheKey } from '../../../shared/cache/cacheKey';
+import { canonicalCacheKey } from '../../shared/cache/cacheKey';
 import { getCacheDomain } from '../../../shared/cache/cacheContract';
 import { logger } from '../../../shared/utils/logger';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';

@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
  * Weekly ad-views-report job — closes the audit report's finding:
  * WEEKLY_AD_VIEWS_REPORT existed as a NotificationType enum value and

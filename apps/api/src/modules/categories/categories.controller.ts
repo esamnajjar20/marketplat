@@ -6,7 +6,7 @@ import {
   categoryIdSchema,
   categorySlugParamSchema,
 } from './categories.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const categoriesController = {
   createCategory: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

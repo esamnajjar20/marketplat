@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Conversation, Message } from '@prisma/client';
 import {
   conversationsRepository,

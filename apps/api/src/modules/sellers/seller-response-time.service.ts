@@ -20,7 +20,7 @@
  * the message send path.
  */
 import { prisma } from '../../config/prisma';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 
 const MAX_SAMPLE_MINUTES = 7 * 24 * 60; // 7 days
 const EMA_ALPHA = 0.3;

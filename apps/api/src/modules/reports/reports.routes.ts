@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { reportsController } from './reports.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { requireMinRole } from '../../middlewares/admin.middleware';
-import { ROLES } from '../../../shared/constants/roles';
+import { ROLES } from '../../shared/constants/roles';
 import { reportRateLimit } from '../../middlewares/rateLimit.middleware';
 
 export const reportsRouter = Router();

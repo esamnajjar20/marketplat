@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
  * Promotion lifecycle notifications — PROMO-1 (of the
  * promotions design doc, deferred at MVP time: "هذه ليست ضرورية في

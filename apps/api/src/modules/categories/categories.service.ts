@@ -1,7 +1,7 @@
 import { categoriesRepository, CategoryWithChildren } from './categories.repository';
 import { Category } from '@prisma/client';
 import { CreateCategoryInput, UpdateCategoryInput } from './categories.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
 import { logger } from '../../../shared/utils/logger';

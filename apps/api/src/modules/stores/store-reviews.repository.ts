@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, StoreReview } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type StoreReviewWithRater = Prisma.StoreReviewGetPayload<{
   include: { rater: { select: { id: true; name: true; avatarUrl: true } } };

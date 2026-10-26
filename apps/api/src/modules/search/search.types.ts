@@ -8,7 +8,7 @@
  * below is the normalized shape every entity gets mapped into so the
  * frontend never needs to branch on `type` to know which field to read.
  */
-import { PaginationMeta } from '../../../shared/utils/pagination';
+import { PaginationMeta } from '../../shared/utils/pagination';
 
 export const SEARCH_TYPES = ['all', 'ads', 'products', 'stores', 'services'] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];

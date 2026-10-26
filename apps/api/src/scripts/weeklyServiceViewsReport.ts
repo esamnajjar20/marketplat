@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
  * Weekly service-listing views delta report for providers.
  * Mirrors weeklyStoreViewsReport.ts — aggregate listing views per provider owner.

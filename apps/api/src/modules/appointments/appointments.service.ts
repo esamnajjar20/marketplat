@@ -1,7 +1,7 @@
 import { Appointment } from '@prisma/client';
 import { appointmentsRepository, AppointmentWithRequest } from './appointments.repository';
 import { CreateAppointmentInput, GetAppointmentsQuery } from './appointments.validation';
-import { ConflictError } from '../../../shared/errors/ConflictError';
+import { ConflictError } from '../../shared/errors/ConflictError';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';

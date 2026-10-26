@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { storiesService } from './stories.service';
 import { createStorySchema, storyIdSchema, userStorySchema } from './stories.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 
 export const storiesController = {

@@ -3,7 +3,7 @@ import {
   getSalesNotificationJobs,
   getSalesNotificationScheduleTime,
   SALES_NOTIFICATION_TIME_ZONE,
-} from '../../shared/utils/salesNotificationSchedule';
+} from '../shared/utils/salesNotificationSchedule';
 
 async function main(): Promise<void> {
   const at = new Date();

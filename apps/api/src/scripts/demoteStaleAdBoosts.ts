@@ -10,7 +10,7 @@
  *   npm run report:demote-stale-boosts
  */
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 import { env } from '../config/env';
 import { bumpAdsCacheVersion } from '../modules/ads/ads.cache.keys';
 import { flushEdgePurge } from '../../shared/cache/edgePurge';

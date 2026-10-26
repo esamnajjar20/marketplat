@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, SellerProfile, SellerVerificationStatus } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type SellerProfileWithAds = Prisma.SellerProfileGetPayload<{
   include: {

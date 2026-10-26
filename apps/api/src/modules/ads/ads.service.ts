@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { cachePolicy } from '../../../shared/cache/cachePolicy';
 import { createHash } from 'crypto';
 import { adsRepository, AdWithAuthor, AdListRow } from './ads.repository';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ServicePricingType, ServiceLocationType, ServiceListingStatus } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 const serviceAttributesSchema = z
   .preprocess(

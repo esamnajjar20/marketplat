@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { favoritesService } from './favorites.service';
 import { favoriteAdSchema, favoriteEntitySchema, getFavoritesSchema } from './favorites.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 
 export const favoritesController = {

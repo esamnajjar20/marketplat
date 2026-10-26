@@ -25,7 +25,7 @@
  * fail on unique-constraint conflicts from a previous run.
  */
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../../shared/utils/hash';
+import { hashPassword } from '../shared/utils/hash';
 
 const prisma = new PrismaClient();
 

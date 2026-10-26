@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { resolveOptionalUserId } from '../recommendations/recommendations.service';
 import { RECS_GEN_KEY } from '../recommendations/recommendations.cache';
-import { swrGetWithStatus, type SwrStatus } from '../../../shared/utils/swrCache';
+import { swrGetWithStatus, type SwrStatus } from '../../shared/utils/swrCache';
 import { homeFeedService, type HomeFeedResult } from './home-feed.service';
 import { HOME_GEN_KEY } from './home.cache.keys';
 import type { GetHomepageQuery } from './home.validation';

@@ -3,7 +3,7 @@ import { recommendationsService, resolveOptionalUserId } from './recommendations
 import { getCachedRecommendations } from './recommendations.cache';
 import type { GetRecommendationsQuery } from './recommendations.validation';
 import { getRecommendationsSchema } from './recommendations.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const recommendationsController = {
   // GET /recommendations — public (see recommendations.routes.ts).

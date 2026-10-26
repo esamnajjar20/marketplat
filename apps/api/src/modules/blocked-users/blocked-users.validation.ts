@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const blockedUserIdSchema = z.object({
   params: z.object({ userId: z.string().min(1, 'User ID is required') }),

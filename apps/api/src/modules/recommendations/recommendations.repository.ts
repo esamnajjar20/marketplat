@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { runWithQueryTimeout } from '../../../shared/utils/queryTimeout';
+import { runWithQueryTimeout } from '../../shared/utils/queryTimeout';
 import { env } from '../../config/env';
 import {
   ActivityEntityType,

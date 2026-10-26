@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type StoreFollowerWithStore = Prisma.StoreFollowerGetPayload<{
   include: { store: { include: { sellerProfile: true } } };

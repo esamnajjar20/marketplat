@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AdStatus } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const adminGetAdsSchema = z.object({
   query: z.object({

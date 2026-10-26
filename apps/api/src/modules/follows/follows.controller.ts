@@ -8,7 +8,7 @@ import {
   toggleFollowSchema,
   userIdSchema,
 } from './follows.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 
 const listResponse = (message: string, result: any) =>

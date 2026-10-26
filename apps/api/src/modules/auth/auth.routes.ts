@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authController } from './auth.controller';
-import { sendApiError } from '../../../shared/errors/errorResponse';
+import { sendApiError } from '../../shared/errors/errorResponse';
 import { ErrorCode } from '../../../shared/errors/errorCodes';
 import {
   authRateLimit,

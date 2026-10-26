@@ -16,7 +16,7 @@ import {
   updateProductCostSchema,
   reportQuerySchema,
 } from './sales.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 import { paginationQuerySchema } from '../../../shared/utils/pagination';
 

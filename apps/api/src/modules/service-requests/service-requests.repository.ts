@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, ServiceRequest, ServiceRequestStatus } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type ServiceRequestWithListing = Prisma.ServiceRequestGetPayload<{
   include: {

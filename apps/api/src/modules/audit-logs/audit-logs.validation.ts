@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AuditEventType } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Sortable columns — kept narrow (only indexed/simple scalar columns on
 // AuditLog, see prisma/schema.prisma's @@index list) so `sortBy` can be

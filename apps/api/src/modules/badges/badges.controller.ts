@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { badgesService } from './badges.service';
 import { storeIdParamSchema, providerIdParamSchema } from './badges.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const badgesController = {
   // Public — no auth. A store's badges are part of its public profile,

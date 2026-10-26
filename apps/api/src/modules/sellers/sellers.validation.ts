@@ -3,7 +3,7 @@ import { z } from 'zod';
 // was a local mirror of admin.validation.ts's copy (EPIC
 // 1.1's comment said as much); now both import the same helper instead
 // of keeping two hand-synced copies.
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 // FIX: was a local copy identical to stores.validation.ts's — see
 // paymentMethodSchema.ts's comment for the dedup rationale.
 import { storePaymentMethodSchema } from '../../../shared/utils/paymentMethodSchema';

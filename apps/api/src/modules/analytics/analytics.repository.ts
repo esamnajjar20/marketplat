@@ -2,7 +2,7 @@ import { prisma } from '../../config/prisma';
 import { AnalyticsEventType, Prisma } from '@prisma/client';
 import { TrackEventInput } from './analytics.validation';
 import { env } from '../../config/env';
-import { runWithQueryTimeout } from '../../../shared/utils/queryTimeout';
+import { runWithQueryTimeout } from '../../shared/utils/queryTimeout';
 
 // the two funnel-count queries now use
 // COUNT(DISTINCT sessionId) + runWithQueryTimeout (was findMany +

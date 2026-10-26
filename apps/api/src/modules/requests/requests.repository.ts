@@ -6,7 +6,7 @@ import {
   RequestStatus,
   RequestOfferStatus,
 } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 const offererSelect = {
   id: true,

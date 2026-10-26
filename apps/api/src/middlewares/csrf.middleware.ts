@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { getCsrfCookieName } from '../../shared/utils/authCookies';
+import { getCsrfCookieName } from '../shared/utils/authCookies';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 
 // (defense-in-depth alongside metrics.ts): plain

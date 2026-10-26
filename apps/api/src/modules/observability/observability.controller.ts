@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { clientErrorSchema } from './observability.validation';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { getClientIp } from '../../../shared/utils/getClientIp';
 import { successResponse } from '../../../shared/types/api-response.types';
 

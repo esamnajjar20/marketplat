@@ -1,4 +1,4 @@
-import { sendApiError } from '../../../shared/errors/errorResponse';
+import { sendApiError } from '../../shared/errors/errorResponse';
 import { ErrorCode } from '../../../shared/errors/errorCodes';
 
 import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';

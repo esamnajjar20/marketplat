@@ -8,7 +8,7 @@ import { productsService } from '../products/products.service';
 import { serviceProvidersService } from '../service-providers/service-providers.service';
 import { recommendationsService } from '../recommendations/recommendations.service';
 import { prisma } from '../../config/prisma';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import type { GetHomepageQuery } from './home.validation';
 
 const CAROUSEL_LIMIT = 2;

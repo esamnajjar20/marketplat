@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 import { env } from './env';
 
 export const redis = new Redis({

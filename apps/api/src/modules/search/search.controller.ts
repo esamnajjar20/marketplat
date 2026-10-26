@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { searchService } from './search.service';
 import { searchQuerySchema, searchSuggestionsQuerySchema } from './search.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const searchController = {
   // Response shape follows every other paginated list endpoint in the

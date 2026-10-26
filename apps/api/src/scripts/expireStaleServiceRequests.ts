@@ -6,7 +6,7 @@
  * Wire via cron: run-job.sh expire-service-requests
  */
 import { serviceRequestsService } from '../modules/service-requests/service-requests.service';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 
 async function main() {
   const count = await serviceRequestsService.expireStalePending();

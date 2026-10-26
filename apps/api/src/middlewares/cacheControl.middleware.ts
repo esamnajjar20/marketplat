@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { cachePolicy } from '../../shared/cache/cachePolicy';
+import { cachePolicy } from '../shared/cache/cachePolicy';
 import { purgeAwareSharedMaxAge } from '../../shared/cache/edgePurge';
 
 /**

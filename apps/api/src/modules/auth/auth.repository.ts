@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { User } from '@prisma/client';
-import { handlePrismaError } from '../../../shared/utils/prismaErrors';
+import { handlePrismaError } from '../../shared/utils/prismaErrors';
 
 /**
  * every email that enters or leaves this

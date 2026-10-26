@@ -6,7 +6,7 @@ import {
   PushSubscription,
   FcmDeviceToken,
 } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import { unreadNotificationsCache } from '../../../shared/utils/unreadNotificationsCache';
 import {
   publishNotificationEvent,

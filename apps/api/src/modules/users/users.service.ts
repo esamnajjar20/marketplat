@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { usersRepository, SafeUser, PublicUser } from './users.repository';
 import { hashPassword, comparePassword } from '../../../shared/utils/hash';
 import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.validation';

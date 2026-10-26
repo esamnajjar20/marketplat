@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, UserBlock } from '@prisma/client';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 
 export type UserBlockWithBlockedUser = Prisma.UserBlockGetPayload<{
   include: { blocked: { select: { id: true; name: true; avatarUrl: true } } };

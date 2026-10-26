@@ -26,7 +26,7 @@ import { serviceProvidersRepository } from '../service-providers/service-provide
 import { sellersRepository } from '../sellers/sellers.repository';
 import { conversationsService } from '../conversations/conversations.service';
 import { notificationEvents } from '../notifications';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { ConflictError } from '../../../shared/errors/ConflictError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';

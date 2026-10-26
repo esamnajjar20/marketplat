@@ -6,7 +6,7 @@ import {
   InstallmentStatus,
   ReturnReason,
 } from '@prisma/client';
-import { paginationQuerySchema } from '../../../shared/utils/pagination';
+import { paginationQuerySchema } from '../../shared/utils/pagination';
 
 const money = z.coerce.number().finite().nonnegative().multipleOf(0.01);
 const positiveMoney = z.coerce.number().finite().positive().multipleOf(0.01);

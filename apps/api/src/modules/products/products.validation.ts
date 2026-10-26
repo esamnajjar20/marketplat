@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ProductAvailability, ProductStatus } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 const productAttributesSchema = z.preprocess(
   value => {

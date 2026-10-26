@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { UserActivityType } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Gap #10: the frontend's filter tabs (الكل/الإعلانات/المنتجات/الخدمات/
 // المتاجر/الرسائل/الطلبات/الحساب) are coarser than the 22 underlying

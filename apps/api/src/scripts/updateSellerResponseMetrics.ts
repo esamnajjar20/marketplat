@@ -45,7 +45,7 @@
  * (mirrors weeklyAdViewsReport.ts's build-then-run convention.)
  */
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 
 const prisma = new PrismaClient();
 

@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 import { reportsRepository, ReportWithDetails } from './reports.repository';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository

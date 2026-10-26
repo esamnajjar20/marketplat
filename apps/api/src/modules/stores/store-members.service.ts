@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { StoreDetails, StoreMember, StoreMemberRole, StoreMemberStatus } from '@prisma/client';
 import { storeMembersRepository, StoreMemberWithUser } from './store-members.repository';
 import { storesRepository } from './stores.repository';

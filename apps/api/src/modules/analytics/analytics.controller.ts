@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { analyticsService } from './analytics.service';
 import { trackEventsSchema, getAnalyticsSummarySchema } from './analytics.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const analyticsController = {
   // POST /analytics/events — public (see analytics.routes.ts). Always

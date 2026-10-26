@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { StoreStatus, StorePlan } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // UNIFY-PAYMENTS-STORES: no local storePaymentMethodSchema here anymore
 // — a store's payment methods are now just its parent seller's

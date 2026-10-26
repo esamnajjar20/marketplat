@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { StoreMemberRole, StoreMemberStatus } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const inviteStoreMemberSchema = z.object({
   params: z.object({

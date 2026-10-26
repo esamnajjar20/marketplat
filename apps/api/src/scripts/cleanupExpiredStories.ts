@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { deleteMedia } from '../config/cloudinary';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 
 async function main(): Promise<void> {
   let deleted = 0;

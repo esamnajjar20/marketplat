@@ -5,7 +5,7 @@ import {
   ServiceRequestWithListing,
 } from './service-requests.repository';
 import { CreateServiceRequestInput, GetServiceRequestsQuery } from './service-requests.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { ConflictError } from '../../../shared/errors/ConflictError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';

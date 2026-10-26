@@ -1,6 +1,6 @@
 import { ActivityEntityType, Prisma, UserActivity, UserActivityType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import type { ActivityGroup } from './activity.validation';
 
 export interface CreateActivityInput {

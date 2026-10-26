@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { FollowTargetType, StoryVisibility } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { uploadImage, deleteMedia } from '../../config/cloudinary';

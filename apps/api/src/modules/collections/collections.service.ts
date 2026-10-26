@@ -3,7 +3,7 @@ import { collectionsRepository, StoreCollectionWithCount } from './collections.r
 import { productsRepository } from '../products/products.repository';
 import { requireStoreAccessForProducts } from '../stores/store-members.service';
 import { storesRepository } from '../stores/stores.repository';
-import { generateStoreSlug, withSlugSuffix } from '../../../shared/utils/slugify';
+import { generateStoreSlug, withSlugSuffix } from '../../shared/utils/slugify';
 import {
   CreateCollectionInput,
   UpdateCollectionInput,

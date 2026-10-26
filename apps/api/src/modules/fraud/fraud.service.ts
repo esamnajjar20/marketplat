@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 import { fraudRepository } from './fraud.repository';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';

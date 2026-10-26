@@ -6,7 +6,7 @@ import {
   serviceCategoryIdSchema,
   serviceCategorySlugParamSchema,
 } from './service-categories.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const serviceCategoriesController = {
   createServiceCategory: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

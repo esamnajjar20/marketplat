@@ -4,7 +4,7 @@
  */
 
 import { redis } from '../../config/redis';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import type { SearchFacetsQuery } from './search.facets.validation';
 import type { SearchFacetsResponse } from './search.facets.types';
 import { searchFacetsRepository } from './search.facets.repository';

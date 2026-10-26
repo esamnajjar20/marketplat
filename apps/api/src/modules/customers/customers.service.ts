@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { customersRepository } from './customers.repository';
 import { CreateCustomerInput, UpdateCustomerInput } from './customers.validation';
-import { ConflictError } from '../../../shared/errors/ConflictError';
+import { ConflictError } from '../../shared/errors/ConflictError';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 
 const normalizePhone = (phone?: string | null) => {

@@ -1,5 +1,5 @@
 import { redis } from '../../config/redis';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { buildPaginationMeta } from '../../../shared/utils/pagination';
 import { searchRepository } from './search.repository';
 import { SearchQuery, SearchSuggestionsQuery } from './search.validation';

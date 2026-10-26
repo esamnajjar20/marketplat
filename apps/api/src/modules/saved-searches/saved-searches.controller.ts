@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { savedSearchesService } from './saved-searches.service';
 import { createSavedSearchSchema, savedSearchIdSchema } from './saved-searches.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 
 export const savedSearchesController = {

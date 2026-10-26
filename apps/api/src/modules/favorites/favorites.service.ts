@@ -10,7 +10,7 @@ import { storesService } from '../stores/stores.service';
 import { serviceListingsService } from '../service-listings/service-listings.service';
 import { activityService, activityTemplates } from '../activity';
 import { GetFavoritesQuery, FAVORITE_QUERY_TYPE_MAP } from './favorites.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../../shared/utils/pagination';
 import { PaginatedResult } from '../../../shared/types/pagination.types';
 import { ActivityEntityType, FavoriteEntityType } from '@prisma/client';

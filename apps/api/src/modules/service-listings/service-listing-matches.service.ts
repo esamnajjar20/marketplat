@@ -2,7 +2,7 @@ import {
   serviceListingsRepository,
   ServiceListingWithProvider,
 } from './service-listings.repository';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 
 export interface ServiceListingMatch extends ServiceListingWithProvider {
   matchScore: number;

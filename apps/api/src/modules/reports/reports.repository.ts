@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { getPaginationParams } from '../../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/utils/pagination';
 import { Report, ReportStatus, ReportReason, ReportTargetType, Prisma } from '@prisma/client';
 import { GetReportsQuery, GetMyReportsQuery } from './reports.validation';
 

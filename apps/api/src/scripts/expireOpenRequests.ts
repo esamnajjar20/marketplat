@@ -4,7 +4,7 @@
  *   "report:expire-open-requests": "ts-node-dev --transpile-only --exit-child src/scripts/expireOpenRequests.ts"
  */
 import { requestsService } from '../modules/requests/requests.service';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 
 async function main() {
   const count = await requestsService.expireDueRequests();

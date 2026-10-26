@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AdStatus, AdCondition } from '@prisma/client';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 /**
  * createAd sends multipart/form-data (required for image

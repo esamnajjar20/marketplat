@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { FollowTargetType, NotificationType, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { followsRepository } from './follows.repository';

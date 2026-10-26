@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { paginationQuerySchema } from '../../../shared/utils/pagination';
+import { paginationQuerySchema } from '../../shared/utils/pagination';
 
 export const listCustomersSchema = z.object({
   query: paginationQuerySchema.extend({

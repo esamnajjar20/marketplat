@@ -10,7 +10,7 @@ import {
   deviceParamsSchema,
   renameDeviceSchema,
 } from './notifications.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 import { addNotificationStreamClient } from '../../../shared/utils/notificationStream';
 

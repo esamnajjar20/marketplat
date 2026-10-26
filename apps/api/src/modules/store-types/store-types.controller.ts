@@ -5,7 +5,7 @@ import {
   updateStoreTypeSchema,
   updateStoreTypeStatusSchema,
 } from './store-types.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const storeTypesController = {
   getActive: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {

@@ -12,7 +12,7 @@ import {
   bulkVerifySellersSchema,
   bulkSuspendSellersSchema,
 } from './sellers.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/utils/requireUser';
 import { runBulk } from '../../../shared/utils/bulkRunner';
 

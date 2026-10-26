@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
-import { auditLog } from '../../../shared/utils/auditLog';
+import { auditLog } from '../../shared/utils/auditLog';
 import { adminService } from './admin.service';
 import { notificationsService } from '../notifications';
 import { successResponse } from '../../../shared/types/api-response.types';

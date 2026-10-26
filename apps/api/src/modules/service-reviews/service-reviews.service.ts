@@ -2,7 +2,7 @@ import { prisma } from '../../config/prisma';
 import { ServiceReview } from '@prisma/client';
 import { serviceReviewsRepository, ServiceReviewWithRater } from './service-reviews.repository';
 import { CreateServiceReviewInput, GetServiceReviewsQuery } from './service-reviews.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { ConflictError } from '../../../shared/errors/ConflictError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';

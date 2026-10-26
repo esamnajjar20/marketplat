@@ -8,7 +8,7 @@
 
 import { z } from 'zod';
 import { SEARCH_TYPES } from './search.types';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 export const searchFacetsQuerySchema = z.object({
   query: z

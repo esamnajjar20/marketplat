@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { swrGetWithStatus, bumpGeneration, type SwrStatus } from '../../../shared/utils/swrCache';
+import { swrGetWithStatus, bumpGeneration, type SwrStatus } from '../../shared/utils/swrCache';
 import { onHomeInvalidated } from '../home/home.cache.keys';
 import type { GetRecommendationsQuery } from './recommendations.validation';
 

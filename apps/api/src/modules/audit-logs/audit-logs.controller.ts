@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { auditLogsService } from './audit-logs.service';
 import { getAuditLogsSchema } from './audit-logs.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const auditLogsController = {
   /** GET /admin/audit-logs — admin-only, mounted with authenticate+requireAdmin in the router. */

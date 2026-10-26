@@ -1,7 +1,7 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy, Profile, VerifyCallback } from 'passport-google-oauth20';
 import { env } from '../../config/env';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 
 /**
  * Google OAuth Passport strategy.

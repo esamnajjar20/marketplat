@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { SEARCH_TYPES, SEARCH_SORT_OPTIONS } from './search.types';
-import { optionalQueryNumber } from '../../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 
 // Same "absent vs empty string" distinction as ads.validation.ts's
 // getAdsSchema.search field () — .min(1) rejects an

@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { authRepository } from './auth.repository';
 import { prisma } from '../../config/prisma';
 import crypto from 'crypto';

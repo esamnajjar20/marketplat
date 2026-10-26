@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import v8 from 'node:v8';
 import { prisma } from '../../config/prisma';
 import { AdStatus, AuditEventType, ReportStatus, Role, Prisma } from '@prisma/client';

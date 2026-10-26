@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Promotion, Product } from '@prisma/client';
 import { promotionsRepository } from './promotions.repository';
 import { productsRepository } from '../products/products.repository';

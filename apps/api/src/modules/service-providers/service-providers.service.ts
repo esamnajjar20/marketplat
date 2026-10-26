@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { ServiceProviderDetails, ServiceListing } from '@prisma/client';
 import { uploadServiceProviderLogo, deleteImage } from '../../config/cloudinary';

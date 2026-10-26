@@ -1,7 +1,7 @@
 import { SavedSearch, Product, ServiceListing } from '@prisma/client';
 import { savedSearchesRepository } from './saved-searches.repository';
 import { notificationEvents } from '../notifications';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { withSavedSearchCreationLock } from '../../../shared/utils/adLock';
 import { matchesSearchQuery } from '../../../shared/utils/searchTextMatch';

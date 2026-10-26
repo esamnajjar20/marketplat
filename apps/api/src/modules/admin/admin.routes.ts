@@ -10,7 +10,7 @@ import { CACHE } from '../../middlewares/cacheControl.middleware';
 // FIX RATE-LIMIT-ADMIN-01: blanket cap on every /admin/* route --
 // see adminRateLimit's own comment in rateLimit.middleware.ts.
 import { adminRateLimit } from '../../middlewares/rateLimit.middleware';
-import { ROLES } from '../../../shared/constants/roles';
+import { ROLES } from '../../shared/constants/roles';
 
 export const adminRouter = Router();
 
