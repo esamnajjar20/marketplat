@@ -4,6 +4,11 @@ import { PageShell, SectionCard } from '@/components/MobileUI';
 import { colors } from '@/theme/tokens';
 const destinations = [
   { title: 'الإعلانات', description: 'اكتشف أحدث الإعلانات من المستخدمين', path: '/' },
+  { title: 'تصنيفات السوق', description: 'تصفح التصنيفات العامة والإعلانات ضمن كل تصنيف', path: '/categories' },
+  { title: 'البحث المتقدم', description: 'ابحث عبر الإعلانات والمنتجات والمتاجر والخدمات مع فلاتر السعر والتصنيف', path: '/search' },
+  { title: 'مقترحات لك', description: 'محتوى مقترح حسب اهتماماتك ونشاطك عند تسجيل الدخول', path: '/suggestions' },
+  { title: 'الرائج الآن', description: 'اكتشف محتوى متنوعًا من الإعلانات والمنتجات والخدمات', path: '/trending' },
+  { title: 'أفضل البائعين', description: 'ترتيب البائعين حسب التقييم والثقة وسرعة الاستجابة', path: '/sellers-ranking' },
   { title: 'المنتجات', description: 'تصفح المنتجات والأسعار في المتاجر', path: '/products' },
   { title: 'تصنيفات المنتجات', description: 'اعثر على المنتجات حسب التصنيف', path: '/product-categories' },
   { title: 'العروض المروجة', description: 'منتجات مرتبطة بعروض ترويجية', path: '/promoted' },
