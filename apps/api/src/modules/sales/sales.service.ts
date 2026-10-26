@@ -357,7 +357,14 @@ export const salesService = {
       : await ensureEntityOwnership(userId, input);
     const costTracking = await salesService.getCostSettings(userId);
     const effectiveCostPrice = costTracking.enabled ? entity.costPrice : null;
-    const total = pos?.total ?? roundMoney(input.unitPrice * input.quantity);
+    const manualItems = input.manualItems?.map(item => ({
+      title: item.title.trim(),
+      quantity: item.quantity,
+      unitPrice: roundMoney(item.unitPrice),
+      lineTotal: roundMoney(item.unitPrice * item.quantity),
+    }));
+    const manualTotal = manualItems?.reduce((sum, item) => sum + item.lineTotal, 0);
+    const total = pos?.total ?? roundMoney(manualTotal ?? input.unitPrice * input.quantity);
     const initialPaid = roundMoney(input.payment?.amount ?? input.paidAmount ?? 0);
     if (initialPaid > total)
       throw new BadRequestError('Paid amount cannot exceed total.', 'PAYMENT_EXCEEDS_TOTAL');
@@ -368,8 +375,8 @@ export const salesService = {
         const invoiceNumber = await invoicesService.nextInvoiceNumber(tx, userId);
         const dueAmount = roundMoney(total - initialPaid);
         const status = computeStatus(total, initialPaid, input.dueDate);
-        const saleQuantity = pos?.quantity ?? input.quantity;
-        const saleUnitPrice = pos ? roundMoney(total / Math.max(1, saleQuantity)) : input.unitPrice;
+        const saleQuantity = pos?.quantity ?? (manualItems ? manualItems.reduce((sum, item) => sum + item.quantity, 0) : input.quantity);
+        const saleUnitPrice = pos || manualItems ? roundMoney(total / Math.max(1, saleQuantity)) : input.unitPrice;
         const saleCostPrice =
           pos && costTracking.enabled
             ? (() => {
@@ -384,7 +391,9 @@ export const salesService = {
           ? pos.items.length === 1
             ? pos.items[0].title
             : `${pos.items[0].title} + ${pos.items.length - 1} منتجات`
-          : input.entityTitle;
+          : manualItems
+            ? `${manualItems[0].title} + ${manualItems.length - 1} أصناف`
+            : input.entityTitle;
 
         const sale = await salesRepository.create(tx, {
           seller: { connect: { id: userId } },
@@ -470,6 +479,10 @@ export const salesService = {
                   availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK',
                 },
               });
+          }
+        } else if (manualItems) {
+          for (const item of manualItems) {
+            await tx.saleItem.create({ data: { saleId: sale.id, productId: null, entityType: 'FREE', entityId: null, title: item.title, imageUrl: null, quantity: item.quantity, unitPrice: item.unitPrice, costPrice: null, lineTotal: item.lineTotal, stockMovementId: null } });
           }
         } else {
           await tx.saleItem.create({

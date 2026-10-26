@@ -14,6 +14,11 @@ const positiveMoney = z.coerce.number().finite().positive().multipleOf(0.01);
 export const createSaleSchema = z.object({
   body: z
     .object({
+      manualItems: z.array(z.object({
+        title: z.string().trim().min(1).max(300),
+        quantity: z.coerce.number().int().positive().max(1_000_000),
+        unitPrice: money,
+      })).min(2).max(200).optional(),
       items: z
         .array(
           z.object({
@@ -94,7 +99,10 @@ export const createSaleSchema = z.object({
         (sum, item) => sum + Math.max(0, item.unitPrice - item.discount) * item.quantity,
         0
       );
-      const total = Math.round((itemsTotal ?? legacyTotal) * 100) / 100;
+      const manualItemsTotal = data.manualItems?.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+      const total = Math.round((manualItemsTotal ?? itemsTotal ?? legacyTotal) * 100) / 100;
+      if (data.manualItems && data.entityType !== 'FREE') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['manualItems'], message: 'Manual line items are only supported for FREE sales.' });
+      if (data.manualItems && data.items) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['manualItems'], message: 'Use either manualItems or POS items, not both.' });
       if (data.items) {
         if (data.entityType !== 'PRODUCT')
           ctx.addIssue({
