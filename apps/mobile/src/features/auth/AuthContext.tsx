@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import * as SecureStore from 'expo-secure-store';
 import { ApiError } from '@/api/client';
 import { loginWithPassword, logoutSession, refreshAccessSession, type AuthUser } from './auth.api';
+import { registerAccount } from '@/features/account/account.api';
 
 const SECURE_SESSION_KEY = 'marketplat.mobile.session.v1';
 const ACCESS_TOKEN_FALLBACK_TTL_SECONDS = 15 * 60;
@@ -20,6 +21,7 @@ export type AuthState = {
   isBusy: boolean;
   isRestoring: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (input: { name: string; email: string; password: string; phone?: string; city?: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -131,6 +133,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [persist]);
 
+  const register = useCallback(async (input: { name: string; email: string; password: string; phone?: string; city?: string }) => {
+    setIsBusy(true);
+    try {
+      const session = await registerAccount(input);
+      await persist({ user: session.user, accessToken: session.accessToken, csrfToken: session.csrfToken ?? null, expiresAt: sessionExpiry(session.expiresIn) });
+    } finally { setIsBusy(false); }
+  }, [persist]);
+
   const logout = useCallback(async () => {
     const token = accessToken;
     const csrf = csrfToken;
@@ -144,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken, csrfToken, clearPersisted]);
 
-  const value = useMemo(() => ({ user, accessToken, csrfToken, isBusy, isRestoring, login, logout }), [user, accessToken, csrfToken, isBusy, isRestoring, login, logout]);
+  const value = useMemo(() => ({ user, accessToken, csrfToken, isBusy, isRestoring, login, register, logout }), [user, accessToken, csrfToken, isBusy, isRestoring, login, register, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -75,3 +75,29 @@ export async function respondToServiceRequest(id: string, action: 'ACCEPTED' | '
   });
   return readData(response, 'تعذر تحديث حالة الطلب.');
 }
+
+export type ServiceCategoryOption = { id: string; name: string; nameAr?: string | null; serviceTypeId?: string | null; isActive?: boolean };
+export async function fetchServiceCategoryOptions(): Promise<ServiceCategoryOption[]> {
+  const response = await apiRequest<Envelope<ServiceCategoryOption[]>>('/api/v1/service-categories');
+  const items = readData(response, 'تعذر تحميل تصنيفات الخدمات.');
+  if (!Array.isArray(items)) throw new Error('استجابة تصنيفات الخدمات غير صالحة.');
+  return items.filter((item) => item && typeof item.id === 'string' && item.isActive !== false);
+}
+export async function fetchMyServiceListings(token: string): Promise<ServiceListing[]> {
+  const response = await apiRequest<Envelope<ServiceListing[]>>('/api/v1/service-listings/me?page=1&limit=50&sortBy=createdAt&sortOrder=desc', { token });
+  const items = readData(response, 'تعذر تحميل خدماتك.');
+  if (!Array.isArray(items)) throw new Error('استجابة خدماتك غير صالحة.');
+  return items;
+}
+export async function createMyServiceListing(input: { categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price?: number; durationEstimate?: string; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE' }, token: string, csrfToken?: string | null): Promise<ServiceListing> {
+  const response = await apiRequest<Envelope<ServiceListing>>('/api/v1/service-listings', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) });
+  return readData(response, 'تعذر إنشاء الخدمة.');
+}
+export async function updateMyServiceListing(id: string, input: Partial<{ categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price: number|null; durationEstimate: string|null; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE'; status: 'ACTIVE'|'PAUSED' }>, token: string, csrfToken?: string | null): Promise<ServiceListing> {
+  const response = await apiRequest<Envelope<ServiceListing>>(`/api/v1/service-listings/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) });
+  return readData(response, 'تعذر تحديث الخدمة.');
+}
+export async function deleteMyServiceListing(id: string, token: string, csrfToken?: string | null): Promise<void> {
+  const response = await apiRequest<Envelope<unknown>>(`/api/v1/service-listings/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) });
+  if (!response || response.success !== true) throw new Error(response?.message || 'تعذر حذف الخدمة.');
+}

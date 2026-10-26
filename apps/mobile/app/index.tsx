@@ -307,6 +307,11 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.quickActions}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/service-providers')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>♙</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مقدمو الخدمات</Text><Text style={styles.quickSubtitle}>اكتشف مقدمي الخدمات حسب المدينة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.push('/services')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#E7F4F0' }]}><Text style={styles.quickGlyph}>✦</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الخدمات</Text><Text style={styles.quickSubtitle}>اعثر على مقدم خدمة</Text></View>
@@ -317,6 +322,61 @@ export default function HomeScreen() {
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات الخدمات</Text><Text style={styles.quickSubtitle}>تابع طلباتك وردودها</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/requests')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>◉</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات السوق</Text><Text style={styles.quickSubtitle}>طلبات الشراء والخدمات والتأجير</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => user ? router.push('/appointments') : router.push('/login')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>◷</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المواعيد</Text><Text style={styles.quickSubtitle}>مواعيد طلبات الخدمات</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => user ? router.push('/my-services') : router.push('/login')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>✦</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>خدماتي</Text><Text style={styles.quickSubtitle}>إضافة خدماتك وتعديلها</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-requests')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▤</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلباتي في السوق</Text><Text style={styles.quickSubtitle}>طلباتك المنشورة والعروض الواردة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-offers')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#E7F4F0' }]}><Text style={styles.quickGlyph}>₪</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>عروضي</Text><Text style={styles.quickSubtitle}>متابعة عروضك على الطلبات المفتوحة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/seller-profile')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>♙</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>ملف البائع</Text><Text style={styles.quickSubtitle}>تفعيل نشاطك التجاري على المنصة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/service-provider-profile')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>✦</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>ملف مقدم الخدمة</Text><Text style={styles.quickSubtitle}>إعداد النشاط ومناطق الخدمة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/saved-searches')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>⌕</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>عمليات البحث المحفوظة</Text><Text style={styles.quickSubtitle}>ارجع إلى الفلاتر التي تحفظها</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user && !user.emailVerified ? <Pressable accessibilityRole="button" onPress={() => router.push('/verify-email')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>!</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>تأكيد البريد الإلكتروني</Text><Text style={styles.quickSubtitle}>فعّل حسابك للوصول إلى جميع الميزات</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/profile')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>●</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>ملفي الشخصي</Text><Text style={styles.quickSubtitle}>بيانات الحساب وكلمة المرور</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>⚙</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الإعدادات</Text><Text style={styles.quickSubtitle}>إدارة الإشعارات والتفضيلات</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable> : null}
           <Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={styles.quickAction}>
             <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>▣</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المتاجر</Text><Text style={styles.quickSubtitle}>اكتشف المتاجر المحلية</Text></View>

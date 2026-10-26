@@ -53,6 +53,8 @@ export default function LoginScreen() {
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: isBusy }} disabled={isBusy} onPress={() => { void submit(); }} style={[styles.submit, isBusy && styles.submitDisabled]}>
           {isBusy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>تسجيل الدخول</Text>}
         </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '700' }}>نسيت كلمة المرور؟</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/register')}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '700' }}>إنشاء حساب جديد</Text></Pressable>
         <Text style={styles.securityNote}>يُحفظ رمز الوصول داخل التخزين الآمن للجهاز. لا يخزّن التطبيق رمز التجديد؛ يعتمد تجديد الجلسة على Cookie آمنة يديرها الخادم.</Text>
       </ScrollView>
     </SafeAreaView>
