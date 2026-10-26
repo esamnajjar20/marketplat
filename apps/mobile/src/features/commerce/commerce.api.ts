@@ -13,6 +13,7 @@ export type StoreSummary = {
   sellerProfile?: { userId?: string; averageRating?: number | string | null; totalRatings?: number; verified?: boolean; user?: { name?: string | null } } | null;
   views?: number;
   isOpen?: boolean | null;
+  workingHours?: Record<string, { open: string; close: string } | null> | null;
 };
 export type ProductSummary = {
   id: string; name: string; description?: string | null; price: number | string;
