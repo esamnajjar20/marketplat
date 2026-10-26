@@ -38,9 +38,13 @@ function safeErrorMessage(error: unknown): string {
 async function runNextOutboxMutation(
   token: string | null | undefined,
   csrfToken?: string | null,
+  ownerId?: string | null,
 ): Promise<OutboxSyncResult> {
   if (!token?.trim()) {
     throw new ApiError('سجّل الدخول قبل مزامنة الإعلانات المحفوظة دون اتصال.', 401);
+  }
+  if (!ownerId?.trim()) {
+    throw new ApiError('تعذر تحديد الحساب المالك للعملية؛ لم تُرسل العملية حفاظًا على بيانات الحسابات.', 403);
   }
 
   // Always inspect the true queue head, not merely currently-due rows. Otherwise
@@ -48,14 +52,14 @@ async function runNextOutboxMutation(
   // its retry budget, violating FIFO and potentially corrupting user intent.
   // Preserve strict FIFO ordering by making every decision from the true queue head.
   await recoverExpiredOutboxLeases();
-  const candidate: OutboxItem | null = await getOldestOutboxMutation();
+  const candidate: OutboxItem | null = await getOldestOutboxMutation(ownerId);
   const decision = decideOutboxHeadAction(candidate, Date.now());
   if (decision.status === 'nothing-due' || decision.status === 'already-processing' ||
       decision.status === 'blocked-by-exhausted' || decision.status === 'waiting-for-retry') {
     return decision;
   }
   if (decision.status === 'blocked-by-unsupported') {
-    const all = await listAllOutboxMutations();
+    const all = await listAllOutboxMutations(ownerId);
     return { ...decision, count: all.filter((item) => item.operation === 'update-ad').length };
   }
   if (!candidate || (decision.status !== 'send-create-ad' && decision.status !== 'send-delete-ad' && decision.status !== 'send-update-ad')) return { status: 'nothing-due' };
@@ -63,11 +67,11 @@ async function runNextOutboxMutation(
   // Lease ownership prevents a stale worker from acknowledging or failing a row
   // after another worker has recovered and reclaimed it.
   const leaseOwner = `outbox-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-  const claimed = await claimMutation(candidate.id, leaseOwner, OUTBOX_LEASE_DURATION_MS);
+  const claimed = await claimMutation(candidate.id, leaseOwner, OUTBOX_LEASE_DURATION_MS, ownerId);
   if (!claimed) {
     // Another trigger may have claimed the head between our read and UPDATE.
     // Re-read it and report contention rather than implying the queue is empty.
-    const latestHead = await getOldestOutboxMutation();
+    const latestHead = await getOldestOutboxMutation(ownerId);
     if (latestHead?.id === candidate.id && latestHead.state === 'processing') {
       return { status: 'already-processing', id: latestHead.id };
     }
@@ -100,9 +104,10 @@ async function runNextOutboxMutation(
 export function syncNextOutboxMutation(
   token: string | null | undefined,
   csrfToken?: string | null,
+  ownerId?: string | null,
 ): Promise<OutboxSyncResult> {
   if (activeSync) return activeSync;
-  const work = runNextOutboxMutation(token, csrfToken);
+  const work = runNextOutboxMutation(token, csrfToken, ownerId);
   activeSync = work;
   void work.finally(() => {
     if (activeSync === work) activeSync = null;
@@ -127,11 +132,12 @@ export async function syncOutboxIfReady(input: {
   isOnline: boolean;
   token: string | null | undefined;
   csrfToken?: string | null;
+  ownerId?: string | null;
 }): Promise<GuardedOutboxSyncResult> {
   if (!input.isOnline) return { status: 'offline' };
-  if (!input.token?.trim()) return { status: 'login-required-before-sync' };
+  if (!input.token?.trim() || !input.ownerId?.trim()) return { status: 'login-required-before-sync' };
   return {
     status: 'sync-result',
-    result: await syncNextOutboxMutation(input.token, input.csrfToken),
+    result: await syncNextOutboxMutation(input.token, input.csrfToken, input.ownerId),
   };
 }

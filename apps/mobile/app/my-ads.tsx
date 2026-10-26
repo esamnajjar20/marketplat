@@ -36,6 +36,7 @@ export default function MyAdsScreen() {
       const work = online
         ? deleteAd(ad.id, accessToken, csrfToken).then(() => setAds((current) => current.filter((item) => item.id !== ad.id)))
         : enqueueMutation({
+            ownerId: String(user.id),
             id: `offline-delete:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`,
             operation: 'delete-ad', resourceId: ad.id, payload: { title: ad.title },
             idempotencyKey: `offline-op:delete:${ad.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,

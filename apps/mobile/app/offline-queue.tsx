@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { colors, radius, spacing } from '@/theme/tokens';
-import { discardOutboxMutation, listAllOutboxMutations, retryExhaustedMutation, type OutboxItem } from '@/storage/mutation-outbox';
+import { countUnownedOutboxMutations, discardOutboxMutation, listAllOutboxMutations, retryExhaustedMutation, type OutboxItem } from '@/storage/mutation-outbox';
 import { syncOutboxIfReady } from '@/storage/outbox-sync';
 import { acknowledgeFavoriteState, discardFavoriteState, listPendingFavoriteStates, restoreFavoriteStateIfAbsent, writeFavoriteAdIds, type PendingFavoriteState } from '@/features/ads/favorites.store';
 import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites.api';
@@ -33,6 +33,7 @@ export default function OfflineQueueScreen() {
   const netInfo = useNetInfo();
   const [items, setItems] = useState<OutboxItem[]>([]);
   const [favoriteItems, setFavoriteItems] = useState<PendingFavoriteState[]>([]);
+  const [unownedCount, setUnownedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +48,12 @@ export default function OfflineQueueScreen() {
   const refresh = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const mutations = await listAllOutboxMutations();
+      const [mutations, legacyCount] = await Promise.all([
+        user?.id ? listAllOutboxMutations(user.id) : Promise.resolve([]),
+        countUnownedOutboxMutations(),
+      ]);
       setItems(mutations);
+      setUnownedCount(legacyCount);
       setFavoriteItems(user?.id ? await listPendingFavoriteStates(user.id) : []);
     }
     catch (e) { setError(e instanceof Error ? e.message : 'تعذر قراءة العمليات المحفوظة.'); }
@@ -60,7 +65,7 @@ export default function OfflineQueueScreen() {
     { text: 'رجوع', style: 'cancel' },
     { text: 'إلغاء العملية', style: 'destructive', onPress: () => {
       setBusyId(item.id);
-      void discardOutboxMutation(item.id).then((removed) => {
+      void discardOutboxMutation(item.id, item.ownerId).then((removed) => {
         if (!removed) Alert.alert('لم تُلغَ العملية', 'قد تكون العملية قيد المعالجة الآن. حدّث القائمة وحاول لاحقًا.');
         return refresh();
       }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر إلغاء العملية.')).finally(() => setBusyId(null));
@@ -71,9 +76,9 @@ export default function OfflineQueueScreen() {
     if (!online || !accessToken) { Alert.alert('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول أولًا.'); return; }
     setBusyId(item.id); setError(null);
     try {
-      const reset = await retryExhaustedMutation(item.id);
+      const reset = await retryExhaustedMutation(item.id, item.ownerId);
       if (!reset) { setError('لم تعد العملية مستنفدة أو أنها تغيّرت؛ حدّث القائمة.'); return; }
-      const result = await syncOutboxIfReady({ isOnline: online, token: accessToken, csrfToken });
+      const result = await syncOutboxIfReady({ isOnline: online, token: accessToken, csrfToken, ownerId: user?.id });
       if (result.status === 'sync-result' && result.result.status === 'synced') {
         Alert.alert('تمت المزامنة', 'تم إرسال العملية وتأكيد حفظها.');
       } else if (result.status === 'sync-result' && result.result.status === 'server-succeeded-local-ack-pending') {
@@ -141,6 +146,7 @@ export default function OfflineQueueScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><Text style={styles.heading}>العمليات دون اتصال</Text><Pressable onPress={() => void refresh()} accessibilityRole="button"><Text style={styles.link}>تحديث</Text></Pressable></View>
     <View style={styles.notice}><Text style={styles.noticeText}>تُحفظ هذه العمليات على الجهاز. قد توقف عملية أقدم غير مدعومة المزامنة، وستتوقف العمليات الأحدث حتى تُحل المشكلة للحفاظ على ترتيب التعديلات. لا تلغِ عملية إلا إذا كنت متأكدًا أنك لا تريد إرسالها.</Text></View>
+    {unownedCount > 0 ? <View style={styles.notice}><Text style={styles.noticeText}>توجد {unownedCount} عملية قديمة محفوظة قبل ربط العمليات بالحساب. لم تُرسل تلقائيًا لأن مالكها غير معروف، وذلك لمنع تنفيذها بحساب آخر. راجعها من نسخة التطبيق السابقة أو احذف بيانات التطبيق فقط إذا لم تعد تحتاجها.</Text></View> : null}
     {!user ? <View style={styles.center}><Text style={styles.title}>سجّل الدخول لمزامنة العمليات</Text><Pressable style={styles.primary} onPress={() => router.push('/login')}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View>
       : loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري قراءة العمليات…</Text></View>
       : error && items.length === 0 ? <View style={styles.center}><Text style={styles.title}>تعذر تحميل القائمة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void refresh()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View>

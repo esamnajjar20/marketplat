@@ -9,13 +9,13 @@ import { startOutboxSyncLifecycle, type OutboxLifecycleSnapshot } from './outbox
  * beneath AuthProvider, not inside individual screens.
  */
 export function OutboxSyncLifecycleBridge() {
-  const { accessToken, csrfToken, isRestoring } = useAuth();
-  const latest = useRef<OutboxLifecycleSnapshot>({ isOnline: false, token: null, csrfToken: null });
+  const { accessToken, csrfToken, user, isRestoring } = useAuth();
+  const latest = useRef<OutboxLifecycleSnapshot>({ isOnline: false, token: null, ownerId: null, csrfToken: null });
 
   // Keep lifecycle callbacks fresh without re-subscribing on every connectivity event.
   useEffect(() => {
-    latest.current = { ...latest.current, token: accessToken, csrfToken };
-  }, [accessToken, csrfToken]);
+    latest.current = { ...latest.current, token: accessToken, ownerId: user?.id ?? null, csrfToken };
+  }, [accessToken, csrfToken, user?.id]);
 
   useEffect(() => {
     if (isRestoring) return;
@@ -31,7 +31,7 @@ export function OutboxSyncLifecycleBridge() {
       // The durable queue remains the source of truth. UI screens can surface
       // status later without coupling sync correctness to a mounted screen.
     });
-  }, [isRestoring, accessToken, csrfToken]);
+  }, [isRestoring, accessToken, csrfToken, user?.id]);
 
   return null;
 }

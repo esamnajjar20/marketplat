@@ -118,6 +118,7 @@ export default function AdEditorScreen() {
           const operationId = `offline-update:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
           await saveAdEditDraft(String(user.id), String(id), draft);
           await enqueueMutation({
+            ownerId: String(user.id),
             id: operationId,
             operation: 'update-ad',
             resourceId: String(id),
@@ -165,6 +166,7 @@ export default function AdEditorScreen() {
           if (draft.images.length === 0) throw new Error('لا يمكن حفظ إعلان للمزامنة دون صورة واحدة على الأقل.');
           const operationId = `offline-op:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
           await enqueueMutation({
+            ownerId: String(user.id),
             id: operationId,
             operation: 'create-ad',
             resourceId: null,

@@ -4,6 +4,7 @@ import { syncOutboxIfReady, type GuardedOutboxSyncResult } from './outbox-sync';
 export type OutboxLifecycleSnapshot = {
   isOnline: boolean;
   token: string | null | undefined;
+  ownerId?: string | null;
   csrfToken?: string | null;
 };
 

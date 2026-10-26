@@ -7,8 +7,8 @@ const transport = fs.readFileSync(new URL('outbox-transport.ts', root), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 for (const token of [
-  'syncNextOutboxMutation', 'getOldestOutboxMutation()', "decideOutboxHeadAction(candidate, Date.now())",
-  'claimMutation(candidate.id, leaseOwner, OUTBOX_LEASE_DURATION_MS)', 'sendOutboxCreateAd(claimed, token, csrfToken)',
+  'syncNextOutboxMutation', 'getOldestOutboxMutation(ownerId)', "decideOutboxHeadAction(candidate, Date.now())",
+  'claimMutation(candidate.id, leaseOwner, OUTBOX_LEASE_DURATION_MS, ownerId)', 'sendOutboxCreateAd(claimed, token, csrfToken)',
   'markMutationFailed(claimed.id, message, leaseOwner)', 'acknowledgeMutation(claimed.id, leaseOwner)',
   "status: 'server-succeeded-local-ack-pending'", "error.status === 401 || error.status === 403",
   "status: 'blocked-by-unsupported'", "throw new ApiError('سجّل الدخول قبل مزامنة الإعلانات المحفوظة دون اتصال.', 401)",

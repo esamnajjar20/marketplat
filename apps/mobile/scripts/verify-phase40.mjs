@@ -22,7 +22,7 @@ assert.deepEqual(first.images, [{ uri: 'file:///cache/ad.jpg', name: 'ad.jpg', t
 assert.match(transport, /timeoutMs: OUTBOX_REQUEST_TIMEOUT_MS/);
 assert.match(transport, /OUTBOX_REQUEST_TIMEOUT_MS = 12_000/);
 assert.match(sync, /OUTBOX_LEASE_DURATION_MS = 60_000/);
-assert.match(sync, /claimMutation\(candidate\.id, leaseOwner, OUTBOX_LEASE_DURATION_MS\)/);
+assert.match(sync, /claimMutation\(candidate\.id, leaseOwner, OUTBOX_LEASE_DURATION_MS, ownerId\)/);
 assert.match(sync, /await sendOutboxCreateAd\(claimed, token, csrfToken\)/);
 assert.match(sync, /await acknowledgeMutation\(claimed\.id, leaseOwner\)/);
 assert.match(contract, /X-Offline-Op-Id/);
