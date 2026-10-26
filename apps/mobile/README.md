@@ -34,6 +34,45 @@ pnpm dev:mobile
 
 For Android emulator, `localhost` points to the emulator itself; use `10.0.2.2` for a development server running on the host machine, with the correct port. For a physical device, use a reachable LAN address or HTTPS endpoint. Never commit real credentials or tokens in `.env`.
 
+
+## Test APK release (not a production-signed release)
+
+This repository contains a native Android project under `apps/mobile/android`. The test-release task builds a standalone APK with the current Gradle `release` variant. **In the current configuration, that variant is signed with the Android debug keystore.** This is suitable only for internal/testing distribution; do not publish it to an app store or use it as a production release.
+
+### Preflight
+
+1. Install the root workspace dependencies with the repository's pinned pnpm version.
+2. Ensure Java and Android SDK/SDK Build Tools are available in the build environment.
+3. Copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `EXPO_PUBLIC_API_URL` to a reachable API origin. Do not commit `.env`. The API URL is compiled into the JS bundle at build time; changing it later requires rebuilding.
+4. Review the Android permissions in `android/app/src/main/AndroidManifest.xml`; remove permissions not required by actual features before wider distribution.
+
+### Build the test APK
+
+From the repository root:
+
+```sh
+pnpm verify:apk:test
+pnpm build:apk:test
+```
+
+The APK is expected at `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`. Verify it exists and inspect its package/signature before installing. For example, with Android SDK Build Tools installed:
+
+```sh
+test -s apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt dump badging apps/mobile/android/app/build/outputs/apk/release/app-release.apk | head -20
+$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner verify --verbose apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
+These checks verify the artifact's presence and APK signature format; they do not prove runtime correctness. Install on a real Android device and test startup, API connectivity, login/logout, image selection, offline/error states, and session persistence. The mobile README currently documents several incomplete features and unverified refresh-cookie behavior, so this APK is a **test build**, not a feature-complete release.
+
+### Signing warning
+
+The Gradle `release` build type currently uses `signingConfigs.debug`. Do not replace the debug keystore with a committed production key. Before public release, configure a private release keystore through environment/CI secrets, increase `versionCode` for each distributable version, and verify backup/data handling and permissions.
+
+### Static release-config check
+
+`pnpm verify:apk:test` checks the app identifier/version and the expected test-signing/build settings. It does not compile Android code or create an APK.
+
 ## Validation status
 
 The static scaffold/API-wiring check does not require network access. An Expo/Metro build, Android/iOS native build, and TypeScript check require the workspace dependencies to be installed and must be run in a connected development environment before treating this app as build-verified.
