@@ -3,7 +3,8 @@ version: '3.9'
 services:
   app:
     build:
-      context: .
+      context: ../..
+      dockerfile: apps/api/Dockerfile
       target: production
     container_name: classifieds-backend
     restart: unless-stopped

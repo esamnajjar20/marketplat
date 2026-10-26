@@ -1,58 +1,57 @@
-# ── Build Stage ──────────────────────────────────────
-FROM node:20-alpine AS builder
+# Build from the monorepo root:
+# docker build -f apps/api/Dockerfile .
+FROM node:22-alpine AS base
 
-WORKDIR /app
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+WORKDIR /repo
 
-COPY package*.json ./
-COPY tsconfig.json ./
-COPY prisma ./prisma/
+# Copy every workspace manifest so pnpm can validate the root lockfile.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/mobile/package.json ./apps/mobile/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
 
-RUN npm ci && npx prisma generate
+FROM base AS builder
+ENV NODE_ENV=development
+COPY apps/api/prisma ./apps/api/prisma
+RUN pnpm install --frozen-lockfile --filter classifieds-platform-backend...
 
-COPY src ./src
+COPY apps/api ./apps/api
+RUN pnpm --filter classifieds-platform-backend exec prisma generate --schema prisma/schema.prisma \
+    && pnpm --filter classifieds-platform-backend build
 
-RUN npm run build
-
-# ── Production Stage ─────────────────────────────────
-FROM node:20-alpine AS production
-
-WORKDIR /app
-
+FROM base AS production
 ENV NODE_ENV=production
+ENV PORT=5000
+WORKDIR /repo
 
-# ===========================================
-# إضافة سطر تثبيت openssl و wget (حل مشكلة Prisma + Alpine)
-RUN apk add --no-cache openssl wget
-# ===========================================
+RUN apk add --no-cache openssl wget \
+    && addgroup -S -g 1001 nodejs \
+    && adduser -S -u 1001 -G nodejs appuser
 
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+COPY apps/api/prisma ./apps/api/prisma
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && pnpm install --prod --frozen-lockfile --filter classifieds-platform-backend \
+    && pnpm --filter classifieds-platform-backend exec prisma generate --schema prisma/schema.prisma \
+    && apk del .build-deps \
+    && pnpm store prune
 
-COPY package*.json ./
-COPY prisma ./prisma/
+COPY --from=builder /repo/apps/api/dist ./apps/api/dist
+COPY --from=builder /repo/apps/api/docker-entrypoint.sh ./apps/api/docker-entrypoint.sh
+COPY --from=builder /repo/apps/api/ecosystem.config.js ./apps/api/ecosystem.config.js
 
-# bcrypt (optionalDependencies) يحتاج ترجمة native عبر node-gyp إن لم يجد
-# prebuilt binary مطابق لِـ musl/Alpine — بدون python3/make/g++ هنا، npm
-# ci يتخطى الحزمة بصمت (optional) ويسقط تلقائيًا إلى bcryptjs الأبطأ (انظر
-# hash.ts). نثبّت أدوات البناء كـ virtual package مؤقت، ثم نحذفها فور
-# انتهاء التثبيت حتى لا تكبر صورة الإنتاج النهائية.
-RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    npm ci --only=production && \
-    npx prisma generate && \
-    apk del .build-deps && \
-    npm cache clean --force
+RUN mkdir -p /repo/apps/api/logs \
+    && chown -R appuser:nodejs /repo/apps/api \
+    && chmod +x /repo/apps/api/docker-entrypoint.sh
 
-COPY --from=builder /app/dist ./dist
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-COPY ecosystem.config.js ./ecosystem.config.js
-
-RUN mkdir -p logs && chown -R nodejs:nodejs /app && chmod +x ./docker-entrypoint.sh
-
-USER nodejs
-
+WORKDIR /repo/apps/api
+USER appuser
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget -qO- http://localhost:5000/health || exit 1
+  CMD wget -qO- http://127.0.0.1:5000/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

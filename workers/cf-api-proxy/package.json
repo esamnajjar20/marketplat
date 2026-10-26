@@ -1,0 +1,11 @@
+{
+  "name": "@marketplat/cf-api-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare API proxy worker and cache policy checks for MarketPlat",
+  "scripts": {
+    "test": "node cache-policy.test.mjs",
+    "audit:probe": "node cache-probe.mjs",
+    "type-check": "node --check worker.js && node --check cache-policy.test.mjs && node --check cache-probe.mjs"
+  }
+}

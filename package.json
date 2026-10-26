@@ -25,6 +25,16 @@
     "android:mobile": "pnpm --filter @marketplat/mobile android",
     "ios:mobile": "pnpm --filter @marketplat/mobile ios",
     "type-check:mobile": "pnpm --filter @marketplat/mobile type-check",
-    "test:mobile": "pnpm --filter @marketplat/mobile test"
+    "test:mobile": "pnpm --filter @marketplat/mobile test",
+    "build:all": "turbo run build --filter=marketplat --filter=classifieds-platform-backend",
+    "type-check:all": "turbo run type-check --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts --filter=@marketplat/cf-api-proxy",
+    "test:all": "turbo run test --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts",
+    "lint:all": "turbo run lint --filter=marketplat --filter=classifieds-platform-backend",
+    "dev:all": "turbo run dev --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile",
+    "test:worker": "pnpm --filter @marketplat/cf-api-proxy test",
+    "verify:prisma-layout": "node tooling/verify-prisma-layout.mjs"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8"
   }
 }

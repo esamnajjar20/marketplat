@@ -1,0 +1,79 @@
+name: Workspace Foundation Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workspace-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workspace-foundation:
+    name: pnpm workspace bootstrap and package smoke checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install workspace from frozen lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify workspace structure
+        run: pnpm run verify:workspace
+
+      - name: Verify Turbo is executable
+        run: pnpm exec turbo --version
+
+      - name: Preview web and API build task graph
+        run: pnpm exec turbo run build --dry --filter=marketplat --filter=classifieds-platform-backend
+
+      - name: Preview type-check task graph
+        run: pnpm exec turbo run type-check --dry --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts
+
+      - name: Preview test task graph
+        run: pnpm exec turbo run test --dry --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts
+
+      - name: Preview lint task graph
+        run: pnpm exec turbo run lint --dry --filter=marketplat --filter=classifieds-platform-backend
+
+      - name: Verify Prisma schema and migration layout (static)
+        run: pnpm run verify:prisma-layout
+
+      - name: Validate Prisma schema (no database writes)
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/marketplat_validation
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/marketplat_validation
+        run: pnpm exec prisma validate
+
+      - name: Contracts type-check
+        run: pnpm --filter @marketplat/contracts type-check
+
+      - name: Contracts tests
+        run: pnpm --filter @marketplat/contracts test
+
+      - name: Mobile type-check
+        run: pnpm --filter @marketplat/mobile type-check
+
+      - name: Cloudflare Worker JavaScript syntax checks
+        run: pnpm --filter @marketplat/cf-api-proxy type-check
+
+      - name: Mobile scaffold and phase checks
+        run: pnpm --filter @marketplat/mobile test

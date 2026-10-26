@@ -1,0 +1,266 @@
+--- a/package.json
++++ b/package.json
+@@ -25,6 +25,14 @@
+     "android:mobile": "pnpm --filter @marketplat/mobile android",
+     "ios:mobile": "pnpm --filter @marketplat/mobile ios",
+     "type-check:mobile": "pnpm --filter @marketplat/mobile type-check",
+-    "test:mobile": "pnpm --filter @marketplat/mobile test"
++    "test:mobile": "pnpm --filter @marketplat/mobile test",
++    "build:all": "turbo run build --filter=marketplat --filter=classifieds-platform-backend",
++    "type-check:all": "turbo run type-check --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts",
++    "test:all": "turbo run test --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts",
++    "lint:all": "turbo run lint --filter=marketplat --filter=classifieds-platform-backend",
++    "dev:all": "turbo run dev --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile"
++  },
++  "devDependencies": {
++    "turbo": "^2.5.8"
+   }
+ }
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -1,6 +1,4 @@
+ packages:
+-  - 'apps/web'
+-  - 'apps/api'
+   - 'apps/*'
+   - 'packages/*'
+   - 'workers/*'
+--- a/turbo.json
++++ b/turbo.json
+@@ -0,0 +1,39 @@
++{
++  "$schema": "https://turbo.build/schema.json",
++  "tasks": {
++    "build": {
++      "dependsOn": [
++        "^build"
++      ],
++      "outputs": [
++        ".next/**",
++        "!.next/cache/**",
++        "dist/**",
++        "build/**",
++        "out/**"
++      ]
++    },
++    "type-check": {
++      "dependsOn": [
++        "^type-check"
++      ],
++      "outputs": []
++    },
++    "test": {
++      "outputs": [
++        "coverage/**",
++        "test-results/**"
++      ]
++    },
++    "lint": {
++      "dependsOn": [
++        "^lint"
++      ],
++      "outputs": []
++    },
++    "dev": {
++      "cache": false,
++      "persistent": true
++    }
++  }
++}
+--- a/tooling/verify-workspace.mjs
++++ b/tooling/verify-workspace.mjs
+@@ -3,24 +3,62 @@
+ 
+ const root = process.cwd();
+ const readJson = (path) => JSON.parse(readFileSync(resolve(root, path), 'utf8'));
+-const rootPackage = readJson('package.json');
+ const expected = [
+   ['apps/web/package.json', 'marketplat'],
+   ['apps/api/package.json', 'classifieds-platform-backend'],
++  ['apps/mobile/package.json', '@marketplat/mobile'],
+   ['packages/contracts/package.json', '@marketplat/contracts'],
+ ];
++const taskTargets = {
++  'build:all': ['apps/web/package.json', 'apps/api/package.json'],
++  'type-check:all': expected.map(([path]) => path),
++  'test:all': expected.map(([path]) => path),
++  'lint:all': ['apps/web/package.json', 'apps/api/package.json'],
++  'dev:all': ['apps/web/package.json', 'apps/api/package.json', 'apps/mobile/package.json'],
++};
+ const errors = [];
+ 
+-if (rootPackage.private !== true) errors.push('Root package must remain private.');
++if (readJson('package.json').private !== true) errors.push('Root package must remain private.');
++const rootPackage = readJson('package.json');
+ if (!existsSync(resolve(root, 'pnpm-workspace.yaml'))) errors.push('Missing pnpm-workspace.yaml.');
++if (!existsSync(resolve(root, 'pnpm-lock.yaml'))) errors.push('Missing pnpm-lock.yaml.');
++if (!rootPackage.devDependencies?.turbo) errors.push('Root devDependencies must include turbo.');
++
++let turbo = null;
++if (!existsSync(resolve(root, 'turbo.json'))) {
++  errors.push('Missing turbo.json.');
++} else {
++  turbo = readJson('turbo.json');
++  for (const task of ['build', 'type-check', 'test', 'lint', 'dev']) {
++    if (!turbo.tasks?.[task]) errors.push(`turbo.json: missing task "${task}".`);
++  }
++}
++
++const packages = new Map();
+ for (const [path, expectedName] of expected) {
+   if (!existsSync(resolve(root, path))) {
+     errors.push(`Missing workspace package manifest: ${path}`);
+     continue;
+   }
+   const pkg = readJson(path);
++  packages.set(path, pkg);
+   if (pkg.name !== expectedName) {
+     errors.push(`${path}: expected package name "${expectedName}", found "${pkg.name}".`);
++  }
++}
++
++for (const [script, paths] of Object.entries(taskTargets)) {
++  if (!rootPackage.scripts?.[script]) errors.push(`Root package.json: missing script "${script}".`);
++  const task = script === 'build:all' ? 'build'
++    : script === 'type-check:all' ? 'type-check'
++    : script === 'test:all' ? 'test'
++    : script === 'lint:all' ? 'lint'
++    : 'dev';
++  for (const path of paths) {
++    const pkg = packages.get(path);
++    if (pkg && !pkg.scripts?.[task]) {
++      errors.push(`${path}: script "${task}" is required by root script "${script}".`);
++    }
+   }
+ }
+ 
+@@ -30,6 +68,7 @@
+   process.exitCode = 1;
+ } else {
+   console.log('Workspace bootstrap structure verified.');
+-  console.log('Web, API, and contracts packages are discoverable in the workspace.');
+-  console.log('Note: dependency installation and build/test baselines are intentionally not claimed by this structural check.');
++  console.log('Web, API, mobile, and contracts package manifests are discoverable.');
++  console.log('Root Turbo scripts target packages that define the requested tasks.');
++  console.log('This is a structural check; it does not prove install, build, or test success.');
+ }
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -6,7 +6,11 @@
+ 
+ importers:
+ 
+-  .: {}
++  .:
++    devDependencies:
++      turbo:
++        specifier: ^2.5.8
++        version: 2.5.8
+ 
+   apps/api:
+     dependencies:
+@@ -9245,6 +9249,47 @@
+     resolution: {integrity: sha512-phPGCwqr2+Qo0fwniCE8e4pKnGu/yFb5nD5Y8bf0EEeiI5GklnACYA9GFy/DrAeRrKHXvHn+1SUsOWgJp6RO+g==}
+     engines: {node: '>= 0.4'}
+ 
++  turbo-darwin-64@2.5.8:
++    resolution: {integrity: sha512-Dh5bCACiHO8rUXZLpKw+m3FiHtAp2CkanSyJre+SInEvEr5kIxjGvCK/8MFX8SFRjQuhjtvpIvYYZJB4AGCxNQ==}
++    cpu: [x64]
++    os: [darwin]
++
++  turbo-darwin-arm64@2.5.8:
++    resolution: {integrity: sha512-f1H/tQC9px7+hmXn6Kx/w8Jd/FneIUnvLlcI/7RGHunxfOkKJKvsoiNzySkoHQ8uq1pJnhJ0xNGTlYM48ZaJOQ==}
++    cpu: [arm64]
++    os: [darwin]
++
++  turbo-linux-64@2.5.8:
++    resolution: {integrity: sha512-hMyvc7w7yadBlZBGl/bnR6O+dJTx3XkTeyTTH4zEjERO6ChEs0SrN8jTFj1lueNXKIHh1SnALmy6VctKMGnWfw==}
++    cpu: [x64]
++    os: [linux]
++
++  turbo-linux-arm64@2.5.8:
++    resolution: {integrity: sha512-LQELGa7bAqV2f+3rTMRPnj5G/OHAe2U+0N9BwsZvfMvHSUbsQ3bBMWdSQaYNicok7wOZcHjz2TkESn1hYK6xIQ==}
++    cpu: [arm64]
++    os: [linux]
++
++  turbo-windows-64@2.5.8:
++    resolution: {integrity: sha512-3YdcaW34TrN1AWwqgYL9gUqmZsMT4T7g8Y5Azz+uwwEJW+4sgcJkIi9pYFyU4ZBSjBvkfuPZkGgfStir5BBDJQ==}
++    cpu: [x64]
++    os: [win32]
++
++  turbo-windows-arm64@2.5.8:
++    resolution: {integrity: sha512-eFC5XzLmgXJfnAK3UMTmVECCwuBcORrWdewoiXBnUm934DY6QN8YowC/srhNnROMpaKaqNeRpoB5FxCww3eteQ==}
++    cpu: [arm64]
++    os: [win32]
++
++  turbo@2.5.8:
++    resolution: {integrity: sha512-5c9Fdsr9qfpT3hA0EyYSFRZj1dVVsb6KIWubA9JBYZ/9ZEAijgUEae0BBR/Xl/wekt4w65/lYLTFaP3JmwSO8w==}
++    hasBin: true
++    optionalDependencies:
++      turbo-darwin-64: 2.5.8
++      turbo-darwin-arm64: 2.5.8
++      turbo-linux-64: 2.5.8
++      turbo-linux-arm64: 2.5.8
++      turbo-windows-64: 2.5.8
++      turbo-windows-arm64: 2.5.8
++
+   typescript@5.9.3:
+     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+     engines: {node: '>=14.17'}
+@@ -20629,6 +20674,33 @@
+       possible-typed-array-names: 1.1.0
+       reflect.getprototypeof: 1.0.10
+ 
++  turbo-darwin-64@2.5.8:
++    optional: true
++
++  turbo-darwin-arm64@2.5.8:
++    optional: true
++
++  turbo-linux-64@2.5.8:
++    optional: true
++
++  turbo-linux-arm64@2.5.8:
++    optional: true
++
++  turbo-windows-64@2.5.8:
++    optional: true
++
++  turbo-windows-arm64@2.5.8:
++    optional: true
++
++  turbo@2.5.8:
++    optionalDependencies:
++      turbo-darwin-64: 2.5.8
++      turbo-darwin-arm64: 2.5.8
++      turbo-linux-64: 2.5.8
++      turbo-linux-arm64: 2.5.8
++      turbo-windows-64: 2.5.8
++      turbo-windows-arm64: 2.5.8
++
+   typescript@5.9.3: {}
+ 
+   typescript@6.0.3: {}
+--- a/PHASE2_WORKSPACE_FOUNDATION_AR.md
++++ b/PHASE2_WORKSPACE_FOUNDATION_AR.md
+@@ -0,0 +1,20 @@
++# المرحلة الثانية — تأسيس Workspace وTurbo
++
++## الملفات المعدّلة
++- `package.json`: إضافة Turbo كاعتمادية تطوير، وتعريف أوامر عامة مقيّدة بالحزم التي تحتوي على scripts مناسبة.
++- `pnpm-workspace.yaml`: إزالة إدخالات التطبيقات المتكررة والاكتفاء بأنماط `apps/*` و`packages/*` و`workers/*`.
++- `pnpm-lock.yaml`: تسجيل Turbo `2.5.8` واعتمادياته الاختيارية للمنصات في root importer والـ lock graph.
++- `turbo.json`: تعريف مهام البناء وفحص الأنواع والاختبارات وlint والتطوير؛ الاختبارات لا تفرض البناء السابق للحزم التابعة.
++- `tooling/verify-workspace.mjs`: فحص أسماء الحزم والمهام التي تتطلبها أوامر الجذر.
++
++## نطاق أوامر الجذر
++- `build:all`: الويب والـ API فقط، لأنهما يعرّفان `build`.
++- `type-check:all` و`test:all`: الويب والـ API والهاتف و`@marketplat/contracts`.
++- `lint:all`: الويب والـ API فقط.
++- `dev:all`: الويب والـ API والهاتف فقط.
++
++## قيود التحقق
++هذه الحزمة هي ملفات التعديل فقط مع الحفاظ على المسارات والامتدادات الأصلية. تمت مراجعة بنية الملفات وتنسيق JSON وYAML بشكل ساكن؛ لم يتم تشغيل `pnpm install --frozen-lockfile` أو البناء أو الاختبارات في بيئة Linux. يجب تنفيذ تلك الفحوص في CI متوافق مع `pnpm@10.18.0` قبل الدمج.
++
++## تنبيه Worker
++`workers/cf-api-proxy` لا يحتوي `package.json` في نسخة المصدر؛ لذلك لم يُضف إلى مهام Turbo. يلزم تدقيق طريقة بنائه/اختباره وإدارته قبل تحويله إلى workspace package مستقل.
