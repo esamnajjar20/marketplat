@@ -1,0 +1,19 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+
+const queue = readFileSync(new URL('../src/storage/chat-message-outbox.ts', import.meta.url), 'utf8');
+const screen = readFileSync(new URL('../app/messages/[id].tsx', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(queue, /export const CHAT_OUTBOX_MAX_ATTEMPTS = 8/, 'retry limit should be shared with the UI');
+assert.match(queue, /export async function retryChatMessage/, 'permanently failed rows must support explicit retry');
+assert.match(queue, /attempts = 0, next_attempt_at = 0, last_error = NULL/, 'manual retry must reset retry metadata');
+assert.match(queue, /WHERE operation_id = \? AND owner_id = \? AND attempts >= \?/, 'retry must be restricted to the current owner and dead-letter rows');
+assert.match(queue, /export async function discardFailedChatMessage/, 'users must be able to discard permanently failed local messages');
+assert.match(queue, /DELETE FROM chat_message_outbox WHERE operation_id = \? AND owner_id = \? AND attempts >= \?/, 'discard must be owner-scoped and only remove dead-letter rows');
+assert.match(screen, /item\.outboxAttempts >= CHAT_OUTBOX_MAX_ATTEMPTS/, 'screen must distinguish exhausted messages from queued messages');
+assert.match(screen, /إعادة المحاولة/, 'screen must expose an explicit retry action');
+assert.match(screen, /حذف الرسالة غير المرسلة/, 'discard must require a confirmation');
+assert.match(screen, /retryChatMessage\(operationId, user\.id\)/, 'manual retry must reset the durable queue row');
+assert.match(screen, /discardFailedChatMessage\(operationId, user\.id\)/, 'discard action must use the authenticated owner ID');
+assert.match(pkg.scripts.test, /verify-chat-dead-letter-recovery-audit\.mjs/, 'dead-letter recovery audit must run in npm test');
+console.log('Chat dead-letter recovery audit checks passed (manual retry, confirmed discard, and account-scoped queue operations).');

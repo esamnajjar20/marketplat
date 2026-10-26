@@ -1,0 +1,25 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+
+const client = readFileSync(new URL('../src/api/client.ts', import.meta.url), 'utf8');
+const api = readFileSync(new URL('../src/features/messaging/messaging.api.ts', import.meta.url), 'utf8');
+const sync = readFileSync(new URL('../src/features/messaging/chat-message-outbox-sync.ts', import.meta.url), 'utf8');
+const bridge = readFileSync(new URL('../src/storage/ChatMessageOutboxLifecycleBridge.tsx', import.meta.url), 'utf8');
+const screen = readFileSync(new URL('../app/messages/[id].tsx', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(client, /signal\?: AbortSignal/, 'API client must accept a caller cancellation signal');
+assert.match(client, /externalSignal\?\.addEventListener\('abort', abortFromCaller/, 'caller cancellation must abort the actual fetch controller');
+assert.match(client, /externalSignal\?\.removeEventListener\('abort', abortFromCaller\)/, 'abort listener must be cleaned up after the request');
+assert.match(api, /operationId\?: string \| null, signal\?: AbortSignal/, 'message API must accept cancellation without changing the idempotency key');
+assert.match(api, /'X-Offline-Op-Id': operationId/, 'message retry must retain the same idempotency key');
+assert.match(sync, /snapshot\.signal\?\.aborted/, 'sync must stop after the owning session is cancelled');
+assert.match(sync, /if \(snapshot\.signal\?\.aborted\) \{ stoppedReason = 'signed-out'; break; \}/, 'an aborted request must not be recorded as a normal retry failure');
+assert.match(sync, /item\.operationId, snapshot\.signal/, 'the session signal must reach the in-flight send request');
+assert.match(bridge, /const sessionController = new AbortController\(\)/, 'lifecycle bridge must scope cancellation to the auth effect');
+assert.match(bridge, /sessionController\.abort\(\)/, 'changing session or unmounting must abort in-flight sync');
+assert.match(bridge, /signal: sessionController\.signal/, 'the active session signal must be passed into lifecycle sync');
+assert.match(screen, /const sessionAbort = useRef\(new AbortController\(\)\)/, 'conversation screen must maintain a session-scoped abort controller');
+assert.match(screen, /return \(\) => controller\.abort\(\)/, 'screen cleanup must abort manual sync after leaving or switching account');
+assert.match(screen, /ownerId: user\.id, signal: sessionAbort\.current\.signal/, 'manual send and retry sync must use the active session signal');
+assert.match(pkg.scripts.test, /verify-chat-session-abort-audit\.mjs/, 'session abort regression audit must run in npm test');
+console.log('Chat session abort audit checks passed (cancel in-flight requests on auth lifecycle changes and preserve idempotent retry).');

@@ -16,6 +16,8 @@ const DEFAULT_TIMEOUT_MS = 12_000;
 export type ApiRequestOptions = Omit<RequestInit, 'signal'> & {
   timeoutMs?: number;
   token?: string;
+  /** Optional caller cancellation (e.g. auth session changed) in addition to the request timeout. */
+  signal?: AbortSignal;
 };
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -26,11 +28,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     throw new ApiError('يجب أن يبدأ مسار API بعلامة /.');
   }
 
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, token, headers, ...init } = options;
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, token, headers, signal: externalSignal, ...init } = options;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new ApiError('مهلة الاتصال يجب أن تكون رقمًا موجبًا.');
   }
   const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener('abort', abortFromCaller, { once: true });
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -69,5 +74,6 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     throw new ApiError(message);
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener('abort', abortFromCaller);
   }
 }

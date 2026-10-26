@@ -5,6 +5,7 @@ const messaging = read('../src/features/messaging/messaging.api.ts');
 const commerce = read('../src/features/commerce/commerce.api.ts');
 const stories = read('../src/features/stories/stories.api.ts');
 const messageScreen = read('../app/messages/[id].tsx');
+const messageSync = read('../src/features/messaging/chat-message-outbox-sync.ts');
 const notifications = read('../app/notifications.tsx');
 const adDetail = read('../app/ads/[id].tsx');
 const productDetail = read('../app/products/[id].tsx');
@@ -26,7 +27,8 @@ for (const name of ['createProduct','updateProduct','deleteProduct']) {
 assert.match(stories, /markStoryViewed\(storyId: string, token: string, csrfToken\?/);
 const storyView = stories.slice(stories.indexOf('export async function markStoryViewed('), stories.indexOf('export async function deleteStory('));
 assert.match(storyView, /X-CSRF-Token/);
-assert.match(messageScreen, /sendMessage\(id, body, accessToken, csrfToken(?:, operationId)?\)/);
+assert.match(messageScreen, /syncChatMessageOutbox\(\{ isOnline, token: accessToken, csrfToken, ownerId: user\.id, signal: sessionAbort\.current\.signal \}\)/, 'chat screen passes CSRF token into durable message sync');
+assert.match(messageSync, /sendMessage\(item\.conversationId, item\.body, snapshot\.token, snapshot\.csrfToken, item\.operationId, snapshot\.signal\)/, 'queued message sync forwards CSRF token to the mutation API');
 assert.match(notifications, /markAllNotificationsRead\(accessToken, csrfToken\)/);
 assert.match(notifications, /markNotificationRead\(item.id, accessToken, csrfToken\)/);
 assert.match(adDetail, /startConversationFromAd\(id, accessToken, csrfToken\)/);
