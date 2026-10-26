@@ -9,10 +9,10 @@ import {
   UpdateCollectionInput,
   ReorderCollectionsInput,
 } from './collections.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 // COLLECTIONS (P1): slug is scoped to the store (@@unique([storeId,
 // slug]) in schema.prisma), so collision-retry only needs to check

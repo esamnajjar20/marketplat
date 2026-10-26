@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { getPaginationParams } from '../../shared/utils/pagination';
-import { analyzeSearchQuery } from '../../../shared/utils/searchQueryIntelligence';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { AdStatus, Prisma } from '@prisma/client';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, AdSortField } from './ads.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';

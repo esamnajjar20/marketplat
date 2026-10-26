@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { uploadImage } from '../../config/cloudinary';
 import { successResponse } from '../../shared/types/api-response.types';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { requireUser } from '../../shared/utils/requireUser';
 
 /**
  * Generic authenticated image upload for clients that need a URL before

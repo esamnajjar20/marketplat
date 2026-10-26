@@ -2,7 +2,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
 import { SearchQuery } from './search.validation';
-import { analyzeSearchQuery } from '../../../shared/utils/searchQueryIntelligence';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { RawSearchRow, SearchType } from './search.types';
 
 /**

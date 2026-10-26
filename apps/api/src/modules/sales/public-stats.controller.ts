@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 
 export const publicSalesStatsController = {
   getStoreStats: async (req: Request, res: Response, next: NextFunction) => {

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { adsPinService } from './ads-pin.service';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 const schema = z.object({
   params: z.object({ id: z.string().cuid() }),

@@ -3,7 +3,7 @@
 import rateLimit, { MemoryStore } from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { sendApiError } from '../shared/errors/errorResponse';
-import { ErrorCode } from '../../shared/errors/errorCodes';
+import { ErrorCode } from '../shared/errors/errorCodes';
 
 // FIX RATE-LIMIT-PER-USER-01: express-rate-limit's default key is
 // per-IP only. On Gaza mobile carriers (Jawwal/Etisalat), carrier-

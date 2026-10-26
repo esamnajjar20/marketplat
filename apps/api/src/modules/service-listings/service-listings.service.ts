@@ -11,16 +11,16 @@ import {
   UpdateServiceListingInput,
   GetServiceListingsQuery,
 } from './service-listings.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 import { uploadImage, deleteImage } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
-} from '../../../shared/utils/cloudinaryHelpers';
+} from '../../shared/utils/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
 import {
@@ -33,16 +33,16 @@ import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
 import { followsService } from '../follows/follows.service';
 import { savedSearchEvents } from '../saved-searches';
-import { withServiceListingImagesLock } from '../../../shared/utils/adLock';
-import { createEntityImageOperations } from '../../../shared/utils/entityImageOperations';
-import { logger } from '../../../shared/utils/logger';
+import { withServiceListingImagesLock } from '../../shared/utils/adLock';
+import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
+import { logger } from '../../shared/utils/logger';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import {
   cachedPublicList,
   bumpPublicListCache,
   hidePublicEntities,
-} from '../../../shared/utils/publicListCache';
-import { ConflictError } from '../../../shared/errors/ConflictError';
+} from '../../shared/utils/publicListCache';
+import { ConflictError } from '../../shared/errors/ConflictError';
 
 const MAX_LISTING_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images — see config/limits.ts
 

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { cachePolicy } from '../shared/cache/cachePolicy';
-import { purgeAwareSharedMaxAge } from '../../shared/cache/edgePurge';
+import { purgeAwareSharedMaxAge } from '../shared/cache/edgePurge';
 
 /**
  * Sets Cache-Control headers for public, cacheable responses.

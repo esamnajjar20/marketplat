@@ -1,7 +1,7 @@
 import { bumpGeneration } from '../../shared/utils/swrCache';
 import { HOME_GEN_KEY, invalidateHomeCache } from '../home/home.cache.keys';
-import { logger } from '../../../shared/utils/logger';
-import { purgeAdEdge, type AdEdgeContext } from '../../../shared/cache/edgePurge';
+import { logger } from '../../shared/utils/logger';
+import { purgeAdEdge, type AdEdgeContext } from '../../shared/cache/edgePurge';
 
 /**
  * Generation keys + invalidation helpers for the GET /ads list cache.

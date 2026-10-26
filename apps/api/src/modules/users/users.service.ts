@@ -1,24 +1,24 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { usersRepository, SafeUser, PublicUser } from './users.repository';
-import { hashPassword, comparePassword } from '../../../shared/utils/hash';
+import { hashPassword, comparePassword } from '../../shared/utils/hash';
 import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { userCache } from '../../../shared/utils/userCache';
-import { tokenStore } from '../../../shared/utils/tokenStore';
-import { getTokenRemainingTTL } from '../../../shared/utils/jwt';
-import { auditLog, AuditEvent } from '../../../shared/utils/auditLog';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { userCache } from '../../shared/utils/userCache';
+import { tokenStore } from '../../shared/utils/tokenStore';
+import { getTokenRemainingTTL } from '../../shared/utils/jwt';
+import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { activityService, activityTemplates } from '../activity';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { prisma } from '../../config/prisma';
 import { AdStatus } from '@prisma/client';
 import { uploadAvatar, deleteImage } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
-} from '../../../shared/utils/cloudinaryHelpers';
-import { presence } from '../../../shared/utils/presence';
+} from '../../shared/utils/cloudinaryHelpers';
+import { presence } from '../../shared/utils/presence';
 import { notificationsService } from '../notifications/notifications.service';
 import { conversationsService } from '../conversations/conversations.service';
 import { sellersService } from '../sellers/sellers.service';

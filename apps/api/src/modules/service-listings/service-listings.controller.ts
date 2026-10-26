@@ -9,8 +9,8 @@ import {
   reorderServiceListingImagesSchema,
 } from './service-listings.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { requireUser } from '../../shared/utils/requireUser';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { serviceListingMatchesService } from './service-listing-matches.service';
 
 export const serviceListingsController = {

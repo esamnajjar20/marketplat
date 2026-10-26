@@ -15,9 +15,9 @@ import {
   UpdateProductCostInput,
 } from './sales.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { ConflictError } from '../../../shared/errors/ConflictError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { ConflictError } from '../../shared/errors/ConflictError';
 
 const roundMoney = (n: number) => Math.round(n * 100) / 100;
 const computeStatus = (total: number, paid: number, dueDate?: Date | null): SalePaymentStatus => {

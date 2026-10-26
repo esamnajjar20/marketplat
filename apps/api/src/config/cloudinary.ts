@@ -1,8 +1,8 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { env } from './env';
 import { logger } from '../shared/utils/logger';
-import { CircuitBreaker, CircuitBreakerOpenError } from '../../shared/utils/circuitBreaker';
-import { ServiceUnavailableError } from '../../shared/errors/ServiceUnavailableError';
+import { CircuitBreaker, CircuitBreakerOpenError } from '../shared/utils/circuitBreaker';
+import { ServiceUnavailableError } from '../shared/errors/ServiceUnavailableError';
 
 cloudinary.config({
   cloud_name: env.cloudinary.cloudName,

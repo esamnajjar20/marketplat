@@ -14,12 +14,12 @@ import {
   GetReportsQuery,
   GetMyReportsQuery,
 } from './reports.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 import { Report, ReportTargetType } from '@prisma/client';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { env } from '../../config/env';
 import { notificationEvents } from '../notifications/notifications.service';
 

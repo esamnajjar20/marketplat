@@ -7,7 +7,7 @@ import {
   getAppointmentsSchema,
 } from './appointments.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const appointmentsController = {
   createAppointment: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

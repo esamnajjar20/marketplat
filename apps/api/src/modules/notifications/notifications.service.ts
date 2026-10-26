@@ -5,19 +5,19 @@ import {
   PushSubscriptionInput,
   RegisterFcmTokenInput,
 } from './notifications.repository';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { pushService } from '../../../shared/utils/pushService';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { pushService } from '../../shared/utils/pushService';
 import { prisma } from '../../config/prisma';
-import { TooManyRequestsError } from '../../../shared/errors/TooManyRequestsError';
-import { pushSubscriptionsRepository } from '../../../shared/utils/pushSubscriptionsRepository';
-import { fcmDeviceTokensRepository } from '../../../shared/utils/fcmDeviceTokensRepository';
+import { TooManyRequestsError } from '../../shared/errors/TooManyRequestsError';
+import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
+import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
 import {
   deviceFingerprint,
   labelForNativePlatform,
   labelFromUserAgent,
-} from '../../../shared/utils/deviceLabel';
+} from '../../shared/utils/deviceLabel';
 import { NOTIFICATION_CATEGORY_TYPES, NotificationCategory } from './notifications.validation';
 
 export type DeviceKind = 'web' | 'native';

@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { logger } from '../shared/utils/logger';
-import { runOutboxWorker } from '../../shared/outbox/outbox.worker';
+import { runOutboxWorker } from '../shared/outbox/outbox.worker';
 
 let stopping = false;
 const stop = () => {

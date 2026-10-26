@@ -2,19 +2,19 @@ import { Appointment } from '@prisma/client';
 import { appointmentsRepository, AppointmentWithRequest } from './appointments.repository';
 import { CreateAppointmentInput, GetAppointmentsQuery } from './appointments.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { withProviderScheduleLock } from '../../../shared/utils/providerScheduleLock';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { withProviderScheduleLock } from '../../shared/utils/providerScheduleLock';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
 import { activityService, activityTemplates } from '../activity';
 import { blockedUsersService } from '../blocked-users';
 import { notificationEvents } from '../notifications/notifications.service';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { getServiceTypeCapabilities } from '../service-types/service-types.service';
 import {
@@ -22,7 +22,7 @@ import {
   fitsWorkingHours,
   weekdayKeyForDateStr,
   workingWindowUtc,
-} from '../../../shared/utils/marketTime';
+} from '../../shared/utils/marketTime';
 
 const requireOwnProvider = async (userId: string) => {
   const sellerProfile = await sellersRepository.findByUserId(userId);

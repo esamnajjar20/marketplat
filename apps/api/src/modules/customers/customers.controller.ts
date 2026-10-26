@@ -8,7 +8,7 @@ import {
   listCustomersSchema,
 } from './customers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const customersController = {
   summary: async (req: Request, res: Response, next: NextFunction) => {

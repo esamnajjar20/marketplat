@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
 // FIX: was a local copy identical to stores.validation.ts's — see
 // paymentMethodSchema.ts's comment for the dedup rationale.
-import { storePaymentMethodSchema } from '../../../shared/utils/paymentMethodSchema';
+import { storePaymentMethodSchema } from '../../shared/utils/paymentMethodSchema';
 
 export const adminGetSellersSchema = z.object({
   query: z.object({

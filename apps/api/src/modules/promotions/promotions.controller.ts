@@ -6,7 +6,7 @@ import {
   promotionIdSchema,
 } from './promotions.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const promotionsController = {
   createPromotion: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

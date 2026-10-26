@@ -17,8 +17,8 @@ import {
   reportQuerySchema,
 } from './sales.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { paginationQuerySchema } from '../../../shared/utils/pagination';
+import { requireUser } from '../../shared/utils/requireUser';
+import { paginationQuerySchema } from '../../shared/utils/pagination';
 
 export const salesController = {
   costSettings: async (req: Request, res: Response, next: NextFunction) => {

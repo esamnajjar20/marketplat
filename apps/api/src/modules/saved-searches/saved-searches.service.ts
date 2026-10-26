@@ -2,9 +2,9 @@ import { SavedSearch, Product, ServiceListing } from '@prisma/client';
 import { savedSearchesRepository } from './saved-searches.repository';
 import { notificationEvents } from '../notifications';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { withSavedSearchCreationLock } from '../../../shared/utils/adLock';
-import { matchesSearchQuery } from '../../../shared/utils/searchTextMatch';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { withSavedSearchCreationLock } from '../../shared/utils/adLock';
+import { matchesSearchQuery } from '../../shared/utils/searchTextMatch';
 import type { CreateSavedSearchInput, SavedSearchFilters } from './saved-searches.validation';
 import type { AdWithAuthor } from '../ads/ads.repository';
 

@@ -1,17 +1,17 @@
 import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../../shared/utils/jwt';
+import { verifyAccessToken } from '../shared/utils/jwt';
 import {
   tokenStore,
   getBlacklistKey,
   peekBlacklistL1,
   rememberBlacklistL1,
-} from '../../shared/utils/tokenStore';
-import { userCache, getUserCacheKey } from '../../shared/utils/userCache';
-import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
+} from '../shared/utils/tokenStore';
+import { userCache, getUserCacheKey } from '../shared/utils/userCache';
+import { UnauthorizedError } from '../shared/errors/UnauthorizedError';
 import { env } from '../config/env';
 import { redis } from '../config/redis';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../shared/utils/logger';
 
 export const authenticate = async (
   req: Request,

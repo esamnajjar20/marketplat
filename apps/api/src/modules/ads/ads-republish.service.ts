@@ -18,17 +18,17 @@ import { AdStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { adsRepository } from './ads.repository';
 import { sellersService } from '../sellers/sellers.service';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { withUserAdCreationLock } from '../../../shared/utils/adLock';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { withUserAdCreationLock } from '../../shared/utils/adLock';
 import { env } from '../../config/env';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { bumpAdsCacheVersion } from './ads.service';
 import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
-import { recordFailedTask } from '../../../shared/utils/failedBackgroundTasks';
+import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
 // previous block had conflicting "soft cap"
 // comments and an unexplained +3. Kept to a single named value for

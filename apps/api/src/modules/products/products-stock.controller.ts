@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { productsService } from './products.service';
 import { adjustProductStockSchema, stockHistoryQuerySchema } from './products-stock.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const productsStockController = {
   adjustStock: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

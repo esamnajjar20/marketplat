@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { clientErrorSchema } from './observability.validation';
 import { logger } from '../../shared/utils/logger';
-import { getClientIp } from '../../../shared/utils/getClientIp';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { getClientIp } from '../../shared/utils/getClientIp';
+import { successResponse } from '../../shared/types/api-response.types';
 
 const SENSITIVE_CONTEXT_KEY =
   /(?:password|passwd|secret|token|authorization|cookie|session|api[-_]?key|credential|refresh|access[-_]?token)/i;

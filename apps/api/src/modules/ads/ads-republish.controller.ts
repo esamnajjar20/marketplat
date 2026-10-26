@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { adsRepublishService } from './ads-republish.service';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 import { z } from 'zod';
 
 const republishParamsSchema = z.object({

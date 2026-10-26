@@ -4,9 +4,9 @@
  */
 import { prisma } from '../../config/prisma';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 const MAX_LISTS_PER_USER = 20;
 

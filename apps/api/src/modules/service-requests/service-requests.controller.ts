@@ -7,7 +7,7 @@ import {
   getServiceRequestsSchema,
 } from './service-requests.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const serviceRequestsController = {
   createRequest: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

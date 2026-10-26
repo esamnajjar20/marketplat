@@ -15,7 +15,7 @@ import { ProductWithStore, ProductWithStoreLite } from '../products/products.rep
 import { ServiceListingWithProvider } from '../service-listings/service-listings.repository';
 import { StoreWithSeller } from '../stores/stores.repository';
 import { verifyAccessToken } from '../../shared/utils/jwt';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { GetRecommendationsQuery } from './recommendations.validation';
 
 const DEFAULT_LIMIT = 8;

@@ -7,15 +7,15 @@ import {
   FcmDeviceToken,
 } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
-import { unreadNotificationsCache } from '../../../shared/utils/unreadNotificationsCache';
+import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
 import {
   publishNotificationEvent,
   publishNotificationEventsToMany,
-} from '../../../shared/utils/notificationStream';
-import { pushSubscriptionsRepository } from '../../../shared/utils/pushSubscriptionsRepository';
+} from '../../shared/utils/notificationStream';
+import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
 // NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
-import { fcmDeviceTokensRepository } from '../../../shared/utils/fcmDeviceTokensRepository';
-import { maybeScheduleEmailFallback } from '../../../shared/utils/emailFallbackScheduler';
+import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
+import { maybeScheduleEmailFallback } from '../../shared/utils/emailFallbackScheduler';
 
 export interface CreateNotificationInput {
   userId: string;

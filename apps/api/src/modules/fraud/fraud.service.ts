@@ -1,19 +1,19 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 import { fraudRepository } from './fraud.repository';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { env } from '../../config/env';
-import { logger } from '../../../shared/utils/logger';
-import { auditLog, AuditEvent } from '../../../shared/utils/auditLog';
+import { logger } from '../../shared/utils/logger';
+import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { prisma } from '../../config/prisma';
 import { FraudSignalType, Prisma } from '@prisma/client';
 import { ManualFlagInput } from './fraud.validation';
 import { FraudSignalWithSubjects, FlaggedAdRow } from './fraud.repository';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { GetFlaggedAdsQuery, GetFraudSignalsQuery } from './fraud.validation';
 
-import { track } from '../../../shared/utils/background';
+import { track } from '../../shared/utils/background';
 // the DUPLICATE_LISTING heuristic now
 // explicitly skips product/service listings -- the underlying query is
 // ad-table-only, and every product/service create was paying for a

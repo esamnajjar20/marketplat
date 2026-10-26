@@ -8,7 +8,7 @@ import {
   manualFlagSchema,
 } from './fraud.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const fraudController = {
   /** GET /admin/fraud/ads — flagged ads queue, highest risk first. */

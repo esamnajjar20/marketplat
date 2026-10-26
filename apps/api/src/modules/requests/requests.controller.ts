@@ -10,7 +10,7 @@ import {
   offerParamsSchema,
 } from './requests.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const requestsController = {
   create: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

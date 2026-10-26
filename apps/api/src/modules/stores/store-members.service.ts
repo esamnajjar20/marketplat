@@ -4,13 +4,13 @@ import { storeMembersRepository, StoreMemberWithUser } from './store-members.rep
 import { storesRepository } from './stores.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { prisma } from '../../config/prisma';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { PaginationMeta, buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { auditLog, AuditEvent } from '../../../shared/utils/auditLog';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { notificationEvents } from '../notifications/notifications.service';
 import {
   InviteStoreMemberInput,

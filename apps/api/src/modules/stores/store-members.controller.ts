@@ -8,7 +8,7 @@ import {
   acceptStoreMemberInviteSchema,
 } from './store-members.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const storeMembersController = {
   inviteMember: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

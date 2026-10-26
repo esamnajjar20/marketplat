@@ -9,11 +9,11 @@ import {
   verifyEmailSchema,
 } from './auth.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 import { getBearerToken } from '../../middlewares/auth.middleware';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { UnauthorizedError } from '../../../shared/errors/UnauthorizedError';
-import { AppError } from '../../../shared/errors/AppError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
+import { AppError } from '../../shared/errors/AppError';
 import {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
@@ -24,11 +24,11 @@ import {
   clearSessionHintCookie,
   getOAuthPurpose,
   clearOAuthPurpose,
-} from '../../../shared/utils/authCookies';
+} from '../../shared/utils/authCookies';
 
-import { getClientIp } from '../../../shared/utils/getClientIp';
+import { getClientIp } from '../../shared/utils/getClientIp';
 import { env } from '../../config/env';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 
 const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unknown';
 

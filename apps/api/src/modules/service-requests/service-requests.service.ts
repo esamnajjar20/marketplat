@@ -6,18 +6,18 @@ import {
 } from './service-requests.repository';
 import { CreateServiceRequestInput, GetServiceRequestsQuery } from './service-requests.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { activityService, activityTemplates } from '../activity';
 import { notificationEvents } from '../notifications/notifications.service';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { getServiceTypeCapabilities } from '../service-types/service-types.service';
 import { blockedUsersService } from '../blocked-users';
 

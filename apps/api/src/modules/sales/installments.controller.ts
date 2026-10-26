@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { installmentsService } from './installments.service';
 import { installmentIdSchema, payInstallmentSchema } from './installments.validation';
 import { requireUser } from '../../shared/utils/requireUser';
-import { successResponse } from '../../../shared/types/api-response.types';
+import { successResponse } from '../../shared/types/api-response.types';
 export const installmentsController = {
   upcoming: async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -8,14 +8,14 @@ import {
   UpdateProductCategoryInput,
 } from './product-categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
-import { logger } from '../../../shared/utils/logger';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { logger } from '../../shared/utils/logger';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
-import { bumpPublicListCache } from '../../../shared/utils/publicListCache';
+import { bumpPublicListCache } from '../../shared/utils/publicListCache';
 import { invalidateHomeCache } from '../home/home.cache.keys';
-import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
+import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 
 // versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).

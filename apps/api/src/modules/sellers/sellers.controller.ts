@@ -13,8 +13,8 @@ import {
   bulkSuspendSellersSchema,
 } from './sellers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { runBulk } from '../../../shared/utils/bulkRunner';
+import { requireUser } from '../../shared/utils/requireUser';
+import { runBulk } from '../../shared/utils/bulkRunner';
 
 export const sellersController = {
   createSellerProfile: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

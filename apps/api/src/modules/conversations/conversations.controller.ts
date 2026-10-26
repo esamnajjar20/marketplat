@@ -1,7 +1,7 @@
 import { sendApiError } from '../../shared/errors/errorResponse';
-import { ErrorCode } from '../../../shared/errors/errorCodes';
+import { ErrorCode } from '../../shared/errors/errorCodes';
 
-import { reportBackgroundFailure } from '../../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Request, Response, NextFunction } from 'express';
 import { conversationsService } from './conversations.service';
 import {
@@ -16,10 +16,10 @@ import {
   messageMarkSchema,
   mediaQuerySchema,
 } from './conversations.validation';
-import { successResponse } from '../../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { successResponse } from '../../shared/types/api-response.types';
+import { requireUser } from '../../shared/utils/requireUser';
 import { uploadRawFile, deleteMedia } from '../../config/cloudinary';
-import { extractCloudinaryPublicId } from '../../../shared/utils/cloudinaryHelpers';
+import { extractCloudinaryPublicId } from '../../shared/utils/cloudinaryHelpers';
 
 export const conversationsController = {
   startConversation: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -271,7 +271,7 @@ export const conversationsController = {
       // handler runs), and its await inside the try block only
       // obscured the exact call ordering.
       const { uploadImage, deleteImage } = await import('../../config/cloudinary');
-      const { extractCloudinaryPublicId } = await import('../../../shared/utils/cloudinaryHelpers');
+      const { extractCloudinaryPublicId } = await import('../../shared/utils/cloudinaryHelpers');
       const uploaded = await uploadImage(file.buffer, 'chat');
       const caption = typeof req.body?.body === 'string' ? req.body.body : undefined;
 

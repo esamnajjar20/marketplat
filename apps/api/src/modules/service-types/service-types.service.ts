@@ -1,13 +1,13 @@
 import { redis } from '../../config/redis';
 import { canonicalCacheKey } from '../../shared/cache/cacheKey';
-import { getCacheDomain } from '../../../shared/cache/cacheContract';
-import { logger } from '../../../shared/utils/logger';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { getCacheDomain } from '../../shared/cache/cacheContract';
+import { logger } from '../../shared/utils/logger';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { serviceTypesRepository } from './service-types.repository';
 import { invalidateServiceCategoriesCache } from '../service-categories/service-categories.service';
-import { hidePublicEntities } from '../../../shared/utils/publicListCache';
+import { hidePublicEntities } from '../../shared/utils/publicListCache';
 import {
   CreateServiceTypeFieldInput,
   CreateServiceTypeInput,

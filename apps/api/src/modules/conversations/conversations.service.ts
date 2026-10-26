@@ -12,21 +12,21 @@ import { serviceRequestsRepository } from '../service-requests/service-requests.
 import { productsRepository } from '../products/products.repository';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { notificationEvents, notificationsService } from '../notifications';
-import { publishNotificationEvent } from '../../../shared/utils/notificationStream';
+import { publishNotificationEvent } from '../../shared/utils/notificationStream';
 import { blockedUsersService } from '../blocked-users';
 import { activityService, activityTemplates } from '../activity';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { ServiceUnavailableError } from '../../../shared/errors/ServiceUnavailableError';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { logger } from '../../../shared/utils/logger';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { ServiceUnavailableError } from '../../shared/errors/ServiceUnavailableError';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { logger } from '../../shared/utils/logger';
 import { cacheRedis } from '../../config/redis';
 import { sellerResponseTimeService } from '../sellers/seller-response-time.service';
 import { env } from '../../config/env';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
   if (conversation.buyerId !== userId && conversation.sellerId !== userId) {

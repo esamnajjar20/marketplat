@@ -1,23 +1,23 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
-import { cachePolicy } from '../../../shared/cache/cachePolicy';
+import { cachePolicy } from '../../shared/cache/cachePolicy';
 import { createHash } from 'crypto';
 import { adsRepository, AdWithAuthor, AdListRow } from './ads.repository';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, GetMyAdsQuery } from './ads.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { ROLES } from '../../../shared/constants/roles';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { ROLES } from '../../shared/constants/roles';
 import { uploadImage, deleteImage } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
-} from '../../../shared/utils/cloudinaryHelpers';
-import { viewsBuffer } from '../../../shared/utils/viewsBuffer';
-import { withAdImagesLock, withUserAdCreationLock } from '../../../shared/utils/adLock';
-import { swrGet } from '../../../shared/utils/swrCache';
-import { listHardTtlSec } from '../../../shared/cache/warmedListQueries';
+} from '../../shared/utils/cloudinaryHelpers';
+import { viewsBuffer } from '../../shared/utils/viewsBuffer';
+import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
+import { swrGet } from '../../shared/utils/swrCache';
+import { listHardTtlSec } from '../../shared/cache/warmedListQueries';
 import {
   ADS_GEN_HARD_KEY,
   ADS_GEN_SOFT_KEY,
@@ -25,7 +25,7 @@ import {
   bumpAdsCacheHard,
   bumpAdsCacheVersionAndHome,
 } from './ads.cache.keys';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { env } from '../../config/env';
 import { AdStatus } from '@prisma/client';
 import { sellersRepository } from '../sellers/sellers.repository';
@@ -40,7 +40,7 @@ import { fraudService } from '../fraud';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
-import { recordFailedTask } from '../../../shared/utils/failedBackgroundTasks';
+import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
 
 /**
  * Upload ad images without leaking successful Cloudinary uploads when one

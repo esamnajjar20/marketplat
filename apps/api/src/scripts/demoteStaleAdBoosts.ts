@@ -13,7 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { logger } from '../shared/utils/logger';
 import { env } from '../config/env';
 import { bumpAdsCacheVersion } from '../modules/ads/ads.cache.keys';
-import { flushEdgePurge } from '../../shared/cache/edgePurge';
+import { flushEdgePurge } from '../shared/cache/edgePurge';
 import { redis } from '../config/redis';
 
 const prisma = new PrismaClient();

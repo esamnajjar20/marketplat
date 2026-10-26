@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { getCsrfCookieName } from '../shared/utils/authCookies';
-import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { ForbiddenError } from '../shared/errors/ForbiddenError';
 
 // (defense-in-depth alongside metrics.ts): plain
 // `!==` string comparison is not constant-time. Real-world risk here

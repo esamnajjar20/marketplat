@@ -3,8 +3,8 @@ import { prisma } from '../../config/prisma';
 import { auditLog } from '../../shared/utils/auditLog';
 import { adminService } from './admin.service';
 import { notificationsService } from '../notifications';
-import { successResponse } from '../../../shared/types/api-response.types';
-import { runBulk } from '../../../shared/utils/bulkRunner';
+import { successResponse } from '../../shared/types/api-response.types';
+import { runBulk } from '../../shared/utils/bulkRunner';
 import {
   adminGetAdsSchema,
   adminGetUsersSchema,
@@ -26,15 +26,15 @@ import {
   adminResolveServiceRequestDisputeSchema,
 } from './admin.validation';
 import { broadcastNotificationSchema } from '../notifications/notifications.validation';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { getClientIp } from '../../../shared/utils/getClientIp';
-import { Role } from '../../../shared/constants/roles';
+import { requireUser } from '../../shared/utils/requireUser';
+import { getClientIp } from '../../shared/utils/getClientIp';
+import { Role } from '../../shared/constants/roles';
 import {
   acknowledgeMonitoringAlert,
   getMonitoringAlerts,
   getMonitoringEvents,
   getMonitoringHistory,
-} from '../../../shared/utils/monitoringState';
+} from '../../shared/utils/monitoringState';
 
 /** Same convention as auth.controller.ts's own local getUserAgent —
  * kept inline here too rather than shared, since it's a one-line

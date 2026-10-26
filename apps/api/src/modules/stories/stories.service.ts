@@ -3,9 +3,9 @@ import { FollowTargetType, StoryVisibility } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { uploadImage, deleteMedia } from '../../config/cloudinary';
 import { storiesRepository } from './stories.repository';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { followsService } from '../follows/follows.service';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;

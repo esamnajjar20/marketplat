@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authController } from './auth.controller';
 import { sendApiError } from '../../shared/errors/errorResponse';
-import { ErrorCode } from '../../../shared/errors/errorCodes';
+import { ErrorCode } from '../../shared/errors/errorCodes';
 import {
   authRateLimit,
   forgotPasswordRateLimit,
@@ -18,7 +18,7 @@ import {
   clearOAuthStateCookie,
   setOAuthPurpose,
   clearOAuthPurpose,
-} from '../../../shared/utils/authCookies';
+} from '../../shared/utils/authCookies';
 
 type GoogleProfileDataOrFalse = GoogleProfileData | false;
 

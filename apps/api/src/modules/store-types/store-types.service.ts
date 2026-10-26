@@ -1,10 +1,10 @@
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
-import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
-import { bumpPublicListCache } from '../../../shared/utils/publicListCache';
+import { purgeReferenceKv } from '../../shared/cache/edgePurge';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { bumpPublicListCache } from '../../shared/utils/publicListCache';
 import { storeTypesRepository, StoreTypePublic } from './store-types.repository';
 import {
   CreateStoreTypeInput,

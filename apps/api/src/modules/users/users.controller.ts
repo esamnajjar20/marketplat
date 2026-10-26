@@ -8,10 +8,10 @@ import {
   getPresenceSchema,
 } from './users.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 import { getBearerToken } from '../../middlewares/auth.middleware';
-import { paginationQuerySchema } from '../../../shared/utils/pagination';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const usersController = {
   getMe: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

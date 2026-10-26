@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../shared/errors/AppError';
-import { buildApiErrorBody } from '../../shared/errors/errorResponse';
-import { ErrorCode } from '../../shared/errors/errorCodes';
-import { logger } from '../../shared/utils/logger';
+import { buildApiErrorBody } from '../shared/errors/errorResponse';
+import { ErrorCode } from '../shared/errors/errorCodes';
+import { logger } from '../shared/utils/logger';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 

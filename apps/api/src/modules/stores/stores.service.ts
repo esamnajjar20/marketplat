@@ -6,14 +6,14 @@ import { uploadStoreLogo, uploadStoreCover, deleteImage } from '../../config/clo
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
-} from '../../../shared/utils/cloudinaryHelpers';
+} from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
 import { followsRepository } from '../follows/follows.repository';
 import { storeReviewsRepository, StoreReviewWithRater } from './store-reviews.repository';
 import { promotionsRepository } from '../promotions/promotions.repository';
 import { productsRepository } from '../products/products.repository';
-import { generateStoreSlug, withSlugSuffix } from '../../../shared/utils/slugify';
+import { generateStoreSlug, withSlugSuffix } from '../../shared/utils/slugify';
 import {
   CreateStoreInput,
   UpdateStoreInput,
@@ -25,24 +25,24 @@ import {
   AdminGetStoresQuery,
   UpdateStoreTypeInput,
 } from './stores.validation';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { blockedUsersService } from '../blocked-users';
-import { withStoreCreationLock } from '../../../shared/utils/storeLock';
-import { auditLog, AuditEvent } from '../../../shared/utils/auditLog';
+import { withStoreCreationLock } from '../../shared/utils/storeLock';
+import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { activityService, activityTemplates } from '../activity';
-import { PaginationMeta, buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
+import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 import {
   cachedPublicList,
   bumpPublicListCache,
   hidePublicEntities,
-} from '../../../shared/utils/publicListCache';
-import { isOpenAt } from '../../../shared/utils/marketTime';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
+} from '../../shared/utils/publicListCache';
+import { isOpenAt } from '../../shared/utils/marketTime';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 

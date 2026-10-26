@@ -2,29 +2,29 @@ import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { authRepository } from './auth.repository';
 import { prisma } from '../../config/prisma';
 import crypto from 'crypto';
-import { hashPassword, comparePassword, comparePasswordOrDummy } from '../../../shared/utils/hash';
+import { hashPassword, comparePassword, comparePasswordOrDummy } from '../../shared/utils/hash';
 import {
   signTokenPair,
   rotateTokenPair,
   verifyRefreshToken,
   getTokenRemainingTTL,
   TokenPair,
-} from '../../../shared/utils/jwt';
-import { tokenStore } from '../../../shared/utils/tokenStore';
-import { atomicRefreshRotate, RotateResult, hashToken } from '../../../shared/utils/refreshLock';
+} from '../../shared/utils/jwt';
+import { tokenStore } from '../../shared/utils/tokenStore';
+import { atomicRefreshRotate, RotateResult, hashToken } from '../../shared/utils/refreshLock';
 import { redis } from '../../config/redis';
-import { userCache } from '../../../shared/utils/userCache';
-import { auditLog, AuditEvent } from '../../../shared/utils/auditLog';
-import { emailService } from '../../../shared/utils/emailService';
-import { sendSecurityAlert } from '../../../shared/utils/securityAlert';
-import { withOAuthAccountResolutionLock } from '../../../shared/utils/oauthLock';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { UnauthorizedError } from '../../../shared/errors/UnauthorizedError';
-import { TooManyRequestsError } from '../../../shared/errors/TooManyRequestsError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { AppError } from '../../../shared/errors/AppError';
+import { userCache } from '../../shared/utils/userCache';
+import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { emailService } from '../../shared/utils/emailService';
+import { sendSecurityAlert } from '../../shared/utils/securityAlert';
+import { withOAuthAccountResolutionLock } from '../../shared/utils/oauthLock';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
+import { TooManyRequestsError } from '../../shared/errors/TooManyRequestsError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { AppError } from '../../shared/errors/AppError';
 import { RegisterInput, LoginInput } from './auth.validation';
-import { logger } from '../../../shared/utils/logger';
+import { logger } from '../../shared/utils/logger';
 import { GoogleProfileData } from './google.strategy';
 
 const MAX_EMAIL_ATTEMPTS = 5;

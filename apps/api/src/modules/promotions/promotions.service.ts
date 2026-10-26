@@ -4,9 +4,9 @@ import { promotionsRepository } from './promotions.repository';
 import { productsRepository } from '../products/products.repository';
 import { requireStoreAccessForProducts } from '../stores/store-members.service';
 import { CreatePromotionInput, UpdatePromotionInput } from './promotions.validation';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { ConflictError } from '../../../shared/errors/ConflictError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { ConflictError } from '../../shared/errors/ConflictError';
 
 // PROMO-1: status is derived from (startsAt, endsAt, now) rather than
 // trusted from whatever was last written — a promotion created with a

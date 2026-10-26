@@ -46,8 +46,8 @@ import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
  * in production.)
  */
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../../shared/utils/logger';
-import { pushService } from '../../shared/utils/pushService';
+import { logger } from '../shared/utils/logger';
+import { pushService } from '../shared/utils/pushService';
 
 const prisma = new PrismaClient();
 

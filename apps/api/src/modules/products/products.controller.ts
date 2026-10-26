@@ -10,9 +10,9 @@ import {
   reorderProductImagesSchema,
 } from './products.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { paginationQuerySchema } from '../../../shared/utils/pagination';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { requireUser } from '../../shared/utils/requireUser';
+import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const productsController = {
   createProduct: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

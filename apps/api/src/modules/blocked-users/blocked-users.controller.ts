@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { blockedUsersService } from './blocked-users.service';
 import { blockedUserIdSchema, getBlockedUsersSchema } from './blocked-users.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const blockedUsersController = {
   toggleBlock: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

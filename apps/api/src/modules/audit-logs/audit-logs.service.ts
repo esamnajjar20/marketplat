@@ -1,7 +1,7 @@
 import { auditLogsRepository, AuditLogWithUser } from './audit-logs.repository';
 import { GetAuditLogsQuery } from './audit-logs.validation';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 
 export const auditLogsService = {
   getAuditLogs: async (query: GetAuditLogsQuery): Promise<PaginatedResult<AuditLogWithUser>> => {

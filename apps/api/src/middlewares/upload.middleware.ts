@@ -5,7 +5,7 @@
 import multer, { FileFilterCallback } from 'multer';
 import { Request, Response, NextFunction } from 'express';
 import { BadRequestError } from '../shared/errors/BadRequestError';
-import { isAllowedImageContent } from '../../shared/utils/fileSignature';
+import { isAllowedImageContent } from '../shared/utils/fileSignature';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   MAX_IMAGE_SIZE_BYTES,

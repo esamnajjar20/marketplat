@@ -1,9 +1,9 @@
 import { UserActivity, UserActivityType } from '@prisma/client';
 import { activityRepository, CreateActivityInput } from './activity.repository';
 import { activityBuffer } from '../../shared/utils/activityBuffer';
-import { logger } from '../../../shared/utils/logger';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
+import { logger } from '../../shared/utils/logger';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 import { ActivityGroup, GetMyActivityQuery } from './activity.validation';
 
 // Gap #10: maps each of the frontend's 8 filter tabs onto the concrete

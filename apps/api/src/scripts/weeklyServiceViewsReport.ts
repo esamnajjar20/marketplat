@@ -6,8 +6,8 @@ import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
  * Requires: ServiceListing.viewsAtLastReport (migration).
  */
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../../shared/utils/logger';
-import { pushService } from '../../shared/utils/pushService';
+import { logger } from '../shared/utils/logger';
+import { pushService } from '../shared/utils/pushService';
 
 const prisma = new PrismaClient();
 

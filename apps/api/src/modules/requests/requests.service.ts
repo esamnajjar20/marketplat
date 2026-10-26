@@ -27,12 +27,12 @@ import { sellersRepository } from '../sellers/sellers.repository';
 import { conversationsService } from '../conversations/conversations.service';
 import { notificationEvents } from '../notifications';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { logger } from '../../../shared/utils/logger';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
+import { logger } from '../../shared/utils/logger';
 import { getServiceTypeCapabilities } from '../service-types/service-types.service';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 

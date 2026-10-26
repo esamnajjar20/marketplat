@@ -1,7 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { InstallmentStatus, Prisma } from '@prisma/client';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
 
 const refreshStatus = (
   status: InstallmentStatus,

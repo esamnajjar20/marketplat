@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { activityService } from './activity.service';
 import { getMyActivitySchema } from './activity.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const activityController = {
   // GET /activity — the caller's own timeline only. No id-scoped GET

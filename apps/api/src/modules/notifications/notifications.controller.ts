@@ -11,8 +11,8 @@ import {
   renameDeviceSchema,
 } from './notifications.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { addNotificationStreamClient } from '../../../shared/utils/notificationStream';
+import { requireUser } from '../../shared/utils/requireUser';
+import { addNotificationStreamClient } from '../../shared/utils/notificationStream';
 
 export const notificationsController = {
   getMyNotifications: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

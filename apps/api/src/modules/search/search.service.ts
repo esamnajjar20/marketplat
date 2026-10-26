@@ -1,10 +1,10 @@
 import { redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { searchRepository } from './search.repository';
 import { SearchQuery, SearchSuggestionsQuery } from './search.validation';
 import { RawSearchRow, SearchResult, UnifiedSearchResponse } from './search.types';
-import { analyzeSearchQuery } from '../../../shared/utils/searchQueryIntelligence';
+import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 
 /** المسافات غير المنطقية (مثل ~20015 = π×6371 من clamp لـ acos) تُعامل كـ null. */
 function sanitizeDistanceKm(value: number | null | undefined): number | null {

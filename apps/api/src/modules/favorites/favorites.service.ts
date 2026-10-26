@@ -11,10 +11,10 @@ import { serviceListingsService } from '../service-listings/service-listings.ser
 import { activityService, activityTemplates } from '../activity';
 import { GetFavoritesQuery, FAVORITE_QUERY_TYPE_MAP } from './favorites.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { buildPaginationMeta } from '../../../shared/utils/pagination';
-import { PaginatedResult } from '../../../shared/types/pagination.types';
+import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 import { ActivityEntityType, FavoriteEntityType } from '@prisma/client';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 
 // FEAT-FAVORITE-POLYMORPHIC PR1: the WIRE response of GET /favorites
 // (no ?type= param) is one of the 3 endpoints the compat-layer plan

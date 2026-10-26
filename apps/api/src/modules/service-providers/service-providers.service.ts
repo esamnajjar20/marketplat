@@ -5,7 +5,7 @@ import { uploadServiceProviderLogo, deleteImage } from '../../config/cloudinary'
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
-} from '../../../shared/utils/cloudinaryHelpers';
+} from '../../shared/utils/cloudinaryHelpers';
 import {
   serviceProvidersRepository,
   NearbyServiceProviderRow,
@@ -20,22 +20,22 @@ import {
   NearbyServiceProvidersQuery,
   GetServiceProvidersQuery,
 } from './service-providers.validation';
-import { ConflictError } from '../../../shared/errors/ConflictError';
-import { NotFoundError } from '../../../shared/errors/NotFoundError';
-import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { ConflictError } from '../../shared/errors/ConflictError';
+import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../shared/errors/ForbiddenError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
-import { withServiceProviderCreationLock } from '../../../shared/utils/serviceProviderLock';
+import { withServiceProviderCreationLock } from '../../shared/utils/serviceProviderLock';
 import {
   getPaginationParams,
   PaginationMeta,
   buildPaginationMeta,
-} from '../../../shared/utils/pagination';
+} from '../../shared/utils/pagination';
 import {
   cachedPublicList,
   bumpPublicListCache,
   hidePublicEntities,
-} from '../../../shared/utils/publicListCache';
+} from '../../shared/utils/publicListCache';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { validateServiceProviderAttributes } from '../service-types/service-types.service';
 

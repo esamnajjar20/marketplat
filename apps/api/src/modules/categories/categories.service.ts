@@ -2,12 +2,12 @@ import { categoriesRepository, CategoryWithChildren } from './categories.reposit
 import { Category } from '@prisma/client';
 import { CreateCategoryInput, UpdateCategoryInput } from './categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { redis } from '../../config/redis';
-import { logger } from '../../../shared/utils/logger';
-import { isPrismaError } from '../../../shared/utils/prismaErrors';
+import { logger } from '../../shared/utils/logger';
+import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
-import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
+import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 
 // versioned key. Warmup/cache-aside never
 // overwrite an existing key, so a deploy that changes the payload shape would

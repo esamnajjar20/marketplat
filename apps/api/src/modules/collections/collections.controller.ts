@@ -9,7 +9,7 @@ import {
   storeIdParamSchema,
 } from './collections.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const collectionsController = {
   createCollection: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

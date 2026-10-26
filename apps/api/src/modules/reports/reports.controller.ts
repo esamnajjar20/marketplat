@@ -10,7 +10,7 @@ import {
   reportIdSchema,
 } from './reports.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
+import { requireUser } from '../../shared/utils/requireUser';
 
 export const reportsController = {
   createReport: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

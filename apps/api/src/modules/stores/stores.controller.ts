@@ -14,10 +14,10 @@ import {
   updateStoreTypeSchema,
 } from './stores.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { paginationQuerySchema } from '../../../shared/utils/pagination';
-import { runBulk } from '../../../shared/utils/bulkRunner';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { requireUser } from '../../shared/utils/requireUser';
+import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { runBulk } from '../../shared/utils/bulkRunner';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const storesController = {
   createStore: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

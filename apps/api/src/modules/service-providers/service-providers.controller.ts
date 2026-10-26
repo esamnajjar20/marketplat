@@ -10,8 +10,8 @@ import {
   updateServiceProviderServiceTypeSchema,
 } from './service-providers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../../shared/utils/requireUser';
-import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { requireUser } from '../../shared/utils/requireUser';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const serviceProvidersController = {
   createServiceProvider: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
