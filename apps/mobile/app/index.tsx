@@ -238,6 +238,19 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <View style={styles.quickActions}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/services')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#E7F4F0' }]}><Text style={styles.quickGlyph}>✦</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الخدمات</Text><Text style={styles.quickSubtitle}>اعثر على مقدم خدمة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => user ? router.push('/service-requests') : router.push('/login')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▤</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات الخدمات</Text><Text style={styles.quickSubtitle}>تابع طلباتك وردودها</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>تصفّح الأقسام</Text>
           <Pressable onPress={() => { setSelectedCategory(null); setQuery(''); setSubmittedSearch(''); }} accessibilityRole="button">
@@ -314,10 +327,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={styles.notice}>
-          <Text style={styles.noticeTitle}>مرحلة ربط البيانات</Text>
-          <Text style={styles.noticeText}>تعرض هذه الشاشة الآن الإعلانات العامة من مسار API الحالي. تسجيل الدخول ونشر الإعلانات والمفضلة والمحادثات والتخزين الدائم دون إنترنت ما زالت مراحل منفصلة.</Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -337,6 +346,14 @@ const styles = StyleSheet.create({
   myAdsButtonText: { color: colors.brand, fontSize: 12, fontWeight: '800' },
   accountButton: { minHeight: 42, minWidth: 62, paddingHorizontal: spacing.md, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   accountButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
+  quickActions: { gap: spacing.sm },
+  quickAction: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, minHeight: 76 },
+  quickIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  quickGlyph: { color: colors.brand, fontSize: 23, fontWeight: '800' },
+  quickTextWrap: { flex: 1, gap: 4 },
+  quickTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  quickSubtitle: { color: colors.muted, fontSize: 12, textAlign: 'right' },
+  quickArrow: { color: colors.muted, fontSize: 25 },
   hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.xl, overflow: 'hidden', gap: spacing.sm },
   eyebrow: { color: '#D4EEE6', fontSize: 13, textAlign: 'right' },
   heroTitle: { color: '#FFFFFF', fontSize: 27, fontWeight: '800', textAlign: 'right' },
