@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/generate-build-id.mjs && next build && node scripts/patch-nft.cjs && node scripts/generate-warming-manifest.mjs",
-    "build:cf": "opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
+    "build:cf": "node scripts/patch-bundle-server.cjs && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
