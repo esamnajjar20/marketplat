@@ -1,8 +1,17 @@
 import { apiRequest } from '@/api/client';
 import type { AdListItem } from './ads.api';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T };
+type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
 export type ManagedAd = AdListItem & { description?: string | null; status?: string };
+
+/** Thrown by updateAd when the fields PATCH succeeded but the image upload failed. */
+export class PartialAdUpdateError extends Error {
+  readonly partial = true;
+  constructor(message: string, readonly updated: ManagedAd) {
+    super(message);
+    this.name = 'PartialAdUpdateError';
+  }
+}
 export type SelectedAdImage = { uri: string; fileName: string; mimeType: string };
 export type AdDraft = {
   images: SelectedAdImage[];
@@ -22,10 +31,19 @@ function requireEnvelopeData<T>(response: Envelope<T>, fallback: string): T {
 }
 
 export async function fetchMyAds(token: string): Promise<ManagedAd[]> {
-  const response = await apiRequest<Envelope<ManagedAd[]>>('/api/v1/ads/me?limit=50', { token });
-  const data = requireEnvelopeData(response, 'استجابة إعلاناتك من الخادم غير متوقعة.');
-  if (!Array.isArray(data)) throw new Error('قائمة إعلاناتك غير صالحة.');
-  return data;
+  const collected: ManagedAd[] = [];
+  const seen = new Set<string>();
+  for (let page = 1; page <= 100; page += 1) {
+    const response = await apiRequest<Envelope<ManagedAd[]>>(`/api/v1/ads/me?limit=100&page=${page}`, { token });
+    const data = requireEnvelopeData(response, 'استجابة إعلاناتك من الخادم غير متوقعة.');
+    if (!Array.isArray(data)) throw new Error('قائمة إعلاناتك غير صالحة.');
+    for (const ad of data) {
+      if (ad && typeof ad.id === 'string' && !seen.has(ad.id)) { seen.add(ad.id); collected.push(ad); }
+    }
+    const tp = response.meta?.pagination?.totalPages;
+    if (typeof tp === 'number') { if (page >= tp) break; } else if (data.length < 100) { break; }
+  }
+  return collected;
 }
 
 export async function createAd(draft: AdDraft, token: string, csrfToken?: string | null): Promise<ManagedAd> {
@@ -66,7 +84,14 @@ export async function updateAd(id: string, draft: AdDraft, token: string, csrfTo
       method: 'POST', body: form, token,
       headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
     });
-    return requireEnvelopeData(imageResponse, 'تم تحديث البيانات لكن تعذّر رفع الصور. افتح التعديل مجددًا للتحقق من الإعلان.');
+    try {
+      return requireEnvelopeData(imageResponse, 'تم تحديث البيانات لكن تعذّر رفع الصور. افتح التعديل مجددًا للتحقق من الإعلان.');
+    } catch (error) {
+      throw new PartialAdUpdateError(
+        error instanceof Error ? error.message : 'تم تحديث البيانات لكن تعذّر رفع الصور.',
+        updated,
+      );
+    }
   }
   return updated;
 }

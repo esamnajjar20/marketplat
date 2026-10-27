@@ -22,7 +22,9 @@ export type ChatLiveEvent = {
 };
 
 export type ChatLiveStreamOptions = {
+  /** @deprecated prefer getToken(). */
   token: string;
+  getToken?: () => string;
   getLastEventId: () => string | null;
   onEvent: (event: ChatLiveEvent, eventId: string | null) => void;
   /** Called only when the platform cannot consume a stream or the endpoint is unsupported. */
@@ -89,11 +91,13 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
       outer.signal.addEventListener('abort', abortCurrent, { once: true });
       try {
         const lastEventId = options.getLastEventId();
+        const currentToken = options.getToken ? options.getToken() : options.token;
+        if (!currentToken) { stopped = true; return; }
         const response = await fetch(`${baseUrl}/api/v1/notifications/stream`, {
           method: 'GET',
           headers: {
             Accept: 'text/event-stream',
-            Authorization: `Bearer ${options.token}`,
+            Authorization: `Bearer ${currentToken}`,
             ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
           },
           signal: controller.signal,
@@ -140,8 +144,7 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
                   const event = payload as ChatLiveEvent;
                   if (parsed.eventName === 'resync') event.type = 'resync';
                   if (parsed.eventName === 'connected') event.type = 'connected';
-                  if (parsed.id) options.onEvent(event, parsed.id);
-                  else options.onEvent(event, null);
+                  options.onEvent(event, parsed.id);
                 }
               }
               boundary = buffer.search(/\r?\n\r?\n/);
