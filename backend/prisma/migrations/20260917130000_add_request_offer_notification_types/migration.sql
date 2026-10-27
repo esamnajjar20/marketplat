@@ -1,4 +1,0 @@
--- AlterEnum
-ALTER TYPE "NotificationType" ADD VALUE 'NEW_REQUEST_OFFER';
-ALTER TYPE "NotificationType" ADD VALUE 'REQUEST_OFFER_ACCEPTED';
-
