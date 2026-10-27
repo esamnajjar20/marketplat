@@ -271,6 +271,7 @@ export function ChatWindow({ conversationId }: Props) {
     setActiveSearchIndex(0);
     if (normalizedMessageSearch && searchMatches.length) {
       const first = searchMatches[0];
+      if (!first) return;
       requestAnimationFrame(() => {
         const row = messageRowRefs.current.get(first.id);
         row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
