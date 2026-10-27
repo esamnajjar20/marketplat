@@ -33,6 +33,7 @@
     "test:all": "pnpm --recursive --if-present run test",
     "lint:all": "pnpm --filter marketplat lint && pnpm --filter classifieds-platform-backend lint",
     "dev:all": "pnpm --parallel --filter marketplat --filter classifieds-platform-backend --filter @marketplat/mobile dev",
-    "test:worker": "pnpm --filter @marketplat/cf-api-proxy test"
+    "test:worker": "pnpm --filter @marketplat/cf-api-proxy test",
+    "postinstall": "node scripts/patch-bundle-server.cjs"
   }
 }
