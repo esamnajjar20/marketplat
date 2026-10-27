@@ -19,21 +19,21 @@ class MainApplication : Application(), ReactApplication {
   override val reactHost: ReactHost by lazy {
     ExpoReactHostFactory.getDefaultReactHost(
       context = applicationContext,
-      packageList = PackageList(this).packages.apply {
-        // Add manually linked packages here only if required.
-      }
+      packageList =
+        PackageList(this).packages.apply {
+          // Packages that cannot be autolinked yet can be added manually here, for example:
+          // add(MyReactNativePackage())
+        }
     )
   }
 
   override fun onCreate() {
     super.onCreate()
-
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
       ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
     } catch (e: IllegalArgumentException) {
       ReleaseLevel.STABLE
     }
-
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
   }

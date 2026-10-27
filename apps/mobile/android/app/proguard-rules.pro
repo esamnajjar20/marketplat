@@ -13,7 +13,7 @@
 
 # Add any project specific keep options here:
 
-# MarketPlat — حماية R8 من حذف كود ضروري في runtime
+# MarketPlat — protect from R8 (added after prebuild reset)
 -keep class com.marketplat.** { *; }
 -keep class expo.modules.** { *; }
 -keep class com.facebook.react.** { *; }
