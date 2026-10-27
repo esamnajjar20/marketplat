@@ -10,8 +10,10 @@ const required = [
 for (const file of required) assert.ok(existsSync(resolve(root, file)), `Missing Phase 3 file: ${file}`);
 const api = readFileSync(resolve(root, 'src/features/commerce/commerce.api.ts'), 'utf8');
 for (const endpoint of ['/api/v1/stores', '/api/v1/products', '/api/v1/product-categories', '/api/v1/stores/me', '/api/v1/products/me']) assert.ok(api.includes(endpoint), `Missing API contract: ${endpoint}`);
-const home = readFileSync(resolve(root, 'app/index.tsx'), 'utf8');
-for (const route of ["'/stores'", "'/products'", "'/my-store'", "'/my-products'"]) assert.ok(home.includes(route), `Missing home navigation: ${route}`);
+const explore = readFileSync(resolve(root, 'app/explore.tsx'), 'utf8');
+const account = readFileSync(resolve(root, 'app/account.tsx'), 'utf8');
+for (const route of ["'/stores'", "'/products'"]) assert.ok(explore.includes(route), `Missing explore navigation: ${route}`);
+for (const route of ["'/my-store'", "'/my-products'"]) assert.ok(account.includes(route), `Missing account navigation: ${route}`);
 const editor = readFileSync(resolve(root, 'app/product-editor.tsx'), 'utf8');
 assert.ok(editor.includes('createProduct') && editor.includes('updateProduct'), 'Product editor must support create and update');
 assert.ok(editor.includes('categoryId') && editor.includes('description') && editor.includes('price'), 'Product editor fields are incomplete');

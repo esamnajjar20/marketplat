@@ -10,7 +10,7 @@ const checks = [
   ['message send trims input and has a length limit in the UI', /draft\.trim\(\)/.test(read('app/messages/[id].tsx')) && /maxLength=\{2000\}/.test(read('app/messages/[id].tsx'))],
   ['notification read actions are wired', /markNotificationRead/.test(read('app/notifications.tsx')) && /markAllNotificationsRead/.test(read('app/notifications.tsx'))],
   ['ad detail starts a server-backed conversation', /startConversationFromAd/.test(read('app/ads/[id].tsx'))],
-  ['home exposes messages and notifications', /router\.push\('\/messages'\)/.test(read('app/index.tsx')) && /router\.push\('\/notifications'\)/.test(read('app/index.tsx'))],
+  ['primary navigation exposes messages and account hub exposes notifications', /label: 'الرسائل'[\s\S]*path: '\/messages'/.test(read('src/components/BottomNavigation.tsx')) && /path: '\/notifications'/.test(read('app/account.tsx'))],
 ];
 let failed = 0;
 for (const [name, passed] of checks) { console.log(`${passed ? 'PASS' : 'FAIL'} ${name}`); if (!passed) failed++; }

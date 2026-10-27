@@ -17,7 +17,7 @@ const checks = [
   ['public category list is registered', () => assert.ok(fs.existsSync(path.join(root, 'app/categories.tsx')))],
   ['seller ranking screen is registered', () => assert.ok(fs.existsSync(path.join(root, 'app/sellers-ranking.tsx')))],
   ['explore menu links discovery screens', () => { const s = read('app/explore.tsx'); for (const p of ['/categories', '/search', '/suggestions', '/trending', '/sellers-ranking']) assert.ok(s.includes(p)); }],
-  ['home shortcuts link discovery screens', () => { const s = read('app/index.tsx'); for (const p of ['/categories', '/search', '/suggestions', '/trending', '/sellers-ranking']) assert.ok(s.includes(p)); }],
+  ['home keeps only high-priority discovery shortcuts', () => { const s = read('app/index.tsx'); for (const p of ['/explore', '/search', '/add']) assert.ok(s.includes(p)); }],
 ];
 for (const [name, run] of checks) { run(); console.log(`PASS ${name}`); }
 console.log(`Discovery phase 2: ${checks.length} checks passed.`);

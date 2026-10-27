@@ -11,6 +11,6 @@ const editor = readFileSync(resolve(root, 'app/ad-editor.tsx'), 'utf8');
 for (const token of ['originalImages', 'existingImages', 'removeAdImage', 'reorderAdImages', 'إدارة الصور الحالية تتطلب اتصالًا بالإنترنت']) assert.ok(editor.includes(token), `Missing editor image-management behavior: ${token}`);
 const favorites = readFileSync(resolve(root, 'app/favorites.tsx'), 'utf8');
 for (const token of ['fetchFavoriteAds', 'setFavoriteAdState', 'enqueueFavoriteState', "pathname: '/ads/[id]'", 'إزالة من المفضلة']) assert.ok(favorites.includes(token), `Missing favorites behavior: ${token}`);
-const home = readFileSync(resolve(root, 'app/index.tsx'), 'utf8');
-assert.ok(home.includes("router.push('/favorites')"), 'Favorites navigation missing');
+const account = readFileSync(resolve(root, 'app/account.tsx'), 'utf8');
+assert.ok(account.includes("path: '/favorites'"), 'Favorites navigation missing from the account hub');
 console.log('Phase 4 static verification passed (image management, paginated favorites, offline removal queue, navigation).');

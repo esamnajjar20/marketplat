@@ -19,10 +19,10 @@ for (const [label, file, fragments] of checks) {
   if (missing.length) { console.error(`FAIL ${label}: missing ${missing.join(', ')}`); failed++; }
   else console.log(`PASS ${label}`);
 }
-const home = read('app/index.tsx');
+const account = read('app/account.tsx');
 const sales = read('app/my-sales.tsx');
 for (const [label, content, paths] of [
-  ['home navigation', home, ['/customers', '/debts', '/installments', '/activity']],
+  ['account hub navigation', account, ['/customers', '/debts', '/installments', '/activity']],
   ['sales navigation', sales, ['/customers', '/debts', '/installments', '/activity']],
 ]) {
   const missing = paths.filter((p) => !content.includes(p));

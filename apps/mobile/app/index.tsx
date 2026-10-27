@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
 import {
@@ -19,8 +19,7 @@ import { AdListItem, fetchPublicAds, getCachedPublicAdsWithMetadata } from '@/fe
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
-import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
-import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
+import { fetchServiceListings, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
 
 function formatPrice(price: AdListItem['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -29,20 +28,29 @@ function formatPrice(price: AdListItem['price']): string {
   return `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(numericPrice)} ₪`;
 }
 
+function formatServicePrice(item: ServiceListing): string {
+  if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
+  const price = Number(item.price);
+  if (!Number.isFinite(price)) return 'السعر عند الاتفاق';
+  return `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(price)} ₪${item.pricingType === 'STARTING_FROM' ? ' وما فوق' : ''}`;
+}
+
 export default function HomeScreen() {
   const { user, logout, isBusy, isRestoring } = useAuth();
   const [query, setQuery] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [ads, setAds] = useState<AdListItem[]>([]);
+  const [serviceItems, setServiceItems] = useState<ServiceListing[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [servicesError, setServicesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const [adsSavedAt, setAdsSavedAt] = useState<number | null>(null);
   const [adsFromCache, setAdsFromCache] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [cityInput, setCityInput] = useState('');
   const [minPriceInput, setMinPriceInput] = useState('');
   const [maxPriceInput, setMaxPriceInput] = useState('');
@@ -56,26 +64,18 @@ export default function HomeScreen() {
   const [failedImageIds, setFailedImageIds] = useState<string[]>([]);
   const adsRequestSequence = useRef(0);
   const connectivityRef = useRef<boolean | null>(null);
-
-  // Keep derived lists stable between unrelated UI updates (search typing,
-  // favorite taps, and filter-panel toggles) to avoid repeated scans and child renders.
-  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
-  const visibleAds = useMemo(
-    () => (showFavorites ? ads.filter((ad) => favoriteIdSet.has(ad.id)) : ads),
-    [ads, showFavorites, favoriteIdSet],
-  );
+  const servicesRequestSequence = useRef(0);
 
   const loadAds = useCallback(async (isRefresh = false) => {
     const requestSequence = ++adsRequestSequence.current;
     const isCurrentRequest = () => requestSequence === adsRequestSequence.current;
     if (isRefresh) setRefreshing(true);
     setErrorMessage(null);
-    setRefreshNotice(null);
     setLoadingMore(false);
     setPage(1);
     setTotalPages(1);
-    const options = { page: 1, limit: 8, search: submittedSearch } as {
-      page: number; limit: number; search: string;
+    const options = { page: 1, limit: 8, search: submittedSearch, categoryId: undefined } as {
+      page: number; limit: number; search: string; categoryId: string | undefined;
       city?: string; minPrice?: number; maxPrice?: number;
       sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
     };
@@ -98,18 +98,8 @@ export default function HomeScreen() {
     } catch { /* Cache is optional; continue with network. */ }
     if (!hasCachedData && !isRefresh) setLoading(true);
     try {
-      // Avoid a guaranteed failing GET when the device already reports no network.
-      // Cached results remain visible; an uncached first visit gets a clear offline message.
-      const networkState = await NetInfo.fetch();
-      if (!isCurrentRequest()) return;
-      if (networkState.isConnected === false) {
-        if (!hasCachedData) setErrorMessage('أنت غير متصل بالإنترنت ولا توجد نسخة محفوظة من هذه النتائج على الجهاز. اتصل بالإنترنت ثم أعد المحاولة.');
-        else setRefreshNotice('أنت غير متصل حاليًا؛ نعرض آخر نسخة محفوظة من الإعلانات.');
-        return;
-      }
       const result = await fetchPublicAds(options);
       if (!isCurrentRequest()) return;
-      setRefreshNotice(null);
       setAds(result.items);
       setPage(result.page || 1);
       setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? (result.page || 1) + 1 : (result.page || 1)));
@@ -121,13 +111,9 @@ export default function HomeScreen() {
       }
     } catch (error) {
       if (!isCurrentRequest()) return;
-      if (hasCachedData) {
-        setRefreshNotice('تعذر تحديث الإعلانات الآن؛ ما زلنا نعرض النسخة المحفوظة على الجهاز.');
-      } else {
-        setErrorMessage(error instanceof ApiError || error instanceof Error
-          ? error.message
-          : 'تعذر تحميل الإعلانات. حاول مرة أخرى.');
-      }
+      if (!hasCachedData) setErrorMessage(error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'تعذر تحميل الإعلانات. حاول مرة أخرى.');
     } finally {
       if (isCurrentRequest()) {
         setLoading(false);
@@ -142,8 +128,8 @@ export default function HomeScreen() {
     setErrorMessage(null);
     const requestSequence = adsRequestSequence.current;
     const nextPage = page + 1;
-    const options = { page: nextPage, limit: 8, search: submittedSearch } as {
-      page: number; limit: number; search: string;
+    const options = { page: nextPage, limit: 8, search: submittedSearch, categoryId: undefined } as {
+      page: number; limit: number; search: string; categoryId: string | undefined;
       city?: string; minPrice?: number; maxPrice?: number;
       sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
     };
@@ -153,13 +139,7 @@ export default function HomeScreen() {
       if (requestSequence !== adsRequestSequence.current) return;
       setAds((current) => {
         const seen = new Set(current.map((item) => item.id));
-        const additions: AdListItem[] = [];
-        for (const item of result.items) {
-          if (seen.has(item.id)) continue;
-          seen.add(item.id);
-          additions.push(item);
-        }
-        return [...current, ...additions];
+        return [...current, ...result.items.filter((item) => !seen.has(item.id))];
       });
       setPage(result.page || nextPage);
       setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? nextPage + 1 : nextPage));
@@ -187,9 +167,37 @@ export default function HomeScreen() {
     }
     setFilterError(null);
     setFilters({ city: cityInput.trim() || undefined, minPrice: min, maxPrice: max });
+    setShowFilters(false);
   }, [cityInput, minPriceInput, maxPriceInput]);
 
+  const loadServices = useCallback(async (refresh = false) => {
+    const requestSequence = ++servicesRequestSequence.current;
+    const isCurrentRequest = () => requestSequence === servicesRequestSequence.current;
+    if (refresh) setServicesError(null);
+    let hasCachedData = false;
+    try {
+      const cached = await getCachedServiceListings({ page: 1, limit: 4, search: '' });
+      if (!isCurrentRequest()) return;
+      if (cached) {
+        hasCachedData = true;
+        setServiceItems(cached.slice(0, 4));
+        setServicesLoading(false);
+      }
+    } catch { /* Cache is optional. */ }
+    try {
+      const result = await fetchServiceListings({ page: 1, limit: 4, search: '' });
+      if (!isCurrentRequest()) return;
+      setServiceItems(result.slice(0, 4));
+      setServicesError(null);
+    } catch (error) {
+      if (isCurrentRequest() && !hasCachedData) setServicesError(error instanceof Error ? error.message : 'تعذر تحميل الخدمات.');
+    } finally {
+      if (isCurrentRequest()) setServicesLoading(false);
+    }
+  }, []);
+
   useEffect(() => { void loadAds(); }, [loadAds]);
+  useEffect(() => { void loadServices(); }, [loadServices]);
 
   // Re-sync public read-only data after a real offline -> online transition.
   // Keep the previous connectivity value across renders so changing search/filter
@@ -201,10 +209,11 @@ export default function HomeScreen() {
       connectivityRef.current = online;
       if (previous === false && online) {
         void loadAds(true);
+        void loadServices(true);
       }
     });
     return () => { unsubscribe(); };
-  }, [loadAds]);
+  }, [loadAds, loadServices]);
 
   useEffect(() => {
     let active = true;
@@ -249,10 +258,6 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
-            {user ? <Pressable accessibilityRole="button" accessibilityLabel="المحادثات" onPress={() => router.push('/messages')} style={styles.myAdsButton}><Text style={styles.myAdsButtonText}>الرسائل</Text></Pressable> : null}
-            {user ? <Pressable accessibilityRole="button" accessibilityLabel="الإشعارات" onPress={() => router.push('/notifications')} style={styles.myAdsButton}><Text style={styles.myAdsButtonText}>الإشعارات</Text></Pressable> : null}
-            {user ? <Pressable accessibilityRole="button" accessibilityLabel="إعلاناتي" onPress={() => router.push('/my-ads')} style={styles.myAdsButton}><Text style={styles.myAdsButtonText}>إعلاناتي</Text></Pressable> : null}
-            {user ? <Pressable accessibilityRole="button" accessibilityLabel="المفضلة" onPress={() => router.push('/favorites')} style={styles.myAdsButton}><Text style={styles.myAdsButtonText}>♥ المفضلة</Text></Pressable> : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
@@ -271,15 +276,15 @@ export default function HomeScreen() {
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>{user ? `أهلًا ${user.name}` : 'أهلاً بك في سوقك المحلي'}</Text>
           <Text style={styles.heroTitle}>تلاقي اللي بدك إياه</Text>
-          <Text style={styles.heroBody}>اكتشف الإعلانات والمتاجر والمنتجات والخدمات من مكان واحد.</Text>
+          <Text style={styles.heroBody}>تصفّح الإعلانات أو ابحث عن شيء محدد بسهولة.</Text>
           <View style={styles.searchBox}>
             <Text style={styles.searchIcon}>⌕</Text>
             <TextInput
-              accessibilityLabel="ابحث عن إعلان أو متجر أو منتج أو خدمة"
+              accessibilityLabel="ابحث عن إعلان"
               value={query}
               onChangeText={setQuery}
               onSubmitEditing={() => { setSubmittedSearch(query.trim()); }}
-              placeholder="منتج، متجر، خدمة أو إعلان..."
+              placeholder="ابحث عن إعلان أو سلعة…"
               placeholderTextColor="#858D98"
               returnKeyType="search"
               style={styles.searchInput}
@@ -289,44 +294,39 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.homeShortcuts}>
-          {[
-            { title: 'الإعلانات', subtitle: 'أحدث ما نُشر', glyph: '◇', tint: '#E7F0FF', color: '#2856A6', path: '/search?type=ads' },
-            { title: 'المتاجر', subtitle: 'متاجر محلية', glyph: '▣', tint: '#DFF5EC', color: '#176B50', path: '/stores' },
-            { title: 'المنتجات', subtitle: 'تسوّق المنتجات', glyph: '▦', tint: '#F1E8FF', color: '#6841A5', path: '/products' },
-            { title: 'الخدمات', subtitle: 'خبرات ومهن', glyph: '✦', tint: '#FFF0D6', color: '#9A5A00', path: '/services' },
-            { title: 'طلبات السوق', subtitle: 'ما يبحث عنه الناس', glyph: '▤', tint: '#E7F0FF', color: '#2856A6', path: '/requests' },
-            { title: 'القصص', subtitle: 'تحديثات جديدة', glyph: '◉', tint: '#F1E8FF', color: '#6841A5', path: '/stories' },
-            { title: 'البائعون', subtitle: 'اكتشف البائعين', glyph: '♙', tint: '#DFF5EC', color: '#176B50', path: '/sellers-ranking' },
-            { title: 'كل الأقسام', subtitle: 'تصفّح السوق', glyph: '⊞', tint: '#FBEBD9', color: '#9A5A00', path: '/explore' },
-          ].map((item) => (
-            <Pressable key={item.title} accessibilityRole="button" onPress={() => router.push(item.path as never)} style={styles.homeShortcut}>
-              <View style={[styles.homeShortcutIcon, { backgroundColor: item.tint }]}><Text style={[styles.homeShortcutGlyph, { color: item.color }]}>{item.glyph}</Text></View>
-              <Text numberOfLines={1} style={styles.homeShortcutTitle}>{item.title}</Text>
-              <Text numberOfLines={1} style={styles.homeShortcutSubtitle}>{item.subtitle}</Text>
-            </Pressable>
-          ))}
+        <View style={styles.quickActions}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>⌕</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف السوق</Text><Text style={styles.quickSubtitle}>المتاجر والخدمات والمنتجات والقصص</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/search')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>⚙</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>بحث وفلاتر متقدمة</Text><Text style={styles.quickSubtitle}>حدد المدينة والسعر ونوع المحتوى</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={styles.quickAction}>
+            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>＋</Text></View>
+            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>انشر إعلانًا أو أضف منتجًا أو خدمة</Text></View>
+            <Text style={styles.quickArrow}>‹</Text>
+          </Pressable>
         </View>
 
-        <HomeCommunitySections />
 
-        <HomeMarketplaceSections />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{showFavorites ? 'إعلاناتي المفضلة على هذا الجهاز' : 'أحدث الإعلانات'}</Text>
-          <Pressable accessibilityRole="button" onPress={() => { void loadAds(true); }}><Text style={styles.link}>تحديث</Text></Pressable>
+          <View style={styles.sectionActions}>
+            {!showFavorites ? <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)}><Text style={styles.link}>{showFilters ? 'إخفاء الفلاتر' : 'تصفية النتائج'}</Text></Pressable> : null}
+            <Pressable accessibilityRole="button" onPress={() => { void loadAds(true); }}><Text style={styles.link}>تحديث</Text></Pressable>
+          </View>
         </View>
         <View style={styles.filterRow}>
           <Pressable accessibilityRole="button" accessibilityState={{ selected: !showFavorites }} onPress={() => setShowFavorites(false)} style={[styles.filterChip, !showFavorites && styles.filterChipSelected]}><Text style={[styles.filterText, !showFavorites && styles.filterTextSelected]}>كل الإعلانات</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityState={{ selected: showFavorites }} onPress={() => setShowFavorites(true)} style={[styles.filterChip, showFavorites && styles.filterChipSelected]}><Text style={[styles.filterText, showFavorites && styles.filterTextSelected]}>♥ المفضلة ({favoriteIds.length})</Text></Pressable>
         </View>
 
-        {!showFavorites ? <View style={styles.filterPanel}>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)} style={styles.filterToggle}>
-            <Text style={styles.filterToggleText}>{showFilters ? 'إخفاء التصفية' : 'تصفية وترتيب النتائج'}</Text>
-            <Text style={styles.filterToggleGlyph}>{showFilters ? '−' : '＋'}</Text>
-          </Pressable>
-          {showFilters ? <View style={styles.advancedFilters}>
+        {!showFavorites && showFilters ? <View style={styles.advancedFilters}>
           <Text style={styles.filterHeading}>تصفية النتائج</Text>
           <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor="#858D98" textAlign="right" style={styles.filterInput} returnKeyType="done" />
           <View style={styles.priceInputs}>
@@ -340,8 +340,7 @@ export default function HomeScreen() {
             <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'price' }} onPress={() => { setSortBy('price'); setSortOrder('asc'); }} style={[styles.filterChip, sortBy === 'price' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'price' && styles.filterTextSelected]}>الأقل سعرًا</Text></Pressable>
             <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'views' }} onPress={() => { setSortBy('views'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'views' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'views' && styles.filterTextSelected]}>الأكثر مشاهدة</Text></Pressable>
           </View>
-          <Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable>
-          </View> : null}
+          <View style={styles.filterActions}><Pressable accessibilityRole="button" onPress={() => { setCityInput(''); setMinPriceInput(''); setMaxPriceInput(''); setFilters({}); setFilterError(null); setSortBy('createdAt'); setSortOrder('desc'); }} style={styles.clearFiltersButton}><Text style={styles.clearFiltersText}>مسح</Text></Pressable><Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable></View>
         </View> : null}
 
         {adsSavedAt !== null && !loading ? (
@@ -350,11 +349,6 @@ export default function HomeScreen() {
               {adsFromCache ? 'نسخة محفوظة على الجهاز' : 'تمت مزامنة الإعلانات'}
               {' · '}{new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(adsSavedAt))}
             </Text>
-          </View>
-        ) : null}
-        {refreshNotice ? (
-          <View style={styles.refreshNotice} accessibilityLiveRegion="polite">
-            <Text style={styles.refreshNoticeText}>{refreshNotice}</Text>
           </View>
         ) : null}
         {loading ? (
@@ -366,11 +360,11 @@ export default function HomeScreen() {
             <Pressable accessibilityRole="button" onPress={() => { void loadAds(); }} style={styles.retryButton}><Text style={styles.retryText}>إعادة المحاولة</Text></Pressable>
             <Text style={styles.helperText}>تأكد من إعداد EXPO_PUBLIC_API_URL في apps/mobile/.env وأن الخادم متاح من جهازك.</Text>
           </View>
-        ) : visibleAds.length === 0 ? (
+        ) : (showFavorites ? ads.filter((ad) => favoriteIds.includes(ad.id)) : ads).length === 0 ? (
           <View style={styles.statusCard}><Text style={styles.statusEmoji}>{showFavorites ? '♡' : '🛍️'}</Text><Text style={styles.statusTitle}>{showFavorites ? 'لا توجد مفضلات ضمن الإعلانات المحمّلة' : 'لا توجد إعلانات مطابقة'}</Text><Text style={styles.statusText}>{showFavorites ? 'المفضلة محفوظة على هذا الجهاز، وقد تحتاج إلى تحميل الإعلانات التي تحتوي عليها.' : 'جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث.'}</Text></View>
         ) : (
           <View style={styles.adsList}>
-            {visibleAds.map((ad) => {
+            {(showFavorites ? ads.filter((ad) => favoriteIds.includes(ad.id)) : ads).map((ad) => {
               const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images) ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url)) : undefined;
               return (
                 <View key={ad.id} style={styles.adCard}>
@@ -383,12 +377,31 @@ export default function HomeScreen() {
                       {ad.isNegotiable ? <Text style={styles.negotiable}>السعر قابل للتفاوض</Text> : null}
                     </View>
                   </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.includes(ad.id) ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} accessibilityState={{ selected: favoriteIdSet.has(ad.id) }} onPress={() => toggleFavorite(ad.id)} style={styles.favoriteButton}><Text style={[styles.favoriteText, favoriteIdSet.has(ad.id) && styles.favoriteActive]}>{favoriteIdSet.has(ad.id) ? '♥' : '♡'}</Text></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.includes(ad.id) ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} accessibilityState={{ selected: favoriteIds.includes(ad.id) }} onPress={() => toggleFavorite(ad.id)} style={styles.favoriteButton}><Text style={[styles.favoriteText, favoriteIds.includes(ad.id) && styles.favoriteActive]}>{favoriteIds.includes(ad.id) ? '♥' : '♡'}</Text></Pressable>
                 </View>
               );
             })}
           </View>
         )}
+        {!showFavorites ? <View style={styles.servicesSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>خدمات قريبة منك</Text>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/services')}><Text style={styles.link}>كل الخدمات</Text></Pressable>
+          </View>
+          {servicesLoading && serviceItems.length === 0 ? <View style={styles.serviceState}><ActivityIndicator size="small" color={colors.brand} /><Text style={styles.helperText}>جاري تحميل الخدمات…</Text></View> : null}
+          {!servicesLoading && servicesError && serviceItems.length === 0 ? <View style={styles.serviceState}><Text style={styles.helperText}>تعذر تحميل الخدمات الآن.</Text><Pressable accessibilityRole="button" onPress={() => { void loadServices(true); }}><Text style={styles.link}>إعادة المحاولة</Text></Pressable></View> : null}
+          {!servicesLoading && !servicesError && serviceItems.length === 0 ? <View style={styles.serviceState}><Text style={styles.helperText}>لا توجد خدمات متاحة حاليًا.</Text><Pressable accessibilityRole="button" onPress={() => router.push('/services')}><Text style={styles.link}>تصفح الخدمات</Text></Pressable></View> : null}
+          {serviceItems.length > 0 ? <View style={styles.serviceList}>{serviceItems.map((item) => {
+            const imageUri = item.images?.find((url) => typeof url === 'string' && /^https?:\/\//i.test(url));
+            const provider = item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة';
+            return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`عرض الخدمة: ${item.title}`} onPress={() => router.push(`/services/${encodeURIComponent(item.id)}`)} style={styles.serviceCard}>
+              {imageUri ? <Image source={{ uri: imageUri }} style={styles.serviceImage} resizeMode="cover" /> : <View style={styles.serviceImagePlaceholder}><Text style={styles.servicePlaceholderGlyph}>✦</Text></View>}
+              <View style={styles.serviceInfo}><Text numberOfLines={2} style={styles.serviceTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.serviceProvider}>{provider}</Text><Text style={styles.servicePrice}>{formatServicePrice(item)}</Text></View>
+            </Pressable>;
+          })}</View> : null}
+          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/service-requests')} style={styles.serviceRequestsLink}><Text style={styles.serviceRequestsText}>متابعة طلبات الخدمات ←</Text></Pressable> : null}
+        </View> : null}
+
         {!showFavorites && !loading && !errorMessage && ads.length > 0 && page < totalPages ? (
           <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => { void loadMoreAds(); }} style={[styles.loadMoreButton, loadingMore && styles.busyButton]}>
             {loadingMore ? <ActivityIndicator color={colors.brand} /> : <Text style={styles.loadMoreText}>تحميل المزيد من الإعلانات</Text>}
@@ -410,16 +423,16 @@ const styles = StyleSheet.create({
   brandName: { color: colors.ink, fontSize: 18, fontWeight: '800', textAlign: 'right' },
   brandSubtitle: { color: colors.muted, fontSize: 12, marginTop: 2, textAlign: 'right' },
   headerActions: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs },
-  myAdsButton: { borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, minHeight: 44, justifyContent: 'center' },
-  myAdsButtonText: { color: colors.brand, fontSize: 12, fontWeight: '800' },
   accountButton: { minHeight: 44, minWidth: 64, paddingHorizontal: spacing.md, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   accountButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
-  homeShortcuts: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
-  homeShortcut: { width: '23.5%', flexGrow: 1, flexBasis: '21%', minWidth: 72, minHeight: 106, alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 3, paddingVertical: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  homeShortcutIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  homeShortcutGlyph: { fontSize: 22, fontWeight: '800' },
-  homeShortcutTitle: { color: colors.ink, fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  homeShortcutSubtitle: { color: colors.muted, fontSize: 9, textAlign: 'center' },
+  quickActions: { gap: spacing.sm },
+  quickAction: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, minHeight: 80 },
+  quickIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  quickGlyph: { color: colors.brand, fontSize: 23, fontWeight: '800' },
+  quickTextWrap: { flex: 1, gap: 4 },
+  quickTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  quickSubtitle: { color: colors.muted, fontSize: 12, textAlign: 'right' },
+  quickArrow: { color: colors.muted, fontSize: 25 },
   hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.xl, overflow: 'hidden', gap: spacing.sm },
   eyebrow: { color: '#D4EEE6', fontSize: 13, textAlign: 'right' },
   heroTitle: { color: '#FFFFFF', fontSize: 26, fontWeight: '800', textAlign: 'right' },
@@ -429,12 +442,9 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: colors.ink, fontSize: 15, paddingVertical: 12, writingDirection: 'rtl' },
   clearSearch: { color: colors.muted, fontSize: 24, paddingHorizontal: 4 },
   sectionHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: -spacing.sm, minHeight: 38, gap: spacing.sm },
+  sectionActions: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md },
   sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', textAlign: 'right' },
   link: { color: colors.brand, fontSize: 13, fontWeight: '700' },
-  filterPanel: { gap: spacing.sm },
-  filterToggle: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
-  filterToggleText: { color: colors.ink, fontSize: 13, fontWeight: '800' },
-  filterToggleGlyph: { color: colors.brand, fontSize: 20, fontWeight: '900' },
   advancedFilters: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   filterHeading: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
   filterInput: { minHeight: 48, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, borderRadius: radius.sm, paddingHorizontal: spacing.md, color: colors.ink, fontSize: 13 },
@@ -443,8 +453,24 @@ const styles = StyleSheet.create({
   filterError: { color: colors.danger, fontSize: 12, textAlign: 'right' },
   sortRow: { flexDirection: 'row-reverse', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xs },
   filterCaption: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  applyFiltersButton: { minHeight: 48, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  filterActions: { flexDirection: 'row-reverse', gap: spacing.sm },
+  clearFiltersButton: { minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  clearFiltersText: { color: colors.muted, fontSize: 13, fontWeight: '800' },
+  applyFiltersButton: { flex: 1, minHeight: 48, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   applyFiltersText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  servicesSection: { gap: spacing.md },
+  serviceList: { gap: spacing.sm },
+  serviceRequestsLink: { minHeight: 42, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: spacing.sm },
+  serviceRequestsText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
+  serviceCard: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, padding: spacing.sm, minHeight: 96, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg },
+  serviceImage: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: '#EEF1F3' },
+  serviceImagePlaceholder: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  servicePlaceholderGlyph: { color: colors.brand, fontSize: 28 },
+  serviceInfo: { flex: 1, alignItems: 'flex-end', gap: 4 },
+  serviceTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right', width: '100%' },
+  serviceProvider: { color: colors.muted, fontSize: 11, textAlign: 'right', width: '100%' },
+  servicePrice: { color: colors.brand, fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  serviceState: { minHeight: 60, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   loadMoreButton: { minHeight: 48, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
   loadMoreText: { color: colors.brand, fontSize: 14, fontWeight: '800' },
   busyButton: { opacity: 0.65 },
@@ -454,23 +480,21 @@ const styles = StyleSheet.create({
   filterChipSelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
   filterText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   filterTextSelected: { color: colors.brandDark },
-  adCard: { position: 'relative', backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  adMain: { flexDirection: 'row-reverse', minHeight: 136 },
-  favoriteButton: { position: 'absolute', top: 6, right: 6, zIndex: 2, width: 40, height: 40, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  adCard: { position: 'relative', backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', minHeight: 126 },
+  adMain: { flexDirection: 'row-reverse', minHeight: 132, paddingTop: 30 },
+  favoriteButton: { position: 'absolute', top: 5, right: 6, width: 38, height: 36, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   favoriteText: { color: colors.muted, fontSize: 20, lineHeight: 24 },
   favoriteActive: { color: '#D92D55' },
-  adImage: { width: 112, minHeight: 136, backgroundColor: '#EEF1F3' },
-  adImagePlaceholder: { width: 112, minHeight: 136, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  adImage: { width: 120, minHeight: 132, backgroundColor: '#EEF1F3' },
+  adImagePlaceholder: { width: 120, minHeight: 132, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   placeholderEmoji: { fontSize: 32 },
-  adInfo: { flex: 1, minWidth: 0, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' },
+  adInfo: { flex: 1, padding: spacing.md, gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' },
   adTitle: { color: colors.ink, fontSize: 14, lineHeight: 20, fontWeight: '800', textAlign: 'right', width: '100%' },
   adPrice: { color: colors.brand, fontSize: 15, fontWeight: '800', textAlign: 'right' },
   adMeta: { color: colors.muted, fontSize: 12, textAlign: 'right', width: '100%' },
   negotiable: { color: colors.brandDark, backgroundColor: colors.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, overflow: 'hidden' },
   cacheStatus: { alignSelf: 'flex-end', backgroundColor: '#EAF5F1', borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   cacheStatusText: { color: '#246A55', fontSize: 11, fontWeight: '600', textAlign: 'right' },
-  refreshNotice: { backgroundColor: '#FFF8E8', borderRadius: radius.md, borderWidth: 1, borderColor: '#F4E2B5', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  refreshNoticeText: { color: '#795F24', fontSize: 12, lineHeight: 18, textAlign: 'right' },
   statusCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', padding: spacing.xl, gap: spacing.md },
   statusEmoji: { fontSize: 32 },
   statusTitle: { color: colors.ink, fontSize: 16, fontWeight: '800', textAlign: 'center' },

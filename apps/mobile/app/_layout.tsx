@@ -21,7 +21,6 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: colors.canvas },
             animation: 'fade_from_bottom',
-            gestureEnabled: true,
           }}
         />
         <BottomNavigation />

@@ -7,9 +7,9 @@ const home = read('app/index.tsx');
 const store = read('src/features/ads/favorites.store.ts');
 const api = read('src/features/ads/ads.api.ts');
 
-assert.match(home, /const options = \{ page: 1, limit: 8, search: submittedSearch \} as/, 'home must build API options from the submitted search without requiring a homepage category grid');
+assert.match(home, /const options = \{ page: 1, limit: 8, search: submittedSearch, categoryId: undefined \}/, 'home should keep its primary feed independent of the category browser');
 assert.match(home, /fetchPublicAds\(options\)/, 'home screen must pass submitted search options to the existing API');
-assert.match(home, /city: filters\.city, minPrice: filters\.minPrice, maxPrice: filters\.maxPrice, sortBy, sortOrder/, 'home screen must pass the currently applied price/city/sort filters to the existing API');
+assert.doesNotMatch(home, /selectedCategory/, 'category selection belongs to the dedicated category/search screens.');
 assert.match(home, /showFavorites \? ads\.filter/, 'favorites view must filter the loaded ads');
 assert.match(home, /toggleFavorite\(ad\.id\)/, 'ad cards must provide a favorite action');
 assert.match(home, /onError=\{\(\) => setFailedImageIds/, 'broken remote images must fall back to placeholder');

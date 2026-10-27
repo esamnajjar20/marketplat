@@ -15,7 +15,7 @@ const checks = [
   ['Store details exposes a share action', read('app/stores/[id].tsx').includes("shareMarketPlatResource('stores'")],
   ['Deep-link share supports existing resource routes', ['stories','ads','products','stores','services','profile'].every((r) => read('src/features/sharing/deep-links.ts').includes(`'${r}'`))],
   ['Story viewer consumes story and author IDs from deep links', read('app/stories/[id].tsx').includes('userId') && read('app/stories/[id].tsx').includes('useLocalSearchParams')],
-  ['Home screen links to stories', read('app/index.tsx').includes("router.push('/stories')")],
+  ['Home routes discovery through Explore', read('app/index.tsx').includes("router.push('/explore')")],
   ['Explore screen links to stories', read('app/explore.tsx').includes("path: '/stories'")],
   ['Expo app scheme is configured', read('app.json').includes('"scheme": "marketplat"')],
 ];
