@@ -96,6 +96,56 @@ export function isNotificationStreamConnected(): boolean {
   return streamConnected;
 }
 
+// Coalesce bursts of message events into one inbox/unread refresh. Without
+// this, every SSE event invalidated the full conversation list independently.
+// The active visible thread is refreshed once per burst so the backend's
+// GET-messages read-receipt side effect still runs without polling constantly.
+let conversationRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingConversationIds = new Set<string>();
+let pendingUnreadRefresh = false;
+let pendingRefreshClient: ReturnType<typeof useQueryClient> | null = null;
+
+function scheduleConversationRefresh(
+  queryClient: ReturnType<typeof useQueryClient>,
+  conversationId: string,
+  refreshUnread = false,
+) {
+  pendingRefreshClient = queryClient;
+  pendingConversationIds.add(conversationId);
+  pendingUnreadRefresh ||= refreshUnread;
+  if (conversationRefreshTimer) return;
+
+  conversationRefreshTimer = setTimeout(() => {
+    conversationRefreshTimer = null;
+    const client = pendingRefreshClient;
+    const conversationIds = [...pendingConversationIds];
+    const shouldRefreshUnread = pendingUnreadRefresh;
+    pendingConversationIds = new Set<string>();
+    pendingUnreadRefresh = false;
+    pendingRefreshClient = null;
+    if (!client) return;
+
+    void client.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+    if (shouldRefreshUnread) {
+      void client.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
+    }
+
+    // GET /messages is the authoritative path that marks recipient messages
+    // read. Do that only when the matching conversation is actually visible;
+    // background tabs should accumulate unread state instead.
+    if (typeof window !== 'undefined' && document.visibilityState === 'visible') {
+      const activeConversationId = window.location.pathname.split('/').filter(Boolean).at(-1);
+      if (activeConversationId) {
+        for (const id of conversationIds) {
+          if (id === activeConversationId) {
+            void client.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(id) });
+          }
+        }
+      }
+    }
+  }, 500);
+}
+
 type MessagesPage = {
   items: Message[];
   meta?: {
@@ -144,7 +194,7 @@ function appendMessageToCaches(
       };
     },
   );
-  void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+  scheduleConversationRefresh(queryClient, conversationId, true);
 }
 
 function markDeletedInCaches(
@@ -165,6 +215,7 @@ function markDeletedInCaches(
       };
     },
   );
+  scheduleConversationRefresh(queryClient, conversationId);
 }
 
 /** Anything the stream may have dropped while we were disconnected → refetch from the API (source of truth). */

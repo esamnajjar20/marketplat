@@ -204,14 +204,20 @@ export const conversationsRepository = {
   > => {
     const conversation = await prisma.conversation.findUnique({
       where: { id },
-      include: conversationWithRelations,
+      include: {
+        ...conversationWithRelations,
+        // Fetch only the caller's settings in the same Prisma operation instead
+        // of issuing a second conversationUserSetting.findUnique round trip.
+        userSettings: {
+          where: { userId },
+          take: 1,
+          select: { pinnedAt: true, archivedAt: true, deletedAt: true, mutedUntil: true },
+        },
+      },
     });
     if (!conversation) return null;
-    const setting = await prisma.conversationUserSetting.findUnique({
-      where: { conversationId_userId: { conversationId: id, userId } },
-      select: { pinnedAt: true, archivedAt: true, deletedAt: true, mutedUntil: true },
-    });
-    return { ...conversation, mySettings: setting };
+    const { userSettings, ...conversationData } = conversation;
+    return { ...conversationData, mySettings: userSettings[0] ?? null };
   },
 
   /** Every conversation the caller is a party to, as either buyer or
@@ -439,9 +445,9 @@ export const messagesRepository = {
 
   findManyByConversationId: async (
     conversationId: string,
-    query: { page?: number; limit?: number; before?: string },
+    query: { page?: number; limit?: number; before?: string; cursor?: boolean },
     viewerId?: string
-  ): Promise<{ messages: Message[]; total: number; nextCursor: string | null }> => {
+  ): Promise<{ messages: Message[]; total: number | null; nextCursor: string | null }> => {
     const limit = Math.min(Math.max(query.limit ?? 30, 1), 100);
     const cursor = query.before ? decodeMessageCursor(query.before) : null;
     const where: Prisma.MessageWhereInput = { conversationId };
@@ -456,17 +462,20 @@ export const messagesRepository = {
       ];
     }
 
+    const rowsPromise = prisma.message.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      include: {
+        pin: true,
+        ...(viewerId ? { stars: { where: { userId: viewerId }, select: { userId: true } } } : {}),
+      },
+    });
+    // Cursor clients navigate using nextCursor, not total/totalPages. Avoid a
+    // full conversation COUNT for every newest-window and older-history request.
     const [rows, total] = await Promise.all([
-      prisma.message.findMany({
-        where,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: limit + 1,
-        include: {
-          pin: true,
-          ...(viewerId ? { stars: { where: { userId: viewerId }, select: { userId: true } } } : {}),
-        },
-      }),
-      prisma.message.count({ where: { conversationId } }),
+      rowsPromise,
+      query.cursor || query.before ? Promise.resolve(null) : prisma.message.count({ where: { conversationId } }),
     ]);
 
     const hasMore = rows.length > limit;

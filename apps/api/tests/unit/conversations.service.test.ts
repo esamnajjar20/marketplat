@@ -530,6 +530,15 @@ describe('conversationsService', () => {
       expect(messagesRepository.markReadForRecipient).toHaveBeenCalledWith('conv-1', buyerId);
     });
 
+    it('does not repeat read-receipt work when loading older cursor pages', async () => {
+      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({ messages: [], total: null, nextCursor: null });
+      await conversationsService.getMessages(buyerId, 'conv-1', { before: 'cursor-token', cursor: true });
+      expect(messagesRepository.markReadForRecipient).not.toHaveBeenCalled();
+      const { notificationsService } = require('../../src/modules/notifications');
+      expect(notificationsService.markConversationNotificationsRead).not.toHaveBeenCalled();
+    });
+
     it('strips body from soft-deleted messages but leaves the other fields intact', async () => {
       const liveMessage = { id: 'msg-1', body: 'still here', deletedAt: null };
       const deletedMessage = { id: 'msg-2', body: 'secret text', deletedAt: new Date('2026-08-01') };

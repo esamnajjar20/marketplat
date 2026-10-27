@@ -9,7 +9,7 @@ assert.match(api, /new URLSearchParams\(\{ page: String\(safePage\), limit: '50'
 assert.match(api, /pagination\?\.totalPages/, 'pagination metadata must determine whether another page exists');
 assert.match(api, /hasMore: currentPage < totalPages/, 'page API should expose a reliable hasMore flag');
 assert.match(screen, /const loadMore = useCallback/);
-assert.match(screen, /fetchConversationsPage\(accessToken, requestedPage\)/, 'inbox must request the next page');
+assert.match(screen, /fetchConversationsPage\(accessToken, requestedPage(?:, filter === \'archived\' \? \{ archivedOnly: true \} : \{\})?\)/, 'inbox must request the next page');
 assert.match(screen, /const moreRequest = useRef\(false\)/, 'prevent duplicate load-more requests');
 assert.match(screen, /const moreRequestId = useRef\(0\)/, 'stale load-more completion must not release a newer request lock');
 assert.match(screen, /currentMoreRequestId === moreRequestId\.current/, 'only the current page request may release its in-flight lock');

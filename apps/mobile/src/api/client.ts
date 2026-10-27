@@ -12,6 +12,11 @@ export class ApiError extends Error {
 }
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+
+/** Public API origin used by authenticated streaming transports as well as JSON requests. */
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
 const DEFAULT_TIMEOUT_MS = 12_000;
 
 /** Only explicitly public, read-only API families are eligible for anonymous offline caching. */

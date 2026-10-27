@@ -91,6 +91,7 @@ conversationsRouter.post(
 conversationsRouter.post(
   '/:id/messages/image',
   authenticate,
+  requireVerifiedEmail,
   sendMessageRateLimit,
   uploadMiddleware,
   conversationsController.sendMessageImage

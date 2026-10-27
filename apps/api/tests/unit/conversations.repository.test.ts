@@ -322,6 +322,13 @@ describe('messagesRepository', () => {
       }));
     });
 
+    it('skips the full-thread COUNT for cursor-mode requests', async () => {
+      (prisma.message.findMany as jest.Mock).mockResolvedValue([]);
+      const result = await messagesRepository.findManyByConversationId('conv-1', { limit: 50, cursor: true });
+      expect(prisma.message.count).not.toHaveBeenCalled();
+      expect(result.total).toBeNull();
+    });
+
     it('returns a cursor only when another older row exists', async () => {
       const rows = [
         { id: 'msg-2', createdAt: new Date('2026-01-02T00:00:00.000Z') },

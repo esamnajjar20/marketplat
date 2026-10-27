@@ -1,19 +1,21 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const api = readFileSync(new URL('../src/features/messaging/messaging.api.ts', import.meta.url), 'utf8');
 const screen = readFileSync(new URL('../app/messages/[id].tsx', import.meta.url), 'utf8');
-const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const api = readFileSync(new URL('../src/features/messaging/messaging.api.ts', import.meta.url), 'utf8');
+const cache = readFileSync(new URL('../src/storage/chat-message-cache.ts', import.meta.url), 'utf8');
+const backendRepository = readFileSync(new URL('../../api/src/modules/conversations/conversations.repository.ts', import.meta.url), 'utf8');
+const backendService = readFileSync(new URL('../../api/src/modules/conversations/conversations.service.ts', import.meta.url), 'utf8');
+const validation = readFileSync(new URL('../../api/src/modules/conversations/conversations.validation.ts', import.meta.url), 'utf8');
 
-assert.match(api, /export async function fetchMessagesPage/, 'message API should expose cursor-based message pagination');
-assert.match(api, /nextCursor|before/, 'message page API should support a continuation cursor');
-assert.match(screen, /const \[nextCursor, setNextCursor\] = useState<string \| null>\(null\)/, 'chat screen should retain the server cursor');
-assert.match(screen, /const loadOlder = useCallback/, 'chat screen should provide an older-message loader');
-assert.match(screen, /if \(!accessToken \|\| !id \|\| !nextCursor \|\| olderRequest\.current \|\| loading \|\| loadingOlder\) return/, 'older-message loads must be guarded against duplicate/ineligible requests');
-assert.match(screen, /fetchMessagesPage\(id, accessToken, nextCursor\)/, 'older-message loader must request the next cursor');
-assert.match(screen, /mergeFetchedMessages\(\[\.\.\.page\.items, \.\.\.current\], \[\]\)/, 'older messages should be merged without discarding already visible messages');
-assert.match(screen, /maintainVisibleContentPosition/, 'loading older messages should preserve the visible scroll position');
-assert.match(screen, /onScroll=\{\(event\) => \{ if \(event\.nativeEvent\.contentOffset\.y <= 40\) void loadOlder\(\); \}\}/, 'reaching the top should trigger cursor pagination');
-assert.match(pkg.scripts.test, /verify-chat-pagination-audit\.mjs/, 'chat pagination audit must be included in npm test');
-
-console.log('Chat message pagination audit passed (static source checks only; no live API or device scrolling test performed).');
+assert.match(api, /cursor: 'true'/, 'mobile message pages must opt into cursor-only metadata');
+assert.match(validation, /cursor: z\.preprocess/, 'API must validate the cursor-mode flag');
+assert.match(backendRepository, /query\.cursor \|\| query\.before \? Promise\.resolve\(null\)/, 'cursor navigation must avoid full-thread COUNT queries');
+assert.match(backendService, /query\.before\s*\?\s*Promise\.resolve\(\{ count: 0 \}\)/, 'older history pages must not update all read receipts');
+assert.match(backendService, /if \(!query\.before\)/, 'notification-read side effects must be limited to newest-window requests');
+assert.match(cache, /PRIMARY KEY \(owner_id, conversation_id, message_id\)/, 'cached messages must be isolated by account and conversation');
+assert.match(cache, /MAX_MESSAGES_PER_CONVERSATION = 300/, 'local history cache must be bounded');
+assert.match(screen, /readCachedChatMessages\(user\.id, id\)/, 'screen must render account-scoped cached history before waiting for network');
+assert.match(screen, /saveCachedChatMessages\(user\?\.id \?\? '', id, page\.items\)/, 'newest server page must refresh the local cache');
+assert.match(screen, /previousConnectivity\.current === false && connected/, 'reconnection must trigger one catch-up fetch instead of periodic polling');
+console.log('Chat pagination/offline audit passed (cursor COUNT avoided, read side effects reduced, account-scoped SQLite history, reconnect catch-up).');

@@ -75,6 +75,8 @@ export const getMessagesSchema = z.object({
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
     // Opaque base64url cursor produced by the messages endpoint.
     before: z.string().min(1).max(300).optional(),
+    // Cursor clients need only nextCursor; skip the expensive full-thread COUNT.
+    cursor: z.preprocess(v => v === true || v === 'true' || v === '1', z.boolean()).optional(),
   }),
 });
 

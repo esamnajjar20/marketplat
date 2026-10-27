@@ -1,10 +1,10 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, ChevronUp, MoreVertical, UserX, UserCheck, ShieldAlert, X as XIcon, Archive, Pin, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { onTypingEvent } from '@/lib/typingStore';
 import { useSetConversationFlags, useMessageMarkMutation } from '@/hooks/mutations/useConversationMutations';
@@ -109,6 +109,11 @@ export function ChatWindow({ conversationId }: Props) {
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
   const [showSafetyTip, setShowSafetyTip] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [messageSearch, setMessageSearch] = useState('');
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+  const messageSearchInputRef = useRef<HTMLInputElement>(null);
+  const messageRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const {
     data: conversation,
     isLoading: conversationLoading,
@@ -204,12 +209,12 @@ export function ChatWindow({ conversationId }: Props) {
   // hitting a list that can shift between them) rendered twice. Filter
   // olderMessages against the live set here, where both are actually
   // known together, rather than trying to guess it inside the effect.
-  const liveIds = new Set(liveMessages.map((m) => m.id));
+  const liveIds = useMemo(() => new Set(liveMessages.map((m) => m.id)), [liveMessages]);
   // FEAT-OFFLINE-MSG: rسائل مُصفّفة أوفلاين (pending/failed) تُلحَق دائمًا
   // بالنهاية — قوائم الطابور مرتّبة أصلاً بـ queuedAt تصاعديًا (انظر
   // listQueuedMessages)، وهي بالضرورة أحدث من أي رسالة حقيقية مؤكَّدة
   // وصلت السيرفر فعلاً.
-  const queuedMessages: DisplayMessage[] = pendingQueued.map((q) => ({
+  const queuedMessages: DisplayMessage[] = useMemo(() => pendingQueued.map((q) => ({
     id: `queued-${q.queueId}`,
     conversationId,
     senderId: user?.id ?? '',
@@ -227,12 +232,72 @@ export function ChatWindow({ conversationId }: Props) {
     ...(q.hasImage ? { clientHasImage: true as const } : {}),
     ...(q.hasAudio ? { clientHasAudio: true as const } : {}),
     ...(q.hasFile ? { clientHasFile: true as const, clientFileName: q.fileName } : {}),
-  })) as DisplayMessage[];
-  const messages: DisplayMessage[] = [
+  })) as DisplayMessage[], [pendingQueued, user?.id, conversationId]);
+  const messages: DisplayMessage[] = useMemo(() => [
     ...olderMessages.filter((m) => !liveIds.has(m.id)),
     ...liveMessages,
     ...queuedMessages,
-  ];
+  ], [olderMessages, liveIds, liveMessages, queuedMessages]);
+
+  // Web-only productivity: search the messages already loaded in this thread
+  // without issuing a new database request. The UI explicitly reports the
+  // loaded scope; older history remains opt-in via cursor pagination.
+  const normalizedMessageSearch = messageSearch.trim().toLocaleLowerCase();
+  const searchMatches = useMemo(() => {
+    if (!normalizedMessageSearch) return [] as DisplayMessage[];
+    return messages.filter((message) =>
+      [message.body, message.fileName ?? '', message.fileMimeType ?? '']
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(normalizedMessageSearch),
+    );
+  }, [messages, normalizedMessageSearch]);
+  const visibleMessages = normalizedMessageSearch ? searchMatches : messages;
+
+  const jumpToSearchMatch = useCallback((index: number) => {
+    if (!searchMatches.length) return;
+    const normalizedIndex = (index + searchMatches.length) % searchMatches.length;
+    setActiveSearchIndex(normalizedIndex);
+    const message = searchMatches[normalizedIndex];
+    requestAnimationFrame(() => {
+      const row = messageRowRefs.current.get(message.id);
+      row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row?.focus({ preventScroll: true });
+    });
+  }, [searchMatches]);
+
+  useEffect(() => {
+    setActiveSearchIndex(0);
+    if (normalizedMessageSearch && searchMatches.length) {
+      const first = searchMatches[0];
+      requestAnimationFrame(() => {
+        const row = messageRowRefs.current.get(first.id);
+        row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [normalizedMessageSearch, searchMatches]);
+
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    messageSearchInputRef.current?.focus();
+  }, [isSearchOpen]);
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+        const target = event.target as HTMLElement | null;
+        if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')) return;
+        event.preventDefault();
+        setIsSearchOpen(true);
+      }
+      if (event.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false);
+        setMessageSearch('');
+      }
+    };
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, [isSearchOpen]);
 
   // Keep the retry control locked until the service worker confirms the
   // queue state has moved away from failed/cancelled. The previous `finally`
@@ -354,6 +419,8 @@ export function ChatWindow({ conversationId }: Props) {
     setNextOlderCursor(null);
     setHasLoadedOlder(false);
     setOlderMessages([]);
+    setMessageSearch('');
+    setIsSearchOpen(false);
     isNearBottomRef.current = true;
     setShowJumpToLatest(false);
     prevLiveCountRef.current = 0;
@@ -560,6 +627,20 @@ export function ChatWindow({ conversationId }: Props) {
           </div>
         </Link>
 
+        <button
+          type="button"
+          onClick={() => setIsSearchOpen((open) => {
+            const next = !open;
+            if (!next) setMessageSearch('');
+            return next;
+          })}
+          className={cn('shrink-0 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors', isSearchOpen ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted')}
+          aria-label="البحث داخل المحادثة"
+          title="البحث داخل المحادثة (Ctrl+F)"
+          aria-expanded={isSearchOpen}
+        >
+          <Search className="h-5 w-5" />
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -606,6 +687,42 @@ export function ChatWindow({ conversationId }: Props) {
         </DropdownMenu>
       </div>
 
+      {isSearchOpen && (
+        <div className="z-[9] flex shrink-0 flex-col gap-2 border-b border-border/70 bg-card px-3 py-3 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <input
+              ref={messageSearchInputRef}
+              type="search"
+              value={messageSearch}
+              onChange={(event) => setMessageSearch(event.target.value)}
+              placeholder="ابحث في الرسائل المحمّلة…"
+              aria-label="البحث في رسائل المحادثة"
+              className="min-h-11 w-full rounded-xl border border-border bg-background py-2 pe-3 ps-9 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/15"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground sm:justify-end">
+            <span aria-live="polite" className="min-w-[7rem]">
+              {!normalizedMessageSearch ? 'اكتب كلمة للبحث' : searchMatches.length ? `${activeSearchIndex + 1} من ${searchMatches.length}` : 'لا توجد نتائج'}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="ghost" size="icon" disabled={!searchMatches.length} onClick={() => jumpToSearchMatch(activeSearchIndex - 1)} aria-label="النتيجة السابقة">
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" disabled={!searchMatches.length} onClick={() => jumpToSearchMatch(activeSearchIndex + 1)} aria-label="النتيجة التالية">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setIsSearchOpen(false); setMessageSearch(''); }} aria-label="إغلاق البحث">
+                <XIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <p className="hidden text-[11px] leading-relaxed text-muted-foreground sm:block">
+            يشمل البحث الرسائل المحمّلة فقط؛ حمّل رسائل أقدم لتوسيع النطاق.
+          </p>
+        </div>
+      )}
+
       <div
         ref={scrollRef}
         className="relative min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain touch-pan-y bg-surface-1/50 px-3 py-3 sm:px-4 sm:py-4 [scrollbar-gutter:stable]"
@@ -643,28 +760,46 @@ export function ChatWindow({ conversationId }: Props) {
                 </Button>
               </div>
             )}
-            {messages.map((message, index) => {
-              const previousMessage = index > 0 ? messages[index - 1] : null;
+            {normalizedMessageSearch && visibleMessages.length === 0 ? (
+              <div className="mx-auto my-8 max-w-sm rounded-2xl border border-dashed border-border bg-card/80 p-6 text-center">
+                <Search className="mx-auto mb-3 h-7 w-7 text-muted-foreground" aria-hidden />
+                <p className="font-semibold text-foreground">لا توجد رسائل مطابقة</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">جرّب كلمة أخرى أو حمّل رسائل أقدم ثم ابحث مجدداً.</p>
+              </div>
+            ) : visibleMessages.map((message, index) => {
+              const previousMessage = index > 0 ? visibleMessages[index - 1] : null;
               const showDay = !previousMessage || !sameCalendarDay(previousMessage.createdAt, message.createdAt);
               const tight = isTightFollowUp(previousMessage, message);
+              const isSearchMatch = Boolean(normalizedMessageSearch);
+              const isActiveSearchMatch = isSearchMatch && searchMatches[activeSearchIndex]?.id === message.id;
               return (
-                <ChatMessageRow
+                <div
                   key={message.id}
-                  message={message}
-                  showDay={showDay}
-                  tight={tight}
-                  isMine={message.senderId === user?.id}
-                  conversationId={conversationId}
-                  isRetrying={retryingQueueId === message.queueId}
-                  retryBlocked={retryingQueueId !== null && retryingQueueId !== message.queueId}
-                  markPending={pendingMarkMessageId === message.id}
-                  onMarkMessage={handleMarkMessage}
-                  onDeleteRequest={setConfirmDeleteMessageId}
-                  onRetryQueued={handleRetryQueued}
-                  onDiscardQueued={handleDiscardQueued}
-                  onCancelQueued={handleCancelQueued}
-                  onEditQueued={handleEditQueued}
-                />
+                  ref={(element) => {
+                    if (element) messageRowRefs.current.set(message.id, element);
+                    else messageRowRefs.current.delete(message.id);
+                  }}
+                  tabIndex={-1}
+                  data-message-id={message.id}
+                  className={cn('rounded-2xl outline-none transition-shadow', isActiveSearchMatch && 'ring-2 ring-primary/70 ring-offset-2 ring-offset-background')}
+                >
+                  <ChatMessageRow
+                    message={message}
+                    showDay={showDay}
+                    tight={tight}
+                    isMine={message.senderId === user?.id}
+                    conversationId={conversationId}
+                    isRetrying={retryingQueueId === message.queueId}
+                    retryBlocked={retryingQueueId !== null && retryingQueueId !== message.queueId}
+                    markPending={pendingMarkMessageId === message.id}
+                    onMarkMessage={handleMarkMessage}
+                    onDeleteRequest={setConfirmDeleteMessageId}
+                    onRetryQueued={handleRetryQueued}
+                    onDiscardQueued={handleDiscardQueued}
+                    onCancelQueued={handleCancelQueued}
+                    onEditQueued={handleEditQueued}
+                  />
+                </div>
               );
             })}
           </>

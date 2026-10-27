@@ -811,27 +811,33 @@ export const conversationsService = {
   getMessages: async (
     userId: string,
     conversationId: string,
-    query: { page?: number; limit?: number; before?: string }
-  ): Promise<
-    PaginatedResult<Message> & {
-      meta: PaginatedResult<Message>['meta'] & { nextCursor: string | null };
-    }
-  > => {
+    query: { page?: number; limit?: number; before?: string; cursor?: boolean }
+  ): Promise<{
+    items: Message[];
+    meta: Partial<PaginatedResult<Message>['meta']> & { limit: number; nextCursor: string | null; hasNextPage: boolean; hasPrevPage: boolean };
+  }> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
 
+    // Older-history pagination is a read-only operation. Repeating the read-receipt
+    // UPDATE and notification UPDATE for every page adds database work without
+    // changing the user's unread state; only the newest-window request marks read.
     const [{ messages, total, nextCursor }] = await Promise.all([
       messagesRepository.findManyByConversationId(conversationId, query, userId),
-      messagesRepository.markReadForRecipient(conversationId, userId),
+      query.before
+        ? Promise.resolve({ count: 0 })
+        : messagesRepository.markReadForRecipient(conversationId, userId),
     ]);
 
-    // Sync bell: mark NEW_MESSAGE notifications for this conversation read.
-    void notificationsService
-      .markConversationNotificationsRead(userId, conversationId)
-      .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/conversations/conversations.service.ts', error)
-      );
+    if (!query.before) {
+      // Sync bell: mark NEW_MESSAGE notifications for this conversation read.
+      void notificationsService
+        .markConversationNotificationsRead(userId, conversationId)
+        .catch(error =>
+          reportBackgroundFailure('apps/api/src/modules/conversations/conversations.service.ts', error)
+        );
+    }
 
     return {
       items: messages.map(message => ({
@@ -842,7 +848,8 @@ export const conversationsService = {
           (message as Message & { stars?: unknown[] }).stars!.length > 0,
       })),
       meta: {
-        ...buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30),
+        ...(total === null ? {} : buildPaginationMeta(total, query.page ?? 1, query.limit ?? 30)),
+        limit: query.limit ?? 30,
         nextCursor: nextCursor ?? null,
         // Cursor pagination is authoritative for older-message traversal.
         hasNextPage: Boolean(nextCursor),

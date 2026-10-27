@@ -197,6 +197,39 @@ describe('ChatWindow', () => {
     expect(screen.queryByText('تمت القراءة')).not.toBeInTheDocument();
   });
 
+  it('searches within loaded messages without hiding the search scope from the user', async () => {
+    mockUseMessages.mockReturnValue({
+      data: {
+        items: [
+          { id: 'm1', senderId: me.id, body: 'مرحبا كيف حالك', createdAt: new Date().toISOString(), readAt: null },
+          { id: 'm2', senderId: seller.id, body: 'السعر مناسب', createdAt: new Date().toISOString(), readAt: null },
+        ],
+      },
+      isLoading: false,
+    } as never);
+    const user = setupUser();
+    render(<ChatWindow conversationId="conv-1" />);
+
+    await user.click(screen.getByRole('button', { name: 'البحث داخل المحادثة' }));
+    await user.type(screen.getByRole('searchbox', { name: 'البحث في رسائل المحادثة' }), 'مرحبا');
+
+    expect(screen.getByText('مرحبا كيف حالك')).toBeInTheDocument();
+    expect(screen.queryByText('السعر مناسب')).not.toBeInTheDocument();
+    expect(screen.getByText(/يشمل البحث الرسائل المحمّلة فقط/)).toBeInTheDocument();
+  });
+
+  it('offers a useful empty state when a message search has no matches', async () => {
+    mockUseMessages.mockReturnValue({
+      data: { items: [{ id: 'm1', senderId: me.id, body: 'مرحبا', createdAt: new Date().toISOString(), readAt: null }] },
+      isLoading: false,
+    } as never);
+    const user = setupUser();
+    render(<ChatWindow conversationId="conv-1" />);
+    await user.click(screen.getByRole('button', { name: 'البحث داخل المحادثة' }));
+    await user.type(screen.getByRole('searchbox', { name: 'البحث في رسائل المحادثة' }), 'غير موجود');
+    expect(screen.getByText('لا توجد رسائل مطابقة')).toBeInTheDocument();
+  });
+
   it('shows the read-receipt icon for my own read message', () => {
     mockUseMessages.mockReturnValue({
       data: {
