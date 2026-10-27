@@ -25,4 +25,23 @@ export async function setConversationFlags(conversationId: string, flags: { pinn
 export async function setMessageMark(conversationId: string, messageId: string, kind: 'pin' | 'star', active: boolean, token: string, csrfToken?: string | null): Promise<void> { const suffix = kind === 'pin' ? 'pin' : 'star'; await apiRequest<ApiEnvelope<unknown>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/${suffix}`, { method: active ? 'POST' : 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined }); }
 export async function deleteChatMessage(conversationId: string, messageId: string, token: string, csrfToken?: string | null): Promise<void> { await apiRequest<ApiEnvelope<unknown>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined }); }
 export async function signalChatTyping(conversationId: string, isTyping: boolean, token: string, csrfToken?: string | null): Promise<void> { await apiRequest<ApiEnvelope<unknown>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/typing`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ isTyping }) }); }
-export async function sendChatImage(conversationId: string, asset: { uri: string; fileName: string; mimeType: string }, token: string, csrfToken?: string | null, caption?: string): Promise<ChatMessage> { const form = new FormData(); form.append('image', { uri: asset.uri, name: asset.fileName, type: asset.mimeType } as unknown as Blob); if (caption?.trim()) form.append('body', caption.trim()); const operationId = `chat-image:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`; const response = await apiRequest<ApiEnvelope<ChatMessage>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/image`, { method: 'POST', token, headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), 'X-Offline-Op-Id': operationId }, body: form, timeoutMs: 45_000 }); return requireData(response, 'إرسال الصورة'); }
+export type ChatMediaAsset = { uri: string; fileName: string; mimeType: string };
+function mediaForm(asset: ChatMediaAsset, field: 'image' | 'audio' | 'file', caption?: string): FormData {
+  const form = new FormData();
+  form.append(field, { uri: asset.uri, name: asset.fileName, type: asset.mimeType } as unknown as Blob);
+  if (caption?.trim()) form.append('body', caption.trim());
+  return form;
+}
+async function sendChatMedia(conversationId: string, asset: ChatMediaAsset, field: 'image' | 'audio' | 'file', token: string, csrfToken?: string | null, operationId?: string, caption?: string, signal?: AbortSignal): Promise<ChatMessage> {
+  const endpoint = field === 'image' ? 'image' : field === 'audio' ? 'audio' : 'file';
+  const stableOperationId = operationId || `chat-${field}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+  const response = await apiRequest<ApiEnvelope<ChatMessage>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${endpoint}`, {
+    method: 'POST', token,
+    headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), 'X-Offline-Op-Id': stableOperationId },
+    body: mediaForm(asset, field, caption), timeoutMs: 60_000, signal,
+  });
+  return requireData(response, field === 'image' ? 'إرسال الصورة' : field === 'audio' ? 'إرسال الرسالة الصوتية' : 'إرسال الملف');
+}
+export async function sendChatImage(conversationId: string, asset: ChatMediaAsset, token: string, csrfToken?: string | null, caption?: string, operationId?: string, signal?: AbortSignal): Promise<ChatMessage> { return sendChatMedia(conversationId, asset, 'image', token, csrfToken, operationId, caption, signal); }
+export async function sendChatAudio(conversationId: string, asset: ChatMediaAsset, token: string, csrfToken?: string | null, operationId?: string, signal?: AbortSignal): Promise<ChatMessage> { return sendChatMedia(conversationId, asset, 'audio', token, csrfToken, operationId, undefined, signal); }
+export async function sendChatFile(conversationId: string, asset: ChatMediaAsset, token: string, csrfToken?: string | null, operationId?: string, signal?: AbortSignal): Promise<ChatMessage> { return sendChatMedia(conversationId, asset, 'file', token, csrfToken, operationId, undefined, signal); }

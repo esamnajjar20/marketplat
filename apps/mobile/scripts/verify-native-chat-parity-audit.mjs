@@ -4,13 +4,14 @@ const read = (path) => readFileSync(new URL(path, import.meta.url).pathname, 'ut
 const inbox = read('../app/messages.tsx');
 const thread = read('../app/messages/[id].tsx');
 const api = read('../src/features/messaging/messaging.api.ts');
+const mediaSync = read('../src/features/messaging/chat-media-outbox-sync.ts');
 const checks = [
   ['conversation search is local and includes participants/context/message preview', /const visibleItems = useMemo/.test(inbox) && /item\.lastMessage\?\.body/.test(inbox)],
   ['inbox filters unread and archived conversations', /filter === 'unread'/.test(inbox) && /filter === 'archived'/.test(inbox)],
   ['pinned conversations sort before other conversations', /pinnedAt/.test(inbox) && /\.sort\(\(a,b\)/.test(inbox)],
   ['conversation pin/archive/mute uses authenticated API mutations', /setConversationFlags\(/.test(inbox) && /mutedUntil/.test(inbox)],
   ['thread search is local and does not fetch per keystroke', /const visibleMessages = normalizedSearch/.test(thread)],
-  ['image attachments use image picker and the existing server route', /launchImageLibraryAsync/.test(thread) && /sendChatImage\(/.test(thread) && /messages\/image/.test(api)],
+  ['image attachments use image picker and the existing server route', /launchImageLibraryAsync/.test(thread) && /queueAndTryMedia\('image'/.test(thread) && /sendChatImage\(/.test(mediaSync) && /field === 'image' \? 'image'/.test(api)],
   ['message pin and star use existing server endpoints', /setMessageMark/.test(thread) && /messages\/\$\{encodeURIComponent\(messageId\)\}\/\$\{suffix\}/.test(api)],
   ['message deletion is confirmed before mutation', /Alert\.alert\('حذف الرسالة؟'/.test(thread) && /deleteChatMessage\(/.test(thread)],
   ['typing indicator is signalled with debounce/throttle protection', /signalChatTyping\(id, true/.test(thread) && /1800/.test(thread) && /2500/.test(thread)],
