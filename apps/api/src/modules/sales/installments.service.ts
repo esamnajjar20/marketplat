@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { InstallmentStatus, Prisma } from '@prisma/client';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
+import { ConflictError } from '../../shared/errors/ConflictError';
 
 const refreshStatus = (
   status: InstallmentStatus,
@@ -48,7 +49,7 @@ export const installmentsService = {
       status: refreshStatus(r.status, r.dueDate, Number(r.paidAmount ?? 0), Number(r.amount)),
     }));
   },
-  pay: async (sellerId: string, id: string, amount: number) => {
+  pay: async (sellerId: string, id: string, amount: number, offlineOperationId?: string) => {
     const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestError(
@@ -65,7 +66,8 @@ export const installmentsService = {
     });
     if (!reference) throw new NotFoundError('Installment not found.', 'INSTALLMENT_NOT_FOUND');
 
-    return prisma.$transaction(async tx => {
+    try {
+      return await prisma.$transaction(async tx => {
       const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>(
         Prisma.sql`SELECT "id" FROM "sale_records" WHERE "id" = ${reference.saleId} FOR UPDATE`
       );
@@ -78,6 +80,25 @@ export const installmentsService = {
       const installment = await tx.saleInstallment.findUnique({ where: { id } });
       if (!sale || !installment || installment.saleId !== sale.id || sale.sellerId !== sellerId) {
         throw new NotFoundError('Installment not found.', 'INSTALLMENT_NOT_FOUND');
+      }
+
+      const paymentNote = `INSTALLMENT:${installment.installmentNo}`;
+      if (offlineOperationId) {
+        const existingPayment = await tx.salePayment.findUnique({ where: { offlineOperationId } });
+        if (existingPayment) {
+          if (
+            existingPayment.saleId !== sale.id ||
+            roundMoney(Number(existingPayment.amount)) !== roundMoney(amount) ||
+            existingPayment.method !== 'OTHER' ||
+            (existingPayment.note ?? null) !== paymentNote
+          ) {
+            throw new ConflictError(
+              'This operation ID was already used for a different payment.',
+              'PAYMENT_OPERATION_CONFLICT'
+            );
+          }
+          return installment;
+        }
       }
 
       const installmentPaid = roundMoney(Number(installment.paidAmount ?? 0));
@@ -107,10 +128,11 @@ export const installmentsService = {
       });
       await tx.salePayment.create({
         data: {
+          ...(offlineOperationId ? { offlineOperationId } : {}),
           saleId: sale.id,
           amount,
           method: 'OTHER',
-          note: `INSTALLMENT:${installment.installmentNo}`,
+          note: paymentNote,
         },
       });
 
@@ -171,6 +193,30 @@ export const installmentsService = {
         }
       }
       return result;
-    });
+      });
+    } catch (error) {
+      // The sale row lock serializes retries for the same sale. The unique
+      // constraint still protects an operation ID reused concurrently across
+      // different sales; resolve that race as an idempotent replay or conflict.
+      const code = (error as { code?: string } | null)?.code;
+      if (offlineOperationId && code === 'P2002') {
+        const existingPayment = await prisma.salePayment.findUnique({ where: { offlineOperationId } });
+        const currentInstallment = await prisma.saleInstallment.findUnique({ where: { id } });
+        if (existingPayment && currentInstallment) {
+          const expectedNote = `INSTALLMENT:${currentInstallment.installmentNo}`;
+          if (
+            existingPayment.saleId === currentInstallment.saleId &&
+            roundMoney(Number(existingPayment.amount)) === roundMoney(amount) &&
+            existingPayment.method === 'OTHER' &&
+            (existingPayment.note ?? null) === expectedNote
+          ) return currentInstallment;
+          throw new ConflictError(
+            'This operation ID was already used for a different payment.',
+            'PAYMENT_OPERATION_CONFLICT'
+          );
+        }
+      }
+      throw error;
+    }
   },
 };

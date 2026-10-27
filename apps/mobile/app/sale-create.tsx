@@ -56,7 +56,7 @@ export default function SaleCreateScreen() {
         manualItems: parsedLines.map(line => ({ title: line.title, quantity: line.quantity, unitPrice: line.unitPrice })), currency: 'ILS',
       };
     }
-    if (total <= 0) { setError('إجمالي البيع يجب أن يكون أكبر من صفر.'); return; }
+    if (!Number.isFinite(total) || total <= 0 || total > 99_999_999.99) { setError('إجمالي البيع يجب أن يكون رقمًا صالحًا بين 0.01 و99,999,999.99 ₪.'); return; }
     payload = { ...payload, buyerName: buyer.trim(), ...(phone.trim() ? { buyerPhone: phone.trim() } : {}), paidAmount,
       paymentStatus: paidAmount === 0 ? 'UNPAID' : paidAmount >= total ? 'PAID' : 'PARTIAL',
       ...(note.trim() ? { note: note.trim() } : {}), soldAt: new Date().toISOString() };

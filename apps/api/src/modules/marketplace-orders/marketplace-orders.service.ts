@@ -125,19 +125,39 @@ export const marketplaceOrdersService = {
   },
   updateStatus: async (userId: string, id: string, nextStatus: MarketplaceOrderStatus, sellerNote?: string | null) => {
     return prisma.$transaction(async tx => {
+      // Serialize every status transition for this order. In particular, two
+      // concurrent cancellation requests must not both restore the reserved stock.
+      const lockedOrder = await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "marketplace_orders" WHERE "id" = ${id} FOR UPDATE`
+      );
+      if (!lockedOrder.length) throw new NotFoundError('Order not found.', 'ORDER_NOT_FOUND');
       const order = await tx.marketplaceOrder.findUnique({ where: { id }, include: { items: true } });
       if (!order) throw new NotFoundError('Order not found.', 'ORDER_NOT_FOUND');
       if (order.sellerId !== userId && order.buyerId !== userId) throw new ForbiddenError('You cannot update this order.', 'ORDER_FORBIDDEN');
       if (nextStatus === 'CANCELLED') {
         if (order.status !== 'PENDING' && !(order.status === 'CONFIRMED' && order.sellerId === userId)) throw new ConflictError('This order can no longer be cancelled.', 'ORDER_CANNOT_CANCEL');
         if (order.buyerId !== userId && order.sellerId !== userId) throw new ForbiddenError();
+        // Lock product rows in a stable order before reading quantities. The order
+        // row lock above prevents duplicate restores for this order; product locks
+        // serialize stock changes against concurrent orders and other cancellations.
+        const productIds = [...new Set(order.items.map(item => item.productId).filter((value): value is string => Boolean(value)))].sort();
+        for (const productId of productIds) {
+          await tx.$queryRaw`SELECT "id" FROM "products" WHERE "id" = ${productId} FOR UPDATE`;
+        }
         for (const item of order.items) {
           if (!item.productId) continue;
-          const product = await tx.product.findUnique({ where: { id: item.productId }, select: { stockQuantity: true } });
+          const product = await tx.product.findUnique({ where: { id: item.productId }, select: { stockQuantity: true, status: true } });
           if (product?.stockQuantity !== null && product?.stockQuantity !== undefined) {
             const previousQuantity = product.stockQuantity;
             const restored = previousQuantity + item.quantity;
-            await tx.product.update({ where: { id: item.productId }, data: { stockQuantity: { increment: item.quantity }, availability: restored <= 5 ? 'LIMITED' : 'IN_STOCK' } });
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stockQuantity: restored,
+                // Do not make archived/inactive products discoverable by restoring stock.
+                ...(product.status === 'ACTIVE' ? { availability: restored <= 0 ? 'OUT_OF_STOCK' : restored <= 5 ? 'LIMITED' : 'IN_STOCK' } : {}),
+              },
+            });
             await tx.stockMovement.create({ data: {
               productId: item.productId,
               storeId: order.storeId,

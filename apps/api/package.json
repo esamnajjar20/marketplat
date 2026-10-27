@@ -60,7 +60,8 @@
     "audit:offline-idempotency": "node scripts/offline-idempotency-complete-audit.mjs",
     "audit:offline-idempotency-concurrency": "node scripts/offline-idempotency-concurrency-audit.mjs",
     "audit:offline-idempotency-phase10": "node scripts/offline-idempotency-phase10-audit.mjs",
-    "audit:offline-idempotency-phase11": "node scripts/offline-idempotency-phase11-audit.mjs"
+    "audit:offline-idempotency-phase11": "node scripts/offline-idempotency-phase11-audit.mjs",
+    "audit:marketplace-order-cancellation-concurrency": "node scripts/marketplace-order-cancellation-concurrency-audit.mjs"
   },
   "lint-staged": {
     "src/**/*.ts": [

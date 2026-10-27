@@ -8,8 +8,9 @@ import {
 } from '@prisma/client';
 import { paginationQuerySchema } from '../../shared/utils/pagination';
 
-const money = z.coerce.number().finite().nonnegative().multipleOf(0.01);
-const positiveMoney = z.coerce.number().finite().positive().multipleOf(0.01);
+const MAX_MONEY = 99_999_999.99; // Prisma Decimal(10,2) storage limit
+const money = z.coerce.number().finite().nonnegative().max(MAX_MONEY).multipleOf(0.01);
+const positiveMoney = z.coerce.number().finite().positive().max(MAX_MONEY).multipleOf(0.01);
 
 export const createSaleSchema = z.object({
   body: z
@@ -101,6 +102,9 @@ export const createSaleSchema = z.object({
       );
       const manualItemsTotal = data.manualItems?.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
       const total = Math.round((manualItemsTotal ?? itemsTotal ?? legacyTotal) * 100) / 100;
+      if (!Number.isFinite(total) || total > MAX_MONEY) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['unitPrice'], message: 'Sale total exceeds the supported currency range.' });
+      }
       if (data.manualItems && data.entityType !== 'FREE') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['manualItems'], message: 'Manual line items are only supported for FREE sales.' });
       if (data.manualItems && data.items) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['manualItems'], message: 'Use either manualItems or POS items, not both.' });
       if (data.items) {
@@ -203,6 +207,7 @@ export const listSalesSchema = z.object({
 export const addPaymentSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
+    offlineOperationId: z.string().trim().min(1).max(128).optional(),
     amount: positiveMoney,
     method: z.nativeEnum(SaleTransferMethod),
     transferRef: z.string().trim().max(160).optional(),
@@ -214,6 +219,7 @@ export const addPaymentSchema = z.object({
 export const returnSaleSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
+    offlineOperationId: z.string().trim().min(1).max(128).optional(),
     itemId: z.string().min(1).optional(),
     quantity: z.coerce.number().int().positive(),
     refundAmount: money,

@@ -13,7 +13,7 @@ const tx = {
   $queryRaw: jest.fn(),
   saleRecord: { findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
   saleInstallment: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
-  salePayment: { create: jest.fn() },
+  salePayment: { create: jest.fn(), findUnique: jest.fn() },
   customer: { update: jest.fn() },
 };
 
@@ -37,6 +37,7 @@ describe('installmentsService.pay', () => {
     tx.saleInstallment.update.mockImplementation(async ({ data }) => ({ ...installment, ...data }));
     tx.saleRecord.update.mockResolvedValue({ ...sale, paidAmount: 50, dueAmount: 30, paymentStatus: 'PARTIAL' });
     tx.salePayment.create.mockResolvedValue({ id: 'payment-1' });
+    tx.salePayment.findUnique.mockResolvedValue(null);
   });
 
   it('locks the sale and computes the remaining balance after refunds', async () => {
@@ -54,6 +55,40 @@ describe('installmentsService.pay', () => {
     expect(tx.salePayment.create).toHaveBeenCalledWith({
       data: { saleId: 'sale-1', amount: 20, method: 'OTHER', note: 'INSTALLMENT:1' },
     });
+  });
+
+
+  it('persists an offline operation ID for an installment payment', async () => {
+    await installmentsService.pay('seller-1', 'installment-1', 20, 'installment-op-123');
+    expect(tx.salePayment.create).toHaveBeenCalledWith({
+      data: {
+        offlineOperationId: 'installment-op-123',
+        saleId: 'sale-1', amount: 20, method: 'OTHER', note: 'INSTALLMENT:1',
+      },
+    });
+  });
+
+  it('returns the current installment without side effects when the same operation is retried', async () => {
+    tx.salePayment.findUnique.mockResolvedValue({
+      id: 'payment-existing', offlineOperationId: 'installment-op-123', saleId: 'sale-1',
+      amount: 20, method: 'OTHER', note: 'INSTALLMENT:1',
+    });
+    const result = await installmentsService.pay('seller-1', 'installment-1', 20, 'installment-op-123');
+    expect(result).toEqual(installment);
+    expect(tx.salePayment.create).not.toHaveBeenCalled();
+    expect(tx.saleInstallment.update).not.toHaveBeenCalled();
+    expect(tx.saleRecord.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects reusing an installment operation ID with a different amount', async () => {
+    tx.salePayment.findUnique.mockResolvedValue({
+      id: 'payment-existing', offlineOperationId: 'installment-op-123', saleId: 'sale-1',
+      amount: 15, method: 'OTHER', note: 'INSTALLMENT:1',
+    });
+    await expect(installmentsService.pay('seller-1', 'installment-1', 20, 'installment-op-123'))
+      .rejects.toMatchObject({ code: 'PAYMENT_OPERATION_CONFLICT' });
+    expect(tx.salePayment.create).not.toHaveBeenCalled();
+    expect(tx.saleInstallment.update).not.toHaveBeenCalled();
   });
 
   it('closes remaining installments once the net sale balance is fully paid', async () => {

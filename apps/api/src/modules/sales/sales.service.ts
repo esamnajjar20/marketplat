@@ -694,12 +694,22 @@ export const salesService = {
     return prisma.$transaction(async tx => {
       const sale = await lockSaleForUpdate(tx, id);
       if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+      if (input.offlineOperationId) {
+        const existing = await tx.salePayment.findUnique({ where: { offlineOperationId: input.offlineOperationId } });
+        if (existing) {
+          if (existing.saleId !== id || Number(existing.amount) !== input.amount || existing.method !== input.method || (existing.transferRef ?? null) !== (input.transferRef ?? null) || (existing.note ?? null) !== (input.note ?? null) || (input.paidAt !== undefined && existing.paidAt.getTime() !== input.paidAt.getTime())) {
+            throw new ConflictError('This operation ID was already used for a different payment.', 'PAYMENT_OPERATION_CONFLICT');
+          }
+          return salesRepository.findByIdTx(tx, id);
+        }
+      }
       if (input.amount > Number(sale.dueAmount))
         throw new BadRequestError(
           'Payment exceeds the remaining due amount.',
           'PAYMENT_EXCEEDS_DUE'
         );
       await salesRepository.addPayment(tx, {
+        ...(input.offlineOperationId ? { offlineOperationId: input.offlineOperationId } : {}),
         sale: { connect: { id } },
         amount: input.amount,
         method: input.method,
@@ -730,6 +740,15 @@ export const salesService = {
     return prisma.$transaction(async tx => {
       const sale = await lockSaleForUpdate(tx, id);
       if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+      if (input.offlineOperationId) {
+        const existing = await tx.saleReturn.findUnique({ where: { offlineOperationId: input.offlineOperationId } });
+        if (existing) {
+          if (existing.saleId !== id || (existing.itemId ?? null) !== (input.itemId ?? null) || existing.quantity !== input.quantity || Number(existing.refundAmount) !== input.refundAmount || existing.reason !== input.reason || (existing.reasonNote ?? null) !== (input.reasonNote ?? null) || existing.restockedToInventory !== input.restockedToInventory) {
+            throw new ConflictError('This operation ID was already used for a different return.', 'RETURN_OPERATION_CONFLICT');
+          }
+          return salesRepository.findByIdTx(tx, id);
+        }
+      }
       const item = input.itemId
         ? sale.items.find(i => i.id === input.itemId)
         : sale.items.length === 1
@@ -800,6 +819,7 @@ export const salesService = {
         }
       }
       await salesRepository.addReturn(tx, {
+        ...(input.offlineOperationId ? { offlineOperationId: input.offlineOperationId } : {}),
         sale: { connect: { id } },
         item: { connect: { id: item.id } },
         quantity: input.quantity,

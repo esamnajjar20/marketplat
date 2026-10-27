@@ -361,6 +361,16 @@ describe('appointmentsService', () => {
       ).rejects.toThrow(NotFoundError);
     });
 
+    it('blocks a suspended provider from changing appointment status', async () => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue({ ...sellerProfile, suspended: true });
+      (appointmentsRepository.findById as jest.Mock).mockResolvedValue(mockAppointment);
+
+      await expect(
+        appointmentsService.updateAppointmentStatus(userId, 'appt-1', 'COMPLETED')
+      ).rejects.toThrow(ForbiddenError);
+      expect(appointmentsRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
     it('throws ForbiddenError when the appointment belongs to a different provider', async () => {
       (appointmentsRepository.findById as jest.Mock).mockResolvedValue({
         ...mockAppointment,

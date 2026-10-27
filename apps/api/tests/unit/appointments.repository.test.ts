@@ -8,6 +8,8 @@ jest.mock('../../src/config/prisma', () => ({
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
     },
@@ -93,15 +95,28 @@ describe('appointmentsRepository', () => {
   });
 
   describe('updateStatus', () => {
-    it('updates the status field for the given id', async () => {
-      (prisma.appointment.update as jest.Mock).mockResolvedValue({ id: 'appt-1', status: 'COMPLETED' });
+    it('atomically transitions only a SCHEDULED appointment', async () => {
+      const updated = { id: 'appt-1', status: 'COMPLETED' };
+      (prisma.appointment.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.appointment.findUniqueOrThrow as jest.Mock).mockResolvedValue(updated);
 
-      await appointmentsRepository.updateStatus('appt-1', 'COMPLETED');
+      await expect(appointmentsRepository.updateStatus('appt-1', 'COMPLETED')).resolves.toEqual(updated);
 
-      expect(prisma.appointment.update).toHaveBeenCalledWith({
-        where: { id: 'appt-1' },
+      expect(prisma.appointment.updateMany).toHaveBeenCalledWith({
+        where: { id: 'appt-1', status: 'SCHEDULED' },
         data: { status: 'COMPLETED' },
       });
+      expect(prisma.appointment.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'appt-1' } });
+      expect(prisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a stale concurrent transition when the appointment is no longer SCHEDULED', async () => {
+      (prisma.appointment.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+
+      await expect(appointmentsRepository.updateStatus('appt-1', 'CANCELLED')).rejects.toMatchObject({
+        code: 'APPOINTMENT_NOT_SCHEDULED',
+      });
+      expect(prisma.appointment.findUniqueOrThrow).not.toHaveBeenCalled();
     });
   });
 

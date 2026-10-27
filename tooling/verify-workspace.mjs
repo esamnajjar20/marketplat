@@ -24,7 +24,8 @@ if (readJson('package.json').private !== true) errors.push('Root package must re
 const rootPackage = readJson('package.json');
 if (!existsSync(resolve(root, 'pnpm-workspace.yaml'))) errors.push('Missing pnpm-workspace.yaml.');
 if (!existsSync(resolve(root, 'pnpm-lock.yaml'))) errors.push('Missing pnpm-lock.yaml.');
-if (!rootPackage.devDependencies?.turbo) errors.push('Root devDependencies must include turbo.');
+const rootUsesTurbo = Object.values(rootPackage.scripts ?? {}).some(script => /\bturbo\b/.test(script));
+if (rootUsesTurbo && !rootPackage.devDependencies?.turbo) errors.push('Root scripts invoke turbo but root devDependencies do not include turbo.');
 
 let turbo = null;
 if (!existsSync(resolve(root, 'turbo.json'))) {
@@ -72,6 +73,6 @@ if (errors.length) {
 } else {
   console.log('Workspace bootstrap structure verified.');
   console.log('Web, API, mobile, contracts, and Cloudflare Worker package manifests are discoverable.');
-  console.log('Root Turbo scripts target packages that define the requested tasks.');
+  console.log('Root workspace scripts target packages that define the requested tasks.');
   console.log('This is a structural check; it does not prove install, build, or test success.');
 }

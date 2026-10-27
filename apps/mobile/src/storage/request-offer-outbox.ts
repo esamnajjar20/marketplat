@@ -42,7 +42,7 @@ export async function syncNextRequestOffer(input: { isOnline: boolean; token?: s
   if (activeSync) return activeSync;
   const work = (async () => {
     if (!input.isOnline) return 'nothing-due' as const; if (!input.token?.trim() || !input.ownerId?.trim()) return 'login-required' as const;
-    const db = await database(); const now = Date.now(); const head = await db.getFirstAsync<Row>('SELECT * FROM request_offer_outbox WHERE owner_id=? ORDER BY created_at ASC LIMIT 1', input.ownerId);
+    const db = await database(); const now = Date.now(); await db.runAsync("UPDATE request_offer_outbox SET state='pending',lease_until=0,next_attempt_at=MAX(next_attempt_at,?) WHERE state='processing' AND lease_until<=?", now + 5000, now); const head = await db.getFirstAsync<Row>('SELECT * FROM request_offer_outbox WHERE owner_id=? ORDER BY created_at ASC LIMIT 1', input.ownerId);
     if (!head || head.next_attempt_at > now || head.attempts >= MAX_ATTEMPTS || head.state === 'processing') return 'nothing-due' as const;
     const claimed = await db.runAsync("UPDATE request_offer_outbox SET state='processing',lease_until=? WHERE id=? AND owner_id=? AND state='pending' AND next_attempt_at<=?", now+30000, head.id, input.ownerId, now); if (claimed.changes !== 1) return 'nothing-due' as const;
     try {

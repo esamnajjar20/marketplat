@@ -92,6 +92,11 @@ async function assertCanSubmitOffer(type: RequestType, userId: string): Promise<
       type === 'SERVICE' ? 'NOT_A_SERVICE_PROVIDER' : 'NOT_A_SELLER'
     );
   }
+  // Discovery hides suspended sellers, but the offer endpoint is callable with
+  // a known request ID. Enforce suspension at the mutation boundary as well.
+  if (seller.suspended) {
+    throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
+  }
   if (type === 'SERVICE') {
     const provider = await serviceProvidersRepository.findBySellerProfileId(seller.id);
     if (!provider) {
@@ -338,7 +343,39 @@ export const requestsService = {
       return requestOffersRepository.update(existing.id, { ...payload, offlineOperationId });
     }
 
-    const created = await requestOffersRepository.create(requestId, userId, { ...payload, offlineOperationId });
+    let created: RequestOffer;
+    try {
+      created = await requestOffersRepository.create(requestId, userId, {
+        ...payload,
+        offlineOperationId,
+      });
+    } catch (err: unknown) {
+      // Two retries can arrive concurrently before either sees the operation
+      // ID. Resolve the unique-key race to the already-created offer instead
+      // of returning a 500 for a successful idempotent replay.
+      if (
+        offlineOperationId &&
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'P2002'
+      ) {
+        const existingOperation = await prisma.requestOffer.findUnique({
+          where: { offlineOperationId },
+        });
+        if (
+          existingOperation &&
+          existingOperation.requestId === requestId &&
+          existingOperation.offererUserId === userId
+        ) {
+          return existingOperation;
+        }
+        if (existingOperation) {
+          throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
+        }
+      }
+      throw err;
+    }
 
     // Fire-and-forget notification to the request owner
     const offererName =

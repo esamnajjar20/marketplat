@@ -2338,8 +2338,9 @@ model SaleItem {
 }
 
 model SalePayment {
-  id          String             @id @default(cuid())
-  saleId      String
+  id                 String             @id @default(cuid())
+  offlineOperationId String?            @unique
+  saleId             String
   amount      Decimal            @db.Decimal(10, 2)
   method      SaleTransferMethod
   transferRef String?
@@ -2377,6 +2378,7 @@ enum InstallmentStatus {
 
 model SaleReturn {
   id                   String         @id @default(cuid())
+  offlineOperationId   String?        @unique
   saleId               String
   quantity             Int
   refundAmount         Decimal        @db.Decimal(10, 2)

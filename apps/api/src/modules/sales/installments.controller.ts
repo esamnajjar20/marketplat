@@ -34,7 +34,7 @@ export const installmentsController = {
       res.json(
         successResponse(
           'Installment paid',
-          await installmentsService.pay(u.userId, p.params.id, p.body.amount)
+          await installmentsService.pay(u.userId, p.params.id, p.body.amount, p.body.offlineOperationId)
         )
       );
     } catch (e) {

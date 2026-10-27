@@ -26,11 +26,11 @@ jest.mock('../../src/config/prisma', () => ({
     $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         request: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn(), update: jest.fn() },
-        requestOffer: { update: jest.fn() },
+        requestOffer: { findUnique: jest.fn(), update: jest.fn() },
       })
     ),
     request: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
-    requestOffer: { update: jest.fn() },
+    requestOffer: { findUnique: jest.fn(), update: jest.fn() },
     serviceProviderServiceType: { findFirst: jest.fn() },
     user: { findUnique: jest.fn().mockResolvedValue({ name: 'User' }) },
   },
@@ -162,5 +162,40 @@ describe('requestsService.submitOffer eligibility', () => {
     await expect(
       requestsService.submitOffer('offerer1', 'req1', { price: 100 }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('rejects offers from a suspended seller even when the request is directly reachable', async () => {
+    (requestsRepository.findById as jest.Mock).mockResolvedValue({
+      ...openRequest,
+      type: 'PRODUCT',
+    });
+    (sellersRepository.findByUserId as jest.Mock).mockResolvedValue({
+      id: 'seller1',
+      suspended: true,
+    });
+
+    await expect(
+      requestsService.submitOffer('offerer1', 'req1', { price: 100 }),
+    ).rejects.toMatchObject({ code: 'SELLER_SUSPENDED' });
+    expect(requestOffersRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing offer when concurrent retries race on the same offline operation id', async () => {
+    const duplicateError = Object.assign(new Error('unique constraint'), { code: 'P2002' });
+    (sellersRepository.findByUserId as jest.Mock).mockResolvedValue({ id: 'seller1', suspended: false });
+    (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({ id: 'provider1' });
+    (requestOffersRepository.create as jest.Mock).mockRejectedValue(duplicateError);
+    const existing = {
+      id: 'offer-existing',
+      requestId: 'req1',
+      offererUserId: 'offerer1',
+      offlineOperationId: 'op-1',
+      status: 'PENDING',
+    };
+    (prisma.requestOffer.findUnique as jest.Mock).mockResolvedValue(existing);
+
+    await expect(
+      requestsService.submitOffer('offerer1', 'req1', { price: 100 }, 'op-1'),
+    ).resolves.toBe(existing);
   });
 });

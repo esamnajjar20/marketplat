@@ -51,32 +51,39 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
         lastResult = result;
         if (result.status !== 'sync-result' || result.result.status !== 'synced') break;
       }
-      // Requests use their own durable table and the backend's X-Offline-Op-Id
-      // idempotency ledger; process one after the ad queue on each lifecycle pass.
+      // Drain every durable queue in FIFO order on the same lifecycle event.
+      // A single successful operation must not leave later offline operations
+      // stranded until another unrelated network/foreground event.
+      const drainQueue = async (
+        sync: (snapshot: OutboxLifecycleSnapshot) => Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'>,
+      ) => {
+        for (let processed = 0; processed < 50; processed += 1) {
+          if (stopped || currentGeneration !== generation || AppState.currentState !== 'active') return;
+          const snapshot = options.getSnapshot();
+          const result = await sync(snapshot);
+          if (result !== 'synced') return;
+        }
+      };
+
       if (!stopped && currentGeneration === generation) {
-        const snapshot = options.getSnapshot();
-        await syncNextMarketplaceRequest({ isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken });
-        // Request offers use a dedicated durable queue and server-side idempotency key.
-        if (!stopped && currentGeneration === generation) {
-          const offerSnapshot = options.getSnapshot();
-          await syncNextRequestOffer({ isOnline: offerSnapshot.isOnline, token: offerSnapshot.token, ownerId: offerSnapshot.ownerId, csrfToken: offerSnapshot.csrfToken });
-        }
-        // Marketplace orders use their own durable queue and server idempotency key.
-        // Stock and price are revalidated transactionally by the server at sync time.
-        if (!stopped && currentGeneration === generation) {
-          const latestSnapshot = options.getSnapshot();
-          await syncNextMarketplaceOrder({ isOnline: latestSnapshot.isOnline, token: latestSnapshot.token, ownerId: latestSnapshot.ownerId, csrfToken: latestSnapshot.csrfToken });
-        }
-        // Product, service-listing, and manual-sale creation share a durable queue;
-        // all three endpoints accept X-Offline-Op-Id and deduplicate on the server.
-        if (!stopped && currentGeneration === generation) {
-          for (let processed = 0; processed < 50; processed += 1) {
-            if (stopped || currentGeneration !== generation || AppState.currentState !== 'active') break;
-            const createSnapshot = options.getSnapshot();
-            const result = await syncNextOfflineCreate({ isOnline: createSnapshot.isOnline, token: createSnapshot.token, ownerId: createSnapshot.ownerId, csrfToken: createSnapshot.csrfToken });
-            if (result !== 'synced') break;
-          }
-        }
+        await drainQueue(snapshot => syncNextMarketplaceRequest({
+          isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
+        }));
+      }
+      if (!stopped && currentGeneration === generation) {
+        await drainQueue(snapshot => syncNextRequestOffer({
+          isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
+        }));
+      }
+      if (!stopped && currentGeneration === generation) {
+        await drainQueue(snapshot => syncNextMarketplaceOrder({
+          isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
+        }));
+      }
+      if (!stopped && currentGeneration === generation) {
+        await drainQueue(snapshot => syncNextOfflineCreate({
+          isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
+        }));
       }
       if (!stopped && currentGeneration === generation && lastResult) options.onResult?.(lastResult);
     } catch (error) {

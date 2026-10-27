@@ -27,6 +27,12 @@
     "type-check:mobile": "pnpm --filter @marketplat/mobile type-check",
     "test:mobile": "pnpm --filter @marketplat/mobile test",
     "build:apk:test": "pnpm --filter @marketplat/mobile build:apk:test",
-    "verify:apk:test": "pnpm --filter @marketplat/mobile verify:apk:test"
+    "verify:apk:test": "pnpm --filter @marketplat/mobile verify:apk:test",
+    "build:all": "pnpm --filter marketplat build && pnpm --filter classifieds-platform-backend build",
+    "type-check:all": "pnpm --recursive --if-present run type-check",
+    "test:all": "pnpm --recursive --if-present run test",
+    "lint:all": "pnpm --filter marketplat lint && pnpm --filter classifieds-platform-backend lint",
+    "dev:all": "pnpm --parallel --filter marketplat --filter classifieds-platform-backend --filter @marketplat/mobile dev",
+    "test:worker": "pnpm --filter @marketplat/cf-api-proxy test"
   }
 }

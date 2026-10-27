@@ -381,7 +381,7 @@ const PUBLIC_LIVE = {
   const cron = async () => { await h.context.__worker.scheduled({}, env, ctx); await Promise.all(pend.splice(0)); };
   await cron();
   const afterFirst = h.upstreamLog.length;
-  assert.equal(afterFirst, 13, 'first warm populates every path');
+  assert.equal(afterFirst, 14, 'first warm populates every configured path');
   await cron();
   assert.equal(h.upstreamLog.length, afterFirst, 'second warm right after must not touch the origin');
   // entries past 50% of ttl (120s) get renewed

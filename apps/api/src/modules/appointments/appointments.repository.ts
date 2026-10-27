@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Appointment, Prisma } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
+import { ConflictError } from '../../shared/errors/ConflictError';
 
 const appointmentPublicInclude = {
   request: {
@@ -50,8 +51,21 @@ export const appointmentsRepository = {
   findById: (id: string): Promise<Appointment | null> =>
     prisma.appointment.findUnique({ where: { id } }),
 
-  updateStatus: (id: string, status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'): Promise<Appointment> =>
-    prisma.appointment.update({ where: { id }, data: { status } }),
+  updateStatus: async (id: string, status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'): Promise<Appointment> => {
+    // Compare-and-set prevents two concurrent requests from both transitioning
+    // the same appointment after each has read SCHEDULED.
+    const result = await prisma.appointment.updateMany({
+      where: { id, status: 'SCHEDULED' },
+      data: { status },
+    });
+    if (result.count !== 1) {
+      throw new ConflictError(
+        'Only a scheduled appointment can change status.',
+        'APPOINTMENT_NOT_SCHEDULED'
+      );
+    }
+    return prisma.appointment.findUniqueOrThrow({ where: { id } });
+  },
 
   // Feeds the "available times" derivation (workingHours minus these).
   findManyInRange: (providerId: string, rangeStart: Date, rangeEnd: Date): Promise<Appointment[]> =>

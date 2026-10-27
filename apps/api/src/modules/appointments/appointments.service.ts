@@ -236,6 +236,11 @@ export const appointmentsService = {
       ? await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id)
       : null;
     const isProvider = provider?.id === appointment.providerId;
+    // Suspension must also gate status mutations, not only appointment creation.
+    // Customers retain their ability to cancel their own appointment.
+    if (isProvider && sellerProfile?.suspended) {
+      throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
+    }
     let isCustomer = false;
     let linkedRequest: Awaited<ReturnType<typeof serviceRequestsRepository.findById>> = null;
     if (appointment.requestId) {
