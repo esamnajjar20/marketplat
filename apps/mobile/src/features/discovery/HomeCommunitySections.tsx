@@ -83,7 +83,7 @@ export default function HomeCommunitySections() {
         const tasks: Promise<void>[] = [];
         const storesCacheIsFresh = lastStoresSuccessfulAt > 0 && Date.now() - lastStoresSuccessfulAt < PUBLIC_STORES_TTL_MS;
         if (force || !storesCacheIsFresh) {
-          tasks.push(fetchStores({ page: 1, limit: 6 })
+          tasks.push(fetchStores({ page: 1, limit: 10 })
             .then(async (result) => {
               const nextStores = result.items.slice(0, 6);
               if (!active) return;

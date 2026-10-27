@@ -90,21 +90,21 @@ export default function HomeMarketplaceSections() {
       const now = Date.now();
       const tasks: Promise<void>[] = [];
       if (!savedAt.current.products || now - savedAt.current.products >= PUBLIC_LIST_TTL_MS) {
-        tasks.push(fetchProducts({ page: 1, limit: 4, sortBy: 'createdAt', sortOrder: 'desc' }).then(async (result) => {
+        tasks.push(fetchProducts({ page: 1, limit: 8, sortBy: 'createdAt', sortOrder: 'desc' }).then(async (result) => {
           const items = result.items.slice(0, 4).map(publicProductSnapshot);
           await writePublicCache(CACHE_KEYS.products, items);
           if (activeRef.current) { savedAt.current.products = Date.now(); setData((current) => ({ ...current, products: items })); setLoaded((current) => ({ ...current, products: true })); }
         }).catch(() => { if (activeRef.current) setLoaded((current) => ({ ...current, products: true })); }));
       }
       if (!savedAt.current.services || now - savedAt.current.services >= PUBLIC_LIST_TTL_MS) {
-        tasks.push(fetchServiceListings({ page: 1, limit: 4 }).then(async (items) => {
+        tasks.push(fetchServiceListings({ page: 1, limit: 8 }).then(async (items) => {
           const limited = items.slice(0, 4).map(publicServiceSnapshot);
           await writePublicCache(CACHE_KEYS.services, limited);
           if (activeRef.current) { savedAt.current.services = Date.now(); setData((current) => ({ ...current, services: limited })); setLoaded((current) => ({ ...current, services: true })); }
         }).catch(() => { if (activeRef.current) setLoaded((current) => ({ ...current, services: true })); }));
       }
       if (!savedAt.current.requests || now - savedAt.current.requests >= PUBLIC_LIST_TTL_MS) {
-        tasks.push(fetchOpenRequests({ page: 1, limit: 4, sort: 'newest' }).then(async (result) => {
+        tasks.push(fetchOpenRequests({ page: 1, limit: 8, sort: "newest" }).then(async (result) => {
           const items = result.items.slice(0, 4).map(publicRequestSnapshot);
           await writePublicCache(CACHE_KEYS.requests, items);
           if (activeRef.current) { savedAt.current.requests = Date.now(); setData((current) => ({ ...current, requests: items })); setLoaded((current) => ({ ...current, requests: true })); }

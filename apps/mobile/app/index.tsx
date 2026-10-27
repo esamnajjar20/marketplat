@@ -20,6 +20,8 @@ import { colors, radius, spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
 import { fetchServiceListings, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
+import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
+import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
 
 function formatPrice(price: AdListItem['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -49,7 +51,6 @@ export default function HomeScreen() {
   const [adsSavedAt, setAdsSavedAt] = useState<number | null>(null);
   const [adsFromCache, setAdsFromCache] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [showFavorites, setShowFavorites] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [cityInput, setCityInput] = useState('');
   const [minPriceInput, setMinPriceInput] = useState('');
@@ -123,7 +124,7 @@ export default function HomeScreen() {
   }, [submittedSearch, filters, sortBy, sortOrder]);
 
   const loadMoreAds = useCallback(async () => {
-    if (loadingMore || loading || page >= totalPages || showFavorites) return;
+    if (loadingMore || loading || page >= totalPages) return;
     setLoadingMore(true);
     setErrorMessage(null);
     const requestSequence = adsRequestSequence.current;
@@ -150,7 +151,7 @@ export default function HomeScreen() {
     } finally {
       if (requestSequence === adsRequestSequence.current) setLoadingMore(false);
     }
-  }, [loadingMore, loading, page, totalPages, showFavorites, submittedSearch, filters, sortBy, sortOrder]);
+  }, [loadingMore, loading, page, totalPages, submittedSearch, filters, sortBy, sortOrder]);
 
   const applyFilters = useCallback(() => {
     const minText = minPriceInput.trim();
@@ -180,14 +181,14 @@ export default function HomeScreen() {
       if (!isCurrentRequest()) return;
       if (cached) {
         hasCachedData = true;
-        setServiceItems(cached.slice(0, 4));
+        setServiceItems(cached.slice(0, 8));
         setServicesLoading(false);
       }
     } catch { /* Cache is optional. */ }
     try {
-      const result = await fetchServiceListings({ page: 1, limit: 4, search: '' });
+      const result = await fetchServiceListings({ page: 1, limit: 8, search: '' });
       if (!isCurrentRequest()) return;
-      setServiceItems(result.slice(0, 4));
+      setServiceItems(result.slice(0, 8));
       setServicesError(null);
     } catch (error) {
       if (isCurrentRequest() && !hasCachedData) setServicesError(error instanceof Error ? error.message : 'تعذر تحميل الخدمات.');
@@ -315,18 +316,14 @@ export default function HomeScreen() {
 
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{showFavorites ? 'إعلاناتي المفضلة على هذا الجهاز' : 'أحدث الإعلانات'}</Text>
+          <Text style={styles.sectionTitle}>أحدث الإعلانات</Text>
           <View style={styles.sectionActions}>
-            {!showFavorites ? <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)}><Text style={styles.link}>{showFilters ? 'إخفاء الفلاتر' : 'تصفية النتائج'}</Text></Pressable> : null}
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)}><Text style={styles.link}>{showFilters ? 'إخفاء الفلاتر' : 'تصفية النتائج'}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => { void loadAds(true); }}><Text style={styles.link}>تحديث</Text></Pressable>
           </View>
         </View>
-        <View style={styles.filterRow}>
-          <Pressable accessibilityRole="button" accessibilityState={{ selected: !showFavorites }} onPress={() => setShowFavorites(false)} style={[styles.filterChip, !showFavorites && styles.filterChipSelected]}><Text style={[styles.filterText, !showFavorites && styles.filterTextSelected]}>كل الإعلانات</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityState={{ selected: showFavorites }} onPress={() => setShowFavorites(true)} style={[styles.filterChip, showFavorites && styles.filterChipSelected]}><Text style={[styles.filterText, showFavorites && styles.filterTextSelected]}>♥ المفضلة ({favoriteIds.length})</Text></Pressable>
-        </View>
 
-        {!showFavorites && showFilters ? <View style={styles.advancedFilters}>
+        {showFilters ? <View style={styles.advancedFilters}>
           <Text style={styles.filterHeading}>تصفية النتائج</Text>
           <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor="#858D98" textAlign="right" style={styles.filterInput} returnKeyType="done" />
           <View style={styles.priceInputs}>
@@ -360,11 +357,11 @@ export default function HomeScreen() {
             <Pressable accessibilityRole="button" onPress={() => { void loadAds(); }} style={styles.retryButton}><Text style={styles.retryText}>إعادة المحاولة</Text></Pressable>
             <Text style={styles.helperText}>تأكد من إعداد EXPO_PUBLIC_API_URL في apps/mobile/.env وأن الخادم متاح من جهازك.</Text>
           </View>
-        ) : (showFavorites ? ads.filter((ad) => favoriteIds.includes(ad.id)) : ads).length === 0 ? (
-          <View style={styles.statusCard}><Text style={styles.statusEmoji}>{showFavorites ? '♡' : '🛍️'}</Text><Text style={styles.statusTitle}>{showFavorites ? 'لا توجد مفضلات ضمن الإعلانات المحمّلة' : 'لا توجد إعلانات مطابقة'}</Text><Text style={styles.statusText}>{showFavorites ? 'المفضلة محفوظة على هذا الجهاز، وقد تحتاج إلى تحميل الإعلانات التي تحتوي عليها.' : 'جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث.'}</Text></View>
+        ) : ads.length === 0 ? (
+          <View style={styles.statusCard}><Text style={styles.statusEmoji}>🛍️</Text><Text style={styles.statusTitle}>لا توجد إعلانات مطابقة</Text><Text style={styles.statusText}>جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث.</Text></View>
         ) : (
           <View style={styles.adsList}>
-            {(showFavorites ? ads.filter((ad) => favoriteIds.includes(ad.id)) : ads).map((ad) => {
+            {ads.map((ad) => {
               const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images) ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url)) : undefined;
               return (
                 <View key={ad.id} style={styles.adCard}>
@@ -383,7 +380,10 @@ export default function HomeScreen() {
             })}
           </View>
         )}
-        {!showFavorites ? <View style={styles.servicesSection}>
+        {/* قسم المتاجر والقصص + المنتجات والخدمات والطلبات */}
+        <HomeCommunitySections />
+        <HomeMarketplaceSections />
+        <View style={styles.servicesSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>خدمات قريبة منك</Text>
             <Pressable accessibilityRole="button" onPress={() => router.push('/services')}><Text style={styles.link}>كل الخدمات</Text></Pressable>
@@ -400,9 +400,9 @@ export default function HomeScreen() {
             </Pressable>;
           })}</View> : null}
           {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/service-requests')} style={styles.serviceRequestsLink}><Text style={styles.serviceRequestsText}>متابعة طلبات الخدمات ←</Text></Pressable> : null}
-        </View> : null}
+        </View>
 
-        {!showFavorites && !loading && !errorMessage && ads.length > 0 && page < totalPages ? (
+        {!loading && !errorMessage && ads.length > 0 && page < totalPages ? (
           <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => { void loadMoreAds(); }} style={[styles.loadMoreButton, loadingMore && styles.busyButton]}>
             {loadingMore ? <ActivityIndicator color={colors.brand} /> : <Text style={styles.loadMoreText}>تحميل المزيد من الإعلانات</Text>}
           </Pressable>
