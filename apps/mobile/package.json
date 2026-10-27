@@ -11,7 +11,8 @@
     "type-check": "tsc --noEmit",
     "test": "node ./scripts/run-all-verifications.mjs",
     "build:apk:test": "cd android && ./gradlew assembleRelease",
-    "verify:apk:test": "node ./scripts/verify-release-config.mjs"
+    "verify:apk:test": "node ./scripts/verify-release-config.mjs",
+    "test:storage": "node --test src/storage/__tests__/*.test.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",
