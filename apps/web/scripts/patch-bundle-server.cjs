@@ -33,19 +33,29 @@ const SHARP_EXTERNALS = [
 ];
 
 function findBundleServer() {
-  // Try direct node_modules path (hoisted)
-  const directPaths = [
+  const candidates = [
+    // hoisted layout (node-linker=hoisted)
     path.join(process.cwd(), 'node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js'),
+    path.join(process.cwd(), '../node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js'),
+    path.join(process.cwd(), '../../node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js'),
+    // pnpm symlinked layout
     path.join(process.cwd(), 'node_modules/.pnpm'),
+    path.join(process.cwd(), '../node_modules/.pnpm'),
+    path.join(process.cwd(), '../../node_modules/.pnpm'),
   ];
-  if (fs.existsSync(directPaths[0])) return directPaths[0];
-  // Try pnpm store
-  const pnpmDir = directPaths[1];
-  if (!fs.existsSync(pnpmDir)) return null;
-  const entries = fs.readdirSync(pnpmDir).filter((e) => e.startsWith('@opennextjs+cloudflare@'));
-  for (const entry of entries) {
-    const candidate = path.join(pnpmDir, entry, 'node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js');
-    if (fs.existsSync(candidate)) return candidate;
+  // 1) hoisted: direct paths
+  for (let i = 0; i < 3; i++) {
+    if (fs.existsSync(candidates[i])) return candidates[i];
+  }
+  // 2) pnpm: scan .pnpm/* dirs
+  for (let i = 3; i < candidates.length; i++) {
+    const pnpmDir = candidates[i];
+    if (!fs.existsSync(pnpmDir)) continue;
+    const entries = fs.readdirSync(pnpmDir).filter((e) => e.startsWith('@opennextjs+cloudflare@'));
+    for (const entry of entries) {
+      const candidate = path.join(pnpmDir, entry, 'node_modules/@opennextjs/cloudflare/dist/cli/build/bundle-server.js');
+      if (fs.existsSync(candidate)) return candidate;
+    }
   }
   return null;
 }
