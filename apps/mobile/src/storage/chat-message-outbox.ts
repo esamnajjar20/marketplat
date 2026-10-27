@@ -156,6 +156,20 @@ export async function retryChatMessage(operationId: string, ownerId: string): Pr
   return result.changes === 1;
 }
 
+/** Called by the sync worker when the server permanently rejects a message
+ *  (400/404/422). Unlike discardFailedChatMessage (UI-only, requires exhausted
+ *  attempts), this deletes immediately so the queue doesn't loop forever on
+ *  a message that can never succeed. */
+export async function discardRejectedChatMessage(operationId: string, ownerId: string): Promise<boolean> {
+  if (!operationId.trim() || !ownerId.trim()) return false;
+  const db = await database();
+  const result = await db.runAsync(
+    'DELETE FROM chat_message_outbox WHERE operation_id = ? AND owner_id = ?',
+    operationId, ownerId,
+  );
+  return result.changes === 1;
+}
+
 /** Remove a dead-lettered message only after an explicit user choice. */
 export async function discardFailedChatMessage(operationId: string, ownerId: string): Promise<boolean> {
   if (!operationId.trim() || !ownerId.trim()) return false;

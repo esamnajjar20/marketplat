@@ -6,6 +6,7 @@ export type PendingRequestOutboxItem = { id: string; ownerId: string; payload: R
 type Row = { id: string; owner_id: string; payload_json: string; created_at: number; attempts: number; last_error: string | null; next_attempt_at: number; state: string };
 const DB_NAME = 'marketplat-public-cache.db';
 const MAX_PENDING = 50;
+const MAX_ATTEMPTS = 8;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 let activeSync: Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'> | null = null;
 async function database() {
@@ -52,7 +53,7 @@ export async function discardMarketplaceRequest(id: string, ownerId?: string | n
 export async function retryMarketplaceRequest(id: string, ownerId?: string | null): Promise<boolean> {
   if (!id.trim() || !ownerId?.trim()) return false;
   const db = await database();
-  const result = await db.runAsync("UPDATE request_create_outbox SET attempts=0,last_error=NULL,next_attempt_at=0,state='pending',lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts>=8", id, ownerId);
+  const result = await db.runAsync("UPDATE request_create_outbox SET attempts=0,last_error=NULL,next_attempt_at=0,state='pending',lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts>=?", id, ownerId, MAX_ATTEMPTS);
   return result.changes === 1;
 }
 
@@ -65,7 +66,7 @@ export async function syncNextMarketplaceRequest(input: { isOnline: boolean; tok
     const now = Date.now();
     await db.runAsync("UPDATE request_create_outbox SET state='pending',lease_until=0,next_attempt_at=MAX(next_attempt_at,?) WHERE state='processing' AND lease_until<=?", now + 5000, now);
     const head = await db.getFirstAsync<Row>('SELECT * FROM request_create_outbox WHERE owner_id=? ORDER BY created_at ASC LIMIT 1', input.ownerId);
-    if (!head || head.next_attempt_at > now || head.attempts >= 8 || head.state === 'processing') return 'nothing-due' as const;
+    if (!head || head.next_attempt_at > now || head.attempts >= MAX_ATTEMPTS || head.state === 'processing') return 'nothing-due' as const;
     const lease = now + 30_000;
     const claimed = await db.runAsync("UPDATE request_create_outbox SET state='processing',lease_until=? WHERE id=? AND owner_id=? AND state='pending' AND next_attempt_at<=?", lease, head.id, input.ownerId, now);
     if (claimed.changes !== 1) return 'nothing-due' as const;

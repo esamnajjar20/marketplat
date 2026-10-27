@@ -92,7 +92,7 @@ async function database(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
 }
 
-const CREDENTIAL_KEY = /^(?:access[_-]?token|refresh[_-]?token|authorization|proxy-authorization|cookie|set-cookie|password|passwd|secret|client[_-]?secret|api[_-]?key|csrf[_-]?token)$/i;
+const CREDENTIAL_KEY = /^(?:access[_-]?token|refresh[_-]?token|authorization|proxy-authorization|cookie|set-cookie|password|passwd|secret|client[_-]?secret|api[_-]?key|csrf[_-]?token|session[_-]?token|jwt|bearer)$/i;
 
 function containsCredentialField(value: unknown, seen = new Set<object>()): boolean {
   if (value === null || typeof value !== 'object') return false;

@@ -5,6 +5,7 @@ import BottomNavigation from '@/components/BottomNavigation';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/theme/tokens';
 import { AuthProvider } from '@/features/auth/AuthContext';
+import { ConnectivityProvider } from '@/lib/connectivity';
 import { OutboxSyncLifecycleBridge } from '@/storage/OutboxSyncLifecycleBridge';
 import { FavoritesSyncLifecycleBridge } from '@/features/ads/FavoritesSyncLifecycleBridge';
 import { ChatMessageOutboxLifecycleBridge } from '@/storage/ChatMessageOutboxLifecycleBridge';
@@ -25,7 +26,8 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
+    <ConnectivityProvider>
+      <AuthProvider>
       <OutboxSyncLifecycleBridge />
       <FavoritesSyncLifecycleBridge />
       <ChatMessageOutboxLifecycleBridge />
@@ -41,5 +43,6 @@ export default function RootLayout() {
         <BottomNavigation />
       </View>
     </AuthProvider>
+    </ConnectivityProvider>
   );
 }

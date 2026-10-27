@@ -27,10 +27,11 @@ async function verifyOutboxImages(images: Array<{ uri: string; name: string; typ
 }
 
 /**
- * Send one supported outbox item as multipart/form-data. The API requires at least
- * one image for ad creation; local image URIs are persisted with the operation and
- * this transport does not acknowledge/delete queued work; only the sync worker may do so
- * converted to React Native's FormData file descriptors only at send time.
+ * Send one supported outbox item as multipart/form-data. The API requires at
+ * least one image for ad creation; local image URIs are persisted with the
+ * operation. This transport does not acknowledge/delete queued work — only the
+ * sync worker may do so. Local image URIs are converted to React Native's
+ * FormData file descriptors only at send time.
  */
 export async function sendOutboxCreateAd<T>(
   item: OutboxItem,

@@ -62,7 +62,10 @@ async function runNextOutboxMutation(
     const all = await listAllOutboxMutations(ownerId);
     return { ...decision, count: all.filter((item) => item.operation === 'update-ad').length };
   }
-  if (!candidate || (decision.status !== 'send-create-ad' && decision.status !== 'send-delete-ad' && decision.status !== 'send-update-ad')) return { status: 'nothing-due' };
+  // At this point decision is one of the 'send-*' variants: nothing-due,
+  // already-processing, blocked-by-exhausted, waiting-for-retry, and
+  // blocked-by-unsupported were all returned above.
+  if (!candidate) return { status: 'nothing-due' };
 
   // Lease ownership prevents a stale worker from acknowledging or failing a row
   // after another worker has recovered and reclaimed it.

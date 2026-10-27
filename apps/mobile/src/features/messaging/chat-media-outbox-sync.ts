@@ -1,7 +1,7 @@
 import { AppState } from 'react-native';
 import { ApiError } from '@/api/client';
 import { sendChatAudio, sendChatFile, sendChatImage, type ChatMessage } from './messaging.api';
-import { acknowledgeChatMedia, deferChatMedia, listChatMediaOutbox, listDueChatMediaOutbox } from '@/storage/chat-media-outbox';
+import { acknowledgeChatMedia, deferChatMedia, discardRejectedChatMedia, listChatMediaOutbox, listDueChatMediaOutbox } from '@/storage/chat-media-outbox';
 
 export type ChatMediaSyncSnapshot = { isOnline: boolean; token?: string | null; csrfToken?: string | null; ownerId?: string | null; signal?: AbortSignal };
 export type ChatMediaSyncResult = { sent: Array<{ operationId: string; conversationId: string; message: ChatMessage }>; pending: number; stoppedReason: 'offline' | 'signed-out' | 'retry-scheduled' | null };
@@ -32,6 +32,12 @@ async function runSync(snapshot: ChatMediaSyncSnapshot): Promise<ChatMediaSyncRe
       sent.push({ operationId: item.operationId, conversationId: item.conversationId, message });
     } catch (error) {
       if (snapshot.signal?.aborted) { stoppedReason = 'signed-out'; break; }
+      // Permanent server rejection — discard so the queue doesn't loop forever.
+      if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
+        await discardRejectedChatMedia(item.operationId, snapshot.ownerId);
+        stoppedReason = 'retry-scheduled';
+        break;
+      }
       await deferChatMedia(item.operationId, snapshot.ownerId, error);
       stoppedReason = error instanceof ApiError && (error.status === 401 || error.status === 403) ? 'signed-out' : 'retry-scheduled';
       break;

@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MEDIA_DIRECTORY = `${FileSystem.documentDirectory ?? ''}marketplat-chat-media-outbox/`;
 const MAX_PENDING_MEDIA = 30;
+const MAX_ATTEMPTS = 8;
 const MAX_MEDIA_BYTES = 15 * 1024 * 1024;
 export type ChatMediaKind = 'image' | 'audio' | 'file';
 export type ChatMediaOutboxItem = { id: string; ownerId: string; conversationId: string; kind: ChatMediaKind; uri: string; fileName: string; mimeType: string; sizeBytes: number; operationId: string; createdAt: number; attempts: number; lastError: string | null };
@@ -46,7 +47,13 @@ export async function enqueueChatMedia(input: { ownerId: string; conversationId:
   return map(row);
 }
 export async function listChatMediaOutbox(ownerId: string): Promise<ChatMediaOutboxItem[]> { if (!ownerId.trim()) return []; const db = await database(); return (await db.getAllAsync<Row>('SELECT * FROM chat_media_outbox WHERE owner_id = ? ORDER BY created_at ASC LIMIT ?', ownerId, MAX_PENDING_MEDIA)).map(map); }
-export async function listDueChatMediaOutbox(ownerId: string, now = Date.now()): Promise<ChatMediaOutboxItem[]> { if (!ownerId.trim()) return []; const db = await database(); return (await db.getAllAsync<Row>('SELECT * FROM chat_media_outbox WHERE owner_id = ? AND next_attempt_at <= ? ORDER BY created_at ASC LIMIT ?', ownerId, now, MAX_PENDING_MEDIA)).map(map); }
+export async function listDueChatMediaOutbox(ownerId: string, now = Date.now()): Promise<ChatMediaOutboxItem[]> { if (!ownerId.trim()) return []; const db = await database(); return (await db.getAllAsync<Row>('SELECT * FROM chat_media_outbox WHERE owner_id = ? AND next_attempt_at <= ? AND attempts < ? ORDER BY created_at ASC LIMIT ?', ownerId, now, MAX_ATTEMPTS, MAX_PENDING_MEDIA)).map(map); }
 export async function acknowledgeChatMedia(operationId: string, ownerId: string): Promise<void> { const db = await database(); const row = await db.getFirstAsync<Row>('SELECT * FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (!row) return; await db.runAsync('DELETE FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (FileSystem.documentDirectory && row.uri.startsWith(MEDIA_DIRECTORY)) await FileSystem.deleteAsync(row.uri, { idempotent: true }).catch(() => undefined); }
 export async function deferChatMedia(operationId: string, ownerId: string, error: unknown): Promise<void> { const db = await database(); const message = (error instanceof Error ? error.message : 'تعذرت مزامنة المرفق.').slice(0, 400); await db.runAsync('UPDATE chat_media_outbox SET next_attempt_at = ? + MIN(5000 * (1 << MIN(attempts, 10)), 3600000), attempts = attempts + 1, last_error = ? WHERE operation_id = ? AND owner_id = ?', Date.now(), message, operationId, ownerId); }
 export async function discardChatMedia(operationId: string, ownerId: string): Promise<void> { await acknowledgeChatMedia(operationId, ownerId); }
+
+/** Called by the sync worker when the server permanently rejects the media
+ *  (400/404/422). Deletes immediately so the queue doesn't loop forever. */
+export async function discardRejectedChatMedia(operationId: string, ownerId: string): Promise<boolean> {
+  return acknowledgeChatMedia(operationId, ownerId).then(() => true).catch(() => false);
+}

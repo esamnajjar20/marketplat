@@ -1,7 +1,7 @@
 import { AppState } from 'react-native';
 import { ApiError } from '@/api/client';
 import { sendMessage, type ChatMessage } from './messaging.api';
-import { acknowledgeChatMessage, deferChatMessage, discardFailedChatMessage, listChatMessagesForOwner, listDueChatMessages } from '@/storage/chat-message-outbox';
+import { acknowledgeChatMessage, deferChatMessage, discardRejectedChatMessage, listChatMessagesForOwner, listDueChatMessages } from '@/storage/chat-message-outbox';
 
 export type ChatOutboxSyncResult = { sent: Array<{ operationId: string; message: ChatMessage }>; pending: number; stoppedReason: 'offline' | 'signed-out' | 'retry-scheduled' | 'retry-limit' | null };
 export type ChatOutboxSyncSnapshot = { isOnline: boolean; token?: string | null; csrfToken?: string | null; ownerId?: string | null; signal?: AbortSignal };
@@ -42,7 +42,8 @@ async function runSync(snapshot: ChatOutboxSyncSnapshot): Promise<ChatOutboxSync
       // 🟢 الإصلاح: إذا كان الخطأ من السيرفر (400, 404) فهذا يعني أن الرسالة مرفوضة ولا فائدة من إعادتها
       // يجب حذفها من الطابور بدلاً من إعادتها للأبد
       if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
-        await discardFailedChatMessage(item.operationId, ownerId, error.message);
+        // Permanent server rejection — discard so the queue doesn't loop forever.
+        await discardRejectedChatMessage(item.operationId, ownerId);
         stoppedReason = 'retry-limit';
         break;
       }
