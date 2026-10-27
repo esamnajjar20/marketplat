@@ -52,6 +52,15 @@ export async function discardMarketplaceOrder(id: string, ownerId?: string | nul
   if (!id.trim() || !ownerId?.trim()) return false;
   const db = await database(); const result = await db.runAsync("DELETE FROM marketplace_order_outbox WHERE id=? AND owner_id=? AND state='pending'", id, ownerId); return result.changes === 1;
 }
+/** Called by the sync worker when the server permanently rejects an order
+ *  (400/404/422). Deletes immediately so the FIFO queue doesn't stall forever. */
+export async function discardRejectedMarketplaceOrder(id: string, ownerId?: string | null): Promise<boolean> {
+  if (!id.trim() || !ownerId?.trim()) return false;
+  const db = await database();
+  const result = await db.runAsync("DELETE FROM marketplace_order_outbox WHERE id=? AND owner_id=? AND state='processing'", id, ownerId);
+  return result.changes === 1;
+}
+
 export async function retryMarketplaceOrder(id: string, ownerId?: string | null): Promise<boolean> {
   if (!id.trim() || !ownerId?.trim()) return false;
   const db = await database(); const result = await db.runAsync("UPDATE marketplace_order_outbox SET attempts=0,last_error=NULL,next_attempt_at=0,state='pending',lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts>=?", id, ownerId, MAX_ATTEMPTS); return result.changes === 1;
@@ -75,6 +84,11 @@ export async function syncNextMarketplaceOrder(input: { isOnline: boolean; token
       await db.runAsync("DELETE FROM marketplace_order_outbox WHERE id=? AND owner_id=? AND state='processing'", head.id, input.ownerId);
       return 'synced' as const;
     } catch (error) {
+      // Permanent server rejection — discard so the FIFO queue doesn't stall forever.
+      if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
+        await db.runAsync("DELETE FROM marketplace_order_outbox WHERE id=? AND owner_id=? AND state='processing'", head.id, input.ownerId);
+        return 'retry-scheduled' as const;
+      }
       const attempts = head.attempts + 1; const delay = Math.min(60 * 60_000, 5000 * 2 ** Math.min(attempts - 1, 10));
       const message = (error instanceof Error ? error.message : 'تعذرت مزامنة الطلب.').slice(0, 500);
       await db.runAsync("UPDATE marketplace_order_outbox SET state='pending',attempts=?,last_error=?,next_attempt_at=?,lease_until=0 WHERE id=? AND owner_id=?", attempts, message, Date.now()+delay, head.id, input.ownerId);

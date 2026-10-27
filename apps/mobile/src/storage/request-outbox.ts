@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { apiRequest } from '@/api/client';
+import { ApiError, apiRequest } from '@/api/client';
 
 type RequestPayload = { type: 'SERVICE' | 'PRODUCT' | 'RENTAL'; categoryId: string; title: string; description: string; city?: string; budgetMin?: number; budgetMax?: number };
 export type PendingRequestOutboxItem = { id: string; ownerId: string; payload: RequestPayload; createdAt: number; attempts: number; lastError: string | null; nextAttemptAt: number };
@@ -50,6 +50,15 @@ export async function discardMarketplaceRequest(id: string, ownerId?: string | n
   const result = await db.runAsync("DELETE FROM request_create_outbox WHERE id=? AND owner_id=? AND state='pending'", id, ownerId);
   return result.changes === 1;
 }
+/** Called by the sync worker when the server permanently rejects a request
+ *  (400/404/422). Deletes immediately so the FIFO queue doesn't stall forever. */
+export async function discardRejectedMarketplaceRequest(id: string, ownerId?: string | null): Promise<boolean> {
+  if (!id.trim() || !ownerId?.trim()) return false;
+  const db = await database();
+  const r = await db.runAsync("DELETE FROM request_create_outbox WHERE id=? AND owner_id=? AND state='processing'", id, ownerId);
+  return r.changes === 1;
+}
+
 export async function retryMarketplaceRequest(id: string, ownerId?: string | null): Promise<boolean> {
   if (!id.trim() || !ownerId?.trim()) return false;
   const db = await database();
@@ -77,6 +86,11 @@ export async function syncNextMarketplaceRequest(input: { isOnline: boolean; tok
       await db.runAsync('DELETE FROM request_create_outbox WHERE id=? AND owner_id=? AND state=\'processing\'', head.id, input.ownerId);
       return 'synced' as const;
     } catch (error) {
+      // Permanent server rejection — discard so the FIFO queue doesn't stall forever.
+      if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
+        await db.runAsync('DELETE FROM request_create_outbox WHERE id=? AND owner_id=? AND state=\'processing\'', head.id, input.ownerId);
+        return 'retry-scheduled' as const;
+      }
       const attempts = head.attempts + 1;
       const delay = Math.min(60 * 60_000, 5_000 * 2 ** Math.min(attempts - 1, 10));
       const message = (error instanceof Error ? error.message : 'تعذرت مزامنة الطلب.').slice(0, 500);

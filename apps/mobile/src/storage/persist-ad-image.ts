@@ -50,7 +50,9 @@ export async function removePersistedAdImageIfUnused(uri: string): Promise<'dele
   if (await isAdImageReferencedByDraft(uri)) return 'retained';
 
   if (await isOfflineCreateImageReferenced(uri)) return 'retained';
-  const operations = await listAllOutboxMutations();
+  // Reference check must see ALL retained mutations, not just the first MAX_PENDING.
+  // Uses the unlimited option to prevent false-positive deletions across accounts.
+  const operations = await listAllOutboxMutations(undefined, { unlimited: true });
   for (const operation of operations) {
     try {
       const payload: unknown = JSON.parse(operation.payloadJson);

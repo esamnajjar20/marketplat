@@ -37,6 +37,15 @@ export async function enqueueRequestOffer(ownerId: string, requestId: string, pr
 }
 export async function listPendingRequestOffers(ownerId?: string | null): Promise<PendingRequestOfferItem[]> { if (!ownerId?.trim()) return []; const db = await database(); const rows = await db.getAllAsync<Row>('SELECT * FROM request_offer_outbox WHERE owner_id=? ORDER BY created_at ASC LIMIT ?', ownerId, MAX_PENDING); return rows.map(mapRow); }
 export async function discardRequestOffer(id: string, ownerId?: string | null): Promise<boolean> { if (!id.trim() || !ownerId?.trim()) return false; const db = await database(); const r = await db.runAsync("DELETE FROM request_offer_outbox WHERE id=? AND owner_id=? AND state='pending'", id, ownerId); return r.changes === 1; }
+/** Called by the sync worker when the server permanently rejects an offer
+ *  (400/404/422). Deletes immediately so the FIFO queue doesn't stall forever. */
+export async function discardRejectedRequestOffer(id: string, ownerId?: string | null): Promise<boolean> {
+  if (!id.trim() || !ownerId?.trim()) return false;
+  const db = await database();
+  const r = await db.runAsync("DELETE FROM request_offer_outbox WHERE id=? AND owner_id=? AND state='processing'", id, ownerId);
+  return r.changes === 1;
+}
+
 export async function retryRequestOffer(id: string, ownerId?: string | null): Promise<boolean> { if (!id.trim() || !ownerId?.trim()) return false; const db = await database(); const r = await db.runAsync("UPDATE request_offer_outbox SET attempts=0,last_error=NULL,next_attempt_at=0,state='pending',lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts>=?", id, ownerId, MAX_ATTEMPTS); return r.changes === 1; }
 export async function syncNextRequestOffer(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
   if (activeSync) return activeSync;
@@ -51,6 +60,11 @@ export async function syncNextRequestOffer(input: { isOnline: boolean; token?: s
       if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || 'لم يؤكد الخادم إرسال العرض.');
       await db.runAsync("DELETE FROM request_offer_outbox WHERE id=? AND owner_id=? AND state='processing'", head.id, input.ownerId); return 'synced' as const;
     } catch (error) {
+      // Permanent server rejection — discard so the FIFO queue doesn't stall forever.
+      if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
+        await db.runAsync("DELETE FROM request_offer_outbox WHERE id=? AND owner_id=? AND state='processing'", head.id, input.ownerId);
+        return 'retry-scheduled' as const;
+      }
       const attempts = head.attempts + 1; const delay = Math.min(3600000, 5000 * 2 ** Math.min(attempts - 1, 10)); const message = (error instanceof Error ? error.message : 'تعذرت مزامنة العرض.').slice(0,500);
       await db.runAsync("UPDATE request_offer_outbox SET state='pending',attempts=?,last_error=?,next_attempt_at=?,lease_until=0 WHERE id=? AND owner_id=?", attempts, message, Date.now()+delay, head.id, input.ownerId);
       return error instanceof ApiError && (error.status === 401 || error.status === 403) ? 'login-required' as const : 'retry-scheduled' as const;

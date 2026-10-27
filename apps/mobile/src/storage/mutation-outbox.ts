@@ -159,11 +159,20 @@ export async function enqueueMutation(input: {
 }
 
 /** List every retained operation for a queue-management screen, including blocked and exhausted work. */
-export async function listAllOutboxMutations(ownerId?: string | null): Promise<OutboxItem[]> {
+export async function listAllOutboxMutations(
+  ownerId?: string | null,
+  options?: { unlimited?: boolean },
+): Promise<OutboxItem[]> {
   const db = await database();
+  // unlimited: true bypasses MAX_PENDING for reference checks (e.g. image cleanup).
+  // Normal queue-management reads keep the cap for bounded memory.
   const rows = ownerId?.trim()
-    ? await db.getAllAsync<OutboxRow>('SELECT * FROM mutation_outbox WHERE owner_id = ? ORDER BY created_at ASC, id ASC LIMIT ?', ownerId, MAX_PENDING)
-    : await db.getAllAsync<OutboxRow>('SELECT * FROM mutation_outbox ORDER BY created_at ASC, id ASC LIMIT ?', MAX_PENDING);
+    ? options?.unlimited
+      ? await db.getAllAsync<OutboxRow>('SELECT * FROM mutation_outbox WHERE owner_id = ? ORDER BY created_at ASC, id ASC', ownerId)
+      : await db.getAllAsync<OutboxRow>('SELECT * FROM mutation_outbox WHERE owner_id = ? ORDER BY created_at ASC, id ASC LIMIT ?', ownerId, MAX_PENDING)
+    : options?.unlimited
+      ? await db.getAllAsync<OutboxRow>('SELECT * FROM mutation_outbox ORDER BY created_at ASC, id ASC')
+      : await db.getAllAsync<OutboxRow>('SELECT * FROM mutation_outbox ORDER BY created_at ASC, id ASC LIMIT ?', MAX_PENDING);
   return rows.map(mapRow);
 }
 
