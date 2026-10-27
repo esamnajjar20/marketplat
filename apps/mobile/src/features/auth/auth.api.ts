@@ -37,7 +37,7 @@ export async function loginWithPassword(email: string, password: string): Promis
   const accessToken = data?.tokens?.accessToken;
   const user = data?.user;
   if (response?.success !== true || typeof accessToken !== 'string' || !accessToken || !user || typeof user.id !== 'string' || typeof user.email !== 'string' || typeof user.name !== 'string') {
-    throw new Error('استجابة تسجيل الدخول من الخادم غير متوقعة.');
+    throw new Error(response?.message || 'لم تكتمل استجابة تسجيل الدخول.');
   }
   return {
     accessToken,
@@ -50,8 +50,16 @@ export async function loginWithPassword(email: string, password: string): Promis
 type RefreshedAccessSession = { accessToken: string; expiresIn?: number; csrfToken?: string };
 
 let refreshInFlight: Promise<RefreshedAccessSession> | null = null;
+let refreshAbortController: AbortController | null = null;
 
-async function performAccessRefresh(): Promise<RefreshedAccessSession> {
+/** Cancel any in-flight refresh (used on logout to prevent state races). */
+export function cancelRefreshing(): void {
+  refreshAbortController?.abort();
+  refreshAbortController = null;
+  refreshInFlight = null;
+}
+
+async function performAccessRefresh(signal?: AbortSignal): Promise<RefreshedAccessSession> {
   type RefreshEnvelope = {
     success: boolean;
     data?: { tokens?: { accessToken?: string; expiresIn?: number }; csrfToken?: string };
@@ -62,6 +70,7 @@ async function performAccessRefresh(): Promise<RefreshedAccessSession> {
   const response = await apiRequest<RefreshEnvelope>('/api/v1/auth/refresh', {
     method: 'POST',
     credentials: 'include',
+    signal,
   });
   const accessToken = response?.data?.tokens?.accessToken;
   if (response?.success !== true || typeof accessToken !== 'string' || !accessToken) {
@@ -77,8 +86,10 @@ async function performAccessRefresh(): Promise<RefreshedAccessSession> {
 /** Coalesce concurrent refresh calls so rotating the httpOnly cookie is not raced by this client. */
 export function refreshAccessSession(): Promise<RefreshedAccessSession> {
   if (!refreshInFlight) {
-    refreshInFlight = performAccessRefresh().finally(() => {
+    refreshAbortController = new AbortController();
+    refreshInFlight = performAccessRefresh(refreshAbortController.signal).finally(() => {
       refreshInFlight = null;
+      refreshAbortController = null;
     });
   }
   return refreshInFlight;
@@ -92,4 +103,47 @@ export async function logoutSession(accessToken: string, csrfToken?: string): Pr
     ...(csrfToken ? { headers: { 'X-CSRF-Token': csrfToken } } : {}),
     body: JSON.stringify({}),
   });
+}
+
+export type RegisterInput = {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  city?: string;
+};
+
+/** Register a new account. Uses the same envelope contract as login. */
+export async function registerAccount(input: RegisterInput): Promise<AuthSession> {
+  const response = await apiRequest<AuthEnvelope>('/api/v1/auth/register', {
+    method: 'POST',
+    credentials: 'include',
+    body: JSON.stringify({
+      name: input.name.trim(),
+      email: input.email.trim(),
+      password: input.password,
+      ...(input.phone ? { phone: input.phone.trim() } : {}),
+      ...(input.city ? { city: input.city.trim() } : {}),
+    }),
+  });
+  const data = response?.data;
+  const accessToken = data?.tokens?.accessToken;
+  const user = data?.user;
+  if (
+    response?.success !== true
+    || typeof accessToken !== 'string'
+    || !accessToken
+    || !user
+    || typeof user.id !== 'string'
+    || typeof user.email !== 'string'
+    || typeof user.name !== 'string'
+  ) {
+    throw new Error(response?.message || 'لم تكتمل استجابة إنشاء الحساب.');
+  }
+  return {
+    accessToken,
+    expiresIn: typeof data.tokens?.expiresIn === 'number' ? data.tokens.expiresIn : undefined,
+    csrfToken: typeof data.csrfToken === 'string' ? data.csrfToken : undefined,
+    user,
+  };
 }

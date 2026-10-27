@@ -1,14 +1,51 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { isBottomNavigationHidden } from '@/components/BottomNavigation';
 
+/**
+ * Inner shell body — memoized so that changing the route (which updates
+ * SafeAreaView edges via usePathname) does not re-render the header or
+ * the children. PageShell computes `edges` once per route and passes it in.
+ */
+const ShellBody = memo(function ShellBody({
+  edges,
+  title,
+  right,
+  children,
+}: {
+  edges: ('top' | 'bottom')[];
+  title: string;
+  right?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <SafeAreaView style={s.safe} edges={edges}>
+      <View style={s.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="رجوع"
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          style={s.back}
+        >
+          <Text style={s.backText}>‹</Text>
+        </Pressable>
+        <Text style={s.title}>{title}</Text>
+        <View style={s.headerRight}>{right}</View>
+      </View>
+      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+        {children}
+      </ScrollView>
+    </SafeAreaView>
+  );
+});
+
 export function PageShell({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
  const pathname = usePathname();
  const edges: ('top' | 'bottom')[] = isBottomNavigationHidden(pathname) ? ['top', 'bottom'] : ['top'];
- return <SafeAreaView style={s.safe} edges={edges}><View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="رجوع" onPress={()=>router.canGoBack()?router.back():router.replace('/')} style={s.back}><Text style={s.backText}>‹</Text></Pressable><Text style={s.title}>{title}</Text><View style={s.headerRight}>{right}</View></View><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">{children}</ScrollView></SafeAreaView>;
+ return <ShellBody edges={edges} title={title} right={right}>{children}</ShellBody>;
 }
 export function Field({ label, value, onChangeText, placeholder, multiline, keyboardType, secureTextEntry, maxLength, editable=true }: { label:string; value:string; onChangeText:(v:string)=>void; placeholder?:string; multiline?:boolean; keyboardType?:'default'|'email-address'|'numeric'|'phone-pad'; secureTextEntry?:boolean; maxLength?:number; editable?:boolean }) {
  return <View style={s.field}><Text style={s.label}>{label}</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} keyboardType={keyboardType} secureTextEntry={secureTextEntry} maxLength={maxLength} editable={editable} accessibilityLabel={label} selectionColor={colors.brand} textAlign="right" textAlignVertical={multiline?'top':'center'} autoCapitalize={keyboardType==='email-address'||secureTextEntry||keyboardType==='numeric'||keyboardType==='phone-pad'?'none':'sentences'} autoCorrect={keyboardType==='email-address'||secureTextEntry?false:undefined} style={[s.input,multiline&&s.textarea,!editable&&{opacity:0.6}]} /></View>;

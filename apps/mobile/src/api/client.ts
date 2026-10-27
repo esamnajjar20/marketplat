@@ -11,12 +11,57 @@ export class ApiError extends Error {
   }
 }
 
+/** Marker set on responses served from offline cache after a network failure. */
+export type CachedResult<T> = T & { readonly __fromCache?: true };
+
+/** Returns true when the given API response was served from offline cache. */
+export function isFromCache(value: unknown): boolean {
+  return Boolean(value && typeof value === 'object' && (value as { __fromCache?: boolean }).__fromCache === true);
+}
+
+/** Wrap a cached payload so callers can detect stale data (spread only safe for object envelopes). */
+function tagFromCache<T>(value: T): CachedResult<T> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return { ...(value as object), __fromCache: true as const } as CachedResult<T>;
+  }
+  return value as CachedResult<T>;
+}
+
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
 
 /** Public API origin used by authenticated streaming transports as well as JSON requests. */
 export function getApiBaseUrl(): string {
+  if (!API_BASE_URL) {
+    throw new ApiError('عنوان API غير مضبوط. أضف EXPO_PUBLIC_API_URL إلى ملف البيئة.');
+  }
   return API_BASE_URL;
 }
+
+type RefreshHandler = () => Promise<{
+  accessToken: string;
+  csrfToken?: string;
+  expiresIn?: number;
+}>;
+type TokenUpdater = (
+  accessToken: string,
+  csrfToken: string | undefined,
+  expiresIn: number | undefined,
+) => void;
+
+let refreshHandler: RefreshHandler | null = null;
+let tokenUpdater: TokenUpdater | null = null;
+
+/** Register a handler that resolves a fresh access token when the current one expires (401).
+ *  Passing null clears it (e.g. on logout). */
+export function setRefreshHandler(handler: RefreshHandler | null): void {
+  refreshHandler = handler;
+}
+
+/** Register a callback that updates caller-side session state after a successful refresh. */
+export function setTokenUpdater(updater: TokenUpdater | null): void {
+  tokenUpdater = updater;
+}
+
 const DEFAULT_TIMEOUT_MS = 12_000;
 
 /** Only explicitly public, read-only API families are eligible for anonymous offline caching. */
@@ -77,6 +122,8 @@ export type ApiRequestOptions = Omit<RequestInit, 'signal'> & {
   signal?: AbortSignal;
   /** Stable authenticated account ID; required for explicitly allow-listed private offline reads. */
   cacheOwnerId?: string;
+  /** @internal — set internally to prevent infinite 401 retry loops. */
+  _retried?: boolean;
 };
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -84,7 +131,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     throw new ApiError('يجب أن يبدأ مسار API بعلامة /.');
   }
 
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, token, headers, signal: externalSignal, cacheOwnerId, ...init } = options;
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, token, headers, signal: externalSignal, cacheOwnerId, _retried, ...init } = options;
   const cacheKey = publicGetCacheKey(path, init.method ?? 'GET', Boolean(token?.trim()))
     ?? privateGetCacheKey(path, init.method ?? 'GET', token, cacheOwnerId);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -93,7 +140,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   if (!API_BASE_URL) {
     if (cacheKey) {
       const cached = await readPublicCache<T>(cacheKey);
-      if (cached && isSuccessfulPublicEnvelope(cached)) return cached;
+      if (cached && isSuccessfulPublicEnvelope(cached)) return tagFromCache(cached);
     }
     throw new ApiError('عنوان API غير مضبوط. أضف EXPO_PUBLIC_API_URL إلى ملف البيئة.');
   }
@@ -106,6 +153,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       signal: controller.signal,
+      // On React Native, fetch() delegates cookie handling to the native HTTP client
+      // (CookieManager on Android, NSHTTPCookieStorage on iOS). The browser-only
+      // 'credentials' flag is respected on web builds but is effectively a no-op on
+      // native — the refresh cookie flows through the platform cookie jar, which is
+      // cleared automatically on logout (Set-Cookie with max-age=0). Do not rely on
+      // document.cookie or manual cookie storage; the platform handles it.
       credentials: options.credentials ?? 'include',
       headers: {
         Accept: 'application/json',
@@ -119,6 +172,27 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       ? await response.json().catch(() => null)
       : null;
     if (!response.ok) {
+      // Transparent refresh on 401: one retry per request, only when we have a token,
+      // and never on auth endpoints (would loop).
+      if (
+        response.status === 401
+        && !_retried
+        && refreshHandler
+        && Boolean(token?.trim())
+        && !path.startsWith('/api/v1/auth/')
+      ) {
+        try {
+          const refreshed = await refreshHandler();
+          tokenUpdater?.(refreshed.accessToken, refreshed.csrfToken, refreshed.expiresIn);
+          return apiRequest<T>(path, {
+            ...options,
+            token: refreshed.accessToken,
+            _retried: true,
+          });
+        } catch {
+          // Refresh failed — fall through to original 401.
+        }
+      }
       const body = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
       const message = typeof body.message === 'string' ? body.message
         : response.status === 401 ? 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.'
@@ -143,7 +217,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     // the caller-supplied account ID; mutations are always excluded.
     if (cacheKey && !(error instanceof ApiError && error.status !== undefined)) {
       const cached = await readPublicCache<T>(cacheKey);
-      if (cached && isSuccessfulPublicEnvelope(cached)) return cached;
+      if (cached && isSuccessfulPublicEnvelope(cached)) return tagFromCache(cached);
     }
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {

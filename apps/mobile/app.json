@@ -32,7 +32,8 @@
       "package": "com.marketplat.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#F7F8FA"
-      }
+      },
+      "versionCode": 1
     },
     "ios": {
       "bundleIdentifier": "com.marketplat.mobile",

@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { ApiError } from '@/api/client';
-import { loginWithPassword, logoutSession, refreshAccessSession, type AuthUser } from './auth.api';
-import { registerAccount } from '@/features/account/account.api';
+import { ApiError, setRefreshHandler, setTokenUpdater } from '@/api/client';
+import { loginWithPassword, logoutSession, refreshAccessSession, registerAccount, cancelRefreshing, type AuthUser } from './auth.api';
 
 const SECURE_SESSION_KEY = 'marketplat.mobile.session.v1';
 const ACCESS_TOKEN_FALLBACK_TTL_SECONDS = 15 * 60;
@@ -20,6 +19,7 @@ export type AuthState = {
   csrfToken: string | null;
   isBusy: boolean;
   isRestoring: boolean;
+  expiresAt: number | null;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { name: string; email: string; password: string; phone?: string; city?: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -53,20 +53,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  // Refs mirror latest state so the interceptor's tokenUpdater callback
+  // can persist to SecureStore without stale closures.
+  const userRef = useRef<AuthUser | null>(null);
+  const csrfRef = useRef<string | null>(null);
 
   const persist = useCallback(async (session: PersistedSession) => {
     await SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify(session));
     setUser(session.user);
     setAccessToken(session.accessToken);
     setCsrfToken(session.csrfToken);
+    setExpiresAt(session.expiresAt);
   }, []);
 
   const clearPersisted = useCallback(async () => {
     setUser(null);
     setAccessToken(null);
     setCsrfToken(null);
+    setExpiresAt(null);
     await SecureStore.deleteItemAsync(SECURE_SESSION_KEY).catch(() => undefined);
   }, []);
+
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { csrfRef.current = csrfToken; }, [csrfToken]);
 
   useEffect(() => {
     let mounted = true;
@@ -88,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(cached.user);
         setAccessToken(cached.accessToken);
         setCsrfToken(cached.csrfToken);
+        setExpiresAt(cached.expiresAt);
       }
 
       try {
@@ -118,6 +129,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { mounted = false; };
   }, [clearPersisted, persist]);
 
+  // Proactively refresh the access token 60s before expiry to avoid 401 storms.
+  useEffect(() => {
+    if (!expiresAt || expiresAt <= Date.now()) return;
+    const delay = Math.max(0, expiresAt - Date.now() - 60_000);
+    const timer = setTimeout(async () => {
+      try {
+        const refreshed = await refreshAccessSession();
+        if (user) {
+          await persist({
+            user,
+            accessToken: refreshed.accessToken,
+            csrfToken: refreshed.csrfToken ?? csrfToken,
+            expiresAt: sessionExpiry(refreshed.expiresIn),
+          });
+        }
+      } catch {
+        // Silent — interceptor or manual re-login will handle it.
+      }
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [expiresAt, user, csrfToken, persist]);
+
+  // Register transparent refresh handlers so apiRequest can retry on 401
+  // without importing auth.api directly (avoids circular dependency).
+  useEffect(() => {
+    setRefreshHandler(async () => {
+      const refreshed = await refreshAccessSession();
+      return {
+        accessToken: refreshed.accessToken,
+        csrfToken: refreshed.csrfToken,
+        expiresIn: refreshed.expiresIn,
+      };
+    });
+    setTokenUpdater((newToken, newCsrf, newExpiresIn) => {
+      setAccessToken(newToken);
+      if (newCsrf !== undefined) setCsrfToken(newCsrf);
+      if (typeof newExpiresIn === 'number' && newExpiresIn > 0) {
+        const newExpiresAt = Date.now() + newExpiresIn * 1000;
+        setExpiresAt(newExpiresAt);
+        // Persist immediately so a restart doesn't restore a stale token
+        // that was already rotated by the interceptor.
+        if (userRef.current) {
+          void SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify({
+            user: userRef.current,
+            accessToken: newToken,
+            csrfToken: newCsrf ?? csrfRef.current,
+            expiresAt: newExpiresAt,
+          } satisfies PersistedSession)).catch(() => undefined);
+        }
+      }
+    });
+    return () => {
+      setRefreshHandler(null);
+      setTokenUpdater(null);
+    };
+  }, []);
+
   const login = useCallback(async (email: string, password: string) => {
     setIsBusy(true);
     try {
@@ -145,6 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = accessToken;
     const csrf = csrfToken;
     setIsBusy(true);
+    // Prevent an in-flight refresh from clobbering local state after logout.
+    cancelRefreshing();
     try {
       if (token) await logoutSession(token, csrf ?? undefined);
     } finally {
@@ -154,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken, csrfToken, clearPersisted]);
 
-  const value = useMemo(() => ({ user, accessToken, csrfToken, isBusy, isRestoring, login, register, logout }), [user, accessToken, csrfToken, isBusy, isRestoring, login, register, logout]);
+  const value = useMemo(() => ({ user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout }), [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

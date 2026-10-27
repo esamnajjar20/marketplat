@@ -1,4 +1,4 @@
-import { router, usePathname } from 'expo-router';
+import { router, usePathname, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/theme/tokens';
@@ -15,6 +15,7 @@ const accountRoots = [
   '/activity', '/saved-searches', '/followed-stores', '/offline-queue', '/blocked-users',
   '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/appointments',
   '/service-requests', '/service-provider-profile', '/service-provider-analytics',
+  '/seller-profile',
   '/service-provider-hours', '/service-reviews', '/store-collections', '/store-hours',
   '/store-invites', '/store-promotions', '/store-team',
 ];
@@ -55,7 +56,7 @@ export default function BottomNavigation() {
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
-              onPress={() => router.navigate(tab.path as never)}
+              onPress={() => router.navigate(tab.path as Href)}
               style={({ pressed }) => [styles.tab, active && styles.activeTab, pressed && styles.pressed]}
             >
               <View style={[styles.glyphWrap, active && styles.activeGlyphWrap]}>
