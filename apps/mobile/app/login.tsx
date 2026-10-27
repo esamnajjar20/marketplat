@@ -53,8 +53,8 @@ export default function LoginScreen() {
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: isBusy }} disabled={isBusy} onPress={() => { void submit(); }} style={[styles.submit, isBusy && styles.submitDisabled]}>
           {isBusy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>تسجيل الدخول</Text>}
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '700' }}>نسيت كلمة المرور؟</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/register')}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '700' }}>إنشاء حساب جديد</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm }}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '800' }}>نسيت كلمة المرور؟</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/register')} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm }}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '800' }}>إنشاء حساب جديد</Text></Pressable>
         <Text style={styles.securityNote}>يُحفظ رمز الوصول داخل التخزين الآمن للجهاز. لا يخزّن التطبيق رمز التجديد؛ يعتمد تجديد الجلسة على Cookie آمنة يديرها الخادم.</Text>
       </ScrollView>
     </SafeAreaView>
@@ -63,20 +63,20 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.canvas },
-  content: { flexGrow: 1, padding: spacing.xl, gap: spacing.lg, justifyContent: 'center' },
+  content: { flexGrow: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: spacing.lg, justifyContent: 'center' },
   back: { alignSelf: 'flex-start', paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   backText: { color: colors.brand, fontSize: 14, fontWeight: '700' },
-  logo: { width: 62, height: 62, borderRadius: 20, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: spacing.lg },
+  logo: { width: 72, height: 72, borderRadius: 24, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: spacing.sm, elevation: 2 },
   logoText: { color: '#FFFFFF', fontSize: 32, fontWeight: '800' },
-  title: { color: colors.ink, fontSize: 27, fontWeight: '800', textAlign: 'center', marginTop: spacing.sm },
-  subtitle: { color: colors.muted, fontSize: 15, textAlign: 'center', marginBottom: spacing.md },
+  title: { color: colors.ink, fontSize: 29, fontWeight: '900', textAlign: 'center', marginTop: spacing.sm },
+  subtitle: { color: colors.muted, fontSize: 15, textAlign: 'center', lineHeight: 23, marginBottom: spacing.md },
   fieldGroup: { gap: spacing.sm },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '700', textAlign: 'right' },
-  input: { minHeight: 54, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.ink, paddingHorizontal: spacing.md, fontSize: 15 },
+  label: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  input: { minHeight: 56, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.ink, paddingHorizontal: spacing.md, fontSize: 16 },
   errorBox: { backgroundColor: '#FDECEC', borderColor: '#F3B7B7', borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
   errorText: { color: '#A51D1D', textAlign: 'right', lineHeight: 21 },
-  submit: { minHeight: 54, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
+  submit: { minHeight: 56, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, elevation: 1 },
   submitDisabled: { opacity: 0.65 },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
-  securityNote: { color: colors.muted, fontSize: 12, textAlign: 'center', lineHeight: 19, marginTop: spacing.sm },
+  securityNote: { color: colors.muted, fontSize: 12, textAlign: 'center', lineHeight: 20, marginTop: spacing.sm, paddingHorizontal: spacing.sm },
 });

@@ -78,7 +78,7 @@ export default function SaleCreateScreen() {
 
   return <PageShell title="تسجيل عملية بيع">
     <Notice tone="muted">يمكنك تسجيل بيع لسلعة واحدة أو إنشاء فاتورة تضم عدة أصناف. الفاتورة المتعددة اليدوية لا تخصم مخزون المتجر تلقائيًا.</Notice>
-    <View style={{ flexDirection: 'row-reverse', gap: spacing.sm }}>
+    <View style={{ flexDirection: 'row-reverse', gap: spacing.md }}>
       {([{ value: 'single', label: 'بيع أحادي' }, { value: 'multiple', label: 'بيع متعدد الأصناف' }] as const).map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: mode === option.value }} onPress={() => { setMode(option.value); setError(''); }} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: mode === option.value ? colors.brand : colors.border, backgroundColor: mode === option.value ? colors.brandSoft : colors.surface }}><Text style={{ textAlign: 'center', color: mode === option.value ? colors.brand : colors.ink, fontWeight: '800' }}>{option.label}</Text></Pressable>)}
     </View>
     {mode === 'single' ? <>
@@ -87,7 +87,7 @@ export default function SaleCreateScreen() {
       <Field label="سعر الوحدة (₪)" value={unitPrice} onChangeText={setUnitPrice} keyboardType="numeric" placeholder="0.00" />
     </> : <>
       <View style={{ gap: spacing.md }}>
-        {lines.map((line, index) => <View key={line.id} style={{ gap: spacing.sm, padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface }}>
+        {lines.map((line, index) => <View key={line.id} style={{ gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface }}>
           <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: colors.ink, fontWeight: '900' }}>الصنف {index + 1}</Text>{lines.length > 2 ? <Pressable accessibilityRole="button" onPress={() => setLines(current => current.filter(item => item.id !== line.id))}><Text style={{ color: colors.danger, fontWeight: '800' }}>حذف الصنف</Text></Pressable> : null}</View>
           <Field label="اسم الصنف" value={line.title} onChangeText={value => updateLine(line.id, { title: value })} maxLength={300} placeholder="اسم السلعة أو الخدمة" />
           <Field label="الكمية" value={line.quantity} onChangeText={value => updateLine(line.id, { quantity: value })} keyboardType="numeric" />

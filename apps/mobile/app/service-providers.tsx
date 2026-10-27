@@ -47,10 +47,10 @@ export default function ServiceProvidersScreen() {
     {loading ? <ActivityIndicator color={colors.brand} /> : error && items.length === 0 ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void load()} /></> : items.length === 0 ? <Notice tone="muted">لا توجد ملفات مقدمي خدمات مطابقة.</Notice> : <>
       <Text style={{ textAlign: 'right', color: colors.muted }}>{items.length} مقدم خدمة معروض</Text>
       {items.map(p => <Pressable key={p.id} onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: p.id } })}><SectionCard>
-        <Text style={{ textAlign: 'right', fontSize: 17, fontWeight: '800', color: colors.ink }}>{p.businessName || p.sellerProfile?.displayName || 'مقدم خدمة'}</Text>
+        <Text style={{ textAlign: 'right', fontSize: 18, fontWeight: '900', color: colors.ink }}>{p.businessName || p.sellerProfile?.displayName || 'مقدم خدمة'}</Text>
         <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }} numberOfLines={3}>{p.description || 'لا يوجد وصف.'}</Text>
         <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>★ {p.sellerProfile?.averageRating ?? '—'} · {p.sellerProfile?.totalRatings ?? 0} تقييم</Text>
-        <Text style={{ textAlign: 'right', color: colors.muted, fontSize: 12 }}>مناطق الخدمة: {p.serviceAreaCities?.join('، ') || 'غير محددة'}</Text>
+        <Text style={{ textAlign: 'right', color: colors.muted, fontSize: 13 }}>مناطق الخدمة: {p.serviceAreaCities?.join('، ') || 'غير محددة'}</Text>
         <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>عرض الملف والخدمات ←</Text>
       </SectionCard></Pressable>)}
       {error ? <Notice>{error}</Notice> : null}

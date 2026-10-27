@@ -180,6 +180,28 @@ describe('Sales integration flow', () => {
     expect(secondFresh.stockQuantity).toBe(4);
   });
 
+  it('rejects duplicate product rows in a POS cart without changing stock or creating a sale', async () => {
+    const { user, store } = await sellerStore();
+    const product = await createProduct(store.id);
+    const response = await request(app)
+      .post('/api/v1/sales')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .send({
+        entityType: 'PRODUCT', storeId: store.id, entityTitle: 'Duplicate POS cart',
+        quantity: 2, unitPrice: 10, buyerName: 'Duplicate Cart Buyer', paidAmount: 0,
+        items: [
+          { productId: product.id, quantity: 1, unitPrice: 10, discount: 0 },
+          { productId: product.id, quantity: 1, unitPrice: 10, discount: 0 },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error?.code ?? response.body.code).toBe('DUPLICATE_POS_PRODUCT');
+    const fresh = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(fresh.stockQuantity).toBe(10);
+    expect(await prisma.saleRecord.count({ where: { sellerId: user.id, buyerName: 'Duplicate Cart Buyer' } })).toBe(0);
+  });
+
   it('persists mixed payments as separate SalePayment rows', async () => {
     const user = await createTestUser();
     const res = await request(app).post('/api/v1/sales').set('Authorization', `Bearer ${user.accessToken}`).send({
