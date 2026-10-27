@@ -165,19 +165,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenUpdater((newToken, newCsrf, newExpiresIn) => {
       setAccessToken(newToken);
       if (newCsrf !== undefined) setCsrfToken(newCsrf);
-      if (typeof newExpiresIn === 'number' && newExpiresIn > 0) {
-        const newExpiresAt = Date.now() + newExpiresIn * 1000;
-        setExpiresAt(newExpiresAt);
-        // Persist immediately so a restart doesn't restore a stale token
-        // that was already rotated by the interceptor.
-        if (userRef.current) {
-          void SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify({
-            user: userRef.current,
-            accessToken: newToken,
-            csrfToken: newCsrf ?? csrfRef.current,
-            expiresAt: newExpiresAt,
-          } satisfies PersistedSession)).catch(() => undefined);
-        }
+      // Always persist — if the server omitted expiresIn, fall back to the
+      // session TTL so a restart never restores a stale rotated token.
+      const newExpiresAt = typeof newExpiresIn === 'number' && newExpiresIn > 0
+        ? Date.now() + newExpiresIn * 1000
+        : Date.now() + ACCESS_TOKEN_FALLBACK_TTL_SECONDS * 1000;
+      setExpiresAt(newExpiresAt);
+      if (userRef.current) {
+        void SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify({
+          user: userRef.current,
+          accessToken: newToken,
+          csrfToken: newCsrf ?? csrfRef.current,
+          expiresAt: newExpiresAt,
+        } satisfies PersistedSession)).catch(() => undefined);
       }
     });
     return () => {

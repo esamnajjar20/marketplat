@@ -204,12 +204,27 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     if (cacheKey && isSuccessfulPublicEnvelope(payload)) {
       await writePublicCache(cacheKey, payload);
     } else if (init.method && init.method.toUpperCase() !== 'GET' && token) {
-      // Cross-feature mutations (orders, requests, appointments, sales) can affect
-      // multiple cached views. Clear private snapshots conservatively after success.
-      await clearPrivateCache();
-      const resourceKey = privateCacheResourceKey(path, cacheOwnerId)
-        ?? (path.split('?', 1)[0] === '/api/v1/users/me/notifications' ? privateCacheResourceKey('/api/v1/users/me', cacheOwnerId) : null);
-      if (resourceKey) await deletePublicCacheEntry(resourceKey);
+      // Targeted cache invalidation: only clear the affected resource's
+      // private snapshot. Falls back to full private-cache clearing only for
+      // cross-cutting mutations that we know affect multiple views.
+      const pathname = path.split('?', 1)[0];
+      const crossCuttingPrefixes = [
+        '/api/v1/orders',
+        '/api/v1/requests',
+        '/api/v1/appointments',
+        '/api/v1/sales',
+      ];
+      const isCrossCutting = crossCuttingPrefixes.some((prefix) => pathname.startsWith(prefix));
+      if (isCrossCutting) {
+        // These mutations can affect multiple cached views (orders list,
+        // request detail, seller dashboard). Conservative clear.
+        await clearPrivateCache();
+      } else {
+        // Precise invalidation: e.g. PATCH /users/me → only that resource.
+        const resourceKey = privateCacheResourceKey(path, cacheOwnerId)
+          ?? (pathname === '/api/v1/users/me/notifications' ? privateCacheResourceKey('/api/v1/users/me', cacheOwnerId) : null);
+        if (resourceKey) await deletePublicCacheEntry(resourceKey);
+      }
     }
     return payload as T;
   } catch (error) {
