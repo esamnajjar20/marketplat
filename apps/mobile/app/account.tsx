@@ -28,10 +28,12 @@ const groups: DestinationGroup[] = [
     { title: 'النشاط', description: 'مراجعة نشاط الحساب', path: '/activity', requiresAuth: true },
   ] },
   { title: 'إدارة المتجر والخدمات', subtitle: 'الأدوات التجارية التي تحتاجها عند البيع', items: [
+    { title: 'ملف البائع', description: 'إعداد ملفك كبائع — شرط أساسي لإنشاء متجر أو خدمة', path: '/seller-profile', requiresAuth: true },
     { title: 'متجري', description: 'إدارة بيانات المتجر والهوية التجارية', path: '/my-store', requiresAuth: true },
     { title: 'منتجاتي', description: 'إدارة المنتجات والأسعار والمخزون', path: '/my-products', requiresAuth: true },
     { title: 'خدماتي', description: 'إدارة الخدمات التي تعرضها', path: '/my-services', requiresAuth: true },
     { title: 'طلباتي وعروضي', description: 'متابعة الطلبات والعروض التي قدمتها', path: '/my-requests', requiresAuth: true },
+    { title: 'عروضي', description: 'العروض التي قدّمتها على الطلبات المفتوحة', path: '/my-offers', requiresAuth: true },
     { title: 'المواعيد', description: 'متابعة مواعيد الخدمات والحجوزات', path: '/appointments', requiresAuth: true },
     { title: 'ملف مقدم الخدمة', description: 'إدارة بيانات نشاط الخدمات', path: '/service-provider-profile', requiresAuth: true },
     { title: 'إحصاءات المتجر', description: 'مراجعة الزيارات والمتابعين وأداء المنتجات', path: '/my-store-analytics', requiresAuth: true },
