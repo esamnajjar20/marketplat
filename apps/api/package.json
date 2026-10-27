@@ -1,7 +1,7 @@
 {
   "name": "classifieds-platform-backend",
   "version": "3.0.0",
-  "description": "Classifieds & Marketplace Platform — Backend API",
+  "description": "Classifieds & Marketplace Platform \u2014 Backend API",
   "license": "UNLICENSED",
   "main": "dist/server.js",
   "engines": {
@@ -61,7 +61,10 @@
     "audit:offline-idempotency-concurrency": "node scripts/offline-idempotency-concurrency-audit.mjs",
     "audit:offline-idempotency-phase10": "node scripts/offline-idempotency-phase10-audit.mjs",
     "audit:offline-idempotency-phase11": "node scripts/offline-idempotency-phase11-audit.mjs",
-    "audit:marketplace-order-cancellation-concurrency": "node scripts/marketplace-order-cancellation-concurrency-audit.mjs"
+    "audit:marketplace-order-cancellation-concurrency": "node scripts/marketplace-order-cancellation-concurrency-audit.mjs",
+    "audit:product-stock-adjustment-concurrency": "node scripts/product-stock-adjustment-concurrency-audit.mjs",
+    "audit:product-update-pricing-concurrency": "node scripts/product-update-pricing-concurrency-audit.mjs",
+    "audit:sale-deleted-product-reconciliation": "node scripts/sale-deleted-product-reconciliation-audit.mjs"
   },
   "lint-staged": {
     "src/**/*.ts": [

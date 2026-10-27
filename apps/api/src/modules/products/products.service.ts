@@ -478,16 +478,16 @@ export const productsService = {
       );
     }
 
-    const updated =
-      input.stockQuantity !== undefined
-        ? await productsRepository.updateWithStockMovement(
-            id,
-            store.id,
-            userId,
-            patch,
-            'MANUAL_ADJUSTMENT'
-          )
-        : await productsRepository.update(id, store.id, patch);
+    // Always serialize product edits through the row-locking transaction.
+    // Even a non-stock patch can change one side of the pricing pair, so the
+    // repository revalidates the complete final state against the locked row.
+    const updated = await productsRepository.updateWithStockMovement(
+      id,
+      store.id,
+      userId,
+      patch,
+      'MANUAL_ADJUSTMENT'
+    );
     // Edits (incl. stock/availability): soft invalidation (stale once, then
     // refreshed). A status change away from ACTIVE must hide the product now.
     if (patch.status && patch.status !== 'ACTIVE') {

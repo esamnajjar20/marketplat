@@ -201,15 +201,35 @@ export const salesRepository = {
     }));
   },
 
-  topCustomers: async (sellerId: string, limit: number) =>
-    prisma.saleRecord.groupBy({
-      by: ['customerId', 'buyerName'],
-      where: { sellerId, customerId: { not: null } },
-      _sum: { totalPrice: true },
-      _count: { id: true },
-      orderBy: { _sum: { totalPrice: 'desc' } },
-      take: limit,
-    }),
+  topCustomers: async (sellerId: string, limit: number) => {
+    const safeLimit = Math.min(100, Math.max(1, Math.trunc(Number.isFinite(limit) ? limit : 5)));
+    const rows = await prisma.$queryRaw<Array<{
+      customerId: string;
+      buyerName: string;
+      totalSpent: Prisma.Decimal;
+      saleCount: bigint;
+    }>>`
+      SELECT
+        sr."customerId" AS "customerId",
+        COALESCE(MAX(c."name"), MAX(sr."buyerName")) AS "buyerName",
+        COALESCE(SUM(sr."totalPrice" - sr."refundedAmount"), 0) AS "totalSpent",
+        COUNT(*)::bigint AS "saleCount"
+      FROM "sale_records" sr
+      LEFT JOIN "sales_customers" c
+        ON c."id" = sr."customerId" AND c."sellerId" = sr."sellerId"
+      WHERE sr."sellerId" = ${sellerId}
+        AND sr."customerId" IS NOT NULL
+      GROUP BY sr."customerId"
+      ORDER BY "totalSpent" DESC, sr."customerId" ASC
+      LIMIT ${safeLimit}
+    `;
+    return rows.map(row => ({
+      customerId: row.customerId,
+      buyerName: row.buyerName,
+      _sum: { totalPrice: row.totalSpent },
+      _count: { id: Number(row.saleCount) },
+    }));
+  },
 
   debts: async (sellerId: string, page = 1, limit = 20) => {
     const safePage = Math.min(1000, Math.max(1, Math.trunc(page)));

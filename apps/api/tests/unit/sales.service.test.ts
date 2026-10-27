@@ -59,11 +59,29 @@ describe('salesService', () => {
     (tx.saleRecord.findMany as jest.Mock).mockResolvedValue([]);
   });
 
-  it('returns the existing sale for the same offline operation idempotency key', async () => {
-    (prisma.saleRecord.findFirst as jest.Mock).mockResolvedValue({ id: 'sale-existing', sellerId: 'user-1', offlineOperationId: 'op-1' });
-    (salesRepository.findById as jest.Mock).mockResolvedValue({ id: 'sale-existing' });
+  const matchingReplaySale = {
+    id: 'sale-existing', sellerId: 'user-1', offlineOperationId: 'op-1',
+    entityType: 'FREE', entityId: null, entityTitle: 'Manual sale', quantity: 2,
+    unitPrice: 25, totalPrice: 50, paidAmount: 50, currency: 'ILS', buyerName: 'Customer',
+    buyerPhone: null, customerId: null, serviceRequestId: null, dueDate: null,
+    note: null, internalNote: null, soldAt: new Date('2026-01-01T00:00:00.000Z'),
+    items: [{ entityType: 'FREE', entityId: null, productId: null, title: 'Manual sale', quantity: 2, unitPrice: 25, lineTotal: 50 }],
+    payments: [], installments: [],
+  };
+
+  it('returns the existing sale for the same offline operation idempotency key and payload', async () => {
+    (prisma.saleRecord.findFirst as jest.Mock).mockResolvedValue({ id: 'sale-existing' });
+    (salesRepository.findById as jest.Mock).mockResolvedValue(matchingReplaySale);
     const result = await salesService.create('user-1', base, 'op-1');
-    expect(result).toEqual({ id: 'sale-existing' });
+    expect(result).toEqual(matchingReplaySale);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects reusing a sale idempotency key with a different payload', async () => {
+    (prisma.saleRecord.findFirst as jest.Mock).mockResolvedValue({ id: 'sale-existing' });
+    (salesRepository.findById as jest.Mock).mockResolvedValue(matchingReplaySale);
+    await expect(salesService.create('user-1', { ...base, quantity: 3 }, 'op-1'))
+      .rejects.toMatchObject({ code: 'SALE_OPERATION_CONFLICT' });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

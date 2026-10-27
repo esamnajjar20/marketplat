@@ -4,6 +4,7 @@ import { getPaginationParams } from '../../shared/utils/pagination';
 import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
 import { GetProductsQuery } from './products.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export type ProductWithStore = Prisma.ProductGetPayload<{
   include: {
@@ -212,8 +213,43 @@ export const productsRepository = {
     reason = 'MANUAL_ADJUSTMENT'
   ): Promise<Product> =>
     prisma.$transaction(async tx => {
-      const current = await tx.product.findUnique({ where: { id } });
-      if (!current || current.storeId !== storeId) throw new Error('PRODUCT_NOT_FOUND');
+      // Serialize absolute stock edits with POS sales, cancellations and other
+      // inventory changes. A plain findUnique followed by update can let two
+      // concurrent adjustments both record the same stale previous quantity.
+      const lockedRows = await tx.$queryRaw<
+        Array<{ id: string; storeId: string; stockQuantity: number | null; status: string }>
+      >(Prisma.sql`SELECT "id", "storeId", "stockQuantity", "status" FROM "products" WHERE "id" = ${id} FOR UPDATE`);
+      const current = lockedRows[0];
+      if (!current || current.storeId !== storeId || current.status === 'DELETED')
+        throw new Error('PRODUCT_NOT_FOUND');
+
+      // Revalidate cross-field pricing constraints against the row locked in
+      // this transaction. Service-layer validation alone is vulnerable to
+      // concurrent partial updates (e.g. price and discountPrice changed by
+      // separate requests that each validated against the same old snapshot).
+      const currentProduct = await tx.product.findUnique({ where: { id, storeId } });
+      if (!currentProduct) throw new Error('PRODUCT_NOT_FOUND');
+      const finalPrice = data.price ?? Number(currentProduct.price);
+      const finalDiscountPrice =
+        data.discountPrice === undefined
+          ? currentProduct.discountPrice == null ? null : Number(currentProduct.discountPrice)
+          : data.discountPrice;
+      const finalWholesalePrice =
+        data.wholesalePrice === undefined
+          ? currentProduct.wholesalePrice == null ? null : Number(currentProduct.wholesalePrice)
+          : data.wholesalePrice;
+      const finalWholesaleMinQty =
+        data.wholesaleMinQty === undefined ? currentProduct.wholesaleMinQty : data.wholesaleMinQty;
+
+      if (finalDiscountPrice !== null && finalDiscountPrice >= finalPrice) {
+        throw new BadRequestError('discountPrice must be less than price', 'INVALID_DISCOUNT_PRICE');
+      }
+      if ((finalWholesalePrice !== null) !== (finalWholesaleMinQty !== null)) {
+        throw new BadRequestError(
+          'wholesalePrice and wholesaleMinQty must be provided together',
+          'INVALID_WHOLESALE_PRICING'
+        );
+      }
 
       const updated = await tx.product.update({ where: { id, storeId }, data });
       if (data.stockQuantity !== undefined && current.stockQuantity !== updated.stockQuantity) {
