@@ -1,8 +1,6 @@
 name: DB Backup
 
 on:
-  schedule:
-    - cron: '0 3 * * *'
   workflow_dispatch:
 
 concurrency:

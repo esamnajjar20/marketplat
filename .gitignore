@@ -105,3 +105,6 @@ Modelfile.fast
 
 # Monorepo package-manager local store
 .pnpm-store/
+
+# Workflow YAML backups — never commit
+.workflow-backups-*/

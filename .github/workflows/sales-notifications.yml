@@ -2,8 +2,6 @@ name: Sales Notifications
 on:
   # Run hourly in UTC and let the script select Asia/Gaza local hours.
   # Fixed UTC slots drift by one hour when Gaza changes its UTC offset.
-  schedule:
-    - cron: '0 * * * *'
   workflow_dispatch:
 
 concurrency:

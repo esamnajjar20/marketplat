@@ -8,8 +8,6 @@ name: Scheduled Jobs (daily)
 # 04:00 UTC = 06:00 or 07:00 Gaza depending on DST — a quiet hour with
 # low traffic so the runner never competes with user requests.
 on:
-  schedule:
-    - cron: '0 4 * * *'
   workflow_dispatch:
 
 concurrency:

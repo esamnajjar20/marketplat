@@ -2,12 +2,6 @@ name: Smoke E2E
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/web/**'
-      - '.github/workflows/smoke-e2e.yml'
-
 jobs:
   smoke:
     name: Smoke E2E

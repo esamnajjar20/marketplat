@@ -2,15 +2,6 @@ name: Android Test APK
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "apps/mobile/**"
-      - "packages/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "package.json"
-      - ".github/workflows/android-test-apk.yml"
-
 permissions:
   contents: read
 
