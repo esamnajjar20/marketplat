@@ -1,4 +1,6 @@
 import { Stack } from 'expo-router';
+import { View } from 'react-native';
+import BottomNavigation from '@/components/BottomNavigation';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/theme/tokens';
 import { AuthProvider } from '@/features/auth/AuthContext';
@@ -13,13 +15,17 @@ export default function RootLayout() {
       <FavoritesSyncLifecycleBridge />
       <ChatMessageOutboxLifecycleBridge />
       <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.canvas },
-          animation: 'fade_from_bottom',
-        }}
-      />
+      <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.canvas },
+            animation: 'fade_from_bottom',
+            gestureEnabled: true,
+          }}
+        />
+        <BottomNavigation />
+      </View>
     </AuthProvider>
   );
 }

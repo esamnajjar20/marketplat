@@ -16,10 +16,7 @@ assert.match(categoriesApi, /response\.success !== true/);
 assert.match(categoriesApi, /flattenPublicCategories/);
 assert.match(adsApi, /categoryId\?: string/);
 assert.match(adsApi, /params\.set\('categoryId', options\.categoryId\)/);
-assert.match(home, /fetchPublicCategories/);
-assert.match(home, /categoryId: selectedCategory \?\? undefined/);
-assert.match(home, /categoriesError/);
-assert.match(home, /setSelectedCategory/);
+assert.doesNotMatch(home, /fetchPublicCategories|categoryId: selectedCategory|categoriesError|setSelectedCategory|flattenPublicCategories/, 'The homepage must not fetch or render a duplicate category grid; categories remain reachable through Explore.');
 if (backendRoutes) assert.match(backendRoutes, /categoriesRouter\.get\('\/', CACHE\.STATIC, categoriesController\.getCategories\)/);
 
 console.log('Phase 7 category integration checks passed (static contract checks only; no live API or native build performed).');

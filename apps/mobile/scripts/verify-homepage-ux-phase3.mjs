@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const source = readFileSync(new URL('../app/index.tsx', import.meta.url), 'utf8');
+assert.doesNotMatch(source, /HomeMarketplaceHighlights|fetchMixedRecommendations|اكتشف من السوق/, 'mixed recommendations are intentionally excluded from the homepage');
+assert.match(source, /<HomeCommunitySections\s*\/>/, 'store/story community sections remain mounted');
+assert.match(source, /تصفية وترتيب النتائج/, 'filters are available behind a compact toggle');
+assert.match(source, /accessibilityState=\{\{ expanded: showFilters \}\}/, 'filter toggle exposes expanded accessibility state');
+assert.match(source, /showFilters \? <View style=\{styles\.advancedFilters\}/, 'advanced filters are collapsed by default');
+assert.doesNotMatch(source, /تصفّح الأقسام/, 'duplicated category grid is removed from home');
+assert.doesNotMatch(source, /fetchPublicCategories|getCachedPublicCategories|flattenPublicCategories/, 'home no longer makes a separate category fetch');
+assert.match(source, /path: '\/explore'/, 'all categories remain accessible through Explore shortcut');
+assert.match(source, /getCachedPublicAdsWithMetadata/, 'existing offline ads cache behavior is preserved');
+console.log('Homepage UX phase 3 verification passed.');

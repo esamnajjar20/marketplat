@@ -16,23 +16,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { AdListItem, fetchPublicAds, getCachedPublicAdsWithMetadata } from '@/features/ads/ads.api';
-import { fetchPublicCategories, flattenPublicCategories, getCachedPublicCategories, PublicCategory } from '@/features/categories/categories.api';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
-
-type Category = PublicCategory & { title: string; symbol: string; color: string };
-const categoryColors = ['#E7F0FF', '#FBEBD9', '#F1E8FF', '#DFF5EC', '#FFF0C7', '#E9EDF1'];
-function categoryPresentation(category: PublicCategory, index: number): Category {
-  const label = category.nameAr || category.name;
-  const normalized = `${label} ${category.slug}`.toLowerCase();
-  const symbol = /سيار|مركب|vehicle|car/.test(normalized) ? '🚗'
-    : /عقار|سكن|property|real-estate/.test(normalized) ? '🏠'
-    : /هاتف|جوال|الكترون|phone|mobile/.test(normalized) ? '📱'
-    : /منزل|أثاث|بيت|home|furniture/.test(normalized) ? '🛋️'
-    : /وظيف|عمل|job|career/.test(normalized) ? '💼' : '▦';
-  return { ...category, title: label, symbol, color: categoryColors[index % categoryColors.length] };
-}
+import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
+import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
 
 function formatPrice(price: AdListItem['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -45,14 +33,12 @@ export default function HomeScreen() {
   const { user, logout, isBusy, isRestoring } = useAuth();
   const [query, setQuery] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   const [ads, setAds] = useState<AdListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const [adsSavedAt, setAdsSavedAt] = useState<number | null>(null);
   const [adsFromCache, setAdsFromCache] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -71,16 +57,25 @@ export default function HomeScreen() {
   const adsRequestSequence = useRef(0);
   const connectivityRef = useRef<boolean | null>(null);
 
+  // Keep derived lists stable between unrelated UI updates (search typing,
+  // favorite taps, and filter-panel toggles) to avoid repeated scans and child renders.
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+  const visibleAds = useMemo(
+    () => (showFavorites ? ads.filter((ad) => favoriteIdSet.has(ad.id)) : ads),
+    [ads, showFavorites, favoriteIdSet],
+  );
+
   const loadAds = useCallback(async (isRefresh = false) => {
     const requestSequence = ++adsRequestSequence.current;
     const isCurrentRequest = () => requestSequence === adsRequestSequence.current;
     if (isRefresh) setRefreshing(true);
     setErrorMessage(null);
+    setRefreshNotice(null);
     setLoadingMore(false);
     setPage(1);
     setTotalPages(1);
-    const options = { page: 1, limit: 8, search: submittedSearch, categoryId: selectedCategory ?? undefined } as {
-      page: number; limit: number; search: string; categoryId: string | undefined;
+    const options = { page: 1, limit: 8, search: submittedSearch } as {
+      page: number; limit: number; search: string;
       city?: string; minPrice?: number; maxPrice?: number;
       sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
     };
@@ -103,8 +98,18 @@ export default function HomeScreen() {
     } catch { /* Cache is optional; continue with network. */ }
     if (!hasCachedData && !isRefresh) setLoading(true);
     try {
+      // Avoid a guaranteed failing GET when the device already reports no network.
+      // Cached results remain visible; an uncached first visit gets a clear offline message.
+      const networkState = await NetInfo.fetch();
+      if (!isCurrentRequest()) return;
+      if (networkState.isConnected === false) {
+        if (!hasCachedData) setErrorMessage('أنت غير متصل بالإنترنت ولا توجد نسخة محفوظة من هذه النتائج على الجهاز. اتصل بالإنترنت ثم أعد المحاولة.');
+        else setRefreshNotice('أنت غير متصل حاليًا؛ نعرض آخر نسخة محفوظة من الإعلانات.');
+        return;
+      }
       const result = await fetchPublicAds(options);
       if (!isCurrentRequest()) return;
+      setRefreshNotice(null);
       setAds(result.items);
       setPage(result.page || 1);
       setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? (result.page || 1) + 1 : (result.page || 1)));
@@ -116,16 +121,20 @@ export default function HomeScreen() {
       }
     } catch (error) {
       if (!isCurrentRequest()) return;
-      if (!hasCachedData) setErrorMessage(error instanceof ApiError || error instanceof Error
-        ? error.message
-        : 'تعذر تحميل الإعلانات. حاول مرة أخرى.');
+      if (hasCachedData) {
+        setRefreshNotice('تعذر تحديث الإعلانات الآن؛ ما زلنا نعرض النسخة المحفوظة على الجهاز.');
+      } else {
+        setErrorMessage(error instanceof ApiError || error instanceof Error
+          ? error.message
+          : 'تعذر تحميل الإعلانات. حاول مرة أخرى.');
+      }
     } finally {
       if (isCurrentRequest()) {
         setLoading(false);
         setRefreshing(false);
       }
     }
-  }, [submittedSearch, selectedCategory, filters, sortBy, sortOrder]);
+  }, [submittedSearch, filters, sortBy, sortOrder]);
 
   const loadMoreAds = useCallback(async () => {
     if (loadingMore || loading || page >= totalPages || showFavorites) return;
@@ -133,8 +142,8 @@ export default function HomeScreen() {
     setErrorMessage(null);
     const requestSequence = adsRequestSequence.current;
     const nextPage = page + 1;
-    const options = { page: nextPage, limit: 8, search: submittedSearch, categoryId: selectedCategory ?? undefined } as {
-      page: number; limit: number; search: string; categoryId: string | undefined;
+    const options = { page: nextPage, limit: 8, search: submittedSearch } as {
+      page: number; limit: number; search: string;
       city?: string; minPrice?: number; maxPrice?: number;
       sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
     };
@@ -144,7 +153,13 @@ export default function HomeScreen() {
       if (requestSequence !== adsRequestSequence.current) return;
       setAds((current) => {
         const seen = new Set(current.map((item) => item.id));
-        return [...current, ...result.items.filter((item) => !seen.has(item.id))];
+        const additions: AdListItem[] = [];
+        for (const item of result.items) {
+          if (seen.has(item.id)) continue;
+          seen.add(item.id);
+          additions.push(item);
+        }
+        return [...current, ...additions];
       });
       setPage(result.page || nextPage);
       setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? nextPage + 1 : nextPage));
@@ -155,7 +170,7 @@ export default function HomeScreen() {
     } finally {
       if (requestSequence === adsRequestSequence.current) setLoadingMore(false);
     }
-  }, [loadingMore, loading, page, totalPages, showFavorites, submittedSearch, selectedCategory, filters, sortBy, sortOrder]);
+  }, [loadingMore, loading, page, totalPages, showFavorites, submittedSearch, filters, sortBy, sortOrder]);
 
   const applyFilters = useCallback(() => {
     const minText = minPriceInput.trim();
@@ -180,19 +195,15 @@ export default function HomeScreen() {
   // Keep the previous connectivity value across renders so changing search/filter
   // subscriptions cannot masquerade as a reconnect.
   useEffect(() => {
-    let active = true;
     const unsubscribe = NetInfo.addEventListener((state) => {
       const online = state.isConnected === true && state.isInternetReachable !== false;
       const previous = connectivityRef.current;
       connectivityRef.current = online;
       if (previous === false && online) {
         void loadAds(true);
-        void fetchPublicCategories().then((tree) => {
-          if (active) setCategories(flattenPublicCategories(tree).map(categoryPresentation));
-        }).catch(() => { /* Keep cached categories on sync failure. */ });
       }
     });
-    return () => { active = false; unsubscribe(); };
+    return () => { unsubscribe(); };
   }, [loadAds]);
 
   useEffect(() => {
@@ -221,34 +232,6 @@ export default function HomeScreen() {
     }
   }, [favoriteIds, user?.id]);
 
-  useEffect(() => {
-    let active = true;
-    setCategoriesLoading(true);
-    setCategoriesError(null);
-    void (async () => {
-      let hasCachedCategories = false;
-      try {
-        const cached = await getCachedPublicCategories();
-        if (active && cached) {
-          hasCachedCategories = true;
-          setCategories(flattenPublicCategories(cached).map(categoryPresentation));
-          setCategoriesLoading(false);
-        }
-      } catch { /* Cache is optional; continue with network. */ }
-      try {
-        const tree = await fetchPublicCategories();
-        if (active) setCategories(flattenPublicCategories(tree).map(categoryPresentation));
-      } catch (error) {
-        if (active && !hasCachedCategories) setCategoriesError(error instanceof Error ? error.message : 'تعذر تحميل الأقسام.');
-      } finally { if (active) setCategoriesLoading(false); }
-    })();
-    return () => { active = false; };
-  }, []);
-
-  const filteredCategories = useMemo(() => {
-    const normalized = query.trim();
-    return categories.filter((item) => !normalized || item.title.includes(normalized));
-  }, [categories, query]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -288,15 +271,15 @@ export default function HomeScreen() {
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>{user ? `أهلًا ${user.name}` : 'أهلاً بك في سوقك المحلي'}</Text>
           <Text style={styles.heroTitle}>تلاقي اللي بدك إياه</Text>
-          <Text style={styles.heroBody}>تصفّح الإعلانات أو ابحث عن شيء محدد بسهولة.</Text>
+          <Text style={styles.heroBody}>اكتشف الإعلانات والمتاجر والمنتجات والخدمات من مكان واحد.</Text>
           <View style={styles.searchBox}>
             <Text style={styles.searchIcon}>⌕</Text>
             <TextInput
-              accessibilityLabel="ابحث عن إعلان أو قسم"
+              accessibilityLabel="ابحث عن إعلان أو متجر أو منتج أو خدمة"
               value={query}
               onChangeText={setQuery}
               onSubmitEditing={() => { setSubmittedSearch(query.trim()); }}
-              placeholder="شو حابب تلاقي اليوم؟"
+              placeholder="منتج، متجر، خدمة أو إعلان..."
               placeholderTextColor="#858D98"
               returnKeyType="search"
               style={styles.searchInput}
@@ -306,195 +289,28 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.quickActions}>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/categories')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>تصنيفات السوق</Text><Text style={styles.quickSubtitle}>تصفح الأقسام العامة والإعلانات</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/search')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>⌕</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>البحث المتقدم</Text><Text style={styles.quickSubtitle}>فلترة النتائج حسب النوع والسعر والمدينة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/trending')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>↗</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الرائج الآن</Text><Text style={styles.quickSubtitle}>إعلانات ومنتجات وخدمات مقترحة للاكتشاف</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/suggestions')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6C45A8' }]}>✦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مقترحات لك</Text><Text style={styles.quickSubtitle}>اكتشف محتوى يناسب اهتماماتك</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/sellers-ranking')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>★</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>أفضل البائعين</Text><Text style={styles.quickSubtitle}>تعرف على البائعين الأعلى تقييمًا وثقة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/stories')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6C45A8' }]}>◉</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>القصص</Text><Text style={styles.quickSubtitle}>شاهد القصص أو انشر قصة جديدة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>⌕</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف</Text><Text style={styles.quickSubtitle}>الأقسام والمتاجر والخدمات والعروض</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>＋</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>إعلان أو منتج أو خدمة أو طلب</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/service-providers')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>♙</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مقدمو الخدمات</Text><Text style={styles.quickSubtitle}>اكتشف مقدمي الخدمات حسب المدينة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/services')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F4F0' }]}><Text style={styles.quickGlyph}>✦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الخدمات</Text><Text style={styles.quickSubtitle}>اعثر على مقدم خدمة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => user ? router.push('/service-requests') : router.push('/login')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▤</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات الخدمات</Text><Text style={styles.quickSubtitle}>تابع طلباتك وردودها</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/requests')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>◉</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات السوق</Text><Text style={styles.quickSubtitle}>طلبات الشراء والخدمات والتأجير</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => user ? router.push('/appointments') : router.push('/login')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>◷</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المواعيد</Text><Text style={styles.quickSubtitle}>مواعيد طلبات الخدمات</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => user ? router.push('/my-services') : router.push('/login')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>✦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>خدماتي</Text><Text style={styles.quickSubtitle}>إضافة خدماتك وتعديلها</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-requests')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▤</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلباتي في السوق</Text><Text style={styles.quickSubtitle}>طلباتك المنشورة والعروض الواردة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-offers')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F4F0' }]}><Text style={styles.quickGlyph}>₪</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>عروضي</Text><Text style={styles.quickSubtitle}>متابعة عروضك على الطلبات المفتوحة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/seller-profile')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>♙</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>ملف البائع</Text><Text style={styles.quickSubtitle}>تفعيل نشاطك التجاري على المنصة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/service-provider-profile')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>✦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>ملف مقدم الخدمة</Text><Text style={styles.quickSubtitle}>إعداد النشاط ومناطق الخدمة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/saved-searches')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>⌕</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>عمليات البحث المحفوظة</Text><Text style={styles.quickSubtitle}>ارجع إلى الفلاتر التي تحفظها</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user && !user.emailVerified ? <Pressable accessibilityRole="button" onPress={() => router.push('/verify-email')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>!</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>تأكيد البريد الإلكتروني</Text><Text style={styles.quickSubtitle}>فعّل حسابك للوصول إلى جميع الميزات</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/profile')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>●</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>ملفي الشخصي</Text><Text style={styles.quickSubtitle}>بيانات الحساب وكلمة المرور</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>⚙</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الإعدادات</Text><Text style={styles.quickSubtitle}>إدارة الإشعارات والتفضيلات</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/storage')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▤</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>التخزين والبيانات</Text><Text style={styles.quickSubtitle}>إدارة الذاكرة المؤقتة والمسودات والمزامنة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          <Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>▣</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المتاجر</Text><Text style={styles.quickSubtitle}>اكتشف المتاجر المحلية</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/products')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>◇</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المنتجات</Text><Text style={styles.quickSubtitle}>تصفح المنتجات والأسعار</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/product-categories')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FBEBD9' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>تصنيفات المنتجات</Text><Text style={styles.quickSubtitle}>تصفح المنتجات حسب التصنيف</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/promoted')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>✦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>العروض المروجة</Text><Text style={styles.quickSubtitle}>اكتشف المنتجات ذات العروض</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/orders')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▤</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلباتي</Text><Text style={styles.quickSubtitle}>تابع مشترياتك وحالة التسليم</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-sales')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6841A5' }]}>₪</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مبيعاتي</Text><Text style={styles.quickSubtitle}>الإيرادات والمدفوعات والمبالغ المستحقة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <><Pressable accessibilityRole="button" onPress={() => router.push('/customers')} style={styles.quickAction}><View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>♙</Text></View><View style={styles.quickTextWrap}><Text style={styles.quickTitle}>عملائي</Text><Text style={styles.quickSubtitle}>سجل العملاء والمشتريات والمستحقات</Text></View><Text style={styles.quickArrow}>‹</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.push('/debts')} style={styles.quickAction}><View style={[styles.quickIcon, { backgroundColor: '#FCE8E8' }]}><Text style={[styles.quickGlyph, { color: '#A52828' }]}>₪</Text></View><View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الديون والمستحقات</Text><Text style={styles.quickSubtitle}>تابع الديون المتأخرة والمبالغ المستحقة</Text></View><Text style={styles.quickArrow}>‹</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.push('/installments')} style={styles.quickAction}><View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>◷</Text></View><View style={styles.quickTextWrap}><Text style={styles.quickTitle}>الأقساط</Text><Text style={styles.quickSubtitle}>عرض الأقساط القادمة والمتأخرة وتسجيل التحصيل</Text></View><Text style={styles.quickArrow}>‹</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.push('/activity')} style={styles.quickAction}><View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2457A6' }]}>◷</Text></View><View style={styles.quickTextWrap}><Text style={styles.quickTitle}>سجل النشاط</Text><Text style={styles.quickSubtitle}>راجع الأنشطة المسجلة على حسابك</Text></View><Text style={styles.quickArrow}>‹</Text></Pressable></> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/seller-orders')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▣</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>طلبات متجري</Text><Text style={styles.quickSubtitle}>إدارة الطلبات الواردة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <><Pressable accessibilityRole="button" onPress={() => router.push('/my-store-analytics')} style={styles.quickAction}><View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2457A6' }]}>◉</Text></View><View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إحصاءات المتجر</Text><Text style={styles.quickSubtitle}>الزيارات والمتابعون وأداء المنتجات</Text></View><Text style={styles.quickArrow}>‹</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.push('/followed-stores')} style={styles.quickAction}><View style={[styles.quickIcon, { backgroundColor: '#F1E8FF' }]}><Text style={[styles.quickGlyph, { color: '#6C45A8' }]}>♡</Text></View><View style={styles.quickTextWrap}><Text style={styles.quickTitle}>المتاجر التي أتابعها</Text><Text style={styles.quickSubtitle}>اكتشف آخر متاجرك المفضلة</Text></View><Text style={styles.quickArrow}>‹</Text></Pressable></> : null}{user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-store')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>▤</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إدارة متجري</Text><Text style={styles.quickSubtitle}>بيانات المتجر والمنتجات</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/my-products')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>▦</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>منتجاتي</Text><Text style={styles.quickSubtitle}>تعديل وإدارة المنتجات</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable> : null}
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>تصفّح الأقسام</Text>
-          <Pressable onPress={() => { setSelectedCategory(null); setQuery(''); setSubmittedSearch(''); setCityInput(''); setMinPriceInput(''); setMaxPriceInput(''); setFilters({}); setFilterError(null); setSortBy('createdAt'); setSortOrder('desc'); }} accessibilityRole="button">
-            <Text style={styles.link}>عرض الكل</Text>
-          </Pressable>
-        </View>
-        {categoriesLoading ? <Text style={styles.categoryStatus}>جاري تحميل الأقسام…</Text> : null}
-        {categoriesError ? <Text style={styles.categoryStatus}>{categoriesError}</Text> : null}
-        {!categoriesLoading && !categoriesError && categories.length === 0 ? <Text style={styles.categoryStatus}>لا توجد أقسام متاحة حالياً.</Text> : null}
-        <View style={styles.categoryGrid}>
-          {filteredCategories.map((category) => (
-            <Pressable
-              key={category.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: selectedCategory === category.id }}
-              onPress={() => setSelectedCategory((current) => current === category.id ? null : category.id)}
-              style={[styles.categoryCard, selectedCategory === category.id && styles.categorySelected]}
-            >
-              <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
-                <Text style={styles.categorySymbol}>{category.symbol}</Text>
-              </View>
-              <Text style={styles.categoryTitle}>{category.title}</Text>
+        <View style={styles.homeShortcuts}>
+          {[
+            { title: 'الإعلانات', subtitle: 'أحدث ما نُشر', glyph: '◇', tint: '#E7F0FF', color: '#2856A6', path: '/search?type=ads' },
+            { title: 'المتاجر', subtitle: 'متاجر محلية', glyph: '▣', tint: '#DFF5EC', color: '#176B50', path: '/stores' },
+            { title: 'المنتجات', subtitle: 'تسوّق المنتجات', glyph: '▦', tint: '#F1E8FF', color: '#6841A5', path: '/products' },
+            { title: 'الخدمات', subtitle: 'خبرات ومهن', glyph: '✦', tint: '#FFF0D6', color: '#9A5A00', path: '/services' },
+            { title: 'طلبات السوق', subtitle: 'ما يبحث عنه الناس', glyph: '▤', tint: '#E7F0FF', color: '#2856A6', path: '/requests' },
+            { title: 'القصص', subtitle: 'تحديثات جديدة', glyph: '◉', tint: '#F1E8FF', color: '#6841A5', path: '/stories' },
+            { title: 'البائعون', subtitle: 'اكتشف البائعين', glyph: '♙', tint: '#DFF5EC', color: '#176B50', path: '/sellers-ranking' },
+            { title: 'كل الأقسام', subtitle: 'تصفّح السوق', glyph: '⊞', tint: '#FBEBD9', color: '#9A5A00', path: '/explore' },
+          ].map((item) => (
+            <Pressable key={item.title} accessibilityRole="button" onPress={() => router.push(item.path as never)} style={styles.homeShortcut}>
+              <View style={[styles.homeShortcutIcon, { backgroundColor: item.tint }]}><Text style={[styles.homeShortcutGlyph, { color: item.color }]}>{item.glyph}</Text></View>
+              <Text numberOfLines={1} style={styles.homeShortcutTitle}>{item.title}</Text>
+              <Text numberOfLines={1} style={styles.homeShortcutSubtitle}>{item.subtitle}</Text>
             </Pressable>
           ))}
         </View>
+
+        <HomeCommunitySections />
+
+        <HomeMarketplaceSections />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{showFavorites ? 'إعلاناتي المفضلة على هذا الجهاز' : 'أحدث الإعلانات'}</Text>
@@ -505,7 +321,12 @@ export default function HomeScreen() {
           <Pressable accessibilityRole="button" accessibilityState={{ selected: showFavorites }} onPress={() => setShowFavorites(true)} style={[styles.filterChip, showFavorites && styles.filterChipSelected]}><Text style={[styles.filterText, showFavorites && styles.filterTextSelected]}>♥ المفضلة ({favoriteIds.length})</Text></Pressable>
         </View>
 
-        {!showFavorites ? <View style={styles.advancedFilters}>
+        {!showFavorites ? <View style={styles.filterPanel}>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)} style={styles.filterToggle}>
+            <Text style={styles.filterToggleText}>{showFilters ? 'إخفاء التصفية' : 'تصفية وترتيب النتائج'}</Text>
+            <Text style={styles.filterToggleGlyph}>{showFilters ? '−' : '＋'}</Text>
+          </Pressable>
+          {showFilters ? <View style={styles.advancedFilters}>
           <Text style={styles.filterHeading}>تصفية النتائج</Text>
           <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor="#858D98" textAlign="right" style={styles.filterInput} returnKeyType="done" />
           <View style={styles.priceInputs}>
@@ -520,6 +341,7 @@ export default function HomeScreen() {
             <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'views' }} onPress={() => { setSortBy('views'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'views' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'views' && styles.filterTextSelected]}>الأكثر مشاهدة</Text></Pressable>
           </View>
           <Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable>
+          </View> : null}
         </View> : null}
 
         {adsSavedAt !== null && !loading ? (
@@ -528,6 +350,11 @@ export default function HomeScreen() {
               {adsFromCache ? 'نسخة محفوظة على الجهاز' : 'تمت مزامنة الإعلانات'}
               {' · '}{new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(adsSavedAt))}
             </Text>
+          </View>
+        ) : null}
+        {refreshNotice ? (
+          <View style={styles.refreshNotice} accessibilityLiveRegion="polite">
+            <Text style={styles.refreshNoticeText}>{refreshNotice}</Text>
           </View>
         ) : null}
         {loading ? (
@@ -539,11 +366,11 @@ export default function HomeScreen() {
             <Pressable accessibilityRole="button" onPress={() => { void loadAds(); }} style={styles.retryButton}><Text style={styles.retryText}>إعادة المحاولة</Text></Pressable>
             <Text style={styles.helperText}>تأكد من إعداد EXPO_PUBLIC_API_URL في apps/mobile/.env وأن الخادم متاح من جهازك.</Text>
           </View>
-        ) : (showFavorites ? ads.filter((ad) => favoriteIds.includes(ad.id)) : ads).length === 0 ? (
+        ) : visibleAds.length === 0 ? (
           <View style={styles.statusCard}><Text style={styles.statusEmoji}>{showFavorites ? '♡' : '🛍️'}</Text><Text style={styles.statusTitle}>{showFavorites ? 'لا توجد مفضلات ضمن الإعلانات المحمّلة' : 'لا توجد إعلانات مطابقة'}</Text><Text style={styles.statusText}>{showFavorites ? 'المفضلة محفوظة على هذا الجهاز، وقد تحتاج إلى تحميل الإعلانات التي تحتوي عليها.' : 'جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث.'}</Text></View>
         ) : (
           <View style={styles.adsList}>
-            {(showFavorites ? ads.filter((ad) => favoriteIds.includes(ad.id)) : ads).map((ad) => {
+            {visibleAds.map((ad) => {
               const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images) ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url)) : undefined;
               return (
                 <View key={ad.id} style={styles.adCard}>
@@ -556,7 +383,7 @@ export default function HomeScreen() {
                       {ad.isNegotiable ? <Text style={styles.negotiable}>السعر قابل للتفاوض</Text> : null}
                     </View>
                   </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.includes(ad.id) ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} accessibilityState={{ selected: favoriteIds.includes(ad.id) }} onPress={() => toggleFavorite(ad.id)} style={styles.favoriteButton}><Text style={[styles.favoriteText, favoriteIds.includes(ad.id) && styles.favoriteActive]}>{favoriteIds.includes(ad.id) ? '♥' : '♡'}</Text></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.includes(ad.id) ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} accessibilityState={{ selected: favoriteIdSet.has(ad.id) }} onPress={() => toggleFavorite(ad.id)} style={styles.favoriteButton}><Text style={[styles.favoriteText, favoriteIdSet.has(ad.id) && styles.favoriteActive]}>{favoriteIdSet.has(ad.id) ? '♥' : '♡'}</Text></Pressable>
                 </View>
               );
             })}
@@ -587,14 +414,12 @@ const styles = StyleSheet.create({
   myAdsButtonText: { color: colors.brand, fontSize: 12, fontWeight: '800' },
   accountButton: { minHeight: 44, minWidth: 64, paddingHorizontal: spacing.md, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   accountButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
-  quickActions: { gap: spacing.sm },
-  quickAction: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, minHeight: 80 },
-  quickIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  quickGlyph: { color: colors.brand, fontSize: 23, fontWeight: '800' },
-  quickTextWrap: { flex: 1, gap: 4 },
-  quickTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
-  quickSubtitle: { color: colors.muted, fontSize: 12, textAlign: 'right' },
-  quickArrow: { color: colors.muted, fontSize: 25 },
+  homeShortcuts: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  homeShortcut: { width: '23.5%', flexGrow: 1, flexBasis: '21%', minWidth: 72, minHeight: 106, alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 3, paddingVertical: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  homeShortcutIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  homeShortcutGlyph: { fontSize: 22, fontWeight: '800' },
+  homeShortcutTitle: { color: colors.ink, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  homeShortcutSubtitle: { color: colors.muted, fontSize: 9, textAlign: 'center' },
   hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.xl, overflow: 'hidden', gap: spacing.sm },
   eyebrow: { color: '#D4EEE6', fontSize: 13, textAlign: 'right' },
   heroTitle: { color: '#FFFFFF', fontSize: 26, fontWeight: '800', textAlign: 'right' },
@@ -606,13 +431,10 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: -spacing.sm, minHeight: 38, gap: spacing.sm },
   sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', textAlign: 'right' },
   link: { color: colors.brand, fontSize: 13, fontWeight: '700' },
-  categoryStatus: { color: colors.muted, fontSize: 12, lineHeight: 19, textAlign: 'right' },
-  categoryGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.md },
-  categoryCard: { width: '31%', minHeight: 120, flexGrow: 1, flexBasis: '28%', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  categorySelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-  categoryIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  categorySymbol: { fontSize: 25 },
-  categoryTitle: { color: colors.ink, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  filterPanel: { gap: spacing.sm },
+  filterToggle: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
+  filterToggleText: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+  filterToggleGlyph: { color: colors.brand, fontSize: 20, fontWeight: '900' },
   advancedFilters: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   filterHeading: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
   filterInput: { minHeight: 48, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, borderRadius: radius.sm, paddingHorizontal: spacing.md, color: colors.ink, fontSize: 13 },
@@ -632,21 +454,23 @@ const styles = StyleSheet.create({
   filterChipSelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
   filterText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   filterTextSelected: { color: colors.brandDark },
-  adCard: { position: 'relative', backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', minHeight: 126 },
-  adMain: { flexDirection: 'row-reverse', minHeight: 132, paddingTop: 30 },
-  favoriteButton: { position: 'absolute', top: 5, right: 6, width: 38, height: 36, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  adCard: { position: 'relative', backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  adMain: { flexDirection: 'row-reverse', minHeight: 136 },
+  favoriteButton: { position: 'absolute', top: 6, right: 6, zIndex: 2, width: 40, height: 40, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   favoriteText: { color: colors.muted, fontSize: 20, lineHeight: 24 },
   favoriteActive: { color: '#D92D55' },
-  adImage: { width: 120, minHeight: 132, backgroundColor: '#EEF1F3' },
-  adImagePlaceholder: { width: 120, minHeight: 132, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  adImage: { width: 112, minHeight: 136, backgroundColor: '#EEF1F3' },
+  adImagePlaceholder: { width: 112, minHeight: 136, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   placeholderEmoji: { fontSize: 32 },
-  adInfo: { flex: 1, padding: spacing.md, gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' },
+  adInfo: { flex: 1, minWidth: 0, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' },
   adTitle: { color: colors.ink, fontSize: 14, lineHeight: 20, fontWeight: '800', textAlign: 'right', width: '100%' },
   adPrice: { color: colors.brand, fontSize: 15, fontWeight: '800', textAlign: 'right' },
   adMeta: { color: colors.muted, fontSize: 12, textAlign: 'right', width: '100%' },
   negotiable: { color: colors.brandDark, backgroundColor: colors.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, overflow: 'hidden' },
   cacheStatus: { alignSelf: 'flex-end', backgroundColor: '#EAF5F1', borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   cacheStatusText: { color: '#246A55', fontSize: 11, fontWeight: '600', textAlign: 'right' },
+  refreshNotice: { backgroundColor: '#FFF8E8', borderRadius: radius.md, borderWidth: 1, borderColor: '#F4E2B5', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  refreshNoticeText: { color: '#795F24', fontSize: 12, lineHeight: 18, textAlign: 'right' },
   statusCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', padding: spacing.xl, gap: spacing.md },
   statusEmoji: { fontSize: 32 },
   statusTitle: { color: colors.ink, fontSize: 16, fontWeight: '800', textAlign: 'center' },
