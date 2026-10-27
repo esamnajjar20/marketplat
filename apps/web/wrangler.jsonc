@@ -23,5 +23,17 @@
       "binding": "WORKER_SELF_REFERENCE",
       "service": "marketplat"
     }
-  ]
+  ],
+  "alias": {
+    "sharp": "./stubs/sharp-stub.js",
+    "@img/sharp-linux-x64": "./stubs/sharp-stub.js",
+    "@img/sharp-linuxmusl-x64": "./stubs/sharp-stub.js",
+    "@img/sharp-linux-arm64": "./stubs/sharp-stub.js",
+    "@img/sharp-linux-arm": "./stubs/sharp-stub.js",
+    "@img/sharp-darwin-arm64": "./stubs/sharp-stub.js",
+    "@img/sharp-darwin-x64": "./stubs/sharp-stub.js",
+    "@img/sharp-win32-x64": "./stubs/sharp-stub.js",
+    "@img/sharp-win32-ia32": "./stubs/sharp-stub.js",
+    "@img/sharp-win32-arm64": "./stubs/sharp-stub.js"
+  }
 }
