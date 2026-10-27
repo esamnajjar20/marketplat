@@ -18,7 +18,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       <Text style={{ fontSize: 19, fontWeight: '900', color: colors.ink, textAlign: 'center' }}>حدث خطأ غير متوقع</Text>
       <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 10, lineHeight: 22, fontSize: 13 }}>يرجى إعادة المحاولة. إذا استمرت المشكلة فأعد فتح التطبيق.</Text>
       <Pressable onPress={retry} style={{ marginTop: 20, backgroundColor: colors.brand, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 16 }}>
-        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>إعادة المحاولة</Text>
+        <Text style={{ color: colors.white, fontWeight: '800', fontSize: 15 }}>إعادة المحاولة</Text>
       </Pressable>
     </View>
   );

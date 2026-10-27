@@ -1,9 +1,10 @@
 import { router, usePathname, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/tokens';
+import { colors, radius, sizes, spacing, typography } from '@/theme/tokens';
+import { AppIcon, type GlyphName } from '@/components/Icons';
 
-type NavigationTab = { label: string; path: string; glyph: string; match: (path: string) => boolean };
+type NavigationTab = { label: string; path: string; glyph: GlyphName; match: (path: string) => boolean };
 
 const exploreRoots = [
   '/categories', '/products', '/stores', '/services', '/requests', '/search', '/stories',
@@ -21,11 +22,11 @@ const accountRoots = [
 ];
 
 const tabs: NavigationTab[] = [
-  { label: 'الرئيسية', path: '/', glyph: '⌂', match: (path) => path === '/' },
-  { label: 'استكشف', path: '/explore', glyph: '⌕', match: (path) => exploreRoots.some((root) => path === root || path.startsWith(`${root}/`)) || path === '/explore' },
-  { label: 'إضافة', path: '/add', glyph: '+', match: (path) => path === '/add' },
-  { label: 'الرسائل', path: '/messages', glyph: '▤', match: (path) => path === '/messages' },
-  { label: 'حسابي', path: '/account', glyph: '♙', match: (path) => accountRoots.some((root) => root === '/my-' ? path.startsWith(root) : path === root || path.startsWith(`${root}/`)) },
+  { label: 'الرئيسية', path: '/', glyph: 'home', match: (path) => path === '/' },
+  { label: 'استكشف', path: '/explore', glyph: 'search', match: (path) => exploreRoots.some((root) => path === root || path.startsWith(`${root}/`)) || path === '/explore' },
+  { label: 'إضافة', path: '/add', glyph: 'add', match: (path) => path === '/add' },
+  { label: 'الرسائل', path: '/messages', glyph: 'messages', match: (path) => path === '/messages' },
+  { label: 'حسابي', path: '/account', glyph: 'account', match: (path) => accountRoots.some((root) => root === '/my-' ? path.startsWith(root) : path === root || path.startsWith(`${root}/`)) },
 ];
 
 const hiddenPrefixes = [
@@ -59,10 +60,16 @@ export default function BottomNavigation() {
               onPress={() => router.navigate(tab.path as Href)}
               style={({ pressed }) => [styles.tab, active && styles.activeTab, pressed && styles.pressed]}
             >
-              <View style={[styles.glyphWrap, active && styles.activeGlyphWrap]}>
-                <Text style={[styles.glyph, active && styles.activeGlyph, tab.path === '/add' && styles.addGlyph]}>{tab.glyph}</Text>
+              <View style={[styles.glyphWrap, active && styles.activeGlyphWrap, tab.path === '/add' && styles.addWrap]}>
+                <AppIcon
+                  name={tab.glyph}
+                  size={tab.path === '/add' ? 28 : 22}
+                  color={tab.path === '/add' ? colors.brand : active ? colors.brandDark : colors.muted}
+                />
               </View>
-              <Text numberOfLines={1} style={[styles.label, active && styles.activeLabel]}>{tab.label}</Text>
+              <Text numberOfLines={1} style={[styles.label, active && styles.activeLabel]}>
+                {tab.label}
+              </Text>
             </Pressable>
           );
         })}
@@ -72,13 +79,40 @@ export default function BottomNavigation() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
-  bar: { minHeight: 64, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 5, paddingTop: 4 },
-  tab: { minWidth: 0, flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 14, marginHorizontal: 2 },
+  safeArea: {
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  bar: {
+    minHeight: sizes.bottomNavHeight,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: spacing.xs,
+    paddingTop: spacing.xs,
+  },
+  tab: {
+    minWidth: 0,
+    flex: 1,
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    borderRadius: 14,
+    marginHorizontal: 2,
+  },
   activeTab: { backgroundColor: colors.brandSoft },
   pressed: { opacity: 0.72 },
-  glyphWrap: { minWidth: 30, minHeight: 27, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
-  activeGlyphWrap: { backgroundColor: '#D4EDE5' },
+  glyphWrap: {
+    minWidth: 30,
+    minHeight: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  activeGlyphWrap: { backgroundColor: colors.brandSoftActive },
+  addWrap: { backgroundColor: colors.brandSoft },
   glyph: { color: colors.muted, fontSize: 22, lineHeight: 26, fontWeight: '700' },
   activeGlyph: { color: colors.brandDark },
   addGlyph: { fontSize: 30, lineHeight: 32, color: colors.brand, fontWeight: '500' },

@@ -1,8 +1,116 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
-import { PageShell, Field, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors } from '@/theme/tokens';
-const typeLabel:Record<string,string>={SERVICE:'خدمة',PRODUCT:'منتج',RENTAL:'تأجير'};
-export default function RequestsScreen(){const[items,setItems]=useState<MarketplaceRequest[]>([]);const[q,setQ]=useState('');const[city,setCity]=useState('');const[type,setType]=useState('');const[sort,setSort]=useState('newest');const[loading,setLoading]=useState(true);const[error,setError]=useState('');const load=useCallback(async()=>{setLoading(true);setError('');try{const r=await fetchOpenRequests({q,city,type:type||undefined,sort});setItems(r.items);}catch(e){setError(e instanceof Error?e.message:'تعذر تحميل الطلبات.');}finally{setLoading(false);}},[q,city,type,sort]);useEffect(()=>{void load();},[load]);return <PageShell title="طلبات السوق" right={<Text style={{color:colors.brand,fontWeight:'800'}}>{items.length}</Text>}><PrimaryButton label="+ إنشاء طلب جديد" onPress={()=>router.push('/request-create')}/><View style={{flexDirection:'row-reverse',gap:8,flexWrap:'wrap'}}>{[['','الكل'],['SERVICE','خدمات'],['PRODUCT','منتجات'],['RENTAL','تأجير']].map(([v,l])=><Pressable key={v} onPress={()=>setType(v)} style={{paddingVertical:11,paddingHorizontal:15,borderRadius:999,backgroundColor:type===v?colors.brand:colors.surface,borderWidth:1,borderColor:type===v?colors.brand:colors.border}}><Text style={{color:type===v?'#fff':colors.ink,fontWeight:'700'}}>{l}</Text></Pressable>)}</View><Field label="بحث" value={q} onChangeText={setQ} placeholder="ما الذي يحتاجه صاحب الطلب؟"/><Field label="المدينة" value={city} onChangeText={setCity} placeholder="كل المدن"/><View style={{flexDirection:'row-reverse',gap:8}}>{[['newest','الأحدث'],['expiring','قريب الانتهاء'],['budget_high','أعلى ميزانية'],['fewest_offers','أقل عروض']].map(([v,l])=><Pressable key={v} onPress={()=>setSort(v)} style={{paddingVertical:10,paddingHorizontal:11,borderRadius:12,borderWidth:1,borderColor:sort===v?colors.brand:colors.border,backgroundColor:sort===v?colors.brandSoft:colors.surface}}><Text style={{fontSize:12,color:colors.brand,fontWeight:'800'}}>{l}</Text></Pressable>)}</View>{error?<Notice>{error}</Notice>:null}{loading?<ActivityIndicator color={colors.brand}/>:items.length===0?<Notice tone="muted">لا توجد طلبات تطابق بحثك.</Notice>:items.map(item=><Pressable key={item.id} onPress={()=>router.push({pathname:'/requests/[id]',params:{id:item.id}})}><SectionCard><View style={{flexDirection:'row-reverse',justifyContent:'space-between',gap:8}}><Text style={{flex:1,textAlign:'right',fontWeight:'800',fontSize:17,color:colors.ink}}>{item.title}</Text><Text style={{color:colors.brand,fontSize:11,fontWeight:'800'}}>{typeLabel[item.type]||item.type}</Text></View><Text numberOfLines={3} style={{textAlign:'right',color:colors.muted,lineHeight:21}}>{item.description}</Text><Text style={{textAlign:'right',color:colors.ink,fontWeight:'700'}}>{item.city||'المدينة غير محددة'} · {item.budgetMin!=null||item.budgetMax!=null?`${item.budgetMin??'—'} – ${item.budgetMax??'—'} ₪`:'الميزانية قابلة للنقاش'}</Text><Text style={{textAlign:'right',color:colors.muted,fontSize:12}}>العروض: {item._count?.offers??item.offers?.length??0}</Text></SectionCard></Pressable>)}</PageShell>}
+import {
+  Chip,
+  EmptyState,
+  ErrorState,
+  Field,
+  LoadingState,
+  Notice,
+  PageShell,
+  PrimaryButton,
+  SectionCard,
+} from '@/components/MobileUI';
+import { colors, spacing, typography } from '@/theme/tokens';
+import { Text } from 'react-native';
+
+const typeLabel: Record<string, string> = {
+  SERVICE: 'خدمة',
+  PRODUCT: 'منتج',
+  RENTAL: 'تأجير',
+};
+
+export default function RequestsScreen() {
+  const [items, setItems] = useState<MarketplaceRequest[]>([]);
+  const [q, setQ] = useState('');
+  const [city, setCity] = useState('');
+  const [type, setType] = useState('');
+  const [sort, setSort] = useState('newest');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const r = await fetchOpenRequests({ q, city, type: type || undefined, sort });
+      setItems(r.items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تحميل الطلبات.');
+    } finally {
+      setLoading(false);
+    }
+  }, [q, city, type, sort]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <PageShell title="طلبات السوق">
+      <PrimaryButton label="+ إنشاء طلب جديد" onPress={() => router.push('/request-create')} />
+
+      <View style={{ flexDirection: 'row-reverse', gap: spacing.sm, flexWrap: 'wrap' }}>
+        {(
+          [
+            ['', 'الكل'],
+            ['SERVICE', 'خدمات'],
+            ['PRODUCT', 'منتجات'],
+            ['RENTAL', 'تأجير'],
+          ] as const
+        ).map(([value, label]) => (
+          <Chip key={value || 'all'} label={label} selected={type === value} onPress={() => setType(value)} />
+        ))}
+      </View>
+
+      <Field label="بحث" value={q} onChangeText={setQ} placeholder="ما الذي يحتاجه صاحب الطلب؟" />
+      <Field label="المدينة" value={city} onChangeText={setCity} placeholder="كل المدن" />
+
+      <View style={{ flexDirection: 'row-reverse', gap: spacing.sm, flexWrap: 'wrap' }}>
+        {(
+          [
+            ['newest', 'الأحدث'],
+            ['expiring', 'قريب الانتهاء'],
+            ['budget_high', 'أعلى ميزانية'],
+            ['fewest_offers', 'أقل عروض'],
+          ] as const
+        ).map(([value, label]) => (
+          <Chip key={value} label={label} selected={sort === value} onPress={() => setSort(value)} />
+        ))}
+      </View>
+
+      {loading ? (
+        <LoadingState message="جاري تحميل الطلبات…" />
+      ) : error ? (
+        <ErrorState title="تعذر تحميل الطلبات" description={error} onAction={() => void load()} />
+      ) : items.length === 0 ? (
+        <EmptyState title="لا توجد طلبات" description="جرّب تغيير الفلاتر أو أنشئ طلبًا جديدًا." />
+      ) : (
+        items.map((item) => (
+          <SectionCard
+            key={item.id}
+            onPress={() => router.push(`/requests/${encodeURIComponent(item.id)}`)}
+          >
+            <Text style={{ textAlign: 'right', ...typography.bodyStrong, color: colors.ink }}>
+              {item.title}
+            </Text>
+            <Text style={{ textAlign: 'right', ...typography.caption, color: colors.muted }}>
+              {[typeLabel[item.type] || item.type, item.city, item.status].filter(Boolean).join(' · ')}
+            </Text>
+            {typeof item._count?.offers === 'number' ? (
+              <Text style={{ textAlign: 'right', ...typography.caption, color: colors.brand }}>
+                {item._count.offers} عرض
+              </Text>
+            ) : null}
+          </SectionCard>
+        ))
+      )}
+
+      {!loading && items.length > 0 ? (
+        <Notice tone="muted">{items.length} طلب مفتوح</Notice>
+      ) : null}
+    </PageShell>
+  );
+}

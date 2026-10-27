@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
+import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 export default function LoginScreen() {
   const { login, isBusy } = useAuth();
@@ -28,55 +29,102 @@ export default function LoginScreen() {
       setPassword('');
       router.replace('/');
     } catch (error) {
-      setErrorMessage(error instanceof ApiError || error instanceof Error ? error.message : 'تعذر تسجيل الدخول. حاول مجددًا.');
+      setErrorMessage(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : 'تعذر تسجيل الدخول. حاول مجددًا.',
+      );
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>رجوع ←</Text></Pressable>
-        <View style={styles.logo}><Text style={styles.logoText}>م</Text></View>
+        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
+          <Text style={styles.backText}>‹ رجوع</Text>
+        </Pressable>
+
+        <View style={styles.logo}>
+          <Text style={styles.logoText}>م</Text>
+        </View>
         <Text style={styles.title}>أهلًا بعودتك</Text>
         <Text style={styles.subtitle}>سجّل دخولك إلى حساب MarketPlat</Text>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>البريد الإلكتروني</Text>
-          <TextInput accessibilityLabel="البريد الإلكتروني" autoCapitalize="none" autoComplete="email" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="name@example.com" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" editable={!isBusy} returnKeyType="next" />
-        </View>
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>كلمة المرور</Text>
-          <TextInput accessibilityLabel="كلمة المرور" autoCapitalize="none" autoComplete="current-password" secureTextEntry value={password} onChangeText={setPassword} placeholder="أدخل كلمة المرور" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" editable={!isBusy} onSubmitEditing={() => { void submit(); }} returnKeyType="done" />
-        </View>
+        <Field
+          label="البريد الإلكتروني"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="name@example.com"
+          keyboardType="email-address"
+          autoComplete="email"
+          editable={!isBusy}
+          returnKeyType="next"
+        />
+        <Field
+          label="كلمة المرور"
+          value={password}
+          onChangeText={setPassword}
+          placeholder="أدخل كلمة المرور"
+          secureTextEntry
+          autoComplete="current-password"
+          editable={!isBusy}
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            void submit();
+          }}
+        />
 
-        {errorMessage ? <View accessibilityRole="alert" style={styles.errorBox}><Text style={styles.errorText}>{errorMessage}</Text></View> : null}
-        <Pressable accessibilityRole="button" accessibilityState={{ disabled: isBusy }} disabled={isBusy} onPress={() => { void submit(); }} style={[styles.submit, isBusy && styles.submitDisabled]}>
-          {isBusy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>تسجيل الدخول</Text>}
+        {errorMessage ? <Notice tone="error">{errorMessage}</Notice> : null}
+
+        <PrimaryButton
+          label="تسجيل الدخول"
+          onPress={() => {
+            void submit();
+          }}
+          busy={isBusy}
+        />
+
+        <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')} style={styles.linkBtn}>
+          <Text style={styles.link}>نسيت كلمة المرور؟</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm }}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '800' }}>نسيت كلمة المرور؟</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/register')} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm }}><Text style={{ color: colors.brand, textAlign: 'center', fontWeight: '800' }}>إنشاء حساب جديد</Text></Pressable>
-        <Text style={styles.securityNote}>يُحفظ رمز الوصول داخل التخزين الآمن للجهاز. لا يخزّن التطبيق رمز التجديد؛ يعتمد تجديد الجلسة على Cookie آمنة يديرها الخادم.</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/register')} style={styles.linkBtn}>
+          <Text style={styles.link}>إنشاء حساب جديد</Text>
+        </Pressable>
+
+        <Text style={styles.securityNote}>
+          يُحفظ رمز الوصول داخل التخزين الآمن للجهاز. لا يخزّن التطبيق رمز التجديد؛ يعتمد تجديد
+          الجلسة على Cookie آمنة يديرها الخادم.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.canvas },
-  content: { flexGrow: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: spacing.lg, justifyContent: 'center' },
-  back: { alignSelf: 'flex-start', paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
-  backText: { color: colors.brand, fontSize: 14, fontWeight: '700' },
-  logo: { width: 72, height: 72, borderRadius: 24, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: spacing.sm, elevation: 2 },
-  logoText: { color: '#FFFFFF', fontSize: 32, fontWeight: '800' },
-  title: { color: colors.ink, fontSize: 29, fontWeight: '900', textAlign: 'center', marginTop: spacing.sm },
-  subtitle: { color: colors.muted, fontSize: 15, textAlign: 'center', lineHeight: 23, marginBottom: spacing.md },
-  fieldGroup: { gap: spacing.sm },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
-  input: { minHeight: 56, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.ink, paddingHorizontal: spacing.md, fontSize: 16 },
-  errorBox: { backgroundColor: '#FDECEC', borderColor: '#F3B7B7', borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
-  errorText: { color: '#A51D1D', textAlign: 'right', lineHeight: 21 },
-  submit: { minHeight: 56, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, elevation: 1 },
-  submitDisabled: { opacity: 0.65 },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
-  securityNote: { color: colors.muted, fontSize: 12, textAlign: 'center', lineHeight: 20, marginTop: spacing.sm, paddingHorizontal: spacing.sm },
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: spacing.lg,
+    justifyContent: 'center',
+  },
+  back: { alignSelf: 'flex-start', paddingVertical: spacing.sm },
+  backText: { color: colors.brand, ...typography.bodyStrong },
+  logo: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  logoText: { color: colors.white, fontSize: 32, fontWeight: '800' },
+  title: { color: colors.ink, ...typography.display, textAlign: 'center', fontSize: 26, lineHeight: 34 },
+  subtitle: { color: colors.muted, ...typography.body, textAlign: 'center', marginBottom: spacing.sm },
+  linkBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  link: { color: colors.brand, ...typography.bodyStrong, textAlign: 'center' },
+  securityNote: { color: colors.muted, ...typography.caption, textAlign: 'center', lineHeight: 18 },
 });

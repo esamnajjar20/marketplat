@@ -1,11 +1,57 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
-import { colors, radius, spacing } from '@/theme/tokens';
+import {
+  EmptyState,
+  ErrorState,
+  ListRow,
+  LoadingState,
+  PageShell,
+} from '@/components/MobileUI';
+
 export default function CategoriesScreen() {
-  const [items, setItems] = useState<PublicCategory[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  const load = useCallback(async () => { setLoading(true); setError(''); try { setItems(await fetchPublicCategories()); } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل التصنيفات.'); } finally { setLoading(false); } }, []);
-  useEffect(() => { void load(); }, [load]);
-  return <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xl }}><Pressable onPress={() => router.back()}><Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>→ رجوع</Text></Pressable><Text style={{ textAlign: 'right', color: colors.ink, fontSize: 26, fontWeight: '900' }}>تصنيفات السوق</Text><Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>تصفح التصنيفات العامة والإعلانات المرتبطة بكل تصنيف.</Text>{loading ? <ActivityIndicator size="large" color={colors.brand} /> : error ? <View style={{ padding: 18, gap: 12, backgroundColor: colors.surface, borderRadius: radius.lg }}><Text style={{ color: colors.ink, textAlign: 'right' }}>{error}</Text><Pressable onPress={() => void load()}><Text style={{ color: colors.brand, textAlign: 'right', fontWeight: '800' }}>إعادة المحاولة</Text></Pressable></View> : items.length === 0 ? <Text style={{ textAlign: 'center', color: colors.muted, padding: 20 }}>لا توجد تصنيفات نشطة.</Text> : items.map(category => <Pressable key={category.id} onPress={() => router.push(`/categories/${encodeURIComponent(category.id)}` as never)} style={{ minHeight: 76, padding: 18, gap: 9, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface }}><View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}><Text style={{ color: colors.ink, fontSize: 16, fontWeight: '900', textAlign: 'right', flex: 1 }}>{category.nameAr || category.name}</Text><Text style={{ color: colors.brand, fontSize: 22 }}>‹</Text></View>{category.children?.length ? <Text style={{ color: colors.muted, textAlign: 'right', fontSize: 12 }}>{category.children.length} تصنيف فرعي</Text> : null}</Pressable>)}</ScrollView>;
+  const [items, setItems] = useState<PublicCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      setItems(await fetchPublicCategories());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تحميل التصنيفات.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <PageShell title="تصنيفات السوق">
+      {loading ? (
+        <LoadingState message="جاري تحميل التصنيفات…" />
+      ) : error ? (
+        <ErrorState title="تعذر تحميل التصنيفات" description={error} onAction={() => void load()} />
+      ) : items.length === 0 ? (
+        <EmptyState title="لا توجد تصنيفات نشطة" />
+      ) : (
+        items.map((category) => (
+          <ListRow
+            key={category.id}
+            title={category.nameAr || category.name}
+            description={
+              category.children?.length ? `${category.children.length} تصنيف فرعي` : undefined
+            }
+            onPress={() =>
+              router.push(`/categories/${encodeURIComponent(category.id)}` as never)
+            }
+          />
+        ))
+      )}
+    </PageShell>
+  );
 }

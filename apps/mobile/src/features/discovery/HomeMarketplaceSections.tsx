@@ -3,6 +3,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { SectionHeader } from '@/components/MobileUI';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { fetchServiceListings, type ServiceListing } from '@/features/services/services.api';
@@ -41,16 +42,8 @@ function money(value: number | string | null | undefined): string | null {
 function firstImage(images?: string[] | null): string | null {
   return images?.find((value) => typeof value === 'string' && /^https?:\/\//i.test(value)) ?? null;
 }
-function SectionHeader({ title, subtitle, onAll }: { title: string; subtitle: string; onAll: () => void }) {
-  return <View style={{ minHeight: 38, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
-    <View style={{ flex: 1, gap: 2 }}>
-      <Text style={{ color: colors.ink, fontSize: 18, fontWeight: '900', textAlign: 'right' }}>{title}</Text>
-      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'right' }}>{subtitle}</Text>
-    </View>
-    <Pressable accessibilityRole="button" onPress={onAll} hitSlop={8} style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.xs }}>
-      <Text style={{ color: colors.brand, fontWeight: '800', fontSize: 12 }}>عرض الكل</Text>
-    </Pressable>
-  </View>;
+function MarketplaceSectionHeader({ title, subtitle, onAll }: { title: string; subtitle: string; onAll: () => void }) {
+  return <SectionHeader title={title} subtitle={subtitle} actionLabel="عرض الكل" onAction={onAll} />;
 }
 function EmptySection({ label, offline }: { label: string; offline: boolean }) {
   return <View style={{ minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, padding: spacing.md, justifyContent: 'center' }}>
@@ -145,15 +138,15 @@ export default function HomeMarketplaceSections() {
   const hasRequests = data.requests.length > 0;
   return <View style={{ gap: spacing.xl }}>
     <View style={{ gap: spacing.sm }}>
-      <SectionHeader title="منتجات مميزة" subtitle="منتجات من متاجر السوق المحلية" onAll={() => router.push('/products')} />
+      <MarketplaceSectionHeader title="منتجات مميزة" subtitle="منتجات من متاجر السوق المحلية" onAll={() => router.push('/products')} />
       {hasProducts ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row-reverse', gap: spacing.sm, paddingVertical: 2 }}>{data.products.map((item) => <MiniCard key={item.id} title={item.name} subtitle={item.store?.name || item.category?.nameAr || item.category?.name || 'منتج محلي'} image={firstImage(item.images)} price={money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)} glyph="▦" onPress={() => router.push({ pathname: '/products/[id]', params: { id: item.id } })} />)}</ScrollView> : loaded.products ? <EmptySection label="المنتجات" offline={offline} /> : <EmptySection label="المنتجات" offline />}
     </View>
     <View style={{ gap: spacing.sm }}>
-      <SectionHeader title="خدمات متاحة" subtitle="مهن وخبرات يمكنك طلبها" onAll={() => router.push('/services')} />
+      <MarketplaceSectionHeader title="خدمات متاحة" subtitle="مهن وخبرات يمكنك طلبها" onAll={() => router.push('/services')} />
       {hasServices ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row-reverse', gap: spacing.sm, paddingVertical: 2 }}>{data.services.map((item) => <MiniCard key={item.id} title={item.title} subtitle={item.provider?.businessName || item.provider?.sellerProfile?.displayName || item.category?.nameAr || item.category?.name || 'مقدم خدمة'} image={firstImage(item.images)} price={money(item.price)} glyph="✦" onPress={() => router.push({ pathname: '/services/[id]', params: { id: item.id } })} />)}</ScrollView> : loaded.services ? <EmptySection label="الخدمات" offline={offline} /> : <EmptySection label="الخدمات" offline />}
     </View>
     <View style={{ gap: spacing.sm }}>
-      <SectionHeader title="طلبات السوق" subtitle="طلبات أشخاص يبحثون عن منتج أو خدمة" onAll={() => router.push('/requests')} />
+      <MarketplaceSectionHeader title="طلبات السوق" subtitle="طلبات أشخاص يبحثون عن منتج أو خدمة" onAll={() => router.push('/requests')} />
       {hasRequests ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row-reverse', gap: spacing.sm, paddingVertical: 2 }}>{data.requests.map((item) => <MiniCard key={item.id} title={item.title} subtitle={[item.city, item.type === 'SERVICE' ? 'طلب خدمة' : item.type === 'PRODUCT' ? 'طلب منتج' : 'طلب استئجار'].filter(Boolean).join(' · ')} price={item.budgetMax ? `حتى ${money(item.budgetMax)}` : item.budgetMin ? `من ${money(item.budgetMin)}` : null} glyph="▤" onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })} />)}</ScrollView> : loaded.requests ? <EmptySection label="طلبات السوق" offline={offline} /> : <EmptySection label="طلبات السوق" offline />}
     </View>
     {user ? <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.md, gap: spacing.sm }}>

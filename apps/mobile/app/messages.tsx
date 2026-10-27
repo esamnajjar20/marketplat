@@ -1,11 +1,20 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchConversationsPage, setConversationFlags, type ConversationItem } from '@/features/messaging/messaging.api';
 import { useUnreadCounts } from '@/features/messaging/useUnreadCounts';
-import { colors, radius, spacing } from '@/theme/tokens';
+import {
+  AppHeader,
+  Chip,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PrimaryButton,
+  SearchBar,
+} from '@/components/MobileUI';
+import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 type Filter = 'all' | 'unread' | 'archived';
 function preview(conversation: ConversationItem): string {
@@ -74,15 +83,158 @@ export default function MessagesScreen() {
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحديث إعدادات المحادثة.'); }
     finally { setBusyFlagId(null); }
   }, [accessToken, csrfToken, busyFlagId]);
-  return <SafeAreaView style={styles.safe} edges={['top']}>
-    <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><View style={styles.headerTitle}><Text style={styles.heading}>المحادثات</Text>{counts.messages > 0 ? <View accessibilityLabel={`${counts.messages} رسالة غير مقروءة`} style={styles.headerBadge}><Text style={styles.headerBadgeText}>{counts.messages > 99 ? '99+' : counts.messages}</Text></View> : null}</View><Pressable onPress={() => router.push('/notifications')} accessibilityRole="button"><Text style={styles.link}>الإشعارات{counts.notifications > 0 ? ` (${counts.notifications > 99 ? '99+' : counts.notifications})` : ''}</Text></Pressable></View>
-    {!user ? <View style={styles.center}><Text style={styles.title}>سجّل الدخول أولًا</Text><Pressable style={styles.primary} onPress={() => router.push('/login')}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View>
-      : loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل المحادثات…</Text></View>
-      : error && !items.length ? <View style={styles.center}><Text style={styles.title}>تعذر تحميل المحادثات</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View>
-      : <>
-        <View style={styles.tools}><TextInput value={search} onChangeText={setSearch} placeholder="ابحث عن شخص أو رسالة…" placeholderTextColor={colors.muted} style={styles.search} textAlign="right" accessibilityLabel="البحث في المحادثات"/><View style={styles.filters}>{([['all','الكل'],['unread','غير مقروءة'],['archived','الأرشيف']] as const).map(([value,label]) => <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filter,filter===value&&styles.filterActive]}><Text style={[styles.filterText,filter===value&&styles.filterTextActive]}>{label}</Text></Pressable>)}</View>{error ? <Text style={styles.moreError}>{error}</Text> : null}</View>
-        <ScrollView contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand}/>}>{visibleItems.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>💬</Text><Text style={styles.title}>{items.length ? 'لا توجد نتائج مطابقة' : 'لا توجد محادثات بعد'}</Text><Text style={styles.muted}>{items.length ? 'جرّب تغيير كلمة البحث أو الفلتر.' : 'يمكنك مراسلة صاحب الإعلان من صفحة تفاصيل الإعلان.'}</Text>{!items.length ? <Pressable style={styles.primary} onPress={() => router.replace('/')}><Text style={styles.primaryText}>استكشاف الإعلانات</Text></Pressable> : null}</View> : <>{visibleItems.map(item => { const other = item.buyerId === user?.id ? item.seller : item.buyer; const context = item.ad?.title || item.serviceRequest?.listing?.title; const pinned = Boolean(item.mySettings?.pinnedAt); const archived = Boolean(item.mySettings?.archivedAt); const muted = Boolean(item.mySettings?.mutedUntil && new Date(item.mySettings.mutedUntil).getTime() > Date.now()); return <View key={item.id} style={styles.card}><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/messages/[id]', params: { id: item.id } })} style={styles.cardMain}><View style={styles.avatar}>{other.avatarUrl ? <Image source={{ uri: other.avatarUrl }} style={styles.avatarImage}/> : <Text style={styles.avatarText}>{(other.name || '؟').trim().slice(0,1)}</Text>}</View><View style={styles.content}><View style={styles.titleRow}><Text numberOfLines={1} style={styles.person}>{other.name || 'مستخدم MarketPlat'}</Text>{pinned ? <Text style={styles.flag}>📌</Text> : null}{muted ? <Text style={styles.flag}>🔕</Text> : null}{(item.unreadCount ?? 0)>0 ? <View style={styles.badge}><Text style={styles.badgeText}>{item.unreadCount! > 99 ? '99+' : item.unreadCount}</Text></View> : null}</View>{context ? <Text numberOfLines={1} style={styles.context}>بخصوص: {context}</Text> : null}<Text numberOfLines={2} style={styles.preview}>{preview(item)}</Text></View></Pressable><View style={styles.actions}><Pressable disabled={busyFlagId===item.id} onPress={() => void changeFlag(item,{pinned:!pinned})} style={styles.action}><Text style={styles.actionText}>{pinned?'إلغاء التثبيت':'تثبيت'}</Text></Pressable><Pressable disabled={busyFlagId===item.id} onPress={() => void changeFlag(item,{archived:!archived})} style={styles.action}><Text style={styles.actionText}>{archived?'إلغاء الأرشفة':'أرشفة'}</Text></Pressable><Pressable disabled={busyFlagId===item.id} onPress={() => void changeFlag(item,{mutedUntil:muted?null:new Date(Date.now()+8*60*60*1000).toISOString()})} style={styles.action}><Text style={styles.actionText}>{muted?'تشغيل التنبيه':'كتم 8س'}</Text></Pressable></View></View>; })}{hasMore ? <><Pressable style={styles.moreButton} disabled={loadingMore} onPress={() => void loadMore()}><Text style={styles.moreText}>{loadingMore ? 'جاري تحميل المزيد…' : 'تحميل المزيد من المحادثات'}</Text></Pressable>{loadMoreError ? <Text style={styles.moreError}>{loadMoreError}</Text> : null}</> : null}</>}</ScrollView>
-      </>}
-  </SafeAreaView>;
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <AppHeader
+        title="المحادثات"
+        right={
+          <Pressable accessibilityRole="button" onPress={() => router.push('/notifications')} hitSlop={8}>
+            <Text style={styles.link}>
+              الإشعارات
+              {counts.notifications > 0
+                ? ` (${counts.notifications > 99 ? '99+' : counts.notifications})`
+                : ''}
+            </Text>
+          </Pressable>
+        }
+      />
+
+      {!user ? (
+        <EmptyState
+          title="سجّل الدخول أولًا"
+          actionLabel="تسجيل الدخول"
+          onAction={() => router.push('/login')}
+        />
+      ) : loading ? (
+        <LoadingState message="جاري تحميل المحادثات…" />
+      ) : error && !items.length ? (
+        <ErrorState title="تعذر تحميل المحادثات" description={error} onAction={() => void load()} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
+          }
+        >
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            onSubmit={() => {}}
+            placeholder="ابحث عن شخص أو رسالة…"
+            accessibilityLabel="البحث في المحادثات"
+          />
+          <View style={styles.filters}>
+            {([
+              ['all', 'الكل'],
+              ['unread', 'غير مقروءة'],
+              ['archived', 'الأرشيف'],
+            ] as const).map(([value, label]) => (
+              <Chip
+                key={value}
+                label={label}
+                selected={filter === value}
+                onPress={() => setFilter(value)}
+              />
+            ))}
+          </View>
+          {error ? <Text style={styles.moreError}>{error}</Text> : null}
+
+          {visibleItems.length === 0 ? (
+            <EmptyState title="لا توجد محادثات" description="ابدأ مراسلة بائع من صفحة الإعلان أو المنتج." />
+          ) : (
+            <View style={styles.list}>
+              {visibleItems.map((item) => {
+                const other = item.buyerId === user?.id ? item.seller : item.buyer;
+                const unread = item.unreadCount ?? 0;
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push({ pathname: '/messages/[id]', params: { id: item.id } })}
+                    style={[styles.card, unread > 0 && styles.unread]}
+                  >
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{(other?.name || '?').slice(0, 1)}</Text>
+                    </View>
+                    <View style={styles.cardBody}>
+                      <View style={styles.cardTop}>
+                        <Text style={styles.name} numberOfLines={1}>
+                          {other?.name || 'مستخدم'}
+                          {item.mySettings?.pinnedAt ? ' 📌' : ''}
+                        </Text>
+                        {unread > 0 ? (
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={styles.preview} numberOfLines={2}>
+                        {preview(item)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {hasMore ? (
+            <PrimaryButton
+              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
+              variant="secondary"
+              busy={loadingMore}
+              onPress={() => {
+                void loadMore();
+              }}
+            />
+          ) : null}
+          {loadMoreError ? <Text style={styles.moreError}>{loadMoreError}</Text> : null}
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
 }
-const styles = StyleSheet.create({ safe:{flex:1,backgroundColor:colors.canvas},header:{minHeight:56,paddingHorizontal:spacing.md,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:colors.surface,borderBottomWidth:1,borderBottomColor:colors.border},heading:{fontSize:18,fontWeight:'900',color:colors.ink},headerTitle:{flexDirection:'row',alignItems:'center',gap:6},headerBadge:{minWidth:20,height:20,paddingHorizontal:5,borderRadius:10,backgroundColor:colors.brand,alignItems:'center',justifyContent:'center'},headerBadgeText:{color:'#fff',fontSize:10,fontWeight:'900'},link:{color:colors.brand,fontWeight:'800',padding:spacing.sm},tools:{paddingHorizontal:spacing.md,paddingTop:spacing.md,gap:spacing.sm},search:{minHeight:44,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,backgroundColor:colors.surface,paddingHorizontal:spacing.md,color:colors.ink},filters:{flexDirection:'row-reverse',gap:spacing.sm},filter:{flex:1,alignItems:'center',paddingVertical:10,borderRadius:radius.md,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface},filterActive:{backgroundColor:colors.brandSoft,borderColor:colors.brand},filterText:{fontSize:12,fontWeight:'800',color:colors.muted},filterTextActive:{color:colors.brand},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},list:{padding:spacing.md,gap:spacing.sm},card:{padding:spacing.sm,backgroundColor:colors.surface,borderRadius:radius.md,borderWidth:1,borderColor:colors.border,gap:spacing.xs},cardMain:{flexDirection:'row-reverse',alignItems:'center',gap:spacing.md,padding:spacing.xs},avatar:{width:48,height:48,borderRadius:24,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},avatarText:{fontSize:20,fontWeight:'900',color:colors.brand},avatarImage:{width:48,height:48,borderRadius:24},content:{flex:1,gap:4},titleRow:{flexDirection:'row-reverse',alignItems:'center',gap:spacing.xs},person:{flex:1,fontSize:15,fontWeight:'900',color:colors.ink,textAlign:'right'},flag:{fontSize:12},context:{fontSize:12,color:colors.brand,textAlign:'right'},preview:{fontSize:13,color:colors.muted,textAlign:'right',lineHeight:19},badge:{minWidth:22,height:22,paddingHorizontal:6,borderRadius:11,backgroundColor:colors.brand,alignItems:'center',justifyContent:'center'},badgeText:{color:'#fff',fontSize:11,fontWeight:'900'},actions:{flexDirection:'row-reverse',gap:spacing.xs,borderTopWidth:1,borderTopColor:colors.border,paddingTop:spacing.xs},action:{flex:1,alignItems:'center',paddingVertical:7,borderRadius:radius.sm,backgroundColor:colors.canvas},actionText:{fontSize:11,fontWeight:'800',color:colors.brand},empty:{alignItems:'center',gap:spacing.md,padding:spacing.xl,marginTop:40},emptyIcon:{fontSize:38},title:{fontSize:17,fontWeight:'900',color:colors.ink,textAlign:'center'},muted:{fontSize:13,color:colors.muted,textAlign:'center',lineHeight:21},primary:{backgroundColor:colors.brand,borderRadius:radius.md,paddingHorizontal:spacing.lg,paddingVertical:spacing.md},primaryText:{color:'#fff',fontWeight:'800'},moreButton:{alignItems:'center',padding:spacing.lg,backgroundColor:colors.surface,borderRadius:radius.md,borderWidth:1,borderColor:colors.border},moreText:{color:colors.brand,fontWeight:'800'},moreError:{fontSize:12,color:colors.danger,textAlign:'center',padding:spacing.sm}});
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  link: { color: colors.brand, ...typography.captionStrong },
+  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
+  filters: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  list: { gap: spacing.sm },
+  card: {
+    flexDirection: 'row-reverse',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  unread: { borderColor: colors.borderStrong, backgroundColor: colors.brandSoft },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: colors.brand, fontWeight: '900', fontSize: 16 },
+  cardBody: { flex: 1, gap: 4 },
+  cardTop: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  name: { ...typography.bodyStrong, color: colors.ink, flex: 1, textAlign: 'right' },
+  preview: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 18 },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { color: colors.white, fontSize: 11, fontWeight: '900' },
+  moreError: { ...typography.caption, color: colors.danger, textAlign: 'right' },
+});

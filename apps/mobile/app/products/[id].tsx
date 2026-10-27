@@ -1,17 +1,247 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { colors, radius, spacing } from '@/theme/tokens';
 import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.api';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { shareMarketPlatResource } from '@/features/sharing/deep-links';
-function money(v: unknown) { const n=Number(v); return Number.isFinite(n)?`${new Intl.NumberFormat('ar',{maximumFractionDigits:2}).format(n)} ₪`:'السعر عند التواصل'; }
-export default function ProductDetailScreen(){const {id}=useLocalSearchParams<{id:string}>();const {user,accessToken,csrfToken}=useAuth();const [contacting,setContacting]=useState(false);const [item,setItem]=useState<ProductSummary|null>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState<string|null>(null);const load=useCallback(async()=>{if(!id)return;setLoading(true);setError(null);try{setItem(await fetchProduct(id));}catch(e){setError(e instanceof Error?e.message:'تعذر تحميل المنتج.');}finally{setLoading(false);}},[id]);useEffect(()=>{void load();},[load]);
-return <SafeAreaView style={s.safe} edges={['top']}><ScrollView contentContainerStyle={s.content}><View style={s.header}><Pressable accessibilityRole="button" onPress={()=>router.back()} style={s.back}><Text style={s.backText}>→</Text></Pressable><Text style={s.headerTitle}>تفاصيل المنتج</Text><Pressable accessibilityRole="button" onPress={() => { if (item) void shareMarketPlatResource('products', item.id, item.name); }} style={s.back}><Text style={s.secondaryText}>مشاركة</Text></Pressable></View>{loading?<View style={s.state}><ActivityIndicator size="large" color={colors.brand}/><Text style={s.muted}>جاري تحميل المنتج…</Text></View>:error?<View style={s.state}><Text style={s.heading}>تعذر تحميل المنتج</Text><Text style={s.muted}>{error}</Text><Pressable onPress={()=>void load()} style={s.primary}><Text style={s.primaryText}>إعادة المحاولة</Text></Pressable></View>:item?<>
-{item.images?.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.images}>{item.images.map((uri,index)=><Image key={`${uri}-${index}`} source={{uri}} style={s.image} resizeMode="cover"/>)}</ScrollView>:<View style={s.imagePlaceholder}><Text style={s.glyph}>◇</Text></View>}
-<View style={s.card}><Text style={s.heading}>{item.name}</Text><Text style={s.price}>{money(item.effectivePrice?.price??item.discountPrice??item.price)}</Text>{item.discountPrice!=null&&Number(item.discountPrice)<Number(item.price)?<Text style={s.oldPrice}>{money(item.price)}</Text>:null}<Text style={s.category}>{item.category?.nameAr||item.category?.name||'منتج'}</Text><Text style={s.description}>{item.description||'لا يوجد وصف إضافي لهذا المنتج.'}</Text><View style={s.divider}/><Text style={s.muted}>التوفر: {item.availability==='OUT_OF_STOCK'?'غير متوفر':item.availability==='LIMITED'?'كمية محدودة':'متوفر'}</Text>{item.store?.name?<Pressable accessibilityRole="button" onPress={()=>item.store?.id&&router.push(`/stores/${encodeURIComponent(item.store.id)}`)} style={s.storeLink}><Text style={s.storeText}>عرض متجر {item.store.name} ‹</Text></Pressable>:null}</View>
-{item.store?.id&&item.availability!=='OUT_OF_STOCK'&&item.status!=='PAUSED'&&item.status!=='DELETED'?<Pressable accessibilityRole="button" onPress={()=>user?router.push({pathname:'/order-checkout',params:{productId:item.id}}):router.push('/login')} style={s.primary}><Text style={s.primaryText}>اطلب الآن · الدفع عند الاستلام</Text></Pressable>:null}<Pressable accessibilityRole="button" onPress={()=>router.push({pathname:'/report/[targetType]/[targetId]',params:{targetType:'products',targetId:item.id}})} style={s.secondary}><Text style={s.secondaryText}>الإبلاغ عن المنتج</Text></Pressable>{user&&item.store?.sellerProfile?.userId&&item.store.sellerProfile.userId!==user.id?<Pressable accessibilityRole="button" disabled={contacting} onPress={()=>{if(!accessToken){router.push('/login');return;}setContacting(true);void startConversationWithUser(item.store!.sellerProfile!.userId!,accessToken,{type:'product',id:item.id},csrfToken).then(conversation=>router.push({pathname:'/messages/[id]',params:{id:conversation.id}})).catch(error=>Alert.alert('تعذر بدء المحادثة',error instanceof Error?error.message:'حاول مرة أخرى.')).finally(()=>setContacting(false));}} style={s.secondary}><Text style={s.secondaryText}>{contacting?'جارٍ فتح المحادثة…':'مراسلة المتجر حول المنتج'}</Text></Pressable>:null}
-</>:null}</ScrollView></SafeAreaView>}
-const s=StyleSheet.create({safe:{flex:1,backgroundColor:colors.canvas},content:{paddingHorizontal:spacing.lg,paddingTop:spacing.md,gap:spacing.md,paddingBottom:44},header:{flexDirection:'row-reverse',alignItems:'center',gap:spacing.md},back:{width:44,height:44,borderRadius:14,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,alignItems:'center',justifyContent:'center'},backText:{fontSize:24,color:colors.brand},headerTitle:{fontSize:20,fontWeight:'900',color:colors.ink,flex:1,textAlign:'right'},images:{flexDirection:'row-reverse',gap:spacing.sm,paddingVertical:2},image:{width:284,height:260,borderRadius:radius.lg,backgroundColor:colors.border},imagePlaceholder:{height:240,borderRadius:radius.lg,backgroundColor:colors.brandSoft,borderWidth:1,borderColor:colors.border,alignItems:'center',justifyContent:'center'},glyph:{fontSize:52,color:colors.brand},card:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.lg,gap:spacing.md,alignItems:'flex-end',shadowColor:'#102A26',shadowOpacity:0.04,shadowRadius:12,shadowOffset:{width:0,height:4},elevation:1},heading:{fontSize:23,fontWeight:'900',color:colors.ink,textAlign:'right',lineHeight:31,alignSelf:'stretch'},price:{fontSize:24,fontWeight:'900',color:colors.brand},oldPrice:{fontSize:14,color:colors.muted,textDecorationLine:'line-through'},category:{fontSize:12,color:colors.muted},description:{fontSize:15,color:colors.ink,lineHeight:25,textAlign:'right',alignSelf:'stretch'},divider:{height:1,backgroundColor:colors.border,alignSelf:'stretch'},muted:{fontSize:13,color:colors.muted,textAlign:'right',lineHeight:20},storeLink:{alignSelf:'stretch',backgroundColor:colors.brandSoft,borderRadius:radius.md,padding:spacing.md},storeText:{color:colors.brand,fontWeight:'800',textAlign:'right'},state:{alignItems:'center',gap:spacing.md,padding:spacing.xl,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg},primary:{backgroundColor:colors.brand,borderRadius:radius.md,paddingVertical:spacing.md,paddingHorizontal:spacing.lg,minHeight:52,alignItems:'center',justifyContent:'center'},primaryText:{color:'#fff',fontWeight:'800'},secondary:{borderWidth:1,borderColor:colors.brand,borderRadius:radius.md,paddingVertical:spacing.md,paddingHorizontal:spacing.lg,minHeight:48,alignItems:'center',justifyContent:'center',backgroundColor:colors.surface},secondaryText:{color:colors.brand,fontWeight:'800'}});
+import {
+  Badge,
+  DetailScaffold,
+  PrimaryButton,
+  SecondaryButton,
+  SectionCard,
+} from '@/components/MobileUI';
+import { colors, radius, spacing, typography } from '@/theme/tokens';
+
+function money(value: unknown): string {
+  const n = Number(value);
+  return Number.isFinite(n)
+    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(n)} ₪`
+    : 'السعر عند التواصل';
+}
+
+function availabilityLabel(value?: string): string {
+  if (value === 'OUT_OF_STOCK') return 'غير متوفر';
+  if (value === 'LIMITED') return 'كمية محدودة';
+  return 'متوفر';
+}
+
+export default function ProductDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { user, accessToken, csrfToken } = useAuth();
+  const [contacting, setContacting] = useState(false);
+  const [item, setItem] = useState<ProductSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setItem(await fetchProduct(id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تحميل المنتج.');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const canOrder =
+    !!item?.store?.id &&
+    item.availability !== 'OUT_OF_STOCK' &&
+    item.status !== 'PAUSED' &&
+    item.status !== 'DELETED';
+
+  const sellerUserId = item?.store?.sellerProfile?.userId;
+  const canMessage =
+    !!user && !!sellerUserId && sellerUserId !== user.id;
+
+  const footer = item && canOrder ? (
+    <PrimaryButton
+      label="اطلب الآن · الدفع عند الاستلام"
+      onPress={() => {
+        if (user) router.push({ pathname: '/order-checkout', params: { productId: item.id } });
+        else router.push('/login');
+      }}
+    />
+  ) : null;
+
+  return (
+    <DetailScaffold
+      title="تفاصيل المنتج"
+      right={
+        item ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="مشاركة المنتج"
+            onPress={() => {
+              void shareMarketPlatResource('products', item.id, item.name);
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.headerAction}>مشاركة</Text>
+          </Pressable>
+        ) : undefined
+      }
+      loading={loading}
+      loadingMessage="جاري تحميل المنتج…"
+      error={error}
+      onRetry={() => {
+        void load();
+      }}
+      footer={footer}
+    >
+      {item ? (
+        <View style={styles.pad}>
+          {item.images?.length ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.images}
+            >
+              {item.images.map((uri, index) => (
+                <Image
+                  key={`${uri}-${index}`}
+                  source={{ uri }}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.glyph}>◇</Text>
+            </View>
+          )}
+
+          <SectionCard>
+            <Text style={styles.heading}>{item.name}</Text>
+            <Text style={styles.price}>
+              {money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}
+            </Text>
+            {item.discountPrice != null && Number(item.discountPrice) < Number(item.price) ? (
+              <Text style={styles.oldPrice}>{money(item.price)}</Text>
+            ) : null}
+            <Text style={styles.category}>
+              {item.category?.nameAr || item.category?.name || 'منتج'}
+            </Text>
+            <Badge
+              label={availabilityLabel(item.availability)}
+              tone={item.availability === 'OUT_OF_STOCK' ? 'danger' : 'success'}
+            />
+            <Text style={styles.description}>
+              {item.description || 'لا يوجد وصف إضافي لهذا المنتج.'}
+            </Text>
+            {item.store?.name ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  if (item.store?.id) {
+                    router.push(`/stores/${encodeURIComponent(item.store.id)}`);
+                  }
+                }}
+              >
+                <Text style={styles.storeText}>عرض متجر {item.store.name} ‹</Text>
+              </Pressable>
+            ) : null}
+          </SectionCard>
+
+          {canMessage ? (
+            <SecondaryButton
+              label={contacting ? 'جارٍ فتح المحادثة…' : 'مراسلة المتجر حول المنتج'}
+              busy={contacting}
+              onPress={() => {
+                if (!accessToken || !sellerUserId) {
+                  router.push('/login');
+                  return;
+                }
+                setContacting(true);
+                void startConversationWithUser(
+                  sellerUserId,
+                  accessToken,
+                  { type: 'product', id: item.id },
+                  csrfToken,
+                )
+                  .then((conversation) =>
+                    router.push({ pathname: '/messages/[id]', params: { id: conversation.id } }),
+                  )
+                  .catch((err) =>
+                    Alert.alert(
+                      'تعذر بدء المحادثة',
+                      err instanceof Error ? err.message : 'حاول مرة أخرى.',
+                    ),
+                  )
+                  .finally(() => setContacting(false));
+              }}
+            />
+          ) : null}
+
+          <PrimaryButton
+            label="الإبلاغ عن المنتج"
+            variant="ghost"
+            onPress={() =>
+              router.push({
+                pathname: '/report/[targetType]/[targetId]',
+                params: { targetType: 'products', targetId: item.id },
+              })
+            }
+          />
+        </View>
+      ) : null}
+    </DetailScaffold>
+  );
+}
+
+const styles = StyleSheet.create({
+  headerAction: { color: colors.brand, ...typography.captionStrong },
+  pad: { paddingHorizontal: spacing.md, gap: spacing.md },
+  images: { flexDirection: 'row-reverse', gap: spacing.sm },
+  image: {
+    width: 280,
+    height: 250,
+    borderRadius: radius.lg,
+    backgroundColor: colors.border,
+  },
+  imagePlaceholder: {
+    height: 220,
+    borderRadius: radius.lg,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glyph: { fontSize: 48, color: colors.brand },
+  heading: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.ink,
+    textAlign: 'right',
+    lineHeight: 30,
+  },
+  price: { fontSize: 22, fontWeight: '900', color: colors.brand, textAlign: 'right' },
+  oldPrice: {
+    ...typography.caption,
+    color: colors.muted,
+    textDecorationLine: 'line-through',
+    textAlign: 'right',
+  },
+  category: { ...typography.caption, color: colors.muted, textAlign: 'right' },
+  description: {
+    ...typography.body,
+    color: colors.ink,
+    lineHeight: 24,
+    textAlign: 'right',
+  },
+  storeText: {
+    color: colors.brand,
+    ...typography.bodyStrong,
+    textAlign: 'right',
+  },
+});

@@ -16,7 +16,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { AdListItem, fetchPublicAds, getCachedPublicAdsWithMetadata } from '@/features/ads/ads.api';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { EmptyState, ErrorState, LoadingState, SectionHeader } from '@/components/MobileUI';
+import { AdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
 import { fetchServiceListings, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
@@ -286,7 +288,7 @@ export default function HomeScreen() {
               onChangeText={setQuery}
               onSubmitEditing={() => { setSubmittedSearch(query.trim()); }}
               placeholder="ابحث عن إعلان أو سلعة…"
-              placeholderTextColor="#858D98"
+              placeholderTextColor={colors.muted}
               returnKeyType="search"
               style={styles.searchInput}
               textAlign="right"
@@ -297,17 +299,17 @@ export default function HomeScreen() {
 
         <View style={styles.quickActions}>
           <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#DFF5EC' }]}><Text style={[styles.quickGlyph, { color: '#176B50' }]}>⌕</Text></View>
+            <View style={[styles.quickIcon, { backgroundColor: colors.brandSoft }]}><Text style={[styles.quickGlyph, { color: colors.brand }]}>⌕</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف السوق</Text><Text style={styles.quickSubtitle}>المتاجر والخدمات والمنتجات والقصص</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.push('/search')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#E7F0FF' }]}><Text style={[styles.quickGlyph, { color: '#2856A6' }]}>⚙</Text></View>
+            <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>⚙</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>بحث وفلاتر متقدمة</Text><Text style={styles.quickSubtitle}>حدد المدينة والسعر ونوع المحتوى</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={styles.quickAction}>
-            <View style={[styles.quickIcon, { backgroundColor: '#FFF0D6' }]}><Text style={[styles.quickGlyph, { color: '#9A5A00' }]}>＋</Text></View>
+            <View style={[styles.quickIcon, { backgroundColor: colors.warningSoft }]}><Text style={[styles.quickGlyph, { color: colors.warning }]}>＋</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>انشر إعلانًا أو أضف منتجًا أو خدمة</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
@@ -316,7 +318,7 @@ export default function HomeScreen() {
 
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>أحدث الإعلانات</Text>
+          <SectionHeader title="أحدث الإعلانات" subtitle="من السوق المحلي" />
           <View style={styles.sectionActions}>
             <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)}><Text style={styles.link}>{showFilters ? 'إخفاء الفلاتر' : 'تصفية النتائج'}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => { void loadAds(true); }}><Text style={styles.link}>تحديث</Text></Pressable>
@@ -325,10 +327,10 @@ export default function HomeScreen() {
 
         {showFilters ? <View style={styles.advancedFilters}>
           <Text style={styles.filterHeading}>تصفية النتائج</Text>
-          <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor="#858D98" textAlign="right" style={styles.filterInput} returnKeyType="done" />
+          <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor={colors.muted} textAlign="right" style={styles.filterInput} returnKeyType="done" />
           <View style={styles.priceInputs}>
-            <TextInput accessibilityLabel="أقل سعر" value={minPriceInput} onChangeText={setMinPriceInput} keyboardType="decimal-pad" placeholder="أقل سعر" placeholderTextColor="#858D98" textAlign="right" style={[styles.filterInput, styles.priceInput]} />
-            <TextInput accessibilityLabel="أعلى سعر" value={maxPriceInput} onChangeText={setMaxPriceInput} keyboardType="decimal-pad" placeholder="أعلى سعر" placeholderTextColor="#858D98" textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+            <TextInput accessibilityLabel="أقل سعر" value={minPriceInput} onChangeText={setMinPriceInput} keyboardType="decimal-pad" placeholder="أقل سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+            <TextInput accessibilityLabel="أعلى سعر" value={maxPriceInput} onChangeText={setMaxPriceInput} keyboardType="decimal-pad" placeholder="أعلى سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
           </View>
           {filterError ? <Text style={styles.filterError} accessibilityLiveRegion="polite">{filterError}</Text> : null}
           <View style={styles.sortRow}>
@@ -349,33 +351,35 @@ export default function HomeScreen() {
           </View>
         ) : null}
         {loading ? (
-          <View style={styles.statusCard}><ActivityIndicator size="large" color={colors.brand} /><Text style={styles.statusText}>جاري تحميل الإعلانات…</Text></View>
+          <LoadingState message="جاري تحميل الإعلانات…" />
         ) : errorMessage ? (
-          <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>لم نتمكن من تحميل الإعلانات</Text>
-            <Text style={styles.statusText}>{errorMessage}</Text>
-            <Pressable accessibilityRole="button" onPress={() => { void loadAds(); }} style={styles.retryButton}><Text style={styles.retryText}>إعادة المحاولة</Text></Pressable>
-            <Text style={styles.helperText}>تأكد من إعداد EXPO_PUBLIC_API_URL في apps/mobile/.env وأن الخادم متاح من جهازك.</Text>
-          </View>
+          <ErrorState
+            title="لم نتمكن من تحميل الإعلانات"
+            description={errorMessage}
+            onAction={() => { void loadAds(); }}
+          />
         ) : ads.length === 0 ? (
-          <View style={styles.statusCard}><Text style={styles.statusEmoji}>🛍️</Text><Text style={styles.statusTitle}>لا توجد إعلانات مطابقة</Text><Text style={styles.statusText}>جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث.</Text></View>
+          <EmptyState
+            title="لا توجد إعلانات مطابقة"
+            description="جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث."
+          />
         ) : (
           <View style={styles.adsList}>
             {ads.map((ad) => {
               const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images) ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url)) : undefined;
               return (
-                <View key={ad.id} style={styles.adCard}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`عرض الإعلان: ${ad.title}`} onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)} style={styles.adMain}>
-                    {imageUri ? <Image source={{ uri: imageUri }} onError={() => setFailedImageIds((current) => current.includes(ad.id) ? current : [...current, ad.id])} style={styles.adImage} resizeMode="cover" /> : <View style={styles.adImagePlaceholder}><Text style={styles.placeholderEmoji}>🛍️</Text></View>}
-                    <View style={styles.adInfo}>
-                      <Text numberOfLines={2} style={styles.adTitle}>{ad.title}</Text>
-                      <Text style={styles.adPrice}>{formatPrice(ad.price)}</Text>
-                      <Text numberOfLines={1} style={styles.adMeta}>{[ad.city, ad.category?.nameAr || ad.category?.name].filter(Boolean).join(' · ') || 'إعلان محلي'}</Text>
-                      {ad.isNegotiable ? <Text style={styles.negotiable}>السعر قابل للتفاوض</Text> : null}
-                    </View>
-                  </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.includes(ad.id) ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} accessibilityState={{ selected: favoriteIds.includes(ad.id) }} onPress={() => toggleFavorite(ad.id)} style={styles.favoriteButton}><Text style={[styles.favoriteText, favoriteIds.includes(ad.id) && styles.favoriteActive]}>{favoriteIds.includes(ad.id) ? '♥' : '♡'}</Text></Pressable>
-                </View>
+                <AdCard
+                  key={ad.id}
+                  title={ad.title}
+                  price={formatPrice(ad.price)}
+                  meta={[ad.city, ad.category?.nameAr || ad.category?.name].filter(Boolean).join(' · ') || 'إعلان محلي'}
+                  imageUri={imageUri}
+                  isFavorite={favoriteIds.includes(ad.id)}
+                  isNegotiable={Boolean(ad.isNegotiable)}
+                  onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)}
+                  onToggleFavorite={() => { void toggleFavorite(ad.id); }}
+                  onImageError={() => setFailedImageIds((current) => current.includes(ad.id) ? current : [...current, ad.id])}
+                />
               );
             })}
           </View>
@@ -385,8 +389,7 @@ export default function HomeScreen() {
         <HomeMarketplaceSections />
         <View style={styles.servicesSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>خدمات قريبة منك</Text>
-            <Pressable accessibilityRole="button" onPress={() => router.push('/services')}><Text style={styles.link}>كل الخدمات</Text></Pressable>
+            <SectionHeader title="خدمات قريبة منك" actionLabel="كل الخدمات" onAction={() => router.push('/services')} />
           </View>
           {servicesLoading && serviceItems.length === 0 ? <View style={styles.serviceState}><ActivityIndicator size="small" color={colors.brand} /><Text style={styles.helperText}>جاري تحميل الخدمات…</Text></View> : null}
           {!servicesLoading && servicesError && serviceItems.length === 0 ? <View style={styles.serviceState}><Text style={styles.helperText}>تعذر تحميل الخدمات الآن.</Text><Pressable accessibilityRole="button" onPress={() => { void loadServices(true); }}><Text style={styles.link}>إعادة المحاولة</Text></Pressable></View> : null}
@@ -419,7 +422,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm, minHeight: 58, gap: spacing.sm },
   brandRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
   logo: { width: 48, height: 48, borderRadius: 15, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  logoText: { color: '#FFFFFF', fontSize: 25, fontWeight: '800' },
+  logoText: { color: colors.white, fontSize: 25, fontWeight: '800' },
   brandName: { color: colors.ink, fontSize: 18, fontWeight: '800', textAlign: 'right' },
   brandSubtitle: { color: colors.muted, fontSize: 12, marginTop: 2, textAlign: 'right' },
   headerActions: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs },
@@ -434,10 +437,10 @@ const styles = StyleSheet.create({
   quickSubtitle: { color: colors.muted, fontSize: 12, textAlign: 'right' },
   quickArrow: { color: colors.muted, fontSize: 25 },
   hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.xl, overflow: 'hidden', gap: spacing.sm },
-  eyebrow: { color: '#D4EEE6', fontSize: 13, textAlign: 'right' },
-  heroTitle: { color: '#FFFFFF', fontSize: 26, fontWeight: '800', textAlign: 'right' },
-  heroBody: { color: '#E0F2EC', fontSize: 14, lineHeight: 22, textAlign: 'right' },
-  searchBox: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: spacing.md, marginTop: spacing.sm, minHeight: 52, gap: spacing.sm },
+  eyebrow: { color: colors.brandSoft, fontSize: 13, textAlign: 'right' },
+  heroTitle: { color: colors.white, fontSize: 26, fontWeight: '800', textAlign: 'right' },
+  heroBody: { color: colors.brandSoft, fontSize: 14, lineHeight: 22, textAlign: 'right' },
+  searchBox: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: spacing.md, marginTop: spacing.sm, minHeight: 52, gap: spacing.sm },
   searchIcon: { fontSize: 26, color: colors.brand, width: 25, textAlign: 'center' },
   searchInput: { flex: 1, color: colors.ink, fontSize: 15, paddingVertical: 12, writingDirection: 'rtl' },
   clearSearch: { color: colors.muted, fontSize: 24, paddingHorizontal: 4 },
@@ -457,13 +460,13 @@ const styles = StyleSheet.create({
   clearFiltersButton: { minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   clearFiltersText: { color: colors.muted, fontSize: 13, fontWeight: '800' },
   applyFiltersButton: { flex: 1, minHeight: 48, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  applyFiltersText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  applyFiltersText: { color: colors.white, fontSize: 13, fontWeight: '800' },
   servicesSection: { gap: spacing.md },
   serviceList: { gap: spacing.sm },
   serviceRequestsLink: { minHeight: 42, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: spacing.sm },
   serviceRequestsText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
   serviceCard: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, padding: spacing.sm, minHeight: 96, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg },
-  serviceImage: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: '#EEF1F3' },
+  serviceImage: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: colors.border },
   serviceImagePlaceholder: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   servicePlaceholderGlyph: { color: colors.brand, fontSize: 28 },
   serviceInfo: { flex: 1, alignItems: 'flex-end', gap: 4 },
@@ -482,10 +485,10 @@ const styles = StyleSheet.create({
   filterTextSelected: { color: colors.brandDark },
   adCard: { position: 'relative', backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', minHeight: 126 },
   adMain: { flexDirection: 'row-reverse', minHeight: 132, paddingTop: 30 },
-  favoriteButton: { position: 'absolute', top: 5, right: 6, width: 38, height: 36, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  favoriteButton: { position: 'absolute', top: 5, right: 6, width: 38, height: 36, borderRadius: 15, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   favoriteText: { color: colors.muted, fontSize: 20, lineHeight: 24 },
-  favoriteActive: { color: '#D92D55' },
-  adImage: { width: 120, minHeight: 132, backgroundColor: '#EEF1F3' },
+  favoriteActive: { color: colors.danger },
+  adImage: { width: 120, minHeight: 132, backgroundColor: colors.border },
   adImagePlaceholder: { width: 120, minHeight: 132, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   placeholderEmoji: { fontSize: 32 },
   adInfo: { flex: 1, padding: spacing.md, gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' },
@@ -493,16 +496,16 @@ const styles = StyleSheet.create({
   adPrice: { color: colors.brand, fontSize: 15, fontWeight: '800', textAlign: 'right' },
   adMeta: { color: colors.muted, fontSize: 12, textAlign: 'right', width: '100%' },
   negotiable: { color: colors.brandDark, backgroundColor: colors.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, overflow: 'hidden' },
-  cacheStatus: { alignSelf: 'flex-end', backgroundColor: '#EAF5F1', borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  cacheStatusText: { color: '#246A55', fontSize: 11, fontWeight: '600', textAlign: 'right' },
+  cacheStatus: { alignSelf: 'flex-end', backgroundColor: colors.successSoft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  cacheStatusText: { color: colors.brandDark, fontSize: 11, fontWeight: '600', textAlign: 'right' },
   statusCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', padding: spacing.xl, gap: spacing.md },
   statusEmoji: { fontSize: 32 },
   statusTitle: { color: colors.ink, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   statusText: { color: colors.muted, fontSize: 13, lineHeight: 21, textAlign: 'center' },
   retryButton: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md },
-  retryText: { color: '#FFFFFF', fontWeight: '800' },
+  retryText: { color: colors.white, fontWeight: '800' },
   helperText: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  notice: { backgroundColor: '#FFF8E8', borderColor: '#F4E2B5', borderWidth: 1, borderRadius: radius.md, padding: spacing.lg, gap: spacing.xs },
-  noticeTitle: { color: '#7C5700', fontSize: 13, fontWeight: '800', textAlign: 'right' },
-  noticeText: { color: '#795F24', fontSize: 12, lineHeight: 19, textAlign: 'right' },
+  notice: { backgroundColor: colors.warningSoft, borderColor: colors.warningBorder, borderWidth: 1, borderRadius: radius.md, padding: spacing.lg, gap: spacing.xs },
+  noticeTitle: { color: colors.warning, fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  noticeText: { color: colors.warning, fontSize: 12, lineHeight: 19, textAlign: 'right' },
 });
