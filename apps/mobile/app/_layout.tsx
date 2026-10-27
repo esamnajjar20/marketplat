@@ -1,3 +1,4 @@
+import '@/lib/network-config';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
 import BottomNavigation from '@/components/BottomNavigation';

@@ -1,7 +1,7 @@
 import { AppState } from 'react-native';
 import { ApiError } from '@/api/client';
 import { sendMessage, type ChatMessage } from './messaging.api';
-import { acknowledgeChatMessage, deferChatMessage, listChatMessagesForOwner, listDueChatMessages } from '@/storage/chat-message-outbox';
+import { acknowledgeChatMessage, deferChatMessage, discardFailedChatMessage, listChatMessagesForOwner, listDueChatMessages } from '@/storage/chat-message-outbox';
 
 export type ChatOutboxSyncResult = { sent: Array<{ operationId: string; message: ChatMessage }>; pending: number; stoppedReason: 'offline' | 'signed-out' | 'retry-scheduled' | 'retry-limit' | null };
 export type ChatOutboxSyncSnapshot = { isOnline: boolean; token?: string | null; csrfToken?: string | null; ownerId?: string | null; signal?: AbortSignal };
@@ -27,6 +27,7 @@ async function runSync(snapshot: ChatOutboxSyncSnapshot): Promise<ChatOutboxSync
   const ownerId = snapshot.ownerId;
   const items = await listDueChatMessages(ownerId);
   let stoppedReason: ChatOutboxSyncResult['stoppedReason'] = null;
+  
   for (const item of items) {
     if (snapshot.signal?.aborted) { stoppedReason = 'signed-out'; break; }
     if (AppState.currentState !== 'active') { stoppedReason = 'offline'; break; }
@@ -36,9 +37,17 @@ async function runSync(snapshot: ChatOutboxSyncSnapshot): Promise<ChatOutboxSync
       sent.push({ operationId: item.operationId, message });
       for (const listener of listeners) listener(item.operationId, message);
     } catch (error) {
-      // Session changes abort in-flight requests. Keep the durable row untouched; a later
-      // authenticated sync retries it with the same idempotency key.
       if (snapshot.signal?.aborted) { stoppedReason = 'signed-out'; break; }
+      
+      // 🟢 الإصلاح: إذا كان الخطأ من السيرفر (400, 404) فهذا يعني أن الرسالة مرفوضة ولا فائدة من إعادتها
+      // يجب حذفها من الطابور بدلاً من إعادتها للأبد
+      if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
+        await discardFailedChatMessage(item.operationId, ownerId, error.message);
+        stoppedReason = 'retry-limit';
+        break;
+      }
+
+      // إذا كان خطأ شبكة أو سيرفر (500)، نؤجلها ونعيد المحاولة
       await deferChatMessage(item.operationId, ownerId, error);
       stoppedReason = error instanceof ApiError && (error.status === 401 || error.status === 403) ? 'signed-out' : 'retry-scheduled';
       break;
