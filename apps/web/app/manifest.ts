@@ -41,18 +41,18 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['shopping', 'business'],
     icons: [
       {
-        src: '/icon',
+        src: '/icon.png',
         sizes: '32x32',
         type: 'image/png',
       },
       {
-        src: '/icon-192',
+        src: '/icons/icon-192.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon-512',
+        src: '/icons/icon-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
@@ -62,7 +62,7 @@ export default function manifest(): MetadataRoute.Manifest {
         // إلى دائرة/مربع مدوّر ويتوقع أن يكون المحتوى المهم داخل "منطقة آمنة"
         // أصغر من الحجم الكامل. app/icon-512-maskable/route.tsx يعيد نفس
         // الرمز لكن بحشوة (padding) كافية بدل تعبئة الحافة بالكامل.
-        src: '/icon-512-maskable',
+        src: '/icons/icon-512-maskable.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
@@ -75,19 +75,19 @@ export default function manifest(): MetadataRoute.Manifest {
         name: 'إضافة إعلان جديد',
         short_name: 'إعلان جديد',
         url: '/ads/create?source=pwa-shortcut',
-        icons: [{ src: '/icon-192', sizes: '192x192' }],
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
       },
       {
         name: 'إعلاناتي',
         short_name: 'إعلاناتي',
         url: '/my-ads?source=pwa-shortcut',
-        icons: [{ src: '/icon-192', sizes: '192x192' }],
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
       },
       {
         name: 'الرسائل',
         short_name: 'الرسائل',
         url: '/messages?source=pwa-shortcut',
-        icons: [{ src: '/icon-192', sizes: '192x192' }],
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
       },
     ],
   };

@@ -1,3 +1,7 @@
+// Disable Next.js 15.5+ worker threads — they cause ENOENT race conditions
+// for pages-manifest.json / BUILD_ID during opennext build.
+process.env.NEXT_PRIVATE_WORKER_THREADS = 'false';
+
 /**
  * Next.js configuration.
  *
@@ -47,6 +51,7 @@ import type { NextConfig } from 'next';
 // across every request within a deployment so cached HTML carries the same
 // nonce as the CSP header. Rotates on each build.
 import { randomBytes } from 'node:crypto';
+import path from 'node:path';
 const BUILD_NONCE = randomBytes(16).toString('hex');
 
 const isDev  = process.env.NODE_ENV === 'development';
@@ -55,6 +60,24 @@ const isProd = process.env.NODE_ENV === 'production';
 // FIX NEXT-04: Use the cloud-name-scoped path.
 const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? '';
 const nextConfig: NextConfig = {
+  // Exclude sharp native binaries from NFT — Cloudflare Workers cannot run
+  // .node files. images.unoptimized=true means sharp is never loaded.
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/sharp/**/*',
+      'node_modules/@img/**/*',
+    ],
+  },
+
+  // Don't bundle sharp — native .node binaries cannot run on Workers.
+  // With images.unoptimized=true, sharp is never loaded at runtime.
+  serverExternalPackages: ['sharp', '@img/sharp-linux-x64', '@img/sharp-linuxmusl-x64', '@img/sharp-darwin-arm64', '@img/sharp-darwin-x64', '@img/sharp-win32-x64'],
+
+  // Force NFT paths relative to monorepo root so @opennextjs/aws's
+  // copyTracedFiles does not skip symlinked node_modules/next files.
+  outputFileTracingRoot: path.join(process.cwd(), '../..'),
+
+
   reactStrictMode: true,
 
   // BUILD-LINT-01: ESLint runs separately; skip during build to avoid
@@ -67,10 +90,12 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_NONCE: BUILD_NONCE,
   },
 
-  // FIX D-18: standalone output bundles only the files actually needed
+  // [DEPRECATED] FIX D-18: standalone output bundles only the files actually needed
   // to run (a minimal node_modules subset + server code), which is what
   // the new production Dockerfile copies into its final stage. Without
   // this, a Docker image would need the full node_modules tree.
+  // KEEP standalone: required by Next.js 15.5.x monorepo webpack resolution.
+  // NFT gap is patched separately via scripts/patch-nft.cjs.
   output: 'standalone',
 
   // PERF-01: Never expose the X-Powered-By: Next.js header — saves ~30 bytes
