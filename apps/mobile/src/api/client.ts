@@ -1,4 +1,4 @@
-import { clearPrivateCache, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
+import { clearPrivateCache, clearPrivateCacheForPrefix, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
 /** Minimal API transport. Set EXPO_PUBLIC_API_URL in apps/mobile/.env before connecting real screens. */
 export class ApiError extends Error {
   constructor(
@@ -204,26 +204,31 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     if (cacheKey && isSuccessfulPublicEnvelope(payload)) {
       await writePublicCache(cacheKey, payload);
     } else if (init.method && init.method.toUpperCase() !== 'GET' && token) {
-      // Targeted cache invalidation: only clear the affected resource's
-      // private snapshot. Falls back to full private-cache clearing only for
-      // cross-cutting mutations that we know affect multiple views.
+      // Targeted cache invalidation: only clear the affected resource tree.
+      // A mutation on /api/v1/orders invalidates all cached /orders/* keys for
+      // this account but leaves /users/me, /sales/*, /appointments/* untouched.
+      // Falls back to a full clear only if we cannot scope the change.
       const pathname = path.split('?', 1)[0];
-      const crossCuttingPrefixes = [
+      const scopedPrefixes = [
         '/api/v1/orders',
         '/api/v1/requests',
         '/api/v1/appointments',
         '/api/v1/sales',
       ];
-      const isCrossCutting = crossCuttingPrefixes.some((prefix) => pathname.startsWith(prefix));
-      if (isCrossCutting) {
-        // These mutations can affect multiple cached views (orders list,
-        // request detail, seller dashboard). Conservative clear.
-        await clearPrivateCache();
+      const matchedPrefix = scopedPrefixes.find((prefix) => pathname.startsWith(prefix));
+      if (matchedPrefix && cacheOwnerId?.trim()) {
+        // Scoped invalidation — only caches belonging to this prefix and account.
+        await clearPrivateCacheForPrefix(matchedPrefix, cacheOwnerId);
       } else {
         // Precise invalidation: e.g. PATCH /users/me → only that resource.
         const resourceKey = privateCacheResourceKey(path, cacheOwnerId)
           ?? (pathname === '/api/v1/users/me/notifications' ? privateCacheResourceKey('/api/v1/users/me', cacheOwnerId) : null);
-        if (resourceKey) await deletePublicCacheEntry(resourceKey);
+        if (resourceKey) {
+          await deletePublicCacheEntry(resourceKey);
+        } else if (matchedPrefix) {
+          // Cross-cutting mutation without a known ownerId — conservative fallback.
+          await clearPrivateCache();
+        }
       }
     }
     return payload as T;

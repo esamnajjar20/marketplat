@@ -12,12 +12,23 @@ export type OutboxLifecycleSnapshot = {
   csrfToken?: string | null;
 };
 
+export type OutboxQueueName = 'mutations' | 'requests' | 'offers' | 'orders' | 'creates';
+
+export type OutboxQueueSummary = {
+  synced: number;
+  reason: 'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required' | 'skipped';
+};
+
 export type OutboxLifecycleOptions = {
   /** Read the latest auth/connectivity state at every trigger; do not capture stale tokens. */
   getSnapshot: () => OutboxLifecycleSnapshot;
   /** Subscribe to the app's existing connectivity source (for example NetInfo). */
   subscribeConnectivity: (listener: () => void) => () => void;
-  onResult?: (result: GuardedOutboxSyncResult) => void;
+  /** Called once per trigger with a summary of every queue + the mutation-outbox result. */
+  onResult?: (result: {
+    mutations: GuardedOutboxSyncResult;
+    queues: Record<OutboxQueueName, OutboxQueueSummary>;
+  }) => void;
   onError?: (error: unknown) => void;
 };
 
@@ -51,41 +62,79 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
         lastResult = result;
         if (result.status !== 'sync-result' || result.result.status !== 'synced') break;
       }
+
       // Drain every durable queue in FIFO order on the same lifecycle event.
-      // A single successful operation must not leave later offline operations
-      // stranded until another unrelated network/foreground event.
+      // Each queue aggregates its own count so callers can report "5 requests,
+      // 2 orders synced" instead of a single generic message.
       const drainQueue = async (
         sync: (snapshot: OutboxLifecycleSnapshot) => Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'>,
-      ) => {
+      ): Promise<OutboxQueueSummary> => {
+        let synced = 0;
+        let lastReason: OutboxQueueSummary['reason'] = 'nothing-due';
         for (let processed = 0; processed < 50; processed += 1) {
-          if (stopped || currentGeneration !== generation || AppState.currentState !== 'active') return;
+          if (stopped || currentGeneration !== generation || AppState.currentState !== 'active') {
+            lastReason = 'skipped';
+            break;
+          }
           const snapshot = options.getSnapshot();
           const result = await sync(snapshot);
-          if (result !== 'synced') return;
+          if (result === 'synced') {
+            synced += 1;
+            lastReason = 'synced';
+            continue;
+          }
+          lastReason = result;
+          break;
         }
+        return { synced, reason: lastReason };
       };
 
+      const queues: Record<OutboxQueueName, OutboxQueueSummary> = {
+        mutations: { synced: 0, reason: 'nothing-due' },
+        requests: { synced: 0, reason: 'nothing-due' },
+        offers: { synced: 0, reason: 'nothing-due' },
+        orders: { synced: 0, reason: 'nothing-due' },
+        creates: { synced: 0, reason: 'nothing-due' },
+      };
+
+      // Mutation outbox is aggregated by its own loop above.
+      if (lastResult?.status === 'sync-result' && lastResult.result.status === 'synced') {
+        queues.mutations.synced = 1;
+        queues.mutations.reason = 'synced';
+      } else if (lastResult) {
+        queues.mutations.reason =
+          lastResult.status === 'offline' ? 'skipped' :
+          lastResult.status === 'login-required-before-sync' ? 'login-required' :
+          lastResult.result.status === 'synced' ? 'synced' :
+          lastResult.result.status === 'nothing-due' ? 'nothing-due' :
+          lastResult.result.status === 'login-required' ? 'login-required' :
+          'retry-scheduled';
+      }
+
       if (!stopped && currentGeneration === generation) {
-        await drainQueue(snapshot => syncNextMarketplaceRequest({
+        queues.requests = await drainQueue(snapshot => syncNextMarketplaceRequest({
           isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
         }));
       }
       if (!stopped && currentGeneration === generation) {
-        await drainQueue(snapshot => syncNextRequestOffer({
+        queues.offers = await drainQueue(snapshot => syncNextRequestOffer({
           isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
         }));
       }
       if (!stopped && currentGeneration === generation) {
-        await drainQueue(snapshot => syncNextMarketplaceOrder({
+        queues.orders = await drainQueue(snapshot => syncNextMarketplaceOrder({
           isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
         }));
       }
       if (!stopped && currentGeneration === generation) {
-        await drainQueue(snapshot => syncNextOfflineCreate({
+        queues.creates = await drainQueue(snapshot => syncNextOfflineCreate({
           isOnline: snapshot.isOnline, token: snapshot.token, ownerId: snapshot.ownerId, csrfToken: snapshot.csrfToken,
         }));
       }
-      if (!stopped && currentGeneration === generation && lastResult) options.onResult?.(lastResult);
+
+      if (!stopped && currentGeneration === generation && lastResult) {
+        options.onResult?.({ mutations: lastResult, queues });
+      }
     } catch (error) {
       if (!stopped && currentGeneration === generation) options.onError?.(error);
     }

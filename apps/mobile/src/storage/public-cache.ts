@@ -167,6 +167,24 @@ export async function deletePublicCacheEntry(key: string): Promise<void> {
   }
 }
 
+/** Scoped private-cache invalidation: only keys for one resource prefix and one account.
+ *  Use this instead of clearPrivateCache() when a mutation is confined to one domain
+ *  (orders, requests, appointments, sales). Reduces unnecessary cache wipes. */
+export async function clearPrivateCacheForPrefix(pathPrefix: string, ownerId: string): Promise<void> {
+  if (!pathPrefix.startsWith('/api/v1/') || !ownerId.trim()) return;
+  try {
+    const db = await getDatabase();
+    // Private keys have the shape: api-private:<encodedOwnerId>:<path>
+    const ownerSegment = `api-private:${encodeURIComponent(ownerId)}:`;
+    await db.runAsync(
+      "DELETE FROM public_cache WHERE cache_key LIKE ? || ? || ?",
+      ownerSegment, pathPrefix, '%',
+    );
+  } catch {
+    // Cache invalidation is best-effort; the server remains authoritative.
+  }
+}
+
 /** Clear all authenticated snapshots after any successful mutation. Conservative invalidation avoids stale cross-feature views. */
 export async function clearPrivateCache(): Promise<void> {
   try {
