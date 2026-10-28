@@ -45,6 +45,7 @@ export default function MessagesScreen() {
   const moreRequest = useRef(false);
   const moreRequestId = useRef(0);
   const requestId = useRef(0);
+  const accessTokenRef = useRef(accessToken);
   const load = useCallback(async (refresh = false) => {
     const currentRequestId = ++requestId.current;
     if (!accessToken) { setItems([]); setHasMore(false); pageRef.current = 1; moreRequestId.current += 1; moreRequest.current = false; setLoadingMore(false); setLoading(false); setRefreshing(false); setError('سجّل الدخول لعرض محادثاتك.'); return; }
@@ -64,6 +65,7 @@ export default function MessagesScreen() {
     catch (e) { if (parentRequestId === requestId.current) setLoadMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المحادثات.'); }
     finally { if (currentMoreRequestId === moreRequestId.current) { moreRequest.current = false; if (parentRequestId === requestId.current) setLoadingMore(false); } }
   }, [accessToken, hasMore, loadingMore, filter]);
+  useEffect(() => { accessTokenRef.current = accessToken; }, [accessToken]);
   const visibleItems = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return items.filter(item => {
@@ -82,7 +84,8 @@ export default function MessagesScreen() {
     try {
       await setConversationFlags(item.id, flags, tokenSnapshot, csrfToken);
       // Abort state update if the session changed while the request was in-flight.
-      if (accessToken !== tokenSnapshot) return;
+      // Uses a ref because accessToken from the closure is identical to tokenSnapshot.
+      if (accessTokenRef.current !== tokenSnapshot) return;
       setItems(current => current.map(row => row.id !== item.id ? row : { ...row, mySettings: { ...(row.mySettings || {}), ...(flags.pinned !== undefined ? { pinnedAt: flags.pinned ? new Date().toISOString() : null } : {}), ...(flags.archived !== undefined ? { archivedAt: flags.archived ? new Date().toISOString() : null } : {}), ...(flags.mutedUntil !== undefined ? { mutedUntil: flags.mutedUntil } : {}) } }));
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحديث إعدادات المحادثة.'); }
     finally { setBusyFlagId(null); }

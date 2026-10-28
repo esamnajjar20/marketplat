@@ -215,7 +215,9 @@ export default function ConversationScreen() {
     } catch (e) {
       if (!persisted) {
         setMessages((current) => current.filter((message) => message.id !== tempId));
-        setDraft(body);
+        // Only restore the failed body if the user hasn't typed something new
+        // in the meantime. Overwriting their new draft would silently lose it.
+        setDraft((current) => current || body);
         Alert.alert('تعذر حفظ الرسالة', e instanceof Error ? e.message : 'لم تُحفظ الرسالة محليًا. حاول مجددًا.');
       } else {
         Alert.alert('الرسالة محفوظة محليًا', 'تعذرت المزامنة الآن، لكن الرسالة بقيت في الطابور وستُعاد المحاولة عند توفر الاتصال.');
