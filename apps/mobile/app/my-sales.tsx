@@ -101,7 +101,7 @@ export default function MySalesScreen() {
         <Text style={s.saleMeta}>التاريخ: {dateLabel(sale.soldAt)} · الكمية: {sale.quantity}</Text>
         <View style={s.amountRow}><Text style={s.amountLabel}>المحصّل: {money(sale.paidAmount, sale.currency)}</Text><Text style={[s.amountLabel, Number(sale.dueAmount) > 0 && s.dueValue]}>المتبقي: {money(sale.dueAmount, sale.currency)}</Text></View>
       </View>)}
-      {page < totalPages ? <Pressable disabled={loadingMore} onPress={() => void loadMore()} style={[s.moreButton, loadingMore && s.disabled]}><Text style={s.moreText}>{loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}</Text></Pressable> : null}
+      {page < totalPages ? <Pressable disabled={loadingMore || loading} onPress={() => void loadMore()} style={[s.moreButton, (loadingMore || loading) && s.disabled]}><Text style={s.moreText}>{loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}</Text></Pressable> : null}
       <Text style={s.sectionTitle}>أدوات إدارة المبيعات</Text>
       <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
         {([['/debts', 'الديون والمستحقات'], ['/installments', 'الأقساط'], ['/customers', 'عملائي'], ['/activity', 'سجل النشاط']] as const).map(([path, label]) => <Pressable key={path} accessibilityRole="button" onPress={() => router.push(path)} style={{ flexGrow: 1, minWidth: '46%', padding: 13, borderRadius: radius.md, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.border }}><Text style={{ textAlign: 'center', color: colors.brand, fontWeight: '900' }}>{label}</Text></Pressable>)}
