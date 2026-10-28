@@ -72,13 +72,19 @@ export default function ConversationScreen() {
         setLoading(false);
       }
 
-      const [detail, page] = await Promise.all([fetchConversation(id, accessToken), fetchMessagesPage(id, accessToken)]);
+      const [detailR, pageR] = await Promise.allSettled([fetchConversation(id, accessToken), fetchMessagesPage(id, accessToken)]);
       if (sequence === loadSequence.current) {
-        setConversation(detail);
-        hasRenderableMessages.current = true;
-        setMessages((current) => mergeFetchedMessages(page.items, [...current, ...queuedMessages]));
-        if (!hasLoadedOlder.current) setNextCursor(page.nextCursor);
-        void saveCachedChatMessages(user?.id ?? '', id, page.items);
+        if (detailR.status === 'fulfilled') setConversation(detailR.value);
+        if (pageR.status === 'fulfilled') {
+          hasRenderableMessages.current = true;
+          setMessages((current) => mergeFetchedMessages(pageR.value.items, [...current, ...queuedMessages]));
+          if (!hasLoadedOlder.current) setNextCursor(pageR.value.nextCursor);
+          void saveCachedChatMessages(user?.id ?? '', id, pageR.value.items);
+        }
+        if (detailR.status === 'rejected' && pageR.status === 'rejected') {
+          // Both failed — fall through to catch for consistent error handling
+          throw detailR.reason;
+        }
       }
     } catch (e) {
       if (sequence === loadSequence.current) {
@@ -171,7 +177,15 @@ export default function ConversationScreen() {
   const refreshMediaOutbox = useCallback(async () => { if (!user?.id) { setPendingMediaCount(0); return; } const items = await listChatMediaOutbox(user.id); setPendingMediaCount(items.length); }, [user?.id]);
   const flushMediaOutbox = useCallback(async () => { if (!accessToken || !user?.id) return; const network = await NetInfo.fetch(); const isOnline = network.isConnected === true && network.isInternetReachable !== false; if (!isOnline) { await refreshMediaOutbox(); return; } try { const result = await syncChatMediaOutbox({ isOnline, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal }); for (const item of result.sent) { if (item.conversationId === id) { setMessages(current => mergeFetchedMessages([item.message], current)); void saveCachedChatMessages(user.id, id, [item.message]); } } setPendingMediaCount(result.pending); } catch { await refreshMediaOutbox(); } }, [accessToken, csrfToken, id, refreshMediaOutbox, user?.id]);
   useEffect(() => { void refreshMediaOutbox(); void flushMediaOutbox(); const unsubscribe = NetInfo.addEventListener(state => { if (state.isConnected === true && state.isInternetReachable !== false) void flushMediaOutbox(); }); const appStateSubscription = AppState.addEventListener('change', state => { if (state === 'active') void flushMediaOutbox(); }); return () => { unsubscribe(); appStateSubscription.remove(); }; }, [flushMediaOutbox, refreshMediaOutbox]);
-  useEffect(() => { if (messages.length) requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false })); }, [messages.length]);
+  const lastMessageIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    const lastId = last?.id ?? null;
+    if (lastId && lastId !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = lastId;
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+    }
+  }, [messages]);
   const loadOlder = useCallback(async () => { if (!accessToken || !id || !nextCursor || olderRequest.current || loading || loadingOlder) return; olderRequest.current = true; setLoadingOlder(true); try { const page = await fetchMessagesPage(id, accessToken, nextCursor); setMessages((current) => mergeFetchedMessages([...page.items, ...current], [])); if (user?.id) void saveCachedChatMessages(user.id, id, page.items); hasLoadedOlder.current = true; setNextCursor(page.nextCursor); } catch (e) { Alert.alert('تعذر تحميل الرسائل الأقدم', e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مجددًا.'); } finally { olderRequest.current = false; setLoadingOlder(false); } }, [accessToken, id, nextCursor, loading, loadingOlder, user?.id]);
   const submit = async () => {
     const body = draft.trim();

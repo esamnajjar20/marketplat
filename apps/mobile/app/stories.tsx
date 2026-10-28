@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,14 +14,16 @@ export default function StoriesScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const seq = useRef(0);
   const load = useCallback(async () => {
     if (!accessToken) { setGroups([]); setLoading(false); return; }
+    const current = ++seq.current;
     setLoading(true); setError('');
-    try { setGroups(await fetchStoryFeed(accessToken)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل القصص.'); }
-    finally { setLoading(false); }
+    try { const data = await fetchStoryFeed(accessToken); if (current !== seq.current) return; setGroups(data); }
+    catch (e) { if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل القصص.'); }
+    finally { if (current === seq.current) setLoading(false); }
   }, [accessToken]);
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useFocusEffect(useCallback(() => { void load(); return () => { seq.current += 1; }; }, [load]));
   const addStory = async () => {
     if (!accessToken) { router.push('/login'); return; }
     Alert.alert('إضافة قصة', 'اختر طريقة نشر القصة', [

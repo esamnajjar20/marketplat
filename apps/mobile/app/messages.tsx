@@ -77,9 +77,12 @@ export default function MessagesScreen() {
   }, [items, filter, search, user?.id]);
   const changeFlag = useCallback(async (item: ConversationItem, flags: { pinned?: boolean; archived?: boolean; mutedUntil?: string | null }) => {
     if (!accessToken || busyFlagId) return;
+    const tokenSnapshot = accessToken;
     setBusyFlagId(item.id);
     try {
-      await setConversationFlags(item.id, flags, accessToken, csrfToken);
+      await setConversationFlags(item.id, flags, tokenSnapshot, csrfToken);
+      // Abort state update if the session changed while the request was in-flight.
+      if (accessToken !== tokenSnapshot) return;
       setItems(current => current.map(row => row.id !== item.id ? row : { ...row, mySettings: { ...(row.mySettings || {}), ...(flags.pinned !== undefined ? { pinnedAt: flags.pinned ? new Date().toISOString() : null } : {}), ...(flags.archived !== undefined ? { archivedAt: flags.archived ? new Date().toISOString() : null } : {}), ...(flags.mutedUntil !== undefined ? { mutedUntil: flags.mutedUntil } : {}) } }));
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحديث إعدادات المحادثة.'); }
     finally { setBusyFlagId(null); }

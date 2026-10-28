@@ -19,7 +19,7 @@ export function useUnreadCounts() {
     }
     try {
       const next = await fetchUnreadCounts(accessToken);
-      if (currentSequence === sequence.current) setCounts(next);
+      if (currentSequence === sequence.current) setCounts(prev => ({ ...prev, ...next }));
     } catch {
       // Keep the last known counts when a temporary network failure occurs.
     }

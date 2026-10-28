@@ -14,11 +14,13 @@ function unwrap<T>(response: Envelope<T>, fallback: string): T {
 }
 export async function fetchStoryFeed(token: string): Promise<StoryGroup[]> {
   const data = unwrap(await apiRequest<Envelope<StoryGroup[]>>('/api/v1/stories/feed', { token }), 'تعذر تحميل القصص.');
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) throw new Error('استجابة قصص غير صالحة.');
+  return data;
 }
 export async function fetchUserStories(userId: string, token?: string | null): Promise<Story[]> {
   const data = unwrap(await apiRequest<Envelope<Story[]>>(`/api/v1/stories/user/${encodeURIComponent(userId)}`, token ? { token } : {}), 'تعذر تحميل قصص المستخدم.');
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) throw new Error('استجابة قصص المستخدم غير صالحة.');
+  return data;
 }
 export async function createStory(input: { text?: string; visibility: 'PUBLIC' | 'FOLLOWERS'; background?: string }, asset: { uri: string; fileName?: string | null; mimeType?: string | null } | null, token: string, csrfToken?: string | null): Promise<Story> {
   if (!input.text?.trim() && !asset) throw new Error('أضف نصًا أو صورة للقصة.');

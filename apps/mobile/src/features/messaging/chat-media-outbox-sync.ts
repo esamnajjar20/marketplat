@@ -4,7 +4,7 @@ import { sendChatAudio, sendChatFile, sendChatImage, type ChatMessage } from './
 import { acknowledgeChatMedia, deferChatMedia, discardRejectedChatMedia, listChatMediaOutbox, listDueChatMediaOutbox } from '@/storage/chat-media-outbox';
 
 export type ChatMediaSyncSnapshot = { isOnline: boolean; token?: string | null; csrfToken?: string | null; ownerId?: string | null; signal?: AbortSignal };
-export type ChatMediaSyncResult = { sent: Array<{ operationId: string; conversationId: string; message: ChatMessage }>; pending: number; stoppedReason: 'offline' | 'signed-out' | 'retry-scheduled' | null };
+export type ChatMediaSyncResult = { sent: Array<{ operationId: string; conversationId: string; message: ChatMessage }>; pending: number; stoppedReason: 'offline' | 'signed-out' | 'retry-scheduled' | 'rejected' | null };
 let activeSync: Promise<ChatMediaSyncResult> | null = null;
 export function syncChatMediaOutbox(snapshot: ChatMediaSyncSnapshot): Promise<ChatMediaSyncResult> {
   if (activeSync) return activeSync.then(() => syncChatMediaOutbox(snapshot));
@@ -35,7 +35,7 @@ async function runSync(snapshot: ChatMediaSyncSnapshot): Promise<ChatMediaSyncRe
       // Permanent server rejection — discard so the queue doesn't loop forever.
       if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
         await discardRejectedChatMedia(item.operationId, snapshot.ownerId);
-        stoppedReason = 'retry-scheduled';
+        stoppedReason = 'rejected';
         break;
       }
       await deferChatMedia(item.operationId, snapshot.ownerId, error);

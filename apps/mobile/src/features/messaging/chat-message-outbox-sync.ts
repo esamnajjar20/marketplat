@@ -3,7 +3,7 @@ import { ApiError } from '@/api/client';
 import { sendMessage, type ChatMessage } from './messaging.api';
 import { acknowledgeChatMessage, deferChatMessage, discardRejectedChatMessage, listChatMessagesForOwner, listDueChatMessages } from '@/storage/chat-message-outbox';
 
-export type ChatOutboxSyncResult = { sent: Array<{ operationId: string; message: ChatMessage }>; pending: number; stoppedReason: 'offline' | 'signed-out' | 'retry-scheduled' | 'retry-limit' | null };
+export type ChatOutboxSyncResult = { sent: Array<{ operationId: string; message: ChatMessage }>; pending: number; stoppedReason: 'offline' | 'signed-out' | 'retry-scheduled' | 'rejected' | null };
 export type ChatOutboxSyncSnapshot = { isOnline: boolean; token?: string | null; csrfToken?: string | null; ownerId?: string | null; signal?: AbortSignal };
 const listeners = new Set<(operationId: string, message: ChatMessage) => void>();
 let activeSync: Promise<ChatOutboxSyncResult> | null = null;
@@ -44,7 +44,7 @@ async function runSync(snapshot: ChatOutboxSyncSnapshot): Promise<ChatOutboxSync
       if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
         // Permanent server rejection — discard so the queue doesn't loop forever.
         await discardRejectedChatMessage(item.operationId, ownerId);
-        stoppedReason = 'retry-limit';
+        stoppedReason = 'rejected';
         break;
       }
 
