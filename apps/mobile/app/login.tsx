@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
@@ -40,7 +41,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
+        <Pressable accessibilityRole="button" onPress={() => goBack('/')} style={styles.back}>
           <Text style={styles.backText}>‹ رجوع</Text>
         </Pressable>
 

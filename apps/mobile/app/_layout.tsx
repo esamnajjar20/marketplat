@@ -2,6 +2,7 @@ import '@/lib/network-config';
 import type { ReactNode } from 'react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { StatusBar } from 'expo-status-bar';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -62,7 +63,11 @@ function RootChrome({ children }: { children: ReactNode }) {
   const isOnline = useIsOnline();
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <OfflineBanner visible={!isOnline} />
+      {!isOnline ? (
+        <SafeAreaView edges={['top']} style={{ backgroundColor: colors.warningSoft }}>
+          <OfflineBanner visible />
+        </SafeAreaView>
+      ) : null}
       {children}
       <BottomNavigation />
     </View>

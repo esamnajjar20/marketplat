@@ -61,11 +61,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const csrfRef = useRef<string | null>(null);
 
   const persist = useCallback(async (session: PersistedSession) => {
-    await SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify(session));
+    // Update in-memory state first: this run's session works even if SecureStore
+    // is unavailable (device full, OS error). Next cold start won't restore it,
+    // but the user is not left with a 'login failed' state while the server
+    // already issued a session.
     setUser(session.user);
     setAccessToken(session.accessToken);
     setCsrfToken(session.csrfToken);
     setExpiresAt(session.expiresAt);
+    try {
+      await SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify(session));
+    } catch {
+      // Persistence failed — session lives only in memory for this run.
+    }
   }, []);
 
   const clearPersisted = useCallback(async () => {
@@ -134,17 +142,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!expiresAt || expiresAt <= Date.now()) return;
     const delay = Math.max(0, expiresAt - Date.now() - 60_000);
+    const userIdAtSchedule = user?.id;
     const timer = setTimeout(async () => {
       try {
         const refreshed = await refreshAccessSession();
-        if (user) {
-          await persist({
-            user,
-            accessToken: refreshed.accessToken,
-            csrfToken: refreshed.csrfToken ?? csrfToken,
-            expiresAt: sessionExpiry(refreshed.expiresIn),
-          });
-        }
+        // Session may have changed (logout / switch account) during the await.
+        // Writing the refreshed tokens under the wrong user corrupts both sessions.
+        if (!userIdAtSchedule || !userRef.current || userRef.current.id !== userIdAtSchedule) return;
+        await persist({
+          user: userRef.current,
+          accessToken: refreshed.accessToken,
+          csrfToken: refreshed.csrfToken ?? csrfRef.current,
+          expiresAt: sessionExpiry(refreshed.expiresIn),
+        });
       } catch {
         // Silent — interceptor or manual re-login will handle it.
       }
@@ -223,8 +233,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     cancelRefreshing();
     try {
       if (token) await logoutSession(token, csrf ?? undefined);
+    } catch {
+      // Server-side session invalidation failed (offline, 5xx). Local credentials
+      // are still removed in finally. Callers treat this as successful logout.
     } finally {
-      // Local credentials are removed even when the server cannot be reached.
       await clearPersisted();
       setIsBusy(false);
     }

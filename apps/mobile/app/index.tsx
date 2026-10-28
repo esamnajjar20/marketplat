@@ -182,7 +182,7 @@ export default function HomeScreen() {
     if (refresh) setServicesError(null);
     let hasCachedData = false;
     try {
-      const cached = await getCachedServiceListings({ page: 1, limit: 4, search: '' });
+      const cached = await getCachedServiceListings({ page: 1, limit: 8, search: '' });
       if (!isCurrentRequest()) return;
       if (cached) {
         hasCachedData = true;
@@ -272,7 +272,7 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void loadAds(true); }} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void Promise.all([loadAds(true), loadServices(true)]); }} tintColor={colors.brand} />}
       >
         <View style={styles.header}>
           <View style={styles.brandRow}>
@@ -289,14 +289,7 @@ export default function HomeScreen() {
               disabled={isBusy || isRestoring}
               onPress={async () => {
                 if (!user) { router.push('/login'); return; }
-                try {
-                  await logout();
-                } catch (e) {
-                  Alert.alert(
-                    'تعذر تسجيل الخروج',
-                    e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مرة أخرى.'
-                  );
-                }
+                await logout();
               }}
               style={styles.accountButton}
             >

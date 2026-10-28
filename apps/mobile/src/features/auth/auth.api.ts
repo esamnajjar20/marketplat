@@ -87,10 +87,18 @@ async function performAccessRefresh(signal?: AbortSignal): Promise<RefreshedAcce
 export function refreshAccessSession(): Promise<RefreshedAccessSession> {
   if (!refreshInFlight) {
     refreshAbortController = new AbortController();
-    refreshInFlight = performAccessRefresh(refreshAbortController.signal).finally(() => {
-      refreshInFlight = null;
-      refreshAbortController = null;
+    const work = performAccessRefresh(refreshAbortController.signal);
+    // Only clear the tracking slot if it still points to THIS promise.
+    // A concurrent cancelRefreshing() + new refreshAccessSession() could
+    // otherwise null a newer promise and enable two parallel cookie-rotating
+    // refreshes on the server.
+    const tracked = work.finally(() => {
+      if (refreshInFlight === tracked) {
+        refreshInFlight = null;
+        refreshAbortController = null;
+      }
     });
+    refreshInFlight = tracked;
   }
   return refreshInFlight;
 }
