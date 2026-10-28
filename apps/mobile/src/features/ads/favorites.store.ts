@@ -103,6 +103,22 @@ export async function listPendingFavoriteStates(userId: string): Promise<Pending
   return rows.map((row) => ({ userId: row.user_id, adId: row.ad_id, favorited: row.favorited === 1, operationId: row.operation_id, previousFavorited: row.previous_favorited === null || row.previous_favorited === undefined ? null : row.previous_favorited === 1 }));
 }
 
+export async function findFavoriteState(userId: string, adId: string): Promise<PendingFavoriteState | null> {
+  const db = await queueDatabase();
+  const row = await db.getFirstAsync<{ user_id: string; ad_id: string; favorited: number; operation_id: string; previous_favorited: number | null }>(
+    'SELECT user_id, ad_id, favorited, operation_id, previous_favorited FROM favorite_state_outbox WHERE user_id = ? AND ad_id = ?',
+    userId, adId,
+  );
+  if (!row) return null;
+  return {
+    userId: row.user_id,
+    adId: row.ad_id,
+    favorited: row.favorited === 1,
+    operationId: row.operation_id,
+    previousFavorited: row.previous_favorited === null || row.previous_favorited === undefined ? null : row.previous_favorited === 1,
+  };
+}
+
 export async function acknowledgeFavoriteState(userId: string, adId: string, operationId: string): Promise<boolean> {
   const db = await queueDatabase();
   const result = await db.runAsync(

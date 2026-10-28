@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail } from '@/features/ads/ads.api';
-import { createAd, updateAd, removeAdImage, reorderAdImages, type AdDraft, type SelectedAdImage } from '@/features/ads/manage-ads.api';
+import { createAd, updateAd, removeAdImage, reorderAdImages, PartialAdUpdateError, type AdDraft, type SelectedAdImage } from '@/features/ads/manage-ads.api';
 import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { cleanupStaleUnreferencedAdImages, persistSelectedAdImage, removePersistedAdImageIfUnused } from '@/storage/persist-ad-image';
@@ -206,7 +206,16 @@ export default function AdEditorScreen() {
       }
       Alert.alert('تم الحفظ', id ? 'تم تحديث الإعلان.' : 'تم إرسال الإعلان إلى الخادم.', [{ text: 'حسنًا', onPress: () => router.replace('/my-ads') }]);
     } catch (e) {
-      setError(e instanceof ApiError || e instanceof Error ? e.message : 'تعذر حفظ الإعلان.');
+      if (e instanceof PartialAdUpdateError) {
+        // Fields were saved on the server, but image upload failed.
+        // Sync local state so re-saving does not duplicate existing images.
+        setOriginalImages(e.updated.images ?? []);
+        setExistingImages(e.updated.images ?? []);
+        setDraft((current) => ({ ...current, images: [] }));
+        setError('تم تحديث البيانات، لكن رفع الصور فشل. لن تُكرَّر الصور عند إعادة المحاولة — جرّب رفع الصور فقط.');
+      } else {
+        setError(e instanceof ApiError || e instanceof Error ? e.message : 'تعذر حفظ الإعلان.');
+      }
     } finally { setSaving(false); }
   };
 

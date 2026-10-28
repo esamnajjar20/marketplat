@@ -64,23 +64,35 @@ export default function MyAdsScreen() {
           onPress: () => {
             if (!accessToken || !user?.id) return;
             setBusyId(ad.id);
+            const enqueueOfflineDelete = () =>
+              enqueueMutation({
+                ownerId: String(user.id),
+                id: `offline-delete:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`,
+                operation: 'delete-ad',
+                resourceId: ad.id,
+                payload: { title: ad.title },
+                idempotencyKey: `offline-op:delete:${ad.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
+              }).then(() => {
+                // Mark visually so the user knows the delete is queued.
+                setAds((current) => current.map((item) =>
+                  item.id === ad.id ? { ...item, status: 'قيد الحذف — بانتظار المزامنة' } : item,
+                ));
+                Alert.alert(
+                  'تم حفظ طلب الحذف',
+                  'لم يُحذف الإعلان من الخادم بعد. سيُرسل طلب الحذف عند عودة الاتصال وتوفر جلسة دخول صالحة.',
+                );
+              });
             const work = online
-              ? deleteAd(ad.id, accessToken, csrfToken).then(() =>
-                  setAds((current) => current.filter((item) => item.id !== ad.id)),
-                )
-              : enqueueMutation({
-                  ownerId: String(user.id),
-                  id: `offline-delete:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`,
-                  operation: 'delete-ad',
-                  resourceId: ad.id,
-                  payload: { title: ad.title },
-                  idempotencyKey: `offline-op:delete:${ad.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
-                }).then(() => {
-                  Alert.alert(
-                    'تم حفظ طلب الحذف',
-                    'لم يُحذف الإعلان من الخادم بعد. سيُرسل طلب الحذف عند عودة الاتصال وتوفر جلسة دخول صالحة.',
-                  );
-                });
+              ? deleteAd(ad.id, accessToken, csrfToken)
+                  .then(() => setAds((current) => current.filter((item) => item.id !== ad.id)))
+                  .catch((err) => {
+                    // Session expired mid-action — preserve delete intent in outbox.
+                    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+                      return enqueueOfflineDelete();
+                    }
+                    throw err;
+                  })
+              : enqueueOfflineDelete();
             void work
               .catch((e) =>
                 Alert.alert(

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
-import { invalidateFavoritesSyncSession, syncFavoritesIfReady, type FavoritesSyncSnapshot } from './favorites-sync-lifecycle';
+import { getActiveSyncPromise, invalidateFavoritesSyncSession, syncFavoritesIfReady, type FavoritesSyncSnapshot } from './favorites-sync-lifecycle';
 
 /** Retry favorites outbox on connectivity restoration and foregrounding.
  *  Connectivity is provided by ConnectivityProvider (single NetInfo listener for the app). */
@@ -21,11 +21,22 @@ export function FavoritesSyncLifecycleBridge() {
     let mounted = true;
     const run = () => {
       if (!mounted) return;
-      void syncFavoritesIfReady({ ...snapshot.current }).then((result) => {
-        if (mounted && result.status === 'deferred' && (result.retryAfterActiveSync || result.reason.startsWith('تغيّرت جلسة تسجيل الدخول'))) {
-          setTimeout(() => { if (mounted) void syncFavoritesIfReady({ ...snapshot.current }); }, 0);
-        }
-      }).catch(() => undefined);
+      void syncFavoritesIfReady({ ...snapshot.current })
+        .then((result) => {
+          if (!mounted || result.status !== 'deferred') return;
+          // A different account's sync is still in-flight: wait for it
+          // to finish, then retry with the current snapshot.
+          // The previous setTimeout(0) retried immediately and always hit
+          // 'deferred' again because activeSync was still alive.
+          if ('retryAfterActiveSync' in result && result.retryAfterActiveSync) {
+            const ongoing = getActiveSyncPromise();
+            if (!ongoing) return;
+            void ongoing.finally(() => {
+              if (mounted) void syncFavoritesIfReady({ ...snapshot.current }).catch(() => undefined);
+            });
+          }
+        })
+        .catch(() => undefined);
     };
     const onAppState = (state: AppStateStatus) => {
       snapshot.current = { ...snapshot.current, isActive: state === 'active' };

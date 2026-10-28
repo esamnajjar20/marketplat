@@ -102,12 +102,17 @@ export async function fetchPublicAds(options: PublicAdsOptions = {}): Promise<Ad
     page: typeof pagination?.page === 'number' ? pagination.page : (options.page ?? 1),
     totalPages: typeof pagination?.totalPages === 'number' ? pagination.totalPages : undefined,
   };
-  const cachedResult: AdListResult = {
-    ...result,
-    items: await Promise.all(result.items.map(async (item) => ({
+  // allSettled so a single image-download failure does not break the
+  // whole ads list. Failed items fall back to their original URLs.
+  const preparedItems = await Promise.allSettled(
+    result.items.map(async (item) => ({
       ...item,
       images: await cachePublicImages(item.images.filter((uri) => typeof uri === 'string')),
-    }))),
+    })),
+  );
+  const cachedResult: AdListResult = {
+    ...result,
+    items: preparedItems.map((r, i) => (r.status === 'fulfilled' ? r.value : result.items[i])),
   };
   await writePublicCache(cacheKey, cachedResult);
   // Return the local-image-backed representation too, so the first online visit

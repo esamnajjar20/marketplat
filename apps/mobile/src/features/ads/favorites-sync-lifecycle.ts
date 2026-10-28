@@ -1,5 +1,6 @@
 import {
   acknowledgeFavoriteState,
+  findFavoriteState,
   listPendingFavoriteStates,
   writeFavoriteAdIds,
 } from './favorites.store';
@@ -19,6 +20,11 @@ export type FavoritesSyncResult =
   | { status: 'deferred'; pendingAcknowledged: number; reason: string; retryAfterActiveSync?: boolean };
 
 let activeSync: Promise<FavoritesSyncResult> | null = null;
+
+/** Exposes the in-flight sync promise (if any) so callers can wait for completion. */
+export function getActiveSyncPromise(): Promise<FavoritesSyncResult> | null {
+  return activeSync;
+}
 let activeKey: string | null = null;
 let sessionEpoch = 0;
 
@@ -56,8 +62,8 @@ export async function syncFavoritesIfReady(snapshot: FavoritesSyncSnapshot): Pro
           // Never send a row belonging to another account, even if the storage layer changes later.
           if (operation.userId !== key) continue;
           // Avoid sending stale intent if a newer tap replaced this row before we began the request.
-          const current = await listPendingFavoriteStates(key);
-          const latest = current.find((item) => item.adId === operation.adId);
+          // O(1) lookup replaces the O(N) full-list scan, eliminating O(N^2) SQLite reads.
+          const latest = await findFavoriteState(key, operation.adId);
           if (!latest || latest.operationId !== operation.operationId) continue;
           await setFavoriteAdState(latest.adId, latest.favorited, snapshot.token!, latest.operationId, snapshot.csrfToken);
           // If auth changed while HTTP was in flight, leave the row queued. The endpoint is
