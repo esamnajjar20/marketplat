@@ -227,6 +227,13 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
           await deletePublicCacheEntry(resourceKey);
         } else if (matchedPrefix) {
           // Cross-cutting mutation without a known ownerId — conservative fallback.
+          // Performance concern (clears ALL accounts' caches), not a bug.
+          // Warn in dev so missing cacheOwnerId callers are caught early.
+          if (__DEV__) {
+            console.warn(
+              '[api/client] mutation without cacheOwnerId — full cache clear. Path: ' + pathname
+            );
+          }
           await clearPrivateCache();
         }
       }
