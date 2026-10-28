@@ -145,7 +145,7 @@ export default function ProductsScreen() {
               onPress={() => router.push({ pathname: '/stores/[id]', params: { id: storeId } })}
             />
           ) : null}
-          {user && hasStore !== false ? (
+          {user && hasStore === true ? (
             <PrimaryButton label="+ إضافة منتج" onPress={() => router.push('/product-editor')} />
           ) : null}
         </View>
