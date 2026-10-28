@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,8 +22,11 @@ function operationLabel(operation: OutboxItem['operation']): string {
 function stateLabel(item: OutboxItem): string {
   if (item.state === 'processing') return 'قيد المعالجة';
   if (item.state === 'pending') return 'بانتظار المزامنة';
-  if (item.attempts >= 8) return 'توقفت المحاولات؛ يلزم تدخل';
-  return 'فشلت مؤقتًا — ستُعاد المحاولة';
+  if (item.state === 'failed') {
+    if (item.attempts >= 8) return 'توقفت المحاولات؛ يلزم تدخل';
+    return 'فشلت مؤقتًا — ستُعاد المحاولة';
+  }
+  return item.state;
 }
 function titleFromPayload(item: OutboxItem): string | null {
   try {
@@ -52,6 +55,11 @@ export default function OfflineQueueScreen() {
     }
   }, [user?.id, accessToken]);
   const online = netInfo.isConnected === true && netInfo.isInternetReachable !== false;
+  const headId = useMemo(() => {
+    let m: OutboxItem | undefined;
+    for (const it of items) { if (!m || it.createdAt < m.createdAt) m = it; }
+    return m?.id;
+  }, [items]);
 
   const refresh = useCallback(async () => {
     setLoading(true); setError(null);
@@ -62,11 +70,23 @@ export default function OfflineQueueScreen() {
       ]);
       setItems(mutations);
       setUnownedCount(legacyCount);
-      setFavoriteItems(user?.id ? await listPendingFavoriteStates(user.id) : []);
-      setRequestItems(user?.id ? await listPendingMarketplaceRequests(user.id) : []);
-      setOrderItems(user?.id ? await listPendingMarketplaceOrders(user.id) : []);
-      setOfferItems(user?.id ? await listPendingRequestOffers(user.id) : []);
-      setCreateItems(user?.id ? await listOfflineCreates(user.id) : []);
+      const settled = await Promise.allSettled([
+        user?.id ? listPendingFavoriteStates(user.id) : Promise.resolve([] as PendingFavoriteState[]),
+        user?.id ? listPendingMarketplaceRequests(user.id) : Promise.resolve([] as PendingRequestOutboxItem[]),
+        user?.id ? listPendingMarketplaceOrders(user.id) : Promise.resolve([] as PendingOrderOutboxItem[]),
+        user?.id ? listPendingRequestOffers(user.id) : Promise.resolve([] as PendingRequestOfferItem[]),
+        user?.id ? listOfflineCreates(user.id) : Promise.resolve([] as OfflineCreateItem[]),
+      ]);
+      const [favR, reqR, ordR, offR, creR] = settled;
+      if (favR.status === 'fulfilled') setFavoriteItems(favR.value);
+      if (reqR.status === 'fulfilled') setRequestItems(reqR.value);
+      if (ordR.status === 'fulfilled') setOrderItems(ordR.value);
+      if (offR.status === 'fulfilled') setOfferItems(offR.value);
+      if (creR.status === 'fulfilled') setCreateItems(creR.value);
+      const failed = settled.find((r) => r.status === 'rejected');
+      if (failed && failed.status === 'rejected') {
+        setError(`تعذر تحميل بعض القوائم: ${failed.reason instanceof Error ? failed.reason.message : String(failed.reason)}`);
+      }
     }
     catch (e) { setError(e instanceof Error ? e.message : 'تعذر قراءة العمليات المحفوظة.'); }
     finally { setLoading(false); }
@@ -76,20 +96,24 @@ export default function OfflineQueueScreen() {
   const discard = (item: OutboxItem) => Alert.alert('إلغاء العملية المحفوظة', 'سيتم حذف هذه العملية من هذا الجهاز ولن تُرسل إلى الخادم. هل تريد المتابعة؟', [
     { text: 'رجوع', style: 'cancel' },
     { text: 'إلغاء العملية', style: 'destructive', onPress: () => {
+      const session = { ...sessionRef.current };
+      if (!user?.id || session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل الإلغاء.'); return; }
       setBusyId(item.id);
       void discardOutboxMutation(item.id, item.ownerId).then((removed) => {
         if (!removed) Alert.alert('لم تُلغَ العملية', 'قد تكون العملية قيد المعالجة الآن. حدّث القائمة وحاول لاحقًا.');
-        return refresh();
-      }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر إلغاء العملية.')).finally(() => setBusyId(null));
+      }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر إلغاء العملية.')).finally(() => { setBusyId(null); void refresh(); });
     } },
   ]);
 
   const retry = async (item: OutboxItem) => {
-    if (!online || !accessToken) { Alert.alert('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول أولًا.'); return; }
+    if (!online || !accessToken || !user?.id) { Alert.alert('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول أولًا.'); return; }
+    const session = { ...sessionRef.current };
+    if (session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل إعادة المحاولة.'); return; }
     setBusyId(item.id); setError(null);
     try {
       const reset = await retryExhaustedMutation(item.id, item.ownerId);
       if (!reset) { setError('لم تعد العملية مستنفدة أو أنها تغيّرت؛ حدّث القائمة.'); return; }
+      if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) { setError('تغيّرت جلسة الدخول أثناء المحاولة؛ حدّث القائمة.'); return; }
       const result = await syncOutboxIfReady({ isOnline: online, token: accessToken, csrfToken, ownerId: user?.id });
       if (result.status === 'sync-result' && result.result.status === 'synced') {
         Alert.alert('تمت المزامنة', 'تم إرسال العملية وتأكيد حفظها.');
@@ -97,10 +121,13 @@ export default function OfflineQueueScreen() {
         Alert.alert('تم الإرسال', 'قبل الخادم العملية، لكن تأكيد حذفها من الطابور المحلي لم يكتمل بعد. لا تحذف بيانات التطبيق.');
       } else if (result.status === 'sync-result' && result.result.status === 'blocked-by-unsupported') {
         Alert.alert('الطابور متوقف', 'توجد عملية أقدم غير مدعومة؛ لم نتجاوزها للحفاظ على ترتيب التعديلات.');
+      } else if (result.status !== 'sync-result') {
+        Alert.alert('لم تُنفّذ المزامنة', 'المزامنة غير جاهزة الآن (قد تكون هناك عملية أخرى قيد التنفيذ). حدّث القائمة وحاول مجددًا.');
+      } else {
+        Alert.alert('لم تكتمل المزامنة', 'لم ينجح إرسال العملية. راجع التفاصيل في القائمة ثم أعد المحاولة.');
       }
-      await refresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذرت إعادة المحاولة.'); }
-    finally { setBusyId(null); }
+    finally { setBusyId(null); void refresh(); }
   };
 
   const retryFavorite = async (item: PendingFavoriteState) => {
@@ -114,9 +141,8 @@ export default function OfflineQueueScreen() {
       const removed = await acknowledgeFavoriteState(user.id, item.adId, item.operationId);
       if (!removed) Alert.alert('تغيّرت العملية', 'تم تأكيد الحالة مع الخادم، لكن ظهرت نية أحدث محليًا؛ احتُفظ بالعملية الأحدث.');
       else Alert.alert('تمت المزامنة', 'أكد الخادم حالة المفضلة المطلوبة.');
-      await refresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذرت مزامنة المفضلة.'); }
-    finally { setBusyId(null); }
+    finally { setBusyId(null); void refresh(); }
   };
 
   const cancelFavorite = (item: PendingFavoriteState) => {
@@ -147,9 +173,8 @@ export default function OfflineQueueScreen() {
             for (const queued of pending) { if (queued.favorited) merged.add(queued.adId); else merged.delete(queued.adId); }
             await writeFavoriteAdIds([...merged], user.id);
           }
-          await refresh();
         } catch (e) { setError(e instanceof Error ? e.message : 'تعذر إلغاء تغيير المفضلة.'); }
-        finally { setBusyId(null); }
+        finally { setBusyId(null); void refresh(); }
       })();
     } },
     ]);
@@ -161,7 +186,7 @@ export default function OfflineQueueScreen() {
     {unownedCount > 0 ? <View style={styles.notice}><Text style={styles.noticeText}>توجد {unownedCount} عملية قديمة محفوظة قبل ربط العمليات بالحساب. لم تُرسل تلقائيًا لأن مالكها غير معروف، وذلك لمنع تنفيذها بحساب آخر. راجعها من نسخة التطبيق السابقة أو احذف بيانات التطبيق فقط إذا لم تعد تحتاجها.</Text></View> : null}
     {!user ? <View style={styles.center}><Text style={styles.title}>سجّل الدخول لمزامنة العمليات</Text><Pressable style={styles.primary} onPress={() => router.push('/login')}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View>
       : loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري قراءة العمليات…</Text></View>
-      : error && items.length === 0 ? <View style={styles.center}><Text style={styles.title}>تعذر تحميل القائمة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void refresh()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View>
+      : error && items.length === 0 && favoriteItems.length === 0 && requestItems.length === 0 && offerItems.length === 0 && orderItems.length === 0 && createItems.length === 0 ? <View style={styles.center}><Text style={styles.title}>تعذر تحميل القائمة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void refresh()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View>
       : <ScrollView contentContainerStyle={styles.list}>{error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         <Text style={styles.summary}>{items.length} عملية إعلانات محفوظة · {favoriteItems.length} تغيير مفضلة معلّق · {requestItems.length} طلب إنشاء محفوظ · {offerItems.length} عرض محفوظ · {orderItems.length} طلب شراء محفوظ · {createItems.length} إضافة منتج/خدمة/بيع محفوظة</Text>
         {favoriteItems.map((item) => <View key={`favorite-${item.adId}`} style={styles.card}>
@@ -170,19 +195,19 @@ export default function OfflineQueueScreen() {
           <Text style={styles.muted}>حُفظ: {new Date(Number(item.operationId.match(/^fav-(\d+)/)?.[1]) || Date.now()).toLocaleString('ar')}</Text>
           <Text style={styles.muted}>تُرسل الحالة المطلوبة بأمان عند إعادة المحاولة؛ لن يُستخدم تبديل عكسي قد يكرر التغيير.</Text>
           <View style={styles.actions}>
-            <Pressable disabled={busyId === item.operationId} style={styles.secondary} onPress={() => void retryFavorite(item)}><Text style={styles.secondaryText}>{busyId === item.operationId ? 'جارٍ…' : 'مزامنة الآن'}</Text></Pressable>
-            <Pressable disabled={busyId === item.operationId} style={[styles.delete, busyId === item.operationId && styles.disabled]} onPress={() => cancelFavorite(item)}><Text style={styles.deleteText}>إلغاء التغيير</Text></Pressable>
+            <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => void retryFavorite(item)}><Text style={styles.secondaryText}>{busyId === item.operationId ? 'جارٍ…' : 'مزامنة الآن'}</Text></Pressable>
+            <Pressable disabled={busyId !== null} style={[styles.delete, busyId !== null && styles.disabled]} onPress={() => cancelFavorite(item)}><Text style={styles.deleteText}>إلغاء التغيير</Text></Pressable>
           </View>
         </View>)}
-        {requestItems.map((item) => <View key={`request-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{item.payload.title}</Text><Text style={styles.status}>{item.attempts >= 8 ? 'توقفت المحاولات؛ يلزم تدخل' : 'طلب جديد · بانتظار المزامنة'}</Text><Text style={styles.muted}>النوع: {item.payload.type} · المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.muted}>لن يُعد الطلب منشورًا حتى يؤكد الخادم نجاح المزامنة.</Text><View style={styles.actions}>{item.attempts >= 8 ? <Pressable disabled={busyId === item.id} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceRequest(item.id, user?.id).then((ok) => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); return refresh(); }).catch((e) => setError(e instanceof Error ? e.message : 'تعذرت إعادة المحاولة.')).finally(() => setBusyId(null)); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId === item.id} style={styles.delete} onPress={() => Alert.alert('إلغاء الطلب المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceRequest(item.id,user?.id).then((ok)=>{if(!ok)Alert.alert('لم تُلغَ العملية','قد تكون قيد المعالجة؛ حدّث القائمة.');return refresh();}).catch((e)=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>setBusyId(null));}}])}><Text style={styles.deleteText}>إلغاء العملية</Text></Pressable></View></View>)}
-        {offerItems.map((item) => <View key={`offer-${item.id}`} style={styles.card}><Text style={styles.adTitle}>عرض محفوظ · {item.payload.price} ₪</Text><Text style={styles.status}>{item.attempts >= 8 ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>رقم الطلب: {item.payload.requestId} · المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.payload.message ? <Text style={styles.muted}>الرسالة: {item.payload.message}</Text> : null}{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>العرض لم يُرسل إلى الخادم بعد. قد يُرفض إذا أُغلق الطلب أو انتهت صلاحيته قبل المزامنة.</Text><View style={styles.actions}>{item.attempts >= 8 ? <Pressable disabled={busyId === item.id} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryRequestOffer(item.id,user?.id).then(async ok => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); else await syncNextRequestOffer({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); return refresh(); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>setBusyId(null)); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId === item.id || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء العرض المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العرض',style:'destructive',onPress:()=>{setBusyId(item.id);void discardRequestOffer(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم يُلغَ العرض','قد تكون المزامنة بدأت؛ حدّث القائمة.');return refresh();}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء العرض.')).finally(()=>setBusyId(null));}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء العرض'}</Text></Pressable></View></View>)}
-        {orderItems.map((item) => <View key={`order-${item.id}`} style={styles.card}><Text style={styles.adTitle}>طلب شراء · {item.payload.items.length} منتج</Text><Text style={styles.status}>{item.attempts >= 8 ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المستلم: {item.payload.recipientName} · {item.payload.shippingCity}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>هذا الطلب محفوظ محليًا وليس مؤكدًا لدى المتجر. سيعيد الخادم التحقق من السعر والمخزون عند المزامنة.</Text><View style={styles.actions}>{item.attempts >= 8 ? <Pressable disabled={busyId === item.id} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceOrder(item.id,user?.id).then(async ok => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); else await syncNextMarketplaceOrder({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); return refresh(); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>setBusyId(null)); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId === item.id || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء طلب الشراء المحفوظ','سيُحذف الطلب من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceOrder(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم يُلغَ الطلب','قد تكون المزامنة بدأت؛ حدّث القائمة.');return refresh();}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء الطلب.')).finally(()=>setBusyId(null));}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء الطلب'}</Text></Pressable></View></View>)}
-        {createItems.map((item) => { const label=item.operation==='create-product'?'إضافة منتج':item.operation==='create-service'?'نشر خدمة':'تسجيل بيع'; const title=String(item.payload.name||item.payload.title||item.payload.entityTitle||label); return <View key={`create-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{label}: {title}</Text><Text style={styles.status}>{item.attempts>=8?'توقفت المحاولات؛ يلزم تدخل':item.state==='processing'?'قيد المزامنة':'بانتظار المزامنة'}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.lastError?<Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text>:null}<Text style={styles.warning}>لم يؤكد الخادم إنشاء هذا السجل بعد. قد يرفضه إذا تغيرت الصلاحيات أو التصنيفات أو البيانات قبل المزامنة.</Text><View style={styles.actions}>{item.attempts>=8?<Pressable disabled={busyId===item.id} style={styles.secondary} onPress={()=>{setBusyId(item.id);void retryOfflineCreate(item.id,user?.id).then(async ok=>{if(!ok)Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.');else await syncNextOfflineCreate({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id});return refresh();}).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>setBusyId(null));}}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable>:null}<Pressable disabled={busyId===item.id||item.state==='processing'} style={styles.delete} onPress={()=>Alert.alert('إلغاء الإضافة المحفوظة','ستُحذف من الجهاز ولن تُرسل إلى الخادم. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء الإضافة',style:'destructive',onPress:()=>{setBusyId(item.id);void discardOfflineCreate(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم تُلغَ الإضافة','قد تكون قيد المعالجة؛ حدّث القائمة.');return refresh();}).catch(e=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>setBusyId(null));}}])}><Text style={styles.deleteText}>{item.state==='processing'?'قيد المعالجة':'إلغاء الإضافة'}</Text></Pressable></View></View>; })}
+        {requestItems.map((item) => <View key={`request-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{item.payload.title}</Text><Text style={styles.status}>{item.attempts >= 8 ? 'توقفت المحاولات؛ يلزم تدخل' : 'طلب جديد · بانتظار المزامنة'}</Text><Text style={styles.muted}>النوع: {item.payload.type} · المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.muted}>لن يُعد الطلب منشورًا حتى يؤكد الخادم نجاح المزامنة.</Text><View style={styles.actions}>{item.attempts >= 8 ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceRequest(item.id, user?.id).then((ok) => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); }).catch((e) => setError(e instanceof Error ? e.message : 'تعذرت إعادة المحاولة.')).finally(() => { setBusyId(null); void refresh(); }); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null} style={styles.delete} onPress={() => Alert.alert('إلغاء الطلب المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceRequest(item.id,user?.id).then((ok)=>{if(!ok)Alert.alert('لم تُلغَ العملية','قد تكون قيد المعالجة؛ حدّث القائمة.');}).catch((e)=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>إلغاء العملية</Text></Pressable></View></View>)}
+        {offerItems.map((item) => <View key={`offer-${item.id}`} style={styles.card}><Text style={styles.adTitle}>عرض محفوظ · {item.payload.price} ₪</Text><Text style={styles.status}>{item.attempts >= 8 ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>رقم الطلب: {item.payload.requestId} · المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.payload.message ? <Text style={styles.muted}>الرسالة: {item.payload.message}</Text> : null}{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>العرض لم يُرسل إلى الخادم بعد. قد يُرفض إذا أُغلق الطلب أو انتهت صلاحيته قبل المزامنة.</Text><View style={styles.actions}>{item.attempts >= 8 ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryRequestOffer(item.id,user?.id).then(async ok => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); else await syncNextRequestOffer({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();}); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء العرض المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العرض',style:'destructive',onPress:()=>{setBusyId(item.id);void discardRequestOffer(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم يُلغَ العرض','قد تكون المزامنة بدأت؛ حدّث القائمة.');}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء العرض.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء العرض'}</Text></Pressable></View></View>)}
+        {orderItems.map((item) => <View key={`order-${item.id}`} style={styles.card}><Text style={styles.adTitle}>طلب شراء · {item.payload.items.length} منتج</Text><Text style={styles.status}>{item.attempts >= 8 ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المستلم: {item.payload.recipientName} · {item.payload.shippingCity}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>هذا الطلب محفوظ محليًا وليس مؤكدًا لدى المتجر. سيعيد الخادم التحقق من السعر والمخزون عند المزامنة.</Text><View style={styles.actions}>{item.attempts >= 8 ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceOrder(item.id,user?.id).then(async ok => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); else await syncNextMarketplaceOrder({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();}); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء طلب الشراء المحفوظ','سيُحذف الطلب من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceOrder(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم يُلغَ الطلب','قد تكون المزامنة بدأت؛ حدّث القائمة.');}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء الطلب.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء الطلب'}</Text></Pressable></View></View>)}
+        {createItems.map((item) => { const label=item.operation==='create-product'?'إضافة منتج':item.operation==='create-service'?'نشر خدمة':'تسجيل بيع'; const title=String(item.payload.name||item.payload.title||item.payload.entityTitle||label); return <View key={`create-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{label}: {title}</Text><Text style={styles.status}>{item.attempts>=8?'توقفت المحاولات؛ يلزم تدخل':item.state==='processing'?'قيد المزامنة':'بانتظار المزامنة'}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/8 · حُفظ: {new Date(item.createdAt).toLocaleString('ar')}</Text>{item.lastError?<Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text>:null}<Text style={styles.warning}>لم يؤكد الخادم إنشاء هذا السجل بعد. قد يرفضه إذا تغيرت الصلاحيات أو التصنيفات أو البيانات قبل المزامنة.</Text><View style={styles.actions}>{item.attempts>=8?<Pressable disabled={busyId!==null} style={styles.secondary} onPress={()=>{setBusyId(item.id);void retryOfflineCreate(item.id,user?.id).then(async ok=>{if(!ok)Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.');else await syncNextOfflineCreate({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id});}).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();});}}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable>:null}<Pressable disabled={busyId!==null||item.state==='processing'} style={styles.delete} onPress={()=>Alert.alert('إلغاء الإضافة المحفوظة','ستُحذف من الجهاز ولن تُرسل إلى الخادم. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء الإضافة',style:'destructive',onPress:()=>{setBusyId(item.id);void discardOfflineCreate(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم تُلغَ الإضافة','قد تكون قيد المعالجة؛ حدّث القائمة.');}).catch(e=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state==='processing'?'قيد المعالجة':'إلغاء الإضافة'}</Text></Pressable></View></View>; })}
         {items.length === 0 && favoriteItems.length === 0 && requestItems.length === 0 && offerItems.length === 0 && orderItems.length === 0 && createItems.length === 0 ? <View style={styles.empty}><Text style={styles.title}>لا توجد عمليات معلّقة</Text><Text style={styles.muted}>ستظهر هنا العمليات التي تحتاج إلى المزامنة أو التدخل.</Text></View> : items.map((item) => {
           const exhausted = item.state === 'failed' && item.attempts >= 8;
           const canDiscard = item.state !== 'processing';
-          const isHead = items[0]?.id === item.id;
-          const canRetry = exhausted && isHead && (item.operation === 'create-ad' || item.operation === 'delete-ad');
+          const isHead = headId === item.id;
+          const canRetry = exhausted && isHead && (item.operation === 'create-ad' || item.operation === 'delete-ad' || item.operation === 'update-ad');
           return <View key={item.id} style={styles.card}>
             <Text style={styles.adTitle}>{titleFromPayload(item) || operationLabel(item.operation)}</Text>
             <Text style={styles.status}>{stateLabel(item)}</Text>
@@ -194,8 +219,8 @@ export default function OfflineQueueScreen() {
             {exhausted && !isHead ? <Text style={styles.warning}>لا يمكن إعادة هذه العملية الآن لأن هناك عملية أقدم تسبقها في الطابور.</Text> : null}
             {exhausted && isHead && item.operation === 'update-ad' ? <Text style={styles.warning}>تعذرت المزامنة بعد عدة محاولات. تحقق من بيانات التعديل والاتصال ثم أعد المحاولة.</Text> : null}
             <View style={styles.actions}>
-              {canRetry ? <Pressable disabled={busyId === item.id} style={styles.secondary} onPress={() => void retry(item)}><Text style={styles.secondaryText}>{busyId === item.id ? 'جارٍ…' : 'إعادة المحاولة'}</Text></Pressable> : null}
-              <Pressable disabled={!canDiscard || busyId === item.id} style={[styles.delete, (!canDiscard || busyId === item.id) && styles.disabled]} onPress={() => discard(item)}><Text style={styles.deleteText}>{busyId === item.id ? 'جارٍ…' : canDiscard ? 'إلغاء العملية' : 'قيد المعالجة'}</Text></Pressable>
+              {canRetry ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => void retry(item)}><Text style={styles.secondaryText}>{busyId === item.id ? 'جارٍ…' : 'إعادة المحاولة'}</Text></Pressable> : null}
+              <Pressable disabled={!canDiscard || busyId !== null} style={[styles.delete, (!canDiscard || busyId !== null) && styles.disabled]} onPress={() => discard(item)}><Text style={styles.deleteText}>{busyId === item.id ? 'جارٍ…' : canDiscard ? 'إلغاء العملية' : 'قيد المعالجة'}</Text></Pressable>
             </View>
           </View>;
         })}
