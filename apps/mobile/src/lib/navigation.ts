@@ -36,6 +36,7 @@ export function replaceScreen(path: Href | string): void {
 
 /** رجوع آمن */
 export function goBack(fallback: Href | string = '/'): void {
+  if (!allowNav()) return;
   if (router.canGoBack()) router.back();
   else router.replace(fallback as Href);
 }
