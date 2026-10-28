@@ -153,3 +153,15 @@ export const sizes = {
 export type ColorToken = keyof typeof colors;
 export type SpacingToken = keyof typeof spacing;
 export type RadiusToken = keyof typeof radius;
+
+/** ثوابت تجربة المستخدم — أهداف لمس، شفافية الضغط، مدد الحركة */
+export const ux = {
+  /** الحد الأدنى الموصى به لمنطقة اللمس (إرشادات Apple/Material) */
+  minTouch: 44,
+  pressedOpacity: 0.72,
+  disabledOpacity: 0.45,
+  /** مدد تقريبية للتوثيق / Animated لاحقاً */
+  durationFast: 120,
+  durationNormal: 220,
+  durationSlow: 320,
+} as const;

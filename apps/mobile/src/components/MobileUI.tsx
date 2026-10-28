@@ -13,8 +13,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { router, usePathname } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, elevation, radius, sizes, spacing, typography } from '@/theme/tokens';
+import { colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import { isBottomNavigationHidden } from '@/components/BottomNavigation';
 
 /* -------------------------------------------------------------------------- */
@@ -92,8 +93,7 @@ export function AppHeader({
       onBack();
       return;
     }
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
+    goBack('/');
   };
 
   return (
@@ -103,6 +103,7 @@ export function AppHeader({
           accessibilityRole="button"
           accessibilityLabel="رجوع"
           onPress={handleBack}
+          hitSlop={12}
           style={({ pressed }) => [s.back, pressed && s.pressed]}
         >
           <Text style={s.backText}>‹</Text>
@@ -552,6 +553,65 @@ export function ErrorState({
 }
 
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/*  Skeleton + Offline banner (UX)                                            */
+/* -------------------------------------------------------------------------- */
+
+export function SkeletonBlock({
+  height = 16,
+  width = '100%',
+  radius: r = radius.md,
+  style,
+}: {
+  height?: number;
+  width?: number | string;
+  radius?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return <View style={[s.skeleton, { height, width: width as any, borderRadius: r }, style]} />;
+}
+
+/** هيكل بطاقة قائمة أثناء التحميل */
+export function SkeletonCard() {
+  return (
+    <View style={s.skeletonCard}>
+      <SkeletonBlock height={88} width={88} radius={radius.md} />
+      <View style={{ flex: 1, gap: spacing.sm }}>
+        <SkeletonBlock height={14} width="90%" />
+        <SkeletonBlock height={12} width="55%" />
+        <SkeletonBlock height={12} width="35%" />
+      </View>
+    </View>
+  );
+}
+
+export function SkeletonList({ count = 3 }: { count?: number }) {
+  return (
+    <View style={{ gap: spacing.md }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </View>
+  );
+}
+
+/** شريط تنبيه عند انقطاع/ضعف الاتصال */
+export function OfflineBanner({
+  visible,
+  message = 'أنت غير متصل — بعض الإجراءات تُحفظ للمزامنة لاحقاً.',
+}: {
+  visible: boolean;
+  message?: string;
+}) {
+  if (!visible) return null;
+  return (
+    <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={s.offlineBanner}>
+      <Text style={s.offlineBannerText}>{message}</Text>
+    </View>
+  );
+}
+
 /*  DetailScaffold — شاشات التفاصيل (صور + محتوى + شريط إجراءات سفلي)          */
 /* -------------------------------------------------------------------------- */
 
@@ -616,7 +676,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.sm,
   },
-  back: {
+  back: { minWidth: sizes.touchTarget, minHeight: sizes.touchTarget, alignItems: 'center', justifyContent: 'center',
     width: sizes.iconButton,
     height: sizes.iconButton,
     borderRadius: radius.md,
@@ -797,7 +857,32 @@ const s = StyleSheet.create({
   stateTitle: { textAlign: 'center', ...typography.subtitle, color: colors.ink },
   stateMessage: { textAlign: 'center', ...typography.body, color: colors.muted },
 
-  pressed: { opacity: 0.72 },
+  pressed: { opacity: ux.pressedOpacity },
+  skeleton: { backgroundColor: colors.border, overflow: 'hidden' },
+  skeletonCard: {
+    flexDirection: 'row-reverse',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  offlineBanner: {
+    backgroundColor: colors.warningSoft,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.warningBorder,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  offlineBannerText: {
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 18,
+    color: colors.warning,
+    textAlign: 'center',
+  },
+  
 
   searchBar: {
     flexDirection: 'row-reverse',

@@ -9,6 +9,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  SkeletonList,
   PrimaryButton,
   SearchBar,
   SecondaryButton,
@@ -145,7 +146,7 @@ export default function ProductsScreen() {
         </View>
 
         {loading ? (
-          <LoadingState message="جاري تحميل المنتجات…" />
+          <SkeletonList count={4} />
         ) : error ? (
           <ErrorState title="تعذر تحميل المنتجات" description={error} onAction={() => void load()} />
         ) : items.length === 0 ? (

@@ -8,6 +8,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  SkeletonList,
   SearchBar,
 } from '@/components/MobileUI';
 import { CatalogCard } from '@/components/MarketCards';
@@ -87,7 +88,7 @@ export default function ServicesScreen() {
         </View>
 
         {loading ? (
-          <LoadingState message="جاري تحميل الخدمات…" />
+          <SkeletonList count={4} />
         ) : error ? (
           <ErrorState title="تعذر تحميل الخدمات" description={error} onAction={() => void load()} />
         ) : items.length === 0 ? (

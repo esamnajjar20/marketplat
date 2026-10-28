@@ -16,8 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { AdListItem, fetchPublicAds, getCachedPublicAdsWithMetadata } from '@/features/ads/ads.api';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
-import { EmptyState, ErrorState, LoadingState, SectionHeader } from '@/components/MobileUI';
+import { colors, radius, spacing, typography, ux } from '@/theme/tokens';
+import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
@@ -206,6 +206,10 @@ export default function HomeScreen() {
   // Keep the previous connectivity value across renders so changing search/filter
   // subscriptions cannot masquerade as a reconnect.
   useEffect(() => {
+    void NetInfo.fetch().then((state) => {
+      const online = state.isConnected === true && state.isInternetReachable !== false;
+      connectivityRef.current = online;
+    });
     const unsubscribe = NetInfo.addEventListener((state) => {
       const online = state.isConnected === true && state.isInternetReachable !== false;
       const previous = connectivityRef.current;
@@ -298,17 +302,17 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.quickActions}>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={styles.quickAction}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
             <View style={[styles.quickIcon, { backgroundColor: colors.brandSoft }]}><Text style={[styles.quickGlyph, { color: colors.brand }]}>⌕</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف السوق</Text><Text style={styles.quickSubtitle}>المتاجر والخدمات والمنتجات والقصص</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/search')} style={styles.quickAction}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/search')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
             <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>⚙</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>بحث وفلاتر متقدمة</Text><Text style={styles.quickSubtitle}>حدد المدينة والسعر ونوع المحتوى</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={styles.quickAction}>
+          <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
             <View style={[styles.quickIcon, { backgroundColor: colors.warningSoft }]}><Text style={[styles.quickGlyph, { color: colors.warning }]}>＋</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>انشر إعلانًا أو أضف منتجًا أو خدمة</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
@@ -351,7 +355,7 @@ export default function HomeScreen() {
           </View>
         ) : null}
         {loading ? (
-          <LoadingState message="جاري تحميل الإعلانات…" />
+          <SkeletonList count={4} />
         ) : errorMessage ? (
           <ErrorState
             title="لم نتمكن من تحميل الإعلانات"
@@ -417,6 +421,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: ux.pressedOpacity },
   safeArea: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: spacing.lg, paddingBottom: 44, gap: spacing.xl },
   header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm, minHeight: 58, gap: spacing.sm },
@@ -429,18 +434,18 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 44, minWidth: 64, paddingHorizontal: spacing.md, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   accountButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
   quickActions: { gap: spacing.sm },
-  quickAction: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, minHeight: 80 },
+  quickAction: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, padding: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
   quickIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   quickGlyph: { color: colors.brand, fontSize: 23, fontWeight: '800' },
   quickTextWrap: { flex: 1, gap: 4 },
   quickTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
   quickSubtitle: { color: colors.muted, fontSize: 12, textAlign: 'right' },
   quickArrow: { color: colors.muted, fontSize: 25 },
-  hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.xl, overflow: 'hidden', gap: spacing.sm },
+  hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.lg, overflow: 'hidden', gap: spacing.sm },
   eyebrow: { color: colors.brandSoft, fontSize: 13, textAlign: 'right' },
-  heroTitle: { color: colors.white, fontSize: 26, fontWeight: '800', textAlign: 'right' },
-  heroBody: { color: colors.brandSoft, fontSize: 14, lineHeight: 22, textAlign: 'right' },
-  searchBox: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: spacing.md, marginTop: spacing.sm, minHeight: 52, gap: spacing.sm },
+  heroTitle: { color: colors.white, fontSize: 22, fontWeight: '800', textAlign: 'right', lineHeight: 30 },
+  heroBody: { color: colors.brandSoft, fontSize: 13, lineHeight: 20, textAlign: 'right' },
+  searchBox: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: spacing.md, minHeight: ux.minTouch + 8, gap: spacing.sm },
   searchIcon: { fontSize: 26, color: colors.brand, width: 25, textAlign: 'center' },
   searchInput: { flex: 1, color: colors.ink, fontSize: 15, paddingVertical: 12, writingDirection: 'rtl' },
   clearSearch: { color: colors.muted, fontSize: 24, paddingHorizontal: 4 },
@@ -474,7 +479,7 @@ const styles = StyleSheet.create({
   serviceProvider: { color: colors.muted, fontSize: 11, textAlign: 'right', width: '100%' },
   servicePrice: { color: colors.brand, fontSize: 13, fontWeight: '800', textAlign: 'right' },
   serviceState: { minHeight: 60, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  loadMoreButton: { minHeight: 48, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
+  loadMoreButton: { minHeight: ux.minTouch + 8, minHeight: 48, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
   loadMoreText: { color: colors.brand, fontSize: 14, fontWeight: '800' },
   busyButton: { opacity: 0.65 },
   adsList: { gap: spacing.md },

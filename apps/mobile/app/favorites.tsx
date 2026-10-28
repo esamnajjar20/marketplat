@@ -17,6 +17,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  SkeletonList,
   PrimaryButton,
 } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
@@ -132,7 +133,7 @@ export default function FavoritesScreen() {
           />
         </View>
       ) : loading ? (
-        <LoadingState message="جاري تحميل المفضلة…" />
+        <SkeletonList count={4} />
       ) : error ? (
         <ErrorState title="تعذر تحميل المفضلة" description={error} onAction={() => void load()} />
       ) : items.length === 0 ? (

@@ -13,6 +13,7 @@ import {
   LoadingState,
   PrimaryButton,
   SearchBar,
+  SkeletonList,
 } from '@/components/MobileUI';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
@@ -107,7 +108,7 @@ export default function MessagesScreen() {
           onAction={() => router.push('/login')}
         />
       ) : loading ? (
-        <LoadingState message="جاري تحميل المحادثات…" />
+        <SkeletonList count={5} />
       ) : error && !items.length ? (
         <ErrorState title="تعذر تحميل المحادثات" description={error} onAction={() => void load()} />
       ) : (

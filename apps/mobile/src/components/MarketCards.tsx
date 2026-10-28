@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, elevation, radius, spacing, typography } from '@/theme/tokens';
+import { colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 
 /**
  * بطاقة موحّدة لعناصر السوق في القوائم (منتج / خدمة / متجر / إعلان).
@@ -95,6 +95,7 @@ export function AdCard({
           accessibilityRole="button"
           accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
           onPress={onToggleFavorite}
+          hitSlop={10}
           style={styles.favoriteBtn}
         >
           <Text style={[styles.favoriteIcon, isFavorite && styles.favoriteActive]}>
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...elevation.sm,
   },
-  pressed: { opacity: 0.85 },
+  pressed: { opacity: ux.pressedOpacity },
   image: {
     width: 84,
     height: 84,

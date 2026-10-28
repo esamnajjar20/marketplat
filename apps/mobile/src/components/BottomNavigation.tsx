@@ -1,4 +1,5 @@
-import { router, usePathname, type Href } from 'expo-router';
+import { usePathname } from 'expo-router';
+import { goTab } from '@/lib/navigation';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, sizes, spacing, typography } from '@/theme/tokens';
@@ -57,7 +58,11 @@ export default function BottomNavigation() {
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
-              onPress={() => router.navigate(tab.path as Href)}
+              onPress={() => {
+                if (active) return;
+                goTab(tab.path);
+              }}
+              hitSlop={4}
               style={({ pressed }) => [styles.tab, active && styles.activeTab, pressed && styles.pressed]}
             >
               <View style={[styles.glyphWrap, active && styles.activeGlyphWrap, tab.path === '/add' && styles.addWrap]}>
