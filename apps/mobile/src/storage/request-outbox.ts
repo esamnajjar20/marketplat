@@ -95,7 +95,7 @@ export async function syncNextMarketplaceRequest(input: { isOnline: boolean; tok
       const delay = Math.min(60 * 60_000, 5_000 * 2 ** Math.min(attempts - 1, 10));
       const message = (error instanceof Error ? error.message : 'تعذرت مزامنة الطلب.').slice(0, 500);
       await db.runAsync("UPDATE request_create_outbox SET state='pending', attempts=?, last_error=?, next_attempt_at=?, lease_until=0 WHERE id=? AND owner_id=?", attempts, message, Date.now() + delay, head.id, input.ownerId);
-      return input.token ? 'retry-scheduled' as const : 'login-required' as const;
+      return error instanceof ApiError && (error.status === 401 || error.status === 403) ? 'login-required' as const : 'retry-scheduled' as const;
     }
   })();
   activeSync = work;

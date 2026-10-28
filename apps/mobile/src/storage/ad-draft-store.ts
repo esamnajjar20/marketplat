@@ -116,10 +116,12 @@ export async function saveAdEditDraft(ownerId: string, resourceId: string, draft
   if (!validDraft(draft)) throw new Error('Invalid ad edit draft.');
   const draftJson = JSON.stringify(draft);
   if (draftJson.length > MAX_DRAFT_CHARS) throw new Error('Ad edit draft exceeds the allowed local size.');
-  const db = await database();
-  await db.runAsync(`INSERT INTO ad_edit_drafts (owner_id, resource_id, draft_json, updated_at) VALUES (?, ?, ?, ?)
-    ON CONFLICT(owner_id, resource_id) DO UPDATE SET draft_json = excluded.draft_json, updated_at = excluded.updated_at`,
-    ownerId, resourceId, draftJson, Date.now());
+  return runSerializedByKey(`${ownerId}:${resourceId}`, async () => {
+    const db = await database();
+    await db.runAsync(`INSERT INTO ad_edit_drafts (owner_id, resource_id, draft_json, updated_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(owner_id, resource_id) DO UPDATE SET draft_json = excluded.draft_json, updated_at = excluded.updated_at`,
+      ownerId, resourceId, draftJson, Date.now());
+  });
 }
 
 export async function loadAdEditDraft(ownerId: string, resourceId: string): Promise<SavedAdDraft | null> {
@@ -134,9 +136,11 @@ export async function loadAdEditDraft(ownerId: string, resourceId: string): Prom
 
 export async function clearAdEditDraft(ownerId: string, resourceId: string): Promise<boolean> {
   if (!ownerId.trim() || !resourceId.trim()) return false;
-  const db = await database();
-  const result = await db.runAsync('DELETE FROM ad_edit_drafts WHERE owner_id = ? AND resource_id = ?', ownerId, resourceId);
-  return result.changes === 1;
+  return runSerializedByKey(`${ownerId}:${resourceId}`, async () => {
+    const db = await database();
+    const result = await db.runAsync('DELETE FROM ad_edit_drafts WHERE owner_id = ? AND resource_id = ?', ownerId, resourceId);
+    return result.changes === 1;
+  });
 }
 
 export type AdDraftStorageSummary = { drafts: number; editDrafts: number; sizeBytes: number; newestUpdatedAt: number | null };

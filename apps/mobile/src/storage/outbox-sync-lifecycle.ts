@@ -51,6 +51,7 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
       // finite. Any non-success status (offline, auth, backoff, unsupported,
       // exhausted, or failure) stops the drain immediately and preserves FIFO.
       let lastResult: GuardedOutboxSyncResult | null = null;
+      let mutationsSynced = 0;
       for (let processed = 0; processed < 50; processed += 1) {
         if (stopped || currentGeneration !== generation || AppState.currentState !== 'active') return;
         const snapshot = options.getSnapshot();
@@ -60,7 +61,11 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
         }
         const result = await syncOutboxIfReady(snapshot);
         lastResult = result;
-        if (result.status !== 'sync-result' || result.result.status !== 'synced') break;
+        if (result.status === 'sync-result' && result.result.status === 'synced') {
+          mutationsSynced += 1;
+          continue;
+        }
+        break;
       }
 
       // Drain every durable queue in FIFO order on the same lifecycle event.
@@ -98,10 +103,8 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
       };
 
       // Mutation outbox is aggregated by its own loop above.
-      if (lastResult?.status === 'sync-result' && lastResult.result.status === 'synced') {
-        queues.mutations.synced = 1;
-        queues.mutations.reason = 'synced';
-      } else if (lastResult) {
+      queues.mutations.synced = mutationsSynced;
+      if (lastResult) {
         queues.mutations.reason =
           lastResult.status === 'offline' ? 'skipped' :
           lastResult.status === 'login-required-before-sync' ? 'login-required' :
