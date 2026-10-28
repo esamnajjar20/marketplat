@@ -153,6 +153,30 @@ if (fs.existsSync(standaloneRoot)) {
   }
   if (copied > 0) {
     console.log(`[patch-nft] mirrored ${copied} file(s) into flat standalone .next`);
+
+
+// ─── Patch getMiddlewareManifest to return null (no middleware) ─────
+// Next.js internal method bypasses the loadManifest helper and calls
+// require(this.middlewareManifestPath) directly. esbuild cannot resolve
+// the dynamic path, so it throws at runtime (Issue #1258, #894).
+// Since this app has no middleware.ts, returning null is safe.
+const handlerFiles = [
+  path.join(cwd, '.open-next', 'server-functions', 'default', 'handler.mjs'),
+  path.join(cwd, '.open-next', 'server-functions', 'default', 'apps', 'web', 'handler.mjs'),
+];
+for (const handlerPath of handlerFiles) {
+  if (!fs.existsSync(handlerPath)) continue;
+  let content = fs.readFileSync(handlerPath, 'utf8');
+  if (content.includes('getMiddlewareManifest patched')) continue;
+  const patched = content.replace(
+    /getMiddlewareManifest\(\)\s*\{\s*return this\.minimalMode\s*\?\s*null\s*:\s*require\(this\.middlewareManifestPath\)\s*;?\s*\}/g,
+    'getMiddlewareManifest(){/* getMiddlewareManifest patched */return null}'
+  );
+  if (patched !== content) {
+    fs.writeFileSync(handlerPath, patched);
+    console.log('[patch-nft] getMiddlewareManifest patched in ' + path.relative(cwd, handlerPath));
+  }
+}
   } else {
     console.log('[patch-nft] flat standalone already populated');
   }
