@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -30,8 +30,10 @@ export default function ServicesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const seq = useRef(0);
   const load = useCallback(
     async (refresh = false) => {
+      const current = ++seq.current;
       if (refresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
@@ -39,7 +41,7 @@ export default function ServicesScreen() {
       let hasCache = false;
       try {
         const cached = await getCachedServiceListings(options);
-        if (cached) {
+        if (cached && current === seq.current) {
           hasCache = true;
           setItems(cached);
           setLoading(false);
@@ -48,12 +50,15 @@ export default function ServicesScreen() {
         /* cache optional */
       }
       try {
-        setItems(await fetchServiceListings(options));
+        const fresh = await fetchServiceListings(options);
+        if (current === seq.current) setItems(fresh);
       } catch (e) {
-        if (!hasCache) setError(e instanceof Error ? e.message : 'تعذر تحميل الخدمات.');
+        if (current === seq.current && !hasCache) setError(e instanceof Error ? e.message : 'تعذر تحميل الخدمات.');
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (current === seq.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [submitted],
@@ -61,6 +66,7 @@ export default function ServicesScreen() {
 
   useEffect(() => {
     void load();
+    return () => { seq.current += 1; };
   }, [load]);
 
   return (
