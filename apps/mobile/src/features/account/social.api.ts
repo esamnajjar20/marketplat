@@ -24,7 +24,9 @@ export async function fetchPublicUser(id: string): Promise<PublicUser> {
 }
 export async function fetchPublicUserAds(id: string, page = 1, limit = 12): Promise<{ items: PublicAd[]; meta?: PaginationMeta }> {
   const response = await apiRequest<Envelope<PublicAd[]>>(`/api/v1/users/${encodeURIComponent(id)}/ads?page=${page}&limit=${limit}`);
-  return { items: unwrap(response, 'تعذر تحميل إعلانات المستخدم.'), meta: response.meta?.pagination };
+  const items = unwrap(response, 'تعذر تحميل إعلانات المستخدم.');
+  if (!Array.isArray(items)) throw new Error('استجابة إعلانات المستخدم غير صالحة.');
+  return { items, meta: response.meta?.pagination };
 }
 export async function fetchFollowStatus(id: string, token: string): Promise<boolean> {
   const response = await apiRequest<Envelope<{ following: boolean }>>(`/api/v1/follows/status/USER/${encodeURIComponent(id)}`, { token });
@@ -39,11 +41,15 @@ export async function toggleUserFollow(id: string, token: string, csrfToken?: st
 }
 export async function fetchUserFollowList(id: string, mode: 'followers' | 'following', page = 1, limit = 20): Promise<{ items: FollowListItem[]; meta?: PaginationMeta }> {
   const response = await apiRequest<Envelope<FollowListItem[]>>(`/api/v1/follows/users/${encodeURIComponent(id)}/${mode}?page=${page}&limit=${limit}`);
-  return { items: unwrap(response, 'تعذر تحميل القائمة.'), meta: response.meta?.pagination };
+  const items = unwrap(response, 'تعذر تحميل القائمة.');
+  if (!Array.isArray(items)) throw new Error('استجابة قائمة المتابعة غير صالحة.');
+  return { items, meta: response.meta?.pagination };
 }
 export async function fetchBlockedUsers(token: string, page = 1, limit = 50): Promise<{ items: BlockedUserItem[]; meta?: PaginationMeta }> {
   const response = await apiRequest<Envelope<BlockedUserItem[]>>(`/api/v1/blocked-users?page=${page}&limit=${limit}`, { token });
-  return { items: unwrap(response, 'تعذر تحميل قائمة المستخدمين المحظورين.'), meta: response.meta?.pagination };
+  const items = unwrap(response, 'تعذر تحميل قائمة المستخدمين المحظورين.');
+  if (!Array.isArray(items)) throw new Error('استجابة المستخدمين المحظورين غير صالحة.');
+  return { items, meta: response.meta?.pagination };
 }
 export async function toggleBlockUser(id: string, token: string, csrfToken?: string | null): Promise<'blocked' | 'unblocked'> {
   const response = await apiRequest<Envelope<{ action: 'blocked' | 'unblocked' }>>(`/api/v1/blocked-users/${encodeURIComponent(id)}`, {
@@ -63,5 +69,7 @@ export async function submitReport(targetType: 'ads' | 'users' | 'stores' | 'pro
 export type MyReport = { id: string; targetType?: string; targetId?: string; reason?: string; notes?: string | null; status?: string; createdAt?: string };
 export async function fetchMyReports(token: string, page = 1, limit = 20): Promise<{ items: MyReport[]; meta?: PaginationMeta }> {
   const response = await apiRequest<Envelope<MyReport[]>>(`/api/v1/reports/me?page=${page}&limit=${limit}`, { token });
-  return { items: unwrap(response, 'تعذر تحميل بلاغاتك.'), meta: response.meta?.pagination };
+  const items = unwrap(response, 'تعذر تحميل بلاغاتك.');
+  if (!Array.isArray(items)) throw new Error('استجابة بلاغاتك غير صالحة.');
+  return { items, meta: response.meta?.pagination };
 }
