@@ -84,5 +84,8 @@ export async function cachePublicImage(uri: string): Promise<string> {
 
 export async function cachePublicImages(uris: string[]): Promise<string[]> {
   // Keep the operation bounded to avoid a large page blocking the UI or filling storage.
-  return Promise.all(uris.slice(0, 8).map((uri) => cachePublicImage(uri)));
+  // allSettled: a single image failure must not discard the others' results.
+  const urls = uris.slice(0, 8);
+  const results = await Promise.allSettled(urls.map((uri) => cachePublicImage(uri)));
+  return results.map((r, i) => r.status === 'fulfilled' ? r.value : urls[i]);
 }

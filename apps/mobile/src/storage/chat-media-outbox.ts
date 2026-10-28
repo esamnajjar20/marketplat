@@ -6,6 +6,7 @@ const MEDIA_DIRECTORY = `${FileSystem.documentDirectory ?? ''}marketplat-chat-me
 const MAX_PENDING_MEDIA = 30;
 const MAX_ATTEMPTS = 8;
 const MAX_MEDIA_BYTES = 15 * 1024 * 1024;
+const OP_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 export type ChatMediaKind = 'image' | 'audio' | 'file';
 export type ChatMediaOutboxItem = { id: string; ownerId: string; conversationId: string; kind: ChatMediaKind; uri: string; fileName: string; mimeType: string; sizeBytes: number; operationId: string; createdAt: number; attempts: number; lastError: string | null };
 type Row = { id: string; owner_id: string; conversation_id: string; kind: string; uri: string; file_name: string; mime_type: string; size_bytes: number; operation_id: string; created_at: number; attempts: number; next_attempt_at: number; last_error: string | null };
@@ -29,6 +30,7 @@ export async function enqueueChatMedia(input: { ownerId: string; conversationId:
   if (!source.exists || source.isDirectory || !source.size || source.size > maxBytes) throw new Error(input.kind === 'image' ? 'حجم الصورة يجب ألا يتجاوز 5 ميغابايت.' : input.kind === 'audio' ? 'حجم التسجيل الصوتي يجب ألا يتجاوز 8 ميغابايت.' : 'حجم الملف يجب ألا يتجاوز 15 ميغابايت.');
   await FileSystem.makeDirectoryAsync(MEDIA_DIRECTORY, { intermediates: true }).catch(() => undefined);
   const operationId = input.operationId || createChatMediaOperationId(input.kind);
+  if (!OP_ID_PATTERN.test(operationId)) throw new Error('معرّف عملية المرفق غير صالح.');
   const fileName = safeName(input.fileName);
   const destination = `${MEDIA_DIRECTORY}${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${fileName}`;
   await FileSystem.copyAsync({ from: input.uri, to: destination });

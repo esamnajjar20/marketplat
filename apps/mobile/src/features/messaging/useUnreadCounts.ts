@@ -20,8 +20,9 @@ export function useUnreadCounts() {
     try {
       const next = await fetchUnreadCounts(accessToken);
       if (currentSequence === sequence.current) setCounts(prev => ({ ...prev, ...next }));
-    } catch {
+    } catch (error) {
       // Keep the last known counts when a temporary network failure occurs.
+      if (__DEV__) console.warn('[useUnreadCounts] refresh failed:', error);
     }
   }, [accessToken]);
 

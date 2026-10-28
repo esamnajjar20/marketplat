@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -22,7 +22,7 @@ import { isBottomNavigationHidden } from '@/components/BottomNavigation';
 /*  PageShell — غلاف شاشة موحّد مع رأس ورجوع                                    */
 /* -------------------------------------------------------------------------- */
 
-const ShellBody = memo(function ShellBody({
+const ShellBody = function ShellBody({
   hidden,
   title,
   right,
