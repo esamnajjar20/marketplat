@@ -106,9 +106,7 @@ export async function fetchStoreReviews(id: string, options: { page?: number; li
   return pageFrom(await apiRequest<Envelope<StoreReview[]>>(`/api/v1/stores/${encodeURIComponent(id)}/reviews?${params}`), 'تعذر تحميل تقييمات المتجر.', page);
 }
 export async function createStoreReview(id: string, input: { score: number; comment?: string }, token: string, csrfToken?: string | null) {
-  const response = await apiRequest<Envelope<unknown>>(`/api/v1/stores/${encodeURIComponent(id)}/reviews`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) });
-  if (!response || response.success !== true) throw new Error(response?.message || 'تعذر إرسال تقييم المتجر.');
-  return response.data;
+  return dataOf(await apiRequest<Envelope<unknown>>(`/api/v1/stores/${encodeURIComponent(id)}/reviews`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر إرسال تقييم المتجر.');
 }
 export async function uploadMyStoreImage(kind: 'logo' | 'cover', asset: { uri: string; fileName?: string | null; mimeType?: string | null }, token: string, csrfToken?: string | null) {
   const form = new FormData();

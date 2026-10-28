@@ -36,7 +36,7 @@ export default function ProductDetailScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) { setLoading(false); setError('معرّف المنتج غير صالح.'); return; }
     setLoading(true);
     setError(null);
     try {

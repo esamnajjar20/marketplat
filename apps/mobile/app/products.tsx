@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
-import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
+import { fetchProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
 import {
   AppHeader,
   EmptyState,
@@ -25,7 +25,7 @@ function price(item: ProductSummary) {
 }
 
 export default function ProductsScreen() {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const params = useLocalSearchParams<{ storeId?: string | string[]; categoryId?: string | string[] }>();
   const storeParam = Array.isArray(params.storeId) ? params.storeId[0] : params.storeId;
   const storeId = typeof storeParam === 'string' && storeParam.trim() ? storeParam : undefined;
@@ -42,6 +42,7 @@ export default function ProductsScreen() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const requestSequence = useRef(0);
+  const [hasStore, setHasStore] = useState<boolean | null>(null);
 
   const load = useCallback(
     async (refresh = false) => {
@@ -77,6 +78,15 @@ export default function ProductsScreen() {
       requestSequence.current += 1;
     };
   }, [load]);
+
+  useEffect(() => {
+    if (!user || !accessToken) { setHasStore(null); return; }
+    let cancelled = false;
+    void fetchMyStore(accessToken)
+      .then((store) => { if (!cancelled) setHasStore(!!store); })
+      .catch(() => { if (!cancelled) setHasStore(true); /* fail-open: assume store exists on network error */ });
+    return () => { cancelled = true; };
+  }, [user, accessToken]);
 
   const loadMore = async () => {
     if (loadingMore || loading || page >= totalPages) return;
@@ -135,7 +145,7 @@ export default function ProductsScreen() {
               onPress={() => router.push({ pathname: '/stores/[id]', params: { id: storeId } })}
             />
           ) : null}
-          {user ? (
+          {user && hasStore !== false ? (
             <PrimaryButton label="+ إضافة منتج" onPress={() => router.push('/product-editor')} />
           ) : null}
         </View>
