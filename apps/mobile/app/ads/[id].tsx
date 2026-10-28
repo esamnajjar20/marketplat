@@ -115,6 +115,7 @@ export default function AdDetailScreen() {
       try {
         const pending = await listPendingFavoriteStates(user.id);
         for (const operation of pending) {
+          if (!active) return;
           try {
             await setFavoriteAdState(
               operation.adId,
@@ -129,7 +130,9 @@ export default function AdDetailScreen() {
           }
         }
         const serverIds = await fetchFavoriteAdIds(accessToken);
+        if (!active) return;
         const pendingAfterSync = await listPendingFavoriteStates(user.id);
+        if (!active) return;
         const merged = new Set(serverIds);
         for (const operation of pendingAfterSync) {
           if (operation.favorited) merged.add(operation.adId);

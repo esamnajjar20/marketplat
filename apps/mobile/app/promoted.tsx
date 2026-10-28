@@ -20,6 +20,7 @@ export default function PromotedScreen() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const seq = useRef(0);
+  const loadingMoreRef = useRef(false);
 
   const load = useCallback(async () => {
     const current = ++seq.current;
@@ -55,7 +56,8 @@ export default function PromotedScreen() {
   }, [load]);
 
   const more = async () => {
-    if (loading || loadingMore || page >= totalPages) return;
+    if (loading || loadingMoreRef.current || page >= totalPages) return;
+    loadingMoreRef.current = true;
     const current = seq.current;
     setLoadingMore(true);
     setError('');
@@ -79,6 +81,7 @@ export default function PromotedScreen() {
         setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد.');
       }
     } finally {
+      loadingMoreRef.current = false;
       if (current === seq.current) setLoadingMore(false);
     }
   };

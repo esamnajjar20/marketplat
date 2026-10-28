@@ -50,12 +50,18 @@ export default function FavoritesScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [records, pending] = await Promise.all([
+      // Pending is a local SQLite best-effort hint. Its failure must not
+      // mask a successful server fetch (or vice versa).
+      const [recordsResult, pendingResult] = await Promise.allSettled([
         fetchFavoriteAds(accessToken),
         user?.id ? listPendingFavoriteStates(user.id) : Promise.resolve([]),
       ]);
+      const pending = pendingResult.status === 'fulfilled' ? pendingResult.value : [];
+      if (recordsResult.status === 'rejected') {
+        throw recordsResult.reason;
+      }
       const desiredState = new Map(pending.map((operation) => [operation.adId, operation.favorited]));
-      setItems(records.filter((record) => desiredState.get(record.adId) !== false));
+      setItems(recordsResult.value.filter((record) => desiredState.get(record.adId) !== false));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحميل المفضلة.');
     } finally {
@@ -79,16 +85,27 @@ export default function FavoritesScreen() {
         onPress: () => {
           setBusyId(record.adId);
           const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          const enqueueOffline = () =>
+            enqueueFavoriteState({
+              userId: user.id,
+              adId: record.adId,
+              favorited: false,
+              previousFavorited: true,
+              operationId,
+            });
           const work =
             online && accessToken
-              ? setFavoriteAdState(record.adId, false, accessToken, operationId, csrfToken)
-              : enqueueFavoriteState({
-                  userId: user.id,
-                  adId: record.adId,
-                  favorited: false,
-                  previousFavorited: true,
-                  operationId,
-                });
+              ? setFavoriteAdState(record.adId, false, accessToken, operationId, csrfToken).catch(
+                  (err) => {
+                    // Session expired mid-action — preserve user intent locally
+                    // so it can sync after the next successful login.
+                    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+                      return enqueueOffline();
+                    }
+                    throw err;
+                  },
+                )
+              : enqueueOffline();
           void Promise.resolve(work)
             .then(async () => {
               const ids = await readFavoriteAdIds(user.id);
