@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
@@ -26,26 +26,36 @@ export default function RequestsScreen() {
   const [items, setItems] = useState<MarketplaceRequest[]>([]);
   const [q, setQ] = useState('');
   const [city, setCity] = useState('');
+  const [qApplied, setQApplied] = useState('');
+  const [cityApplied, setCityApplied] = useState('');
   const [type, setType] = useState('');
   const [sort, setSort] = useState('newest');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const seq = useRef(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => { setQApplied(q); setCityApplied(city); }, 350);
+    return () => clearTimeout(t);
+  }, [q, city]);
 
   const load = useCallback(async () => {
+    const current = ++seq.current;
     setLoading(true);
     setError('');
     try {
-      const r = await fetchOpenRequests({ q, city, type: type || undefined, sort });
-      setItems(r.items);
+      const r = await fetchOpenRequests({ q: qApplied, city: cityApplied, type: type || undefined, sort });
+      if (current === seq.current) setItems(r.items);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل الطلبات.');
+      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل الطلبات.');
     } finally {
-      setLoading(false);
+      if (current === seq.current) setLoading(false);
     }
-  }, [q, city, type, sort]);
+  }, [qApplied, cityApplied, type, sort]);
 
   useEffect(() => {
     void load();
+    return () => { seq.current += 1; };
   }, [load]);
 
   return (
