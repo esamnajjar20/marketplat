@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -29,38 +29,50 @@ export default function MySalesScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
 
+  const sequence = useRef(0);
   const load = useCallback(async (refresh = false) => {
     if (!accessToken) { setLoading(false); return; }
+    const current = ++sequence.current;
     if (refresh) setRefreshing(true); else setLoading(true);
     setError('');
     try {
-      const [summaryResult, pageResult] = await Promise.all([
+      const [summaryR, pageR] = await Promise.allSettled([
         fetchSalesSummary(period, accessToken, user?.id),
         fetchSales(accessToken, 1, status === 'ALL' ? undefined : status, user?.id),
       ]);
-      setSummary(summaryResult);
-      setItems(pageResult.items);
-      setPage(pageResult.meta.page || 1);
-      setTotalPages(pageResult.meta.totalPages || 1);
+      if (current !== sequence.current) return;
+      if (summaryR.status === 'fulfilled') setSummary(summaryR.value);
+      if (pageR.status === 'fulfilled') {
+        setItems(pageR.value.items);
+        setPage(pageR.value.meta.page || 1);
+        setTotalPages(pageR.value.meta.totalPages || 1);
+      }
+      if (summaryR.status === 'rejected' && pageR.status === 'rejected') setError('تعذر تحميل المبيعات.');
+      else if (summaryR.status === 'rejected') setError('تعذر تحميل ملخص المبيعات.');
+      else if (pageR.status === 'rejected') setError('تعذر تحميل قائمة المبيعات.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل المبيعات.');
-    } finally { setLoading(false); setRefreshing(false); }
+      if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المبيعات.');
+    } finally {
+      if (current === sequence.current) { setLoading(false); setRefreshing(false); }
+    }
   }, [accessToken, period, status, user?.id]);
 
-  useEffect(() => { if (!isRestoring) void load(); }, [isRestoring, load]);
+  useEffect(() => { if (!isRestoring) void load(); return () => { sequence.current += 1; }; }, [isRestoring, load]);
 
   const loadMore = async () => {
     if (!accessToken || loadingMore || loading || page >= totalPages) return;
+    const current = sequence.current;
     setLoadingMore(true);
     try {
       const next = await fetchSales(accessToken, page + 1, status === 'ALL' ? undefined : status, user?.id);
-      setItems(current => {
-        const seen = new Set(current.map(item => item.id));
-        return [...current, ...next.items.filter(item => !seen.has(item.id))];
+      if (current !== sequence.current) return;
+      setItems(prev => {
+        const seen = new Set(prev.map(item => item.id));
+        return [...prev, ...next.items.filter(item => !seen.has(item.id))];
       });
       setPage(next.meta.page || page + 1);
       setTotalPages(next.meta.totalPages || totalPages);
-    } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المبيعات.'); }
+    } catch (e) { if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المبيعات.'); }
     finally { setLoadingMore(false); }
   };
 

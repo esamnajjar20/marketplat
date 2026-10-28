@@ -18,8 +18,8 @@ export default function OrderCheckoutScreen() {
   const [loading, setLoading] = useState(true); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState('');
   const [quantity, setQuantity] = useState(1); const [recipientName, setRecipientName] = useState(user?.name ?? '');
   const [recipientPhone, setRecipientPhone] = useState(''); const [shippingCity, setShippingCity] = useState(''); const [shippingAddress, setShippingAddress] = useState(''); const [buyerNote, setBuyerNote] = useState('');
-  const [idempotencyKey] = useState(makeKey);
-  const load = useCallback(async () => { if (!productId) return; setLoading(true); setError(''); try { setProduct(await fetchProduct(productId)); } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل المنتج.'); } finally { setLoading(false); } }, [productId]);
+  const [idempotencyKey, setIdempotencyKey] = useState(makeKey);
+  const load = useCallback(async () => { if (!productId) { setLoading(false); setError('معرّف المنتج غير صالح.'); return; } setLoading(true); setError(''); try { setProduct(await fetchProduct(productId)); } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل المنتج.'); } finally { setLoading(false); } }, [productId]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (user?.name && !recipientName) setRecipientName(user.name); }, [user?.name, recipientName]);
   // Some API responses expose the computed effective price as `amount` rather than `price`.
@@ -50,7 +50,15 @@ export default function OrderCheckoutScreen() {
           Alert.alert('حُفظ الطلب على الجهاز', 'لم يؤكد الخادم استلام الطلب. حُفظ محليًا وسيُعاد إرساله عند عودة الاتصال، وقد يتغير السعر أو المخزون قبل المزامنة.', [{ text: 'عرض العمليات', onPress: () => router.replace('/offline-queue') }]);
           return;
         } catch (queueError) { setError(queueError instanceof Error ? queueError.message : 'تعذر حفظ الطلب دون اتصال.'); }
-      } else setError(e instanceof Error ? e.message : 'تعذر إرسال الطلب. حاول مجددًا.');
+      } else {
+        setError(e instanceof Error ? e.message : 'تعذر إرسال الطلب. حاول مجددًا.');
+        // Regenerate idempotencyKey only on definitive 4xx client errors.
+        // 5xx and transport failures may have been processed server-side —
+        // keeping the same key preserves replay-safety there.
+        if (e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500) {
+          setIdempotencyKey(makeKey());
+        }
+      }
     }
     finally { setSubmitting(false); }
   };
