@@ -92,6 +92,34 @@ if (/plugins:\s*\[/.test(src)) {
   src = src.replace(/plugins:\s*\[/, `external: [${externalsStr}],\n        plugins: [`);
   fs.writeFileSync(target, src);
   console.log(`[patch-bundle-server] injected external into ${path.relative(process.cwd(), target)}`);
+
+
+// ─── Patch loadManifest to return {} instead of throwing ────────────
+// Next.js 15.5+ introduces new optional manifests (preview-props.json,
+// prefetch-hints.json) that the build-time glob scan may not find.
+// The patched loadManifest throws "Unexpected loadManifest(...) call!"
+// at runtime, crashing every dynamic route with 500 (Issues #1141, #1355).
+try {
+  const loadManifestPath = path.join(
+    path.dirname(target),
+    "patches",
+    "plugins",
+    "load-manifest.js"
+  );
+  if (fs.existsSync(loadManifestPath)) {
+    let lm = fs.readFileSync(loadManifestPath, "utf8");
+    if (!lm.includes("loadManifest patched")) {
+      lm = lm.replace(
+        /throw new Error\(`Unexpected loadManifest\(\\$\\{.*?\\}\) call!`\)/g,
+        "return {}"
+      );
+      fs.writeFileSync(loadManifestPath, lm);
+      console.log("[patch-bundle-server] loadManifest patched to return {}");
+    }
+  }
+} catch (e) {
+  console.warn("[patch-bundle-server] loadManifest patch skipped:", e.message);
+}
   process.exit(0);
 }
 

@@ -35,5 +35,8 @@
     "@img/sharp-win32-x64": "./stubs/sharp-stub.js",
     "@img/sharp-win32-ia32": "./stubs/sharp-stub.js",
     "@img/sharp-win32-arm64": "./stubs/sharp-stub.js"
+  },
+  "observability": {
+    "enabled": true
   }
 }
