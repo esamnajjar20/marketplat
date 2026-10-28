@@ -681,8 +681,6 @@ const s = StyleSheet.create({
     height: sizes.iconButton,
     borderRadius: radius.md,
     backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   backText: { fontSize: 32, color: colors.brand, lineHeight: 36, fontWeight: '300' },
   title: {

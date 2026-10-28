@@ -18,10 +18,10 @@ function publicProductSnapshot(item: ProductSummary): ProductSummary {
   return { id: item.id, name: item.name, price: item.price, discountPrice: item.discountPrice, effectivePrice: item.effectivePrice, images: item.images?.slice(0, 2), category: item.category ? { name: item.category.name, nameAr: item.category.nameAr } : null, store: item.store ? { name: item.store.name, city: item.store.city } : null };
 }
 function publicServiceSnapshot(item: ServiceListing): ServiceListing {
-  return { id: item.id, title: item.title, price: item.price, pricingType: item.pricingType, images: item.images?.slice(0, 2), category: item.category ? { name: item.category.name, nameAr: item.category.nameAr } : null, provider: item.provider ? { businessName: item.provider.businessName, sellerProfile: item.provider.sellerProfile ? { displayName: item.provider.sellerProfile.displayName } : null } : null };
+  return { id: item.id, title: item.title, price: item.price, pricingType: item.pricingType, images: item.images?.slice(0, 2), category: item.category ? { name: item.category.name, nameAr: item.category.nameAr } : null, provider: item.provider ? { businessName: item.provider.businessName, sellerProfile: item.provider.sellerProfile ? { displayName: item.provider.sellerProfile.displayName } : undefined } : undefined };
 }
 function publicRequestSnapshot(item: MarketplaceRequest): MarketplaceRequest {
-  return { id: item.id, type: item.type, title: item.title, city: item.city, status: item.status, budgetMin: item.budgetMin, budgetMax: item.budgetMax, categoryId: item.categoryId, _count: item._count ? { offers: item._count.offers } : undefined };
+  return { id: item.id, type: item.type, title: item.title, description: item.description, city: item.city, status: item.status, budgetMin: item.budgetMin, budgetMax: item.budgetMax, categoryId: item.categoryId, _count: item._count ? { offers: item._count.offers } : undefined };
 }
 type SectionKey = keyof SectionData;
 const CACHE_KEYS: Record<SectionKey, string> = {

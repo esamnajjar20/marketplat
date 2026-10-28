@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   serviceProvider: { color: colors.muted, fontSize: 11, textAlign: 'right', width: '100%' },
   servicePrice: { color: colors.brand, fontSize: 13, fontWeight: '800', textAlign: 'right' },
   serviceState: { minHeight: 60, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  loadMoreButton: { minHeight: ux.minTouch + 8, minHeight: 48, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
+  loadMoreButton: { minHeight: Math.max(ux.minTouch + 8, 48), borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
   loadMoreText: { color: colors.brand, fontSize: 14, fontWeight: '800' },
   busyButton: { opacity: 0.65 },
   adsList: { gap: spacing.md },

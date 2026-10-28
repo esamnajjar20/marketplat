@@ -11,15 +11,11 @@ export default defineConfig({
     // Tell Vitest not to try transforming Node built-in modules.
     server: {
       deps: {
-        external: [/^node:/],
+        external: [/^node:/] as (string | RegExp)[],
       },
     },
   },
-  ssr: {
-    // Defense-in-depth: also mark node: modules external at the Vite level.
-    external: [/^node:/],
-  },
-  resolve: {
+resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
