@@ -181,23 +181,62 @@ export function handleChunkLoadError(error: Error): boolean {
 }
 
 /**
- * Last-resort recovery: unregister all Service Workers and clear all
- * Cache Storage buckets, then reload. Safe to call from the browser
- * console for manual debugging too.
+ * Last-resort stale-build recovery. Remove only cached document/RSC shells,
+ * keeping offline data, queued mutations, images, and static core assets intact.
+ * A full Cache Storage wipe here used to erase user data and offline capability
+ * whenever a chunk error repeated, which is disproportionate to a stale shell.
  */
 async function purgeCachesThenReload(): Promise<void> {
-  try {
-    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-  } catch { /* ignore */ }
+  // Do the selective purge from the page as well as notifying the controller:
+  // a still-active older SW may not understand PURGE_STALE_SHELLS yet.
   try {
     if (typeof caches !== 'undefined') {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
+      const names = (await caches.keys()).filter((name) =>
+        /^market-(?:static|personal-shell)-v\d+$/.test(name),
+      );
+      for (const name of names) {
+        const cache = await caches.open(name);
+        for (const request of await cache.keys()) {
+          const response = await cache.match(request);
+          if (!response) continue;
+          const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
+          const source = response.headers.get('X-SW-Cache-Source') ?? '';
+          let isRsc = false;
+          let isOfflineFallback = false;
+          try {
+            const url = new URL(request.url);
+            isRsc = url.searchParams.has('_rsc') || /\.rsc$/i.test(url.pathname);
+            isOfflineFallback = url.pathname === '/offline';
+          } catch { /* ignore malformed cache key */ }
+          if (!isOfflineFallback && (contentType.includes('text/html') || source === 'rsc' || isRsc)) {
+            await cache.delete(request);
+          }
+        }
+      }
     }
-  } catch { /* ignore */ }
+  } catch { /* selective cache cleanup is best-effort */ }
+
+  const controller = typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    ? navigator.serviceWorker.controller
+    : null;
+
+  if (controller) {
+    try {
+      await new Promise<void>((resolve) => {
+        const channel = new MessageChannel();
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          channel.port1.close();
+          resolve();
+        };
+        channel.port1.onmessage = finish;
+        window.setTimeout(finish, 1800);
+        controller.postMessage({ type: 'PURGE_STALE_SHELLS' }, [channel.port2]);
+      });
+    } catch { /* reload still provides a best-effort recovery */ }
+  }
   window.location.reload();
 }
 

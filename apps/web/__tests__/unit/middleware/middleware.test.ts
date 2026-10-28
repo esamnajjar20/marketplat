@@ -315,6 +315,24 @@ describe('middleware — X-Request-Id header', () => {
   });
 });
 
+// ── Content Security Policy API origin ────────────────────────────
+
+describe('middleware — CSP API origin normalization', () => {
+  it('allows the API origin without restricting it to the configured /api/v1 path', () => {
+    const previous = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = 'https://api.example.test/api/v1';
+    try {
+      const response = middleware(makeRequest('/'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+      expect(csp).toContain("connect-src 'self' https://api.example.test ");
+      expect(csp).not.toContain('https://api.example.test/api/v1');
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_API_URL;
+      else process.env.NEXT_PUBLIC_API_URL = previous;
+    }
+  });
+});
+
 // ── decodeToken edge cases ────────────────────────────────────────
 
 describe('middleware — token edge cases (decodeToken)', () => {

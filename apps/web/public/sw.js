@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v92';
+const CACHE_VERSION = 'v93';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -3344,9 +3344,46 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// أوامر من الصفحة: تحديث، مسح كاش، طابور.
+// أوامر من الصفحة: تحديث، إصلاح shell، طابور.
 self.addEventListener('message', (event) => {
   const type = event.data && event.data.type;
+
+  if (type === 'PURGE_STALE_SHELLS') {
+    event.waitUntil((async () => {
+      // Remove only HTML document shells and RSC payloads from shell caches.
+      // Preserve all data/offline queues and the static JS/CSS assets.
+      const names = (await caches.keys()).filter((name) =>
+        /^market-(?:static|personal-shell)-v\d+$/.test(name),
+      );
+      for (const name of names) {
+        const cache = await caches.open(name);
+        const requests = await cache.keys();
+        for (const request of requests) {
+          const response = await cache.match(request);
+          if (!response) continue;
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const source = response.headers.get('X-SW-Cache-Source') || '';
+          let isRsc = false;
+          let isOfflineFallback = false;
+          try {
+            const url = new URL(request.url);
+            isRsc = url.searchParams.has('_rsc') || /\.rsc$/i.test(url.pathname);
+            isOfflineFallback = url.pathname === '/offline';
+          } catch { /* ignore malformed cache key */ }
+          if (!isOfflineFallback && (contentType.includes('text/html') || source === 'rsc' || isRsc)) {
+            await cache.delete(request);
+          }
+        }
+      }
+      const replyPort = event.ports && event.ports[0];
+      if (replyPort) replyPort.postMessage({ type: 'STALE_SHELLS_PURGED' });
+    })().catch((error) => {
+      console.warn('[SW] stale-shell purge failed:', error);
+      const replyPort = event.ports && event.ports[0];
+      if (replyPort) replyPort.postMessage({ type: 'STALE_SHELL_PURGE_FAILED' });
+    }));
+    return;
+  }
 
   if (type === 'RETRY_PENDING_SHELLS') {
     event.waitUntil(retryPendingShells());

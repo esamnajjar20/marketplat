@@ -248,8 +248,23 @@ function isPublicHtmlRoute(pathname: string): boolean {
   });
 }
 
+function getCspApiOrigin(rawApiUrl: string | undefined): string {
+  if (!rawApiUrl?.trim()) return '';
+  try {
+    const parsed = new URL(rawApiUrl.trim());
+    // CSP source expressions should name an origin, not an API base path such as
+    // https://api.example.com/api/v1. Including that path can block valid nested
+    // API requests in Chromium, which then produces repeated connect-src errors.
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+    return parsed.origin;
+  } catch {
+    // Relative API URLs are same-origin and are already covered by 'self'.
+    return '';
+  }
+}
+
 function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): string {
-  const apiOrigin = getRawApiUrl()?.trim() ?? '';
+  const apiOrigin = getCspApiOrigin(getRawApiUrl());
   return [
     "default-src 'self'",
     // FIX SEC-06: 'unsafe-inline' removed in production — replaced with
