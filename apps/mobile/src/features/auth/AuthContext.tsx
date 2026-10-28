@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as SecureStore from 'expo-secure-store';
 import { ApiError, setRefreshHandler, setTokenUpdater } from '@/api/client';
 import { loginWithPassword, logoutSession, refreshAccessSession, registerAccount, cancelRefreshing, type AuthUser } from './auth.api';
+import { mergeGuestFavoritesIntoAccount } from '@/features/ads/favorites.store';
 
 const SECURE_SESSION_KEY = 'marketplat.mobile.session.v1';
 const ACCESS_TOKEN_FALLBACK_TTL_SECONDS = 15 * 60;
@@ -196,6 +197,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         csrfToken: session.csrfToken ?? null,
         expiresAt: sessionExpiry(session.expiresIn),
       });
+      // Merge any favorites the user starred while anonymous.
+      // Failures are non-fatal — the sign-in itself already succeeded.
+      await mergeGuestFavoritesIntoAccount(session.user.id).catch(() => undefined);
     } finally {
       setIsBusy(false);
     }
@@ -206,6 +210,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const session = await registerAccount(input);
       await persist({ user: session.user, accessToken: session.accessToken, csrfToken: session.csrfToken ?? null, expiresAt: sessionExpiry(session.expiresIn) });
+      // New users may already have guest favorites from before sign-up.
+      await mergeGuestFavoritesIntoAccount(session.user.id).catch(() => undefined);
     } finally { setIsBusy(false); }
   }, [persist]);
 

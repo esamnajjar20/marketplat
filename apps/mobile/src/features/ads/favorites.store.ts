@@ -135,3 +135,54 @@ export async function restoreFavoriteStateIfAbsent(item: PendingFavoriteState): 
   );
   return result.changes === 1;
 }
+
+/**
+ * Merge guest favorites into a newly signed-in user's account.
+ *
+ * Runs ONCE after successful login/register. Guest favorites remain isolated
+ * from account data while the user is anonymous (as before), but on first
+ * sign-in they are reconciled so the user does not silently lose the items
+ * they starred while browsing as a guest.
+ *
+ * Behavior:
+ * - Reads guest favorites and account favorites
+ * - Union (deduplicated) is written to the account
+ * - Each NEW favorite is enqueued for backend sync
+ * - Guest key is cleared afterwards so subsequent sign-ins do not re-merge
+ *
+ * Safe to call when there are no guest favorites (no-op).
+ * Capped at 50 items to match enqueueFavoriteState's per-user outbox limit.
+ */
+export async function mergeGuestFavoritesIntoAccount(userId: string): Promise<void> {
+  const trimmed = userId.trim();
+  if (!trimmed) return;
+
+  const guestFavs = await readFavoriteAdIds(undefined);
+  if (guestFavs.length === 0) return;
+
+  const userFavs = await readFavoriteAdIds(trimmed);
+  const userSet = new Set(userFavs);
+  const toAdd = guestFavs.filter((id) => !userSet.has(id));
+
+  if (toAdd.length > 0) {
+    await writeFavoriteAdIds([...userFavs, ...toAdd], trimmed);
+    for (const adId of toAdd.slice(0, 50)) {
+      try {
+        const operationId = `fav-merge-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        await enqueueFavoriteState({
+          userId: trimmed,
+          adId,
+          favorited: true,
+          previousFavorited: false,
+          operationId,
+        });
+      } catch {
+        // Individual enqueue failures retry on next sync (favorites are
+        // already saved locally so the user sees them immediately).
+      }
+    }
+  }
+
+  // Clear guest key either way — user's favorites have been reconciled.
+  await writeFavoriteAdIds([], undefined);
+}

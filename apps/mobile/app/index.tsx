@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const [adsSavedAt, setAdsSavedAt] = useState<number | null>(null);
   const [adsFromCache, setAdsFromCache] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const favoriteIdsRef = useRef<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [cityInput, setCityInput] = useState('');
   const [minPriceInput, setMinPriceInput] = useState('');
@@ -84,13 +85,11 @@ export default function HomeScreen() {
     };
     Object.assign(options, { city: filters.city, minPrice: filters.minPrice, maxPrice: filters.maxPrice, sortBy, sortOrder });
     let hasCachedData = false;
-    let previousSavedAt: number | null = null;
     try {
       const cached = await getCachedPublicAdsWithMetadata(options);
       if (!isCurrentRequest()) return;
       if (cached) {
         hasCachedData = true;
-        previousSavedAt = cached.savedAt;
         setAds(cached.result.items);
         setPage(cached.result.page || 1);
         setTotalPages(cached.result.totalPages ?? (cached.result.items.length >= options.limit ? 2 : 1));
@@ -104,13 +103,14 @@ export default function HomeScreen() {
       const result = await fetchPublicAds(options);
       if (!isCurrentRequest()) return;
       setAds(result.items);
+      setFailedImageIds([]);
       setPage(result.page || 1);
       setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? (result.page || 1) + 1 : (result.page || 1)));
+      setAdsFromCache(false);
       const latestCache = await getCachedPublicAdsWithMetadata(options);
       if (!isCurrentRequest()) return;
       if (latestCache) {
         setAdsSavedAt(latestCache.savedAt);
-        setAdsFromCache(hasCachedData && latestCache.savedAt === previousSavedAt);
       }
     } catch (error) {
       if (!isCurrentRequest()) return;
@@ -125,8 +125,10 @@ export default function HomeScreen() {
     }
   }, [submittedSearch, filters, sortBy, sortOrder]);
 
+  const loadingMoreRef = useRef(false);
   const loadMoreAds = useCallback(async () => {
-    if (loadingMore || loading || page >= totalPages) return;
+    if (loadingMoreRef.current || loading || page >= totalPages) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     setErrorMessage(null);
     const requestSequence = adsRequestSequence.current;
@@ -151,9 +153,10 @@ export default function HomeScreen() {
         setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل المزيد من الإعلانات.');
       }
     } finally {
+      loadingMoreRef.current = false;
       if (requestSequence === adsRequestSequence.current) setLoadingMore(false);
     }
-  }, [loadingMore, loading, page, totalPages, submittedSearch, filters, sortBy, sortOrder]);
+  }, [loading, page, totalPages, submittedSearch, filters, sortBy, sortOrder]);
 
   const applyFilters = useCallback(() => {
     const minText = minPriceInput.trim();
@@ -205,6 +208,12 @@ export default function HomeScreen() {
   // Re-sync public read-only data after a real offline -> online transition.
   // Keep the previous connectivity value across renders so changing search/filter
   // subscriptions cannot masquerade as a reconnect.
+  // Refs prevent NetInfo listener re-subscription on every filter change.
+  const loadAdsRef = useRef(loadAds);
+  const loadServicesRef = useRef(loadServices);
+  useEffect(() => { loadAdsRef.current = loadAds; }, [loadAds]);
+  useEffect(() => { loadServicesRef.current = loadServices; }, [loadServices]);
+
   useEffect(() => {
     void NetInfo.fetch().then((state) => {
       const online = state.isConnected === true && state.isInternetReachable !== false;
@@ -215,38 +224,47 @@ export default function HomeScreen() {
       const previous = connectivityRef.current;
       connectivityRef.current = online;
       if (previous === false && online) {
-        void loadAds(true);
-        void loadServices(true);
+        void loadAdsRef.current(true);
+        void loadServicesRef.current(true);
       }
     });
     return () => { unsubscribe(); };
-  }, [loadAds, loadServices]);
+  }, []);
 
   useEffect(() => {
     let active = true;
-    readFavoriteAdIds(user?.id).then((ids) => { if (active) setFavoriteIds(ids); });
+    readFavoriteAdIds(user?.id).then((ids) => {
+      if (!active) return;
+      favoriteIdsRef.current = ids;
+      setFavoriteIds(ids);
+    });
     return () => { active = false; };
   }, [user?.id]);
 
+  // Mirror favoriteIds into ref for race-safe toggles.
+  useEffect(() => { favoriteIdsRef.current = favoriteIds; }, [favoriteIds]);
+
   const toggleFavorite = useCallback(async (id: string) => {
-    const previous = favoriteIds;
-    const favorited = !previous.includes(id);
+    // Read from ref (not state) to guarantee latest value on rapid double-tap.
+    const previous = favoriteIdsRef.current;
+    const wasFavorited = previous.includes(id);
+    const favorited = !wasFavorited;
     const next = favorited ? [...previous, id] : previous.filter((item) => item !== id);
-    // Render the tap immediately, but persist account intent before treating it as durable.
+    favoriteIdsRef.current = next;
     setFavoriteIds(next);
     try {
       if (user?.id) {
         const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        await enqueueFavoriteState({ userId: user.id, adId: id, favorited, previousFavorited: previous.includes(id), operationId });
+        await enqueueFavoriteState({ userId: user.id, adId: id, favorited, previousFavorited: wasFavorited, operationId });
       }
       await writeFavoriteAdIds(next, user?.id);
     } catch (error) {
-      // Do not leave an optimistic state on screen when it could not be saved durably.
       const cached = await readFavoriteAdIds(user?.id);
+      favoriteIdsRef.current = cached;
       setFavoriteIds(cached);
       Alert.alert('تعذر حفظ المفضلة', error instanceof Error ? error.message : 'لم يتم حفظ التغيير على الجهاز.');
     }
-  }, [favoriteIds, user?.id]);
+  }, [user?.id]);
 
 
   return (
@@ -269,9 +287,16 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
               disabled={isBusy || isRestoring}
-              onPress={() => {
-                if (user) void logout().catch(() => {});
-                else router.push('/login');
+              onPress={async () => {
+                if (!user) { router.push('/login'); return; }
+                try {
+                  await logout();
+                } catch (e) {
+                  Alert.alert(
+                    'تعذر تسجيل الخروج',
+                    e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مرة أخرى.'
+                  );
+                }
               }}
               style={styles.accountButton}
             >

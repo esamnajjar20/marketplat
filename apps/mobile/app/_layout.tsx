@@ -1,6 +1,6 @@
 import '@/lib/network-config';
 import type { ReactNode } from 'react';
-import { Stack, type ErrorBoundaryProps } from 'expo-router';
+import { Stack, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import BottomNavigation from '@/components/BottomNavigation';
 import { StatusBar } from 'expo-status-bar';
@@ -57,13 +57,23 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
+const MODAL_SCREENS = new Set([
+  'login', 'register', 'complete-profile', 'verify-email',
+  'forgot-password', 'reset-password',
+  'ad-editor', 'product-editor', 'service-editor',
+  'story-create', 'order-checkout',
+]);
+
 function RootChrome({ children }: { children: ReactNode }) {
   const isOnline = useIsOnline();
+  const segments = useSegments();
+  const currentScreen = segments[0] ?? '';
+  const hideNav = MODAL_SCREENS.has(currentScreen);
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <OfflineBanner visible={!isOnline} />
       {children}
-      <BottomNavigation />
+      {!hideNav && <BottomNavigation />}
     </View>
   );
 }
