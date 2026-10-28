@@ -66,7 +66,7 @@ export async function retryMarketplaceRequest(id: string, ownerId?: string | nul
   return result.changes === 1;
 }
 
-export async function syncNextMarketplaceRequest(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
+export async function syncNextMarketplaceRequest(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
   if (activeSync) return activeSync;
   const work = (async () => {
     if (!input.isOnline) return 'nothing-due' as const;
@@ -89,7 +89,7 @@ export async function syncNextMarketplaceRequest(input: { isOnline: boolean; tok
       // Permanent server rejection — discard so the FIFO queue doesn't stall forever.
       if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
         await db.runAsync('DELETE FROM request_create_outbox WHERE id=? AND owner_id=? AND state=\'processing\'', head.id, input.ownerId);
-        return 'retry-scheduled' as const;
+        return 'discarded' as const;
       }
       const attempts = head.attempts + 1;
       const delay = Math.min(60 * 60_000, 5_000 * 2 ** Math.min(attempts - 1, 10));

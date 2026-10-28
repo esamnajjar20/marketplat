@@ -65,7 +65,7 @@ export async function retryMarketplaceOrder(id: string, ownerId?: string | null)
   if (!id.trim() || !ownerId?.trim()) return false;
   const db = await database(); const result = await db.runAsync("UPDATE marketplace_order_outbox SET attempts=0,last_error=NULL,next_attempt_at=0,state='pending',lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts>=?", id, ownerId, MAX_ATTEMPTS); return result.changes === 1;
 }
-export async function syncNextMarketplaceOrder(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
+export async function syncNextMarketplaceOrder(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
   if (activeSync) return activeSync;
   const work = (async () => {
     if (!input.isOnline) return 'nothing-due' as const;
@@ -87,7 +87,7 @@ export async function syncNextMarketplaceOrder(input: { isOnline: boolean; token
       // Permanent server rejection — discard so the FIFO queue doesn't stall forever.
       if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
         await db.runAsync("DELETE FROM marketplace_order_outbox WHERE id=? AND owner_id=? AND state='processing'", head.id, input.ownerId);
-        return 'retry-scheduled' as const;
+        return 'discarded' as const;
       }
       const attempts = head.attempts + 1; const delay = Math.min(60 * 60_000, 5000 * 2 ** Math.min(attempts - 1, 10));
       const message = (error instanceof Error ? error.message : 'تعذرت مزامنة الطلب.').slice(0, 500);

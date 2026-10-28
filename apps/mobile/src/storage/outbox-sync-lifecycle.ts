@@ -16,7 +16,8 @@ export type OutboxQueueName = 'mutations' | 'requests' | 'offers' | 'orders' | '
 
 export type OutboxQueueSummary = {
   synced: number;
-  reason: 'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required' | 'skipped';
+  discarded: number;
+  reason: 'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required' | 'skipped';
 };
 
 export type OutboxLifecycleOptions = {
@@ -72,9 +73,10 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
       // Each queue aggregates its own count so callers can report "5 requests,
       // 2 orders synced" instead of a single generic message.
       const drainQueue = async (
-        sync: (snapshot: OutboxLifecycleSnapshot) => Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'>,
+        sync: (snapshot: OutboxLifecycleSnapshot) => Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'>,
       ): Promise<OutboxQueueSummary> => {
         let synced = 0;
+        let discarded = 0;
         let lastReason: OutboxQueueSummary['reason'] = 'nothing-due';
         for (let processed = 0; processed < 50; processed += 1) {
           if (stopped || currentGeneration !== generation || AppState.currentState !== 'active') {
@@ -88,18 +90,23 @@ export function startOutboxSyncLifecycle(options: OutboxLifecycleOptions): () =>
             lastReason = 'synced';
             continue;
           }
+          if (result === 'discarded') {
+            discarded += 1;
+            lastReason = 'discarded';
+            continue;
+          }
           lastReason = result;
           break;
         }
-        return { synced, reason: lastReason };
+        return { synced, discarded, reason: lastReason };
       };
 
       const queues: Record<OutboxQueueName, OutboxQueueSummary> = {
-        mutations: { synced: 0, reason: 'nothing-due' },
-        requests: { synced: 0, reason: 'nothing-due' },
-        offers: { synced: 0, reason: 'nothing-due' },
-        orders: { synced: 0, reason: 'nothing-due' },
-        creates: { synced: 0, reason: 'nothing-due' },
+        mutations: { synced: 0, discarded: 0, reason: 'nothing-due' },
+        requests: { synced: 0, discarded: 0, reason: 'nothing-due' },
+        offers: { synced: 0, discarded: 0, reason: 'nothing-due' },
+        orders: { synced: 0, discarded: 0, reason: 'nothing-due' },
+        creates: { synced: 0, discarded: 0, reason: 'nothing-due' },
       };
 
       // Mutation outbox is aggregated by its own loop above.

@@ -47,7 +47,7 @@ export async function discardRejectedRequestOffer(id: string, ownerId?: string |
 }
 
 export async function retryRequestOffer(id: string, ownerId?: string | null): Promise<boolean> { if (!id.trim() || !ownerId?.trim()) return false; const db = await database(); const r = await db.runAsync("UPDATE request_offer_outbox SET attempts=0,last_error=NULL,next_attempt_at=0,state='pending',lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts>=?", id, ownerId, MAX_ATTEMPTS); return r.changes === 1; }
-export async function syncNextRequestOffer(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
+export async function syncNextRequestOffer(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
   if (activeSync) return activeSync;
   const work = (async () => {
     if (!input.isOnline) return 'nothing-due' as const; if (!input.token?.trim() || !input.ownerId?.trim()) return 'login-required' as const;
@@ -63,7 +63,7 @@ export async function syncNextRequestOffer(input: { isOnline: boolean; token?: s
       // Permanent server rejection — discard so the FIFO queue doesn't stall forever.
       if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
         await db.runAsync("DELETE FROM request_offer_outbox WHERE id=? AND owner_id=? AND state='processing'", head.id, input.ownerId);
-        return 'retry-scheduled' as const;
+        return 'discarded' as const;
       }
       const attempts = head.attempts + 1; const delay = Math.min(3600000, 5000 * 2 ** Math.min(attempts - 1, 10)); const message = (error instanceof Error ? error.message : 'تعذرت مزامنة العرض.').slice(0,500);
       await db.runAsync("UPDATE request_offer_outbox SET state='pending',attempts=?,last_error=?,next_attempt_at=?,lease_until=0 WHERE id=? AND owner_id=?", attempts, message, Date.now()+delay, head.id, input.ownerId);
