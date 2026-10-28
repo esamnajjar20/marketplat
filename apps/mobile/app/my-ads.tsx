@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,7 +27,9 @@ export default function MyAdsScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const current = ++seq.current;
     if (!accessToken) {
       setLoading(false);
       setError('سجّل الدخول لعرض إعلاناتك.');
@@ -36,17 +38,19 @@ export default function MyAdsScreen() {
     setLoading(true);
     setError(null);
     try {
-      setAds(await fetchMyAds(accessToken));
+      const next = await fetchMyAds(accessToken);
+      if (current === seq.current) setAds(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل إعلاناتك.');
+      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل إعلاناتك.');
     } finally {
-      setLoading(false);
+      if (current === seq.current) setLoading(false);
     }
   }, [accessToken]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
+      return () => { seq.current += 1; };
     }, [load]),
   );
 

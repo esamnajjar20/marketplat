@@ -180,9 +180,17 @@ export async function mergeGuestFavoritesIntoAccount(userId: string): Promise<vo
   const userSet = new Set(userFavs);
   const toAdd = guestFavs.filter((id) => !userSet.has(id));
 
-  if (toAdd.length > 0) {
-    await writeFavoriteAdIds([...userFavs, ...toAdd], trimmed);
-    for (const adId of toAdd.slice(0, 50)) {
+  // Merge only what we can also enqueue for server sync (queue capacity is 50).
+  // Writing more favorites to SecureStore than we enqueue would leave them
+  // locally-visible but server-invisible — hearts inconsistent with the
+  // favorites screen, and lost on reinstall.
+  const MAX_MERGE = 50;
+  const enqueueable = toAdd.slice(0, MAX_MERGE);
+  const leftover = toAdd.slice(MAX_MERGE);
+
+  if (enqueueable.length > 0) {
+    await writeFavoriteAdIds([...userFavs, ...enqueueable], trimmed);
+    for (const adId of enqueueable) {
       try {
         const operationId = `fav-merge-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         await enqueueFavoriteState({
@@ -193,12 +201,12 @@ export async function mergeGuestFavoritesIntoAccount(userId: string): Promise<vo
           operationId,
         });
       } catch {
-        // Individual enqueue failures retry on next sync (favorites are
-        // already saved locally so the user sees them immediately).
+        // Individual enqueue failures retry on next sync.
       }
     }
   }
 
-  // Clear guest key either way — user's favorites have been reconciled.
-  await writeFavoriteAdIds([], undefined);
+  // Preserve overflow in guest scope so a future login can merge the rest
+  // (server-side per-user favorites have no hard cap — only the pending queue does).
+  await writeFavoriteAdIds(leftover, undefined);
 }

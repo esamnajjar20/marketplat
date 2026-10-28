@@ -147,14 +147,26 @@ export default function AdEditorScreen() {
         const imagesChanged = existingImages.length !== originalImages.length || existingImages.some((url, index) => originalImages[index] !== url);
         let updated = await updateAd(id, draft, accessToken, csrfToken);
         if (imagesChanged) {
-          // Upload new images first so the backend's minimum-one-image invariant remains satisfied.
+          // Fields PATCH already succeeded. Image operations can fail independently.
+          // Wrap each failure in PartialAdUpdateError so the catch block syncs local state
+          // to server truth (prevents repeat-removal retries on already-removed images).
+          const fieldsUpdated = updated;
+          let lastServerState = fieldsUpdated;
           const removed = originalImages.filter((url) => !existingImages.includes(url));
-          for (const imageUrl of removed) updated = await removeAdImage(id, imageUrl, accessToken, csrfToken);
+          for (const imageUrl of removed) {
+            try { updated = await removeAdImage(id, imageUrl, accessToken, csrfToken); lastServerState = updated; }
+            catch (err) {
+              throw new PartialAdUpdateError(err instanceof Error ? err.message : 'تعذر حذف الصورة.', lastServerState);
+            }
+          }
           const currentUrls = Array.isArray(updated.images) ? updated.images.filter((url) => typeof url === 'string') : [];
           const newlyAdded = currentUrls.filter((url) => !originalImages.includes(url));
           const ordered = [...existingImages.filter((url) => currentUrls.includes(url)), ...newlyAdded];
           if (ordered.length > 0 && ordered.length === currentUrls.length && ordered.some((url, index) => currentUrls[index] !== url)) {
-            updated = await reorderAdImages(id, ordered, accessToken, csrfToken);
+            try { updated = await reorderAdImages(id, ordered, accessToken, csrfToken); lastServerState = updated; }
+            catch (err) {
+              throw new PartialAdUpdateError(err instanceof Error ? err.message : 'تعذر ترتيب الصور.', lastServerState);
+            }
           }
           setOriginalImages(updated.images ?? ordered); setExistingImages(updated.images ?? ordered);
         }

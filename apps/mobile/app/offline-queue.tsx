@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -181,7 +182,7 @@ export default function OfflineQueueScreen() {
   };
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
-    <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><Text style={styles.heading}>العمليات دون اتصال</Text><Pressable onPress={() => void refresh()} accessibilityRole="button"><Text style={styles.link}>تحديث</Text></Pressable></View>
+    <View style={styles.header}><Pressable onPress={() => goBack('/')} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><Text style={styles.heading}>العمليات دون اتصال</Text><Pressable onPress={() => void refresh()} accessibilityRole="button"><Text style={styles.link}>تحديث</Text></Pressable></View>
     <View style={styles.notice}><Text style={styles.noticeText}>تُحفظ هذه العمليات على الجهاز. قد توقف عملية أقدم غير مدعومة المزامنة، وستتوقف العمليات الأحدث حتى تُحل المشكلة للحفاظ على ترتيب التعديلات. لا تلغِ عملية إلا إذا كنت متأكدًا أنك لا تريد إرسالها.</Text></View>
     {unownedCount > 0 ? <View style={styles.notice}><Text style={styles.noticeText}>توجد {unownedCount} عملية قديمة محفوظة قبل ربط العمليات بالحساب. لم تُرسل تلقائيًا لأن مالكها غير معروف، وذلك لمنع تنفيذها بحساب آخر. راجعها من نسخة التطبيق السابقة أو احذف بيانات التطبيق فقط إذا لم تعد تحتاجها.</Text></View> : null}
     {!user ? <View style={styles.center}><Text style={styles.title}>سجّل الدخول لمزامنة العمليات</Text><Pressable style={styles.primary} onPress={() => router.push('/login')}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View>
